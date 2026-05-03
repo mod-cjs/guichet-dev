@@ -83,9 +83,8 @@ npx prisma studio    # Interface graphique de la base de données
 
 | Environnement | URL | Branche |
 |---------------|-----|---------|
-| Développement | http://localhost:3000 | develop |
-| Staging | https://staging.guichet.cjs.sn | main |
-| Production | https://guichet.cjs.sn | tags vX.Y.Z |
+| Développement | http://devguichet.consortiumjeunessesenegal.org | develop |
+| Production | https://guichet.consortiumjeunessesenegal.org | main |
 
 ## Workflow Git
 
