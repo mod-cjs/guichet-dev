@@ -1,0 +1,68 @@
+services:
+
+  # ── Application Next.js ───────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: guichet_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      # Surcharge l'URL localhost par le nom du service Docker
+      DATABASE_URL: mysql://guichet:guichet_dev_password@mariadb:3306/guichet_jeunesse
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # En développement : commenter le build et décommenter ce bloc
+    # pour utiliser le hot-reload au lieu de l'image compilée
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    #   - /app/.next
+    # command: npm run dev
+
+  # ── MariaDB 11 LTS ────────────────────────────────────────
+  mariadb:
+    image: mariadb:11-lts
+    container_name: guichet_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: guichet_jeunesse
+      MARIADB_USER: guichet
+      MARIADB_PASSWORD: guichet_dev_password
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"   # exposé pour DBeaver / Prisma Studio en local
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "guichet", "-pguichet_dev_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis 7 ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: guichet_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"   # exposé pour inspection locale
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mariadb_data:
+  redis_data:

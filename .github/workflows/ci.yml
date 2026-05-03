@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  lint-and-test:
+    name: Lint + Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11-lts
+        env:
+          MARIADB_DATABASE: guichet_test
+          MARIADB_USER: guichet
+          MARIADB_PASSWORD: guichet_test
+          MARIADB_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: --health-cmd "mariadb-admin ping -h localhost -u guichet -pguichet_test" --health-interval 10s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Générer le client Prisma
+        run: npx prisma generate
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+
+      - name: Appliquer les migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitaires
+        run: npm run test
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+          REDIS_URL: redis://localhost:6379
+          NEXTAUTH_SECRET: test_secret_ci
+          NEXTAUTH_URL: http://localhost:3000
+          SSO_BASE_URL: http://localhost:9999
+          SSO_CLIENT_ID: guichet-test
+          SSO_CLIENT_SECRET: test
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+          NEXTAUTH_SECRET: test_secret_ci
+          NEXTAUTH_URL: http://localhost:3000
+          SSO_BASE_URL: http://localhost:9999
+          SSO_CLIENT_ID: guichet-test
+          SSO_CLIENT_SECRET: test
+          REDIS_URL: redis://localhost:6379
+          GROQ_API_KEY: test
+          DATAHUB_API_KEY: test

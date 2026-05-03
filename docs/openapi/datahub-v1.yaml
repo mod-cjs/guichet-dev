@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Guichet Jeunesse — Data Hub API
+  version: "1.0"
+  description: |
+    API d'export REST du Guichet Jeunesse CJS.
+    Permet à des outils BI tiers (Power BI, Metabase, Tableau) de consommer les données.
+  contact:
+    name: Équipe technique CJS
+servers:
+  - url: https://guichet.cjs.sn/api/v1
+    description: Production
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Clé API Data Hub (variable DATAHUB_API_KEY)
+
+  parameters:
+    page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 500, maximum: 1000 }
+    region:
+      name: region
+      in: query
+      schema:
+        type: string
+        enum: [Dakar, Thies, Diourbel, Fatick, Kaolack, Kaffrine, Louga, Saint_Louis, Matam, Tambacounda, Kedougou, Kolda, Ziguinchor, Sedhiou]
+    depuis:
+      name: depuis
+      in: query
+      schema: { type: string, format: date }
+      description: Filtre sur createdAt >= date (ISO 8601)
+
+paths:
+  /export/utilisateurs:
+    get:
+      summary: Exporter les utilisateurs
+      description: Données anonymisées — pas de nom ni téléphone
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/depuis'
+        - name: statut
+          in: query
+          schema: { type: string, enum: [actif, inactif] }
+        - name: genre
+          in: query
+          schema: { type: string, enum: [M, F] }
+      responses:
+        '200':
+          description: Liste des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        cjs_uid:          { type: string, format: uuid }
+                        region:           { type: string }
+                        genre:            { type: string }
+                        tranche_age:      { type: string }
+                        statut:           { type: string }
+                        completion_profil: { type: integer }
+                        date_inscription: { type: string, format: date }
+                        nb_candidatures:  { type: integer }
+                        nb_formations:    { type: integer }
+                  meta:
+                    type: object
+                    properties:
+                      total:        { type: integer }
+                      page:         { type: integer }
+                      limit:        { type: integer }
+                      generated_at: { type: string, format: date-time }
+        '401': { description: Clé API invalide }
+
+  /export/opportunites:
+    get:
+      summary: Exporter les opportunités
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/depuis'
+        - name: type
+          in: query
+          schema: { type: string, enum: [Emploi, Stage, Formation, Bourse, Volontariat, Appel_a_projets] }
+        - name: domaine
+          in: query
+          schema: { type: string, enum: [Agriculture, Numerique, Entrepreneuriat, Citoyennete, Environnement, Sante, Education, Culture, Autre] }
+      responses:
+        '200': { description: Liste des opportunités }
+        '401': { description: Clé API invalide }
+
+  /export/formations:
+    get:
+      summary: Exporter les formations et certifications
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/depuis'
+      responses:
+        '200': { description: Liste des formations }
+        '401': { description: Clé API invalide }
+
+  /export/programmes:
+    get:
+      summary: Exporter les indicateurs de programmes (données agrégées)
+      parameters:
+        - $ref: '#/components/parameters/region'
+        - name: programme
+          in: query
+          schema: { type: string, enum: [YEAH, Yaakaar] }
+        - name: periode
+          in: query
+          schema: { type: string }
+          description: "Format : 2026-T1, 2026-T2, etc."
+      responses:
+        '200': { description: Indicateurs de programmes }
+        '401': { description: Clé API invalide }

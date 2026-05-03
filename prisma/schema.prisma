@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Les modèles seront définis lors de la phase de modélisation des données,
+// sur la base du Modèle de Données Unifié CJS v3 et de l'extraction Drupal.
+// Voir docs/metier.md et Modele_Donnees_Unifie_CJS_v3.docx

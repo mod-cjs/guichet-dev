@@ -1,0 +1,29 @@
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  deploy:
+    name: Déployer sur OVH
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image Docker
+        run: docker build -t guichet-jeunesse:${{ github.ref_name }} .
+
+      - name: Déployer sur le serveur OVH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OVH_HOST }}
+          username: ${{ secrets.OVH_USER }}
+          key: ${{ secrets.OVH_SSH_KEY }}
+          script: |
+            cd /opt/guichet-jeunesse
+            git pull origin main
+            docker compose pull
+            docker compose up -d --no-deps --build app
+            docker compose exec app npx prisma migrate deploy
+            echo "Déploiement ${{ github.ref_name }} terminé"
