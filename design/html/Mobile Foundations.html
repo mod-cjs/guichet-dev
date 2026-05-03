@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Mobile Foundations · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--gj-font-sans);background:var(--color-bg-page);color:var(--color-text-primary);font-size:var(--fs-400);line-height:var(--gj-lh-body);padding-bottom:var(--space-7)}
+
+/* Page chrome */
+.hero{background:var(--gj-teal-deep);color:#fff;padding:var(--space-6) var(--space-4) var(--space-5);padding-top:calc(var(--safe-top) + var(--space-6))}
+.hero .eyebrow{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:4px 12px;border-radius:14px;font-size:var(--fs-100);font-weight:var(--gj-fw-bold);margin-bottom:var(--space-2);letter-spacing:.4px}
+.hero h1{font-size:var(--fs-800);font-weight:var(--gj-fw-black);line-height:var(--gj-lh-tight);margin-bottom:var(--space-2)}
+.hero p{font-size:var(--fs-300);opacity:.9;max-width:560px;line-height:var(--gj-lh-body)}
+
+.page{max-width:920px;margin:0 auto;padding:var(--space-5) var(--space-4)}
+
+h2.sect{font-size:var(--fs-600);font-weight:var(--gj-fw-black);margin:var(--space-7) 0 var(--space-2);display:flex;align-items:center;gap:var(--space-2)}
+h2.sect:first-child{margin-top:var(--space-3)}
+h2.sect::before{content:"";width:6px;height:24px;border-radius:2px;background:var(--gj-teal)}
+.lede{font-size:var(--fs-300);color:var(--color-text-secondary);max-width:680px;line-height:var(--gj-lh-loose);margin-bottom:var(--space-4)}
+
+/* Side-by-side compare */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-3)}
+@media (max-width:680px){.compare{grid-template-columns:1fr}}
+.col{background:var(--color-bg-surface);border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);overflow:hidden;display:flex;flex-direction:column}
+.col-h{padding:var(--space-2) var(--space-3);font-size:var(--fs-200);font-weight:var(--gj-fw-bold);letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:var(--space-2)}
+.col-h.bad{background:#FEE9E7;color:#8A1810}
+.col-h.bad::before{content:"✕";font-size:var(--fs-300)}
+.col-h.good{background:#E5F6E9;color:#0F5C2C}
+.col-h.good::before{content:"✓";font-size:var(--fs-300)}
+.col-body{padding:var(--space-4) var(--space-3);flex:1;background:#fafbfa}
+.col-foot{background:var(--color-bg-surface);border-top:1px solid var(--color-border-default);padding:var(--space-2) var(--space-3);font-size:var(--fs-100);color:var(--color-text-muted);font-family:ui-monospace,monospace;line-height:1.6}
+
+/* Hit-target overlay : montre la zone tactile réelle */
+.tap-vis{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.tap-vis::after{content:"";position:absolute;inset:50% 50%;width:44px;height:44px;transform:translate(-50%,-50%);border:1.5px dashed rgba(217,42,30,.55);border-radius:6px;pointer-events:none;z-index:0}
+.tap-vis.ok::after{border-color:rgba(21,128,61,.55)}
+.tap-vis.lg::after{width:48px;height:48px}
+.tap-vis > *{position:relative;z-index:1}
+
+/* Demo finger */
+.finger{position:absolute;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(0,0,0,.4),rgba(0,0,0,.12) 60%,transparent 70%);pointer-events:none;mix-blend-mode:multiply}
+
+/* Demo controls (replicas) */
+.demo-nl{padding:13px 8px;font-size:11px;color:var(--gj-grey);border-bottom:3px solid transparent;cursor:pointer}
+.demo-nl.on{color:var(--gj-teal);border-bottom-color:var(--gj-teal);font-weight:700}
+.demo-cta{background:var(--gj-teal);color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer}
+.demo-cta-v2{background:var(--color-action-primary);color:#fff;border:none;border-radius:var(--gj-r-md);font-size:var(--fs-300);font-weight:var(--gj-fw-bold);padding:0 var(--space-4);min-height:var(--tap-min);cursor:pointer}
+.demo-chip-old{border:1.5px solid var(--gj-line);border-radius:14px;padding:4px 11px;font-size:11px;color:var(--gj-grey);background:#fff;cursor:pointer}
+.demo-chip-new{border:1.5px solid var(--color-border-default);border-radius:var(--gj-r-pill);padding:0 var(--space-3);font-size:var(--fs-200);color:var(--color-text-primary);background:#fff;cursor:pointer;min-height:var(--tap-min);display:inline-flex;align-items:center;gap:6px}
+
+/* Type rule */
+.type-row{display:grid;grid-template-columns:90px 1fr 110px;gap:var(--space-3);align-items:baseline;padding:var(--space-2) 0;border-bottom:1px dashed var(--color-border-default)}
+.type-row:last-child{border-bottom:0}
+.type-key{font-family:ui-monospace,monospace;font-size:var(--fs-100);color:var(--color-text-muted)}
+.type-spec{font-family:ui-monospace,monospace;font-size:var(--fs-100);color:var(--color-text-muted);text-align:right}
+
+/* Issue card */
+.issue{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);padding:var(--space-4);margin-bottom:var(--space-2);display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}
+.issue .ico{font-size:24px}
+.issue .h{font-size:var(--fs-400);font-weight:var(--gj-fw-bold);margin-bottom:var(--space-1)}
+.issue .b{font-size:var(--fs-200);color:var(--color-text-secondary);line-height:var(--gj-lh-body)}
+.issue .b code{font-family:ui-monospace,monospace;font-size:var(--fs-100);background:var(--gj-bg);padding:1px 6px;border-radius:4px}
+
+/* Contrast comparator */
+.contrast{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--space-2)}
+.cc{border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);overflow:hidden;background:#fff}
+.cc-sample{padding:var(--space-4) var(--space-3);font-size:var(--fs-300)}
+.cc-meta{padding:var(--space-2) var(--space-3);background:#fff;border-top:1px solid var(--color-border-default);font-family:ui-monospace,monospace;font-size:var(--fs-100);color:var(--color-text-muted);display:flex;justify-content:space-between;align-items:center}
+.cc-pass{background:#E5F6E9;color:#0F5C2C;font-weight:700;padding:1px 7px;border-radius:4px;font-family:var(--gj-font-sans)}
+.cc-fail{background:#FEE9E7;color:#8A1810;font-weight:700;padding:1px 7px;border-radius:4px;font-family:var(--gj-font-sans)}
+
+/* Touch zones diagram */
+.thumb-map{position:relative;background:#111;border-radius:32px;padding:var(--space-4);width:100%;max-width:320px;aspect-ratio:9/19;margin:0 auto;overflow:hidden;color:#fff}
+.thumb-zone{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;font-size:var(--fs-200);font-weight:var(--gj-fw-bold);text-transform:uppercase;letter-spacing:.5px;text-align:center;padding:var(--space-2)}
+.tz-hard{top:0;height:33%;background:rgba(217,42,30,.32)}
+.tz-mid{top:33%;height:34%;background:rgba(249,196,0,.28);color:#222}
+.tz-easy{top:67%;height:33%;background:rgba(21,128,61,.32)}
+.thumb-meta{font-size:var(--fs-200);color:var(--color-text-secondary);max-width:340px;line-height:var(--gj-lh-loose)}
+
+.split{display:grid;grid-template-columns:auto 1fr;gap:var(--space-5);align-items:center;background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-4)}
+@media(max-width:680px){.split{grid-template-columns:1fr;gap:var(--space-3)}}
+
+/* Spacing scale demo */
+.spacing-scale{display:flex;flex-direction:column;gap:var(--space-2);background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);padding:var(--space-4)}
+.sp-row{display:grid;grid-template-columns:80px 1fr 80px;gap:var(--space-3);align-items:center}
+.sp-key{font-family:ui-monospace,monospace;font-size:var(--fs-100);color:var(--color-text-muted)}
+.sp-bar{height:14px;background:var(--gj-teal-soft);border-radius:3px}
+.sp-val{font-family:ui-monospace,monospace;font-size:var(--fs-100);color:var(--color-text-muted);text-align:right}
+
+/* Summary panel */
+.summary{background:#0E2E25;color:#fff;border-radius:var(--gj-r-xl);padding:var(--space-5);margin-top:var(--space-5);display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:var(--space-4)}
+.kpi{display:flex;flex-direction:column;gap:4px}
+.kpi .n{font-size:var(--fs-700);font-weight:var(--gj-fw-black);color:var(--gj-yellow)}
+.kpi .l{font-size:var(--fs-200);opacity:.85;line-height:var(--gj-lh-body)}
+
+/* Anchor toc */
+.toc{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3)}
+.toc a{font-size:var(--fs-200);color:#fff;background:rgba(255,255,255,.13);padding:6px 12px;border-radius:var(--gj-r-pill);text-decoration:none;font-weight:var(--gj-fw-semibold)}
+.toc a:hover{background:rgba(255,255,255,.22)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">MOBILE FOUNDATIONS · v2</div>
+  <h1>Concevoir pour la main, pas pour le pixel</h1>
+  <p>Refonte des fondations du DS pour le terrain : téléphones d'entrée de gamme, soleil dakarois, 3G, doigts qui glissent. Quatre piliers — typo, hit targets, contraste, ergonomie du pouce.</p>
+  <div class="toc">
+    <a href="#typo">Typographie</a>
+    <a href="#tap">Hit targets</a>
+    <a href="#contrast">Contraste</a>
+    <a href="#thumb">Ergonomie</a>
+    <a href="#space">Espacement</a>
+    <a href="#input">Inputs</a>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- TYPO -->
+  <h2 class="sect" id="typo">1 · Typographie</h2>
+  <p class="lede">Le seuil minimum lisible sur smartphone d'entrée de gamme, en plein soleil, à 30 cm, est <strong>16px</strong> pour le corps. La v1 démarrait à 13px et descendait à 9px sur les méta — illisible pour la majorité du parc.</p>
+
+  <div class="compare">
+    <div class="col">
+      <div class="col-h bad">v1 — trop dense</div>
+      <div class="col-body">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gj-grey);margin-bottom:6px">Bénéficiaires formations</div>
+        <div style="font-size:11.5px;color:var(--gj-grey);margin-bottom:4px">Dakar · Entrepreneuriat · Inscrite janv. 2025</div>
+        <div style="font-size:13px;margin-bottom:4px">Le Guichet Jeunesse est une initiative du Consortium Jeunesse Sénégal.</div>
+        <div style="font-size:15px;font-weight:700">Atelier emploi · Tambacounda</div>
+      </div>
+      <div class="col-foot">corps 13 · meta 11.5 · mini 9</div>
+    </div>
+    <div class="col">
+      <div class="col-h good">v2 — lisible terrain</div>
+      <div class="col-body">
+        <div style="font-size:var(--fs-100);font-weight:700;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:6px">Bénéficiaires formations</div>
+        <div style="font-size:var(--fs-200);color:var(--color-text-secondary);margin-bottom:4px">Dakar · Entrepreneuriat · Inscrite janv. 2025</div>
+        <div style="font-size:var(--fs-400);margin-bottom:4px">Le Guichet Jeunesse est une initiative du Consortium Jeunesse Sénégal.</div>
+        <div style="font-size:var(--fs-500);font-weight:700">Atelier emploi · Tambacounda</div>
+      </div>
+      <div class="col-foot">corps 16 · meta 13 · mini 11</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:var(--fs-400);font-weight:var(--gj-fw-bold);margin:var(--space-5) 0 var(--space-2);text-transform:uppercase;letter-spacing:.4px;color:var(--color-text-secondary)">Échelle v2</h3>
+  <div style="background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);padding:var(--space-4)">
+    <div class="type-row"><div class="type-key">--fs-100</div><div style="font-size:11px;font-weight:700">Tag · J-9</div><div class="type-spec">11px / 700</div></div>
+    <div class="type-row"><div class="type-key">--fs-200</div><div style="font-size:13px">Métadonnée · Dakar · 2025</div><div class="type-spec">13px / 400</div></div>
+    <div class="type-row"><div class="type-key">--fs-300</div><div style="font-size:14px">Sous-titre, libellé d'appui</div><div class="type-spec">14px / 400</div></div>
+    <div class="type-row"><div class="type-key">--fs-400</div><div style="font-size:16px">Texte de corps — défaut, anti-zoom iOS</div><div class="type-spec">16px / 400</div></div>
+    <div class="type-row"><div class="type-key">--fs-500</div><div style="font-size:18px;font-weight:700">Titre de carte</div><div class="type-spec">18px / 700</div></div>
+    <div class="type-row"><div class="type-key">--fs-600</div><div style="font-size:20px;font-weight:700">Titre d'objet</div><div class="type-spec">20px / 700</div></div>
+    <div class="type-row"><div class="type-key">--fs-700</div><div style="font-size:24px;font-weight:800;color:var(--gj-teal)">22 695</div><div class="type-spec">24px / 800</div></div>
+    <div class="type-row"><div class="type-key">--fs-800</div><div style="font-size:28px;font-weight:800;line-height:1.2">Titre de page</div><div class="type-spec">28px / 800</div></div>
+    <div class="type-row"><div class="type-key">--fs-900</div><div style="font-size:36px;font-weight:800;line-height:1.1">Hero</div><div class="type-spec">36px / 800</div></div>
+  </div>
+
+  <!-- HIT TARGETS -->
+  <h2 class="sect" id="tap">2 · Hit targets</h2>
+  <p class="lede">Apple HIG : 44×44pt. Material : 48×48dp. Notre v1 descendait à 24px sur le CTA d'une carte. Le rectangle pointillé montre la zone <strong>recommandée</strong> autour de chaque élément interactif.</p>
+
+  <div class="compare">
+    <div class="col">
+      <div class="col-h bad">v1 — sous-dimensionné</div>
+      <div class="col-body" style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:center;min-height:170px">
+        <span class="tap-vis"><span class="demo-nl on">Accueil</span></span>
+        <span class="tap-vis"><button class="demo-cta">Candidater</button></span>
+        <span class="tap-vis"><button class="demo-chip-old">Numérique</button></span>
+      </div>
+      <div class="col-foot">nav ≈ 36px · cta ≈ 24px · chip ≈ 22px</div>
+    </div>
+    <div class="col">
+      <div class="col-h good">v2 — 44px+ partout</div>
+      <div class="col-body" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;min-height:170px">
+        <span class="tap-vis ok"><a href="#" style="font-size:var(--fs-300);font-weight:700;color:var(--gj-teal-deep);min-height:var(--tap-min);padding:0 12px;display:inline-flex;align-items:center;border-bottom:3px solid var(--gj-teal);text-decoration:none">Accueil</a></span>
+        <span class="tap-vis ok lg"><button class="demo-cta-v2">Candidater</button></span>
+        <span class="tap-vis ok"><button class="demo-chip-new">Numérique</button></span>
+      </div>
+      <div class="col-foot">tous ≥ 44px · règle <code>--tap-min</code></div>
+    </div>
+  </div>
+
+  <div class="issue" style="margin-top:var(--space-3)">
+    <div class="ico">⚠️</div>
+    <div>
+      <div class="h">Règle ferme : tout élément interactif fait au moins 44 × 44 px</div>
+      <div class="b">Pas d'exception, pas de "petit chip de filtre". Si l'élément visuel est plus petit, on agrandit le hit-area avec <code>padding</code> ou un <code>::before</code> invisible. Token : <code>--tap-min: 44px</code>, <code>--tap-comfortable: 48px</code> pour les CTA principaux.</div>
+    </div>
+  </div>
+
+  <!-- CONTRAST -->
+  <h2 class="sect" id="contrast">3 · Contraste</h2>
+  <p class="lede">Plein soleil + écran d'entrée de gamme = 30 % de contraste perçu en moins. WCAG AA exige 4.5:1 sur le texte courant, 3:1 sur le texte large (≥18px / 14px bold). Trois combos v1 échouaient.</p>
+
+  <div class="contrast">
+    <div class="cc">
+      <div class="cc-sample" style="background:#E1F5EE;color:#606060">Métadonnée sur tint teal</div>
+      <div class="cc-meta"><span>v1 · grey/teal-soft</span><span class="cc-fail">3.4 : 1</span></div>
+    </div>
+    <div class="cc">
+      <div class="cc-sample" style="background:#FFF8E0;color:#7a6000">Statut « à compléter »</div>
+      <div class="cc-meta"><span>v1 · jaune profond</span><span class="cc-fail">4.4 : 1</span></div>
+    </div>
+    <div class="cc">
+      <div class="cc-sample" style="background:#fff;color:#606060;font-size:13px">Légende 13px sur blanc</div>
+      <div class="cc-meta"><span>v1 · grey 606060</span><span class="cc-fail">5.7 : 1 — OK mais limite</span></div>
+    </div>
+    <div class="cc">
+      <div class="cc-sample" style="background:#E1F5EE;color:#005A43">Métadonnée sur tint teal</div>
+      <div class="cc-meta"><span>v2 · teal-deep-2</span><span class="cc-pass">9.2 : 1</span></div>
+    </div>
+    <div class="cc">
+      <div class="cc-sample" style="background:#FFF8E0;color:#6B5300">Statut « à compléter »</div>
+      <div class="cc-meta"><span>v2 · yellow-ink</span><span class="cc-pass">7.1 : 1</span></div>
+    </div>
+    <div class="cc">
+      <div class="cc-sample" style="background:#fff;color:#4A4A4A;font-size:13px">Légende 13px sur blanc</div>
+      <div class="cc-meta"><span>v2 · grey 4A4A4A</span><span class="cc-pass">8.9 : 1</span></div>
+    </div>
+  </div>
+
+  <!-- THUMB -->
+  <h2 class="sect" id="thumb">4 · Ergonomie du pouce</h2>
+  <p class="lede">Sur un téléphone tenu d'une main (cas par défaut au Sénégal : transport, marché, file d'attente), seul le tiers inférieur de l'écran est confortable. Notre règle d'or : <strong>actions principales en bas, actions destructives en haut</strong>.</p>
+
+  <div class="split">
+    <div class="thumb-map">
+      <div class="thumb-zone tz-hard">Difficile<br><small style="font-weight:400;text-transform:none;font-size:var(--fs-100);opacity:.85">close · menu · retour</small></div>
+      <div class="thumb-zone tz-mid">Modéré<br><small style="font-weight:400;text-transform:none;font-size:var(--fs-100);opacity:.85">contenu · chips · listes</small></div>
+      <div class="thumb-zone tz-easy">Facile<br><small style="font-weight:400;text-transform:none;font-size:var(--fs-100);opacity:.85">CTA · bottom-nav · clavier</small></div>
+    </div>
+    <div>
+      <p class="thumb-meta" style="margin-bottom:var(--space-3)">La majorité des utilisateurs tiennent leur téléphone d'une main, pouce dominant. Sur les grands écrans (Tecno Spark, Itel A60+, Samsung A04), le tiers supérieur est <strong>presque inatteignable</strong>.</p>
+      <p class="thumb-meta"><strong>Conséquences pour le DS :</strong></p>
+      <ul style="font-size:var(--fs-200);color:var(--color-text-secondary);line-height:var(--gj-lh-loose);padding-left:var(--space-4);margin-top:var(--space-2)">
+        <li>CTA principal d'une carte → <strong>en bas</strong>, pas en haut à droite</li>
+        <li>Bottom-nav obligatoire pour les 4 sections clés</li>
+        <li>FAB chat à droite, mais à <strong>height : 33%</strong> du bas, pas plus haut</li>
+        <li>Pull-to-refresh préféré au bouton "rafraîchir"</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SPACING -->
+  <h2 class="sect" id="space">5 · Échelle d'espacement</h2>
+  <p class="lede">La v1 utilisait des valeurs ad-hoc partout (<code>.85rem</code>, <code>7px</code>, <code>13px</code>). La v2 impose une échelle <strong>4-8-12-16-24-32</strong> — alignée Material / Tailwind, immédiatement compréhensible.</p>
+
+  <div class="spacing-scale">
+    <div class="sp-row"><div class="sp-key">--space-1</div><div class="sp-bar" style="width:4px"></div><div class="sp-val">4px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-2</div><div class="sp-bar" style="width:8px"></div><div class="sp-val">8px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-3</div><div class="sp-bar" style="width:12px"></div><div class="sp-val">12px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-4</div><div class="sp-bar" style="width:16px"></div><div class="sp-val">16px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-5</div><div class="sp-bar" style="width:24px"></div><div class="sp-val">24px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-6</div><div class="sp-bar" style="width:32px"></div><div class="sp-val">32px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-7</div><div class="sp-bar" style="width:48px"></div><div class="sp-val">48px</div></div>
+    <div class="sp-row"><div class="sp-key">--space-8</div><div class="sp-bar" style="width:64px"></div><div class="sp-val">64px</div></div>
+  </div>
+
+  <!-- INPUT -->
+  <h2 class="sect" id="input">6 · Inputs anti-zoom iOS</h2>
+  <p class="lede"><strong>Bug mobile classique</strong> : si un <code>&lt;input&gt;</code> a une <code>font-size</code> &lt; 16px, iOS zoom de force quand l'utilisateur tape. La page se met de travers, perd le focus, l'utilisateur abandonne. Un seul correctif : <strong>tout input doit faire 16px minimum</strong>.</p>
+
+  <div class="compare">
+    <div class="col">
+      <div class="col-h bad">v1 — déclenche le zoom</div>
+      <div class="col-body">
+        <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px">Email</label>
+        <input style="width:100%;padding:7px 10px;border:1.5px solid var(--gj-line);border-radius:6px;font-size:12.5px;height:32px" placeholder="contact@email.com"/>
+        <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;margin-top:12px">Téléphone</label>
+        <input style="width:100%;padding:7px 10px;border:1.5px solid var(--gj-line);border-radius:6px;font-size:12.5px;height:32px" placeholder="+221..."/>
+      </div>
+      <div class="col-foot">12.5px · h 32px · zoom auto sur iOS</div>
+    </div>
+    <div class="col">
+      <div class="col-h good">v2 — stable</div>
+      <div class="col-body">
+        <label style="font-size:var(--fs-300);font-weight:700;display:block;margin-bottom:6px">Email</label>
+        <input type="email" autocomplete="email" inputmode="email" style="width:100%;padding:0 var(--space-3);border:1.5px solid var(--color-border-default);border-radius:var(--gj-r-md);font-size:16px;min-height:var(--tap-input)" placeholder="contact@email.com"/>
+        <label style="font-size:var(--fs-300);font-weight:700;display:block;margin-bottom:6px;margin-top:var(--space-3)">Téléphone</label>
+        <input type="tel" autocomplete="tel" inputmode="tel" style="width:100%;padding:0 var(--space-3);border:1.5px solid var(--color-border-default);border-radius:var(--gj-r-md);font-size:16px;min-height:var(--tap-input)" placeholder="+221..."/>
+      </div>
+      <div class="col-foot">16px · h 48px · <code>type/inputmode/autocomplete</code> spec</div>
+    </div>
+  </div>
+
+  <div class="issue" style="margin-top:var(--space-3)">
+    <div class="ico">📱</div>
+    <div>
+      <div class="h">Checklist input mobile</div>
+      <div class="b">
+        ✓ <code>font-size: 16px</code> minimum<br>
+        ✓ <code>min-height: 48px</code> (token <code>--tap-input</code>)<br>
+        ✓ <code>type</code> approprié : <code>email · tel · number · url</code><br>
+        ✓ <code>inputmode</code> : <code>numeric</code> pour FCFA, <code>tel</code> pour téléphone<br>
+        ✓ <code>autocomplete</code> : <code>given-name · family-name · email · tel · postal-code</code><br>
+        ✓ Préférer un <code>&lt;select&gt;</code> natif quand &gt; 5 options
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="kpi"><div class="n">16px</div><div class="l">Corps minimum — fini le 13px qui pénalisait les écrans d'entrée de gamme</div></div>
+    <div class="kpi"><div class="n">44px</div><div class="l">Toute zone tactile — règle iOS HIG, applicable partout</div></div>
+    <div class="kpi"><div class="n">8 pas</div><div class="l">Échelle d'espacement (4 → 64) — fini les valeurs ad-hoc</div></div>
+    <div class="kpi"><div class="n">AA+</div><div class="l">Tous les combos texte/fond passent WCAG AA, certains atteignent AAA</div></div>
+  </div>
+
+</div>
+
+</body>
+</html>

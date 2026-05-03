@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Mobile Patterns · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--gj-font-sans);background:var(--color-bg-page);color:var(--color-text-primary);font-size:var(--fs-400);line-height:var(--gj-lh-body);padding-bottom:var(--space-7)}
+
+/* Page chrome */
+.hero{background:var(--gj-teal-deep);color:#fff;padding:var(--space-6) var(--space-4) var(--space-5);padding-top:calc(var(--safe-top) + var(--space-6))}
+.hero .eyebrow{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:4px 12px;border-radius:14px;font-size:var(--fs-100);font-weight:var(--gj-fw-bold);margin-bottom:var(--space-2);letter-spacing:.4px}
+.hero h1{font-size:var(--fs-800);font-weight:var(--gj-fw-black);line-height:var(--gj-lh-tight);margin-bottom:var(--space-2)}
+.hero p{font-size:var(--fs-300);opacity:.9;max-width:560px;line-height:var(--gj-lh-body)}
+.toc{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-3)}
+.toc a{font-size:var(--fs-200);color:#fff;background:rgba(255,255,255,.13);padding:6px 12px;border-radius:var(--gj-r-pill);text-decoration:none;font-weight:var(--gj-fw-semibold)}
+.toc a:hover{background:rgba(255,255,255,.22)}
+
+.page{max-width:1100px;margin:0 auto;padding:var(--space-5) var(--space-4)}
+h2.sect{font-size:var(--fs-600);font-weight:var(--gj-fw-black);margin:var(--space-7) 0 var(--space-2);display:flex;align-items:center;gap:var(--space-2)}
+h2.sect:first-child{margin-top:var(--space-3)}
+h2.sect::before{content:"";width:6px;height:24px;border-radius:2px;background:var(--gj-teal)}
+.lede{font-size:var(--fs-300);color:var(--color-text-secondary);max-width:680px;line-height:var(--gj-lh-loose);margin-bottom:var(--space-4)}
+
+.row{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-4)}
+.row-2{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:var(--space-4)}
+
+/* ================== Phone frame (lightweight) ================== */
+.phone{width:340px;height:680px;margin:0 auto;background:#0F1115;border-radius:36px;padding:8px;box-shadow:var(--gj-shadow-md);position:relative}
+.phone .screen{width:100%;height:100%;background:var(--color-bg-page);border-radius:30px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0F1115;border-radius:0 0 14px 14px;z-index:5}
+.phone .home{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:120px;height:4px;background:#fff;border-radius:3px;z-index:5;opacity:.85}
+.statusbar{padding:8px 22px 0;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:#111;height:36px;flex-shrink:0;letter-spacing:.3px}
+.statusbar .icns{display:flex;gap:4px;align-items:center;font-size:12px}
+
+.phone-frame-card{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-3);text-align:center}
+.phone-frame-card .lbl{font-size:var(--fs-100);text-transform:uppercase;letter-spacing:.4px;color:var(--color-text-muted);margin-top:var(--space-2);font-weight:700}
+
+/* ============= App-level styles inside the phone ============= */
+.app-content{flex:1;overflow-y:auto;padding:var(--space-3) var(--space-3) calc(var(--space-7) + 64px)}
+.app-content::-webkit-scrollbar{width:0}
+
+.app-topbar{padding:var(--space-3);display:flex;align-items:center;gap:var(--space-2);background:#fff;border-bottom:1px solid var(--color-border-default);flex-shrink:0}
+.app-topbar .logo{width:32px;height:32px;background:var(--gj-teal);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.app-topbar .name{font-size:var(--fs-300);font-weight:var(--gj-fw-black);color:var(--gj-teal-deep);letter-spacing:.2px}
+.app-topbar .name b{color:var(--gj-yellow-ink)}
+.app-topbar .icbtn{margin-left:auto;width:var(--tap-min);height:var(--tap-min);border-radius:var(--gj-r-pill);background:var(--gj-bg);border:none;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;position:relative}
+.app-topbar .icbtn .dot{position:absolute;top:8px;right:10px;width:8px;height:8px;background:var(--gj-red);border-radius:50%;border:2px solid #fff}
+
+/* Bottom nav */
+.bottom-nav{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--color-border-default);box-shadow:var(--gj-shadow-bottom-nav);padding:6px 0 calc(6px + var(--safe-bottom));display:grid;grid-template-columns:repeat(5,1fr);z-index:10}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:var(--fs-100);font-weight:600;color:var(--color-text-secondary);padding:6px 4px;text-decoration:none;cursor:pointer;min-height:var(--tap-min);position:relative}
+.bn-item .em{font-size:22px;line-height:1}
+.bn-item.on{color:var(--gj-teal-deep)}
+.bn-item.on::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:32px;height:3px;background:var(--gj-teal);border-radius:0 0 3px 3px}
+.bn-item .badge{position:absolute;top:2px;right:14px;min-width:16px;height:16px;background:var(--gj-red);color:#fff;border-radius:8px;font-size:10px;font-weight:700;padding:0 4px;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+
+/* Cards rebuilt mobile-first */
+.opp-m{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-3);margin-bottom:var(--space-2);display:flex;flex-direction:column;gap:var(--space-2);position:relative}
+.opp-m.urgent{border-left:4px solid var(--color-status-danger)}
+.opp-m.cjs{border-left:4px solid var(--gj-teal)}
+.opp-m.partner{border-left:4px solid var(--gj-yellow)}
+.opp-m .top{display:flex;align-items:center;gap:6px}
+.opp-m .tag{font-size:var(--fs-100);padding:3px 8px;border-radius:var(--gj-r-pill);font-weight:700}
+.opp-m .tag.cjs{background:var(--gj-teal-soft);color:var(--gj-teal-deep)}
+.opp-m .tag.partner{background:var(--gj-yellow-soft);color:var(--gj-yellow-ink)}
+.opp-m .tag.urgent{background:var(--gj-red-soft);color:var(--gj-red-ink)}
+.opp-m .h{font-size:var(--fs-500);font-weight:var(--gj-fw-bold);line-height:var(--gj-lh-tight)}
+.opp-m .meta{font-size:var(--fs-200);color:var(--color-text-secondary);line-height:var(--gj-lh-body)}
+.opp-m .deadline{font-size:var(--fs-200);color:var(--color-status-danger);font-weight:700}
+.opp-m .cta-row{display:flex;gap:var(--space-2);margin-top:var(--space-1)}
+.opp-m .cta-row .btn{flex:1;min-height:var(--tap-min);border-radius:var(--gj-r-md);border:none;font-family:inherit;font-weight:700;font-size:var(--fs-300);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+.opp-m .cta-row .btn.primary{background:var(--color-action-primary);color:#fff}
+.opp-m .cta-row .btn.ghost{background:#fff;color:var(--gj-teal-deep);border:1.5px solid var(--color-border-default)}
+.opp-m .cta-row .btn.icon-only{flex:0 0 var(--tap-min)}
+
+/* Section header inside app */
+.app-h{font-size:var(--fs-500);font-weight:var(--gj-fw-black);margin:var(--space-3) 0 var(--space-2);display:flex;align-items:baseline;justify-content:space-between}
+.app-h .more{font-size:var(--fs-200);font-weight:600;color:var(--gj-teal-deep);text-decoration:none}
+
+/* Hero compact mobile */
+.app-hero{background:linear-gradient(135deg,#0b5d44,#1a7a5c);color:#fff;padding:var(--space-4);border-radius:var(--gj-r-xl);position:relative;overflow:hidden;margin-bottom:var(--space-3)}
+.app-hero::before{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(249,196,0,.25),transparent 60%);pointer-events:none}
+.app-hero .eb{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:3px 10px;border-radius:12px;font-size:var(--fs-100);font-weight:700;margin-bottom:6px}
+.app-hero .h{font-size:var(--fs-600);font-weight:var(--gj-fw-black);line-height:var(--gj-lh-tight);margin-bottom:var(--space-2);max-width:240px}
+.app-hero .cta{display:inline-flex;align-items:center;gap:6px;background:var(--gj-yellow);color:var(--color-text-primary);padding:0 var(--space-3);min-height:var(--tap-min);border-radius:var(--gj-r-md);font-weight:var(--gj-fw-bold);font-size:var(--fs-300);text-decoration:none}
+
+/* Quick actions */
+.qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);margin-bottom:var(--space-3)}
+.qa{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-md);padding:var(--space-2) 4px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:64px;justify-content:center;cursor:pointer;text-decoration:none;color:inherit}
+.qa .em{font-size:22px;line-height:1}
+.qa .l{font-size:var(--fs-100);font-weight:700;text-align:center;line-height:1.2;color:var(--color-text-secondary)}
+
+/* Skeleton */
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}
+.skel{background:linear-gradient(90deg,#eef0ee 0,#f7f9f7 40%,#eef0ee 80%);background-size:200px 100%;animation:shimmer 1.4s infinite linear;border-radius:6px}
+.skel-card{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-3);margin-bottom:var(--space-2)}
+.skel-line{height:14px;margin-bottom:8px}
+.skel-line.short{width:50%}
+.skel-line.long{width:90%}
+.skel-line.title{height:18px;width:75%}
+
+/* Empty state */
+.empty{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-5) var(--space-4);text-align:center}
+.empty .em{font-size:48px;margin-bottom:var(--space-2)}
+.empty h3{font-size:var(--fs-500);font-weight:var(--gj-fw-bold);margin-bottom:6px}
+.empty p{font-size:var(--fs-300);color:var(--color-text-secondary);max-width:240px;margin:0 auto var(--space-3);line-height:var(--gj-lh-body)}
+.empty .btn{background:var(--color-action-primary);color:#fff;border:none;border-radius:var(--gj-r-md);padding:0 var(--space-4);min-height:var(--tap-min);font-weight:700;font-size:var(--fs-300);cursor:pointer;font-family:inherit}
+
+/* Calendar agenda-list */
+.agenda-day{font-size:var(--fs-300);font-weight:var(--gj-fw-black);color:var(--gj-teal-deep);padding:var(--space-3) 0 var(--space-2);position:sticky;top:0;background:var(--color-bg-page);z-index:1;border-bottom:1px solid var(--color-border-default)}
+.agenda-day .when{font-size:var(--fs-200);font-weight:600;color:var(--color-text-secondary);margin-left:8px}
+.agenda-ev{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);padding:var(--space-3);margin-bottom:var(--space-2);display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}
+.agenda-ev.cjs{border-left:4px solid var(--gj-teal)}
+.agenda-ev.partner{border-left:4px solid var(--gj-yellow)}
+.agenda-ev .time{font-size:var(--fs-200);color:var(--color-text-secondary);text-align:center;font-variant-numeric:tabular-nums;min-width:48px}
+.agenda-ev .time strong{display:block;font-size:var(--fs-400);color:var(--color-text-primary);font-weight:var(--gj-fw-bold)}
+.agenda-ev .title{font-size:var(--fs-400);font-weight:var(--gj-fw-bold);line-height:var(--gj-lh-tight)}
+.agenda-ev .where{font-size:var(--fs-200);color:var(--color-text-secondary);margin-top:2px}
+
+/* Toast */
+.toast{position:absolute;left:var(--space-3);right:var(--space-3);bottom:calc(72px + var(--safe-bottom) + var(--space-3));background:#0E2E25;color:#fff;border-radius:var(--gj-r-lg);padding:var(--space-3);display:flex;align-items:center;gap:var(--space-3);box-shadow:var(--gj-shadow-lg);z-index:11}
+.toast .em{font-size:22px}
+.toast .msg{flex:1;font-size:var(--fs-300);line-height:var(--gj-lh-body)}
+.toast .msg strong{display:block;font-weight:700}
+.toast .close{background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+
+/* FAB stack — within phone */
+.fab-stack{position:absolute;right:var(--space-3);bottom:calc(72px + var(--safe-bottom) + var(--space-3));display:flex;flex-direction:column;gap:var(--space-2);z-index:9}
+.fab{width:52px;height:52px;border-radius:var(--gj-r-pill);box-shadow:var(--gj-shadow-md);border:none;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;cursor:pointer}
+
+/* Pull-to-refresh hint */
+.ptr{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0;font-size:var(--fs-200);color:var(--color-text-secondary)}
+.ptr .ring{width:18px;height:18px;border:2px solid var(--gj-teal);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Drawer / bottom-sheet */
+.sheet-demo{position:relative;height:680px;width:340px;background:#0F1115;border-radius:36px;padding:8px;margin:0 auto;box-shadow:var(--gj-shadow-md)}
+.sheet-demo .screen{width:100%;height:100%;background:rgba(0,0,0,.42);border-radius:30px;overflow:hidden;position:relative}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:var(--space-3) var(--space-3) calc(var(--space-3) + var(--safe-bottom));max-height:78%;overflow-y:auto}
+.sheet .grab{width:48px;height:5px;background:var(--gj-line-strong);border-radius:3px;margin:0 auto var(--space-3)}
+.sheet h3{font-size:var(--fs-500);font-weight:var(--gj-fw-black);margin-bottom:6px}
+.sheet .meta{font-size:var(--fs-200);color:var(--color-text-secondary);margin-bottom:var(--space-3)}
+.sheet p{font-size:var(--fs-300);line-height:var(--gj-lh-loose);color:var(--color-text-primary);margin-bottom:var(--space-3)}
+.sheet .keyfacts{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-3)}
+.sheet .kf{background:var(--gj-bg);padding:var(--space-2) var(--space-3);border-radius:var(--gj-r-md)}
+.sheet .kf .l{font-size:var(--fs-100);text-transform:uppercase;color:var(--color-text-muted);font-weight:700;letter-spacing:.4px}
+.sheet .kf .v{font-size:var(--fs-300);font-weight:var(--gj-fw-bold);margin-top:2px}
+.sheet .actions{display:flex;gap:var(--space-2)}
+.sheet .actions .btn{flex:1;min-height:var(--tap-comfortable);border-radius:var(--gj-r-md);border:none;font-family:inherit;font-weight:700;font-size:var(--fs-400);cursor:pointer}
+.sheet .actions .btn.primary{background:var(--color-action-primary);color:#fff}
+.sheet .actions .btn.ghost{background:#fff;color:var(--gj-teal-deep);border:1.5px solid var(--color-border-default)}
+
+/* Form mobile */
+.fm-form{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-xl);padding:var(--space-4);max-width:380px;margin:0 auto}
+.fm-form h3{font-size:var(--fs-500);font-weight:var(--gj-fw-black);margin-bottom:var(--space-3)}
+.fm-field{margin-bottom:var(--space-3)}
+.fm-field label{display:block;font-size:var(--fs-300);font-weight:var(--gj-fw-bold);margin-bottom:6px}
+.fm-field input,.fm-field select{width:100%;font-size:16px;min-height:var(--tap-input);padding:0 var(--space-3);border:1.5px solid var(--color-border-default);border-radius:var(--gj-r-md);background:#fff;outline:none;font-family:inherit}
+.fm-field input:focus,.fm-field select:focus{border-color:var(--gj-teal-deep);box-shadow:0 0 0 3px rgba(0,178,135,.18)}
+.fm-field .helper{font-size:var(--fs-200);color:var(--color-text-muted);margin-top:4px}
+.fm-form .submit{width:100%;background:var(--color-action-primary);color:#fff;border:none;min-height:var(--tap-comfortable);border-radius:var(--gj-r-md);font-size:var(--fs-400);font-weight:var(--gj-fw-bold);cursor:pointer;font-family:inherit;margin-top:var(--space-2)}
+
+/* Note callouts */
+.note{background:#fff;border:var(--gj-bw) solid var(--color-border-default);border-radius:var(--gj-r-lg);padding:var(--space-3);margin-top:var(--space-3);display:grid;grid-template-columns:auto 1fr;gap:var(--space-3)}
+.note .em{font-size:22px}
+.note .h{font-size:var(--fs-400);font-weight:var(--gj-fw-bold);margin-bottom:4px}
+.note .b{font-size:var(--fs-200);color:var(--color-text-secondary);line-height:var(--gj-lh-body)}
+.note .b code{font-family:ui-monospace,monospace;font-size:var(--fs-100);background:var(--gj-bg);padding:1px 6px;border-radius:4px}
+
+/* Specs panel */
+.specs{background:#0E2E25;color:#fff;border-radius:var(--gj-r-lg);padding:var(--space-3);font-family:ui-monospace,monospace;font-size:var(--fs-200);line-height:1.7;margin-top:var(--space-3);white-space:pre-wrap}
+.specs .k{color:#FED867}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="eyebrow">MOBILE PATTERNS · v2</div>
+  <h1>Patterns concrets pour le terrain</h1>
+  <p>Six patterns qui appliquent les fondations mobiles : navigation au pouce, cartes thumb-reachable, calendrier en liste, états chargement / vide, formulaires anti-zoom, bottom-sheet.</p>
+  <div class="toc">
+    <a href="#nav">Navigation</a>
+    <a href="#card">Cartes</a>
+    <a href="#cal">Calendrier</a>
+    <a href="#states">États</a>
+    <a href="#form">Formulaire</a>
+    <a href="#sheet">Bottom-sheet</a>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ============= NAVIGATION ============= -->
+  <h2 class="sect" id="nav">1 · Navigation thumb-first</h2>
+  <p class="lede">Avant : top-nav scrollable horizontale (les utilisateurs ne savent pas que ça scrolle, perdent les onglets cachés). Après : bottom-nav 5 entrées + topbar minimaliste pour identité et notifications.</p>
+
+  <div class="row-2">
+    <!-- Phone with new nav -->
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+
+          <div class="app-topbar">
+            <div class="logo"><svg width="16" height="16" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="3.5" r="2.1" fill="#F9C400"/><path d="M1.5 12c0-2.8 2.3-4.3 5-4.3s5 1.5 5 4.3" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="name">Guichet<b>Jeunesse</b></div>
+            <button class="icbtn" aria-label="Notifications">🔔<span class="dot"></span></button>
+            <button class="icbtn" aria-label="Profil">👤</button>
+          </div>
+
+          <div class="app-content">
+            <div class="app-hero">
+              <div class="eb">Aujourd'hui</div>
+              <div class="h">Salut Fatou — 3 nouvelles opp pour toi 🙌</div>
+              <a href="#" class="cta">Voir →</a>
+            </div>
+
+            <div class="app-h">Raccourcis<a href="#" class="more">Tous</a></div>
+            <div class="qa-row">
+              <a href="#" class="qa"><div class="em">🎓</div><div class="l">Emploi</div></a>
+              <a href="#" class="qa"><div class="em">🚀</div><div class="l">Projet</div></a>
+              <a href="#" class="qa"><div class="em">📚</div><div class="l">Former</div></a>
+              <a href="#" class="qa"><div class="em">🤝</div><div class="l">Engager</div></a>
+            </div>
+
+            <div class="app-h">Pour toi<a href="#" class="more">Tout voir</a></div>
+            <div class="opp-m cjs">
+              <div class="top"><span class="tag cjs">CJS · Stage</span></div>
+              <div class="h">Stage Data Science · 6 mois</div>
+              <div class="meta">Tambacounda · 350 000 FCFA / mois</div>
+              <div class="deadline">⏰ J-9 · jusqu'au 12 mai</div>
+              <div class="cta-row">
+                <button class="btn primary">Candidater</button>
+                <button class="btn ghost icon-only" aria-label="Sauvegarder">🔖</button>
+              </div>
+            </div>
+          </div>
+
+          <nav class="bottom-nav">
+            <a class="bn-item on"><span class="em">🏠</span>Accueil</a>
+            <a class="bn-item"><span class="em">🔍</span>Opp<span class="badge">3</span></a>
+            <a class="bn-item"><span class="em">📅</span>Agenda</a>
+            <a class="bn-item"><span class="em">📚</span>Resso</a>
+            <a class="bn-item"><span class="em">👤</span>Profil</a>
+          </nav>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Bottom-nav 5 entrées + topbar</div>
+    </div>
+
+    <!-- Specs -->
+    <div>
+      <div class="note">
+        <div class="em">📐</div>
+        <div>
+          <div class="h">Bottom-nav — règles</div>
+          <div class="b">
+            ✓ <strong>4 ou 5 entrées maximum</strong>, jamais plus<br>
+            ✓ Hauteur : <code>min-height: 44px</code> par item, <code>padding-bottom: env(safe-area-inset-bottom)</code> pour iOS<br>
+            ✓ Indicateur d'état actif <strong>au-dessus</strong> de l'icône (3px) ou via couleur — jamais juste un point<br>
+            ✓ Badge de compteur (rouge) pour les notifications par section<br>
+            ✓ Icône <strong>+ libellé</strong> toujours visibles (pas d'icône seule)<br>
+            ✓ Une 6e section ? La planquer dans "Profil" ou un menu "Plus", pas étirer la barre
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">↔️</div>
+        <div>
+          <div class="h">Cartographie des 5 entrées</div>
+          <div class="b">
+            <code>Accueil</code> · feed personnalisé, pour toi<br>
+            <code>Opp</code> · liste recherchable des opportunités<br>
+            <code>Agenda</code> · événements proches, à venir<br>
+            <code>Resso</code> · ressources, guides, vidéos<br>
+            <code>Profil</code> · candidatures, programmes BRM, paramètres, centres CJS
+          </div>
+        </div>
+      </div>
+      <div class="specs"><span class="k">.bottom-nav</span> {
+  position: fixed;
+  inset: auto 0 0 0;
+  padding-bottom: <span class="k">var(--safe-bottom)</span>;
+  z-index: <span class="k">var(--gj-z-bottom-nav)</span>;
+}
+<span class="k">.bn-item</span> {
+  min-height: <span class="k">var(--tap-min)</span>;
+  font-size: <span class="k">var(--fs-100)</span>;
+}</div>
+    </div>
+  </div>
+
+  <!-- ============= CARDS ============= -->
+  <h2 class="sect" id="card">2 · Cartes thumb-reachable</h2>
+  <p class="lede">L'action principale (Candidater) descend en bas de la carte — atteignable du pouce. La sauvegarde est en icône-only à côté. Les méta-infos se hiérarchisent : titre, lieu/montant, échéance.</p>
+
+  <div class="row-2">
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div class="app-content" style="padding-top:var(--space-3)">
+            <div style="font-size:var(--fs-600);font-weight:var(--gj-fw-black);margin-bottom:var(--space-3)">Toutes les opp</div>
+
+            <div class="opp-m urgent">
+              <div class="top"><span class="tag urgent">⏰ J-1</span></div>
+              <div class="h">Fonds Yaakaar — micro-initiative agricole</div>
+              <div class="meta">Toutes régions · jusqu'à 600 000 FCFA</div>
+              <div class="deadline">Clôture demain à minuit</div>
+              <div class="cta-row">
+                <button class="btn primary">Candidater</button>
+                <button class="btn ghost icon-only" aria-label="Sauvegarder">🔖</button>
+                <button class="btn ghost icon-only" aria-label="Partager">↗</button>
+              </div>
+            </div>
+
+            <div class="opp-m partner">
+              <div class="top"><span class="tag partner">🤝 Volkeno</span></div>
+              <div class="h">Bootcamp dev front-end</div>
+              <div class="meta">Dakar · 100% en ligne · gratuit</div>
+              <div class="cta-row">
+                <button class="btn primary">Voir le détail</button>
+                <button class="btn ghost icon-only" aria-label="Sauvegarder">🔖</button>
+              </div>
+            </div>
+
+            <div class="opp-m cjs">
+              <div class="top"><span class="tag cjs">CJS · Subvention</span></div>
+              <div class="h">Programme YEAH — Parcours Entrepreneur</div>
+              <div class="meta">Saint-Louis · jusqu'à 1 200 000 FCFA</div>
+              <div class="deadline" style="color:var(--gj-yellow-ink)">J-12 · 22 mai</div>
+              <div class="cta-row">
+                <button class="btn primary">Candidater</button>
+                <button class="btn ghost icon-only" aria-label="Sauvegarder">🔖</button>
+              </div>
+            </div>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Pile de cartes mobile-first</div>
+    </div>
+
+    <div>
+      <div class="note">
+        <div class="em">👍</div>
+        <div>
+          <div class="h">Anatomie de la carte</div>
+          <div class="b">
+            <strong>1.</strong> <code>tag</code> contextuel (CJS / partenaire / urgent) — pill 11px<br>
+            <strong>2.</strong> <code>h</code> Titre 18px / 700 — clair, sans jargon<br>
+            <strong>3.</strong> <code>meta</code> Lieu · domaine · montant — 13px<br>
+            <strong>4.</strong> <code>deadline</code> Couleur sémantique : rouge si urgent, jaune si proche<br>
+            <strong>5.</strong> <code>cta-row</code> Bas de carte. CTA principal flex:1, actions secondaires icon-only 44×44
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">📏</div>
+        <div>
+          <div class="h">Pourquoi pas en haut à droite ?</div>
+          <div class="b">Sur un Tecno Spark (175mm), le coin supérieur droit est à 14cm de la base du pouce — physiquement inatteignable d'une main. Les cartes empilées dans un scroll vertical ont leur "punctum" gestuel <strong>au bas</strong>, là où le pouce repose.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= CALENDAR ============= -->
+  <h2 class="sect" id="cal">3 · Calendrier — vue liste</h2>
+  <p class="lede">La grille mensuelle 7×6 ne marche pas sur 360px de large : cases de 34px, illisibles, hit-targets ratés. La vue liste agrège les événements par jour — naturelle au scroll vertical, accessible au screen reader, et reste compacte.</p>
+
+  <div class="row-2">
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div style="padding:var(--space-3) var(--space-3) var(--space-2);background:#fff;border-bottom:1px solid var(--color-border-default);display:flex;align-items:center;gap:var(--space-2)">
+            <button class="icbtn" aria-label="Mois précédent" style="margin:0">←</button>
+            <div style="font-size:var(--fs-500);font-weight:var(--gj-fw-black);flex:1;text-align:center">Mai 2026</div>
+            <button class="icbtn" aria-label="Mois suivant" style="margin:0">→</button>
+            <button class="icbtn" aria-label="Vue grille" style="margin:0">▦</button>
+          </div>
+
+          <div class="app-content" style="padding-top:0">
+            <div class="agenda-day">Aujourd'hui<span class="when">jeudi 1 mai</span></div>
+            <div class="agenda-ev cjs">
+              <div class="time"><strong>14h</strong>17h</div>
+              <div>
+                <div class="title">Atelier emploi · CV & lettre</div>
+                <div class="where">📍 CJS Guédiawaye · 25 places</div>
+              </div>
+            </div>
+
+            <div class="agenda-day">Demain<span class="when">ven. 2 mai</span></div>
+            <div class="agenda-ev partner">
+              <div class="time"><strong>18h</strong>21h</div>
+              <div>
+                <div class="title">Pitch night entrepreneurs</div>
+                <div class="where">📍 Impact Hub · sur invitation</div>
+              </div>
+            </div>
+
+            <div class="agenda-day">Lundi<span class="when">5 mai</span></div>
+            <div class="agenda-ev cjs">
+              <div class="time"><strong>09h</strong>13h</div>
+              <div>
+                <div class="title">Formation Excel & Sheets</div>
+                <div class="where">📍 CJS Pikine · 20 places · 8 restantes</div>
+              </div>
+            </div>
+            <div class="agenda-ev cjs">
+              <div class="time"><strong>15h</strong>17h</div>
+              <div>
+                <div class="title">Permanence YEAH — coaching projet</div>
+                <div class="where">📍 CJS Saint-Louis · sans RDV</div>
+              </div>
+            </div>
+
+            <div class="agenda-day">Lundi<span class="when">12 mai</span></div>
+            <div class="agenda-ev partner">
+              <div class="time"><strong>18h</strong>20h</div>
+              <div>
+                <div class="title">Webinaire Volkeno · dev frontend</div>
+                <div class="where">📍 En ligne · inscription requise</div>
+              </div>
+            </div>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Vue agenda — sticky day headers</div>
+    </div>
+
+    <div>
+      <div class="note">
+        <div class="em">🗓</div>
+        <div>
+          <div class="h">Patterns clés</div>
+          <div class="b">
+            ✓ <strong>Sticky day header</strong> : le jour reste visible au scroll<br>
+            ✓ <strong>Time column tabular</strong> : <code>font-variant-numeric: tabular-nums</code><br>
+            ✓ <strong>Trait gauche</strong> : teal (CJS) / jaune (partenaire) — pas de redondance icône<br>
+            ✓ <strong>"Aujourd'hui / Demain"</strong> en label humain en plus de la date<br>
+            ✓ <strong>Toggle vue grille</strong> en topbar pour les utilisateurs avancés
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">🔍</div>
+        <div>
+          <div class="h">Sémantique & accessibilité</div>
+          <div class="b">
+            • <code>&lt;time datetime="2026-05-01T14:00"&gt;</code> sur les heures<br>
+            • Day headers en <code>&lt;h3&gt;</code> pour la table des matières lecteur d'écran<br>
+            • Carte événement = <code>&lt;a href&gt;</code> entière, pas juste un bouton interne (zone cliquable maximale)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= STATES ============= -->
+  <h2 class="sect" id="states">4 · États : chargement, vide, succès</h2>
+  <p class="lede">Sur 3G, un écran blanc de 4 secondes = abandon. Sur écran vide, l'utilisateur ne sait pas si c'est cassé ou s'il n'y a rien. Trois états manquants à la v1.</p>
+
+  <div class="row" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+    <!-- Loading -->
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div class="app-content" style="padding-top:var(--space-3)">
+            <div class="ptr"><div class="ring"></div>Mise à jour…</div>
+            <div class="skel-card">
+              <div class="skel skel-line title"></div>
+              <div class="skel skel-line long"></div>
+              <div class="skel skel-line short"></div>
+              <div style="display:flex;gap:var(--space-2);margin-top:12px"><div class="skel" style="flex:1;height:44px"></div><div class="skel" style="width:44px;height:44px"></div></div>
+            </div>
+            <div class="skel-card">
+              <div class="skel skel-line title"></div>
+              <div class="skel skel-line long"></div>
+              <div class="skel skel-line short"></div>
+              <div style="display:flex;gap:var(--space-2);margin-top:12px"><div class="skel" style="flex:1;height:44px"></div><div class="skel" style="width:44px;height:44px"></div></div>
+            </div>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Skeleton + pull-to-refresh</div>
+    </div>
+
+    <!-- Empty -->
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div class="app-content" style="padding-top:var(--space-3);display:flex;flex-direction:column;justify-content:center">
+            <div class="empty">
+              <div class="em">🌱</div>
+              <h3>Pas encore de candidature</h3>
+              <p>Quand tu candidates à une opp, elle apparaît ici pour suivre où tu en es.</p>
+              <button class="btn">Voir les opp →</button>
+            </div>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">État vide — guidage</div>
+    </div>
+
+    <!-- Toast success -->
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div class="app-content" style="padding-top:var(--space-3)">
+            <div class="opp-m cjs">
+              <div class="top"><span class="tag cjs">CJS · Stage</span></div>
+              <div class="h">Stage Data Science · 6 mois</div>
+              <div class="meta">Tambacounda · 350 000 FCFA / mois</div>
+              <div class="cta-row"><button class="btn primary">✓ Candidatée</button></div>
+            </div>
+          </div>
+          <div class="toast">
+            <div class="em">✅</div>
+            <div class="msg"><strong>Candidature envoyée</strong>Tu recevras une réponse sous 5 jours.</div>
+            <button class="close" aria-label="Fermer">×</button>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Toast de feedback</div>
+    </div>
+  </div>
+
+  <!-- ============= FORM ============= -->
+  <h2 class="sect" id="form">5 · Formulaire mobile</h2>
+  <p class="lede">Inputs à 16px (anti-zoom), <code>type</code> + <code>inputmode</code> + <code>autocomplete</code> systématiques, focus visible, helper text sous les champs critiques.</p>
+
+  <div class="row-2">
+    <div class="phone-frame-card">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icns">●●● 5G ▮</span></div>
+          <div class="app-content">
+            <div class="fm-form" style="border:none;padding:0">
+              <h3>Crée ton profil</h3>
+
+              <div class="fm-field">
+                <label for="fn">Prénom</label>
+                <input id="fn" type="text" autocomplete="given-name" placeholder="Fatou"/>
+              </div>
+
+              <div class="fm-field">
+                <label for="ph">Téléphone</label>
+                <input id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="+221 77 ..."/>
+                <div class="helper">On te contacte par WhatsApp ou SMS — jamais d'appel.</div>
+              </div>
+
+              <div class="fm-field">
+                <label for="rg">Région</label>
+                <select id="rg">
+                  <option>Dakar</option>
+                  <option>Thiès</option>
+                  <option>Saint-Louis</option>
+                  <option>Tambacounda</option>
+                  <option>Kédougou</option>
+                </select>
+              </div>
+
+              <div class="fm-field">
+                <label for="bd">Année de naissance</label>
+                <input id="bd" type="number" inputmode="numeric" min="1980" max="2010" placeholder="2002"/>
+              </div>
+
+              <button type="submit" class="submit">Continuer →</button>
+            </div>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+      <div class="lbl">Formulaire d'inscription</div>
+    </div>
+
+    <div>
+      <div class="note">
+        <div class="em">⌨️</div>
+        <div>
+          <div class="h">Cheat sheet input mobile</div>
+          <div class="b">
+            <code>type="email"</code> + <code>inputmode="email"</code> · <code>autocomplete="email"</code><br>
+            <code>type="tel"</code> + <code>inputmode="tel"</code> · <code>autocomplete="tel"</code><br>
+            <code>type="number"</code> + <code>inputmode="numeric"</code> · <code>autocomplete="off"</code><br>
+            <code>type="text"</code> + <code>autocomplete="given-name | family-name | postal-code"</code>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">💡</div>
+        <div>
+          <div class="h">Helper texts qui aident vraiment</div>
+          <div class="b">Le bon helper anticipe une inquiétude ("Pourquoi tu me demandes ça ?"). Mauvais : "Champ requis". Bon : "On te contacte par WhatsApp ou SMS — jamais d'appel". Style : tutoiement, ≤14 mots.</div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">🚫</div>
+        <div>
+          <div class="h">Bonus anti-zoom iOS</div>
+          <div class="b"><code>tokens.css</code> applique automatiquement <code>font-size: max(16px, 1em)</code> sur tous les <code>input</code>, <code>select</code>, <code>textarea</code> en dessous de 480px. Tu n'as plus à y penser à chaque champ.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============= SHEET ============= -->
+  <h2 class="sect" id="sheet">6 · Bottom-sheet (drawer)</h2>
+  <p class="lede">Le détail d'une opportunité s'ouvre en sheet ascendante — pas en full-page. L'utilisateur garde son contexte, ferme d'un swipe, agit du pouce. Grab handle en haut, padding-bottom safe-area.</p>
+
+  <div class="row-2">
+    <div class="phone-frame-card">
+      <div class="sheet-demo">
+        <div class="screen">
+          <div class="sheet">
+            <div class="grab"></div>
+            <span style="display:inline-block;background:var(--gj-yellow-soft);color:var(--gj-yellow-ink);font-size:var(--fs-100);font-weight:700;padding:3px 10px;border-radius:var(--gj-r-pill);margin-bottom:8px">🌾 Fonds Yaakaar · J-1</span>
+            <h3>Micro-initiative agricole</h3>
+            <div class="meta">Subvention non-remboursable · 6 mois de mentorat</div>
+
+            <div class="keyfacts">
+              <div class="kf"><div class="l">Montant</div><div class="v">jusqu'à 600k FCFA</div></div>
+              <div class="kf"><div class="l">Régions</div><div class="v">Tamba · Kédougou · Matam</div></div>
+              <div class="kf"><div class="l">Profil</div><div class="v">18–35 ans</div></div>
+              <div class="kf"><div class="l">Échéance</div><div class="v" style="color:var(--gj-red)">Demain 23h59</div></div>
+            </div>
+
+            <p>Soutien aux jeunes maraîchers et éleveurs pour démarrer ou développer une activité agricole. Mentorat trimestriel par un porteur senior, formation gestion + accès au réseau d'acheteurs CJS.</p>
+
+            <div class="actions">
+              <button class="btn ghost">Sauver</button>
+              <button class="btn primary">Candidater</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lbl">Bottom-sheet · détail opp</div>
+    </div>
+
+    <div>
+      <div class="note">
+        <div class="em">📋</div>
+        <div>
+          <div class="h">Anatomie</div>
+          <div class="b">
+            <strong>Grab handle</strong> 48×5px — signal universel "tu peux tirer"<br>
+            <strong>Tag contextuel</strong> en pill, jamais en chip large<br>
+            <strong>Titre + sous-titre</strong> immédiats, sans introduction<br>
+            <strong>Key facts</strong> en grille 2 col — densité informationnelle<br>
+            <strong>Description</strong> 2–3 phrases, voix tutoyée<br>
+            <strong>Actions</strong> sticky en bas, primaire à droite (pouce)
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">↕️</div>
+        <div>
+          <div class="h">Gestures</div>
+          <div class="b">
+            • <strong>Swipe down sur le grab</strong> → ferme<br>
+            • <strong>Tap sur le scrim</strong> (fond noir) → ferme<br>
+            • <strong>Échap clavier</strong> → ferme (a11y)<br>
+            • <strong>Bouton retour Android</strong> → ferme (intercepter)<br>
+            • Pas de bouton ✕ visible — la sheet ne devrait pas en avoir besoin
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        <div class="em">🦺</div>
+        <div>
+          <div class="h">Safe area</div>
+          <div class="b">
+            <code>padding-bottom: calc(var(--space-3) + var(--safe-bottom))</code><br>
+            Sinon les actions passent sous la barre home iOS et disparaissent.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

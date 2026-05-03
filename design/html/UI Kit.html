@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>UI Kit · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--gj-font-sans);background:var(--gj-bg);color:var(--gj-ink);font-size:var(--gj-fs-lg);line-height:var(--gj-lh-body);padding-bottom:5rem}
+.kit-hero{background:var(--gj-teal-deep);color:#fff;padding:2.4rem 1.5rem}
+.kit-hero .eyebrow{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:3px 11px;border-radius:13px;font-size:var(--gj-fs-sm);font-weight:700;margin-bottom:.55rem}
+.kit-hero h1{font-size:1.8rem;font-weight:800;line-height:1.2;margin-bottom:.4rem}
+.kit-hero p{font-size:.9rem;opacity:.9;max-width:600px}
+.kit-page{max-width:980px;margin:0 auto;padding:1.6rem 1.2rem}
+
+h2.sect{font-size:1.05rem;font-weight:800;margin:2.2rem 0 .9rem;display:flex;align-items:center;gap:.55rem}
+h2.sect::before{content:"";width:6px;height:18px;border-radius:2px;background:var(--gj-teal);display:inline-block}
+h3.sub{font-size:var(--gj-fs-md);font-weight:700;margin:1rem 0 .4rem;color:var(--gj-grey);text-transform:uppercase;letter-spacing:.4px}
+
+.demo{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:1.1rem 1.2rem;margin-bottom:.6rem;position:relative}
+.demo + .demo{margin-top:.5rem}
+.demo .lbl{position:absolute;top:-9px;left:14px;background:var(--gj-bg);color:var(--gj-grey);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;padding:0 7px;font-weight:700}
+.note{font-size:var(--gj-fs-md);color:var(--gj-grey);max-width:680px;line-height:var(--gj-lh-loose);margin-bottom:.8rem}
+
+/* ========== prototype-derived component styles ========== */
+.t{color:var(--gj-teal)}
+.td{color:var(--gj-teal-deep)}
+
+/* nav */
+.nav{background:#fff;border-bottom:var(--gj-bw) solid var(--gj-line);padding:0 .7rem;display:flex;align-items:center;overflow-x:auto;border-radius:var(--gj-r-lg) var(--gj-r-lg) 0 0}
+.logo{display:flex;align-items:center;gap:6px;padding:10px 0;cursor:pointer;margin-right:5px;flex-shrink:0}
+.lb{width:24px;height:24px;background:var(--gj-teal);border-radius:5px;display:flex;align-items:center;justify-content:center}
+.lt{font-size:13px;font-weight:800;color:var(--gj-teal-deep);white-space:nowrap}.lt b{color:var(--gj-yellow)}
+.nl{padding:13px 8px;font-size:11px;color:var(--gj-grey);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;flex-shrink:0;transition:.15s}
+.nl:hover{color:var(--gj-teal);background:var(--gj-teal-soft)}
+.nl.on{color:var(--gj-teal);border-bottom-color:var(--gj-teal);font-weight:700}
+.navr{margin-left:auto;display:flex;align-items:center;gap:4px;padding-left:5px;flex-shrink:0}
+.sub-pill{padding:3px 8px;border:var(--gj-bw) solid var(--gj-line);border-radius:5px;font-size:10px;color:var(--gj-grey);background:var(--gj-bg);white-space:nowrap;text-decoration:none;display:inline-block}
+.sub-pill.y{background:var(--gj-yellow-soft);border-color:var(--gj-yellow);color:#7a6000;font-weight:700}
+.cta{background:var(--gj-teal);color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer}
+
+/* notice */
+.notif{background:var(--gj-yellow);color:var(--gj-ink);padding:.4rem .9rem;font-size:11px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center;gap:.5rem;border-radius:var(--gj-r-sm)}
+
+/* hero block */
+.hero-demo{position:relative;overflow:hidden;min-height:240px;display:flex;align-items:center;border-radius:var(--gj-r-lg)}
+.hero-demo::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,#0b5d44,#1a7a5c);}
+.hero-demo::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,100,70,.78),rgba(0,40,25,.48))}
+.hero-demo .inner{position:relative;z-index:2;padding:2rem 1.5rem;width:100%;color:#fff}
+.eyebrow-chip{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:3px 11px;border-radius:13px;font-size:10px;font-weight:700;margin-bottom:.55rem}
+.hero-demo h1{font-size:1.45rem;font-weight:800;line-height:1.2;margin-bottom:.45rem}
+.hero-demo p{font-size:.86rem;opacity:.9;max-width:440px;margin-bottom:1rem;line-height:1.6}
+.btn-primary-yel{background:var(--gj-yellow);color:var(--gj-ink);padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer}
+.btn-ghost-dark{background:transparent;color:#fff;padding:9px 18px;border:2px solid rgba(255,255,255,.45);border-radius:8px;font-size:13px;cursor:pointer}
+
+/* ticker */
+.ticker{background:var(--gj-teal-deep);color:#fff;padding:.45rem 1rem;display:flex;align-items:center;gap:.7rem;border-radius:var(--gj-r-sm)}
+.ticker-tag{background:var(--gj-teal);color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0}
+
+/* stats */
+.stats{background:#fff;border-top:var(--gj-bw) solid var(--gj-line);border-bottom:var(--gj-bw) solid var(--gj-line);padding:.7rem .5rem;display:flex;justify-content:space-around;flex-wrap:wrap;gap:.3rem;border-radius:var(--gj-r-md)}
+.stn{font-size:18px;font-weight:800;color:var(--gj-teal);text-align:center}
+.stl{font-size:10px;color:var(--gj-grey);text-align:center;margin-top:1px}
+
+/* objective buttons */
+.obj-row{display:flex;gap:7px;flex-wrap:wrap}
+.obj-b{border:2px solid var(--gj-line);border-radius:9px;padding:7px 13px;cursor:pointer;font-size:12.5px;color:var(--gj-grey);background:#fff;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.obj-b:hover,.obj-b.on{border-color:var(--gj-teal);background:var(--gj-teal-soft);color:var(--gj-teal-deep);font-weight:700}
+
+/* domain pills */
+.dom-row{display:flex;gap:.4rem;flex-wrap:wrap}
+.dom-tag{border:var(--gj-bw) solid var(--gj-line);border-radius:14px;padding:4px 11px;font-size:11px;color:var(--gj-grey);cursor:pointer;background:#fff;display:inline-flex;align-items:center;gap:4px}
+.dom-tag.on,.dom-tag:hover{background:var(--gj-teal);border-color:var(--gj-teal);color:#fff;font-weight:700}
+
+/* CTA buttons */
+.btns{display:flex;gap:.5rem;flex-wrap:wrap}
+.btn{border:none;border-radius:var(--gj-r-lg);font-weight:700;cursor:pointer;padding:9px 16px;font-size:13px}
+.btn-primary{background:var(--gj-teal);color:#fff}
+.btn-primary:hover{background:var(--gj-teal-deep)}
+.btn-secondary{background:var(--gj-yellow);color:var(--gj-ink)}
+.btn-ghost{background:#fff;color:var(--gj-teal-deep);border:1.5px solid var(--gj-teal-deep)}
+.btn-text{background:none;color:var(--gj-teal);font-weight:700;padding:9px 4px;font-size:13px;border:none;cursor:pointer}
+.btn-disabled{background:var(--gj-line);color:var(--gj-grey);cursor:not-allowed}
+
+/* tags & badges */
+.rt{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:700;display:inline-block}
+.rtt{background:var(--gj-teal-soft);color:var(--gj-teal-deep)}
+.rty{background:var(--gj-yellow-soft);color:#7a6000}
+.rtr{background:var(--gj-red-soft);color:#991b1b}
+.nb{background:var(--gj-teal);color:#fff;font-size:9px;padding:2px 5px;border-radius:3px;font-weight:700;display:inline-block}
+
+/* status pills (BRM) */
+.brm-st{font-size:10.5px;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:9px;font-weight:700}
+.st-blue{background:var(--gj-blue-soft);color:var(--gj-blue)}
+.st-yel{background:var(--gj-yellow-soft);color:#7a6000}
+.st-grn{background:var(--gj-green-soft);color:var(--gj-green)}
+.st-red{background:var(--gj-red-soft);color:#991b1b}
+
+/* opportunity card (synthesised from prototype patterns) */
+.opp{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-left:4px solid var(--gj-teal);border-radius:var(--gj-r-lg);padding:.85rem 1rem;display:grid;grid-template-columns:1fr auto;gap:.4rem .7rem;align-items:start}
+.opp.urgent{border-left-color:var(--gj-red)}
+.opp.partner{border-left-color:var(--gj-yellow)}
+.opp .h{font-size:13px;font-weight:800}
+.opp .meta{font-size:10.5px;color:var(--gj-grey)}
+.opp .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.opp .deadline{font-size:10.5px;color:var(--gj-red);font-weight:700}
+.opp button{align-self:start}
+
+/* event card */
+.ev{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:9px;padding:.85rem .9rem;display:flex;gap:.75rem}
+.ev.cj{border-left:4px solid var(--gj-teal)}
+.ev.pa{border-left:4px solid var(--gj-yellow)}
+.eday{font-size:19px;font-weight:800;color:var(--gj-teal);line-height:1}
+.emth{font-size:8.5px;color:var(--gj-grey);text-transform:uppercase;font-weight:700}
+.evt{font-size:12.5px;font-weight:700;margin-bottom:2px}
+.evl{font-size:10.5px;color:var(--gj-grey);margin-bottom:3px}
+.ep{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:700;display:inline-block}
+.epc{background:var(--gj-teal-soft);color:var(--gj-teal-deep)}
+.epp{background:var(--gj-yellow-soft);color:#7a6000}
+.epf{background:var(--gj-blue-soft);color:var(--gj-blue)}
+
+/* calendar */
+.cal{max-width:280px;background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:.9rem}
+.cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem}
+.cal-mn{font-size:13px;font-weight:700}
+.cal-nav-btn{background:none;border:none;cursor:pointer;font-size:15px;color:var(--gj-grey);padding:2px 6px;border-radius:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-dh{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gj-grey);text-align:center;padding:3px 0}
+.cal-d{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;font-size:11px;color:var(--gj-grey);position:relative}
+.cal-d.has{font-weight:700;color:var(--gj-teal-deep)}
+.cal-d.has::after{content:'';width:4px;height:4px;background:var(--gj-teal);border-radius:50%;position:absolute;bottom:1px;left:50%;transform:translateX(-50%)}
+.cal-d.today{background:var(--gj-yellow);color:var(--gj-ink);font-weight:800}
+.cal-d.selday{background:var(--gj-teal);color:#fff;font-weight:700}
+.cal-d.other{opacity:.28}
+
+/* form */
+.field{display:block;margin-bottom:.5rem}
+.field-lbl{font-size:11.5px;font-weight:700;display:block;margin-bottom:3px}
+.field-input{width:100%;padding:7px 10px;border:var(--gj-bw) solid var(--gj-line);border-radius:6px;font-size:12.5px;outline:none;background:#fff;font-family:inherit}
+.field-input:focus{border-color:var(--gj-teal)}
+.fs{padding:5px 8px;border:var(--gj-bw) solid var(--gj-line);border-radius:6px;font-size:11px;background:#fff;outline:none;cursor:pointer}
+
+/* toggle */
+.tog{width:36px;height:20px;background:var(--gj-line);border-radius:10px;cursor:pointer;position:relative;transition:.25s;flex-shrink:0}
+.tog.on{background:var(--gj-teal)}
+.tog::after{content:'';width:16px;height:16px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on::after{left:18px}
+
+/* stepper */
+.sbar{display:flex;align-items:center;gap:0}
+.sd{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.sd.dn{background:var(--gj-teal);color:#fff}
+.sd.cr{background:var(--gj-yellow);color:var(--gj-ink)}
+.sd.td{background:var(--gj-line);color:var(--gj-grey)}
+.sline{flex:1;height:2px;background:var(--gj-line);margin:0 3px}
+.sline.dn{background:var(--gj-teal)}
+
+/* progress */
+.pb{height:4px;background:var(--gj-teal-soft);border-radius:2px;margin-top:5px;overflow:hidden}
+.pf{height:100%;background:var(--gj-teal);border-radius:2px}
+
+/* dashboard cards */
+.dg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dc{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:9px;padding:.85rem}
+.dct{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gj-grey);margin-bottom:.35rem}
+.dcn{font-size:21px;font-weight:800;color:var(--gj-teal)}
+.dcs{font-size:10.5px;color:var(--gj-grey);margin-top:1px}
+
+/* BRM card */
+.brm-card{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:8px;padding:.75rem .9rem;display:flex;align-items:center;gap:.75rem;margin-bottom:5px}
+.brm-icon{width:34px;height:34px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
+
+/* modal */
+.modal{background:#fff;border-radius:var(--gj-r-2xl);max-width:460px;padding:1.6rem;border:var(--gj-bw) solid var(--gj-line)}
+.modal h2{font-size:1.2rem;font-weight:800;margin-bottom:.3rem}
+.modal p{font-size:13px;color:var(--gj-grey);margin-bottom:1rem;line-height:1.5}
+.ptype{border:2px solid var(--gj-line);border-radius:11px;padding:.9rem 1.1rem;cursor:pointer;display:flex;align-items:center;gap:11px;margin-bottom:8px}
+.ptype:hover,.ptype.sel{border-color:var(--gj-teal);background:var(--gj-teal-soft)}
+.pticon{font-size:21px;flex-shrink:0}
+.ptlbl{font-size:13px;font-weight:700}
+.ptsub{font-size:11px;color:var(--gj-grey);margin-top:2px}
+.modal-cta{background:var(--gj-teal);color:#fff;border:none;width:100%;padding:11px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:1rem}
+
+/* chat */
+.chat-win{width:300px;background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-2xl);box-shadow:var(--gj-shadow-lg);overflow:hidden;display:flex;flex-direction:column}
+.chat-head{background:var(--gj-indigo);color:#fff;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700}
+.chat-msgs{padding:.75rem;display:flex;flex-direction:column;gap:.5rem;background:#fafafe}
+.chat-msg{max-width:85%;padding:.5rem .75rem;border-radius:10px;font-size:12px;line-height:1.5}
+.chat-msg.bot{background:#f3f4f6;align-self:flex-start;border-bottom-left-radius:3px}
+.chat-msg.user{background:var(--gj-indigo);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.chat-opt{background:#fff;border:1.5px solid var(--gj-indigo-soft);border-radius:8px;padding:.4rem .7rem;font-size:11.5px;cursor:pointer;color:#4338ca;text-align:left;width:fit-content}
+.chat-fab{width:46px;height:46px;border-radius:50%;background:var(--gj-indigo);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:var(--gj-shadow-md)}
+
+/* floating action stack */
+.fa{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:var(--gj-shadow-md);text-decoration:none;color:#fff}
+
+/* member chip */
+.member-chip{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:7px;padding:.4rem .9rem;font-size:11.5px;font-weight:700;color:var(--gj-teal-deep);display:inline-block}
+
+/* list item */
+.ri{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:7px;padding:.65rem .85rem;display:flex;align-items:center;gap:.65rem;cursor:pointer;margin-bottom:4px}
+.ri-thumb{width:28px;height:28px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+
+/* test option */
+.test-opt{border:var(--gj-bw) solid var(--gj-line);border-radius:8px;padding:.7rem .9rem;cursor:pointer;font-size:12.5px;color:var(--gj-grey);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.test-opt:hover,.test-opt.sel{border-color:var(--gj-teal);background:var(--gj-teal-soft);color:var(--gj-teal-deep);font-weight:700}
+
+/* drawer */
+.drawer{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:var(--gj-bw) solid var(--gj-line);box-shadow:var(--gj-shadow-lg);overflow:hidden}
+.dp-head{padding:1.1rem 1.2rem .8rem;border-bottom:1px solid var(--gj-line);display:flex;align-items:flex-start;gap:.8rem}
+.dp-close{margin-left:auto;background:var(--gj-bg);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.dp-body{padding:.9rem 1.2rem 1.2rem;font-size:12.5px;color:var(--gj-grey);line-height:1.6}
+
+/* resource card */
+.rc{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:9px;padding:.85rem;cursor:pointer}
+.rc.ft{border:var(--gj-bw-strong) solid var(--gj-yellow)}
+.rbdg{display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-bottom:.35rem}
+.fv{background:#fef3f2;color:#991b1b}
+.fp{background:var(--gj-blue-soft);color:var(--gj-blue)}
+.fo{background:var(--gj-teal-soft);color:var(--gj-teal-deep)}
+.fu{background:var(--gj-yellow-soft);color:#7a6000}
+
+/* skill chip */
+.sk-chip{background:var(--gj-teal-soft);color:var(--gj-teal-deep);font-size:10.5px;padding:3px 9px;border-radius:12px;font-weight:600;display:inline-block;margin:2px}
+.sk-add{background:none;border:1.5px dashed var(--gj-line);border-radius:12px;font-size:10.5px;padding:3px 9px;color:var(--gj-grey);cursor:pointer}
+
+/* misc */
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.flex-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.spacer{height:.4rem}
+
+@media(max-width:680px){
+  .dg3,.row-3{grid-template-columns:1fr}
+  .row-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="kit-hero">
+  <div class="kit-page" style="padding-top:0;padding-bottom:0">
+    <div class="eyebrow">UI KIT · v1</div>
+    <h1>Composants — Guichet Jeunesse</h1>
+    <p>Galerie vivante des composants extraits du prototype V5. Copier d’ici plutôt que ré-inventer. Tous les éléments respectent <code>tokens.css</code>.</p>
+  </div>
+</div>
+
+<div class="kit-page">
+
+  <!-- NAVIGATION -->
+  <h2 class="sect">Navigation</h2>
+  <p class="note">Barre supérieure scrollable horizontalement (mobile-first). Le tab actif est souligné en teal sur 3px. Les pills à droite (e-learning ↗ / YEAH ↗) ouvrent des écosystèmes externes — toujours visibles, toujours différenciées.</p>
+  <div class="demo">
+    <div class="lbl">Top nav</div>
+    <div class="nav">
+      <div class="logo">
+        <div class="lb"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="3.5" r="2.1" fill="#F9C400"/><path d="M1.5 12c0-2.8 2.3-4.3 5-4.3s5 1.5 5 4.3" stroke="white" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+        <span class="lt">Guichet<b>Jeunesse</b>.sn</span>
+      </div>
+      <div class="nl on">Accueil</div>
+      <div class="nl">Opportunités</div>
+      <div class="nl">Agenda</div>
+      <div class="nl">Ressources</div>
+      <div class="nl">Centres CJS</div>
+      <div class="nl">Mon profil</div>
+      <div class="navr">
+        <a class="sub-pill" href="#">e-learning ↗</a>
+        <a class="sub-pill y" href="#">YEAH ↗</a>
+        <button class="cta">S'inscrire</button>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">Bandeau notice</h3>
+  <div class="demo">
+    <div class="lbl">Notice bar</div>
+    <div class="notif">🎉 Fonds Yaakaar — Appel à candidatures ouvert jusqu'au 30 avril 2026 ! <span style="font-size:12px;cursor:pointer">×</span></div>
+  </div>
+
+  <!-- HERO -->
+  <h2 class="sect">Hero</h2>
+  <p class="note">Toujours en teal-deep sous overlay 78% / 48%. Eyebrow chip jaune translucide, titre 800, sous-titre 90% opacité, deux CTA (jaune plein + ghost contour). Hauteur min 240–300px.</p>
+  <div class="demo" style="padding:0;overflow:hidden">
+    <div class="hero-demo">
+      <div class="inner">
+        <div class="eyebrow-chip">Plateforme ouverte · Pour tous les jeunes du Sénégal</div>
+        <h1>Emplois, formations, projets —<br>tout est là pour toi 🙌</h1>
+        <p>Des milliers d'opportunités venues de tout l'écosystème jeunesse — des villes jusqu'aux régions.</p>
+        <div class="btns">
+          <button class="btn-primary-yel">Trouver ma prochaine opp →</button>
+          <button class="btn-ghost-dark">Créer mon profil</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">Live ticker</h3>
+  <div class="demo">
+    <div class="lbl">Ticker</div>
+    <div class="ticker">
+      <span class="ticker-tag">🔴 EN DIRECT</span>
+      <div style="font-size:11.5px">Atelier emploi à Tambacounda · 5 places restantes</div>
+    </div>
+  </div>
+
+  <!-- BUTTONS -->
+  <h2 class="sect">Boutons</h2>
+  <div class="demo">
+    <div class="lbl">Variantes</div>
+    <div class="btns">
+      <button class="btn btn-primary">Primaire</button>
+      <button class="btn btn-secondary">Secondaire (jaune)</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn-text">Lien d'action →</button>
+      <button class="btn btn-disabled">Désactivé</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="btns">
+      <button class="cta">Petit CTA</button>
+      <button class="btn btn-primary" style="padding:11px 22px;font-size:14px">Grand CTA</button>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <h2 class="sect">Tags & badges</h2>
+  <div class="demo">
+    <div class="lbl">Type tags</div>
+    <div class="flex-row">
+      <span class="rt rtt">CJS · Confirmé</span>
+      <span class="rt rty">Partenaire</span>
+      <span class="rt rtr">J-1</span>
+      <span class="nb">Nouveau</span>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">BRM status pills</div>
+    <div class="flex-row">
+      <span class="brm-st st-yel">📋 Dossier à compléter</span>
+      <span class="brm-st st-blue">🔍 Sélection en cours</span>
+      <span class="brm-st st-grn">✅ Subvention accordée</span>
+      <span class="brm-st st-red">📎 Documents à envoyer</span>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Skill chips</div>
+    <div>
+      <span class="sk-chip">Gestion de projet</span>
+      <span class="sk-chip">Communication</span>
+      <span class="sk-chip">Marketing digital</span>
+      <span class="sk-chip">Excel / Sheets</span>
+      <button class="sk-add">+ Ajouter</button>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Domain tags (filtre)</div>
+    <div class="dom-row">
+      <span class="dom-tag on">Tout</span>
+      <span class="dom-tag">Agriculture</span>
+      <span class="dom-tag">Numérique</span>
+      <span class="dom-tag">Entrepreneuriat</span>
+      <span class="dom-tag">Citoyenneté</span>
+      <span class="dom-tag">Communication</span>
+    </div>
+  </div>
+
+  <!-- OBJECTIVE & FILTER -->
+  <h2 class="sect">Sélecteurs d'intention</h2>
+  <p class="note">Composant signature — « C’est quoi ton objectif ce mois-ci ? ». Bordure 2px, large radius, hover en tint teal.</p>
+  <div class="demo">
+    <div class="lbl">Objective buttons</div>
+    <div class="obj-row">
+      <div class="obj-b on">🎓 Emploi / Stage</div>
+      <div class="obj-b">🚀 Financer mon projet</div>
+      <div class="obj-b">🤝 M'engager</div>
+      <div class="obj-b">📚 Me former</div>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Filter bar</div>
+    <div class="flex-row">
+      <select class="fs"><option>Toutes les régions</option><option>Dakar</option></select>
+      <select class="fs"><option>Tous les types</option><option>Emploi</option><option>Stage</option></select>
+      <span style="font-size:11px;color:var(--gj-grey);margin-left:auto">8 opportunités</span>
+    </div>
+  </div>
+
+  <!-- STATS STRIP -->
+  <h2 class="sect">Stats strip</h2>
+  <div class="demo">
+    <div class="lbl">Counters</div>
+    <div class="stats">
+      <div><div class="stn">22 695</div><div class="stl">Jeunes inscrits</div></div>
+      <div><div class="stn">4 800+</div><div class="stl">Opportunités</div></div>
+      <div><div class="stn">9</div><div class="stl">Centres CJS</div></div>
+      <div><div class="stn">14</div><div class="stl">Régions</div></div>
+      <div><div class="stn">63k</div><div class="stl">Abonnés</div></div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <h2 class="sect">Cartes opportunité</h2>
+  <p class="note">Trait gauche 4px. Teal = CJS, jaune = partenaire, rouge = échéance imminente.</p>
+  <div class="demo">
+    <div class="lbl">Standard CJS</div>
+    <div class="opp">
+      <div>
+        <div class="row" style="margin-bottom:5px"><span class="rt rtt">CJS</span><span class="nb">Nouveau</span></div>
+        <div class="h">Stage Data Science · 6 mois</div>
+        <div class="meta">Tambacounda · Numérique · 350 000 FCFA / mois</div>
+        <div class="deadline" style="margin-top:5px">Candidature avant le 12 mai · J-9</div>
+      </div>
+      <button class="cta">Candidater</button>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Partenaire</div>
+    <div class="opp partner">
+      <div>
+        <div class="row" style="margin-bottom:5px"><span class="rt rty">Partenaire · Volkeno</span></div>
+        <div class="h">Bootcamp dev front-end</div>
+        <div class="meta">Dakar · 100% en ligne · gratuit</div>
+      </div>
+      <button class="cta">Voir</button>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Urgent</div>
+    <div class="opp urgent">
+      <div>
+        <div class="row" style="margin-bottom:5px"><span class="rt rtr">J-1</span></div>
+        <div class="h">Fonds Yaakaar — micro-initiative agricole</div>
+        <div class="meta">Toutes régions · jusqu’à 600 000 FCFA</div>
+        <div class="deadline" style="margin-top:5px">Clôture demain à minuit ⏰</div>
+      </div>
+      <button class="cta">Candidater</button>
+    </div>
+  </div>
+
+  <h2 class="sect">Cartes événement & ressource</h2>
+  <div class="demo">
+    <div class="lbl">Event card (CJS)</div>
+    <div class="ev cj">
+      <div style="text-align:center;flex-shrink:0;width:42px"><div class="eday">12</div><div class="emth">Mai</div></div>
+      <div style="flex:1">
+        <div class="evt">Atelier emploi · CV & lettre de motivation</div>
+        <div class="evl">📍 CJS Guédiawaye · 14h–17h · 25 places</div>
+        <span class="ep epc">Confirmé</span>
+      </div>
+      <button class="cta" style="align-self:center">S'inscrire</button>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Event card (Partenaire)</div>
+    <div class="ev pa">
+      <div style="text-align:center;flex-shrink:0;width:42px"><div class="eday" style="color:#7a6000">18</div><div class="emth">Mai</div></div>
+      <div style="flex:1">
+        <div class="evt">Pitch night entrepreneurs · Impact Hub Dakar</div>
+        <div class="evl">📍 Almadies · 18h30 · sur invitation</div>
+        <span class="ep epp">Prévu</span>
+      </div>
+      <button class="cta" style="align-self:center">Voir</button>
+    </div>
+  </div>
+  <div class="row-2">
+    <div class="demo">
+      <div class="lbl">Resource card</div>
+      <div class="rc">
+        <span class="rbdg fp">📹 Vidéo</span>
+        <div style="font-size:12.5px;font-weight:700">Comment réussir ton entretien</div>
+        <div style="font-size:10.5px;color:var(--gj-grey);margin-top:3px">8 min · CJS · Emploi</div>
+      </div>
+    </div>
+    <div class="demo">
+      <div class="lbl">Resource card · featured</div>
+      <div class="rc ft">
+        <span class="rbdg fu">📄 PDF</span>
+        <div style="font-size:12.5px;font-weight:700">Guide porteur de projet YEAH</div>
+        <div style="font-size:10.5px;color:var(--gj-grey);margin-top:3px">PDF officiel · 24 pages</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <h2 class="sect">Calendrier</h2>
+  <div class="demo">
+    <div class="lbl">Month picker</div>
+    <div class="cal">
+      <div class="cal-hd">
+        <button class="cal-nav-btn">‹</button>
+        <div class="cal-mn">Mai 2026</div>
+        <button class="cal-nav-btn">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div style="font-size:10.5px;color:var(--gj-grey);margin-top:.6rem;display:flex;gap:.7rem">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:var(--gj-teal)"></span>CJS</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:var(--gj-yellow)"></span>Partenaire</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD KPIs -->
+  <h2 class="sect">Dashboard KPI</h2>
+  <div class="demo">
+    <div class="lbl">3-up KPI grid</div>
+    <div class="dg3">
+      <div class="dc"><div class="dct">Opportunités vues</div><div class="dcn">47</div><div class="dcs">ce mois-ci</div><div class="pb"><div class="pf" style="width:78%"></div></div></div>
+      <div class="dc"><div class="dct">Candidatures</div><div class="dcn">3</div><div class="dcs">2 en attente · 1 retenue</div><div class="pb"><div class="pf" style="width:40%;background:var(--gj-yellow)"></div></div></div>
+      <div class="dc"><div class="dct">Ressources</div><div class="dcn">12</div><div class="dcs">consultées</div><div class="pb"><div class="pf" style="width:55%;background:var(--gj-blue)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- BRM cards -->
+  <h2 class="sect">Programmes en cours (BRM)</h2>
+  <div class="demo">
+    <div class="lbl">BRM status cards</div>
+    <div class="brm-card">
+      <div class="brm-icon" style="background:var(--gj-yellow-soft)">🌱</div>
+      <div style="flex:1"><div style="font-size:11.5px;font-weight:700;margin-bottom:2px">Fonds Yaakaar — Micro-initiative agricole</div><span class="brm-st st-yel">📋 Dossier à compléter</span></div>
+      <div style="font-size:9.5px;color:var(--gj-grey)">Il y a 2 j</div>
+    </div>
+    <div class="brm-card">
+      <div class="brm-icon" style="background:var(--gj-teal-soft)">🚀</div>
+      <div style="flex:1"><div style="font-size:11.5px;font-weight:700;margin-bottom:2px">Programme YEAH — Parcours Entrepreneur</div><span class="brm-st st-blue">🔍 Sélection en cours</span></div>
+      <div style="font-size:9.5px;color:var(--gj-grey)">Il y a 5 j</div>
+    </div>
+    <div class="brm-card">
+      <div class="brm-icon" style="background:var(--gj-green-soft)">💰</div>
+      <div style="flex:1"><div style="font-size:11.5px;font-weight:700;margin-bottom:2px">Fonds Yaakaar — Cycle 2024 (projet Agri)</div><span class="brm-st st-grn">✅ Subvention 350 000 FCFA</span></div>
+      <div style="font-size:9.5px;color:var(--gj-grey)">Mar. 2025</div>
+    </div>
+  </div>
+
+  <!-- LIST ITEM -->
+  <h2 class="sect">Liste recommandations</h2>
+  <div class="demo">
+    <div class="lbl">List items (.ri)</div>
+    <div class="ri"><div class="ri-thumb" style="background:var(--gj-teal-soft)">🚀</div><div><div style="font-size:12px;font-weight:700">Programme YEAH — Parcours Entrepreneur</div><div style="font-size:10px;color:var(--gj-grey)">Saint-Louis · J-12</div></div><div style="margin-left:auto;color:var(--gj-grey)">›</div></div>
+    <div class="ri"><div class="ri-thumb" style="background:var(--gj-yellow-soft)">🌾</div><div><div style="font-size:12px;font-weight:700">Fonds Yaakaar — Micro-initiative agricole</div><div style="font-size:10px;color:var(--gj-grey)">Jusqu'à 600k FCFA · J-18</div></div><div style="margin-left:auto;color:var(--gj-grey)">›</div></div>
+  </div>
+
+  <!-- FORMS -->
+  <h2 class="sect">Formulaires</h2>
+  <div class="demo">
+    <div class="lbl">Champs de formulaire</div>
+    <div class="row-2">
+      <div>
+        <div class="field">
+          <label class="field-lbl">Prénom</label>
+          <input class="field-input" placeholder="Ton prénom" value="Fatou"/>
+        </div>
+        <div class="field">
+          <label class="field-lbl">Email ou téléphone</label>
+          <input class="field-input" placeholder="contact@email.com"/>
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label class="field-lbl">Sujet</label>
+          <select class="field-input"><option>Opportunité à soumettre</option><option>Partenariat</option><option>Autre</option></select>
+        </div>
+        <div class="field">
+          <label class="field-lbl">Message</label>
+          <textarea class="field-input" rows="3" placeholder="Ton message..."></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="demo">
+    <div class="lbl">Toggle</div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <div class="tog on" onclick="this.classList.toggle('on')"></div>
+      <div style="font-size:12px">Visible par les recruteurs</div>
+    </div>
+  </div>
+
+  <!-- STEPPER -->
+  <h2 class="sect">Stepper d'inscription</h2>
+  <div class="demo">
+    <div class="lbl">3 steps</div>
+    <div class="sbar">
+      <div class="sd dn">✓</div>
+      <div class="sline dn"></div>
+      <div class="sd cr">2</div>
+      <div class="sline"></div>
+      <div class="sd td">3</div>
+    </div>
+    <div class="spacer"></div>
+    <div style="font-size:10.5px;color:var(--gj-grey);display:flex;justify-content:space-between"><span>Profil</span><span>Compétences</span><span>Préférences</span></div>
+  </div>
+
+  <!-- TEST -->
+  <h2 class="sect">Test de personnalité</h2>
+  <div class="demo" style="max-width:440px">
+    <div class="lbl">Test step</div>
+    <div class="pb" style="height:4px;margin-bottom:.9rem"><div class="pf" style="width:40%"></div></div>
+    <div style="font-size:13.5px;font-weight:700;margin-bottom:.7rem">Question 2 / 5 — Tu préfères travailler...</div>
+    <div class="test-opt sel">⚡ Sur des projets concrets, terrain</div>
+    <div class="test-opt">📊 Sur des analyses, des données</div>
+    <div class="test-opt">🤝 En équipe, en animation de groupe</div>
+    <div class="test-opt">💡 Seul, en réflexion stratégique</div>
+  </div>
+
+  <!-- MODAL -->
+  <h2 class="sect">Modale d'accueil</h2>
+  <div class="demo" style="background:var(--gj-overlay-light);padding:1.5rem">
+    <div class="lbl" style="background:var(--gj-overlay-light);color:#fff">Modal (sur overlay)</div>
+    <div class="modal" style="margin:0 auto">
+      <h2>Bienvenue sur le Guichet Jeunesse 👋</h2>
+      <p>Dis-nous qui tu es pour personnaliser ton expérience.</p>
+      <div class="ptype sel"><span class="pticon">🎓</span><div><div class="ptlbl">Étudiant · Chercheur d'emploi</div><div class="ptsub">Emploi, stage, formation, bourse</div></div></div>
+      <div class="ptype"><span class="pticon">🚀</span><div><div class="ptlbl">Entrepreneur · Porteur de projet</div><div class="ptsub">AAP, financement, mentorat</div></div></div>
+      <div class="ptype"><span class="pticon">🤝</span><div><div class="ptlbl">Citoyen engagé · Association</div><div class="ptsub">Volontariat, plaidoyer, OSC</div></div></div>
+      <button class="modal-cta">Personnaliser →</button>
+    </div>
+  </div>
+
+  <!-- DRAWER -->
+  <h2 class="sect">Detail drawer (bottom-sheet)</h2>
+  <div class="demo" style="background:var(--gj-overlay-light);padding:0;display:flex;flex-direction:column;justify-content:flex-end;height:380px">
+    <div class="lbl" style="background:var(--gj-overlay-light);color:#fff">Drawer overlay</div>
+    <div class="drawer" style="margin:0 auto">
+      <div class="dp-head">
+        <div class="ri-thumb" style="background:var(--gj-yellow-soft);width:40px;height:40px;border-radius:8px;font-size:18px">🌾</div>
+        <div>
+          <div style="font-size:14px;font-weight:800">Fonds Yaakaar — Initiative agricole</div>
+          <div style="font-size:10.5px;color:var(--gj-grey);margin-top:2px">CJS · Jusqu'à 600 000 FCFA · J-18</div>
+        </div>
+        <button class="dp-close">×</button>
+      </div>
+      <div class="dp-body">Soutien aux jeunes maraîchers et éleveurs des régions de Tambacounda, Kédougou, et Matam. Une subvention non-remboursable couplée à un mentorat de 6 mois.</div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <h2 class="sect">Chatbot · companion</h2>
+  <p class="note">L’indigo <code>#6366f1</code> est <b>réservé</b> au chatbot. Ne pas l’utiliser ailleurs.</p>
+  <div class="demo" style="display:flex;gap:1rem;align-items:flex-end">
+    <div class="lbl">Chat window + FAB</div>
+    <div class="chat-win">
+      <div class="chat-head">
+        <span>💬 Assistant Guichet</span>
+        <span style="cursor:pointer">×</span>
+      </div>
+      <div class="chat-msgs">
+        <div class="chat-msg bot">Bonjour 👋 Je peux t’aider à trouver une opportunité. Tu cherches quoi ?</div>
+        <div class="chat-msg user">Un stage en numérique à Dakar</div>
+        <div class="chat-msg bot">J’ai 12 stages qui correspondent. Je te montre les 3 plus proches de toi ?</div>
+        <button class="chat-opt">Oui, montre-moi</button>
+        <button class="chat-opt">Affiner d’abord</button>
+      </div>
+    </div>
+    <button class="chat-fab">💬</button>
+  </div>
+
+  <!-- FAB -->
+  <h2 class="sect">Floating actions</h2>
+  <div class="demo">
+    <div class="lbl">Action stack</div>
+    <div style="display:flex;gap:.45rem;flex-direction:column;align-items:flex-start">
+      <a class="fa" style="background:var(--gj-whatsapp)" href="#">💬</a>
+      <a class="fa" style="background:var(--gj-teal)" href="#">↑</a>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+  <h2 class="sect">Membres / partenaires</h2>
+  <div class="demo">
+    <div class="lbl">Member chips</div>
+    <div class="flex-row">
+      <div class="member-chip">Volkeno</div>
+      <div class="member-chip">Concree</div>
+      <div class="member-chip">Impact Hub Dakar</div>
+      <div class="member-chip">Jokko Labs</div>
+      <div class="member-chip">Banlieue UP</div>
+      <div class="member-chip">Africulturban</div>
+      <div class="member-chip">Save the Children</div>
+      <div class="member-chip">Scouts du Sénégal</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Calendar render
+(function(){
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+  ['L','M','M','J','V','S','D'].forEach(d => {
+    const el = document.createElement('div'); el.className='cal-dh'; el.textContent=d; grid.appendChild(el);
+  });
+  const evDays = new Set([5,12,18,22,27]);
+  const today = 14;
+  const sel = 18;
+  // 30-day month, starting Friday (offset 4)
+  const offset = 4;
+  for (let i = 0; i < offset; i++) {
+    const el = document.createElement('div'); el.className='cal-d other'; el.textContent = (29 - offset + i + 1); grid.appendChild(el);
+  }
+  for (let d = 1; d <= 31; d++) {
+    const el = document.createElement('div'); el.className='cal-d';
+    if (evDays.has(d)) el.classList.add('has');
+    if (d === today) el.classList.add('today');
+    if (d === sel) { el.classList.add('selday'); el.classList.remove('today'); }
+    el.textContent = d;
+    grid.appendChild(el);
+  }
+})();
+</script>
+
+</body>
+</html>

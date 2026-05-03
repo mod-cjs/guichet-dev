@@ -1,36 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap');
+@import './tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-vert:  #1B7A3D;
-    --color-or:    #E5A823;
-    --color-rouge: #C8102E;
-    --color-noir:  #1A1A1A;
-    --color-gris:  #6B7280;
-    --color-fond:  #F9FAFB;
-  }
   * { box-sizing: border-box; }
-  body { font-family: 'Lexend', sans-serif; }
-  a { color: var(--color-vert); }
-  a:hover { color: var(--color-vert-clair); }
+  body { font-family: var(--gj-font-sans); }
+  a { color: var(--color-text-link); }
+  a:hover { color: var(--gj-teal-deep-2); }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-cjs-vert text-white px-6 py-3 rounded-cjs font-medium
-           hover:bg-cjs-vert-clair transition-colors duration-200
+    @apply bg-gj-teal text-white px-6 py-3 rounded-cjs font-medium
+           hover:bg-gj-teal-deep transition-colors duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply border-2 border-cjs-vert text-cjs-vert px-6 py-3 rounded-cjs font-medium
-           hover:bg-cjs-vert hover:text-white transition-colors duration-200;
+    @apply border-2 border-gj-teal text-gj-teal px-6 py-3 rounded-cjs font-medium
+           hover:bg-gj-teal hover:text-white transition-colors duration-200;
   }
   .card {
-    @apply bg-white rounded-cjs shadow-sm border border-gray-100 p-6;
+    @apply bg-white rounded-cjs shadow-sm border border-gj-line p-6;
   }
   .container-page {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;

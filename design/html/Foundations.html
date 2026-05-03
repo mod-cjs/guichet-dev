@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Foundations · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--gj-font-sans);background:var(--gj-bg);color:var(--gj-ink);font-size:var(--gj-fs-lg);line-height:var(--gj-lh-body);padding-bottom:4rem}
+.page{max-width:960px;margin:0 auto;padding:1.5rem 1.2rem}
+header.hero{background:var(--gj-teal-deep);color:#fff;padding:2.4rem 1.5rem;border-radius:0 0 var(--gj-r-2xl) var(--gj-r-2xl);margin-bottom:2rem}
+header.hero .eyebrow{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:3px 11px;border-radius:13px;font-size:var(--gj-fs-sm);font-weight:var(--gj-fw-bold);margin-bottom:.55rem}
+header.hero h1{font-size:1.8rem;font-weight:var(--gj-fw-black);margin-bottom:.4rem;line-height:var(--gj-lh-tight)}
+header.hero p{font-size:.9rem;opacity:.9;max-width:540px}
+section{margin-bottom:2.4rem}
+h2.sect{font-size:1.05rem;font-weight:var(--gj-fw-black);margin-bottom:.85rem;color:var(--gj-ink);letter-spacing:.2px;display:flex;align-items:center;gap:.55rem}
+h2.sect::before{content:"";width:6px;height:18px;border-radius:2px;background:var(--gj-teal);display:inline-block}
+.note{font-size:var(--gj-fs-md);color:var(--gj-grey);margin-bottom:.9rem;max-width:680px;line-height:var(--gj-lh-loose)}
+
+/* COLOUR */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.7rem}
+.sw{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);overflow:hidden}
+.sw-chip{height:84px;display:flex;align-items:flex-end;padding:.6rem .75rem;color:#fff;font-size:var(--gj-fs-sm);font-weight:var(--gj-fw-bold);letter-spacing:.3px}
+.sw-chip.dark{color:var(--gj-ink)}
+.sw-meta{padding:.5rem .75rem .65rem}
+.sw-name{font-size:var(--gj-fs-md);font-weight:var(--gj-fw-bold)}
+.sw-tk{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace;margin-top:1px}
+.sw-job{font-size:var(--gj-fs-sm);color:var(--gj-grey);margin-top:5px;line-height:1.45}
+
+/* TYPE */
+.type-row{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:1rem 1.2rem;margin-bottom:.6rem;display:grid;grid-template-columns:140px 1fr 100px;gap:1rem;align-items:baseline}
+.type-meta{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace}
+.type-spec{font-size:var(--gj-fs-sm);color:var(--gj-grey);text-align:right;font-family:ui-monospace,monospace}
+
+/* SCALE */
+.scale-row{display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap;background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:1.1rem;margin-bottom:.6rem}
+.scale-cell{display:flex;flex-direction:column;align-items:center;gap:5px}
+.scale-block{background:var(--gj-teal-soft);border:var(--gj-bw) solid var(--gj-teal);}
+.scale-cell .lbl{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace}
+
+/* RADII */
+.r-row{display:flex;gap:.7rem;flex-wrap:wrap}
+.r-cell{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);padding:1rem;display:flex;flex-direction:column;gap:.35rem;align-items:center;min-width:96px}
+.r-cell .demo{width:54px;height:54px;background:var(--gj-teal);}
+.r-cell .lbl{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace}
+.r-cell .name{font-size:var(--gj-fs-base);font-weight:var(--gj-fw-bold)}
+
+/* SHADOW */
+.sh-row{display:flex;gap:1.1rem;flex-wrap:wrap}
+.sh-card{background:#fff;border-radius:var(--gj-r-xl);padding:1.1rem 1.3rem;width:180px}
+.sh-sm{box-shadow:var(--gj-shadow-sm)}
+.sh-md{box-shadow:var(--gj-shadow-md)}
+.sh-lg{box-shadow:var(--gj-shadow-lg)}
+.sh-card .name{font-size:var(--gj-fs-md);font-weight:var(--gj-fw-bold);margin-bottom:3px}
+.sh-card .lbl{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace}
+
+/* CONTAINERS */
+.ct{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:1rem;margin-bottom:.55rem}
+.ct .name{font-size:var(--gj-fs-base);font-weight:var(--gj-fw-bold);margin-bottom:5px}
+.ct .bar{height:14px;background:var(--gj-teal-soft);border:var(--gj-bw) solid var(--gj-teal);border-radius:var(--gj-r-sm)}
+.ct .meta{font-size:var(--gj-fs-sm);color:var(--gj-grey);font-family:ui-monospace,monospace;margin-top:5px}
+
+/* ICONOGRAPHY */
+.ico-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem}
+.ico-cell{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-md);padding:.7rem .85rem;display:flex;align-items:center;gap:.55rem}
+.ico-cell .em{font-size:18px}
+.ico-cell .meaning{font-size:var(--gj-fs-base);font-weight:var(--gj-fw-bold)}
+.ico-cell .scope{font-size:var(--gj-fs-sm);color:var(--gj-grey)}
+
+/* DO/DON'T */
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.dd-card{background:var(--gj-surface);border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:1rem 1.1rem}
+.dd-card .head{font-size:var(--gj-fs-md);font-weight:var(--gj-fw-black);display:flex;align-items:center;gap:5px;margin-bottom:.55rem}
+.dd-do .head{color:#15803d}
+.dd-dont .head{color:#991b1b}
+.dd-card ul{padding-left:1rem;font-size:var(--gj-fs-md);color:var(--gj-grey);line-height:var(--gj-lh-loose)}
+.dd-card li{margin-bottom:.25rem}
+
+/* LOGO */
+.logo-block{display:inline-flex;align-items:center;gap:8px;padding:14px 18px;background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg)}
+.logo-block.dark{background:var(--gj-teal-deep);border-color:transparent}
+.lb-mark{width:32px;height:32px;background:var(--gj-teal);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.lb-tx{font-size:17px;font-weight:var(--gj-fw-black);color:var(--gj-teal-deep)}
+.lb-tx b{color:var(--gj-yellow)}
+.logo-block.dark .lb-tx{color:#fff}
+.logo-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem}
+
+@media (max-width:640px){
+  .type-row{grid-template-columns:1fr;gap:.4rem}
+  .type-spec{text-align:left}
+  .dd{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="page" style="padding:0">
+    <div class="eyebrow">FOUNDATIONS · v1</div>
+    <h1>Guichet Jeunesse — Visual foundations</h1>
+    <p>Couleurs, typographie, espaces, formes. Tout ce qu’il faut pour rester cohérent à travers la plateforme — du portail web aux centres CJS jusqu’aux supports partenaires.</p>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- LOGO -->
+  <section>
+    <h2 class="sect">Logo</h2>
+    <p class="note">Le logo est composé d’un signe (cercle jaune sur cartouche teal) et d’un wordmark <em>Guichet<b style="color:var(--gj-yellow)">Jeunesse</b>.sn</em>. Le mot « Jeunesse » est toujours en jaune Sénégal — c’est la signature.</p>
+    <div class="logo-row">
+      <div class="logo-block">
+        <div class="lb-mark"><svg width="18" height="18" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="3.5" r="2.1" fill="#F9C400"/><path d="M1.5 12c0-2.8 2.3-4.3 5-4.3s5 1.5 5 4.3" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+        <span class="lb-tx">Guichet<b>Jeunesse</b>.sn</span>
+      </div>
+      <div class="logo-block dark">
+        <div class="lb-mark"><svg width="18" height="18" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="3.5" r="2.1" fill="#F9C400"/><path d="M1.5 12c0-2.8 2.3-4.3 5-4.3s5 1.5 5 4.3" stroke="white" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+        <span class="lb-tx">Guichet<b>Jeunesse</b>.sn</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- COLOUR -->
+  <section>
+    <h2 class="sect">Palette</h2>
+    <p class="note">La palette s’inspire du drapeau sénégalais : <b>vert / jaune / rouge</b>, posée sur un blanc cassé. Le teal <code>#009F76</code> porte la marque ; le jaune <code>#F9C400</code> souligne. Les autres tons sont strictement statutaires (statut de candidature, alerte, chatbot).</p>
+
+    <h3 style="font-size:var(--gj-fs-md);font-weight:var(--gj-fw-bold);margin:.6rem 0 .5rem;color:var(--gj-grey);text-transform:uppercase;letter-spacing:.4px">Brand</h3>
+    <div class="swatches">
+      <div class="sw"><div class="sw-chip" style="background:#009F76">#009F76</div><div class="sw-meta"><div class="sw-name">Teal</div><div class="sw-tk">--gj-teal</div><div class="sw-job">Boutons primaires, liens, accents, repères carte</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#007A5C">#007A5C</div><div class="sw-meta"><div class="sw-name">Teal Deep</div><div class="sw-tk">--gj-teal-deep</div><div class="sw-job">Bandeaux page-header, hero, strip « En direct »</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#E1F5EE">#E1F5EE</div><div class="sw-meta"><div class="sw-name">Teal Soft</div><div class="sw-tk">--gj-teal-soft</div><div class="sw-job">Tints, hover nav, badges CJS</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#F9C400">#F9C400</div><div class="sw-meta"><div class="sw-name">Yellow</div><div class="sw-tk">--gj-yellow</div><div class="sw-job">CTA secondaire, jour « today », accent partenaire</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#FFF8E0">#FFF8E0</div><div class="sw-meta"><div class="sw-name">Yellow Soft</div><div class="sw-tk">--gj-yellow-soft</div><div class="sw-job">Bandeau notice, statut « à compléter »</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#D92A1E">#D92A1E</div><div class="sw-meta"><div class="sw-name">Red</div><div class="sw-tk">--gj-red</div><div class="sw-job">Échéance J-1, erreur</div></div></div>
+    </div>
+
+    <h3 style="font-size:var(--gj-fs-md);font-weight:var(--gj-fw-bold);margin:1.2rem 0 .5rem;color:var(--gj-grey);text-transform:uppercase;letter-spacing:.4px">Statuts</h3>
+    <div class="swatches">
+      <div class="sw"><div class="sw-chip" style="background:#1d4ed8">#1d4ed8</div><div class="sw-meta"><div class="sw-name">Blue</div><div class="sw-tk">--gj-blue</div><div class="sw-job">« Sélection en cours »</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#eff6ff">#eff6ff</div><div class="sw-meta"><div class="sw-name">Blue Soft</div><div class="sw-tk">--gj-blue-soft</div><div class="sw-job">Pill statut bleu</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#15803d">#15803d</div><div class="sw-meta"><div class="sw-name">Green</div><div class="sw-tk">--gj-green</div><div class="sw-job">« Subvention accordée »</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#f0fdf4">#f0fdf4</div><div class="sw-meta"><div class="sw-name">Green Soft</div><div class="sw-tk">--gj-green-soft</div><div class="sw-job">Pill statut vert</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#6366f1">#6366f1</div><div class="sw-meta"><div class="sw-name">Indigo</div><div class="sw-tk">--gj-indigo</div><div class="sw-job">Réservé chatbot — nulle part ailleurs</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#25D366">#25D366</div><div class="sw-meta"><div class="sw-name">WhatsApp</div><div class="sw-tk">--gj-whatsapp</div><div class="sw-job">CTA contact WhatsApp uniquement</div></div></div>
+    </div>
+
+    <h3 style="font-size:var(--gj-fs-md);font-weight:var(--gj-fw-bold);margin:1.2rem 0 .5rem;color:var(--gj-grey);text-transform:uppercase;letter-spacing:.4px">Neutres</h3>
+    <div class="swatches">
+      <div class="sw"><div class="sw-chip" style="background:#1a1a1a">#1a1a1a</div><div class="sw-meta"><div class="sw-name">Ink</div><div class="sw-tk">--gj-ink</div><div class="sw-job">Texte principal</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:#606060">#606060</div><div class="sw-meta"><div class="sw-name">Grey</div><div class="sw-tk">--gj-grey</div><div class="sw-job">Texte secondaire / légendes</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#E0E8E4">#E0E8E4</div><div class="sw-meta"><div class="sw-name">Line</div><div class="sw-tk">--gj-line</div><div class="sw-job">Bordures 1.5px, séparateurs</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#F5F7F6">#F5F7F6</div><div class="sw-meta"><div class="sw-name">Background</div><div class="sw-tk">--gj-bg</div><div class="sw-job">Fond de page</div></div></div>
+      <div class="sw"><div class="sw-chip dark" style="background:#fff;border-bottom:var(--gj-bw) solid var(--gj-line)">#FFFFFF</div><div class="sw-meta"><div class="sw-name">Surface</div><div class="sw-tk">--gj-surface</div><div class="sw-job">Cartes, navbar, modales</div></div></div>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section>
+    <h2 class="sect">Typographie</h2>
+    <p class="note">La famille système <code>Segoe UI / system-ui / sans-serif</code> est utilisée à dessein : pas de webfont, donc aucun temps de chargement supplémentaire pour les utilisateurs sur réseaux faibles. L’échelle est dense — pensée mobile d’abord (corps de 13px).</p>
+    <div class="type-row" style="font-family:var(--gj-font-sans)">
+      <div class="type-meta">--gj-fs-h1<br>800</div>
+      <div style="font-size:1.6rem;font-weight:800;line-height:1.2">Emplois, formations, projets — tout est là pour toi 🙌</div>
+      <div class="type-spec">1.6rem · 800</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-h2<br>800</div>
+      <div style="font-size:1.15rem;font-weight:800">Toutes les opportunités</div>
+      <div class="type-spec">1.15rem · 800</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-2xl<br>800</div>
+      <div style="font-size:19px;font-weight:800;color:var(--gj-teal)">22 695</div>
+      <div class="type-spec">19px · 800</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-xl<br>700</div>
+      <div style="font-size:15px;font-weight:700">Atelier emploi · Tambacounda</div>
+      <div class="type-spec">15px · 700</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-lg<br>400/700</div>
+      <div style="font-size:13px">Le Guichet Jeunesse est une initiative du Consortium Jeunesse Sénégal.</div>
+      <div class="type-spec">13px · 400</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-md<br>400/700</div>
+      <div style="font-size:12.5px">Examiné par les admins avant publication.</div>
+      <div class="type-spec">12.5px · 400</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-base<br>400/600</div>
+      <div style="font-size:11.5px;color:var(--gj-grey)">Dakar · Entrepreneuriat · Inscrite janv. 2025</div>
+      <div class="type-spec">11.5px · 400</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-sm<br>400/700</div>
+      <div style="font-size:10px;color:var(--gj-grey);text-transform:uppercase;letter-spacing:.4px;font-weight:700">Bénéficiaires formations</div>
+      <div class="type-spec">10px · 700</div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">--gj-fs-xs<br>700</div>
+      <div style="font-size:9px;font-weight:700;background:var(--gj-teal-soft);color:var(--gj-teal-deep);padding:2px 5px;border-radius:3px;display:inline-block">CJS · Confirmé</div>
+      <div class="type-spec">9px · 700</div>
+    </div>
+  </section>
+
+  <!-- RADII -->
+  <section>
+    <h2 class="sect">Rayons</h2>
+    <p class="note">Une rampe courte. <b>3 / 5 / 6 / 8 / 11 / 14 / pill</b>. Le 8 anime presque tout, le 11 caractérise les cartes statistiques, le 14 est réservé aux modales / chat.</p>
+    <div class="r-row">
+      <div class="r-cell"><div class="demo" style="border-radius:3px"></div><div class="name">XS</div><div class="lbl">3px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:5px"></div><div class="name">SM</div><div class="lbl">5px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:6px"></div><div class="name">MD</div><div class="lbl">6px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:8px"></div><div class="name">LG</div><div class="lbl">8px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:11px"></div><div class="name">XL</div><div class="lbl">11px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:14px"></div><div class="name">2XL</div><div class="lbl">14px</div></div>
+      <div class="r-cell"><div class="demo" style="border-radius:999px"></div><div class="name">Pill</div><div class="lbl">999px</div></div>
+    </div>
+  </section>
+
+  <!-- SHADOWS -->
+  <section>
+    <h2 class="sect">Ombres</h2>
+    <p class="note">Les ombres sont rares. Tout ce qui est <em>posé</em> dans la page utilise un trait 1.5px. L’ombre n’apparaît que sur des objets <em>flottants</em> — chat, modale, drawer.</p>
+    <div class="sh-row">
+      <div class="sh-card sh-sm"><div class="name">Subtil</div><div class="lbl">--gj-shadow-sm</div></div>
+      <div class="sh-card sh-md"><div class="name">Flottant</div><div class="lbl">--gj-shadow-md</div></div>
+      <div class="sh-card sh-lg"><div class="name">Modale</div><div class="lbl">--gj-shadow-lg</div></div>
+    </div>
+  </section>
+
+  <!-- CONTAINERS -->
+  <section>
+    <h2 class="sect">Largeurs de conteneur</h2>
+    <p class="note">Quatre largeurs canoniques. Choisir la plus étroite qui contient le contenu sans gêner.</p>
+    <div class="ct"><div class="name">Narrow · 380</div><div class="bar" style="width:48%"></div><div class="meta">--gj-container-narrow · Inscription, test profil</div></div>
+    <div class="ct"><div class="name">Medium · 680</div><div class="bar" style="width:73%"></div><div class="meta">--gj-container-md · Profil, contact</div></div>
+    <div class="ct"><div class="name">Wide · 820</div><div class="bar" style="width:88%"></div><div class="meta">--gj-container-wide · Opportunités, ressources, accueil</div></div>
+    <div class="ct"><div class="name">Extra · 920</div><div class="bar" style="width:100%"></div><div class="meta">--gj-container-x · Agenda calendar, carte des centres</div></div>
+  </section>
+
+  <!-- ICONO -->
+  <section>
+    <h2 class="sect">Iconographie · emoji réservés</h2>
+    <p class="note">Le système iconographique repose sur un petit jeu d’emoji <b>fixes</b>. Chaque glyph a un sens — n’en réinventer aucun, n’en mélanger pas avec une bibliothèque tierce.</p>
+    <div class="ico-grid">
+      <div class="ico-cell"><span class="em">🎓</span><div><div class="meaning">Études · emploi</div><div class="scope">Type étudiant</div></div></div>
+      <div class="ico-cell"><span class="em">🚀</span><div><div class="meaning">Entrepreneur</div><div class="scope">Porteur de projet</div></div></div>
+      <div class="ico-cell"><span class="em">🤝</span><div><div class="meaning">Engagement</div><div class="scope">Citoyen / OSC</div></div></div>
+      <div class="ico-cell"><span class="em">📚</span><div><div class="meaning">Formation</div><div class="scope">Apprendre</div></div></div>
+      <div class="ico-cell"><span class="em">🌾</span><div><div class="meaning">Agriculture</div><div class="scope">Domaine</div></div></div>
+      <div class="ico-cell"><span class="em">💼</span><div><div class="meaning">Compétences</div><div class="scope">Profil</div></div></div>
+      <div class="ico-cell"><span class="em">📍</span><div><div class="meaning">Localisation</div><div class="scope">Région · centre</div></div></div>
+      <div class="ico-cell"><span class="em">📅</span><div><div class="meaning">Agenda</div><div class="scope">Événement</div></div></div>
+      <div class="ico-cell"><span class="em">📄</span><div><div class="meaning">PDF</div><div class="scope">Ressource</div></div></div>
+      <div class="ico-cell"><span class="em">📹</span><div><div class="meaning">Vidéo</div><div class="scope">Ressource</div></div></div>
+      <div class="ico-cell"><span class="em">🛠️</span><div><div class="meaning">Outil</div><div class="scope">Ressource</div></div></div>
+      <div class="ico-cell"><span class="em">💡</span><div><div class="meaning">Tuto</div><div class="scope">Ressource</div></div></div>
+      <div class="ico-cell"><span class="em">🔒</span><div><div class="meaning">Privacy</div><div class="scope">Visibilité</div></div></div>
+      <div class="ico-cell"><span class="em">💬</span><div><div class="meaning">Chat · WhatsApp</div><div class="scope">Contact</div></div></div>
+      <div class="ico-cell"><span class="em">🔴</span><div><div class="meaning">En direct</div><div class="scope">Strip ticker</div></div></div>
+      <div class="ico-cell"><span class="em">🎉</span><div><div class="meaning">Annonce</div><div class="scope">Notice bar</div></div></div>
+    </div>
+  </section>
+
+  <!-- DO/DON'T -->
+  <section>
+    <h2 class="sect">Règles d'or</h2>
+    <div class="dd">
+      <div class="dd-card dd-do">
+        <div class="head">✓ Faire</div>
+        <ul>
+          <li>Tutoyer (« tu »).</li>
+          <li>Phrases courtes (≤ 18 mots).</li>
+          <li>Échéances visibles (J-12, 30 avril 2026).</li>
+          <li>Citer les programmes par leur nom : Yaakaar, YEAH, YJC, BRM.</li>
+          <li>Bandes hero en teal-deep, texte blanc.</li>
+          <li>Cartes avec trait 1.5px, pas d’ombre.</li>
+          <li>Emoji du jeu réservé, en ligne avec le texte.</li>
+        </ul>
+      </div>
+      <div class="dd-card dd-dont">
+        <div class="head">✗ Éviter</div>
+        <ul>
+          <li>Vouvoyer ou la voix corporate.</li>
+          <li>Importer une webfont sans autorisation.</li>
+          <li>Réutiliser le bleu / vert ailleurs que pour les statuts.</li>
+          <li>L’indigo en dehors du chatbot.</li>
+          <li>Les dégradés sauf l’overlay hero existant.</li>
+          <li>Les cartes 1px (anémiques) ou 2px+ (lourdes).</li>
+          <li>Mélanger emoji et icônes Lucide / Material.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Design System · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--gj-font-sans);background:var(--gj-bg);color:var(--gj-ink);font-size:var(--gj-fs-lg);line-height:var(--gj-lh-body);padding:0 0 4rem}
+.hero{background:var(--gj-teal-deep);color:#fff;padding:2.6rem 1.5rem 2.4rem}
+.eyebrow{display:inline-block;background:rgba(249,196,0,.22);color:var(--gj-yellow);padding:3px 11px;border-radius:13px;font-size:10px;font-weight:700;margin-bottom:.55rem;letter-spacing:.4px}
+h1{font-size:1.9rem;font-weight:800;line-height:1.2;margin-bottom:.5rem}
+.sub{font-size:.92rem;opacity:.9;max-width:600px;line-height:1.55}
+.wrap{max-width:880px;margin:0 auto;padding:0 1.2rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.85rem;margin-top:-1.4rem;position:relative;z-index:2}
+.card{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-xl);padding:1.1rem 1.2rem;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:.4rem;transition:.15s}
+.card:hover{border-color:var(--gj-teal);box-shadow:var(--gj-shadow-sm);transform:translateY(-1px)}
+.card .ico{font-size:24px;margin-bottom:.2rem}
+.card h3{font-size:14px;font-weight:800;color:var(--gj-teal-deep)}
+.card p{font-size:11.5px;color:var(--gj-grey);line-height:1.55}
+.card .arrow{margin-top:auto;color:var(--gj-teal);font-size:11px;font-weight:700}
+.section{margin-top:2.5rem}
+h2.sect{font-size:1rem;font-weight:800;margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem}
+h2.sect::before{content:"";width:6px;height:18px;border-radius:2px;background:var(--gj-teal);display:inline-block}
+.principles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.7rem}
+.pr{background:#fff;border:var(--gj-bw) solid var(--gj-line);border-radius:var(--gj-r-lg);padding:.9rem 1rem}
+.pr .h{font-size:12px;font-weight:800;margin-bottom:.25rem;color:var(--gj-teal-deep)}
+.pr .b{font-size:11.5px;color:var(--gj-grey);line-height:1.55}
+.color-strip{display:flex;height:42px;border-radius:var(--gj-r-md);overflow:hidden;border:var(--gj-bw) solid var(--gj-line)}
+.color-strip>div{flex:1;display:flex;align-items:flex-end;padding:4px 6px;font-size:9px;font-weight:700;color:#fff;letter-spacing:.3px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">DESIGN SYSTEM · v2 mobile-first</div>
+    <h1>Guichet Jeunesse Sénégal</h1>
+    <p class="sub">Système de design extrait du prototype V5, refondu pour le terrain : typographie remontée à 16px, hit targets 44px+, contraste WCAG AA, ergonomie pensée pour le pouce. Web, mobile, kiosques, supports partenaires.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="cards">
+    <a class="card" href="Foundations.html">
+      <div class="ico">🎨</div>
+      <h3>Foundations</h3>
+      <p>Couleurs, typographie, rayons, ombres, conteneurs, iconographie. Les règles d'or do/don't.</p>
+      <div class="arrow">Ouvrir →</div>
+    </a>
+    <a class="card" href="Mobile Foundations.html" style="border-color:var(--gj-teal);background:linear-gradient(180deg,#fff,#F7FCFA)">
+      <div class="ico">📱</div>
+      <h3>Mobile Foundations <span style="font-size:9px;background:var(--gj-yellow);color:#3a2c00;padding:2px 6px;border-radius:6px;vertical-align:2px;margin-left:4px">NEW</span></h3>
+      <p>Typographie 16px, hit targets 44px, contraste AA, ergonomie pouce, espacement, anti-zoom iOS.</p>
+      <div class="arrow">Ouvrir →</div>
+    </a>
+    <a class="card" href="Mobile Patterns.html" style="border-color:var(--gj-teal);background:linear-gradient(180deg,#fff,#F7FCFA)">
+      <div class="ico">🧭</div>
+      <h3>Mobile Patterns <span style="font-size:9px;background:var(--gj-yellow);color:#3a2c00;padding:2px 6px;border-radius:6px;vertical-align:2px;margin-left:4px">NEW</span></h3>
+      <p>Bottom-nav, cartes thumb-reachable, calendrier liste, états chargement / vide, formulaire, sheet.</p>
+      <div class="arrow">Ouvrir →</div>
+    </a>
+    <a class="card" href="UI Kit.html">
+      <div class="ico">🧩</div>
+      <h3>UI Kit</h3>
+      <p>Galerie vivante : navigation, hero, cartes opportunité, agenda, formulaires, modales, chatbot.</p>
+      <div class="arrow">Ouvrir →</div>
+    </a>
+    <a class="card" href="tokens.css">
+      <div class="ico">⚙️</div>
+      <h3>tokens.css</h3>
+      <p>Variables CSS prêtes à importer. Source unique de vérité pour les couleurs, le type, les radii.</p>
+      <div class="arrow">Voir le fichier →</div>
+    </a>
+    <a class="card" href="README.md">
+      <div class="ico">📖</div>
+      <h3>README</h3>
+      <p>Voix, ton, écosystème (Yaakaar / YEAH / YJC / BRM), public cible, règles éditoriales.</p>
+      <div class="arrow">Lire →</div>
+    </a>
+  </div>
+
+  <section class="section">
+    <h2 class="sect">Palette en un coup d'œil</h2>
+    <div class="color-strip">
+      <div style="background:#009F76">Teal</div>
+      <div style="background:#007A5C">Teal Deep</div>
+      <div style="background:#E1F5EE;color:#007A5C">Soft</div>
+      <div style="background:#F9C400;color:#1a1a1a">Yellow</div>
+      <div style="background:#FFF8E0;color:#7a6000">Yellow Soft</div>
+      <div style="background:#D92A1E">Red</div>
+      <div style="background:#1a1a1a">Ink</div>
+      <div style="background:#606060">Grey</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="sect">Principes</h2>
+    <div class="principles">
+      <div class="pr"><div class="h">Mobile first, lisible, rapide</div><div class="b">Pas de webfont. Corps 16px (anti-zoom iOS), hit targets 44px+. Pensé pour 3G et téléphones d'entrée de gamme.</div></div>
+      <div class="pr"><div class="h">Tutoiement, voix locale</div><div class="b">« Trouver ma prochaine opp », pas « Découvrez ». FCFA, régions, prénoms.</div></div>
+      <div class="pr"><div class="h">Trait 1.5px, pas d'ombre</div><div class="b">Les cartes posées dans la page utilisent un trait, pas d'ombre. L'ombre = flottant.</div></div>
+      <div class="pr"><div class="h">Couleurs = sémantique</div><div class="b">Jaune = action / today. Bleu, vert, rouge = statuts uniquement. Indigo = chatbot.</div></div>
+      <div class="pr"><div class="h">Emoji réservés</div><div class="b">Un jeu fixe (🎓 🚀 🤝 📚 🌾 📍 📅 …). Pas de bibliothèque d'icônes tierce.</div></div>
+      <div class="pr"><div class="h">Programmes par leur nom</div><div class="b">Yaakaar, YEAH, YJC, BRM, e-learning. C'est l'ADN de la plateforme.</div></div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
