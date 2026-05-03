@@ -135,7 +135,7 @@ Voir `.env.example` pour la liste complète. Les clés critiques :
 
 ```
 # Base de données
-DATABASE_URL=mysql://...
+DATABASE_URL=postgresql://...
 
 # SSO CJS
 SSO_BASE_URL=https://sso.cjs.sn
@@ -226,11 +226,10 @@ Résumé :
 
 | Rôle | Nom |
 |------|-----|
-| Product Owner | Abdou Khadre DIOP |
-| Superviseur technique | Alle Samba DIOUF |
-| Superviseur programme | Abdoul SY |
-| Lead développeur | À définir |
-| Développeur fullstack | À définir |
+| Product Owner | Mame Aissatou DIOUF |
+| Superviseur technique | Abdou Khadre DIOP |
+| Lead développeur | Abdouy Khadre DIOP |
+| Développeur fullstack | Mohamadou Oury DIALLO |
 
 ---
 
@@ -241,7 +240,7 @@ Le projet Jira est **GJ** (ex : ticket `GJ-12`).
 ### Flux Git et statuts Jira
 
 ```
-feature/GJ-XX  ──PR──►  develop  ──PR──►  main
+feature/GUIC-XX  ──PR──►  develop  ──PR──►  main
                  (devs)              (PO / release)
 ```
 
@@ -257,20 +256,20 @@ feature/GJ-XX  ──PR──►  develop  ──PR──►  main
 
 **Branche** :
 ```
-feature/GJ-<numéro>-<description-kebab-case>
-fix/GJ-<numéro>-<description-kebab-case>
-chore/GJ-<numéro>-<description-kebab-case>
+feature/GUIC-<numéro>-<description-kebab-case>
+fix/GUIC-<numéro>-<description-kebab-case>
+chore/GUIC-<numéro>-<description-kebab-case>
 ```
 
 **Titre de PR** :
 ```
-GJ-<numéro> <type>: <description courte en français>
+GUIC-<numéro> <type>: <description courte en français>
 ```
 
 **Exemple complet pour la story GJ-12 :**
 ```
-Branche : feature/GJ-12-tunnel-onboarding-3-etapes
-Titre PR : GJ-12 feat: tunnel d'onboarding 3 étapes après authentification SSO
+Branche : feature/GUIC-12-tunnel-onboarding-3-etapes
+Titre PR : GUIC-12 feat: tunnel d'onboarding 3 étapes après authentification SSO
 ```
 
 ### Fichiers structurels importants ajoutés (v3)
@@ -291,3 +290,31 @@ Ces fichiers étaient manquants et ont été ajoutés :
 | `jest.config.ts` | Configuration Jest (tests unitaires) |
 | `playwright.config.ts` | Configuration Playwright (tests E2E) |
 | `docs/openapi/datahub-v1.yaml` | Spec OpenAPI des endpoints d'export |
+
+---
+
+## 13. Design de référence — règle absolue
+
+Le dossier `design/html/` contient les fichiers HTML produits par Claude Design.
+C'est la **source de vérité visuelle** du projet. Toute création de page ou de composant doit s'y référer.
+
+### Workflow obligatoire pour toute nouvelle page
+
+```
+1. Lire le fichier HTML correspondant dans design/html/
+2. Identifier la structure, les classes et les variables utilisées
+3. Convertir fidèlement en composant TSX
+4. Utiliser les variables de src/styles/tokens.css — jamais de valeurs en dur
+```
+
+### Règles de conversion HTML → TSX
+
+- Les classes CSS du fichier HTML sont conservées telles quelles si elles correspondent à des tokens
+- Les `style="color: #..."` en dur sont remplacés par les variables de `tokens.css`
+- Chaque bloc HTML répété devient un composant dans `src/components/`
+- La structure de layout (header, main, footer) vient de `src/components/layout/`
+
+### Si aucun fichier HTML de référence n'existe pour une page
+
+Signaler au PO qu'il manque un fichier de design dans `design/html/`
+et ne pas inventer le design — attendre la référence.
