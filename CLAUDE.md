@@ -67,6 +67,9 @@ Plateforme jeunesse CJS · 22 000 utilisateurs · Sénégal · Programme YEAH ·
 
 **Projet :** `GUIC` · **Board :** https://consortiumjeunesse.atlassian.net/jira/software/projects/GUIC/boards/199
 
+**Règle absolue :** Ne jamais pusher sur `main`, `dev` ou `staging`.
+Toujours : `git checkout dev` → `git pull` → créer une branche feature → travailler → PR vers `dev`.
+
 | Moment | Statut ticket |
 |--------|--------------|
 | Branche créée | En cours |
@@ -75,7 +78,7 @@ Plateforme jeunesse CJS · 22 000 utilisateurs · Sénégal · Programme YEAH ·
 | PR develop → main | Fini |
 
 ```
-Branche  : feature/GUIC-<n>-<description-kebab>
+Branche  : feature/GUIC-<n>-<description-kebab>   ← depuis dev obligatoirement
 PR titre : GUIC-<n> feat|fix|chore: <description courte en français>
 Commit   : feat|fix|perf|security|chore|test(module): [GUIC-<n>] description
            Closes GUIC-<n>
