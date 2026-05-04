@@ -1,7 +1,18 @@
 # Spec M1 — Socle Technique (Sprint 0)
 
+**Epic JIRA :** GUIC-1
 **Sprint :** 0 · **Période :** 4–15 mai 2026
-**Statut :** En cours — schéma Prisma défini et validé ✅
+**Statut :** En cours
+
+---
+
+## Stories Sprint 0 (sous Epic GUIC-1)
+
+| Ticket | Description | Statut |
+|--------|-------------|--------|
+| GUIC-15 | Setup Next.js SSR + design system v1 | in_progress |
+| GUIC-16 | Intégrer client SSO (OAuth PKCE) au Guichet | in_progress |
+| GUIC-17 | Migrer données Guichet (modèle de données unifié) | todo |
 
 ---
 
@@ -20,56 +31,74 @@ Rien de fonctionnel côté utilisateur final — tout est infrastructure et cont
 - ✅ **Soft delete** : `deletedAt` sur `Utilisateur` et `Opportunite` (CDP + archivage)
 - ✅ **Prisma v7** : `prisma.config.ts` à la racine + `@prisma/adapter-mariadb` dans `src/lib/prisma.ts`
 
-## Tâches Sprint 0
+---
+
+## GUIC-15 — Setup Next.js SSR + design system v1
 
 ### Infrastructure
-- [x] `GUIC-1` — `prisma/schema.prisma` complet (tous les modèles M1–M14)
-- [ ] `GUIC-2` — Migration initiale + seed de démonstration
-- [ ] `GUIC-3` — CI/CD GitHub Actions : tests → staging → production (workflows déjà créés, vérifier)
-- [ ] `GUIC-4` — Docker Compose fonctionnel en local (MariaDB + Redis)
+- [x] `prisma/schema.prisma` complet (tous les modèles M1–M14)
+- [x] Design system v2 — tokens `gj-*`, composants UI, Header mobile-first
+- [x] Routing App Router — segments explicites `admin/`, `jeune/`, `recruteur/`
+- [ ] Migration initiale + seed de démonstration
+- [ ] CI/CD GitHub Actions : tests → staging → production
+- [ ] Docker Compose fonctionnel en local (MariaDB + Redis)
+- [ ] Police Lexend chargée dans `src/app/layout.tsx`
+- [ ] Tokens CSS sync (`design/html/tokens.css` ↔ `src/styles/tokens.css`)
+- [ ] `/api/health` → 200 avec statuts DB + Redis
 
-### SSO
-- [ ] `GUIC-5` — `src/lib/auth.ts` : configuration next-auth v5 avec SSO CJS OIDC
-- [ ] `GUIC-6` — `src/app/(public)/auth/callback/route.ts` : flow complet PKCE
-- [ ] `GUIC-7` — Middleware protection routes groups (déjà scaffoldé — compléter)
+---
 
-### Design System
-- [ ] `GUIC-8` — Vérifier que `src/styles/tokens.css` correspond à `design/html/tokens.css`
-- [ ] `GUIC-9` — Composants UI de base fonctionnels (Button, Card, Input, Badge, Modal)
-- [ ] `GUIC-10` — Police Lexend chargée et configurée dans `src/app/layout.tsx`
+## GUIC-16 — Intégrer client SSO (OAuth PKCE)
 
-### Migration Drupal
-- [ ] `GUIC-11` — Script `scripts/migrate-drupal.ts` : structure + mapping champs Drupal → Prisma
-- [ ] `GUIC-12` — Stratégie pour les 22 000 comptes (voir questions ouvertes ci-dessous)
+- [x] `src/lib/sso-client.ts` — PKCE, exchangeCode, getUserInfo, refresh, revoke, verifyToken
+- [x] `src/lib/auth.ts` — session cookie signée HS256 (jose), Edge-compatible
+- [x] `/api/auth/login` — génération PKCE + redirect SSO
+- [x] `/api/auth/logout` — révocation token + purge cookie
+- [x] `src/app/(public)/auth/callback/route.ts` — flow PKCE complet
+- [x] `src/middleware.ts` — protection routes par rôle (Edge runtime)
+- [ ] Tests unitaires auth flow (Jest)
+- [ ] Cookie httpOnly validé en local avec SSO de dev
+
+---
+
+## GUIC-17 — Migration Drupal
+
+- [ ] Script `scripts/migrate-drupal.ts` : structure + mapping champs Drupal → Prisma
+- [ ] Stratégie pour les 22 000 comptes (format export Drupal à confirmer)
+- [ ] Validation mapping avec l'équipe CJS
 
 ---
 
 ## Contrats API créés par M1
 
-Ces routes doivent fonctionner avant que les autres modules puissent démarrer :
-
 ```
 GET  /api/health              → 200 { status: 'ok', version, db: 'ok', redis: 'ok' }
-POST /api/auth                → callback OAuth, création session
-GET  /api/profil              → profil du user connecté (utilisé par M2)
+GET  /api/auth/login          → redirect OAuth SSO
+GET  /api/auth/logout         → revoke + redirect /
+GET  /auth/callback           → échange code PKCE → session cookie
+GET  /api/profil              → profil du user connecté (M2)
 ```
 
 ---
 
-## Critères done (acceptance)
+## Critères done (GUIC-15)
 
 - [ ] `npm run dev` démarre sans erreur
 - [ ] `npm run build` passe sans erreur TypeScript
 - [ ] `npm test` passe (Jest)
 - [ ] MariaDB + Redis opérationnels via Docker Compose
-- [ ] Callback SSO fonctionnel en local (cookie httpOnly créé)
 - [ ] `/api/health` retourne 200 avec statuts DB + Redis
-- [ ] Tous les composants UI de base rendus sans erreur dans Storybook ou page de test
 - [ ] Design tokens identiques entre `design/html/tokens.css` et `src/styles/tokens.css`
+
+## Critères done (GUIC-16)
+
+- [ ] Callback SSO fonctionnel en local (cookie httpOnly créé, session décodable)
+- [ ] Refresh automatique avant expiry (< 5 min)
+- [ ] Middleware bloque bien les routes non autorisées (403 si mauvais rôle)
 
 ---
 
-## Questions ouvertes (bloqueuses pour Prisma schema)
+## Questions ouvertes
 
 1. **Format données Drupal** : quels champs sont disponibles dans l'export ? Y a-t-il un fichier de mapping ?
 2. **Compétences/domaines** : tableau de strings (JSON) ou table de référence séparée ?
