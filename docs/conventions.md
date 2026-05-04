@@ -239,22 +239,39 @@ model Opportunite {
 
 ## 6. Design system et styles
 
-### Tokens de design CJS
+### Tokens de design GJ
+
+Les tokens sont définis dans `src/styles/tokens.css` (variables CSS) et mappés dans `tailwind.config.ts`.
+Le fichier `src/styles/design-tokens.ts` exporte les valeurs TypeScript pour usage programmatique.
+
+**Préfixe canonique : `gj-*`** (tokens du design system Guichet Jeunesse V5)
 
 ```typescript
-// src/styles/design-tokens.ts
+// Classes Tailwind — toujours utiliser les tokens gj-*
+className="bg-gj-teal text-white"          // ✅ bouton primaire
+className="bg-gj-yellow text-gj-ink"       // ✅ accent secondaire
+className="text-gj-red"                    // ✅ urgence / erreur
+className="bg-gj-indigo"                   // ✅ chatbot Aïssatou uniquement
 
-export const CJS_COLORS = {
-  vert: '#1B7A3D',      // couleur principale
-  or: '#E5A823',        // couleur secondaire
-  rouge: '#C8102E',     // couleur d'alerte / accent
-  noir: '#1A1A1A',
-  gris: '#6B7280',
-  fond: '#F9FAFB',
-} as const
-
-export const CJS_FONT = 'Lexend, sans-serif'
+// Aliases legacy (compatibilité — à éviter dans le nouveau code)
+// cjs-vert → gj-teal | cjs-or → gj-yellow | cjs-rouge → gj-red
+className="bg-cjs-vert"                    // ⚠️ alias — préférer bg-gj-teal
 ```
+
+**Tokens principaux :**
+
+| Token Tailwind | Variable CSS | Usage |
+|----------------|-------------|-------|
+| `gj-teal` | `--gj-teal` (#009F76) | Couleur principale — boutons, liens, états actifs |
+| `gj-teal-deep` | `--gj-teal-deep` (#007A5C) | Hero, headers de page |
+| `gj-yellow` | `--gj-yellow` (#F9C400) | CTA secondaire, "aujourd'hui", alertes |
+| `gj-red` | `--gj-red` (#D92A1E) | Urgences, deadlines, erreurs |
+| `gj-indigo` | `--gj-indigo` (#6366F1) | **Réservé chatbot Aïssatou** — jamais ailleurs |
+| `gj-ink` | `--gj-ink` (#1A1A1A) | Texte principal |
+| `gj-bg` | `--gj-bg` | Fond de page |
+
+**Police : Lexend** — configurée via `next/font/google` dans `src/app/layout.tsx`.
+Variable CSS : `--font-lexend`. Classe Tailwind : `font-sans` (mappée sur Lexend dans `tailwind.config.ts`).
 
 ### Utilisation des composants UI
 
@@ -266,12 +283,13 @@ import { Badge } from '@/components/ui/Badge'
 
 // ❌ Ne jamais écrire du HTML brut avec des classes Tailwind ad hoc dans une page
 <button className="bg-green-700 text-white px-4 py-2 rounded">...</button>
+
+// ❌ Jamais de valeurs hex en dur
+<div style={{ color: '#009F76' }}>...</div>
+
+// ✅ Toujours via tokens
+<div className="text-gj-teal">...</div>
 ```
-
-### Classes Tailwind
-
-- Les couleurs CJS sont configurées dans `tailwind.config.ts` avec les noms `cjs-vert`, `cjs-or`, `cjs-rouge`
-- Pas de valeurs hexadécimales en dur dans les classes Tailwind
 
 ---
 

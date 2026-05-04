@@ -7,7 +7,7 @@ Le Guichet Jeunesse est une application **Next.js 16 avec App Router**, rendue c
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  GUICHET JEUNESSE                   │
-│              (Next.js 15 — App Router)              │
+│              (Next.js 16 — App Router)              │
 │                                                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │  Pages   │  │   API    │  │  API             │  │

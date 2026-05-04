@@ -5,116 +5,133 @@
 ## 1. Démarrage de session
 
 ```
-1. Lire CLAUDE.md                        → règles + protocoles (auto-chargé)
-2. Lire CURRENT_TASK.md                  → reprendre si tâche en cours
-3. Lire SPRINT_STATUS.md                 → identifier la prochaine tâche si CURRENT_TASK vide
+1. Lire CLAUDE.md                    → règles + protocoles (auto-chargé)
+2. Lire CURRENT_TASK.md              → reprendre si tâche en cours
+3. Lire SPRINT_STATUS.md             → prochaine tâche si CURRENT_TASK vide
 4. Charger uniquement les fichiers du module actif
 ```
 
-Ne jamais charger l'ensemble du codebase ni tous les fichiers de specs.
+---
+
+## 2. Architecture du système documentaire
+
+```
+CLAUDE.md                          ← Tier 1 : toujours chargé (~700 tokens)
+.agent_context/
+  CURRENT_TASK.md                  ← Tier 2 : état tâche active (~200 tokens)
+  DECISIONS.md                     ← ADR — si décision archi nécessaire
+  rules/
+    nextjs.md                      ← règles Next.js opérationnelles
+    security.md                    ← invariants sécurité
+  specs/
+    M1-socle.md                    ← Tier 3 : module actif uniquement
+    M2-auth.md                     ← (à créer avant Sprint 1)
+    ...
+
+docs/                              ← Référence complète — chargée à la demande
+  architecture.md                  → décisions techniques, diagrammes
+  conventions.md                   → nommage, TypeScript, Prisma, design tokens gj-*
+  metier.md                        → entités CJS, rôles, régions, flux
+  sso.md                           → flow OAuth PKCE, session Next.js, endpoints SSO
+  interconnexion.md                → HMAC, webhooks entrants, Data Hub API
+  design/README.md                 → design system GJ V5, tokens, composants
+
+design/html/                       ← Source de vérité visuelle
+
+../cjs_auth/                       ← SSO CJS — LECTURE SEULE, jamais modifier
+  .agent_context/CONTEXT.md        → vue d'ensemble SSO
+  .agent_context/GUICHET_CONCEPTION_TECHNIQUE.md → conception Guichet côté SSO
+  routes/api.php                   → endpoints SSO exposés
+  app/Services/WebhookService.php  → events webhooks émis vers le Guichet
+```
 
 ---
 
-## 2. Protocole démarrage module (spec-first)
+## 3. Protocole démarrage module (spec-first)
 
-### Étape 1 — Validation ticket JIRA
+### Étape 1 — Validation ticket JIRA (MCP)
 
 ```
-→ Fetch ticket JIRA via MCP (outil jira_get_issue ou équivalent)
-→ Lire : titre, description, critères d'acceptance, story points, priorité
+→ Fetch ticket JIRA : titre, description, acceptance criteria, story points
 → Évaluer :
-    - Description suffisamment précise pour implémenter ?
-    - Critères d'acceptance mesurables et complets ?
+    - Description suffisante pour implémenter sans ambiguïté ?
+    - Critères d'acceptance mesurables ?
     - Dépendances identifiées ?
-→ Si manques détectés → rédiger les mises à jour proposées → attendre validation humaine
-→ Appliquer les mises à jour validées via MCP avant de continuer
+→ Si manques → proposer les mises à jour → validation PO → appliquer via MCP
 ```
 
-### Étape 2 — Spec module
+### Étape 2 — Définition de spec
 
 ```
-→ Vérifier si .agent_context/specs/MX-nom.md existe
-→ Si oui : lire, vérifier complétude (schéma DB, règles métier, contrats API, critères done)
-→ Si non ou incomplet :
-    - Identifier les questions bloquantes (max 3 à la fois)
-    - Poser les questions, attendre les réponses
-    - Rédiger la spec complète
-    - Valider avec l'humain
-→ Ne jamais écrire du code avant que la spec soit validée
+→ Vérifier .agent_context/specs/MX-nom.md
+→ Si absent ou incomplet :
+    1. Chercher dans docs/ et ../cjs_auth/ ce qui est déjà documenté
+    2. Identifier les trous restants → poser max 3 questions ciblées
+    3. Attendre réponses → rédiger spec complète → valider avec l'humain
+→ Ne jamais coder sans spec validée
+```
+
+**Format spec minimal :**
+```markdown
+# Spec MX — Nom
+## Schéma Prisma (modèles + champs + relations)
+## Règles métier
+## Contrats API (routes + payloads + réponses ApiResponse<T>)
+## Critères done
+## Questions ouvertes
 ```
 
 ### Étape 3 — Implémentation
 
 ```
-→ Créer CURRENT_TASK.md avec état initial
-→ Créer branche : feature/GUIC-<n>-<description-kebab>
-→ Implémenter selon ordre : types → lib/services → API routes → composants → pages
+→ Créer CURRENT_TASK.md
+→ git checkout dev && git pull origin dev
+→ git checkout -b feature/GUIC-<n>-<description>
+→ Ordre : types → lib/services → API routes → composants → pages
 → Mettre à jour CURRENT_TASK.md après chaque fichier complété
-→ Tests : écrire les tests Jest/Playwright pour chaque comportement critique
 ```
 
 ---
 
-## 3. Matrice d'autonomie
+## 4. Matrice d'autonomie
 
 | Action | Autonomie |
 |--------|-----------|
-| Lire des fichiers, analyser, chercher | Totale |
-| Écrire du code, créer des fichiers | Totale dans le scope du sprint |
-| Créer des migrations Prisma | Totale (dev uniquement) |
+| Lire fichiers (guichet + ../cjs_auth/) | Totale |
+| Écrire code, créer fichiers | Totale dans le scope sprint |
+| Migrations Prisma en local | Totale |
 | Mettre à jour CURRENT_TASK.md / DECISIONS.md | Totale |
-| Mettre à jour un ticket JIRA via MCP | Proposer → validation → exécuter |
-| Commiter du code | Confirmation avant commit |
-| Pusher / créer une PR | Confirmation avant |
-| Déployer (staging/production) | Humain uniquement |
-| Migration des 22 000 comptes Drupal | Humain uniquement |
-| Modifier des secrets / .env | Humain uniquement |
+| Proposer mise à jour ticket JIRA | Proposer → validation → MCP |
+| Commiter | Confirmation avant |
+| Pusher / créer PR | Confirmation avant |
+| Merger, déployer, modifier .env | Humain uniquement |
+| Modifier ../cjs_auth/ | **Jamais** |
 
 ---
 
-## 4. Fin de session
+## 5. Fin de session
 
 ```
-1. Mettre à jour CURRENT_TASK.md
-   → Si tâche terminée : vider le fichier (remettre le template vide)
-   → Si tâche en cours : noter le fichier en cours + prochaine étape
-
-2. Mettre à jour SPRINT_STATUS.md
-   → Cocher les tâches terminées
-   → Documenter les blocages
-
-3. Commiter (atomique par module)
-   feat(m2-auth): [GUIC-12] description
-   Closes GUIC-12
-
-4. Mettre à jour DECISIONS.md si décision non évidente prise
+1. CURRENT_TASK.md → vider si terminé, noter étape si en cours
+2. SPRINT_STATUS.md → cocher tâches, noter blocages
+3. Commit atomique par module
+4. DECISIONS.md → ajouter si décision non évidente prise
 ```
 
 ---
 
-## 5. Checklist avant PR
+## 6. Checklist avant PR
 
 ```
-□ Tests écrits pour chaque feat/fix/security
-□ Comportement attendu ET cas limite couverts
-□ Aucun console.log committé (utiliser src/lib/logger.ts)
-□ cjs_uid présent dans toutes les tables utilisateur
-□ Cookie session : httpOnly + Secure + SameSite=Strict
-□ Rate limiting en place sur endpoints publics
-□ Webhook : HMAC + idempotence event_id
+□ npm run lint + npm run test passent
+□ Aucun console.log (utiliser src/lib/logger.ts)
+□ cjs_uid dans toutes les tables utilisateur
+□ Cookie : httpOnly + Secure + SameSite=Strict
+□ Rate limiting sur endpoints publics
+□ Webhook : HMAC + idempotence event_id Redis 7 jours
 □ Composants : src/components/ui/ uniquement
-□ Design : fidèle au fichier HTML de référence dans design/html/
-□ npm run lint et npm run test passent
-□ SPRINT_STATUS.md mis à jour
-□ CURRENT_TASK.md vidé
+□ Tokens : gj-* (pas de hex en dur)
+□ Design : fidèle à design/html/ de référence
+□ ApiResponse<T> sur toutes les routes API
+□ SPRINT_STATUS.md + CURRENT_TASK.md mis à jour
 ```
-
----
-
-## 6. Stratégie de tests
-
-**Jest (unitaires) :** lib/services, calculs de scoring, validation Zod
-**Playwright (E2E) :** flows critiques — auth callback, candidature, réservation
-**Tests d'intégration :** API routes avec vraie base de données (pas de mocks)
-
-Règle : écrire le test avant ou pendant l'implémentation, jamais après.

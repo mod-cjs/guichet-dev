@@ -1,66 +1,63 @@
 # Règles Next.js — Guichet Jeunesse CJS
 
+Complément opérationnel de `docs/conventions.md`. Ne pas dupliquer — référencer.
+
 ---
 
-## App Router — Server vs Client
+## Server vs Client Components
 
 ```typescript
-// Server Component (défaut) — ne pas mettre 'use client' inutilement
-// Peut : accéder DB, lire cookies, fetch async directement
+// Server Component (défaut) — fetch async, accès DB, lecture cookies
 export default async function OpportunitesPage() {
   const data = await prisma.opportunite.findMany({ take: 20 })
   return <OpportunitesList items={data} />
 }
 
-// Client Component — uniquement si nécessaire (interactivité, state, browser APIs)
+// Client Component — uniquement si état interactif, hooks, événements browser
 'use client'
 export function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
   const [value, setValue] = useState('')
-  // ...
 }
 ```
 
-## Session SSO — accès côté serveur
+## Session SSO — extraction cjs_uid
 
 ```typescript
-// Dans un Server Component ou API route
 import { auth } from '@/lib/auth'
 
 const session = await auth()
 if (!session) redirect('/auth/connexion')
-
-const cjsUid = session.user.sub  // jamais depuis le body de la requête
+const cjsUid = session.user.sub  // jamais depuis le body ou un param URL
 ```
 
-## API Routes — structure obligatoire
+## API Route — structure obligatoire
 
 ```typescript
-// src/app/api/opportunites/route.ts
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
-import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import type { ApiResponse } from '@/types/api'
 
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse>> {
   const limited = await rateLimit(req)
   if (!limited.success) {
-    return NextResponse.json({ data: null, meta: null, error: 'Trop de requêtes' }, { status: 429 })
+    return NextResponse.json({ error: { code: 'TOO_MANY_REQUESTS', message: 'Trop de requêtes' } }, { status: 429 })
   }
-
   const data = await prisma.opportunite.findMany({ take: 20 })
-  return NextResponse.json({ data, meta: { total: data.length }, error: null })
+  return NextResponse.json({ data, meta: { total: data.length } })
 }
 ```
 
-## Cookies — règle absolue
+## Cookies session — règle absolue
 
 ```typescript
-// Lire un cookie côté serveur
 import { cookies } from 'next/headers'
-const cookieStore = await cookies()
-const token = cookieStore.get('session-token')
 
-// Écrire un cookie (API route uniquement)
-const res = NextResponse.json({ data, meta: null, error: null })
+// Lecture (Server Component / API route)
+const cookieStore = await cookies()
+
+// Écriture (API route uniquement)
 res.cookies.set('session-token', value, {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -69,10 +66,9 @@ res.cookies.set('session-token', value, {
 })
 ```
 
-## Metadata SEO — obligatoire sur chaque page publique
+## Metadata SEO — obligatoire sur toutes les pages publiques
 
 ```typescript
-// pages publiques SSR
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const opp = await getOpportunite(params.slug)
   return {
@@ -83,35 +79,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 ```
 
+## Loading states — obligatoire sur toutes les pages
+
+```
+src/app/(public)/opportunites/
+├── page.tsx      → Server Component async
+├── loading.tsx   → Skeleton automatique Next.js
+└── error.tsx     → Error boundary
+```
+
+## Tokens couleur — préfixe gj-* (pas cjs-*)
+
+```tsx
+// ✅
+<button className="bg-gj-teal text-white">Postuler</button>
+<span className="text-gj-red">Deadline dépassée</span>
+
+// ⚠️ alias legacy — ne pas utiliser dans le nouveau code
+<button className="bg-cjs-vert">...</button>
+
+// ❌ jamais
+<div style={{ color: '#009F76' }}>...</div>
+```
+
 ## Images
 
 ```tsx
 import Image from 'next/image'
-// Toujours : width + height + alt + format WebP implicite
 <Image src="/avatars/user.jpg" width={120} height={120} alt="Avatar" quality={80} />
 ```
 
-## Loading states — obligatoire
+## Design de référence
 
-```
-src/app/(public)/opportunites/
-├── page.tsx       → Server Component async
-├── loading.tsx    → Skeleton affiché automatiquement par Next.js
-└── error.tsx      → Boundary d'erreur
-```
-
-## Middleware — protection des routes
-
-```typescript
-// src/middleware.ts — déjà configuré
-// Protège automatiquement (jeune)/, (recruteur)/, (admin)/
-// Ne pas modifier sans mettre à jour les tests E2E
-```
-
-## Variables d'environnement
-
-```typescript
-// Jamais process.env directement dans un composant ou handler
-// Toujours depuis src/lib/config.ts ou via les libs dédiées
-// Les valeurs côté client doivent être préfixées NEXT_PUBLIC_
-```
+Avant toute nouvelle page : lire `design/html/` pour trouver le fichier HTML correspondant.
+Si aucun fichier HTML de référence n'existe → signaler au PO, ne pas inventer le design.
