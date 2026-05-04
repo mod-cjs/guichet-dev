@@ -48,5 +48,5 @@ export async function GET(request: NextRequest) {
 function roleRedirect(roles: string[]): string {
   if (roles.includes('admin'))     return '/admin/tableau-de-bord'
   if (roles.includes('recruteur')) return '/recruteur/tableau-de-bord'
-  return '/mon-profil'
+  return '/jeune/mon-profil'
 }

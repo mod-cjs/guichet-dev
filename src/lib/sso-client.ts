@@ -62,6 +62,9 @@ function pkceChallenge(verifier: string): string {
 // ── HMAC headers pour les appels server-to-server ─────────────────────────
 
 function buildHmacHeaders(body: string): HeadersInit {
+  if (!API_KEY || !API_SECRET) {
+    throw new Error("SSO_API_KEY et SSO_API_SECRET sont requis pour les appels server-to-server");
+  }
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const bodyHash = createHash("sha256").update(body).digest("hex");
   const message = `${API_KEY}\n${timestamp}\n${bodyHash}`;
