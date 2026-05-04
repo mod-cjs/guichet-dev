@@ -93,8 +93,7 @@
   /* =========================================================
      3 · TYPOGRAPHIE — échelle remontée
      ========================================================= */
-  --gj-font-sans: 'Lexend', system-ui, -apple-system, "Helvetica Neue",
-                  Arial, sans-serif;
+  --gj-font-sans: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 
   /* v2 — échelle accessible */
   --fs-100: 11px;   /* tags & métadonnées (jamais en-dessous) */

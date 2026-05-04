@@ -12,8 +12,6 @@ export interface CJSSession {
   expiresAt: number
 }
 
-// Récupère la session depuis le cookie Next.js
-// À remplacer par next-auth v5 une fois le SSO branché
 export async function getSession(): Promise<CJSSession | null> {
   try {
     const cookieStore = await cookies()

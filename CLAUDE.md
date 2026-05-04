@@ -29,7 +29,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - `gj-indigo` réservé au chatbot Aïssatou — jamais utilisé ailleurs
-- Police : Lexend (`font-sans` dans Tailwind) — configurée dans `src/app/layout.tsx`
+- Police : system-ui (sans webfont — critique 3G) — configurée dans `src/styles/tokens.css`
 - **`design/html/`** = source de vérité visuelle — lire le fichier HTML avant toute nouvelle page
 
 **API**

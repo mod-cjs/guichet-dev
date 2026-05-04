@@ -11,21 +11,24 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export function Select({ label, error, options, placeholder, id, className = '', ...props }: SelectProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-space-1">
       {label && (
-        <label htmlFor={id} className="text-sm font-medium text-cjs-noir">{label}</label>
+        <label htmlFor={id} className="text-fs-300 font-bold text-color-text-primary">{label}</label>
       )}
       <select
         id={id}
-        className={`w-full px-4 py-3 rounded-cjs border bg-white transition-colors
-          ${error ? 'border-cjs-rouge' : 'border-gray-300 focus:border-cjs-vert'}
-          focus:outline-none focus:ring-2 focus:ring-cjs-vert focus:ring-opacity-20 ${className}`}
+        className={`w-full px-space-3 rounded-gj-md border-[1.5px] bg-white font-[inherit]
+          text-[16px] min-h-[var(--tap-input)]
+          transition-colors cursor-pointer
+          ${error ? 'border-gj-red' : 'border-gj-line focus:border-gj-teal-deep'}
+          focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]
+          ${className}`}
         {...props}
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {error && <p className="text-xs text-cjs-rouge">{error}</p>}
+      {error && <p className="text-fs-200 text-gj-red">{error}</p>}
     </div>
   )
 }
