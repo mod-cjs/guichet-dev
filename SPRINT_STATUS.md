@@ -14,7 +14,7 @@
 
 | Ticket | Description | Status | Scope | Bloqué par |
 |--------|-------------|--------|-------|-----------|
-| GUIC-1 | Schéma Prisma complet (tous modèles M1–M14) | todo | both | Questions ouvertes spec M1 |
+| GUIC-1 | Schéma Prisma complet (tous modèles M1–M14) | done | both | — |
 | GUIC-2 | Migration initiale + seed demo | todo | agent | GUIC-1 |
 | GUIC-3 | Vérifier/compléter CI/CD GitHub Actions | todo | agent | — |
 | GUIC-4 | Docker Compose local fonctionnel | todo | agent | — |
@@ -29,13 +29,13 @@
 
 ### Blocages actuels
 
-- **Schéma Prisma** : 3 questions ouvertes (voir `.agent_context/specs/M1-socle.md`)
-- **Migration Drupal** : format des données source non confirmé
+- **Migration Drupal** : format des données source non confirmé (GUIC-11/GUIC-12 bloqués)
 - **SSO** : credentials `SSO_CLIENT_SECRET` + `NEXTAUTH_SECRET` non renseignés dans `.env.local`
+- **JIRA API token** : token expiré — à renouveler sur id.atlassian.com
 
 ### Fix urgent à faire
 
-- [ ] Mettre à jour `.github/workflows/jira.yml` : remplacer `GJ-[0-9]+` par `GUIC-[0-9]+`
+- [x] Mettre à jour `.github/workflows/jira.yml` : remplacer `GJ-[0-9]+` par `GUIC-[0-9]+`
 
 ---
 
@@ -53,5 +53,5 @@
 ## Dernière session
 
 **Date :** 2026-05-04
-**Actions :** Restructuration complète système agent IA — CLAUDE.md slim, .agent_context/ 3 niveaux, JIRA MCP configuré, correction clé JIRA (GJ → GUIC), git pull remote
-**Prochaine étape :** Résoudre questions ouvertes schéma Prisma → GUIC-1
+**Actions :** Schéma Prisma complet validé (GUIC-1). Prisma v7 configuré avec prisma.config.ts + @prisma/adapter-mariadb. Modèles M1–M14 définis.
+**Prochaine étape :** GUIC-2 migration initiale + seed OR GUIC-3 CI/CD (pas de blocage)

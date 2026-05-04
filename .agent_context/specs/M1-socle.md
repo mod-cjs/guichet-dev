@@ -1,7 +1,7 @@
 # Spec M1 — Socle Technique (Sprint 0)
 
 **Sprint :** 0 · **Période :** 4–15 mai 2026
-**Statut :** En cours — structure initialisée, schéma Prisma à définir
+**Statut :** En cours — schéma Prisma défini et validé ✅
 
 ---
 
@@ -12,18 +12,18 @@ Rien de fonctionnel côté utilisateur final — tout est infrastructure et cont
 
 ---
 
-## Schéma Prisma (à valider avant migration)
+## Schéma Prisma — Décisions arrêtées
 
-Questions ouvertes à résoudre avant d'écrire le schéma :
-- [ ] Liste exacte des champs `UserProfile` (confirmer avec docs/metier.md)
-- [ ] Champs JSON vs colonnes dédiées pour `competences`, `domaines_interet`, `diplomes`
-- [ ] Table `WebhookEvent` pour idempotence : Redis suffit ou besoin de persistance DB ?
-- [ ] Soft delete (`deletedAt`) sur quelles tables ?
+- ✅ **UserProfile** : `ProfilJeune` avec `competences`, `domainesInteret`, `diplomes` en `Json?` (MVP)
+- ✅ **JSON vs colonnes** : colonnes JSON pour flexibilité MVP, normalisation sur signal réel
+- ✅ **WebhookEvent idempotence** : Redis TTL 7j suffit. `InteropLog` pour audit uniquement.
+- ✅ **Soft delete** : `deletedAt` sur `Utilisateur` et `Opportunite` (CDP + archivage)
+- ✅ **Prisma v7** : `prisma.config.ts` à la racine + `@prisma/adapter-mariadb` dans `src/lib/prisma.ts`
 
 ## Tâches Sprint 0
 
 ### Infrastructure
-- [ ] `GUIC-1` — `prisma/schema.prisma` complet (tous les modèles M1–M14)
+- [x] `GUIC-1` — `prisma/schema.prisma` complet (tous les modèles M1–M14)
 - [ ] `GUIC-2` — Migration initiale + seed de démonstration
 - [ ] `GUIC-3` — CI/CD GitHub Actions : tests → staging → production (workflows déjà créés, vérifier)
 - [ ] `GUIC-4` — Docker Compose fonctionnel en local (MariaDB + Redis)
