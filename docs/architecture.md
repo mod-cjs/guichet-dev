@@ -41,7 +41,7 @@ Le Guichet Jeunesse est une application **Next.js 16 avec App Router**, rendue c
 
 ### 2.1 Next.js App Router avec SSR
 
-**Décision** : Next.js 15 avec App Router et rendu côté serveur.
+**Décision** : Next.js 16 avec App Router et rendu côté serveur.
 
 **Pourquoi** : Le SEO est critique pour le Guichet — les opportunités et événements doivent être indexés par Google. Le SSR garantit que le HTML est complet à la première réponse du serveur, même sur des connexions lentes (cible : performance mobile > 85/100 Lighthouse).
 
