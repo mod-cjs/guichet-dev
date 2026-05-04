@@ -1,39 +1,76 @@
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
+import { type NextRequest, NextResponse } from 'next/server'
+import type { CJSSession } from '@/types/user'
 
-export interface CJSSession {
-  cjsUid: string
-  nom: string
-  prenom: string
-  email: string | null
-  telephone: string | null
-  region: string | null
-  roles: string[]
-  accessToken: string
-  expiresAt: number
+// Compatible Edge Runtime — aucun import Node.js
+
+const SESSION_COOKIE = 'cjs_session'
+
+function getSecret(): Uint8Array {
+  const s = process.env.NEXTAUTH_SECRET
+  if (!s) throw new Error('NEXTAUTH_SECRET manquant')
+  return new TextEncoder().encode(s)
 }
 
-// Récupère la session depuis le cookie Next.js
-// À remplacer par next-auth v5 une fois le SSO branché
-export async function getSession(): Promise<CJSSession | null> {
+// ── Encode / decode ───────────────────────────────────────────────────────
+
+export async function encodeSession(session: CJSSession): Promise<string> {
+  return new SignJWT(session as unknown as JWTPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(session.expiresAt)
+    .sign(getSecret())
+}
+
+async function decodeSession(token: string): Promise<CJSSession | null> {
   try {
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('cjs_session')
-    if (!sessionCookie?.value) return null
-    const session = JSON.parse(
-      Buffer.from(sessionCookie.value, 'base64').toString('utf-8')
-    ) as CJSSession
-    if (Date.now() / 1000 > session.expiresAt) return null
-    return session
+    const { payload } = await jwtVerify(token, getSecret())
+    return payload as unknown as CJSSession
   } catch {
     return null
   }
 }
 
-export async function isAuthenticated(): Promise<boolean> {
-  return (await getSession()) !== null
+// ── Lecture de session ────────────────────────────────────────────────────
+
+/**
+ * Lit la session depuis le cookie.
+ * - Sans argument : utilise `next/headers` (Server Components, API Routes)
+ * - Avec `request` : lit depuis `request.cookies` (middleware Edge)
+ */
+export async function getSession(request?: NextRequest): Promise<CJSSession | null> {
+  let value: string | undefined
+  if (request) {
+    value = request.cookies.get(SESSION_COOKIE)?.value
+  } else {
+    const store = await cookies()
+    value = store.get(SESSION_COOKIE)?.value
+  }
+  if (!value) return null
+  return decodeSession(value)
+}
+
+export async function isAuthenticated(request?: NextRequest): Promise<boolean> {
+  return (await getSession(request)) !== null
 }
 
 export async function hasRole(role: string): Promise<boolean> {
   const session = await getSession()
   return session?.roles.includes(role) ?? false
+}
+
+// ── Écriture / suppression du cookie ─────────────────────────────────────
+
+export function setSessionCookie(response: NextResponse, encoded: string, maxAge: number): void {
+  response.cookies.set(SESSION_COOKIE, encoded, {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge,
+    path:     '/',
+  })
+}
+
+export function clearSessionCookie(response: NextResponse): void {
+  response.cookies.delete(SESSION_COOKIE)
 }

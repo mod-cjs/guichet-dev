@@ -1,6 +1,6 @@
 // Types liés à la session SSO — indépendants du modèle de données
 export interface CJSSession {
-  cjsUid: string       // UUID v4 — identifiant universel CJS (= claim "sub" du SSO)
+  cjsUid: string
   nom: string
   prenom: string
   email: string | null
@@ -8,7 +8,8 @@ export interface CJSSession {
   region: string | null
   roles: string[]
   accessToken: string
-  expiresAt: number    // timestamp Unix
+  refreshToken: string
+  expiresAt: number
 }
 
 export type UserRole = 'beneficiaire' | 'recruteur' | 'admin' | 'data_steward'

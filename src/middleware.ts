@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 
-// Routes protégées par rôle
-const PROTECTED = [
-  { pattern: /^\/(mon-profil|mes-candidatures|mes-formations)/, role: 'beneficiaire' },
-  { pattern: /^\/(tableau-de-bord|mes-offres|candidatures)/, role: 'recruteur' },
-  { pattern: /^\/admin/, role: 'admin' },
+const PROTECTED: { pattern: RegExp; role: string }[] = [
+  { pattern: /^\/jeune\//,     role: 'beneficiaire' },
+  { pattern: /^\/recruteur\//, role: 'recruteur'    },
+  { pattern: /^\/admin\//,     role: 'admin'        },
 ]
 
 export async function middleware(request: NextRequest) {
@@ -14,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
   if (!matched) return NextResponse.next()
 
-  const session = await getSession()
+  const session = await getSession(request)
 
   if (!session) {
     return NextResponse.redirect(new URL('/auth/connexion', request.url))
@@ -31,7 +30,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth/).*)'],
 }

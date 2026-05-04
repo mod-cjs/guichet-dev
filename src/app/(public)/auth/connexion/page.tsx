@@ -1,22 +1,33 @@
 'use client'
-import { buildAuthorizeUrl } from '@/lib/sso-client'
 
 export default function ConnexionPage() {
-  function handleLogin() {
-    // PKCE + state générés côté client pour le redirect SSO
-    // Implémentation complète dans lib/sso-client.ts
-    window.location.href = '/api/auth/login'
-  }
+  const params = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : new URLSearchParams()
+
+  const error = params.get('error')
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="card max-w-md w-full text-center">
-        <h1 className="text-2xl font-bold text-cjs-vert mb-2">Se connecter</h1>
-        <p className="text-cjs-gris mb-8">
-          Un seul compte pour tout l&apos;écosystème CJS
-        </p>
-        <button onClick={handleLogin} className="btn-primary w-full">
-          Continuer avec le Guichet CJS
-        </button>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--gj-bg)]">
+      <div className="w-full max-w-sm p-8 rounded-2xl shadow-lg bg-white space-y-6">
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-bold text-[var(--gj-teal)]">Guichet Jeunesse</h1>
+          <p className="text-sm text-[var(--gj-gray)]">
+            Un seul compte pour tout l&apos;écosystème CJS
+          </p>
+        </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-center text-[var(--gj-red)]">
+            {error === 'invalid_state'
+              ? 'Session expirée. Veuillez réessayer.'
+              : 'Connexion échouée. Veuillez réessayer.'}
+          </p>
+        )}
+
+        <a href="/api/auth/login" className="btn-primary block w-full text-center">
+          Se connecter avec le Guichet CJS
+        </a>
       </div>
     </div>
   )
