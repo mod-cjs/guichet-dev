@@ -1,320 +1,88 @@
 # CLAUDE.md — Guichet Jeunesse CJS
 
-Ce fichier est lu en priorité par Claude Code à chaque session. Il contient tout le contexte nécessaire pour travailler efficacement sur ce projet sans relire l'ensemble du code.
+Plateforme jeunesse CJS · 22 000 utilisateurs · Sénégal · Programme YEAH · Conformité CDP
+
+**Stack :** Next.js 16 (App Router) · TypeScript 5 · Prisma 7 · MariaDB 11 · Redis 7
+**Auth :** SSO CJS OAuth2/OIDC (Laravel Passport) · next-auth v5
+**IA :** Groq llama-3.3-70b · **WhatsApp :** Meta Cloud API v19
 
 ---
 
-## 1. Contexte du projet
+## Règles absolues
 
-Le **Guichet Jeunesse** est la plateforme numérique principale du **Consortium Jeunesse Sénégal (CJS)**, coalition d'organisations de la société civile œuvrant pour l'engagement civique et l'éducation populaire au Sénégal.
+**Identité**
+- `cjs_uid` = claim `sub` du token SSO = seul identifiant inter-plateformes — présent dans toutes les tables
+- Jamais de login local, jamais de mot de passe, jamais de formulaire d'auth dans ce projet
+- Téléphone : format E.164 obligatoire (`+221XXXXXXXXX`)
 
-Ce projet est la **refonte complète** de la plateforme existante (anciennement sous Drupal), dans le cadre du programme **YEAH (Youth & Entrepreneurship in Agrifood systems – Hope)**, supervisé par **Alle Samba DIOUF** et **Abdoul SY**.
+**Données**
+- Toujours Prisma (`src/lib/prisma.ts`) — SQL brut interdit sauf exception documentée dans `DECISIONS.md`
+- Toute modification de schéma = `prisma migrate dev` — jamais de modif directe en base
+- `cjs_uid` présent dans toutes les tables liées à un utilisateur
 
-La plateforme sert **22 000 utilisateurs** et constitue le point d'entrée numérique principal pour les jeunes souhaitant accéder aux opportunités, formations, événements et ressources du CJS.
+**Sécurité**
+- Token SSO : cookie httpOnly SameSite=Strict — jamais localStorage, jamais exposé côté client
+- API machine (BRM/Centres/Moodle) : HMAC-SHA256 — voir `docs/interconnexion.md`
+- Rate limiting Redis sur tous les endpoints publics — via `src/lib/rate-limit.ts`
+- Webhooks : vérifier HMAC + idempotence `event_id` avant tout traitement
 
----
+**Interface**
+- Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
+- Couleurs : `src/styles/tokens.css` et `src/styles/design-tokens.ts` — jamais de valeurs hex en dur
+- Police : Lexend uniquement
+- **Design de référence : `design/html/`** — lire le fichier HTML avant toute nouvelle page/composant
+- Si aucun fichier HTML de référence → signaler au PO, ne pas inventer le design
 
-## 2. Stack technique
-
-| Couche | Technologie | Version |
-|--------|-------------|---------|
-| Framework | Next.js (App Router) | 16.x |
-| Langage | TypeScript | 5.x |
-| ORM | Prisma | 7.x |
-| Base de données | MariaDB | 11.x LTS |
-| Cache | Redis (Upstash en production) | 7.x |
-| Styling | Tailwind CSS | 3.x |
-| Auth | SSO CJS (OAuth 2.0 / OIDC) via Laravel Passport | — |
-| IA | Groq (llama-3.3-70b-versatile) | — |
-| WhatsApp | Meta Cloud API | v19 |
-| Tests | Jest (unit) + Playwright (E2E) | — |
-| CI/CD | GitHub Actions | — |
-| Hébergement | Serveur dédié OVH du CJS | — |
-| Conformité | CDP (Commission des Données Personnelles, Sénégal) | — |
-
----
-
-## 3. Architecture générale
-
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── (public)/           # Pages accessibles sans auth
-│   ├── (jeune)/            # Espace authentifié — rôle : beneficiaire
-│   ├── (recruteur)/        # Espace authentifié — rôle : recruteur
-│   ├── (admin)/            # Espace authentifié — rôle : admin
-│   └── api/                # API Routes Next.js
-│       ├── v1/export/      # Endpoints export Data Hub (CSV/JSON)
-│       └── interconnexion/ # API d'interconnexion inter-plateformes CJS
-├── components/
-│   ├── ui/                 # Design system CJS (composants de base)
-│   └── layout/             # Layouts (Header, Footer, Sidebars)
-├── lib/                    # Logique métier, clients externes
-│   └── ia/                 # Pipeline recommandation + RAG
-├── types/                  # Types TypeScript globaux
-└── middleware.ts           # Protection des routes par rôle
-```
-
-Le middleware protège les routes groups : toute route sous `(jeune)`, `(recruteur)` ou `(admin)` requiert un token SSO valide. La vérification du rôle est faite via les claims OIDC (`cjs_roles`).
+**API**
+- Structure réponse obligatoire : `{ data, meta, error }`
+- Payload max 50KB · pagination 20 items · images WebP via `<Image />`
+- Routes Data Hub : `/api/v1/export/` · Routes interop : `/api/interconnexion/`
 
 ---
 
-## 4. Règles absolues — ne jamais déroger
+## Protocole avant démarrage d'un module (OBLIGATOIRE)
 
-### 4.1 Identité et SSO
-
-- **Ne jamais gérer l'authentification directement dans ce projet.** Tout passe par le serveur SSO CJS (voir `docs/sso.md`).
-- **`cjs_uid`** (UUID v4) est l'identifiant universel d'un utilisateur. C'est la clé de jointure entre toutes les plateformes CJS. Il est fourni par le SSO dans le claim `sub`.
-- Ne jamais stocker de mots de passe. Ne jamais créer de formulaire de login local.
-- Le téléphone est au format **E.164** obligatoire : `+221XXXXXXXXX`.
-
-### 4.2 Base de données
-
-- Toujours passer par **Prisma**. Ne jamais écrire du SQL brut sauf cas exceptionnel documenté.
-- Utiliser le client singleton dans `src/lib/prisma.ts`.
-- Toute modification de schéma = migration Prisma (`prisma migrate dev`), jamais de modification directe en base.
-- Le champ `cjs_uid` est présent dans toutes les tables liées à un utilisateur.
-
-### 4.3 API
-
-- Les endpoints publics versionnés pour le Data Hub sont sous `/api/v1/export/`.
-- Les endpoints d'interconnexion inter-plateformes sont sous `/api/interconnexion/`.
-- Toute API nécessitant une authentification machine (BRM, Centres, Moodle) utilise la signature **HMAC-SHA256** (voir `docs/interconnexion.md`).
-- Les réponses API suivent toujours la structure : `{ data, meta, error }`.
-
-### 4.4 Design system
-
-- Utiliser **exclusivement les composants** du dossier `src/components/ui/`. Ne jamais écrire du HTML brut stylé avec Tailwind directement dans une page.
-- Les couleurs CJS sont définies dans `src/styles/design-tokens.ts`. Ne jamais utiliser de valeurs hexadécimales en dur dans le code.
-- Police : **Lexend** uniquement.
-
-### 4.5 Conformité CDP
-
-- Tout traitement de données personnelles doit être tracé.
-- Le consentement utilisateur est géré par le SSO. Ne pas re-collecter le consentement dans ce projet.
-- Le droit à l'oubli déclenche une anonymisation en cascade depuis le SSO.
+1. **Fetch ticket JIRA** (MCP) → lire description et critères d'acceptance
+2. **Évaluer la complétude** — les tickets peuvent être incomplets ou obsolètes
+3. **Proposer les mises à jour** (description, acceptance criteria, story points) → attendre validation humaine
+4. **Charger la spec** `.agent_context/specs/MX-nom.md` si elle existe
+5. **Si spec absente ou insuffisante** → poser les questions manquantes (max 3 à la fois) → attendre réponse
+6. **Compléter/valider la spec** avec l'humain → **seulement ensuite : écrire du code**
+7. Créer `.agent_context/CURRENT_TASK.md` · créer branche · implémenter
 
 ---
 
-## 5. Modules fonctionnels (M1–M14)
+## Chargement contextuel (juste-à-temps — ne pas tout charger)
 
-| Code | Module | Sprint | Description courte |
-|------|--------|--------|--------------------|
-| M1 | Socle technique | Sprint 0 | Setup Next.js SSR, design system v1, CI/CD, intégration client SSO, migration 22 000 comptes Drupal |
-| M2 | Authentification & Profil jeune | Sprint 1 | Connexion via SSO, tunnel onboarding 3 étapes, tableau de bord, complétude profil |
-| M3 | Catalogue Opportunités | Sprint 1 | Liste, recherche temps réel, filtres domaine/type/région, candidature |
-| M4 | Réseau de Centres CJS | Sprint 2 | Carte interactive Sénégal, 9 centres cliquables, réservation via API Centres |
-| M5 | Agenda & Événements | Sprint 2 | Calendrier mensuel navigable, inscription un clic, rappels |
-| M6 | Bibliothèque de Ressources | Sprint 2 | Catalogue pédagogique, filtres thème/format, favoris |
-| M7 | SEO & Référencement | Sprint 2 | SSR pour SEO, métadonnées dynamiques, Schema.org, sitemap, redirections 301 Drupal |
-| M8 | Back-office Administrateur | Sprint 3 | Dashboard admin, CRUD complet utilisateurs/opportunités/événements/ressources/centres |
-| M9 | Espace Recruteur | Sprint 4 | Publication offres, recherche profils jeunes, fiches candidats |
-| M10 | Interopérabilité écosystème | Sprint 4 | Sync Centres→Guichet, Moodle→Guichet certifications, BRM↔Guichet parcours |
-| M11 | Agent WhatsApp Guichet | Sprint 4 | Agent "Aïssatou" (distinct de Fatou EduPop), v0.5 au Go-Live |
-| M12 | IA & Personnalisation | Sprint 4 | Recommandation top 5 opportunités, score pertinence, alertes intelligentes |
-| M13 | Data Hub & API d'export | Sprint 4 | Endpoints REST export CSV/JSON, API d'interconnexion inter-plateformes |
-| M14 | Mise en production | Sprint 4 | Tests E2E Playwright, hardening sécurité, canary release OVH |
+→ **Tâche active** : `.agent_context/CURRENT_TASK.md` (si présent — lire en premier)
+→ **Règles Next.js** : `.agent_context/rules/nextjs.md`
+→ **Sécurité** : `.agent_context/rules/security.md`
+→ **Spec module actif** : `.agent_context/specs/MX-nom.md`
+→ **SSO** : `docs/sso.md` · **Conventions** : `docs/conventions.md` · **Interop** : `docs/interconnexion.md`
+→ **Architecture** : `docs/architecture.md` (si décision structurelle uniquement)
 
 ---
 
-## 6. Calendrier
+## JIRA & Git
 
-| Jalon | Date | Description |
-|-------|------|-------------|
-| Sprint 0 | 04–15 mai 2026 | Socle technique (M1) |
-| Sprint 1 | 18–29 mai 2026 | Auth + Profil + Opportunités (M2, M3) |
-| Sprint 2 / MVP | 01–12 juin 2026 | Centres + Agenda + Ressources + SEO (M4, M5, M6, M7) |
-| Sprint 3 | 15–26 juin 2026 | Back-office admin (M8) |
-| Sprint 4 / Go-Live | 29 juin–10 juillet 2026 | Recruteur + Interop + WhatsApp + IA + Data Hub (M9–M14) |
+**Projet :** `GUIC` · **Board :** https://consortiumjeunesse.atlassian.net/jira/software/projects/GUIC/boards/199
+
+| Moment | Statut ticket |
+|--------|--------------|
+| Branche créée | En cours |
+| PR ouverte / ready_for_review | En review |
+| PR mergée sur develop | À valider |
+| PR develop → main | Fini |
+
+```
+Branche  : feature/GUIC-<n>-<description-kebab>
+PR titre : GUIC-<n> feat|fix|chore: <description courte en français>
+Commit   : feat|fix|perf|security|chore|test(module): [GUIC-<n>] description
+           Closes GUIC-<n>
+```
+
+Modules : `m1-socle` `m2-auth` `m3-opportunites` `m4-centres` `m5-agenda` `m6-ressources` `m7-seo` `m8-admin` `m9-recruteur` `m10-interop` `m11-whatsapp` `m12-ia` `m13-data` `m14-prod`
 
 ---
 
-## 7. Variables d'environnement requises
-
-Voir `.env.example` pour la liste complète. Les clés critiques :
-
-```
-# Base de données
-DATABASE_URL=postgresql://...
-
-# SSO CJS
-SSO_BASE_URL=https://sso.cjs.sn
-SSO_CLIENT_ID=guichet-jeunesse
-SSO_CLIENT_SECRET=...
-NEXTAUTH_SECRET=...
-NEXTAUTH_URL=https://guichet.cjs.sn
-
-# Redis
-REDIS_URL=redis://...
-
-# WhatsApp Meta Cloud API v19
-WHATSAPP_TOKEN=...
-WHATSAPP_PHONE_NUMBER_ID=...
-WHATSAPP_VERIFY_TOKEN=...
-
-# IA - Groq
-GROQ_API_KEY=...
-
-# API d'interconnexion (clés pour les plateformes sources)
-BRM_API_KEY=...
-BRM_API_SECRET=...
-CENTRES_API_KEY=...
-CENTRES_API_SECRET=...
-MOODLE_API_KEY=...
-MOODLE_API_SECRET=...
-
-# Export Data Hub
-DATAHUB_API_KEY=...
-```
-
----
-
-## 8. Commandes utiles
-
-```bash
-# Développement
-npm run dev
-
-# Base de données
-npx prisma migrate dev        # Créer et appliquer une migration
-npx prisma generate           # Régénérer le client Prisma
-npx prisma studio             # Interface graphique Prisma
-
-# Seed
-npx prisma db seed
-
-# Migration Drupal
-npx tsx scripts/migrate-drupal.ts
-
-# Tests
-npm run test                  # Tests unitaires Jest
-npm run test:e2e              # Tests E2E Playwright
-
-# Build
-npm run build
-npm run start
-```
-
----
-
-## 9. Conventions de code
-
-Voir `docs/conventions.md` pour les règles détaillées.
-
-Résumé :
-- **Composants** : PascalCase, un fichier par composant dans son dossier
-- **Hooks** : préfixe `use`, ex. `useOpportunites`
-- **API Routes** : verbes HTTP explicites dans le handler (`GET`, `POST`, `PATCH`, `DELETE`)
-- **Types** : toujours typer les retours de fonction et les props
-- **Commits** : Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`)
-
----
-
-## 10. Liens vers la documentation détaillée
-
-| Document | Contenu |
-|----------|---------|
-| `docs/architecture.md` | Décisions d'architecture, patterns, diagrammes |
-| `docs/conventions.md` | Conventions de code et nommage |
-| `docs/metier.md` | Glossaire CJS, entités métier, rôles utilisateurs |
-| `docs/sso.md` | Intégration SSO OAuth 2.0 / OIDC, flux d'auth |
-| `docs/interconnexion.md` | Contrats API avec BRM, Centres, Moodle, EduPop |
-
----
-
-## 11. Personnes clés
-
-| Rôle | Nom |
-|------|-----|
-| Product Owner | Mame Aissatou DIOUF |
-| Superviseur technique | Abdou Khadre DIOP |
-| Lead développeur | Abdouy Khadre DIOP |
-| Développeur fullstack | Mohamadou Oury DIALLO |
-
----
-
-## 12. Intégration Jira
-
-Le projet Jira est **GJ** (ex : ticket `GJ-12`).
-
-### Flux Git et statuts Jira
-
-```
-feature/GUIC-XX  ──PR──►  develop  ──PR──►  main
-                 (devs)              (PO / release)
-```
-
-| Statut Jira | Déclencheur |
-|-------------|------------|
-| **Dans affaires** | Ticket backlog / PR fermée sans merge |
-| **En cours** | PR feature ouverte en draft |
-| **En review** | PR feature prête pour revue |
-| **À valider** | PR feature mergée sur `develop` — PO notifié |
-| **Fini** | PR `develop` → `main` mergée — déployé |
-
-### Règles que Claude doit respecter pour les branches et PRs
-
-**Branche** :
-```
-feature/GUIC-<numéro>-<description-kebab-case>
-fix/GUIC-<numéro>-<description-kebab-case>
-chore/GUIC-<numéro>-<description-kebab-case>
-```
-
-**Titre de PR** :
-```
-GUIC-<numéro> <type>: <description courte en français>
-```
-
-**Exemple complet pour la story GJ-12 :**
-```
-Branche : feature/GUIC-12-tunnel-onboarding-3-etapes
-Titre PR : GUIC-12 feat: tunnel d'onboarding 3 étapes après authentification SSO
-```
-
-### Fichiers structurels importants ajoutés (v3)
-
-Ces fichiers étaient manquants et ont été ajoutés :
-
-| Fichier | Rôle |
-|---------|------|
-| `src/app/(public)/layout.tsx` | Layout espace public |
-| `src/app/(jeune)/layout.tsx` | Layout espace jeune authentifié |
-| `src/app/(recruteur)/layout.tsx` | Layout espace recruteur |
-| `src/app/(admin)/layout.tsx` | Layout back-office admin |
-| `src/app/(public)/auth/connexion/page.tsx` | Page de connexion (redirect SSO) |
-| `src/app/api/health/route.ts` | Endpoint de santé pour monitoring OVH |
-| `src/lib/verify-hmac.ts` | Vérification signature HMAC inter-plateformes |
-| `src/lib/logger.ts` | Logger structuré (remplace console.log) |
-| `src/lib/rate-limit.ts` | Rate limiting Redis pour les API publiques |
-| `jest.config.ts` | Configuration Jest (tests unitaires) |
-| `playwright.config.ts` | Configuration Playwright (tests E2E) |
-| `docs/openapi/datahub-v1.yaml` | Spec OpenAPI des endpoints d'export |
-
----
-
-## 13. Design de référence — règle absolue
-
-Le dossier `design/html/` contient les fichiers HTML produits par Claude Design.
-C'est la **source de vérité visuelle** du projet. Toute création de page ou de composant doit s'y référer.
-
-### Workflow obligatoire pour toute nouvelle page
-
-```
-1. Lire le fichier HTML correspondant dans design/html/
-2. Identifier la structure, les classes et les variables utilisées
-3. Convertir fidèlement en composant TSX
-4. Utiliser les variables de src/styles/tokens.css — jamais de valeurs en dur
-```
-
-### Règles de conversion HTML → TSX
-
-- Les classes CSS du fichier HTML sont conservées telles quelles si elles correspondent à des tokens
-- Les `style="color: #..."` en dur sont remplacés par les variables de `tokens.css`
-- Chaque bloc HTML répété devient un composant dans `src/components/`
-- La structure de layout (header, main, footer) vient de `src/components/layout/`
-
-### Si aucun fichier HTML de référence n'existe pour une page
-
-Signaler au PO qu'il manque un fichier de design dans `design/html/`
-et ne pas inventer le design — attendre la référence.
+## Modes actifs : CODING · SECURITY · REVIEW · TEST · MIGRATION
