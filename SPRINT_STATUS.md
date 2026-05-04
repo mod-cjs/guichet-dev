@@ -5,53 +5,65 @@
 
 ---
 
-## Sprint actif : Sprint 0 — Socle Technique
+## Sprint actif : Sprint 0 — Socle Technique (Epic GUIC-1)
 
 **Période :** 4–15 mai 2026
-**Objectif :** Infrastructure, CI/CD, client SSO, schéma Prisma, design system opérationnel
+**Objectif :** Infrastructure Next.js, SSO, schéma Prisma, design system opérationnel
 
-### Tâches
+### Stories Sprint 0
 
-| Ticket | Description | Status | Scope | Bloqué par |
-|--------|-------------|--------|-------|-----------|
-| GUIC-1 | Schéma Prisma complet (tous modèles M1–M14) | done | both | — |
-| GUIC-2 | Migration initiale + seed demo | todo | agent | GUIC-1 |
-| GUIC-3 | Vérifier/compléter CI/CD GitHub Actions | todo | agent | — |
-| GUIC-4 | Docker Compose local fonctionnel | todo | agent | — |
-| GUIC-5 | next-auth v5 configuré avec SSO CJS OIDC | todo | agent | — |
-| GUIC-6 | Callback OAuth PKCE complet | todo | agent | GUIC-5 |
-| GUIC-7 | Middleware protection routes groups | todo | agent | GUIC-5 |
-| GUIC-8 | Sync design tokens CSS | todo | agent | — |
-| GUIC-9 | Composants UI de base opérationnels | todo | agent | GUIC-8 |
-| GUIC-10 | Police Lexend configurée | todo | agent | — |
-| GUIC-11 | Script migration Drupal (structure) | todo | both | Format données Drupal |
-| GUIC-12 | Stratégie migration 22K comptes | todo | human | Infos Drupal |
+| Ticket  | Description | Status | Scope | Bloqué par |
+|---------|-------------|--------|-------|-----------|
+| GUIC-15 | Setup Next.js SSR + design system v1 | in_progress | agent | — |
+| GUIC-16 | Intégrer client SSO (OAuth PKCE) au Guichet | in_progress | agent | — |
+| GUIC-17 | Migrer données Guichet (modèle de données unifié) | todo | both | Format export Drupal |
+
+### Détail GUIC-15 — tâches techniques
+
+| Tâche | Status |
+|-------|--------|
+| Schéma Prisma complet M1–M14 | done |
+| `prisma.config.ts` + `@prisma/adapter-mariadb` | done |
+| Migration initiale + seed démo | todo |
+| Docker Compose MariaDB + Redis fonctionnel | todo |
+| Design tokens CSS sync (`design/html/` ↔ `src/styles/tokens.css`) | todo |
+| Composants UI de base (Button, Card, Input, Badge, Modal) | todo |
+| Police Lexend configurée | todo |
+| `/api/health` → 200 avec statut DB + Redis | todo |
+
+### Détail GUIC-16 — tâches techniques
+
+| Tâche | Status |
+|-------|--------|
+| `src/lib/auth.ts` → next-auth v5 + SSO OIDC | todo |
+| `src/app/(public)/auth/callback/route.ts` → PKCE complet | todo |
+| Middleware protection route groups | todo |
+| Cookie httpOnly session post-login | todo |
 
 ### Blocages actuels
 
-- **Migration Drupal** : format des données source non confirmé (GUIC-11/GUIC-12 bloqués)
-- **SSO** : credentials `SSO_CLIENT_SECRET` + `NEXTAUTH_SECRET` non renseignés dans `.env.local`
-- **JIRA API token** : token expiré — à renouveler sur id.atlassian.com
+- **GUIC-17 / Migration Drupal** : format des données source non confirmé
+- **GUIC-16 / SSO** : credentials `SSO_CLIENT_SECRET` + `NEXTAUTH_SECRET` non renseignés dans `.env.local`
 
-### Fix urgent à faire
+### Mises à jour JIRA à proposer
 
-- [x] Mettre à jour `.github/workflows/jira.yml` : remplacer `GJ-[0-9]+` par `GUIC-[0-9]+`
+- [ ] GUIC-16 : remplacer "Nuxt.js" par "Next.js" dans la description
 
 ---
 
 ## Sprints à venir
 
-| Sprint | Modules | Période |
-|--------|---------|---------|
-| Sprint 1 | M2 Auth+Profil, M3 Opportunités | 18–29 mai 2026 |
-| Sprint 2 / MVP | M4 Centres, M5 Agenda, M6 Ressources, M7 SEO | 1–12 juin 2026 |
-| Sprint 3 | M8 Admin | 15–26 juin 2026 |
-| Sprint 4 / Go-Live | M9–M14 (Recruteur, Interop, WhatsApp, IA, Data Hub, Prod) | 29 juin–10 juillet 2026 |
+| Sprint | Epic(s) | Stories | Période |
+|--------|---------|---------|---------|
+| Sprint 1 | GUIC-2 Auth+Profil, GUIC-3 Opportunités | GUIC-18, 19, 20, 21 | 18–29 mai 2026 |
+| Sprint 2 / MVP | GUIC-4 Centres, GUIC-5 Agenda, GUIC-6 Ressources, GUIC-7 SEO | GUIC-22 à 25 | 1–12 juin 2026 |
+| Sprint 3 | GUIC-8 Admin, GUIC-9 Recruteur | GUIC-26 à 32 | 15–26 juin 2026 |
+| Sprint 4 / Go-Live | GUIC-10 à 14 (Interop, WhatsApp, IA, Data Hub, Prod) | GUIC-33 à 37 | 29 juin–10 juillet 2026 |
 
 ---
 
 ## Dernière session
 
 **Date :** 2026-05-04
-**Actions :** Schéma Prisma complet validé (GUIC-1). Prisma v7 configuré avec prisma.config.ts + @prisma/adapter-mariadb. Modèles M1–M14 définis.
-**Prochaine étape :** GUIC-2 migration initiale + seed OR GUIC-3 CI/CD (pas de blocage)
+**Actions :** Auth JIRA corrigée (email odiallo@consortiumjeunessesenegal.org). Schéma Prisma GUIC-15 done. Structure tickets JIRA alignée (14 epics, 23 stories).
+**Prochaine étape :** Compléter GUIC-15 (Docker Compose + migration initiale + seed) puis GUIC-16 (SSO next-auth)
