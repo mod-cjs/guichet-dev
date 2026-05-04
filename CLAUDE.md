@@ -76,6 +76,11 @@ Commit   : feat|fix|perf|security|chore|test(module): [GUIC-<n>] description
            Closes GUIC-<n>
 ```
 
+**Règles absolues sur les commits :**
+- Toujours inclure `[GUIC-<n>]` dans le titre et `Closes GUIC-<n>` en pied
+- Jamais de mention IA (`Co-Authored-By`, `Generated with`, etc.) dans aucun commit
+- Auteur unique : `mod-cjs`
+
 | Moment | Statut ticket |
 |--------|--------------|
 | Branche créée | En cours |
