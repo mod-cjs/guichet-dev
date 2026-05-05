@@ -26,10 +26,16 @@ export async function Header() {
         {/* Auth */}
         <div className="flex items-center gap-3">
           {session ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Avatar nom={session.nom} prenom={session.prenom} size="sm" />
-              <Link href="/mon-profil" className="text-sm text-cjs-noir no-underline hidden sm:inline">
+              <Link href="/jeune/mon-profil" className="text-sm text-cjs-noir no-underline hidden sm:inline">
                 {session.prenom}
+              </Link>
+              <Link
+                href="/api/auth/logout"
+                className="text-sm text-cjs-gris hover:text-cjs-rouge no-underline hidden sm:inline transition-colors"
+              >
+                Déconnexion
               </Link>
             </div>
           ) : (
