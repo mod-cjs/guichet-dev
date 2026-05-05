@@ -13,7 +13,7 @@ jobs:
 
     services:
       mariadb:
-        image: mariadb:11-lts
+        image: mariadb:11
         env:
           MARIADB_DATABASE: guichet_test
           MARIADB_USER: guichet
