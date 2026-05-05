@@ -30,6 +30,18 @@ export async function POST(request: NextRequest) {
   }
 
   clearSessionCookie(response)
+
+  // Signaler au prochain /api/auth/login que l'utilisateur vient de se déconnecter
+  // explicitement → le SSO demandera ses credentials même si sa session SSO est active.
+  // TTL court (10 min) : si l'utilisateur ne se reconnecte pas, le cookie expire seul.
+  response.cookies.set('force_login', '1', {
+    httpOnly: true,
+    secure:   process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge:   600,
+    path:     '/',
+  })
+
   return response
 }
 

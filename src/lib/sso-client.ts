@@ -86,23 +86,25 @@ function buildHmacHeaders(body: string): HeadersInit {
  * Génère l'URL d'autorisation SSO avec PKCE.
  * Stocker `state` et `pkceVerifier` dans des cookies httpOnly avant de rediriger.
  */
-export function getAuthorizationUrl(scope = DEFAULT_SCOPE): {
-  url: string;
-  state: string;
-  pkceVerifier: string;
-} {
-  const state = randomBase64Url(32);
+export function getAuthorizationUrl(
+  scope = DEFAULT_SCOPE,
+  forceLogin = false,
+): { url: string; state: string; pkceVerifier: string } {
+  const state        = randomBase64Url(32);
   const pkceVerifier = randomBase64Url(43);
-  const challenge = pkceChallenge(pkceVerifier);
+  const challenge    = pkceChallenge(pkceVerifier);
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    response_type: "code",
+    client_id:             CLIENT_ID,
+    redirect_uri:          REDIRECT_URI,
+    response_type:         "code",
     scope,
     state,
-    code_challenge: challenge,
+    code_challenge:        challenge,
     code_challenge_method: "S256",
+    // prompt=login : force la saisie des credentials SSO même si une session existe.
+    // Utilisé après un logout explicite pour protéger les appareils partagés.
+    ...(forceLogin ? { prompt: "login" } : {}),
   });
 
   return {
