@@ -23,14 +23,10 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={lexend.variable}>
-      <body className="bg-cjs-fond text-cjs-noir font-sans antialiased">
+      <body className="antialiased">
         {children}
       </body>
     </html>

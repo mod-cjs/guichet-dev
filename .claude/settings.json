@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@smithery/cli@latest", "run", "@aptbytes/mcp-server-jira", "--", "--config", "{}"],
+      "env": {
+        "JIRA_BASE_URL": "https://consortiumjeunesse.atlassian.net",
+        "JIRA_EMAIL": "ryhow99@gmail.com",
+        "JIRA_API_TOKEN": ""
+      }
+    }
+  }
+}

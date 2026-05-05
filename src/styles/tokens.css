@@ -93,8 +93,7 @@
   /* =========================================================
      3 · TYPOGRAPHIE — échelle remontée
      ========================================================= */
-  --gj-font-sans: 'Lexend', system-ui, -apple-system, "Helvetica Neue",
-                  Arial, sans-serif;
+  --gj-font-sans: var(--font-lexend, system-ui), -apple-system, sans-serif;
 
   /* v2 — échelle accessible */
   --fs-100: 11px;   /* tags & métadonnées (jamais en-dessous) */
@@ -107,16 +106,16 @@
   --fs-800: 28px;   /* titres de page */
   --fs-900: 36px;   /* hero */
 
-  /* v1 aliases — pour ne rien casser ; remappés vers v2 */
-  --gj-fs-xs:   var(--fs-100);
-  --gj-fs-sm:   var(--fs-100);
-  --gj-fs-base: var(--fs-200);
-  --gj-fs-md:   var(--fs-300);
-  --gj-fs-lg:   var(--fs-400);
-  --gj-fs-xl:   var(--fs-500);
-  --gj-fs-2xl:  var(--fs-700);
-  --gj-fs-h2:   var(--fs-700);
-  --gj-fs-h1:   var(--fs-800);
+  /* v1 aliases — remappés vers v2 (corrects) */
+  --gj-fs-xs:   var(--fs-100);   /* 11px */
+  --gj-fs-sm:   var(--fs-200);   /* 13px */
+  --gj-fs-base: var(--fs-400);   /* 16px — corps, était --fs-200 (bug) */
+  --gj-fs-md:   var(--fs-400);   /* 16px */
+  --gj-fs-lg:   var(--fs-500);   /* 18px */
+  --gj-fs-xl:   var(--fs-600);   /* 20px */
+  --gj-fs-2xl:  var(--fs-700);   /* 24px */
+  --gj-fs-h2:   var(--fs-700);   /* 24px */
+  --gj-fs-h1:   var(--fs-800);   /* 28px */
 
   --gj-fw-regular:  400;
   --gj-fw-semibold: 600;

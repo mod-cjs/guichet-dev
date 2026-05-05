@@ -23,11 +23,12 @@ export async function sendTextMessage(to: string, text: string): Promise<void> {
   }
 }
 
+import { createHmac } from 'crypto'
+
 export function verifyWebhookSignature(
   payload: string,
   signature: string
 ): boolean {
-  const { createHmac } = require('crypto')
   const expected = 'sha256=' + createHmac('sha256', process.env.WHATSAPP_TOKEN ?? '')
     .update(payload)
     .digest('hex')
