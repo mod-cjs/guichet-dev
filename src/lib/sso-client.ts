@@ -92,7 +92,7 @@ export function getAuthorizationUrl(scope = DEFAULT_SCOPE): {
   pkceVerifier: string;
 } {
   const state = randomBase64Url(32);
-  const pkceVerifier = randomBase64Url(32);
+  const pkceVerifier = randomBase64Url(43);
   const challenge = pkceChallenge(pkceVerifier);
 
   const params = new URLSearchParams({

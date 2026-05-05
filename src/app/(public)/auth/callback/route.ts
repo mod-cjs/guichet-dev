@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { exchangeCode, getUserInfo } from '@/lib/sso-client'
+import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
 import type { CJSSession } from '@/types/user'
 
@@ -14,9 +14,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/connexion?error=invalid_state', request.url))
   }
 
+  let tokens: TokenResponse | undefined
   try {
-    const tokens = await exchangeCode(code, pkceVerifier)
-    const claims  = await getUserInfo(tokens.access_token)
+    tokens = await exchangeCode(code, pkceVerifier)
+    const claims = await getUserInfo(tokens.access_token)
+
+    const roles = Array.isArray(claims.cjs_roles)
+      ? claims.cjs_roles
+      : String(claims.cjs_roles).split(',').map(r => r.trim()).filter(Boolean)
 
     const session: CJSSession = {
       cjsUid:       claims.sub,
@@ -25,7 +30,7 @@ export async function GET(request: NextRequest) {
       email:        claims.email,
       telephone:    claims.phone_number,
       region:       claims.address?.region ?? null,
-      roles:        claims.cjs_roles,
+      roles,
       accessToken:  tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt:    Math.floor(Date.now() / 1000) + tokens.expires_in,
@@ -40,7 +45,11 @@ export async function GET(request: NextRequest) {
     response.cookies.delete('oauth_state')
 
     return response
-  } catch {
+  } catch (err) {
+    if (tokens?.access_token) {
+      await revokeToken(tokens.access_token).catch(() => {})
+    }
+    console.error('[auth/callback] échec authentification SSO:', err)
     return NextResponse.redirect(new URL('/auth/connexion?error=auth_failed', request.url))
   }
 }

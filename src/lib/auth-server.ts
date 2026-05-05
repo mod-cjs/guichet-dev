@@ -28,7 +28,8 @@ export async function refreshSessionIfNeeded(
     const encoded = await encodeSession(updated)
     setSessionCookie(response, encoded, tokens.expires_in)
     return updated
-  } catch {
+  } catch (err) {
+    console.error('[auth-server] échec refresh token SSO — session expirée conservée:', err)
     return session
   }
 }
