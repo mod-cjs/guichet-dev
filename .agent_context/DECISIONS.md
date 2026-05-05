@@ -4,6 +4,23 @@ Format : date · contexte · décision · pourquoi
 
 ---
 
+## 2026-05-05 — Architecture navigation : deux contextes distincts
+
+**Contexte :** Audit mobile a révélé que le Header mélangeait pages publiques et app authentifiée. Sur mobile, le nav débordait horizontalement (overflow-x-auto) et le bouton Se connecter était inaccessible.
+
+**Décision :**
+- **Pages publiques** (`/`, `/opportunites`, `/evenements`, `/ressources`, `/centres`, `/auth/*`) → Header marketing uniquement. Mobile : logo + bouton Se connecter. Pas de bottom-nav.
+- **App jeune** (`/jeune/*`) → AppTopbar + BottomNav fixe 5 items sur mobile. Desktop : header standard. Padding-bottom obligatoire sur le contenu.
+- **Admin / Recruteur** → Sidebar desktop. Mini topbar + drawer hamburger mobile. Pas de bottom-nav.
+
+**Pourquoi deux barres sur /jeune/* :** Pattern natif iOS/Android (WhatsApp, Instagram, LinkedIn). Top bar = identité/contexte/actions utilitaires. Bottom nav = navigation principale, zone pouce "Easy". Coût vertical acceptable (15% sur 667px).
+
+**Règle icônes nav :** SVG inline uniquement — jamais d'emojis (rendu incohérent cross-platform, non colorisable via CSS).
+
+**Spec complète :** `.agent_context/specs/layout-navigation.md`
+
+---
+
 ## 2026-05-04 — Clé projet JIRA : GUIC
 
 **Contexte :** `jira.yml` utilisait `GJ-[0-9]+`, URL board et CLAUDE.md récent utilisaient `GUIC-XX`.

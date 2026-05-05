@@ -1,25 +1,27 @@
-# Tâche active — aucune
+# Tâche active — GUIC-15
 
-Aucune tâche en cours. Consulter `SPRINT_STATUS.md` pour la prochaine tâche à prendre.
+## Tâche : [GUIC-15] Setup Next.js SSR + design system — navigation responsive
 
----
+Branche   : feature/GUIC-15-setup-nextjs-design-system
+Spec      : .agent_context/specs/layout-navigation.md
+JIRA      : https://consortiumjeunesse.atlassian.net/browse/GUIC-15
 
-## Format (à remplir au démarrage d'une tâche)
+### Architecture navigation validée (2026-05-05)
+Voir `.agent_context/specs/layout-navigation.md` — OBLIGATOIRE de lire avant tout travail sur les layouts.
 
-```markdown
-## Tâche : [GUIC-<n>] <titre du ticket>
+### Fichiers à modifier / créer
+- [ ] `src/components/layout/Header/index.tsx` — responsive, nav hidden mobile, Se connecter visible
+- [ ] `src/components/layout/AppTopbar/index.tsx` — NOUVEAU, top bar app jeune mobile
+- [ ] `src/components/layout/BottomNav/index.tsx` — NOUVEAU, bottom nav 5 items SVG, route active
+- [ ] `src/app/jeune/layout.tsx` — AppTopbar + BottomNav + padding-bottom
+- [ ] `src/app/admin/layout.tsx` — mini topbar mobile + drawer hamburger
+- [ ] `src/app/recruteur/layout.tsx` — mini topbar mobile + drawer hamburger
 
-Branche   : feature/GUIC-<n>-<description>
-Spec      : .agent_context/specs/MX-nom.md
-JIRA      : https://consortiumjeunesse.atlassian.net/browse/GUIC-<n>
-
-### Fichiers
-- [ ] src/...  ← EN COURS
-- [ ] src/...
-
-### Décisions prises
-- (justification non évidente seulement)
+### Déjà fait
+- [x] Design tokens v2, globals.css, tailwind, postcss.config.mjs
+- [x] Composants UI (Button, Toast, Modal, Alert, Avatar, Skeleton, DataTable)
+- [x] Footer, pages stubs (15), next.config.ts, prisma, libs
+- [x] Build ✓ 39 pages statiques
 
 ### Prochaine étape
-(une ligne)
-```
+Implémenter les 6 fichiers ci-dessus → commit → PR GUIC-15 → rebase GUIC-16.

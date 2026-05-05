@@ -29,8 +29,15 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - `gj-indigo` réservé au chatbot Aïssatou — jamais utilisé ailleurs
-- Police : system-ui (sans webfont — critique 3G) — configurée dans `src/styles/tokens.css`
+- Police : Lexend via `next/font/google` — variable `--font-lexend` injectée sur `<html>`
 - **`design/html/`** = source de vérité visuelle — lire le fichier HTML avant toute nouvelle page
+
+**Navigation — architecture validée (lire `.agent_context/specs/layout-navigation.md`)**
+- Pages publiques (`/`, `/opportunites`, `/evenements`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**
+- App jeune (`/jeune/*`) → `AppTopbar` + `BottomNav` 5 items (SVG) sur mobile. `pb-[calc(56px+env(safe-area-inset-bottom,0px))]` sur le contenu.
+- Admin / Recruteur → Sidebar desktop + drawer hamburger mobile. **Pas de bottom-nav.**
+- **Jamais** `overflow-x-auto` sur un container de navigation
+- **Jamais** d'emojis comme icônes de nav — SVG inline uniquement (`currentColor`)
 
 **API**
 - Type de réponse : `ApiResponse<T>` de `src/types/api.ts` — `{ data?, meta?, error? }`

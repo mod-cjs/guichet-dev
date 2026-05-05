@@ -9,11 +9,9 @@ export async function Header() {
       className="sticky top-0 bg-white border-b-[1.5px] border-gj-line"
       style={{ zIndex: 'var(--gj-z-nav)' }}
     >
-      <div
-        className="flex items-center overflow-x-auto"
-        style={{ padding: '0 var(--space-3)', gap: '0' }}
-      >
-        {/* Logo */}
+      <div className="flex items-center" style={{ padding: '0 var(--space-3)' }}>
+
+        {/* Logo — toujours visible */}
         <Link
           href="/"
           className="flex items-center gap-[6px] no-underline flex-shrink-0 py-[10px] mr-[5px]"
@@ -26,12 +24,12 @@ export async function Header() {
             </svg>
           </div>
           <span className="text-[13px] font-black text-gj-teal-deep whitespace-nowrap">
-            Guichet<b className="text-gj-yellow">Jeunesse</b>.sn
+            Guichet<b className="text-gj-yellow-ink">Jeunesse</b>.sn
           </span>
         </Link>
 
-        {/* Nav links */}
-        <nav className="flex items-center">
+        {/* Nav links — desktop uniquement */}
+        <nav className="hidden md:flex items-center">
           {[
             { href: '/',             label: 'Accueil' },
             { href: '/opportunites', label: 'Opportunités' },
@@ -53,14 +51,16 @@ export async function Header() {
           ))}
         </nav>
 
-        {/* Right side */}
+        {/* Côté droit */}
         <div className="ml-auto flex items-center gap-[4px] pl-[5px] flex-shrink-0 py-[10px]">
+
+          {/* Liens externes — desktop uniquement */}
           <a
             href="https://elearning.cjs.sn"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-[8px] py-[3px] border-[1.5px] border-gj-line rounded-[5px]
-              text-[10px] text-gj-grey bg-gj-bg whitespace-nowrap no-underline
+            className="hidden md:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-line
+              rounded-[5px] text-[10px] text-gj-grey bg-gj-bg whitespace-nowrap no-underline
               hover:border-gj-teal transition-colors"
           >
             e-learning ↗
@@ -69,30 +69,34 @@ export async function Header() {
             href="https://yeah.cjs.sn"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-[8px] py-[3px] border-[1.5px] border-gj-yellow rounded-[5px]
-              text-[10px] text-gj-yellow-ink bg-gj-yellow-soft whitespace-nowrap
+            className="hidden md:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-yellow
+              rounded-[5px] text-[10px] text-gj-yellow-ink bg-gj-yellow-soft whitespace-nowrap
               font-bold no-underline hover:opacity-90 transition-opacity"
           >
             YEAH ↗
           </a>
+
+          {/* CTA — toujours visible */}
           {session ? (
             <Link
               href="/jeune/mon-profil"
-              className="w-7 h-7 rounded-full bg-gj-teal flex items-center justify-center
-                text-white text-[11px] font-bold no-underline flex-shrink-0"
+              className="w-[var(--tap-min)] h-[var(--tap-min)] rounded-full bg-gj-teal
+                flex items-center justify-center text-white text-[11px] font-bold
+                no-underline flex-shrink-0 hover:bg-gj-teal-deep transition-colors"
               title={`${session.prenom} ${session.nom}`}
+              aria-label={`Mon profil — ${session.prenom} ${session.nom}`}
             >
               {(session.prenom?.[0] ?? '').toUpperCase()}{(session.nom?.[0] ?? '').toUpperCase()}
             </Link>
           ) : (
             <Link
               href="/auth/connexion"
-              className="bg-gj-teal text-white px-[11px] rounded-[6px] text-[11px]
-                font-bold no-underline whitespace-nowrap
+              className="bg-gj-teal text-white px-space-3 rounded-gj-sm text-[11px]
+                font-bold no-underline whitespace-nowrap flex-shrink-0
                 min-h-[var(--tap-min)] flex items-center
                 hover:bg-gj-teal-deep transition-colors"
             >
-              S'inscrire
+              Se connecter
             </Link>
           )}
         </div>

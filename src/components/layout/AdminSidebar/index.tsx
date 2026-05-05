@@ -19,14 +19,15 @@ export function AdminSidebar() {
     <>
       {/* Bouton hamburger mobile */}
       <button
-        className="md:hidden fixed top-[calc(60px+var(--safe-top))] left-space-3 z-nav
-          bg-gj-ink text-white rounded-gj-md p-space-2 shadow-gj-sm"
+        className="md:hidden fixed left-space-3 z-[200] flex flex-col justify-center
+          gap-[4px] w-8 h-8 bg-transparent border-none"
+        style={{ top: 'calc(8px + var(--safe-top))' }}
         onClick={() => setOpen(o => !o)}
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
         aria-expanded={open}
       >
-        <span className="block w-5 h-0.5 bg-white mb-1" />
-        <span className="block w-5 h-0.5 bg-white mb-1" />
+        <span className="block w-5 h-0.5 bg-white" />
+        <span className="block w-5 h-0.5 bg-white" />
         <span className="block w-5 h-0.5 bg-white" />
       </button>
 
