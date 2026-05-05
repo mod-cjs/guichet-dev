@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { Avatar } from '@/components/ui/Avatar'
-import { Button } from '@/components/ui/Button'
 
 export async function Header() {
   const session = await getSession()
@@ -24,24 +23,36 @@ export async function Header() {
         </nav>
 
         {/* Auth */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {session ? (
-            <div className="flex items-center gap-3">
-              <Avatar nom={session.nom} prenom={session.prenom} size="sm" />
-              <Link href="/jeune/mon-profil" className="text-sm text-cjs-noir no-underline hidden sm:inline">
-                {session.prenom}
-              </Link>
+            <>
               <Link
+                href="/jeune/mon-profil"
+                className="flex items-center gap-2 no-underline"
+              >
+                <Avatar nom={session.nom} prenom={session.prenom} size="sm" />
+                <span className="hidden sm:inline text-sm text-cjs-noir">
+                  {session.prenom}
+                </span>
+              </Link>
+              <a
                 href="/api/auth/logout"
-                className="text-sm text-cjs-gris hover:text-cjs-rouge no-underline hidden sm:inline transition-colors"
+                className="text-xs px-2 py-1 rounded border border-cjs-gris/30
+                  text-cjs-gris hover:text-cjs-rouge hover:border-cjs-rouge
+                  no-underline transition-colors whitespace-nowrap"
               >
                 Déconnexion
-              </Link>
-            </div>
+              </a>
+            </>
           ) : (
-            <Link href="/auth/connexion">
-              <Button size="sm">Se connecter</Button>
-            </Link>
+            <a
+              href="/api/auth/login"
+              className="inline-flex items-center justify-center
+                bg-cjs-vert hover:bg-cjs-vert-clair text-white text-sm font-medium
+                rounded-cjs no-underline transition-colors whitespace-nowrap px-3 py-1.5"
+            >
+              Se connecter
+            </a>
           )}
         </div>
       </div>
