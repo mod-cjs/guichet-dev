@@ -8,14 +8,14 @@ export async function GET(request: NextRequest) {
   response.cookies.set('pkce_verifier', pkceVerifier, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',   // lax requis pour les redirects OAuth cross-site
     maxAge:   300,
     path:     '/',
   })
   response.cookies.set('oauth_state', state, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',   // lax requis pour les redirects OAuth cross-site
     maxAge:   300,
     path:     '/',
   })

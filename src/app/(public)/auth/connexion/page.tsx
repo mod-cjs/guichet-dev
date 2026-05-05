@@ -24,6 +24,8 @@ export default async function ConnexionPage({ searchParams }: Props) {
           <p role="alert" className="text-sm text-center text-[var(--gj-red)]">
             {error === 'invalid_state'
               ? 'Session expirée. Veuillez réessayer.'
+              : error === 'no_role'
+              ? 'Votre compte n\'est pas encore activé sur cette plateforme. Contactez le CJS.'
               : 'Connexion échouée. Veuillez réessayer.'}
           </p>
         )}

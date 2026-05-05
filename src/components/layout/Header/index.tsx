@@ -36,7 +36,7 @@ export async function Header() {
                 </span>
               </Link>
               <a
-                href="/api/auth/logout"
+                href="/auth/deconnexion"
                 className="text-xs px-2 py-1 rounded border border-cjs-gris/30
                   text-cjs-gris hover:text-cjs-rouge hover:border-cjs-rouge
                   no-underline transition-colors whitespace-nowrap"

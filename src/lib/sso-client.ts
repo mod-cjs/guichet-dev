@@ -133,7 +133,7 @@ export async function exchangeCode(
 }
 
 export async function getUserInfo(accessToken: string): Promise<CJSClaims> {
-  const res = await fetch(`${SSO_BASE_URL}/api/oauth/userinfo`, {
+  const res = await fetch(`${SSO_BASE_URL}/oauth/userinfo`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -161,7 +161,7 @@ export async function refreshAccessToken(
 }
 
 export async function revokeToken(accessToken: string): Promise<void> {
-  await fetch(`${SSO_BASE_URL}/api/oauth/token/revoke`, {
+  await fetch(`${SSO_BASE_URL}/oauth/token/revoke`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -177,7 +177,7 @@ export async function verifyToken(
   includeClaims = false,
 ): Promise<IntrospectionResult> {
   const body = JSON.stringify({ token, include_claims: includeClaims });
-  const res = await fetch(`${SSO_BASE_URL}/api/oauth/token/verify`, {
+  const res = await fetch(`${SSO_BASE_URL}/oauth/token/verify`, {
     method: "POST",
     headers: buildHmacHeaders(body),
     body,

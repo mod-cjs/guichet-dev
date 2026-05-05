@@ -6,10 +6,13 @@ import type { CJSSession } from '@/types/user'
 // Compatible Edge Runtime — aucun import Node.js
 
 const SESSION_COOKIE = 'cjs_session'
+const JWT_ISSUER     = 'guichet-jeunesse'
+const JWT_AUDIENCE   = 'guichet-jeunesse'
 
 function getSecret(): Uint8Array {
-  const s = process.env.NEXTAUTH_SECRET
-  if (!s) throw new Error('NEXTAUTH_SECRET manquant')
+  // SESSION_SECRET prioritaire, NEXTAUTH_SECRET comme fallback (compatibilité)
+  const s = process.env.SESSION_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (!s) throw new Error('SESSION_SECRET manquant')
   return new TextEncoder().encode(s)
 }
 
@@ -18,13 +21,18 @@ function getSecret(): Uint8Array {
 export async function encodeSession(session: CJSSession): Promise<string> {
   return new SignJWT(session as unknown as JWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE)
     .setExpirationTime(session.expiresAt)
     .sign(getSecret())
 }
 
 async function decodeSession(token: string): Promise<CJSSession | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecret())
+    const { payload } = await jwtVerify(token, getSecret(), {
+      issuer:   JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    })
     return payload as unknown as CJSSession
   } catch {
     return null
@@ -65,7 +73,7 @@ export function setSessionCookie(response: NextResponse, encoded: string, maxAge
   response.cookies.set(SESSION_COOKIE, encoded, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',   // strict bloquerait les liens entrants (email, apps CJS)
     maxAge,
     path:     '/',
   })

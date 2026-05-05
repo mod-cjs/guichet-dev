@@ -29,7 +29,7 @@ export function AdminSidebar() {
         ))}
       </nav>
       <div className="p-6 border-t border-gray-800">
-        <Link href="/api/auth/logout" className="text-sm text-gray-400 hover:text-white no-underline">
+        <Link href="/auth/deconnexion" className="text-sm text-gray-400 hover:text-white no-underline">
           Se déconnecter
         </Link>
       </div>
