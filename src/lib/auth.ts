@@ -41,11 +41,6 @@ async function decodeSession(token: string): Promise<CJSSession | null> {
 
 // ── Lecture de session ────────────────────────────────────────────────────
 
-/**
- * Lit la session depuis le cookie.
- * - Sans argument : utilise `next/headers` (Server Components, API Routes)
- * - Avec `request` : lit depuis `request.cookies` (middleware Edge)
- */
 export async function getSession(request?: NextRequest): Promise<CJSSession | null> {
   let value: string | undefined
   if (request) {
@@ -73,7 +68,7 @@ export function setSessionCookie(response: NextResponse, encoded: string, maxAge
   response.cookies.set(SESSION_COOKIE, encoded, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'lax',   // strict bloquerait les liens entrants (email, apps CJS)
+    sameSite: 'lax',
     maxAge,
     path:     '/',
   })

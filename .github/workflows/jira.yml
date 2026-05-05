@@ -9,7 +9,7 @@ on:
 # ─────────────────────────────────────────────────────────────
 # Flux Git + Statuts Jira
 #
-#   feature/GJ-XX  ──PR──►  develop  ──PR──►  main
+#   feature/GUIC-XX  ──PR──►  develop  ──PR──►  main
 #
 #   PR feature → develop (workflow développeurs) :
 #     Ouverte en draft          → En cours
@@ -34,11 +34,11 @@ jobs:
       jira_key: ${{ steps.extract.outputs.jira_key }}
       found:    ${{ steps.extract.outputs.found }}
     steps:
-      - name: Extraire GJ-XX
+      - name: Extraire GUIC-XX
         id: extract
         run: |
           BRANCH="${{ github.head_ref }}"
-          if [[ "$BRANCH" =~ (GJ-[0-9]+) ]]; then
+          if [[ "$BRANCH" =~ (GUIC-[0-9]+) ]]; then
             echo "jira_key=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
             echo "found=true"                  >> $GITHUB_OUTPUT
             echo "Clé trouvée : ${BASH_REMATCH[1]}"
@@ -57,13 +57,13 @@ jobs:
       github.event.action == 'opened' &&
       github.base_ref == 'develop'
     steps:
-      - name: Vérifier GJ-XX dans le titre
+      - name: Vérifier GUIC-XX dans le titre
         run: |
           TITLE="${{ github.event.pull_request.title }}"
-          if [[ "$TITLE" =~ GJ-[0-9]+ ]]; then
+          if [[ "$TITLE" =~ GUIC-[0-9]+ ]]; then
             echo "Titre valide : $TITLE"
           else
-            echo "ERREUR — Le titre doit contenir GJ-XX — ex : GJ-12 feat: description"
+            echo "ERREUR — Le titre doit contenir GUIC-XX — ex : GUIC-12 feat: description"
             exit 1
           fi
 

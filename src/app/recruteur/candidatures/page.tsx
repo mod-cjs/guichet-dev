@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Candidatures' }
+export const metadata: Metadata = { title: 'Candidatures reçues' }
 
 export default function Page() {
   return (
-    <div className="container-page py-12">
-      <h1 className="text-3xl font-bold text-cjs-vert mb-4">Candidatures</h1>
-      <p className="text-cjs-gris">Sprint 4 — M9 : Candidatures reçues</p>
+    <div>
+      <div className="mb-space-5">
+        <h1 className="text-fs-800 font-black text-color-text-primary">Candidatures reçues</h1>
+        <p className="text-fs-300 text-color-text-secondary mt-space-1">Consultez les profils candidats</p>
+      </div>
+      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
+        🚧 Candidatures reçues — Sprint 4 (M9)
+      </div>
     </div>
   )
 }

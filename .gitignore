@@ -7,6 +7,7 @@ node_modules/
 .next/
 out/
 dist/
+tsconfig.tsbuildinfo
 
 # Variables d'environnement - NE JAMAIS COMMITER
 .env
@@ -30,3 +31,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Claude Code — settings locaux (contient tokens, ne pas commiter)
+.claude/settings.local.json

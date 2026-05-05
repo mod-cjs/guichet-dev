@@ -8,23 +8,29 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, error, hint, id, className = '', ...props }: InputProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-space-1">
       {label && (
-        <label htmlFor={id} className="text-sm font-medium text-cjs-noir">
+        <label htmlFor={id} className="text-fs-300 font-bold text-color-text-primary">
           {label}
-          {props.required && <span className="text-cjs-rouge ml-1">*</span>}
+          {props.required && <span className="text-gj-red ml-1" aria-hidden>*</span>}
         </label>
       )}
       <input
         id={id}
-        className={`w-full px-4 py-3 rounded-cjs border transition-colors duration-200
-          ${error ? 'border-cjs-rouge focus:ring-cjs-rouge' : 'border-gray-300 focus:border-cjs-vert'}
-          focus:outline-none focus:ring-2 focus:ring-opacity-20
-          disabled:bg-gray-50 disabled:text-cjs-gris ${className}`}
+        className={`w-full px-space-3 rounded-gj-md border-[1.5px] bg-white font-[inherit]
+          text-[16px] min-h-[var(--tap-input)]
+          transition-colors duration-200
+          ${error
+            ? 'border-gj-red focus:border-gj-red'
+            : 'border-gj-line focus:border-gj-teal-deep'
+          }
+          focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]
+          disabled:bg-gj-bg disabled:text-gj-grey
+          ${className}`}
         {...props}
       />
-      {hint && !error && <p className="text-xs text-cjs-gris">{hint}</p>}
-      {error && <p className="text-xs text-cjs-rouge">{error}</p>}
+      {hint && !error && <p className="text-fs-200 text-color-text-muted">{hint}</p>}
+      {error && <p className="text-fs-200 text-gj-red">{error}</p>}
     </div>
   )
 }

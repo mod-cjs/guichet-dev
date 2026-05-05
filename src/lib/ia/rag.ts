@@ -5,11 +5,10 @@
 
 import Groq from 'groq-sdk'
 
-// Instantiation différée — GROQ_API_KEY absent en build statique
-let _groqClient: Groq | null = null
+let _groq: Groq | null = null
 function getGroq(): Groq {
-  if (!_groqClient) _groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  return _groqClient
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+  return _groq
 }
 
 export async function generateAgentResponse(

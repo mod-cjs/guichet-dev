@@ -6,6 +6,491 @@ datasource db {
   provider = "mysql"
 }
 
-// Les modèles seront définis lors de la phase de modélisation des données,
-// sur la base du Modèle de Données Unifié CJS v3 et de l'extraction Drupal.
-// Voir docs/metier.md et Modele_Donnees_Unifie_CJS_v3.docx
+// ─────────────────────────────────────────────
+// ÉNUMÉRATIONS
+// ─────────────────────────────────────────────
+
+enum Region {
+  Dakar
+  Thies
+  Diourbel
+  Fatick
+  Kaolack
+  Kaffrine
+  Louga
+  Saint_Louis
+  Matam
+  Tambacounda
+  Kedougou
+  Kolda
+  Ziguinchor
+  Sedhiou
+
+  @@map("region")
+}
+
+enum Genre {
+  M
+  F
+
+  @@map("genre")
+}
+
+enum StatutCompte {
+  actif
+  inactif
+  anonymise
+
+  @@map("statut_compte")
+}
+
+enum TypeOpportunite {
+  Emploi
+  Stage
+  Formation
+  Bourse
+  Volontariat
+  Appel_a_projets
+
+  @@map("type_opportunite")
+}
+
+enum Domaine {
+  Agriculture
+  Numerique
+  Entrepreneuriat
+  Citoyennete
+  Environnement
+  Sante
+  Education
+  Culture
+  Autre
+
+  @@map("domaine")
+}
+
+enum StatutOpportunite {
+  brouillon
+  publiee
+  archivee
+  expiree
+
+  @@map("statut_opportunite")
+}
+
+enum StatutCandidature {
+  En_attente
+  Vue
+  Retenue
+  Refusee
+
+  @@map("statut_candidature")
+}
+
+enum TypeEvenement {
+  Formation
+  Atelier
+  Forum
+  Webinar
+  Conference
+
+  @@map("type_evenement")
+}
+
+enum StatutEvenement {
+  a_venir
+  en_cours
+  termine
+  annule
+
+  @@map("statut_evenement")
+}
+
+enum TypeRessource {
+  PDF
+  Video
+  Lien
+  Guide
+  Outil
+
+  @@map("type_ressource")
+}
+
+enum StatutInscription {
+  inscrit
+  liste_attente
+  annule
+  present
+
+  @@map("statut_inscription")
+}
+
+enum RoleAgent {
+  conseiller
+  directeur
+  admin_centre
+
+  @@map("role_agent")
+}
+
+// ─────────────────────────────────────────────
+// M1 — SOCLE : UTILISATEURS & PROFILS
+// ─────────────────────────────────────────────
+
+// Identité de base — synchronisée depuis le SSO via webhook user.*
+// Ne jamais modifier directement : la source de vérité est le SSO CJS
+model Utilisateur {
+  cjsUid       String       @id @map("cjs_uid") @db.VarChar(36)
+  telephone    String?      @unique @db.VarChar(20)
+  email        String?      @unique @db.VarChar(255)
+  nom          String       @db.VarChar(100)
+  prenom       String       @db.VarChar(100)
+  region       Region?
+  genre        Genre?
+  dateNaissance DateTime?   @map("date_naissance")
+  statut       StatutCompte @default(actif)
+  drupalUid    Int?         @unique @map("drupal_uid")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  profil           ProfilJeune?
+  candidatures     Candidature[]
+  inscriptions     InscriptionEvenement[]
+  ressourcesFavoris RessourceFavorite[]
+  conversations    ConversationWhatsApp[]
+  recommandations  RecommandationIA[]
+
+  @@index([email])
+  @@index([telephone])
+  @@index([statut])
+  @@map("utilisateurs")
+}
+
+// Profil enrichi — rempli par le jeune après inscription
+model ProfilJeune {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid          String   @unique @map("cjs_uid") @db.VarChar(36)
+  photoUrl        String?  @map("photo_url") @db.VarChar(500)
+  biographie      String?  @db.Text
+  // JSON arrays stockés en texte — ex: ["JavaScript","Python"] ou ["Agriculture","Numérique"]
+  competences     Json?
+  domainesInteret Json?    @map("domaines_interet")
+  diplomes        Json?
+  niveauEtude     String?  @map("niveau_etude") @db.VarChar(50)
+  situationEmploi String?  @map("situation_emploi") @db.VarChar(50)
+  // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
+  completionScore Int      @default(0) @map("completion_score")
+  profileVisibility String @default("public") @map("profile_visibility") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  utilisateur     Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  experiences     Experience[]
+  certificats     CertificatMoodle[]
+
+  @@map("profils_jeunes")
+}
+
+// Expériences professionnelles du jeune
+model Experience {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  profilId     String    @map("profil_id") @db.VarChar(36)
+  poste        String    @db.VarChar(150)
+  organisation String    @db.VarChar(150)
+  dateDebut    DateTime  @map("date_debut")
+  dateFin      DateTime? @map("date_fin")
+  description  String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  profil       ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
+
+  @@index([profilId])
+  @@map("experiences")
+}
+
+// ─────────────────────────────────────────────
+// M2 — ORGANISATION RECRUTEUR
+// ─────────────────────────────────────────────
+
+model Organisation {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid      String   @map("cjs_uid") @db.VarChar(36)
+  nom         String   @db.VarChar(200)
+  secteur     Domaine?
+  region      Region?
+  adresse     String?  @db.VarChar(300)
+  telephone   String?  @db.VarChar(20)
+  email       String?  @db.VarChar(255)
+  siteWeb     String?  @map("site_web") @db.VarChar(500)
+  logoUrl     String?  @map("logo_url") @db.VarChar(500)
+  estVerifie  Boolean  @default(false) @map("est_verifie")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  opportunites Opportunite[]
+
+  @@index([cjsUid])
+  @@map("organisations")
+}
+
+// ─────────────────────────────────────────────
+// M3 — OPPORTUNITÉS & CANDIDATURES
+// ─────────────────────────────────────────────
+
+model Opportunite {
+  id              String            @id @default(uuid()) @db.VarChar(36)
+  titre           String            @db.VarChar(255)
+  description     String            @db.LongText
+  type            TypeOpportunite
+  domaine         Domaine
+  region          Region?
+  organisation    String            @db.VarChar(200)
+  organisationId  String?           @map("organisation_id") @db.VarChar(36)
+  remuneration    String?           @db.VarChar(100)
+  deadline        DateTime?
+  lienExterne     String?           @map("lien_externe") @db.VarChar(500)
+  statut          StatutOpportunite @default(brouillon)
+  recruteurUid    String?           @map("recruteur_uid") @db.VarChar(36)
+  vues            Int               @default(0)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+
+  org             Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  candidatures    Candidature[]
+
+  @@index([statut, deletedAt])
+  @@index([type, domaine])
+  @@index([region])
+  @@index([deadline])
+  @@fulltext([titre, description])
+  @@map("opportunites")
+}
+
+model Candidature {
+  id              String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid          String            @map("cjs_uid") @db.VarChar(36)
+  opportuniteId   String            @map("opportunite_id") @db.VarChar(36)
+  statut          StatutCandidature @default(En_attente)
+  lettreMotivation String?          @map("lettre_motivation") @db.Text
+  cvUrl           String?           @map("cv_url") @db.VarChar(500)
+  soumiseA        DateTime          @default(now()) @map("soumise_a")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  utilisateur     Utilisateur  @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite     Opportunite  @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@unique([cjsUid, opportuniteId])
+  @@index([statut])
+  @@map("candidatures")
+}
+
+// ─────────────────────────────────────────────
+// M4 — CENTRES CJS
+// ─────────────────────────────────────────────
+
+model Centre {
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  nom         String  @db.VarChar(200)
+  region      Region
+  adresse     String  @db.VarChar(300)
+  latitude    Float
+  longitude   Float
+  telephone   String  @db.VarChar(20)
+  responsable String  @db.VarChar(150)
+  gcId        Int?    @unique @map("gc_id")
+  estActif    Boolean @default(true) @map("est_actif")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  evenements  Evenement[]
+  agents      AgentCentre[]
+
+  @@index([region])
+  @@map("centres")
+}
+
+model AgentCentre {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  cjsUid    String    @map("cjs_uid") @db.VarChar(36)
+  centreId  String    @map("centre_id") @db.VarChar(36)
+  role      RoleAgent @default(conseiller)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  centre    Centre @relation(fields: [centreId], references: [id])
+
+  @@unique([cjsUid, centreId])
+  @@map("agents_centres")
+}
+
+// ─────────────────────────────────────────────
+// M5 — AGENDA / ÉVÉNEMENTS
+// ─────────────────────────────────────────────
+
+model Evenement {
+  id           String          @id @default(uuid()) @db.VarChar(36)
+  titre        String          @db.VarChar(255)
+  description  String          @db.Text
+  type         TypeEvenement
+  statut       StatutEvenement @default(a_venir)
+  dateDebut    DateTime        @map("date_debut")
+  dateFin      DateTime?       @map("date_fin")
+  lieu         String          @db.VarChar(200)
+  centreId     String?         @map("centre_id") @db.VarChar(36)
+  capaciteMax  Int?            @map("capacite_max")
+  estGratuit   Boolean         @default(true) @map("est_gratuit")
+  // Rappel SMS envoyé 24h avant (job planifié vérifie ce flag)
+  rappelEnvoye Boolean         @default(false) @map("rappel_envoye")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  centre       Centre? @relation(fields: [centreId], references: [id])
+  inscriptions InscriptionEvenement[]
+
+  @@index([dateDebut, statut])
+  @@map("evenements")
+}
+
+model InscriptionEvenement {
+  id          String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid      String            @map("cjs_uid") @db.VarChar(36)
+  evenementId String            @map("evenement_id") @db.VarChar(36)
+  statut      StatutInscription @default(inscrit)
+  inscritA    DateTime          @default(now()) @map("inscrit_a")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  evenement   Evenement   @relation(fields: [evenementId], references: [id])
+
+  @@unique([cjsUid, evenementId])
+  @@map("inscriptions_evenements")
+}
+
+// ─────────────────────────────────────────────
+// M6 — RESSOURCES PÉDAGOGIQUES
+// ─────────────────────────────────────────────
+
+model Ressource {
+  id          String        @id @default(uuid()) @db.VarChar(36)
+  titre       String        @db.VarChar(255)
+  description String        @db.Text
+  type        TypeRessource
+  theme       String        @db.VarChar(100)
+  url         String        @db.VarChar(500)
+  estPublic   Boolean       @default(true) @map("est_public")
+  vues        Int           @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  favoris     RessourceFavorite[]
+
+  @@index([type, theme])
+  @@map("ressources")
+}
+
+model RessourceFavorite {
+  cjsUid      String   @map("cjs_uid") @db.VarChar(36)
+  ressourceId String   @map("ressource_id") @db.VarChar(36)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  ressource   Ressource   @relation(fields: [ressourceId], references: [id])
+
+  @@id([cjsUid, ressourceId])
+  @@map("ressources_favorites")
+}
+
+// ─────────────────────────────────────────────
+// M10 — INTEROPÉRABILITÉ : LOGS
+// Les webhooks entrants utilisent Redis pour l'idempotence (event_id, TTL 7j)
+// InteropLog persiste pour audit et debugging uniquement
+// ─────────────────────────────────────────────
+
+model InteropLog {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  source      String   @db.VarChar(50)
+  eventType   String   @map("event_type") @db.VarChar(100)
+  eventId     String   @map("event_id") @db.VarChar(100)
+  payload     Json
+  statut      String   @db.VarChar(20)
+  erreur      String?  @db.Text
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@index([source, eventType])
+  @@index([eventId])
+  @@map("interop_logs")
+}
+
+// ─────────────────────────────────────────────
+// M11 — WHATSAPP AÏSSATOU
+// ─────────────────────────────────────────────
+
+model ConversationWhatsApp {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  telephone   String   @db.VarChar(20)
+  cjsUid      String?  @map("cjs_uid") @db.VarChar(36)
+  // Contexte de conversation sérialisé (historique Groq)
+  contexte    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  utilisateur Utilisateur? @relation(fields: [cjsUid], references: [cjsUid])
+  messages    MessageWhatsApp[]
+
+  @@unique([telephone])
+  @@map("conversations_whatsapp")
+}
+
+model MessageWhatsApp {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  conversationId  String   @map("conversation_id") @db.VarChar(36)
+  wamid           String   @unique @db.VarChar(100)
+  sens            String   @db.VarChar(10)
+  contenu         String   @db.Text
+  type            String   @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  conversation    ConversationWhatsApp @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@map("messages_whatsapp")
+}
+
+// ─────────────────────────────────────────────
+// M12 — RECOMMANDATIONS IA
+// ─────────────────────────────────────────────
+
+model RecommandationIA {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid        String   @map("cjs_uid") @db.VarChar(36)
+  opportuniteId String?  @map("opportunite_id") @db.VarChar(36)
+  score         Float
+  raison        String?  @db.Text
+  vuePar        DateTime? @map("vue_par")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  utilisateur   Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+
+  @@index([cjsUid, score(sort: Desc)])
+  @@map("recommandations_ia")
+}
+
+// ─────────────────────────────────────────────
+// M14 — CERTIFICATS MOODLE
+// ─────────────────────────────────────────────
+
+model CertificatMoodle {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  profilId    String   @map("profil_id") @db.VarChar(36)
+  moodleCertId String  @unique @map("moodle_cert_id") @db.VarChar(100)
+  formation   String   @db.VarChar(255)
+  obtenuLe    DateTime @map("obtenu_le")
+  urlCertificat String? @map("url_certificat") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profil      ProfilJeune @relation(fields: [profilId], references: [id])
+
+  @@index([profilId])
+  @@map("certificats_moodle")
+}
