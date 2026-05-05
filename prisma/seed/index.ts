@@ -1,10 +1,57 @@
+/**
+ * Seed de développement — Guichet Jeunesse CJS
+ *
+ * COMPTES DE TEST SSO
+ * -------------------
+ * Les utilisateurs sont gérés par le SSO CJS (Laravel Passport), pas par ce projet.
+ * Les comptes ci-dessous doivent exister dans la base du SSO avant de tester le flow OAuth.
+ *
+ * Pour les créer via Laravel tinker (sur le conteneur SSO) :
+ *
+ *   $user = \App\Models\User::create([
+ *     'uuid'       => \Ramsey\Uuid\Uuid::uuid4()->toString(),
+ *     'first_name' => '<prenom>',
+ *     'last_name'  => '<nom>',
+ *     'email'      => '<email>',
+ *     'phone'      => '+221XXXXXXXXX',
+ *     'password'   => bcrypt('<mot_de_passe>'),
+ *   ]);
+ *   // Assigner un rôle lié à la plateforme Guichet (platform_id = ID de la plateforme)
+ *   $user->roles()->attach($roleId, ['platform_id' => $platformId]);
+ *
+ * COMPTES CRÉÉS POUR L'ENVIRONNEMENT LOCAL (port 80)
+ * ---------------------------------------------------
+ * | Email                    | Mot de passe | Rôle        | Usage                        |
+ * |--------------------------|--------------|-------------|------------------------------|
+ * | beneficiaire@cjs.sn      | Test1234!    | beneficiaire| Flow complet jeune           |
+ * | recruteur@cjs.sn         | Test1234!    | recruteur   | Espace recruteur             |
+ * | admin@cjs.sn             | Test1234!    | admin       | Back-office administration   |
+ * | sans-role@cjs.sn         | Test1234!    | (aucun)     | Test message "compte non activé" |
+ *
+ * CLIENT OAUTH
+ * ------------
+ * Client ID     : 41
+ * Redirect URI  : http://localhost:3000/auth/callback
+ * auto_approve  : true (évite l'écran d'autorisation OAuth)
+ *
+ * PLATEFORME SSO
+ * --------------
+ * La plateforme "Guichet Jeunesse" doit être enregistrée dans la table `platforms`
+ * avec `oauth_client_id = '41'` et `default_role = 'beneficiaire'`.
+ *
+ * DONNÉES MÉTIER (M2+)
+ * --------------------
+ * Les seeds de données métier (opportunités, événements, ressources, centres)
+ * seront ajoutées ici au fur et à mesure des sprints.
+ */
+
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seed — aucune donnée à insérer pour l\'instant.')
-  console.log('Les modèles seront définis lors de la phase de modélisation.')
+  console.log('Seed Guichet Jeunesse — aucun modèle de données à insérer (Sprint 0).')
+  console.log('Voir les commentaires de ce fichier pour la configuration SSO requise.')
 }
 
 main()
