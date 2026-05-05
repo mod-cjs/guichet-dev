@@ -93,7 +93,7 @@
   /* =========================================================
      3 · TYPOGRAPHIE — échelle remontée
      ========================================================= */
-  --gj-font-sans: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --gj-font-sans: var(--font-lexend), system-ui, -apple-system, sans-serif;
 
   /* v2 — échelle accessible */
   --fs-100: 11px;   /* tags & métadonnées (jamais en-dessous) */
