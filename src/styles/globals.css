@@ -5,11 +5,36 @@
 @tailwind utilities;
 
 @layer base {
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body { font-family: var(--gj-font-sans); background: var(--color-bg-page); color: var(--color-text-primary); }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; line-height: var(--gj-lh-body); }
+  body {
+    font-family: var(--gj-font-sans);
+    font-size: var(--fs-400);
+    background: var(--color-bg-page);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
   a { color: var(--color-text-link); }
   a:hover { color: var(--gj-teal-deep-2); }
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  button, [role="button"] { cursor: pointer; }
+  img, video { max-width: 100%; display: block; }
+
+  @keyframes gj-shimmer {
+    0%   { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
 }
 
 @layer components {

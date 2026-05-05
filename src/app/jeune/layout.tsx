@@ -9,7 +9,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
   return (
     <>
       <Header />
-      <main className="min-h-screen container mx-auto px-4 py-8">{children}</main>
+      <main id="main" className="min-h-screen container-page py-space-5">{children}</main>
       <Footer />
     </>
   )

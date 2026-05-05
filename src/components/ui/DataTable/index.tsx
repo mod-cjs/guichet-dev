@@ -10,16 +10,16 @@ interface DataTableProps<T> {
 export function DataTable<T extends { id: string }>({
   data, columns, emptyMessage = 'Aucune donnée', loading
 }: DataTableProps<T>) {
-  if (loading) return <div className="text-center py-8 text-cjs-gris">Chargement…</div>
-  if (data.length === 0) return <div className="text-center py-8 text-cjs-gris">{emptyMessage}</div>
+  if (loading) return <div className="text-center py-space-5 text-color-text-muted text-fs-300">Chargement…</div>
+  if (data.length === 0) return <div className="text-center py-space-5 text-color-text-muted text-fs-300">{emptyMessage}</div>
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-fs-300">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
+          <tr className="border-b border-color-border-strong bg-gj-bg">
             {columns.map(col => (
-              <th key={String(col.key)} className="px-4 py-3 text-left font-semibold text-cjs-noir">
+              <th key={String(col.key)} className="px-space-4 py-space-3 text-left font-bold text-color-text-primary">
                 {col.label}
               </th>
             ))}
@@ -27,9 +27,9 @@ export function DataTable<T extends { id: string }>({
         </thead>
         <tbody>
           {data.map(row => (
-            <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <tr key={row.id} className="border-b border-color-border-default hover:bg-gj-bg transition-colors">
               {columns.map(col => (
-                <td key={String(col.key)} className="px-4 py-3 text-cjs-noir">
+                <td key={String(col.key)} className="px-space-4 py-space-3 text-color-text-primary">
                   {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '—')}
                 </td>
               ))}

@@ -9,7 +9,7 @@ interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
 export function Skeleton({ height = '14px', width = '100%', rounded = 'var(--gj-r-sm)', className = '', style, ...props }: SkeletonProps) {
   return (
     <div
-      className={`${className}`}
+      className={className}
       style={{
         height,
         width,
@@ -28,7 +28,6 @@ export function Skeleton({ height = '14px', width = '100%', rounded = 'var(--gj-
 export function SkeletonCard() {
   return (
     <div className="bg-white border-[1.5px] border-gj-line rounded-gj-xl p-space-3">
-      <style>{`@keyframes gj-shimmer{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}`}</style>
       <Skeleton height="18px" width="75%" className="mb-space-2" />
       <Skeleton height="14px" width="90%" className="mb-space-2" />
       <Skeleton height="14px" width="50%" className="mb-space-3" />

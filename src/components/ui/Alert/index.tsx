@@ -11,17 +11,28 @@ const STYLES: Record<AlertType, string> = {
   error:   'bg-gj-red-soft border-gj-red text-gj-red-ink',
 }
 
-const ICONS: Record<AlertType, string> = {
-  info: 'ℹ️', success: '✅', warning: '⚠️', error: '🔴',
+const ICONS: Record<AlertType, { symbol: string; label: string }> = {
+  info:    { symbol: 'i',  label: 'Information' },
+  success: { symbol: '✓',  label: 'Succès' },
+  warning: { symbol: '!',  label: 'Avertissement' },
+  error:   { symbol: '✕',  label: 'Erreur' },
 }
 
 export function Alert({ type = 'info', title, children }: AlertProps) {
+  const icon = ICONS[type]
   return (
     <div className={`border-[1.5px] rounded-gj-lg p-space-3 flex gap-space-3 ${STYLES[type]}`}>
-      <span className="text-fs-500 flex-shrink-0 leading-none mt-[1px]">{ICONS[type]}</span>
+      <span
+        className="w-5 h-5 rounded-full border-[1.5px] border-current flex items-center justify-center
+          text-fs-100 font-black flex-shrink-0 mt-[1px]"
+        role="img"
+        aria-label={icon.label}
+      >
+        {icon.symbol}
+      </span>
       <div>
         {title && <p className="font-bold text-fs-300 mb-[2px]">{title}</p>}
-        <div className="text-fs-200">{children}</div>
+        <div className="text-fs-300">{children}</div>
       </div>
     </div>
   )

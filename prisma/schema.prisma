@@ -141,8 +141,8 @@ enum RoleAgent {
 // Ne jamais modifier directement : la source de vérité est le SSO CJS
 model Utilisateur {
   cjsUid       String       @id @map("cjs_uid") @db.VarChar(36)
-  telephone    String?      @db.VarChar(20)
-  email        String?      @db.VarChar(255)
+  telephone    String?      @unique @db.VarChar(20)
+  email        String?      @unique @db.VarChar(255)
   nom          String       @db.VarChar(100)
   prenom       String       @db.VarChar(100)
   region       Region?
@@ -257,7 +257,7 @@ model Opportunite {
   updatedAt       DateTime          @updatedAt @map("updated_at")
   deletedAt       DateTime?         @map("deleted_at")
 
-  org             Organisation? @relation(fields: [organisationId], references: [id])
+  org             Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   candidatures    Candidature[]
 
   @@index([statut, deletedAt])
@@ -278,8 +278,8 @@ model Candidature {
   soumiseA        DateTime          @default(now()) @map("soumise_a")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  utilisateur     Utilisateur  @relation(fields: [cjsUid], references: [cjsUid])
-  opportunite     Opportunite  @relation(fields: [opportuniteId], references: [id])
+  utilisateur     Utilisateur  @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite     Opportunite  @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])

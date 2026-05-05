@@ -11,7 +11,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
       <Header />
       <div className="flex min-h-screen">
         <RecruteurSidebar />
-        <main className="flex-1 p-8">{children}</main>
+        <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0">{children}</main>
       </div>
     </>
   )

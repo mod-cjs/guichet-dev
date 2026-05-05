@@ -18,7 +18,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 }
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'px-space-3 text-fs-200 min-h-[var(--tap-dense)] md:min-h-[var(--tap-min)]',
+  sm: 'px-space-3 text-fs-200 min-h-[var(--tap-min)] md:min-h-[var(--tap-dense)]',
   md: 'px-space-4 text-fs-300 min-h-[var(--tap-min)]',
   lg: 'px-space-5 text-fs-400 min-h-[var(--tap-comfortable)]',
 }

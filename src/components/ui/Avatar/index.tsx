@@ -16,7 +16,7 @@ export function Avatar({ nom, prenom, src, size = 'md' }: AvatarProps) {
   return (
     <div className={`${SIZES[size]} rounded-full bg-gj-teal flex items-center justify-center overflow-hidden flex-shrink-0`}>
       {src
-        ? <img src={src} alt={`${prenom} ${nom}`} className="w-full h-full object-cover" />
+        ? <img src={src} alt={[prenom, nom].filter(Boolean).join(' ') || 'Avatar'} className="w-full h-full object-cover" />
         : <span className="font-bold text-white">{initiales || '?'}</span>
       }
     </div>

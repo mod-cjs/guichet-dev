@@ -5,7 +5,11 @@
 
 import Groq from 'groq-sdk'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+let _groq: Groq | null = null
+function getGroq(): Groq {
+  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+  return _groq
+}
 
 export async function generateAgentResponse(
   userMessage: string,
@@ -18,7 +22,7 @@ Tu aides les jeunes sénégalais à trouver des opportunités (emploi, stage, bo
 Réponds toujours en français, de manière concise et bienveillante.
 Contexte disponible : ${context}`
 
-  const completion = await groq.chat.completions.create({
+  const completion = await getGroq().chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
       { role: 'system', content: systemPrompt },
