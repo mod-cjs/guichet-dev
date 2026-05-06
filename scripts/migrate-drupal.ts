@@ -32,6 +32,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import * as mysql from 'mysql2/promise'
 import type { RowDataPacket } from 'mysql2'
 import * as fs from 'fs'
@@ -450,9 +451,10 @@ async function main() {
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'RÉEL'} | Phase: ${PHASE}${LIMIT ? ` | Limit: ${LIMIT}` : ''}`)
   console.log('─────────────────────────────────────────────')
 
-  const uidMap = loadCjsUidMap()
-  const prisma = new PrismaClient()
-  const drupal = await mysql.createConnection(DRUPAL_DB_URL)
+  const uidMap  = loadCjsUidMap()
+  const adapter = new PrismaMariaDb(process.env.DATABASE_URL!)
+  const prisma  = new PrismaClient({ adapter })
+  const drupal  = await mysql.createConnection(DRUPAL_DB_URL)
 
   const stats: MigrationStats = {
     profils:       { total: 0, ok: 0, skipped: 0, errors: 0 },

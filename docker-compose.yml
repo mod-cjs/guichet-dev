@@ -30,7 +30,7 @@ services:
 
   # ── MariaDB 11 LTS ────────────────────────────────────────
   mariadb:
-    image: mariadb:11-lts
+    image: mariadb:11
     container_name: guichet_mariadb
     restart: unless-stopped
     environment:

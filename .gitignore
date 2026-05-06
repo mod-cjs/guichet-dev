@@ -34,3 +34,5 @@ Thumbs.db
 
 # Claude Code — settings locaux (contient tokens, ne pas commiter)
 .claude/settings.local.json
+
+data/migration_report_*.txt
