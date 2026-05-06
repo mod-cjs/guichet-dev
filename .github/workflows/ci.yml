@@ -37,6 +37,8 @@ jobs:
 
       - name: Installer les dépendances
         run: npm ci
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
 
       - name: Générer le client Prisma
         run: npx prisma generate
