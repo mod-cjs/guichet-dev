@@ -1,28 +1,33 @@
 /**
- * Migration Drupal 7 → Guichet Jeunesse (Prisma / MariaDB)
+ * Migration Drupal 8/9 → Guichet Jeunesse (Prisma / MariaDB)
  * GUIC-17 — Sprint 0, M1
  *
  * PRÉREQUIS
  * ---------
  * 1. Export SQL Drupal disponible (dump complet ou accès MySQL read-only)
- * 2. Fichier de mapping drupalUid → cjsUid fourni par l'équipe SSO
- *    Format attendu : CSV  drupal_uid,cjs_uid
- *    Ou JSON : { "123": "uuid-v4", ... }
+ *    Structure Drupal 8/9 : users + users_field_data + user__field_*
+ * 2. CSV export SSO (admin → Utilisateurs → Exporter CSV)
+ *    Colonnes requises : "CJS UID (UUID)", "Drupal UID", "Email"
  * 3. Variables d'environnement :
  *    DRUPAL_DB_URL      = mysql://user:pass@host:3306/drupal_db
  *    DATABASE_URL       = mysql://user:pass@host:3306/guichet_jeunesse
- *    CJS_UID_MAP_FILE   = ./data/drupal_uid_cjs_uid_map.json
+ *    CJS_UID_MAP_FILE   = ./data/utilisateurs_export_sso.csv
+ *
+ * STRATÉGIE DE MAPPING
+ * --------------------
+ * 1. Par drupal_uid  : si la colonne "Drupal UID" est renseignée dans le CSV SSO
+ * 2. Par email       : fallback — jointure sur l'email commun aux deux systèmes
+ * Les comptes SSO sans correspondance Drupal sont ignorés.
  *
  * ARCHITECTURE
  * ------------
  * Le SSO détient l'identité (nom, email, téléphone, cjs_uid).
  * Ce script ne crée PAS de comptes SSO — ils existent déjà.
- * Il crée uniquement les données Guichet-spécifiques :
- *   ProfilJeune, Competence, Opportunite, Evenement, Ressource
+ * Il crée uniquement les données Guichet-spécifiques : ProfilJeune
  *
  * EXÉCUTION
  * ---------
- *   npx tsx scripts/migrate-drupal.ts [--dry-run] [--phase=profils|opportunites|evenements|ressources|all]
+ *   npx tsx scripts/migrate-drupal.ts [--dry-run] [--phase=profils|all]
  *
  * OPTIONS
  * -------
@@ -48,24 +53,25 @@ const DRUPAL_DB_URL    = process.env.DRUPAL_DB_URL
 const CJS_UID_MAP_FILE = process.env.CJS_UID_MAP_FILE ?? './data/drupal_uid_cjs_uid_map.json'
 
 // Colonnes du CSV export SSO (utilisateurs_YYYY-MM-DD.csv)
-const SSO_CSV_COL_CJS_UID   = 1 // "CJS UID (UUID)"
+const SSO_CSV_COL_CJS_UID    = 1 // "CJS UID (UUID)"
 const SSO_CSV_COL_DRUPAL_UID = 2 // "Drupal UID"
+const SSO_CSV_COL_EMAIL      = 5 // "Email"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface DrupalUser extends RowDataPacket {
-  uid:      number
-  mail:     string
-  name:     string
-  status:   number
-  created:  number
-}
-
-interface DrupalProfile extends RowDataPacket {
-  uid:       number
-  region?:   string
-  commune?:  string
-  bio?:      string
+// Structure Drupal 8/9 : jointure users + users_field_data + user__field_*
+interface Drupal8User extends RowDataPacket {
+  uid:            number
+  drupal_uuid:    string   // uuid interne Drupal (≠ cjs_uid)
+  mail:           string
+  status:         number
+  created:        number
+  nom:            string | null
+  prenom:         string | null
+  sexe:           string | null  // 'homme' | 'femme'
+  telephone:      string | null
+  date_naissance: string | null  // DATE au format YYYY-MM-DD
+  type_profil:    string | null
 }
 
 interface DrupalNode extends RowDataPacket {
@@ -88,43 +94,77 @@ interface MigrationStats {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function loadCjsUidMap(): Map<number, string> {
+function parseCsvLine(line: string): string[] {
+  const cols: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') { inQuotes = !inQuotes }
+    else if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = '' }
+    else { current += ch }
+  }
+  cols.push(current.trim())
+  return cols
+}
+
+interface SsoMaps {
+  byDrupalUid: Map<number, string>  // drupal_uid → cjs_uid
+  byEmail:     Map<string, string>  // email (lowercase) → cjs_uid
+}
+
+function loadSsoMaps(): SsoMaps {
   if (!fs.existsSync(CJS_UID_MAP_FILE)) {
-    throw new Error(
-      `Fichier de mapping introuvable : ${CJS_UID_MAP_FILE}\n` +
-      'Fournir soit le CSV export SSO (utilisateurs_*.csv), soit un JSON { drupal_uid: cjs_uid }'
-    )
+    throw new Error(`Fichier mapping introuvable : ${CJS_UID_MAP_FILE}`)
   }
 
-  const raw = fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8')
-  const map = new Map<number, string>()
+  const byDrupalUid = new Map<number, string>()
+  const byEmail     = new Map<string, string>()
 
-  // Format CSV export SSO : ID,"CJS UID (UUID)","Drupal UID",...
   if (CJS_UID_MAP_FILE.endsWith('.csv')) {
-    const lines = raw.split('\n').slice(1) // skip header
-    let skipped = 0
+    const lines = fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8').split('\n').slice(1)
     for (const line of lines) {
       if (!line.trim()) continue
-      // Parsing CSV simple (gère les guillemets)
-      const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g)?.map(c => c.replace(/^"|"$/g, '').trim()) ?? []
-      const cjsUid   = cols[SSO_CSV_COL_CJS_UID]
-      const drupalUid = cols[SSO_CSV_COL_DRUPAL_UID]
-      if (!drupalUid || !cjsUid) { skipped++; continue }
-      const uid = parseInt(drupalUid)
-      if (isNaN(uid)) { skipped++; continue }
-      map.set(uid, cjsUid)
+      const cols    = parseCsvLine(line)
+      const cjsUid  = cols[SSO_CSV_COL_CJS_UID]?.replace(/^"|"$/g, '')
+      const drupalUid = cols[SSO_CSV_COL_DRUPAL_UID]?.replace(/^"|"$/g, '')
+      const email   = cols[SSO_CSV_COL_EMAIL]?.replace(/^"|"$/g, '').toLowerCase()
+      if (!cjsUid) continue
+      if (drupalUid && !isNaN(parseInt(drupalUid))) {
+        byDrupalUid.set(parseInt(drupalUid), cjsUid)
+      }
+      if (email) byEmail.set(email, cjsUid)
     }
-    console.log(`Mapping CSV chargé : ${map.size} entrées (${skipped} lignes sans drupal_uid ignorées)`)
-    return map
+    console.log(`Mapping SSO chargé — par drupal_uid: ${byDrupalUid.size} | par email: ${byEmail.size}`)
+    return { byDrupalUid, byEmail }
   }
 
-  // Format JSON : { "drupal_uid": "cjs_uuid", ... }
-  const data = JSON.parse(raw) as Record<string, string>
-  for (const [k, v] of Object.entries(data)) {
-    map.set(parseInt(k), v)
-  }
-  console.log(`Mapping JSON chargé : ${map.size} entrées`)
-  return map
+  // Format JSON : { "drupal_uid": "cjs_uuid" }
+  const data = JSON.parse(fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8')) as Record<string, string>
+  for (const [k, v] of Object.entries(data)) byDrupalUid.set(parseInt(k), v)
+  console.log(`Mapping JSON chargé : ${byDrupalUid.size} entrées`)
+  return { byDrupalUid, byEmail }
+}
+
+function normalizePhone(raw: string | null): string | null {
+  if (!raw) return null
+  // Supprimer espaces et tirets
+  const digits = raw.replace(/[\s\-().]/g, '')
+  // Déjà E.164
+  if (/^\+\d{10,15}$/.test(digits)) return digits
+  // 9 chiffres locaux sénégalais → +221
+  if (/^\d{9}$/.test(digits)) return `+221${digits}`
+  // 8 chiffres avec leading zero → +221 + sans le zero
+  if (/^0\d{9}$/.test(digits)) return `+221${digits.slice(1)}`
+  return null // format non reconnu — on ne stocke pas
+}
+
+function mapGenre(val: string | null): string | null {
+  if (!val) return null
+  const v = val.toLowerCase()
+  if (v === 'homme' || v === 'm' || v === 'male')   return 'HOMME'
+  if (v === 'femme' || v === 'f' || v === 'female') return 'FEMME'
+  return 'AUTRE'
 }
 
 function drupalTimestampToDate(ts: number): Date {
@@ -142,76 +182,88 @@ function slugify(text: string, id: number): string {
     + `-${id}`
 }
 
-// ─── Phase 1 : ProfilJeune ────────────────────────────────────────────────────
+// ─── Phase 1 : ProfilJeune (Drupal 8/9) ──────────────────────────────────────
 
 async function migrateProfilsJeune(
   drupal:  mysql.Connection,
   prisma:  PrismaClient,
-  uidMap:  Map<number, string>,
+  maps:    SsoMaps,
   stats:   MigrationStats,
 ) {
-  console.log('\n[Phase 1] Migration des profils jeune...')
+  console.log('\n[Phase 1] Migration des profils jeune (Drupal 8/9)...')
 
   const limitClause = LIMIT ? `LIMIT ${LIMIT}` : ''
 
-  const [users] = await drupal.query<DrupalUser[]>(
-    `SELECT uid, mail, name, status, created
-     FROM users
-     WHERE uid > 0 AND status = 1
+  // Jointure complète Drupal 8/9 : users + users_field_data + champs custom
+  const [users] = await drupal.query<Drupal8User[]>(
+    `SELECT
+       u.uid,
+       u.uuid                                    AS drupal_uuid,
+       f.mail,
+       f.status,
+       f.created,
+       n.field_nom_value                         AS nom,
+       p.field_prenom_value                      AS prenom,
+       s.field_sexe_value                        AS sexe,
+       t.field_telephone_value                   AS telephone,
+       DATE(d.field_date_de_naissance_value)     AS date_naissance,
+       tp.field_type_de_profile_target_id        AS type_profil
+     FROM users u
+     JOIN users_field_data f  ON f.uid = u.uid AND f.status = 1
+     LEFT JOIN user__field_nom              n  ON n.entity_id  = u.uid AND n.deleted = 0
+     LEFT JOIN user__field_prenom           p  ON p.entity_id  = u.uid AND p.deleted = 0
+     LEFT JOIN user__field_sexe             s  ON s.entity_id  = u.uid AND s.deleted = 0
+     LEFT JOIN user__field_telephone        t  ON t.entity_id  = u.uid AND t.deleted = 0
+     LEFT JOIN user__field_date_de_naissance d  ON d.entity_id  = u.uid AND d.deleted = 0
+     LEFT JOIN user__field_type_de_profile  tp ON tp.entity_id = u.uid AND tp.deleted = 0
+     WHERE u.uid > 0 AND f.mail IS NOT NULL
      ${limitClause}`
   )
-
-  // Champs profil issus de profile2 ou field_data_* (adapter selon la structure Drupal)
-  const [profiles] = await drupal.query<DrupalProfile[]>(
-    `SELECT entity_id AS uid,
-            field_region_value      AS region,
-            field_commune_value     AS commune
-     FROM field_data_field_region
-     LEFT JOIN field_data_field_commune USING (entity_id)
-     WHERE entity_type = 'user'`
-  ).catch(() => [[]] as [DrupalProfile[]])
-
-  const profileMap = new Map(profiles.map(p => [p.uid, p]))
 
   stats.profils.total = users.length
   console.log(`  Utilisateurs Drupal actifs : ${users.length}`)
 
+  let mappedByUid = 0, mappedByEmail = 0, notMapped = 0
+
   for (const user of users) {
-    const cjsUid = uidMap.get(user.uid)
+    // Stratégie 1 : mapping par drupal_uid
+    let cjsUid = maps.byDrupalUid.get(user.uid)
+    if (cjsUid) { mappedByUid++ }
+    else {
+      // Stratégie 2 : mapping par email
+      cjsUid = maps.byEmail.get(user.mail?.toLowerCase() ?? '')
+      if (cjsUid) { mappedByEmail++ }
+    }
+
     if (!cjsUid) {
-      console.warn(`  [SKIP] drupalUid=${user.uid} absent du mapping SSO`)
+      notMapped++
       stats.profils.skipped++
       continue
     }
 
     const existing = await prisma.profilJeune.findUnique({ where: { cjsUid } })
-    if (existing) {
-      stats.profils.skipped++
-      continue
-    }
-
-    const extra = profileMap.get(user.uid)
+    if (existing) { stats.profils.skipped++; continue }
 
     try {
       if (!DRY_RUN) {
         await prisma.profilJeune.create({
           data: {
             cjsUid,
-            drupalUid: user.uid,
-            region:    extra?.region    ?? null,
-            commune:   extra?.commune   ?? null,
-            bio:       extra?.bio       ?? null,
-            createdAt: drupalTimestampToDate(user.created),
+            drupalUid:    user.uid,
+            genre:        mapGenre(user.sexe) as any,
+            dateNaissance: user.date_naissance ? new Date(user.date_naissance) : null,
+            createdAt:    drupalTimestampToDate(user.created),
           },
         })
       }
       stats.profils.ok++
     } catch (err) {
-      console.error(`  [ERR] drupalUid=${user.uid}`, err)
+      console.error(`  [ERR] uid=${user.uid} mail=${user.mail}`, err)
       stats.profils.errors++
     }
   }
 
+  console.log(`  Mapping — par drupal_uid: ${mappedByUid} | par email: ${mappedByEmail} | non trouvés: ${notMapped}`)
   console.log(`  → ok: ${stats.profils.ok} | skipped: ${stats.profils.skipped} | errors: ${stats.profils.errors}`)
 }
 
@@ -451,7 +503,7 @@ async function main() {
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'RÉEL'} | Phase: ${PHASE}${LIMIT ? ` | Limit: ${LIMIT}` : ''}`)
   console.log('─────────────────────────────────────────────')
 
-  const uidMap  = loadCjsUidMap()
+  const maps    = loadSsoMaps()
   const adapter = new PrismaMariaDb(process.env.DATABASE_URL!)
   const prisma  = new PrismaClient({ adapter })
   const drupal  = await mysql.createConnection(DRUPAL_DB_URL)
@@ -465,7 +517,7 @@ async function main() {
 
   try {
     if (PHASE === 'all' || PHASE === 'profils') {
-      await migrateProfilsJeune(drupal, prisma, uidMap, stats)
+      await migrateProfilsJeune(drupal, prisma, maps, stats)
     }
     if (PHASE === 'all' || PHASE === 'opportunites') {
       await migrateOpportunites(drupal, prisma, stats)
