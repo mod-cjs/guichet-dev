@@ -25,7 +25,7 @@ async function refreshToken(token: string) {
   return res.json() as Promise<{ access_token: string; refresh_token: string; expires_in: number }>
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
