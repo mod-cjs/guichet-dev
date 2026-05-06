@@ -1,0 +1,6 @@
+ID,"CJS UID (UUID)","Drupal UID",Prénom,Nom,Email,Téléphone,Statut,Région,Département,Commune,Genre,"Date naissance",Source,"Email vérifié","Tél. vérifié",Rôles,"ID membre CJS",Inscription,"Dernière connexion"
+9,b34bca18-a189-4b25-8594-0d498395c05f,101,Amadouu,Diallo,cjs.amadou.diallo@yopmail.com,+221771234501,active,Dakar,Dakar,,M,1990-03-15,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,"2026-04-24 18:00"
+10,994ca561-1519-4cf2-91dc-3a4206e02c18,102,Fatou,Ndiaye,cjs.fatou.ndiaye@yopmail.com,+221771234502,active,Thiès,,,F,1995-07-22,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+11,9d0c47cc-0d13-4f5d-9b9d-166701ed27be,103,Moussa,Sow,cjs.moussa.sow@yopmail.com,+221771234503,active,Saint-Louis,,,M,1988-11-08,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+12,d47fd37e-018f-4154-8c0b-b53f3d5fa666,104,Aissatou,Ba,cjs.aissatou.ba@yopmail.com,+221771234504,inactive,Ziguinchor,,,F,2000-01-30,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+13,b51cdd1e-4979-4ed4-8141-05851cbe957d,105,Ibrahima,Fall,cjs.ibrahima.fall@yopmail.com,+221771234505,active,Kaolack,,,M,1993-05-17,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
