@@ -64,6 +64,11 @@ export async function GET(request: NextRequest) {
     }
 
     const encoded     = await encodeSession(session)
+    logger.info('session-size', {
+      accessToken:  tokens.access_token.length,
+      refreshToken: tokens.refresh_token.length,
+      cookieJwt:    encoded.length,
+    })
     const destination = safeReturnTo(returnTo) ?? roleRedirect(session)
     const response    = NextResponse.redirect(new URL(destination, request.url))
 
