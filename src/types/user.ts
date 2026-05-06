@@ -10,6 +10,7 @@ export interface CJSSession {
   accessToken: string
   refreshToken: string
   expiresAt: number
+  onboardingComplete: boolean
 }
 
 export type UserRole = 'beneficiaire' | 'recruteur' | 'admin' | 'data_steward'

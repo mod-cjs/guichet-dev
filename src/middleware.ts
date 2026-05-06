@@ -41,6 +41,15 @@ export async function middleware(request: NextRequest) {
     )
   }
 
+  // Forcer l'onboarding pour les bénéficiaires non encore onboardés
+  if (
+    session.roles.includes('beneficiaire') &&
+    !session.onboardingComplete &&
+    !pathname.startsWith('/jeune/onboarding')
+  ) {
+    return NextResponse.redirect(new URL('/jeune/onboarding', request.url))
+  }
+
   // Rafraîchir le token si proche de l'expiry
   const now = Math.floor(Date.now() / 1000)
   if (session.expiresAt - now < REFRESH_THRESHOLD) {

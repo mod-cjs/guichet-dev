@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { CJSSession } from '@/lib/auth'
+import type { CJSSession } from '@/types/user'
 
 interface Props {
   session: CJSSession
