@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   // même si une session SSO est encore active (protection appareils partagés).
   const forceLogin = request.cookies.get('force_login')?.value === '1'
 
-  const { url, state, pkceVerifier } = getAuthorizationUrl(undefined, forceLogin)
+  const { url, state, pkceVerifier } = await getAuthorizationUrl(undefined, forceLogin)
 
   const secure   = process.env.NODE_ENV === 'production'
   const response = NextResponse.redirect(url)
