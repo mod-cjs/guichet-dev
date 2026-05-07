@@ -1,0 +1,18 @@
+{
+  "buildCommand": "prisma generate && next build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["cdg1"],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "REDIS_URL": "@redis_url",
+    "SESSION_SECRET": "@session_secret",
+    "NEXTAUTH_SECRET": "@session_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "SSO_BASE_URL": "@sso_base_url",
+    "SSO_CLIENT_ID": "@sso_client_id",
+    "SSO_CLIENT_SECRET": "@sso_client_secret",
+    "SSO_API_KEY": "@sso_api_key",
+    "SSO_API_SECRET": "@sso_api_secret"
+  }
+}
