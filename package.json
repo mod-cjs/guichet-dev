@@ -18,6 +18,8 @@
     "db:deploy": "prisma migrate deploy",
     "deploy": "npm run build && prisma migrate deploy",
     "postinstall": "prisma generate",
+    "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true",
+    "validate": "npm run lint && npx tsc --noEmit && npm run test -- --no-coverage",
     "build:prod": "prisma generate && next build",
     "start:prod": "next start -p ${PORT:-3000}"
   },

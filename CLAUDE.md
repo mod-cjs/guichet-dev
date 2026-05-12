@@ -15,6 +15,12 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Jamais de login local, jamais de mot de passe, jamais de formulaire d'auth dans ce projet
 - Téléphone : format E.164 obligatoire (`+221XXXXXXXXX`)
 
+**Qualité — OBLIGATOIRE avant tout commit**
+- Exécuter `npm run validate` (lint + TypeScript + tests) avant chaque `git commit`
+- Si l'une des étapes échoue : corriger d'abord, ne jamais committer du code cassé
+- Le hook `.githooks/pre-commit` applique lint+tsc automatiquement ; `.githooks/pre-push` applique tests+build avant push
+- Commande rapide : `npm run validate` · Validation complète CI : `npm run lint && npm run test -- --no-coverage && npm run build`
+
 **Données**
 - Toujours Prisma (`src/lib/prisma.ts`) — SQL brut interdit sauf exception dans `DECISIONS.md`
 - Toute modification de schéma = `prisma migrate dev` — jamais de modif directe en base

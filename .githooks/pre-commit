@@ -1,0 +1,12 @@
+#!/bin/sh
+# Validation rapide avant chaque commit : lint + TypeScript
+# Exécution : ~5–10 s  |  Bloque si erreurs
+set -e
+
+echo "⏳ pre-commit : lint…"
+npm run lint --silent
+
+echo "⏳ pre-commit : TypeScript…"
+npx tsc --noEmit
+
+echo "✅ pre-commit OK"

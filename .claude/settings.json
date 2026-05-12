@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-check.sh"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "jira": {
       "command": "npx",

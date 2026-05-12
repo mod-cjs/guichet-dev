@@ -1,195 +1,228 @@
-# Spec GUIC-18 — Tunnel onboarding 3 étapes
+# Spec GUIC-18 — Auth SSO + Tunnel onboarding 3 étapes
 
-**Ticket :** GUIC-18 | **Sprint :** Sprint 1 | **Points :** 5
-**Branche :** `feature/GUIC-18-onboarding-wizard`
-
----
-
-## Périmètre
-
-Après la première authentification SSO d'un `beneficiaire`, forcer un tunnel
-3 étapes pour compléter le profil avant d'accéder à l'application.
+**Ticket :** GUIC-18 | **Statut :** Livré ✅ | **Branche mergée :** `dev`
 
 ---
 
-## Flux utilisateur
+## Périmètre livré
 
-```
-SSO callback → Utilisateur créé en base (upsert)
-  → onboardingComplete = false ?
-    → redirect /jeune/onboarding
-    → Step 1 : Identité  (nom, prénom, dateNaissance, genre)
-    → Step 2 : Localisation (region, commune)
-    → Step 3 : Profil pro (niveauEtude, situationEmploi, domainesInteret)
-    → PUT /api/v1/onboarding?step=3 → onboardingComplete = true
-    → Session mise à jour → redirect /jeune/tableau-de-bord
-  → onboardingComplete = true → flux normal
-```
+1. **Flux OAuth 2.0 PKCE complet** — callback SSO, upsert utilisateur, session Redis, cookies sécurisés
+2. **Protection des routes** — middleware proxy (`src/proxy.ts`), révocation Redis, refresh token auto
+3. **Tunnel onboarding 3 étapes** — identité, localisation, profil pro → `onboardingComplete`
+4. **Backchannel logout** — endpoint `POST /api/auth/backchannel-logout` (RFC 9470)
+5. **Tests** — 68 tests (unitaires + intégration), E2E Playwright
+6. **Hooks de validation** — pre-commit (lint+tsc) et pre-push (lint+tests+build)
 
 ---
 
-## Changements schéma Prisma
+## Architecture auth
 
-### `Utilisateur` — 2 nouveaux champs
+### Flux PKCE (implémenté)
 
-```prisma
-onboardingComplete Boolean  @default(false) @map("onboarding_complete")
-commune            String?  @db.VarChar(100)
+```
+Utilisateur → /auth/connexion
+  → lib/sso-client.ts getAuthorizationUrl()
+    → génère state + pkceVerifier (Web Crypto)
+    → cookies httpOnly : oauth_state, pkce_verifier
+    → redirect → {SSO_BASE_URL}/oauth/authorize
+
+SSO → /auth/callback?code=…&state=…
+  → vérifie state === cookie oauth_state
+  → exchangeCode(code, pkceVerifier) → POST {SSO_BASE_URL}/oauth/token
+  → getUserInfo(accessToken)         → GET  {SSO_BASE_URL}/oauth/userinfo
+  → prisma.utilisateur.upsert()      → synchronise nom/prénom/email
+  → activateSession(cjsUid, ttl)     → Redis guichet:session:{uid} = "1"
+  → encodeSession() → cookie cjs_session (httpOnly, SameSite=Strict)
+  → supprime cookies pkce/state/return_to
+  → redirect selon rôle (voir roleRedirect)
 ```
 
-Migration : `prisma/migrations/20260506000000_add_onboarding/migration.sql`
+### Redirect post-login (`roleRedirect`)
+
+| Rôle | Condition | Destination |
+|------|-----------|-------------|
+| `admin` | — | `/admin/tableau-de-bord` |
+| `recruteur` | — | `/recruteur/tableau-de-bord` |
+| `beneficiaire` | `onboardingComplete = false` | `/jeune/onboarding` |
+| `beneficiaire` | `onboardingComplete = true` | `/jeune/tableau-de-bord` (ou `auth_return_to`) |
+
+### Middleware proxy (`src/proxy.ts`)
+
+> **Important** : fichier `proxy.ts` — PAS `middleware.ts`. Next.js 16 interdit les deux simultanément. Activé via `experimental.nodeMiddleware: true` dans `next.config.ts`.
+
+Routes protégées :
+
+| Pattern | Rôle requis |
+|---------|-------------|
+| `/jeune/*` | `beneficiaire` |
+| `/recruteur/*` | `recruteur` |
+| `/admin/*` | `admin` |
+
+Ordre des checks :
+1. Route non-protégée → `NextResponse.next()`
+2. Pas de session → redirect `/auth/connexion` + cookie `auth_return_to`
+3. Session révoquée Redis (`isSessionActive` = false) → redirect `?error=session_expired`
+4. Mauvais rôle → redirect `?error=forbidden`
+5. Bénéficiaire non onboardé → redirect `/jeune/onboarding`
+6. Token expirant (< 5 min) → refresh silencieux ou redirect login si échec
+7. OK → `NextResponse.next()`
 
 ---
 
-## Changements types
-
-### `CJSSession` (`src/types/user.ts`)
-
-```typescript
-onboardingComplete: boolean   // ← nouveau
-```
-
-### Callback SSO (`src/app/auth/callback/route.ts`)
-
-Après `getUserInfo()`, **upsert `Utilisateur`** :
-```typescript
-const utilisateur = await prisma.utilisateur.upsert({
-  where:  { cjsUid: claims.sub },
-  update: { nom, prenom, email, telephone, region, updatedAt: new Date() },
-  create: { cjsUid, nom, prenom, email, telephone, region },
-  select: { onboardingComplete: true },
-})
-```
-Inclure `onboardingComplete` dans la session JWT.
-
-Redirection post-login :
-- `beneficiaire` + `!onboardingComplete` → `/jeune/onboarding`
-- `beneficiaire` + `onboardingComplete` → `/jeune/tableau-de-bord` (ou `returnTo`)
-- `recruteur` → `/recruteur/tableau-de-bord`
-- `admin` → `/admin/tableau-de-bord`
-
----
-
-## API
+## API onboarding
 
 ### `GET /api/v1/onboarding`
 
-Retourne les données déjà saisies (pré-remplissage si l'utilisateur revient).
+Retourne les données existantes pour pré-remplissage. Rate-limit 30 req/min.
 
 ```typescript
-// Response
+// Response 200
 {
   data: {
-    step: number           // dernière étape complétée (0 si nouveau)
-    identite: {
-      nom: string; prenom: string
-      dateNaissance: string | null
-      genre: 'HOMME' | 'FEMME' | 'AUTRE' | null
-    }
-    localisation: { region: Region | null; commune: string | null }
-    profil: {
-      niveauEtude: string | null
-      situationEmploi: string | null
-      domainesInteret: string[]
-    }
+    identite:     { nom, prenom, dateNaissance: "YYYY-MM-DD" | null, genre: "M" | "F" | null }
+    localisation: { region: Region | null, commune: string | null }
+    profil:       { niveauEtude: string | null, situationEmploi: string | null, domainesInteret: string[] }
   }
 }
 ```
 
 ### `PUT /api/v1/onboarding`
 
-```typescript
-// Body — un step à la fois
-{ step: 1, data: { nom, prenom, dateNaissance?, genre? } }
-{ step: 2, data: { region, commune? } }
-{ step: 3, data: { niveauEtude?, situationEmploi?, domainesInteret? } }
+Rate-limit 20 req/min. Body discriminé par `step`.
 
-// Response
-{ data: { nextStep: 2 | 3 | null, onboardingComplete: boolean } }
+```typescript
+// Step 1 — Identité
+{ step: 1, data: { nom: string, prenom: string, dateNaissance?: "YYYY-MM-DD" | null, genre?: "M" | "F" | null } }
+// → Response: { data: { nextStep: 2, onboardingComplete: false } }
+
+// Step 2 — Localisation
+{ step: 2, data: { region: Region, commune?: string | null } }
+// → Response: { data: { nextStep: 3, onboardingComplete: false } }
+
+// Step 3 — Profil (complétion)
+{ step: 3, data: { niveauEtude?: string | null, situationEmploi?: string | null, domainesInteret?: string[] } }
+// → Response: { data: { nextStep: null, onboardingComplete: true } }
+//   + cookie cjs_session mis à jour (onboardingComplete: true)
 ```
 
-Step 3 : crée/upsert `ProfilJeune` + passe `onboardingComplete = true` sur `Utilisateur`.
-Retourner cookie session mis à jour (`onboardingComplete: true`).
+Step 3 : transaction Prisma → `profilJeune.upsert` + `utilisateur.update({ onboardingComplete: true })`.
 
----
-
-## Middleware forceOnboarding
-
-Dans `src/middleware.ts`, après le check de session pour `/jeune/*` :
+### Validation Zod (`src/lib/validations/onboarding.ts`)
 
 ```typescript
-// Si beneficiaire non onboardé → forcer l'onboarding
-if (
-  session.roles.includes('beneficiaire') &&
-  !session.onboardingComplete &&
-  !pathname.startsWith('/jeune/onboarding')
-) {
-  return NextResponse.redirect(new URL('/jeune/onboarding', request.url))
-}
+stepIdentiteSchema:     { nom: min(2), prenom: min(2), dateNaissance: /^\d{4}-\d{2}-\d{2}$/ | null, genre: 'M' | 'F' | null }
+stepLocalisationSchema: { region: min(1), commune?: max(100) | null }
+stepProfilSchema:       { niveauEtude?, situationEmploi?, domainesInteret?: string[max(5)] }
 ```
 
 ---
 
-## Pages et composants
+## Backchannel logout (`POST /api/auth/backchannel-logout`)
 
-| Fichier | Description |
-|---|---|
-| `src/app/jeune/onboarding/page.tsx` | Page wrapper (Server Component — passe session) |
-| `src/components/features/OnboardingWizard/index.tsx` | Wizard client 3 étapes |
-| `src/components/features/OnboardingWizard/StepIdentite.tsx` | Formulaire étape 1 |
-| `src/components/features/OnboardingWizard/StepLocalisation.tsx` | Formulaire étape 2 |
-| `src/components/features/OnboardingWizard/StepProfil.tsx` | Formulaire étape 3 |
+Conforme RFC 9470. Vérifie le JWT `logout_token` via JWKS SSO (`{SSO_BASE_URL}/oauth/keys`).
 
-### Persistance inter-étapes
-
-`useLocalStorage('onboarding_draft', {})` — effacé à la completion.
-PUT à chaque étape (pas seulement à la fin).
-
-### UI
-
-- Barre de progression `Step X / 3` en haut
-- Boutons Précédent / Suivant / Terminer
-- Tokens `gj-teal` pour l'accent, `gj-yellow` pour le CTA final
-- Mobile-first, layout sans `BottomNav` (pas encore onboardé)
+Checks : issuer, audience, claim `events`, absence de `nonce`, présence de `sub`.  
+Action : `revokeSession(sub)` → supprime `guichet:session:{sub}` dans Redis.
 
 ---
 
-## Validation Zod
+## Session Redis (`src/lib/session-store.ts`)
 
-```typescript
-// src/lib/validations/onboarding.ts
-export const stepIdentiteSchema = z.object({
-  nom:           z.string().min(2).max(100),
-  prenom:        z.string().min(2).max(100),
-  dateNaissance: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  genre:         z.enum(['HOMME', 'FEMME', 'AUTRE']).optional(),
-})
-export const stepLocalisationSchema = z.object({
-  region:  z.string(),    // enum Region
-  commune: z.string().max(100).optional(),
-})
-export const stepProfilSchema = z.object({
-  niveauEtude:     z.string().optional(),
-  situationEmploi: z.string().optional(),
-  domainesInteret: z.array(z.string()).max(5).optional(),
-})
+| Fonction | Action | Comportement si Redis KO |
+|----------|--------|--------------------------|
+| `activateSession(uid, ttl)` | `SET guichet:session:{uid} "1" EX ttl` (min 60s) | fail-open (log warn) |
+| `revokeSession(uid)` | `DEL guichet:session:{uid}` | fail-open |
+| `isSessionActive(uid)` | `GET guichet:session:{uid}` | fail-open (retourne `true`) |
+
+---
+
+## Fichiers clés
+
+| Fichier | Rôle |
+|---------|------|
+| `src/proxy.ts` | Middleware Node.js — protection routes, refresh, onboarding |
+| `src/app/auth/callback/route.ts` | Handler GET — échange code, upsert, session |
+| `src/app/api/auth/backchannel-logout/route.ts` | Handler POST — RFC 9470 |
+| `src/app/api/v1/onboarding/route.ts` | GET + PUT — tunnel onboarding |
+| `src/lib/sso-client.ts` | Client SSO — PKCE, échange, userinfo, refresh, revoke |
+| `src/lib/session-store.ts` | Redis — activate/revoke/isActive |
+| `src/lib/auth.ts` | encode/decode session JWT (jose) |
+| `src/lib/verify-hmac.ts` | Vérification HMAC-SHA256 API machine |
+| `src/lib/validations/onboarding.ts` | Schémas Zod étapes 1/2/3 |
+| `src/components/features/OnboardingWizard/` | Wizard client 3 étapes |
+
+---
+
+## Tests (68 tests — tous verts)
+
+### Unitaires (`tests/unit/`)
+
+| Fichier | Tests | Ce qui est couvert |
+|---------|-------|--------------------|
+| `proxy.test.ts` | 14 | Routes publiques, session absente, révoquée, mauvais rôle, onboarding, refresh |
+| `session-store.test.ts` | 8 | activate (TTL, min60s, fail-open), revoke, isActive (true/false/fail-open) |
+| `verify-hmac.test.ts` | 9 | Signature valide, invalide, timestamp, clé inconnue, champs manquants, body altéré |
+| `backchannel-logout.test.ts` | 6 | Token absent, JWT invalide, nonce interdit, events/sub manquants, flux valide |
+
+### Intégration (`tests/integration/`)
+
+| Fichier | Tests | Ce qui est couvert |
+|---------|-------|--------------------|
+| `auth-callback.test.ts` | 16 | État invalide (3 cas), erreurs SSO (2 cas), flux nominal (11 cas) |
+| `onboarding-api.test.ts` | 15 | GET (4 cas), PUT auth (3 cas), step 1/2/3 (8 cas) |
+
+### E2E Playwright (`tests/e2e/`)
+
+| Fichier | Mode | Ce qui est couvert |
+|---------|------|--------------------|
+| `auth-flow.spec.ts` | Toujours actif | Routes publiques, protection, callback invalide, session révoquée |
+| `auth-flow.spec.ts` | `PLAYWRIGHT_SSO_MOCK=1` | Flux PKCE complet avec serveur SSO mock, onboarding 3 étapes |
+| `fixtures/mock-sso.ts` | — | Serveur HTTP local simulant /oauth/token, /userinfo, /oauth/keys, /oauth/authorize |
+
+**Lancer les tests :**
+```bash
+npm run test              # unitaires + intégration
+npm run test:e2e          # Playwright (sans SSO mock)
+PLAYWRIGHT_SSO_MOCK=1 SSO_BASE_URL=http://localhost:19999 npm run test:e2e  # flux complet
 ```
 
 ---
 
-## Tests Playwright (sous-tâche)
+## Hooks de validation (`git`)
 
-- `tests/e2e/onboarding.spec.ts`
-- Scénarios : complétion 3 étapes, retour en arrière, refresh mid-flow, accès `/jeune/*` sans onboarding
+Activés automatiquement après `npm install` (script `prepare`).
+
+| Hook | Déclencheur | Durée | Checks |
+|------|-------------|-------|--------|
+| `pre-commit` | `git commit` | ~10s | ESLint + TypeScript |
+| `pre-push` | `git push` | ~90s | ESLint + Tests + Build (miroir CI) |
+
+```bash
+npm run validate   # lint + tsc + tests (sans build) — vérification rapide
+```
 
 ---
 
-## Ordre d'implémentation
+## Variables d'environnement requises
 
-1. Migration Prisma (+ `prisma migrate dev`)
-2. Types `CJSSession` + upsert dans callback
-3. `GET` / `PUT` `/api/v1/onboarding`
-4. Middleware forceOnboarding
-5. Composant `OnboardingWizard`
-6. Page `/jeune/onboarding`
-7. Tests Playwright
+```env
+# SSO
+SSO_BASE_URL=https://sso.cjs.sn
+SSO_CLIENT_ID=guichet-jeunesse
+
+# Session
+NEXTAUTH_SECRET=<jwt-secret-32chars>
+NEXTAUTH_URL=https://guichet.cjs.sn
+
+# Base de données
+DATABASE_URL=mysql://...
+
+# Redis
+REDIS_URL=redis://...
+
+# API machine (optionnel selon modules activés)
+SSO_API_KEY=
+SSO_API_SECRET=
+BRM_API_KEY=
+BRM_API_SECRET=
+```
