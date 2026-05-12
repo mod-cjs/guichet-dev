@@ -17,7 +17,6 @@ async function refreshToken(token: string) {
     body: JSON.stringify({
       grant_type:    'refresh_token',
       client_id:     process.env.SSO_CLIENT_ID,
-      client_secret: process.env.SSO_CLIENT_SECRET ?? '',
       refresh_token: token,
     }),
   })
