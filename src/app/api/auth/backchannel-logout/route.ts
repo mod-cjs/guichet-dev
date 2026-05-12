@@ -3,7 +3,7 @@ import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { revokeSession } from '@/lib/session-store'
 import { logger } from '@/lib/logger'
 
-const JWKS_URL   = `${process.env.SSO_BASE_URL}/.well-known/jwks.json`
+const JWKS_URL   = `${process.env.SSO_BASE_URL}/oauth/keys`
 const SSO_ISSUER = process.env.SSO_BASE_URL ?? ''
 
 // Cache JWKS pour éviter une requête par logout
