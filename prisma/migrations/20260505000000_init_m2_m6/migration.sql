@@ -1,332 +1,334 @@
 -- CreateTable
-CREATE TABLE `profil_jeune` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `cjsUid` VARCHAR(36) NOT NULL,
-    `drupalUid` INTEGER NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-    `dateNaissance` DATETIME(3) NULL,
-    `genre` ENUM('HOMME', 'FEMME', 'AUTRE', 'NON_PRECISE') NULL,
-    `niveauEtude` ENUM('SANS_DIPLOME', 'CEPE', 'BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT') NULL,
-    `situationPro` ENUM('ETUDIANT', 'SANS_EMPLOI', 'EN_RECHERCHE', 'EMPLOYE', 'INDEPENDANT', 'ENTREPRENEUR') NULL,
-    `region` VARCHAR(50) NULL,
-    `commune` VARCHAR(100) NULL,
-    `quartier` VARCHAR(100) NULL,
-    `photoUrl` VARCHAR(500) NULL,
-    `bio` TEXT NULL,
-    `disponibilite` ENUM('IMMEDIAT', 'UN_MOIS', 'TROIS_MOIS', 'NON_DISPONIBLE') NULL,
-    `onboardingComplete` BOOLEAN NOT NULL DEFAULT false,
-    `langues` VARCHAR(200) NULL,
-
-    UNIQUE INDEX `profil_jeune_cjsUid_key`(`cjsUid`),
-    UNIQUE INDEX `profil_jeune_drupalUid_key`(`drupalUid`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `competence` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
+CREATE TABLE `utilisateurs` (
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `telephone` VARCHAR(20) NULL,
+    `email` VARCHAR(255) NULL,
     `nom` VARCHAR(100) NOT NULL,
-    `source` VARCHAR(50) NOT NULL DEFAULT 'guichet',
+    `prenom` VARCHAR(100) NOT NULL,
+    `region` ENUM('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou') NULL,
+    `genre` ENUM('M', 'F') NULL,
+    `date_naissance` DATETIME(3) NULL,
+    `statut` ENUM('actif', 'inactif', 'anonymise') NOT NULL DEFAULT 'actif',
+    `drupal_uid` INTEGER NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+    `deleted_at` DATETIME(3) NULL,
 
-    UNIQUE INDEX `competence_nom_key`(`nom`),
+    UNIQUE INDEX `utilisateurs_telephone_key`(`telephone`),
+    UNIQUE INDEX `utilisateurs_email_key`(`email`),
+    UNIQUE INDEX `utilisateurs_drupal_uid_key`(`drupal_uid`),
+    INDEX `utilisateurs_email_idx`(`email`),
+    INDEX `utilisateurs_telephone_idx`(`telephone`),
+    INDEX `utilisateurs_statut_idx`(`statut`),
+    PRIMARY KEY (`cjs_uid`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `profils_jeunes` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `photo_url` VARCHAR(500) NULL,
+    `biographie` TEXT NULL,
+    `competences` JSON NULL,
+    `domaines_interet` JSON NULL,
+    `diplomes` JSON NULL,
+    `niveau_etude` VARCHAR(50) NULL,
+    `situation_emploi` VARCHAR(50) NULL,
+    `completion_score` INTEGER NOT NULL DEFAULT 0,
+    `profile_visibility` VARCHAR(20) NOT NULL DEFAULT 'public',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `profils_jeunes_cjs_uid_key`(`cjs_uid`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `profil_competence` (
-    `profilId` INTEGER NOT NULL,
-    `competenceId` INTEGER NOT NULL,
+CREATE TABLE `experiences` (
+    `id` VARCHAR(36) NOT NULL,
+    `profil_id` VARCHAR(36) NOT NULL,
+    `poste` VARCHAR(150) NOT NULL,
+    `organisation` VARCHAR(150) NOT NULL,
+    `date_debut` DATETIME(3) NOT NULL,
+    `date_fin` DATETIME(3) NULL,
+    `description` TEXT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    PRIMARY KEY (`profilId`, `competenceId`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `opportunite` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `drupalNid` INTEGER NULL,
-    `slug` VARCHAR(300) NOT NULL,
-    `titre` VARCHAR(300) NOT NULL,
-    `description` LONGTEXT NOT NULL,
-    `type` ENUM('EMPLOI', 'STAGE', 'VOLONTARIAT', 'FORMATION', 'BOURSE', 'APPEL_PROJET') NOT NULL,
-    `domaine` VARCHAR(100) NOT NULL,
-    `region` VARCHAR(50) NULL,
-    `localisation` VARCHAR(200) NULL,
-    `dateDebut` DATETIME(3) NULL,
-    `dateFin` DATETIME(3) NULL,
-    `dateExpiration` DATETIME(3) NULL,
-    `nbPostes` INTEGER NULL,
-    `niveauEtude` ENUM('SANS_DIPLOME', 'CEPE', 'BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT') NULL,
-    `remote` BOOLEAN NOT NULL DEFAULT false,
-    `publiePar` VARCHAR(36) NOT NULL,
-    `statut` ENUM('BROUILLON', 'PUBLIE', 'ARCHIVE', 'REFUSE') NOT NULL DEFAULT 'BROUILLON',
-    `vues` INTEGER NOT NULL DEFAULT 0,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `opportunite_drupalNid_key`(`drupalNid`),
-    UNIQUE INDEX `opportunite_slug_key`(`slug`),
-    INDEX `opportunite_type_idx`(`type`),
-    INDEX `opportunite_domaine_idx`(`domaine`),
-    INDEX `opportunite_region_idx`(`region`),
-    INDEX `opportunite_statut_idx`(`statut`),
+    INDEX `experiences_profil_id_idx`(`profil_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `opportunite_competence` (
-    `opportuniteId` INTEGER NOT NULL,
-    `competenceId` INTEGER NOT NULL,
-
-    PRIMARY KEY (`opportuniteId`, `competenceId`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `candidature` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `profilId` INTEGER NOT NULL,
-    `opportuniteId` INTEGER NOT NULL,
-    `statut` ENUM('SOUMISE', 'EN_COURS', 'RETENUE', 'REJETEE', 'ANNULEE') NOT NULL DEFAULT 'SOUMISE',
-    `lettreMotiv` TEXT NULL,
-    `cvUrl` VARCHAR(500) NULL,
-    `notesAdmin` TEXT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `candidature_profilId_opportuniteId_key`(`profilId`, `opportuniteId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `favori_opportunite` (
-    `profilId` INTEGER NOT NULL,
-    `opportuniteId` INTEGER NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`profilId`, `opportuniteId`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `centre` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `gcId` VARCHAR(100) NULL,
+CREATE TABLE `organisations` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
     `nom` VARCHAR(200) NOT NULL,
-    `slug` VARCHAR(300) NOT NULL,
-    `region` VARCHAR(50) NOT NULL,
-    `commune` VARCHAR(100) NOT NULL,
+    `secteur` ENUM('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre') NULL,
+    `region` ENUM('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou') NULL,
     `adresse` VARCHAR(300) NULL,
     `telephone` VARCHAR(20) NULL,
-    `email` VARCHAR(200) NULL,
-    `siteWeb` VARCHAR(300) NULL,
-    `description` TEXT NULL,
-    `latitude` DECIMAL(10, 8) NULL,
-    `longitude` DECIMAL(11, 8) NULL,
-    `photoUrl` VARCHAR(500) NULL,
-    `actif` BOOLEAN NOT NULL DEFAULT true,
-    `syncedAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+    `email` VARCHAR(255) NULL,
+    `site_web` VARCHAR(500) NULL,
+    `logo_url` VARCHAR(500) NULL,
+    `est_verifie` BOOLEAN NOT NULL DEFAULT false,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `centre_gcId_key`(`gcId`),
-    UNIQUE INDEX `centre_slug_key`(`slug`),
-    INDEX `centre_region_idx`(`region`),
+    INDEX `organisations_cjs_uid_idx`(`cjs_uid`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `ressource_centre` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `gcId` VARCHAR(100) NULL,
-    `centreId` INTEGER NOT NULL,
-    `type` ENUM('ESPACE_COWORKING', 'SALLE_FORMATION', 'STUDIO_AUDIO', 'STUDIO_VIDEO', 'EQUIPEMENT_INFORMATIQUE', 'EQUIPEMENT_AUDIOVISUEL', 'AUTRE') NOT NULL,
-    `nom` VARCHAR(200) NOT NULL,
-    `description` TEXT NULL,
-    `capacite` INTEGER NULL,
-    `disponible` BOOLEAN NOT NULL DEFAULT true,
-    `reservable` BOOLEAN NOT NULL DEFAULT false,
-    `tarif` DECIMAL(10, 2) NULL,
-    `photoUrl` VARCHAR(500) NULL,
-    `syncedAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `ressource_centre_gcId_key`(`gcId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `reservation` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `profilId` INTEGER NOT NULL,
-    `centreId` INTEGER NOT NULL,
-    `ressourceCentreId` INTEGER NULL,
-    `dateDebut` DATETIME(3) NOT NULL,
-    `dateFin` DATETIME(3) NOT NULL,
-    `statut` ENUM('EN_ATTENTE', 'CONFIRMEE', 'ANNULEE', 'TERMINEE') NOT NULL DEFAULT 'EN_ATTENTE',
-    `motif` TEXT NULL,
-    `notesAdmin` TEXT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `evenement` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `drupalNid` INTEGER NULL,
-    `slug` VARCHAR(300) NOT NULL,
-    `titre` VARCHAR(300) NOT NULL,
+CREATE TABLE `opportunites` (
+    `id` VARCHAR(36) NOT NULL,
+    `titre` VARCHAR(255) NOT NULL,
     `description` LONGTEXT NOT NULL,
-    `type` ENUM('FORMATION', 'FORUM', 'CONFERENCE', 'ATELIER', 'WEBINAIRE', 'SALON', 'AUTRE') NOT NULL,
-    `dateDebut` DATETIME(3) NOT NULL,
-    `dateFin` DATETIME(3) NOT NULL,
-    `lieu` VARCHAR(300) NULL,
-    `region` VARCHAR(50) NULL,
-    `enligne` BOOLEAN NOT NULL DEFAULT false,
-    `lienVisio` VARCHAR(500) NULL,
-    `capacite` INTEGER NULL,
-    `gratuit` BOOLEAN NOT NULL DEFAULT true,
-    `tarif` DECIMAL(10, 2) NULL,
-    `photoUrl` VARCHAR(500) NULL,
-    `organisateur` VARCHAR(36) NOT NULL,
-    `statut` ENUM('BROUILLON', 'PUBLIE', 'ARCHIVE', 'REFUSE') NOT NULL DEFAULT 'BROUILLON',
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `evenement_drupalNid_key`(`drupalNid`),
-    UNIQUE INDEX `evenement_slug_key`(`slug`),
-    INDEX `evenement_dateDebut_idx`(`dateDebut`),
-    INDEX `evenement_region_idx`(`region`),
-    INDEX `evenement_statut_idx`(`statut`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `inscription_evenement` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `profilId` INTEGER NOT NULL,
-    `evenementId` INTEGER NOT NULL,
-    `statut` ENUM('CONFIRMEE', 'LISTE_ATTENTE', 'ANNULEE') NOT NULL DEFAULT 'CONFIRMEE',
-    `rappelEnvoye` BOOLEAN NOT NULL DEFAULT false,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    UNIQUE INDEX `inscription_evenement_profilId_evenementId_key`(`profilId`, `evenementId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `ressource` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `drupalNid` INTEGER NULL,
-    `slug` VARCHAR(300) NOT NULL,
-    `titre` VARCHAR(300) NOT NULL,
-    `description` TEXT NULL,
-    `theme` VARCHAR(100) NOT NULL,
-    `format` ENUM('PDF', 'VIDEO', 'AUDIO', 'ARTICLE', 'INFOGRAPHIE', 'COURS_EN_LIGNE', 'OUTIL') NOT NULL,
-    `url` VARCHAR(500) NULL,
-    `fichierUrl` VARCHAR(500) NULL,
-    `langue` VARCHAR(5) NOT NULL DEFAULT 'fr',
-    `dureeMin` INTEGER NULL,
-    `auteur` VARCHAR(200) NULL,
-    `statut` ENUM('BROUILLON', 'PUBLIE', 'ARCHIVE', 'REFUSE') NOT NULL DEFAULT 'BROUILLON',
+    `type` ENUM('Emploi', 'Stage', 'Formation', 'Bourse', 'Volontariat', 'Appel_a_projets') NOT NULL,
+    `domaine` ENUM('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre') NOT NULL,
+    `region` ENUM('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou') NULL,
+    `organisation` VARCHAR(200) NOT NULL,
+    `organisation_id` VARCHAR(36) NULL,
+    `remuneration` VARCHAR(100) NULL,
+    `deadline` DATETIME(3) NULL,
+    `lien_externe` VARCHAR(500) NULL,
+    `statut` ENUM('brouillon', 'publiee', 'archivee', 'expiree') NOT NULL DEFAULT 'brouillon',
+    `recruteur_uid` VARCHAR(36) NULL,
     `vues` INTEGER NOT NULL DEFAULT 0,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+    `deleted_at` DATETIME(3) NULL,
 
-    UNIQUE INDEX `ressource_drupalNid_key`(`drupalNid`),
-    UNIQUE INDEX `ressource_slug_key`(`slug`),
-    INDEX `ressource_theme_idx`(`theme`),
-    INDEX `ressource_format_idx`(`format`),
-    INDEX `ressource_statut_idx`(`statut`),
+    INDEX `opportunites_statut_deleted_at_idx`(`statut`, `deleted_at`),
+    INDEX `opportunites_type_domaine_idx`(`type`, `domaine`),
+    INDEX `opportunites_region_idx`(`region`),
+    INDEX `opportunites_deadline_idx`(`deadline`),
+    FULLTEXT INDEX `opportunites_titre_description_idx`(`titre`, `description`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `favori_ressource` (
-    `profilId` INTEGER NOT NULL,
-    `ressourceId` INTEGER NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+CREATE TABLE `candidatures` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `opportunite_id` VARCHAR(36) NOT NULL,
+    `statut` ENUM('En_attente', 'Vue', 'Retenue', 'Refusee') NOT NULL DEFAULT 'En_attente',
+    `lettre_motivation` TEXT NULL,
+    `cv_url` VARCHAR(500) NULL,
+    `soumise_a` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
 
-    PRIMARY KEY (`profilId`, `ressourceId`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `alerte_metier` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `profilId` INTEGER NOT NULL,
-    `type` ENUM('OPPORTUNITE', 'EVENEMENT', 'RESSOURCE') NOT NULL,
-    `criteres` TEXT NOT NULL,
-    `actif` BOOLEAN NOT NULL DEFAULT true,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
+    INDEX `candidatures_statut_idx`(`statut`),
+    UNIQUE INDEX `candidatures_cjs_uid_opportunite_id_key`(`cjs_uid`, `opportunite_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `audit_log` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `acteurUid` VARCHAR(36) NOT NULL,
-    `action` VARCHAR(100) NOT NULL,
-    `entite` VARCHAR(50) NOT NULL,
-    `entiteId` INTEGER NULL,
-    `payload` TEXT NULL,
-    `ip` VARCHAR(45) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+CREATE TABLE `centres` (
+    `id` VARCHAR(36) NOT NULL,
+    `nom` VARCHAR(200) NOT NULL,
+    `region` ENUM('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou') NOT NULL,
+    `adresse` VARCHAR(300) NOT NULL,
+    `latitude` DOUBLE NOT NULL,
+    `longitude` DOUBLE NOT NULL,
+    `telephone` VARCHAR(20) NOT NULL,
+    `responsable` VARCHAR(150) NOT NULL,
+    `gc_id` INTEGER NULL,
+    `est_actif` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
 
-    INDEX `audit_log_acteurUid_idx`(`acteurUid`),
-    INDEX `audit_log_entite_entiteId_idx`(`entite`, `entiteId`),
+    UNIQUE INDEX `centres_gc_id_key`(`gc_id`),
+    INDEX `centres_region_idx`(`region`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `agents_centres` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `centre_id` VARCHAR(36) NOT NULL,
+    `role` ENUM('conseiller', 'directeur', 'admin_centre') NOT NULL DEFAULT 'conseiller',
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `agents_centres_cjs_uid_centre_id_key`(`cjs_uid`, `centre_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `evenements` (
+    `id` VARCHAR(36) NOT NULL,
+    `titre` VARCHAR(255) NOT NULL,
+    `description` TEXT NOT NULL,
+    `type` ENUM('Formation', 'Atelier', 'Forum', 'Webinar', 'Conference') NOT NULL,
+    `statut` ENUM('a_venir', 'en_cours', 'termine', 'annule') NOT NULL DEFAULT 'a_venir',
+    `date_debut` DATETIME(3) NOT NULL,
+    `date_fin` DATETIME(3) NULL,
+    `lieu` VARCHAR(200) NOT NULL,
+    `centre_id` VARCHAR(36) NULL,
+    `capacite_max` INTEGER NULL,
+    `est_gratuit` BOOLEAN NOT NULL DEFAULT true,
+    `rappel_envoye` BOOLEAN NOT NULL DEFAULT false,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `evenements_date_debut_statut_idx`(`date_debut`, `statut`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `inscriptions_evenements` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `evenement_id` VARCHAR(36) NOT NULL,
+    `statut` ENUM('inscrit', 'liste_attente', 'annule', 'present') NOT NULL DEFAULT 'inscrit',
+    `inscrit_a` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `inscriptions_evenements_cjs_uid_evenement_id_key`(`cjs_uid`, `evenement_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ressources` (
+    `id` VARCHAR(36) NOT NULL,
+    `titre` VARCHAR(255) NOT NULL,
+    `description` TEXT NOT NULL,
+    `type` ENUM('PDF', 'Video', 'Lien', 'Guide', 'Outil') NOT NULL,
+    `theme` VARCHAR(100) NOT NULL,
+    `url` VARCHAR(500) NOT NULL,
+    `est_public` BOOLEAN NOT NULL DEFAULT true,
+    `vues` INTEGER NOT NULL DEFAULT 0,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    INDEX `ressources_type_theme_idx`(`type`, `theme`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ressources_favorites` (
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `ressource_id` VARCHAR(36) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`cjs_uid`, `ressource_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `interop_logs` (
+    `id` VARCHAR(36) NOT NULL,
+    `source` VARCHAR(50) NOT NULL,
+    `event_type` VARCHAR(100) NOT NULL,
+    `event_id` VARCHAR(100) NOT NULL,
+    `payload` JSON NOT NULL,
+    `statut` VARCHAR(20) NOT NULL,
+    `erreur` TEXT NULL,
+    `processed_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `interop_logs_source_event_type_idx`(`source`, `event_type`),
+    INDEX `interop_logs_event_id_idx`(`event_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `conversations_whatsapp` (
+    `id` VARCHAR(36) NOT NULL,
+    `telephone` VARCHAR(20) NOT NULL,
+    `cjs_uid` VARCHAR(36) NULL,
+    `contexte` JSON NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `conversations_whatsapp_telephone_key`(`telephone`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `messages_whatsapp` (
+    `id` VARCHAR(36) NOT NULL,
+    `conversation_id` VARCHAR(36) NOT NULL,
+    `wamid` VARCHAR(100) NOT NULL,
+    `sens` VARCHAR(10) NOT NULL,
+    `contenu` TEXT NOT NULL,
+    `type` VARCHAR(20) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `messages_whatsapp_wamid_key`(`wamid`),
+    INDEX `messages_whatsapp_conversation_id_idx`(`conversation_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `recommandations_ia` (
+    `id` VARCHAR(36) NOT NULL,
+    `cjs_uid` VARCHAR(36) NOT NULL,
+    `opportunite_id` VARCHAR(36) NULL,
+    `score` DOUBLE NOT NULL,
+    `raison` TEXT NULL,
+    `vue_par` DATETIME(3) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `recommandations_ia_cjs_uid_score_idx`(`cjs_uid`, `score` DESC),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `certificats_moodle` (
+    `id` VARCHAR(36) NOT NULL,
+    `profil_id` VARCHAR(36) NOT NULL,
+    `moodle_cert_id` VARCHAR(100) NOT NULL,
+    `formation` VARCHAR(255) NOT NULL,
+    `obtenu_le` DATETIME(3) NOT NULL,
+    `url_certificat` VARCHAR(500) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `certificats_moodle_moodle_cert_id_key`(`moodle_cert_id`),
+    INDEX `certificats_moodle_profil_id_idx`(`profil_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `profil_competence` ADD CONSTRAINT `profil_competence_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `profils_jeunes` ADD CONSTRAINT `profils_jeunes_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `profil_competence` ADD CONSTRAINT `profil_competence_competenceId_fkey` FOREIGN KEY (`competenceId`) REFERENCES `competence`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `experiences` ADD CONSTRAINT `experiences_profil_id_fkey` FOREIGN KEY (`profil_id`) REFERENCES `profils_jeunes`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `opportunite_competence` ADD CONSTRAINT `opportunite_competence_opportuniteId_fkey` FOREIGN KEY (`opportuniteId`) REFERENCES `opportunite`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `opportunites` ADD CONSTRAINT `opportunites_organisation_id_fkey` FOREIGN KEY (`organisation_id`) REFERENCES `organisations`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `opportunite_competence` ADD CONSTRAINT `opportunite_competence_competenceId_fkey` FOREIGN KEY (`competenceId`) REFERENCES `competence`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `candidatures` ADD CONSTRAINT `candidatures_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `candidature` ADD CONSTRAINT `candidature_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `candidatures` ADD CONSTRAINT `candidatures_opportunite_id_fkey` FOREIGN KEY (`opportunite_id`) REFERENCES `opportunites`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `candidature` ADD CONSTRAINT `candidature_opportuniteId_fkey` FOREIGN KEY (`opportuniteId`) REFERENCES `opportunite`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `agents_centres` ADD CONSTRAINT `agents_centres_centre_id_fkey` FOREIGN KEY (`centre_id`) REFERENCES `centres`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `favori_opportunite` ADD CONSTRAINT `favori_opportunite_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `evenements` ADD CONSTRAINT `evenements_centre_id_fkey` FOREIGN KEY (`centre_id`) REFERENCES `centres`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `favori_opportunite` ADD CONSTRAINT `favori_opportunite_opportuniteId_fkey` FOREIGN KEY (`opportuniteId`) REFERENCES `opportunite`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `inscriptions_evenements` ADD CONSTRAINT `inscriptions_evenements_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `ressource_centre` ADD CONSTRAINT `ressource_centre_centreId_fkey` FOREIGN KEY (`centreId`) REFERENCES `centre`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `inscriptions_evenements` ADD CONSTRAINT `inscriptions_evenements_evenement_id_fkey` FOREIGN KEY (`evenement_id`) REFERENCES `evenements`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `reservation` ADD CONSTRAINT `reservation_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `ressources_favorites` ADD CONSTRAINT `ressources_favorites_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `reservation` ADD CONSTRAINT `reservation_centreId_fkey` FOREIGN KEY (`centreId`) REFERENCES `centre`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `ressources_favorites` ADD CONSTRAINT `ressources_favorites_ressource_id_fkey` FOREIGN KEY (`ressource_id`) REFERENCES `ressources`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `reservation` ADD CONSTRAINT `reservation_ressourceCentreId_fkey` FOREIGN KEY (`ressourceCentreId`) REFERENCES `ressource_centre`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `conversations_whatsapp` ADD CONSTRAINT `conversations_whatsapp_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inscription_evenement` ADD CONSTRAINT `inscription_evenement_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `messages_whatsapp` ADD CONSTRAINT `messages_whatsapp_conversation_id_fkey` FOREIGN KEY (`conversation_id`) REFERENCES `conversations_whatsapp`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `inscription_evenement` ADD CONSTRAINT `inscription_evenement_evenementId_fkey` FOREIGN KEY (`evenementId`) REFERENCES `evenement`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `recommandations_ia` ADD CONSTRAINT `recommandations_ia_cjs_uid_fkey` FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `favori_ressource` ADD CONSTRAINT `favori_ressource_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `favori_ressource` ADD CONSTRAINT `favori_ressource_ressourceId_fkey` FOREIGN KEY (`ressourceId`) REFERENCES `ressource`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `alerte_metier` ADD CONSTRAINT `alerte_metier_profilId_fkey` FOREIGN KEY (`profilId`) REFERENCES `profil_jeune`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `certificats_moodle` ADD CONSTRAINT `certificats_moodle_profil_id_fkey` FOREIGN KEY (`profil_id`) REFERENCES `profils_jeunes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 

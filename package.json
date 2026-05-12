@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
     "start": "next start",
     "lint": "eslint src",
     "test": "jest --passWithNoTests",
@@ -16,6 +16,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:deploy": "prisma migrate deploy",
+    "deploy": "npm run build && prisma migrate deploy",
     "postinstall": "prisma generate",
     "build:prod": "prisma generate && next build",
     "start:prod": "next start -p ${PORT:-3000}"

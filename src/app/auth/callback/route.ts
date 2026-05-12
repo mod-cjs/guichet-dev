@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
 
@@ -25,28 +26,51 @@ export async function GET(request: NextRequest) {
       ? claims.cjs_roles
       : String(claims.cjs_roles).split(',').map(r => r.trim()).filter(Boolean)
 
-    // Compte sans rôle reconnu → accès refusé avec message explicite
     if (roles.length === 0) {
       await revokeToken(tokens.access_token).catch(() => {})
       return NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     }
 
+    // Upsert Utilisateur — synchronise les données SSO en base
+    const utilisateur = await prisma.utilisateur.upsert({
+      where:  { cjsUid: claims.sub },
+      update: {
+        nom:    claims.family_name,
+        prenom: claims.given_name,
+        email:  claims.email ?? undefined,
+      },
+      create: {
+        cjsUid:    claims.sub,
+        nom:       claims.family_name,
+        prenom:    claims.given_name,
+        email:     claims.email ?? undefined,
+        telephone: claims.phone_number ?? undefined,
+      },
+      select: { onboardingComplete: true, region: true, commune: true },
+    })
+
     const session: CJSSession = {
-      cjsUid:       claims.sub,
-      nom:          claims.family_name,
-      prenom:       claims.given_name,
-      email:        claims.email,
-      telephone:    claims.phone_number,
-      region:       claims.address?.region ?? null,
+      cjsUid:             claims.sub,
+      nom:                claims.family_name,
+      prenom:             claims.given_name,
+      email:              claims.email,
+      telephone:          claims.phone_number,
+      region:             utilisateur.region ?? claims.address?.region ?? null,
       roles,
-      accessToken:  tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt:    Math.floor(Date.now() / 1000) + tokens.expires_in,
+      accessToken:        tokens.access_token,
+      refreshToken:       tokens.refresh_token,
+      expiresAt:          Math.floor(Date.now() / 1000) + tokens.expires_in,
+      onboardingComplete: utilisateur.onboardingComplete,
     }
 
-    const encoded      = await encodeSession(session)
-    const destination  = safeReturnTo(returnTo) ?? roleRedirect(session.roles)
-    const response     = NextResponse.redirect(new URL(destination, request.url))
+    const encoded     = await encodeSession(session)
+    logger.info('session-size', {
+      accessToken:  tokens.access_token.length,
+      refreshToken: tokens.refresh_token.length,
+      cookieJwt:    encoded.length,
+    })
+    const destination = safeReturnTo(returnTo) ?? roleRedirect(session)
+    const response    = NextResponse.redirect(new URL(destination, request.url))
 
     setSessionCookie(response, encoded, tokens.expires_in)
     response.cookies.delete('pkce_verifier')
@@ -65,17 +89,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function roleRedirect(roles: string[]): string {
-  if (roles.includes('admin'))        return '/admin/tableau-de-bord'
-  if (roles.includes('recruteur'))    return '/recruteur/tableau-de-bord'
-  if (roles.includes('beneficiaire')) return '/jeune/mon-profil'
+function roleRedirect(session: CJSSession): string {
+  if (session.roles.includes('admin'))    return '/admin/tableau-de-bord'
+  if (session.roles.includes('recruteur')) return '/recruteur/tableau-de-bord'
+  if (session.roles.includes('beneficiaire')) {
+    return session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding'
+  }
   return '/auth/connexion?error=no_role'
 }
 
 function safeReturnTo(url: string | undefined): string | null {
   if (!url) return null
   try {
-    // Accepter uniquement les chemins relatifs (pas de redirections open)
     const parsed = new URL(url, 'http://localhost')
     if (parsed.origin !== 'http://localhost') return null
     return parsed.pathname + parsed.search
