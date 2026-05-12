@@ -13,6 +13,7 @@ const CSP = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'guichet.cjs.sn' },
