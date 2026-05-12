@@ -31,12 +31,11 @@ Le Guichet utilise le flux **Authorization Code** avec PKCE.
 3. Le SSO redirige vers :
    https://guichet.cjs.sn/auth/callback?code={authorization_code}
 
-4. Le Guichet échange le code contre des tokens :
+4. Le Guichet échange le code contre des tokens (client public PKCE — sans client_secret) :
    POST {SSO_BASE_URL}/oauth/token
    Body: {
      grant_type: "authorization_code",
      client_id: "guichet-jeunesse",
-     client_secret: "{SSO_CLIENT_SECRET}",
      code: "{authorization_code}",
      redirect_uri: "https://guichet.cjs.sn/auth/callback",
      code_verifier: "{code_verifier}"
@@ -144,12 +143,11 @@ refreshTokenIfNeeded(): Promise<void>
 Le token d'accès expire (durée définie par le SSO, typiquement 1 heure). Le refresh est géré automatiquement :
 
 ```typescript
-// Si expiresAt - now() < 5 minutes → refresh automatique
+// Si expiresAt - now() < 5 minutes → refresh automatique (client public PKCE — sans client_secret)
 POST {SSO_BASE_URL}/oauth/token
 Body: {
   grant_type: "refresh_token",
   client_id: "guichet-jeunesse",
-  client_secret: "{SSO_CLIENT_SECRET}",
   refresh_token: "{refresh_token}"
 }
 ```

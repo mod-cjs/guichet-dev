@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
+import { isSessionActive } from '@/lib/session-store'
 
 const PROTECTED: { pattern: RegExp; role: string }[] = [
   { pattern: /^\/jeune\//,     role: 'beneficiaire' },
@@ -9,7 +10,6 @@ const PROTECTED: { pattern: RegExp; role: string }[] = [
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
 
-// Refresh inline — Edge-compatible, pas d'import Node.js crypto
 async function refreshToken(token: string) {
   const res = await fetch(`${process.env.SSO_BASE_URL}/oauth/token`, {
     method:  'POST',
@@ -42,6 +42,15 @@ export async function proxy(request: NextRequest) {
       maxAge:   600,
       path:     '/',
     })
+    return response
+  }
+
+  // Vérifier la révocation Redis — fail-open si Redis indisponible
+  const active = await isSessionActive(session.cjsUid)
+  if (!active) {
+    const loginUrl = new URL('/auth/connexion?error=session_expired', request.url)
+    const response = NextResponse.redirect(loginUrl)
+    response.cookies.delete('cjs_session')
     return response
   }
 
