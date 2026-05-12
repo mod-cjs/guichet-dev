@@ -25,6 +25,7 @@ const CSP = [
 const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
+    // @ts-expect-error — nodeMiddleware existe en Next.js 16 mais absent des types stables
     nodeMiddleware: true,
   },
   images: {
