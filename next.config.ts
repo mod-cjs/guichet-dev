@@ -2,16 +2,21 @@ import type { NextConfig } from 'next'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
+const ssoOrigin = process.env.SSO_BASE_URL ?? 'https://sso.cjs.sn'
+const appOrigin = process.env.NEXTAUTH_URL  ?? 'https://guichet.cjs.sn'
+
+const ssoHostname = new URL(ssoOrigin).hostname
+const appHostname = new URL(appOrigin).hostname
+
 const CSP = [
   "default-src 'self'",
-  // unsafe-eval retiré en prod — requis uniquement par Next.js hot-reload en dev
   isDev
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://guichet.cjs.sn https://sso.cjs.sn",
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin}`,
   "font-src 'self'",
-  "connect-src 'self' https://sso.cjs.sn",
+  `connect-src 'self' ${ssoOrigin}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -24,8 +29,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'guichet.cjs.sn' },
-      { protocol: 'https', hostname: 'sso.cjs.sn' },
+      { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
+      { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },
     ],
   },
   async headers() {

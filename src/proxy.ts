@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
 
+// Node.js runtime requis pour ioredis (isSessionActive)
+export const runtime = 'nodejs'
+
 const PROTECTED: { pattern: RegExp; role: string }[] = [
   { pattern: /^\/jeune\//,     role: 'beneficiaire' },
   { pattern: /^\/recruteur\//, role: 'recruteur'    },
@@ -10,7 +13,6 @@ const PROTECTED: { pattern: RegExp; role: string }[] = [
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
 
-// Refresh inline — Edge-compatible, pas d'import Node.js crypto
 async function refreshToken(token: string) {
   const res = await fetch(`${process.env.SSO_BASE_URL}/oauth/token`, {
     method:  'POST',
@@ -25,7 +27,7 @@ async function refreshToken(token: string) {
   return res.json() as Promise<{ access_token: string; refresh_token: string; expires_in: number }>
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
@@ -46,7 +48,7 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // Vérifier la révocation Redis — fail-open si Redis indisponible (comportement de isSessionActive)
+  // Vérifier la révocation Redis — fail-open si Redis indisponible
   const active = await isSessionActive(session.cjsUid)
   if (!active) {
     const loginUrl = new URL('/auth/connexion?error=session_expired', request.url)
