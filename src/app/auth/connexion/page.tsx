@@ -3,7 +3,22 @@ import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Connexion' }
 
-export default function ConnexionPage() {
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_state:    'Requête invalide. Veuillez réessayer.',
+  no_role:          'Votre compte n\'a pas accès à cette plateforme.',
+  auth_failed:      'La connexion a échoué. Veuillez réessayer.',
+  forbidden:        'Vous n\'avez pas les droits pour accéder à cette page.',
+  session_expired:  'Votre session a expiré. Veuillez vous reconnecter.',
+}
+
+interface Props {
+  searchParams: Promise<{ error?: string }>
+}
+
+export default async function ConnexionPage({ searchParams }: Props) {
+  const { error } = await searchParams
+  const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Une erreur est survenue.') : null
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-color-bg-page px-space-4">
       <div className="bg-white border border-color-border-default rounded-gj-2xl shadow-gj-md
@@ -23,6 +38,16 @@ export default function ConnexionPage() {
         <p className="text-fs-300 text-color-text-secondary mb-space-5">
           Un seul compte pour tout l&apos;écosystème CJS
         </p>
+
+        {errorMessage && (
+          <div
+            role="alert"
+            className="mb-space-4 rounded-gj-md bg-red-50 border border-gj-red/30
+              px-space-3 py-space-2 text-fs-200 text-gj-red text-left"
+          >
+            {errorMessage}
+          </div>
+        )}
 
         {/* Bouton SSO — redirige vers /api/auth/login (PKCE côté serveur) */}
         <a

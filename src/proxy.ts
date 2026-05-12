@@ -47,10 +47,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!session.roles.includes(matched.role)) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Accès non autorisé' } },
-      { status: 403 }
-    )
+    const url = new URL('/auth/connexion', request.url)
+    url.searchParams.set('error', 'forbidden')
+    const response = NextResponse.redirect(url)
+    response.cookies.delete('cjs_session')
+    return response
   }
 
   if (
