@@ -33,11 +33,28 @@ export default async function ConnexionPage({ searchParams }: Props) {
         </div>
 
         <h1 className="text-fs-700 font-black text-color-text-primary mb-space-1">
-          Se connecter
+          Bienvenue sur Guichet Jeunesse
         </h1>
         <p className="text-fs-300 text-color-text-secondary mb-space-5">
-          Un seul compte pour tout l&apos;écosystème CJS
+          Emploi · Formation · Opportunités — tout en un seul endroit
         </p>
+
+        {/* Avantages */}
+        <ul className="text-left mb-space-5 flex flex-col gap-space-2">
+          {[
+            'Des offres d\'emploi adaptées à votre profil',
+            'Des formations et bourses accessibles',
+            'Un accompagnement personnalisé par Aïssatou',
+          ].map(item => (
+            <li key={item} className="flex items-start gap-space-2 text-fs-200 text-color-text-secondary">
+              <svg className="w-4 h-4 text-gj-teal mt-[2px] flex-shrink-0" viewBox="0 0 20 20"
+                fill="currentColor" aria-hidden>
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              </svg>
+              {item}
+            </li>
+          ))}
+        </ul>
 
         {errorMessage && (
           <div
@@ -57,7 +74,7 @@ export default async function ConnexionPage({ searchParams }: Props) {
             min-h-[var(--tap-min)] px-space-4
             hover:bg-gj-teal-deep transition-colors no-underline"
         >
-          Continuer avec le Guichet CJS
+          Continuer avec mon compte CJS
         </a>
 
         <p className="text-fs-100 text-color-text-muted mt-space-4">

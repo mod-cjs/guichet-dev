@@ -1,7 +1,7 @@
 'use client'
 
-import { Input }  from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { Input }  from '@/components/ui/Input'
 import type { StepIdentiteData } from '@/lib/validations/onboarding'
 
 interface Props {
@@ -15,7 +15,40 @@ const GENRE_OPTIONS = [
   { value: 'F', label: 'Femme' },
 ]
 
+const DAYS = Array.from({ length: 31 }, (_, i) => ({
+  value: String(i + 1).padStart(2, '0'),
+  label: String(i + 1),
+}))
+
+const MONTHS = [
+  { value: '01', label: 'Janvier'   }, { value: '02', label: 'Février'   },
+  { value: '03', label: 'Mars'      }, { value: '04', label: 'Avril'     },
+  { value: '05', label: 'Mai'       }, { value: '06', label: 'Juin'      },
+  { value: '07', label: 'Juillet'   }, { value: '08', label: 'Août'      },
+  { value: '09', label: 'Septembre' }, { value: '10', label: 'Octobre'   },
+  { value: '11', label: 'Novembre'  }, { value: '12', label: 'Décembre'  },
+]
+
+const CURRENT_YEAR = new Date().getFullYear()
+const YEARS = Array.from({ length: 60 }, (_, i) => {
+  const y = CURRENT_YEAR - 15 - i
+  return { value: String(y), label: String(y) }
+})
+
 export function StepIdentite({ data, onChange, errors }: Props) {
+  const parts = (data.dateNaissance ?? '').split('-')
+  const selYear  = parts[0] ?? ''
+  const selMonth = parts[1] ?? ''
+  const selDay   = parts[2] ?? ''
+
+  function handleDatePart(part: 'year' | 'month' | 'day', value: string) {
+    const y = part === 'year'  ? value : selYear
+    const m = part === 'month' ? value : selMonth
+    const d = part === 'day'   ? value : selDay
+    const assembled = y && m && d ? `${y}-${m}-${d}` : null
+    onChange({ ...data, dateNaissance: assembled })
+  }
+
   return (
     <div className="flex flex-col gap-space-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-4">
@@ -37,14 +70,40 @@ export function StepIdentite({ data, onChange, errors }: Props) {
         />
       </div>
 
-      <Input
-        id="dateNaissance"
-        label="Date de naissance"
-        type="date"
-        value={data.dateNaissance ?? ''}
-        error={errors.dateNaissance}
-        onChange={e => onChange({ ...data, dateNaissance: e.target.value || null })}
-      />
+      <fieldset>
+        <legend className="text-fs-200 font-medium text-color-text-primary mb-space-2">
+          Date de naissance
+        </legend>
+        <div className="grid grid-cols-3 gap-space-2">
+          <Select
+            id="dateNaissance_jour"
+            label="Jour"
+            options={DAYS}
+            placeholder="Jour"
+            value={selDay}
+            onChange={e => handleDatePart('day', e.target.value)}
+          />
+          <Select
+            id="dateNaissance_mois"
+            label="Mois"
+            options={MONTHS}
+            placeholder="Mois"
+            value={selMonth}
+            onChange={e => handleDatePart('month', e.target.value)}
+          />
+          <Select
+            id="dateNaissance_annee"
+            label="Année"
+            options={YEARS}
+            placeholder="Année"
+            value={selYear}
+            onChange={e => handleDatePart('year', e.target.value)}
+          />
+        </div>
+        {errors.dateNaissance && (
+          <p className="mt-space-1 text-fs-100 text-gj-red">{errors.dateNaissance}</p>
+        )}
+      </fieldset>
 
       <Select
         id="genre"
