@@ -17,7 +17,6 @@ async function refreshToken(token: string) {
     body: JSON.stringify({
       grant_type:    'refresh_token',
       client_id:     process.env.SSO_CLIENT_ID,
-      client_secret: process.env.SSO_CLIENT_SECRET ?? '',
       refresh_token: token,
     }),
   })
@@ -47,10 +46,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!session.roles.includes(matched.role)) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Accès non autorisé' } },
-      { status: 403 }
-    )
+    const url = new URL('/auth/connexion', request.url)
+    url.searchParams.set('error', 'forbidden')
+    const response = NextResponse.redirect(url)
+    response.cookies.delete('cjs_session')
+    return response
   }
 
   if (

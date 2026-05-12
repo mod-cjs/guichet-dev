@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { UserMenu } from '@/components/layout/UserMenu'
 import type { CJSSession } from '@/types/user'
 
 interface Props {
@@ -54,17 +55,12 @@ export function AppTopbar({ session }: Props) {
           />
         </button>
 
-        {/* Avatar / profil */}
-        <Link
-          href="/jeune/mon-profil"
-          className="flex items-center justify-center bg-gj-teal rounded-full text-white
-            text-[11px] font-bold no-underline flex-shrink-0
-            hover:bg-gj-teal-deep transition-colors"
-          style={{ width: 'var(--tap-min)', height: 'var(--tap-min)' }}
-          aria-label={`Mon profil — ${session.prenom} ${session.nom}`}
-        >
-          {initials || '?'}
-        </Link>
+        {/* Avatar / menu utilisateur */}
+        <UserMenu
+          initials={initials}
+          prenom={session.prenom ?? ''}
+          nom={session.nom ?? ''}
+        />
       </div>
     </header>
   )

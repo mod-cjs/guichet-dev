@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
+import { activateSession } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
@@ -22,9 +23,18 @@ export async function GET(request: NextRequest) {
     tokens = await exchangeCode(code, pkceVerifier)
     const claims = await getUserInfo(tokens.access_token)
 
+    logger.info('sso-claims-debug', {
+      sub:          claims.sub,
+      cjs_roles_raw: claims.cjs_roles,
+      cjs_roles_type: typeof claims.cjs_roles,
+      cjs_status:   claims.cjs_status,
+    })
+
     const roles = Array.isArray(claims.cjs_roles)
       ? claims.cjs_roles
       : String(claims.cjs_roles).split(',').map(r => r.trim()).filter(Boolean)
+
+    logger.info('sso-roles-resolved', { roles, destination_preview: roles.length === 0 ? 'no_role' : roles[0] })
 
     if (roles.length === 0) {
       await revokeToken(tokens.access_token).catch(() => {})
@@ -64,6 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     const encoded     = await encodeSession(session)
+    await activateSession(session.cjsUid, tokens.expires_in)
     logger.info('session-size', {
       accessToken:  tokens.access_token.length,
       refreshToken: tokens.refresh_token.length,

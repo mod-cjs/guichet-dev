@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { UserMenu } from '@/components/layout/UserMenu'
 
 export async function Header() {
   const session = await getSession()
@@ -36,7 +37,6 @@ export async function Header() {
             { href: '/evenements',   label: 'Agenda' },
             { href: '/ressources',   label: 'Ressources' },
             { href: '/centres',      label: 'Centres CJS' },
-            ...(session ? [{ href: '/jeune/mon-profil', label: 'Mon profil' }] : []),
           ].map(link => (
             <Link
               key={link.href}
@@ -78,16 +78,14 @@ export async function Header() {
 
           {/* CTA — toujours visible */}
           {session ? (
-            <Link
-              href="/jeune/mon-profil"
-              className="w-[var(--tap-min)] h-[var(--tap-min)] rounded-full bg-gj-teal
-                flex items-center justify-center text-white text-[11px] font-bold
-                no-underline flex-shrink-0 hover:bg-gj-teal-deep transition-colors"
-              title={`${session.prenom} ${session.nom}`}
-              aria-label={`Mon profil — ${session.prenom} ${session.nom}`}
-            >
-              {(session.prenom?.[0] ?? '').toUpperCase()}{(session.nom?.[0] ?? '').toUpperCase()}
-            </Link>
+            <UserMenu
+              initials={
+                (session.prenom?.[0] ?? '').toUpperCase() +
+                (session.nom?.[0] ?? '').toUpperCase()
+              }
+              prenom={session.prenom ?? ''}
+              nom={session.nom ?? ''}
+            />
           ) : (
             <Link
               href="/auth/connexion"

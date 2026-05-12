@@ -7,10 +7,16 @@
 
 ## Statut sous-tâches
 
-- [ ] Schema : `onboardingComplete` + `commune` sur `Utilisateur` + migration
-- [ ] Callback : upsert Utilisateur + `onboardingComplete` dans session
-- [ ] API `GET /api/v1/onboarding` + `PUT /api/v1/onboarding`
-- [ ] Middleware forceOnboarding
-- [ ] Composant `OnboardingWizard` (3 étapes)
-- [ ] Page `/jeune/onboarding`
-- [ ] Tests Playwright E2E
+- [x] Schema : `onboardingComplete` + `commune` sur `Utilisateur` + migration
+- [x] Callback : upsert Utilisateur + `onboardingComplete` dans session
+- [x] API `GET /api/v1/onboarding` + `PUT /api/v1/onboarding`
+- [x] Middleware `forceOnboarding` (dans `src/proxy.ts`)
+- [x] Composant `OnboardingWizard` (3 étapes — Identité, Localisation, Profil)
+- [x] Page `/jeune/onboarding`
+- [x] Session store Redis + backchannel logout OIDC
+- [x] UserMenu (dropdown avatar avec déconnexion)
+- ~~Tests Playwright E2E~~ — hors scope
+
+## Statut
+
+**Prêt pour PR → dev**

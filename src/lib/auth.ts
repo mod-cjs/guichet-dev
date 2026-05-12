@@ -68,7 +68,7 @@ export function setSessionCookie(response: NextResponse, encoded: string, maxAge
   response.cookies.set(SESSION_COOKIE, encoded, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge,
     path:     '/',
   })
