@@ -39,7 +39,7 @@ services:
       MARIADB_PASSWORD: guichet_dev_password
       MARIADB_ROOT_PASSWORD: root
     ports:
-      - "3306:3306"   # exposé pour DBeaver / Prisma Studio en local
+      - "3307:3306"   # 3307 en local — 3306 réservé à cjs_mysql (SSO)
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
