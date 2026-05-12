@@ -1,7 +1,6 @@
 'use client'
 
 import { Select } from '@/components/ui/Select'
-import { Tag }    from '@/components/ui/Tag'
 import type { StepProfilData } from '@/lib/validations/onboarding'
 
 interface Props {
