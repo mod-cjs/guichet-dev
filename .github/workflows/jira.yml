@@ -22,6 +22,9 @@ on:
 #
 #   PR develop → main (validation PO) :
 #     Mergée sur main           → Fini
+#
+# Note : les jobs Jira sont continue-on-error — ils n'échouent pas si les
+# secrets JIRA_* ne sont pas configurés dans le dépôt GitHub.
 # ─────────────────────────────────────────────────────────────
 
 jobs:
@@ -73,8 +76,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: extract-jira-key
     if: needs.extract-jira-key.outputs.found == 'true'
+    continue-on-error: true   # non-bloquant si secrets Jira absents
     steps:
+      - name: Vérifier la présence des secrets Jira
+        id: check
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "⚠ Secrets Jira non configurés — transitions ignorées"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
       - name: Login Jira
+        if: steps.check.outputs.skip == 'false'
         uses: atlassian/gajira-login@v3
         env:
           JIRA_BASE_URL:   ${{ secrets.JIRA_BASE_URL }}
@@ -84,6 +101,7 @@ jobs:
       # ── PR ouverte en draft → En cours ────────────────────
       - name: PR draft → En cours
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'opened' &&
           github.event.pull_request.draft == true &&
@@ -96,6 +114,7 @@ jobs:
       # ── PR ouverte non-draft → En review ──────────────────
       - name: PR ouverte → En review
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'opened' &&
           github.event.pull_request.draft == false &&
@@ -108,6 +127,7 @@ jobs:
       # ── PR ready for review → En review ───────────────────
       - name: PR ready for review → En review
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'ready_for_review' &&
           github.base_ref == 'develop'
@@ -119,6 +139,7 @@ jobs:
       # ── PR repassée en draft → En cours ───────────────────
       - name: PR en draft → En cours
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'converted_to_draft' &&
           github.base_ref == 'develop'
@@ -130,6 +151,7 @@ jobs:
       # ── Review changes requested → En cours ───────────────
       - name: Changes requested → En cours
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request_review' &&
           github.event.review.state == 'changes_requested' &&
           github.event.pull_request.base.ref == 'develop'
@@ -138,14 +160,10 @@ jobs:
           issue: ${{ needs.extract-jira-key.outputs.jira_key }}
           transition: "En cours"
 
-      # ── Review approuvée → reste En review ────────────────
-      # (le code est validé par le reviewer mais pas encore mergé sur develop)
-      # Pas de transition ici — le statut avance au merge
-
       # ── PR mergée sur develop → À valider ─────────────────
-      # Le code est sur develop, en attente de validation PO
       - name: Mergé sur develop → À valider
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'closed' &&
           github.event.pull_request.merged == true &&
@@ -156,9 +174,9 @@ jobs:
           transition: "À valider"
 
       # ── PR mergée sur main → Fini ──────────────────────────
-      # Validation PO confirmée — story terminée
       - name: Mergé sur main → Fini
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'closed' &&
           github.event.pull_request.merged == true &&
@@ -171,6 +189,7 @@ jobs:
       # ── PR fermée sans merge → Dans affaires ──────────────
       - name: PR fermée sans merge → Dans affaires
         if: |
+          steps.check.outputs.skip == 'false' &&
           github.event_name == 'pull_request' &&
           github.event.action == 'closed' &&
           github.event.pull_request.merged == false &&
@@ -190,8 +209,22 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.action == 'opened' &&
       github.base_ref == 'develop'
+    continue-on-error: true   # non-bloquant si secrets Jira absents
     steps:
+      - name: Vérifier la présence des secrets Jira
+        id: check
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "⚠ Secrets Jira non configurés — commentaire ignoré"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
       - name: Login Jira
+        if: steps.check.outputs.skip == 'false'
         uses: atlassian/gajira-login@v3
         env:
           JIRA_BASE_URL:   ${{ secrets.JIRA_BASE_URL }}
@@ -199,6 +232,7 @@ jobs:
           JIRA_API_TOKEN:  ${{ secrets.JIRA_API_TOKEN }}
 
       - name: Poster le commentaire
+        if: steps.check.outputs.skip == 'false'
         uses: atlassian/gajira-comment@v3
         with:
           issue: ${{ needs.extract-jira-key.outputs.jira_key }}
