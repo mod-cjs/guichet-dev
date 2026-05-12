@@ -1,2 +1,3 @@
-// Plesk startup file — delègue au serveur standalone Next.js
-require('./.next/standalone/server.js')
+// Point d'entrée Phusion Passenger (Plesk)
+// Passenger cherche app.js — on délègue au serveur Next.js custom
+require('./server.js')

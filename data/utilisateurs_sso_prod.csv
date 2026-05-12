@@ -1,0 +1,20 @@
+﻿ID,"CJS UID (UUID)","Drupal UID",Prénom,Nom,Email,Téléphone,Statut,Région,Département,Commune,Genre,"Date naissance",Source,"Email vérifié","Tél. vérifié",Rôles,"ID membre CJS",Inscription,"Dernière connexion"
+1,86a4f4fd-76c3-4de7-888f-e84922d0814a,,Admin,Pro,diopous1@gmail.com,,active,,,,,,guichet,2026-04-21,,"beneficiaire, super_admin",,2026-04-21,"2026-05-05 20:23"
+2,3dd18917-53b4-470a-9a0d-5008ede0e17d,,mod,dd,mod@yopmail.com,,active,,,,,,admin,2026-04-21,,beneficiaire,,2026-04-21,
+3,962a1611-c406-4a79-9d91-a9cc8e7d3f27,,Brute,force,bruteforcecjs@yopmail.com,,active,Dakar,,,M,2003-03-31,guichet,2026-04-22,,beneficiaire,,2026-04-22,
+4,b05c2dbb-e239-4309-a4de-e1247d771c6c,,locked,account,lockedaccountcjs@yopmail.com,,active,Dakar,,,M,2000-02-12,guichet,2026-04-22,,beneficiaire,,2026-04-22,"2026-04-22 12:05"
+5,94d9466b-aab7-43d2-b7aa-f77ef4a533c4,,NonVerifie,d,nonverifecjs@yopmail.com,,active,Dakar,,,M,2000-02-12,guichet,,,beneficiaire,,2026-04-22,
+6,6b891e2e-b1c1-4643-937c-140dca98c899,,nonverifie2cjs,d,nonverifie2cjs@yopmail.com,,active,Ziguinchor,,,M,2000-01-23,guichet,2026-04-22,,beneficiaire,,2026-04-22,
+7,f4d75514-b85a-4fb4-9768-070dc4857da5,,Mouhammadou,"Oury Diallo",odiallo@consortiumjeunessesenegal.org,,active,,,,,,Google,2026-04-22,,"beneficiaire, admin",,2026-04-22,"2026-04-22 14:10"
+8,c4f4aebd-44d8-41c2-bd12-454ef20b7233,,RY,HOW,ryhow99@gmail.com,,active,Dakar,,,M,2000-02-12,Google,2026-04-22,,beneficiaire,,2026-04-22,"2026-04-28 10:03"
+9,b34bca18-a189-4b25-8594-0d498395c05f,,Amadouu,Diallo,cjs.amadou.diallo@yopmail.com,+221771234501,active,Dakar,Dakar,,M,1990-03-15,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,"2026-04-24 18:00"
+10,994ca561-1519-4cf2-91dc-3a4206e02c18,,Fatou,Ndiaye,cjs.fatou.ndiaye@yopmail.com,+221771234502,active,Thiès,,,F,1995-07-22,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+11,9d0c47cc-0d13-4f5d-9b9d-166701ed27be,,Moussa,Sow,cjs.moussa.sow@yopmail.com,+221771234503,active,Saint-Louis,,,M,1988-11-08,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+12,d47fd37e-018f-4154-8c0b-b53f3d5fa666,,Aissatou,Ba,cjs.aissatou.ba@yopmail.com,+221771234504,inactive,Ziguinchor,,,F,2000-01-30,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+13,b51cdd1e-4979-4ed4-8141-05851cbe957d,,Ibrahima,Fall,cjs.ibrahima.fall@yopmail.com,+221771234505,active,Kaolack,,,M,1993-05-17,csv_import,2026-04-24,2026-04-24,beneficiaire,,2026-04-24,
+14,536192f0-1b86-400e-bc7a-ea73d55de40a,,Melvin,Strong,nifufod@mailinator.com,+221772340987,active,Tambacounda,,,other,2004-11-01,guichet,2026-04-28,,beneficiaire,,2026-04-28,"2026-04-28 10:47"
+15,afc33667-6ed7-48e4-aa97-69ed5fc510ee,,Fay,Webb,damasu@mailinator.com,+221779876098,active,Sédhiou,,,M,2006-01-01,guichet,2026-04-28,,beneficiaire,,2026-04-28,"2026-04-28 10:48"
+16,ca43faf0-81df-454f-9290-e8515b99efdd,,Test,TEst,testcompletion@mailinator.com,+221773421234,active,Dakar,,,M,2010-02-02,guichet,2026-04-28,,beneficiaire,,2026-04-28,"2026-04-28 10:50"
+17,6bf20aa6-08a1-40b9-80ae-8e7867274d54,,TESttt,Tdfs,testcompletion2@mailinator.com,+221775647898,active,Dakar,,,,,guichet,2026-04-28,,beneficiaire,,2026-04-28,"2026-04-28 12:26"
+18,8dbac3b7-f090-43a7-8f1c-c95549f951c8,,Testttt,ttt,,+221772806246,active,Dakar,,,M,2000-04-23,guichet,,,beneficiaire,,2026-04-29,"2026-05-05 12:15"
+19,1d993888-8212-4981-95b9-ea1109a9142a,,Aissatou,Diallo,test@cjs.sn,+221771234567,active,,,,,,guichet,2026-05-05,,beneficiaire,,2026-05-05,"2026-05-05 12:22"
