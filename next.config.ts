@@ -19,6 +19,9 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  experimental: {
+    nodeMiddleware: true,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'guichet.cjs.sn' },

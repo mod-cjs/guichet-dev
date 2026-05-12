@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
+import { isSessionActive } from '@/lib/session-store'
 
 const PROTECTED: { pattern: RegExp; role: string }[] = [
   { pattern: /^\/jeune\//,     role: 'beneficiaire' },
@@ -42,6 +43,15 @@ export async function proxy(request: NextRequest) {
       maxAge:   600,
       path:     '/',
     })
+    return response
+  }
+
+  // Vérifier la révocation Redis — fail-open si Redis indisponible (comportement de isSessionActive)
+  const active = await isSessionActive(session.cjsUid)
+  if (!active) {
+    const loginUrl = new URL('/auth/connexion?error=session_expired', request.url)
+    const response = NextResponse.redirect(loginUrl)
+    response.cookies.delete('cjs_session')
     return response
   }
 
