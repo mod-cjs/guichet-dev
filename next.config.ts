@@ -1,8 +1,13 @@
 import type { NextConfig } from 'next'
 
+const isDev = process.env.NODE_ENV !== 'production'
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // unsafe-eval requis par Next.js dev
+  // unsafe-eval retiré en prod — requis uniquement par Next.js hot-reload en dev
+  isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://guichet.cjs.sn https://sso.cjs.sn",
   "font-src 'self'",
