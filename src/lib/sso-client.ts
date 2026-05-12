@@ -4,7 +4,7 @@
 const SSO_BASE_URL = process.env.SSO_BASE_URL!;
 const CLIENT_ID    = process.env.SSO_CLIENT_ID!;
 const CLIENT_SECRET = process.env.SSO_CLIENT_SECRET!;
-const REDIRECT_URI  = `${process.env.NEXTAUTH_URL}/api/auth/callback/cjs-sso`;
+const REDIRECT_URI  = `${process.env.NEXTAUTH_URL}/auth/callback`;
 const API_KEY    = process.env.SSO_API_KEY    ?? '';
 const API_SECRET = process.env.SSO_API_SECRET ?? '';
 const DEFAULT_SCOPE = 'openid profile email phone address cjs_roles';
