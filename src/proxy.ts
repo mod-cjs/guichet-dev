@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
 
-// Node.js runtime requis pour ioredis (isSessionActive)
-export const runtime = 'nodejs'
-
 const PROTECTED: { pattern: RegExp; role: string }[] = [
   { pattern: /^\/jeune\//,     role: 'beneficiaire' },
   { pattern: /^\/recruteur\//, role: 'recruteur'    },
