@@ -8,12 +8,13 @@ export default function DeconnexionPage() {
   const [done, setDone] = useState(false)
 
   useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
     fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
       .finally(() => {
         setDone(true)
-        const t = setTimeout(() => router.replace('/'), 2000)
-        return () => clearTimeout(t)
+        t = setTimeout(() => router.replace('/'), 2000)
       })
+    return () => clearTimeout(t)
   }, [router])
 
   return (

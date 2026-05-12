@@ -55,9 +55,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!session.roles.includes(matched.role)) {
-    const url = new URL('/auth/connexion', request.url)
-    url.searchParams.set('error', 'forbidden')
-    const response = NextResponse.redirect(url)
+    // Rediriger vers le bon espace sans effacer la session
+    const home = roleHome(session.roles)
+    if (home) return NextResponse.redirect(new URL(home, request.url))
+    // Aucun rôle connu → déconnexion propre
+    const response = NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     response.cookies.delete('cjs_session')
     return response
   }
@@ -93,6 +95,13 @@ export async function proxy(request: NextRequest) {
   }
 
   return NextResponse.next()
+}
+
+function roleHome(roles: string[]): string | null {
+  if (roles.includes('admin'))       return '/admin/tableau-de-bord'
+  if (roles.includes('recruteur'))   return '/recruteur/tableau-de-bord'
+  if (roles.includes('beneficiaire')) return '/jeune/tableau-de-bord'
+  return null
 }
 
 export const config = {
