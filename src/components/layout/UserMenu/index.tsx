@@ -24,18 +24,10 @@ export function UserMenu({ initials, prenom, nom }: Props) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  async function handleLogout() {
+  function handleLogout() {
     setBusy(true)
     setOpen(false)
-    try {
-      await fetch('/api/auth/logout', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-      })
-    } finally {
-      router.push('/auth/deconnexion')
-    }
+    router.push('/auth/deconnexion')
   }
 
   return (

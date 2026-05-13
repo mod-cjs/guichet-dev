@@ -80,7 +80,12 @@ export async function GET(request: NextRequest) {
       refreshToken: tokens.refresh_token.length,
       cookieJwt:    encoded.length,
     })
-    const destination = safeReturnTo(returnTo) ?? roleRedirect(session)
+    // Un bénéficiaire non-onboardé doit toujours passer par le wizard, même avec returnTo
+    const isBeneficiaire = session.roles.includes('beneficiaire')
+    const destination =
+      isBeneficiaire && !session.onboardingComplete
+        ? '/jeune/onboarding'
+        : (safeReturnTo(returnTo) ?? roleRedirect(session))
     const response    = NextResponse.redirect(new URL(destination, request.url))
 
     setSessionCookie(response, encoded, tokens.expires_in)
