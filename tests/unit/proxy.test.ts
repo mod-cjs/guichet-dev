@@ -115,18 +115,18 @@ describe('rôle insuffisant', () => {
     mockIsSessionActive.mockResolvedValue(true)
   })
 
-  it('bénéficiaire → /admin/* redirige avec error=forbidden', async () => {
+  it('bénéficiaire → /admin/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
     const res = await proxy(makeRequest('/admin/dashboard'))
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('forbidden')
+    expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
   })
 
-  it('bénéficiaire → /recruteur/* redirige avec error=forbidden', async () => {
+  it('bénéficiaire → /recruteur/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
     const res = await proxy(makeRequest('/recruteur/offres'))
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('forbidden')
+    expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
   })
 })
 
