@@ -105,10 +105,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+
 function roleRedirect(session: CJSSession): string {
-  if (session.roles.includes('admin'))    return '/admin/tableau-de-bord'
+  if (session.roles.includes('admin'))     return '/admin/tableau-de-bord'
   if (session.roles.includes('recruteur')) return '/recruteur/tableau-de-bord'
-  if (session.roles.includes('beneficiaire')) {
+  if (session.roles.some(r => BENEFICIAIRE_ROLES.has(r))) {
     return session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding'
   }
   return '/auth/connexion?error=no_role'
