@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
 
-const PROTECTED: { pattern: RegExp; role: string }[] = [
-  { pattern: /^\/jeune\//,     role: 'beneficiaire' },
-  { pattern: /^\/recruteur\//, role: 'recruteur'    },
-  { pattern: /^\/admin\//,     role: 'admin'        },
+const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+
+const PROTECTED: { pattern: RegExp; check: (roles: string[]) => boolean }[] = [
+  { pattern: /^\/jeune\//,     check: roles => roles.some(r => BENEFICIAIRE_ROLES.has(r)) },
+  { pattern: /^\/recruteur\//, check: roles => roles.includes('recruteur')                },
+  { pattern: /^\/admin\//,     check: roles => roles.includes('admin')                    },
 ]
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
@@ -54,7 +56,7 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  if (!session.roles.includes(matched.role)) {
+  if (!matched.check(session.roles)) {
     // Rediriger vers le bon espace sans effacer la session
     const home = roleHome(session.roles)
     if (home) return NextResponse.redirect(new URL(home, request.url))
@@ -65,7 +67,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
-    session.roles.includes('beneficiaire') &&
+    session.roles.some(r => BENEFICIAIRE_ROLES.has(r)) &&
     !session.onboardingComplete &&
     !pathname.startsWith('/jeune/onboarding')
   ) {
@@ -98,9 +100,9 @@ export async function proxy(request: NextRequest) {
 }
 
 function roleHome(roles: string[]): string | null {
-  if (roles.includes('admin'))       return '/admin/tableau-de-bord'
-  if (roles.includes('recruteur'))   return '/recruteur/tableau-de-bord'
-  if (roles.includes('beneficiaire')) return '/jeune/tableau-de-bord'
+  if (roles.includes('admin'))                  return '/admin/tableau-de-bord'
+  if (roles.includes('recruteur'))              return '/recruteur/tableau-de-bord'
+  if (roles.some(r => BENEFICIAIRE_ROLES.has(r))) return '/jeune/tableau-de-bord'
   return null
 }
 
