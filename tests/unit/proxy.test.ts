@@ -6,19 +6,14 @@ import { proxy } from '@/proxy'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
-const mockGetSession     = jest.fn()
-const mockIsSessionActive = jest.fn()
-const mockEncodeSession  = jest.fn()
+const mockGetSession       = jest.fn()
+const mockEncodeSession    = jest.fn()
 const mockSetSessionCookie = jest.fn()
 
 jest.mock('@/lib/auth', () => ({
   getSession:       (...args: unknown[]) => mockGetSession(...args),
   encodeSession:    (...args: unknown[]) => mockEncodeSession(...args),
   setSessionCookie: (...args: unknown[]) => mockSetSessionCookie(...args),
-}))
-
-jest.mock('@/lib/session-store', () => ({
-  isSessionActive: (...args: unknown[]) => mockIsSessionActive(...args),
 }))
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -92,29 +87,9 @@ describe('session absente', () => {
   })
 })
 
-// ── Session révoquée (Redis) ───────────────────────────────────────────────
-
-describe('session révoquée', () => {
-  beforeEach(() => {
-    mockGetSession.mockResolvedValue(makeSession())
-    mockIsSessionActive.mockResolvedValue(false)
-  })
-
-  it('redirige avec error=session_expired et supprime le cookie', async () => {
-    const res = await proxy(makeRequest('/jeune/profil'))
-    expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('session_expired')
-    expect(res.headers.get('set-cookie')).toContain('cjs_session=;')
-  })
-})
-
 // ── Mauvais rôle ──────────────────────────────────────────────────────────
 
 describe('rôle insuffisant', () => {
-  beforeEach(() => {
-    mockIsSessionActive.mockResolvedValue(true)
-  })
-
   it('bénéficiaire → /admin/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
     const res = await proxy(makeRequest('/admin/dashboard'))
@@ -137,7 +112,6 @@ describe('onboarding obligatoire', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ roles: ['beneficiaire'], onboardingComplete: false })
     )
-    mockIsSessionActive.mockResolvedValue(true)
   })
 
   it('redirige vers /jeune/onboarding si non complété', async () => {
@@ -159,7 +133,6 @@ describe('accès autorisé', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ roles: ['beneficiaire'], onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
   })
 
   it('laisse passer /jeune/tableau-de-bord avec session valide', async () => {
@@ -176,7 +149,6 @@ describe('refresh de token', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ expiresAt: now + 120, onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
     mockEncodeSession.mockResolvedValue('new-encoded-session')
 
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
@@ -199,7 +171,6 @@ describe('refresh de token', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ expiresAt: now + 120, onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
 
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response('error', { status: 401 })
