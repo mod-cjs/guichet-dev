@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import { Card, Button, Input, Modal } from '@/components/ui'
-import type { ProfilComplet } from '@/app/api/profil/route'
-
-type Experience = ProfilComplet['experiences'][number]
+import type { ExperienceItem } from '@/types/profil'
 
 interface FormData {
   poste:        string
@@ -21,16 +19,19 @@ function formatDate(iso: string) {
 }
 
 interface Props {
-  experiences: Experience[]
+  experiences: ExperienceItem[]
 }
 
 export function SectionExperiences({ experiences: initial }: Props) {
-  const [items,   setItems]   = useState<Experience[]>(initial)
-  const [modal,   setModal]   = useState<'add' | 'edit' | null>(null)
-  const [editing, setEditing] = useState<Experience | null>(null)
-  const [form,    setForm]    = useState<FormData>(emptyForm)
-  const [saving,  setSaving]  = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
+  const [items,        setItems]        = useState<ExperienceItem[]>(initial)
+  const [modal,        setModal]        = useState<'add' | 'edit' | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ExperienceItem | null>(null)
+  const [editing,      setEditing]      = useState<ExperienceItem | null>(null)
+  const [form,         setForm]         = useState<FormData>(emptyForm)
+  const [saving,       setSaving]       = useState(false)
+  const [deleting,     setDeleting]     = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
 
   function openAdd() {
     setForm(emptyForm)
@@ -39,7 +40,7 @@ export function SectionExperiences({ experiences: initial }: Props) {
     setModal('add')
   }
 
-  function openEdit(exp: Experience) {
+  function openEdit(exp: ExperienceItem) {
     setForm({
       poste:        exp.poste,
       organisation: exp.organisation,
@@ -78,7 +79,7 @@ export function SectionExperiences({ experiences: initial }: Props) {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Erreur')
 
-      const saved = json.data as Experience
+      const saved = json.data as ExperienceItem
       setItems(prev =>
         isEdit
           ? prev.map(e => e.id === saved.id ? saved : e)
@@ -92,14 +93,22 @@ export function SectionExperiences({ experiences: initial }: Props) {
     }
   }
 
-  async function remove(id: string) {
-    if (!confirm('Supprimer cette expérience ?')) return
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
     try {
-      const res = await fetch(`/api/profil/experiences/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      setItems(prev => prev.filter(e => e.id !== id))
-    } catch {
-      alert('Erreur lors de la suppression.')
+      const res = await fetch(`/api/profil/experiences/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json.error?.message ?? 'Erreur lors de la suppression')
+      }
+      setItems(prev => prev.filter(e => e.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Erreur inconnue')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -130,7 +139,9 @@ export function SectionExperiences({ experiences: initial }: Props) {
                   </div>
                   <div className="flex gap-space-2 flex-shrink-0">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(exp)}>Éditer</Button>
-                    <Button variant="danger" size="sm" onClick={() => remove(exp.id)}>Supprimer</Button>
+                    <Button variant="danger" size="sm" onClick={() => { setDeleteTarget(exp); setDeleteError(null) }}>
+                      Supprimer
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -139,17 +150,23 @@ export function SectionExperiences({ experiences: initial }: Props) {
         )}
       </Card>
 
+      {/* Modal ajout / édition */}
       <Modal
         isOpen={modal !== null}
         onClose={() => setModal(null)}
-        title={modal === 'add' ? 'Ajouter une expérience' : 'Modifier l\'expérience'}
+        title={modal === 'add' ? 'Ajouter une expérience' : "Modifier l'expérience"}
       >
         <div className="flex flex-col gap-space-4">
-          <Input id="poste" label="Poste" required value={form.poste} onChange={e => set('poste', e.target.value)} placeholder="Ex : Développeur web" />
-          <Input id="org"   label="Organisation" required value={form.organisation} onChange={e => set('organisation', e.target.value)} placeholder="Ex : CJS Dakar" />
+          <Input id="poste" label="Poste" required value={form.poste}
+            onChange={e => set('poste', e.target.value)} placeholder="Ex : Développeur web" />
+          <Input id="org" label="Organisation" required value={form.organisation}
+            onChange={e => set('organisation', e.target.value)} placeholder="Ex : CJS Dakar" />
           <div className="grid grid-cols-2 gap-space-3">
-            <Input id="debut" label="Date de début" type="date" required value={form.dateDebut} onChange={e => set('dateDebut', e.target.value)} />
-            <Input id="fin"   label="Date de fin"   type="date" value={form.dateFin}    onChange={e => set('dateFin', e.target.value)} hint="Laisser vide si en cours" />
+            <Input id="debut" label="Date de début" type="date" required
+              value={form.dateDebut} onChange={e => set('dateDebut', e.target.value)} />
+            <Input id="fin" label="Date de fin" type="date"
+              value={form.dateFin} onChange={e => set('dateFin', e.target.value)}
+              hint="Laisser vide si en cours" />
           </div>
           <div className="flex flex-col gap-space-1">
             <label htmlFor="desc" className="text-fs-300 font-bold text-color-text-primary">Description</label>
@@ -167,6 +184,23 @@ export function SectionExperiences({ experiences: initial }: Props) {
             <Button onClick={save} loading={saving}>Enregistrer</Button>
             <Button variant="ghost" onClick={() => setModal(null)}>Annuler</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal confirmation suppression */}
+      <Modal
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Supprimer l'expérience"
+      >
+        <p className="text-fs-300 text-color-text-secondary mb-space-4">
+          Supprimer <strong>{deleteTarget?.poste}</strong> chez <strong>{deleteTarget?.organisation}</strong> ?
+          Cette action est irréversible.
+        </p>
+        {deleteError && <p className="text-fs-200 text-gj-red mb-space-3">{deleteError}</p>}
+        <div className="flex gap-space-3">
+          <Button variant="danger" onClick={confirmDelete} loading={deleting}>Supprimer</Button>
+          <Button variant="ghost" onClick={() => setDeleteTarget(null)}>Annuler</Button>
         </div>
       </Modal>
     </>

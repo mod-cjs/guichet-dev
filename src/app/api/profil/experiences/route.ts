@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { ExperienceSchema, MAX_EXPERIENCES } from '@/lib/profil-schemas'
 import type { ApiResponse } from '@/types/api'
+import type { ExperienceItem } from '@/types/profil'
 
-const ExperienceSchema = z.object({
-  poste:        z.string().min(1).max(150),
-  organisation: z.string().min(1).max(150),
-  dateDebut:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  dateFin:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  description:  z.string().max(1000).optional().nullable(),
-})
-
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<ExperienceItem>>> {
   const session = await getSession(request)
   if (!session) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
 
-  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: 'exp-post' })
-  if (limited) return limited as NextResponse<ApiResponse>
+  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: `exp-post:${session.cjsUid}` })
+  if (limited) return limited as NextResponse<ApiResponse<ExperienceItem>>
 
   const body = await request.json().catch(() => null)
   const parsed = ExperienceSchema.safeParse(body)
@@ -29,7 +22,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     )
   }
 
-  // Crée le ProfilJeune si inexistant
+  // Cap : max MAX_EXPERIENCES expériences par profil
+  const count = await prisma.experience.count({ where: { profil: { cjsUid: session.cjsUid } } })
+  if (count >= MAX_EXPERIENCES) {
+    return NextResponse.json(
+      { error: { code: 'LIMIT_REACHED', message: `Maximum ${MAX_EXPERIENCES} expériences atteint` } },
+      { status: 422 },
+    )
+  }
+
+  // Upsert ProfilJeune si inexistant
   const profil = await prisma.profilJeune.upsert({
     where:  { cjsUid: session.cjsUid },
     create: { cjsUid: session.cjsUid },
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     select: { id: true },
   })
 
-  const experience = await prisma.experience.create({
+  const exp = await prisma.experience.create({
     data: {
       profilId:     profil.id,
       poste:        parsed.data.poste,
@@ -51,9 +53,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
   return NextResponse.json({
     data: {
-      ...experience,
-      dateDebut: experience.dateDebut.toISOString().slice(0, 10),
-      dateFin:   experience.dateFin?.toISOString().slice(0, 10) ?? null,
+      ...exp,
+      dateDebut: exp.dateDebut.toISOString().slice(0, 10),
+      dateFin:   exp.dateFin?.toISOString().slice(0, 10) ?? null,
     },
   }, { status: 201 })
 }

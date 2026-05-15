@@ -1,85 +1,73 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { ProfilClient } from '@/components/profil'
+import type { ProfilComplet } from '@/types/profil'
 
-import { useState, useEffect } from 'react'
-import { Skeleton } from '@/components/ui'
-import {
-  ProfilHeader,
-  SectionIdentite,
-  SectionProfil,
-  SectionExperiences,
-  SectionCertificats,
-} from '@/components/profil'
-import type { ProfilComplet } from '@/app/api/profil/route'
+export default async function MonProfilPage() {
+  const session = await getSession()
+  if (!session) redirect('/auth/connexion')
 
-export default function MonProfilPage() {
-  const [profil, setProfil]   = useState<ProfilComplet | null>(null)
-  const [score,  setScore]    = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
+  const utilisateur = await prisma.utilisateur.findUnique({
+    where: { cjsUid: session.cjsUid },
+    select: {
+      cjsUid: true, nom: true, prenom: true, email: true, telephone: true,
+      region: true, commune: true, genre: true, dateNaissance: true,
+      profil: {
+        select: {
+          id: true, biographie: true, niveauEtude: true, situationEmploi: true,
+          domainesInteret: true, competences: true, completionScore: true, profileVisibility: true,
+          experiences: {
+            select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
+            orderBy: { dateDebut: 'desc' },
+          },
+          certificats: {
+            select: { id: true, formation: true, obtenuLe: true, urlCertificat: true },
+            orderBy: { obtenuLe: 'desc' },
+          },
+        },
+      },
+    },
+  })
 
-  useEffect(() => {
-    fetch('/api/profil')
-      .then(r => r.json())
-      .then(json => {
-        if (json.error) throw new Error(json.error.message)
-        setProfil(json.data)
-        setScore(json.data.profil?.completionScore ?? 0)
-      })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [])
+  if (!utilisateur) redirect('/auth/connexion')
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-space-5">
-        <Skeleton height="96px" rounded="var(--gj-r-lg)" />
-        <Skeleton height="192px" rounded="var(--gj-r-lg)" />
-        <Skeleton height="192px" rounded="var(--gj-r-lg)" />
-      </div>
-    )
+  const profil = utilisateur.profil
+  const data: ProfilComplet = {
+    cjsUid:        utilisateur.cjsUid,
+    nom:           utilisateur.nom,
+    prenom:        utilisateur.prenom,
+    email:         utilisateur.email,
+    telephone:     utilisateur.telephone,
+    region:        utilisateur.region,
+    commune:       utilisateur.commune,
+    genre:         utilisateur.genre,
+    dateNaissance: utilisateur.dateNaissance?.toISOString().slice(0, 10) ?? null,
+    profil: profil ? {
+      id:                profil.id,
+      biographie:        profil.biographie,
+      niveauEtude:       profil.niveauEtude,
+      situationEmploi:   profil.situationEmploi,
+      domainesInteret:   (profil.domainesInteret as string[] | null) ?? [],
+      competences:       (profil.competences as string[] | null) ?? [],
+      completionScore:   profil.completionScore,
+      profileVisibility: profil.profileVisibility,
+    } : null,
+    experiences: (profil?.experiences ?? []).map(e => ({
+      id:           e.id,
+      poste:        e.poste,
+      organisation: e.organisation,
+      dateDebut:    e.dateDebut.toISOString().slice(0, 10),
+      dateFin:      e.dateFin?.toISOString().slice(0, 10) ?? null,
+      description:  e.description,
+    })),
+    certificats: (profil?.certificats ?? []).map(c => ({
+      id:            c.id,
+      formation:     c.formation,
+      obtenuLe:      c.obtenuLe.toISOString().slice(0, 10),
+      urlCertificat: c.urlCertificat,
+    })),
   }
 
-  if (error || !profil) {
-    return (
-      <div className="p-space-4 bg-gj-red/10 rounded-gj-lg text-gj-red text-fs-300">
-        {error ?? 'Impossible de charger le profil.'}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-space-5 pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
-      <div>
-        <h1 className="text-fs-600 font-black text-color-text-primary">Mon profil</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Complétez votre profil pour accéder à plus d&apos;opportunités
-        </p>
-      </div>
-
-      <ProfilHeader
-        nom={profil.nom}
-        prenom={profil.prenom}
-        email={profil.email}
-        completionScore={score}
-      />
-
-      <SectionIdentite
-        data={profil}
-        onSaved={setScore}
-      />
-
-      <SectionProfil
-        data={profil.profil}
-        onSaved={setScore}
-      />
-
-      <SectionExperiences
-        experiences={profil.experiences}
-      />
-
-      <SectionCertificats
-        certificats={profil.certificats}
-      />
-    </div>
-  )
+  return <ProfilClient initial={data} />
 }

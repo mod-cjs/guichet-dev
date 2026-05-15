@@ -1,8 +1,8 @@
 import { Card } from '@/components/ui'
-import type { ProfilComplet } from '@/app/api/profil/route'
+import type { CertificatItem } from '@/types/profil'
 
 interface Props {
-  certificats: ProfilComplet['certificats']
+  certificats: CertificatItem[]
 }
 
 export function SectionCertificats({ certificats }: Props) {

@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { Card, Button, Input } from '@/components/ui'
-import type { ProfilComplet } from '@/app/api/profil/route'
+import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 const NIVEAUX = [
   'Sans diplôme','BFEM','BAC','BTS','Licence','Master','Doctorat','Formation professionnelle',
-].map(v => v)
+]
 
 const SITUATIONS = [
-  'En recherche d\'emploi','En emploi','En stage','En formation','Entrepreneur','Autre',
+  "En recherche d'emploi",'En emploi','En stage','En formation','Entrepreneur','Autre',
 ]
 
 const DOMAINES = [
@@ -18,13 +18,21 @@ const DOMAINES = [
 
 interface Props {
   data: ProfilComplet['profil']
-  onSaved: (score: number) => void
+  onSaved: (data: PutProfilResponse) => void
 }
 
 export function SectionProfil({ data, onSaved }: Props) {
   const [editing, setEditing]   = useState(false)
   const [saving,  setSaving]    = useState(false)
   const [error,   setError]     = useState<string | null>(null)
+
+  const [displayed, setDisplayed] = useState({
+    biographie:      data?.biographie      ?? null as string | null,
+    niveauEtude:     data?.niveauEtude     ?? null as string | null,
+    situationEmploi: data?.situationEmploi ?? null as string | null,
+    domainesInteret: data?.domainesInteret ?? [] as string[],
+    competences:     data?.competences     ?? [] as string[],
+  })
 
   const [form, setForm] = useState({
     biographie:      data?.biographie      ?? '',
@@ -61,7 +69,15 @@ export function SectionProfil({ data, onSaved }: Props) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Erreur')
-      onSaved(json.data.completionScore)
+      const saved = json.data as PutProfilResponse
+      setDisplayed({
+        biographie:      saved.biographie,
+        niveauEtude:     saved.niveauEtude,
+        situationEmploi: saved.situationEmploi,
+        domainesInteret: saved.domainesInteret,
+        competences:     saved.competences,
+      })
+      onSaved(saved)
       setEditing(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue')
@@ -82,25 +98,25 @@ export function SectionProfil({ data, onSaved }: Props) {
       {!editing ? (
         <div className="flex flex-col gap-space-3 text-fs-300">
           <p className="text-color-text-secondary italic">
-            {data?.biographie ?? 'Aucune biographie renseignée.'}
+            {displayed.biographie ?? 'Aucune biographie renseignée.'}
           </p>
-          {data?.niveauEtude && (
+          {displayed.niveauEtude && (
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Niveau d&apos;étude :</span>
-              <span className="font-medium text-color-text-primary">{data.niveauEtude}</span>
+              <span className="font-medium text-color-text-primary">{displayed.niveauEtude}</span>
             </div>
           )}
-          {data?.situationEmploi && (
+          {displayed.situationEmploi && (
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Situation :</span>
-              <span className="font-medium text-color-text-primary">{data.situationEmploi}</span>
+              <span className="font-medium text-color-text-primary">{displayed.situationEmploi}</span>
             </div>
           )}
-          {(data?.domainesInteret ?? []).length > 0 && (
+          {displayed.domainesInteret.length > 0 && (
             <div>
               <p className="text-color-text-secondary mb-space-2">Domaines d&apos;intérêt</p>
               <div className="flex flex-wrap gap-space-2">
-                {data!.domainesInteret.map(d => (
+                {displayed.domainesInteret.map(d => (
                   <span key={d} className="px-space-3 py-space-1 rounded-full text-fs-200 bg-gj-teal-soft text-gj-teal-deep font-medium">
                     {d}
                   </span>
@@ -108,11 +124,11 @@ export function SectionProfil({ data, onSaved }: Props) {
               </div>
             </div>
           )}
-          {(data?.competences ?? []).length > 0 && (
+          {displayed.competences.length > 0 && (
             <div>
               <p className="text-color-text-secondary mb-space-2">Compétences</p>
               <div className="flex flex-wrap gap-space-2">
-                {data!.competences.map(c => (
+                {displayed.competences.map(c => (
                   <span key={c} className="px-space-3 py-space-1 rounded-full text-fs-200 bg-gj-bg text-color-text-primary border border-gj-line">
                     {c}
                   </span>

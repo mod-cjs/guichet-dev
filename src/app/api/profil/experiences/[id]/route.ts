@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { ExperienceSchema } from '@/lib/profil-schemas'
 import type { ApiResponse } from '@/types/api'
+import type { ExperienceItem } from '@/types/profil'
 
-const ExperienceSchema = z.object({
-  poste:        z.string().min(1).max(150),
-  organisation: z.string().min(1).max(150),
-  dateDebut:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  dateFin:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  description:  z.string().max(1000).optional().nullable(),
-})
-
-async function ownsExperience(cjsUid: string, experienceId: string): Promise<boolean> {
+async function ownsExperience(cjsUid: string, id: string): Promise<boolean> {
   const exp = await prisma.experience.findFirst({
-    where: { id: experienceId, profil: { cjsUid } },
+    where: { id, profil: { cjsUid } },
     select: { id: true },
   })
   return exp !== null
@@ -24,12 +17,12 @@ async function ownsExperience(cjsUid: string, experienceId: string): Promise<boo
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse<ApiResponse>> {
+): Promise<NextResponse<ApiResponse<ExperienceItem>>> {
   const session = await getSession(request)
   if (!session) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
 
-  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: 'exp-put' })
-  if (limited) return limited as NextResponse<ApiResponse>
+  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: `exp-put:${session.cjsUid}` })
+  if (limited) return limited as NextResponse<ApiResponse<ExperienceItem>>
 
   const { id } = await params
   if (!(await ownsExperience(session.cjsUid, id))) {
@@ -45,7 +38,7 @@ export async function PUT(
     )
   }
 
-  const experience = await prisma.experience.update({
+  const exp = await prisma.experience.update({
     where: { id },
     data: {
       poste:        parsed.data.poste,
@@ -59,9 +52,9 @@ export async function PUT(
 
   return NextResponse.json({
     data: {
-      ...experience,
-      dateDebut: experience.dateDebut.toISOString().slice(0, 10),
-      dateFin:   experience.dateFin?.toISOString().slice(0, 10) ?? null,
+      ...exp,
+      dateDebut: exp.dateDebut.toISOString().slice(0, 10),
+      dateFin:   exp.dateFin?.toISOString().slice(0, 10) ?? null,
     },
   })
 }
@@ -69,12 +62,12 @@ export async function PUT(
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-): Promise<NextResponse<ApiResponse>> {
+): Promise<NextResponse<ApiResponse<null>>> {
   const session = await getSession(request)
   if (!session) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
 
-  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: 'exp-delete' })
-  if (limited) return limited as NextResponse<ApiResponse>
+  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: `exp-delete:${session.cjsUid}` })
+  if (limited) return limited as NextResponse<ApiResponse<null>>
 
   const { id } = await params
   if (!(await ownsExperience(session.cjsUid, id))) {
@@ -82,5 +75,5 @@ export async function DELETE(
   }
 
   await prisma.experience.delete({ where: { id } })
-  return NextResponse.json({ data: null }, { status: 200 })
+  return NextResponse.json({ data: null })
 }

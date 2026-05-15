@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, Button, Input, Select } from '@/components/ui'
-import type { ProfilComplet } from '@/app/api/profil/route'
+import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 const REGIONS = [
   'Dakar','Thies','Diourbel','Fatick','Kaolack','Kaffrine',
@@ -11,13 +11,20 @@ const REGIONS = [
 
 interface Props {
   data: Pick<ProfilComplet, 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
-  onSaved: (score: number) => void
+  onSaved: (data: PutProfilResponse) => void
 }
 
 export function SectionIdentite({ data, onSaved }: Props) {
   const [editing, setEditing]   = useState(false)
   const [saving,  setSaving]    = useState(false)
   const [error,   setError]     = useState<string | null>(null)
+
+  const [displayed, setDisplayed] = useState({
+    region:        data.region,
+    commune:       data.commune,
+    genre:         data.genre,
+    dateNaissance: data.dateNaissance,
+  })
 
   const [form, setForm] = useState({
     region:        data.region        ?? '',
@@ -46,7 +53,14 @@ export function SectionIdentite({ data, onSaved }: Props) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Erreur')
-      onSaved(json.data.completionScore)
+      const saved = json.data as PutProfilResponse
+      setDisplayed({
+        region:        saved.region,
+        commune:       saved.commune,
+        genre:         saved.genre,
+        dateNaissance: saved.dateNaissance,
+      })
+      onSaved(saved)
       setEditing(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue')
@@ -73,13 +87,13 @@ export function SectionIdentite({ data, onSaved }: Props) {
           <dt className="text-color-text-secondary">Téléphone</dt>
           <dd className="font-medium text-color-text-primary">{data.telephone ?? '—'}</dd>
           <dt className="text-color-text-secondary">Région</dt>
-          <dd className="font-medium text-color-text-primary">{data.region?.replace('_', '-') ?? '—'}</dd>
+          <dd className="font-medium text-color-text-primary">{displayed.region?.replace('_', '-') ?? '—'}</dd>
           <dt className="text-color-text-secondary">Commune</dt>
-          <dd className="font-medium text-color-text-primary">{data.commune ?? '—'}</dd>
+          <dd className="font-medium text-color-text-primary">{displayed.commune ?? '—'}</dd>
           <dt className="text-color-text-secondary">Genre</dt>
-          <dd className="font-medium text-color-text-primary">{data.genre === 'M' ? 'Homme' : data.genre === 'F' ? 'Femme' : '—'}</dd>
+          <dd className="font-medium text-color-text-primary">{displayed.genre === 'M' ? 'Homme' : displayed.genre === 'F' ? 'Femme' : '—'}</dd>
           <dt className="text-color-text-secondary">Date de naissance</dt>
-          <dd className="font-medium text-color-text-primary">{data.dateNaissance ?? '—'}</dd>
+          <dd className="font-medium text-color-text-primary">{displayed.dateNaissance ?? '—'}</dd>
         </dl>
       ) : (
         <div className="flex flex-col gap-space-4">

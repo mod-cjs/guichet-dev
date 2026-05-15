@@ -1,81 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { Region, Genre } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import type { ApiResponse } from '@/types/api'
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface ProfilComplet {
-  cjsUid:          string
-  nom:             string
-  prenom:          string
-  email:           string | null
-  telephone:       string | null
-  region:          string | null
-  commune:         string | null
-  genre:           string | null
-  dateNaissance:   string | null
-  profil: {
-    id:              string
-    biographie:      string | null
-    niveauEtude:     string | null
-    situationEmploi: string | null
-    domainesInteret: string[]
-    competences:     string[]
-    completionScore: number
-    profileVisibility: string
-  } | null
-  experiences: {
-    id:           string
-    poste:        string
-    organisation: string
-    dateDebut:    string
-    dateFin:      string | null
-    description:  string | null
-  }[]
-  certificats: {
-    id:            string
-    formation:     string
-    obtenuLe:      string
-    urlCertificat: string | null
-  }[]
-}
+import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 // ── Score ─────────────────────────────────────────────────────────────────────
 
 function calculerScore(
-  u: { region: unknown; genre: unknown; dateNaissance: unknown; commune: unknown },
-  p: { biographie: unknown; niveauEtude: unknown; situationEmploi: unknown; domainesInteret: unknown; competences: unknown } | null,
-  experiencesCount: number,
+  identite: { region: unknown; commune: unknown; genre: unknown; dateNaissance: unknown },
+  profil:   { biographie: unknown; niveauEtude: unknown; situationEmploi: unknown; domainesInteret: unknown; competences: unknown } | null,
+  expCount: number,
 ): number {
   let s = 0
-  if (u.region)                                            s += 10
-  if (u.genre)                                             s += 5
-  if (u.dateNaissance)                                     s += 5
-  if (u.commune)                                           s += 5
-  if (p?.biographie)                                       s += 20
-  if (p?.niveauEtude)                                      s += 10
-  if (p?.situationEmploi)                                  s += 10
-  if (Array.isArray(p?.domainesInteret) && (p?.domainesInteret as unknown[]).length > 0) s += 15
-  if (Array.isArray(p?.competences)     && (p?.competences as unknown[]).length > 0)     s += 10
-  if (experiencesCount > 0)                                s += 10
+  if (identite.region)                                                                          s += 10
+  if (identite.genre)                                                                           s += 5
+  if (identite.dateNaissance)                                                                   s += 5
+  if (identite.commune)                                                                         s += 5
+  if (profil?.biographie)                                                                       s += 20
+  if (profil?.niveauEtude)                                                                      s += 10
+  if (profil?.situationEmploi)                                                                  s += 10
+  if (Array.isArray(profil?.domainesInteret) && (profil.domainesInteret as unknown[]).length)  s += 15
+  if (Array.isArray(profil?.competences)     && (profil.competences as unknown[]).length)      s += 10
+  if (expCount > 0)                                                                             s += 10
   return Math.min(s, 100)
 }
 
-// ── Schéma de validation PUT ──────────────────────────────────────────────────
+// ── Schéma PUT ────────────────────────────────────────────────────────────────
+
+const REGIONS = Object.values(Region) as [string, ...string[]]
+const GENRES  = Object.values(Genre)  as [string, ...string[]]
 
 const PutProfilSchema = z.object({
-  region:          z.string().optional().nullable(),
-  commune:         z.string().max(100).optional().nullable(),
-  genre:           z.enum(['M', 'F']).optional().nullable(),
-  dateNaissance:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  biographie:      z.string().max(2000).optional().nullable(),
-  niveauEtude:     z.string().max(50).optional().nullable(),
-  situationEmploi: z.string().max(50).optional().nullable(),
-  domainesInteret: z.array(z.string()).max(10).optional(),
-  competences:     z.array(z.string().max(80)).max(20).optional(),
+  region:           z.enum(REGIONS).optional().nullable(),
+  commune:          z.string().max(100).optional().nullable(),
+  genre:            z.enum(GENRES).optional().nullable(),
+  dateNaissance:    z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(d => {
+      const date = new Date(d)
+      return date < new Date() && date > new Date('1900-01-01')
+    }, 'Date de naissance invalide')
+    .optional().nullable(),
+  biographie:       z.string().max(2000).optional().nullable(),
+  niveauEtude:      z.string().max(50).optional().nullable(),
+  situationEmploi:  z.string().max(50).optional().nullable(),
+  domainesInteret:  z.array(z.string()).max(10).optional(),
+  competences:      z.array(z.string().max(80)).max(20).optional(),
   profileVisibility: z.enum(['public', 'prive']).optional(),
 })
 
@@ -113,7 +86,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   if (!utilisateur) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Utilisateur introuvable' } }, { status: 404 })
 
   const profil = utilisateur.profil
-
   const data: ProfilComplet = {
     cjsUid:        utilisateur.cjsUid,
     nom:           utilisateur.nom,
@@ -155,12 +127,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
 // ── PUT ───────────────────────────────────────────────────────────────────────
 
-export async function PUT(request: NextRequest): Promise<NextResponse<ApiResponse<{ completionScore: number }>>> {
+export async function PUT(request: NextRequest): Promise<NextResponse<ApiResponse<PutProfilResponse>>> {
   const session = await getSession(request)
   if (!session) return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
 
-  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: 'profil-put' })
-  if (limited) return limited as NextResponse<ApiResponse<{ completionScore: number }>>
+  // Rate limit par utilisateur (pas par IP — évite blocage derrière NAT partagé)
+  const limited = await rateLimit(request, { windowMs: 60_000, max: 10, keyPrefix: `profil-put:${session.cjsUid}` })
+  if (limited) return limited as NextResponse<ApiResponse<PutProfilResponse>>
 
   const body = await request.json().catch(() => null)
   const parsed = PutProfilSchema.safeParse(body)
@@ -173,50 +146,77 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
 
   const { region, commune, genre, dateNaissance, ...profilFields } = parsed.data
 
-  // Mettre à jour Utilisateur
-  const utilisateur = await prisma.utilisateur.update({
-    where: { cjsUid: session.cjsUid },
-    data: {
-      ...(region !== undefined        ? { region: region as never }           : {}),
-      ...(commune !== undefined       ? { commune }                           : {}),
-      ...(genre !== undefined         ? { genre: genre as never }             : {}),
-      ...(dateNaissance !== undefined ? { dateNaissance: dateNaissance ? new Date(dateNaissance) : null } : {}),
-    },
-    select: { region: true, commune: true, genre: true, dateNaissance: true },
-  })
+  // Lire état actuel + count expériences pour calculer le score avant transaction
+  const [existing, expCount] = await Promise.all([
+    prisma.utilisateur.findUnique({
+      where: { cjsUid: session.cjsUid },
+      select: {
+        region: true, commune: true, genre: true, dateNaissance: true,
+        profil: { select: { biographie: true, niveauEtude: true, situationEmploi: true, domainesInteret: true, competences: true } },
+      },
+    }),
+    prisma.experience.count({ where: { profil: { cjsUid: session.cjsUid } } }),
+  ])
 
-  // Upsert ProfilJeune
-  const profil = await prisma.profilJeune.upsert({
-    where: { cjsUid: session.cjsUid },
-    create: {
-      cjsUid: session.cjsUid,
-      ...buildProfilData(profilFields),
-    },
-    update: buildProfilData(profilFields),
-    select: {
-      biographie: true, niveauEtude: true, situationEmploi: true,
-      domainesInteret: true, competences: true,
-      experiences: { select: { id: true } },
-    },
-  })
-
-  const score = calculerScore(utilisateur, profil, profil.experiences.length)
-
-  await prisma.profilJeune.update({
-    where: { cjsUid: session.cjsUid },
-    data: { completionScore: score },
-  })
-
-  return NextResponse.json({ data: { completionScore: score } })
-}
-
-function buildProfilData(fields: Omit<z.infer<typeof PutProfilSchema>, 'region' | 'commune' | 'genre' | 'dateNaissance'>) {
-  return {
-    ...(fields.biographie      !== undefined ? { biographie: fields.biographie }           : {}),
-    ...(fields.niveauEtude     !== undefined ? { niveauEtude: fields.niveauEtude }         : {}),
-    ...(fields.situationEmploi !== undefined ? { situationEmploi: fields.situationEmploi } : {}),
-    ...(fields.domainesInteret !== undefined ? { domainesInteret: fields.domainesInteret } : {}),
-    ...(fields.competences     !== undefined ? { competences: fields.competences }         : {}),
-    ...(fields.profileVisibility !== undefined ? { profileVisibility: fields.profileVisibility } : {}),
+  // Fusionner état actuel + champs soumis pour le calcul du score
+  const mergedIdentite = {
+    region:        region        !== undefined ? region        : existing?.region        ?? null,
+    commune:       commune       !== undefined ? commune       : existing?.commune       ?? null,
+    genre:         genre         !== undefined ? genre         : existing?.genre         ?? null,
+    dateNaissance: dateNaissance !== undefined ? dateNaissance : existing?.dateNaissance ?? null,
   }
+  const mergedProfil = {
+    biographie:      profilFields.biographie      !== undefined ? profilFields.biographie      : existing?.profil?.biographie      ?? null,
+    niveauEtude:     profilFields.niveauEtude     !== undefined ? profilFields.niveauEtude     : existing?.profil?.niveauEtude     ?? null,
+    situationEmploi: profilFields.situationEmploi !== undefined ? profilFields.situationEmploi : existing?.profil?.situationEmploi ?? null,
+    domainesInteret: profilFields.domainesInteret !== undefined ? profilFields.domainesInteret : (existing?.profil?.domainesInteret as string[] | null) ?? [],
+    competences:     profilFields.competences     !== undefined ? profilFields.competences     : (existing?.profil?.competences as string[] | null) ?? [],
+  }
+  const score = calculerScore(mergedIdentite, mergedProfil, expCount)
+
+  // Construire les données à persister
+  const identiteData = {
+    ...(region        !== undefined ? { region: region as Region | null }             : {}),
+    ...(commune       !== undefined ? { commune }                                     : {}),
+    ...(genre         !== undefined ? { genre: genre as Genre | null }                : {}),
+    ...(dateNaissance !== undefined ? { dateNaissance: dateNaissance ? new Date(dateNaissance) : null } : {}),
+  }
+  const profilData = {
+    ...(profilFields.biographie        !== undefined ? { biographie: profilFields.biographie }               : {}),
+    ...(profilFields.niveauEtude       !== undefined ? { niveauEtude: profilFields.niveauEtude }             : {}),
+    ...(profilFields.situationEmploi   !== undefined ? { situationEmploi: profilFields.situationEmploi }     : {}),
+    ...(profilFields.domainesInteret   !== undefined ? { domainesInteret: profilFields.domainesInteret }     : {}),
+    ...(profilFields.competences       !== undefined ? { competences: profilFields.competences }             : {}),
+    ...(profilFields.profileVisibility !== undefined ? { profileVisibility: profilFields.profileVisibility } : {}),
+  }
+
+  // Transaction atomique : 0 mise à jour partielle possible
+  await prisma.$transaction(async (tx) => {
+    if (Object.keys(identiteData).length > 0) {
+      await tx.utilisateur.update({ where: { cjsUid: session.cjsUid }, data: identiteData })
+    }
+    await tx.profilJeune.upsert({
+      where:  { cjsUid: session.cjsUid },
+      create: { cjsUid: session.cjsUid, ...profilData, completionScore: score },
+      update: { ...profilData, completionScore: score },
+    })
+  })
+
+  // Retourner l'état fusionné complet pour que le client puisse mettre à jour son affichage
+  const responseData: PutProfilResponse = {
+    region:          mergedIdentite.region,
+    commune:         mergedIdentite.commune,
+    genre:           mergedIdentite.genre,
+    dateNaissance:   typeof mergedIdentite.dateNaissance === 'string'
+      ? mergedIdentite.dateNaissance
+      : (mergedIdentite.dateNaissance as Date | null)?.toISOString().slice(0, 10) ?? null,
+    biographie:      mergedProfil.biographie,
+    niveauEtude:     mergedProfil.niveauEtude,
+    situationEmploi: mergedProfil.situationEmploi,
+    domainesInteret: mergedProfil.domainesInteret,
+    competences:     mergedProfil.competences,
+    completionScore: score,
+  }
+
+  return NextResponse.json({ data: responseData })
 }
