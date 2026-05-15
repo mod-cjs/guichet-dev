@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
-import { activateSession } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
@@ -74,7 +73,6 @@ export async function GET(request: NextRequest) {
     }
 
     const encoded     = await encodeSession(session)
-    await activateSession(session.cjsUid, tokens.expires_in)
     logger.info('session-size', {
       accessToken:  tokens.access_token.length,
       refreshToken: tokens.refresh_token.length,

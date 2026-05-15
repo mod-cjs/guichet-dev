@@ -21,6 +21,7 @@ describe('activateSession', () => {
     await activateSession(UID, 3600)
     expect(mockRedis.set).not.toHaveBeenCalled()
     expect(mockRedis.del).not.toHaveBeenCalled()
+    expect(mockRedis.get).not.toHaveBeenCalled()
   })
 })
 

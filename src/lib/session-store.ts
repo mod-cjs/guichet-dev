@@ -6,16 +6,11 @@ const key      = (cjsUid: string) => `${PREFIX}${cjsUid}`
 const REVOKED  = 'revoked'
 const TTL_7D   = 7 * 24 * 3600
 
-/**
- * Logique denylist : une session est active par défaut (le JWT fait foi).
- * Redis ne stocke que les sessions explicitement révoquées (backchannel logout).
- * Élimine la race condition multi-région Vercel (cdg1 écrit, lhr1 lit immédiatement).
- */
+// Denylist : une session est active par défaut (le JWT fait foi).
+// Redis ne stocke que les sessions explicitement révoquées (backchannel logout).
 
 /** No-op — la session est active dès que le cookie JWT est posé. */
-export async function activateSession(_cjsUid: string, _ttlSeconds: number): Promise<void> {
-  // Denylist : aucune écriture Redis au login, le JWT est la source de vérité
-}
+export async function activateSession(_cjsUid: string, _ttlSeconds: number): Promise<void> {}
 
 /** Marque la session comme révoquée dans Redis (TTL 7 jours). */
 export async function revokeSession(cjsUid: string): Promise<void> {

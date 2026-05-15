@@ -31,11 +31,6 @@ jest.mock('@/lib/auth', () => ({
   setSessionCookie: (...args: unknown[]) => mockSetSessionCookie(...args),
 }))
 
-const mockActivateSession = jest.fn()
-
-jest.mock('@/lib/session-store', () => ({
-  activateSession: (...args: unknown[]) => mockActivateSession(...args),
-}))
 
 const mockUpsert = jest.fn()
 
@@ -93,7 +88,6 @@ const SSO_CLAIMS = {
 beforeEach(() => {
   jest.clearAllMocks()
   mockRevokeToken.mockResolvedValue(undefined)
-  mockActivateSession.mockResolvedValue(undefined)
   mockEncodeSession.mockResolvedValue('encoded-session-jwt')
   mockSetSessionCookie.mockReturnValue(undefined)
 })
@@ -189,11 +183,6 @@ describe('GET /auth/callback — flux nominal', () => {
         create: expect.objectContaining({ cjsUid: 'uid-abc', email: 'fatou@example.sn' }),
       })
     )
-  })
-
-  it('active la session Redis', async () => {
-    await GET(validRequest())
-    expect(mockActivateSession).toHaveBeenCalledWith('uid-abc', TOKEN_RESPONSE.expires_in)
   })
 
   it('encode la session et pose le cookie', async () => {
