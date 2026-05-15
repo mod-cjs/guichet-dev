@@ -21,7 +21,7 @@
     "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "validate": "npm run lint && npx tsc --noEmit && npm run test -- --no-coverage",
     "build:prod": "prisma generate && next build",
-    "start:prod": "next start -p ${PORT:-3000}"
+    "start:prod": "node .next/standalone/server.js"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.8.0",
