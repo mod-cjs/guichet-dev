@@ -128,7 +128,7 @@ export function OnboardingWizard({ initialData }: Props) {
     }
   }
 
-  const progressPct = Math.round((step / STEPS.length) * 100)
+  const progressPct = Math.round(((step - 1) / STEPS.length) * 100)
 
   return (
     <div className="min-h-screen bg-gj-bg flex flex-col items-center justify-start px-space-4 py-space-8">

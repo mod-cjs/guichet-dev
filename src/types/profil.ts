@@ -38,6 +38,16 @@ export interface ProfilComplet {
   certificats:  CertificatItem[]
 }
 
+// Retourné par POST/PUT /api/profil/experiences
+export interface ExperienceResponse extends ExperienceItem {
+  completionScore: number
+}
+
+// Retourné par DELETE /api/profil/experiences/:id
+export interface DeleteExperienceResponse {
+  completionScore: number
+}
+
 // Retourné par PUT /api/profil — tous les champs à jour + score
 export interface PutProfilResponse {
   region:          string | null

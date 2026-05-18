@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, Button, Input, Modal } from '@/components/ui'
-import type { ExperienceItem } from '@/types/profil'
+import type { ExperienceItem, ExperienceResponse, DeleteExperienceResponse } from '@/types/profil'
 
 interface FormData {
   poste:        string
@@ -19,10 +19,11 @@ function formatDate(iso: string) {
 }
 
 interface Props {
-  experiences: ExperienceItem[]
+  experiences:   ExperienceItem[]
+  onScoreChange: (score: number) => void
 }
 
-export function SectionExperiences({ experiences: initial }: Props) {
+export function SectionExperiences({ experiences: initial, onScoreChange }: Props) {
   const [items,        setItems]        = useState<ExperienceItem[]>(initial)
   const [modal,        setModal]        = useState<'add' | 'edit' | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ExperienceItem | null>(null)
@@ -79,12 +80,13 @@ export function SectionExperiences({ experiences: initial }: Props) {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Erreur')
 
-      const saved = json.data as ExperienceItem
+      const { completionScore, ...saved } = json.data as ExperienceResponse
       setItems(prev =>
         isEdit
           ? prev.map(e => e.id === saved.id ? saved : e)
           : [saved, ...prev]
       )
+      onScoreChange(completionScore)
       setModal(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue')
@@ -99,11 +101,12 @@ export function SectionExperiences({ experiences: initial }: Props) {
     setDeleteError(null)
     try {
       const res = await fetch(`/api/profil/experiences/${deleteTarget.id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}))
-        throw new Error(json.error?.message ?? 'Erreur lors de la suppression')
-      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error?.message ?? 'Erreur lors de la suppression')
+
+      const { completionScore } = json.data as DeleteExperienceResponse
       setItems(prev => prev.filter(e => e.id !== deleteTarget.id))
+      onScoreChange(completionScore)
       setDeleteTarget(null)
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : 'Erreur inconnue')

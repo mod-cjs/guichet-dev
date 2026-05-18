@@ -47,6 +47,7 @@ export function ProfilClient({ initial }: Props) {
 
       <SectionExperiences
         experiences={initial.experiences}
+        onScoreChange={setScore}
       />
 
       <SectionCertificats

@@ -1,5 +1,35 @@
 import { prisma } from '@/lib/prisma'
+import { calculerScore } from '@/lib/profil-score'
 import type { ProfilComplet } from '@/types/profil'
+
+export async function recalculerEtPersisterScore(cjsUid: string): Promise<number> {
+  const [utilisateur, expCount] = await Promise.all([
+    prisma.utilisateur.findUnique({
+      where:  { cjsUid },
+      select: {
+        region: true, commune: true, genre: true, dateNaissance: true,
+        profil: {
+          select: { biographie: true, niveauEtude: true, situationEmploi: true, domainesInteret: true, competences: true },
+        },
+      },
+    }),
+    prisma.experience.count({ where: { profil: { cjsUid } } }),
+  ])
+
+  const score = calculerScore(
+    {
+      region:        utilisateur?.region        ?? null,
+      commune:       utilisateur?.commune       ?? null,
+      genre:         utilisateur?.genre         ?? null,
+      dateNaissance: utilisateur?.dateNaissance ?? null,
+    },
+    utilisateur?.profil ?? null,
+    expCount,
+  )
+
+  await prisma.profilJeune.update({ where: { cjsUid }, data: { completionScore: score } })
+  return score
+}
 
 export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet | null> {
   const u = await prisma.utilisateur.findUnique({
