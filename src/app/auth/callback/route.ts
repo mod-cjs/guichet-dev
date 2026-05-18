@@ -44,15 +44,15 @@ export async function GET(request: NextRequest) {
     const utilisateur = await prisma.utilisateur.upsert({
       where:  { cjsUid: claims.sub },
       update: {
-        nom:    claims.family_name,
-        prenom: claims.given_name,
-        email:  claims.email ?? undefined,
+        nom:    claims.family_name ?? undefined,
+        prenom: claims.given_name  ?? undefined,
+        email:  claims.email       ?? undefined,
       },
       create: {
         cjsUid:    claims.sub,
-        nom:       claims.family_name,
-        prenom:    claims.given_name,
-        email:     claims.email ?? undefined,
+        nom:       claims.family_name ?? '',
+        prenom:    claims.given_name  ?? '',
+        email:     claims.email       ?? undefined,
         telephone: claims.phone_number ?? undefined,
       },
       select: { onboardingComplete: true, region: true, commune: true },
