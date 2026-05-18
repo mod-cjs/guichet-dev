@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         nom:       claims.family_name ?? '',
         prenom:    claims.given_name  ?? '',
         email:     claims.email       ?? undefined,
-        telephone: claims.phone_number ?? undefined,
+        telephone: toE164(claims.phone_number),
       },
       select: { onboardingComplete: true, region: true, commune: true },
     })
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       nom:                claims.family_name ?? '',
       prenom:             claims.given_name  ?? '',
       email:              claims.email,
-      telephone:          claims.phone_number,
+      telephone:          toE164(claims.phone_number) ?? null,
       region:             utilisateur.region ?? claims.address?.region ?? null,
       roles,
       accessToken:        tokens.access_token,
@@ -109,6 +109,20 @@ export async function GET(request: NextRequest) {
 }
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+
+/**
+ * Normalise un numéro de téléphone en E.164.
+ * Gère les formats : +221XXXXXXXXX, 00221XXXXXXXXX, et locaux sénégalais 9 chiffres.
+ * Retourne undefined si null/vide, le numéro tel quel si format non reconnu.
+ */
+function toE164(phone: string | null | undefined): string | undefined {
+  if (!phone) return undefined
+  const cleaned = phone.replace(/[\s\-\.\(\)]/g, '')
+  if (cleaned.startsWith('+'))  return cleaned
+  if (cleaned.startsWith('00')) return '+' + cleaned.slice(2)
+  if (/^\d{9}$/.test(cleaned))  return '+221' + cleaned
+  return cleaned
+}
 const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
 
 function roleRedirect(session: CJSSession): string {

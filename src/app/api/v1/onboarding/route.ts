@@ -104,9 +104,14 @@ export async function PUT(request: NextRequest) {
       },
     })
 
-    return NextResponse.json<ApiResponse<{ nextStep: number; onboardingComplete: boolean }>>({
+    // Synchroniser le JWT — nom/prénom peuvent avoir été vides au login (SSO sans last_name)
+    const updatedSession = { ...session, nom: data.nom, prenom: data.prenom }
+    const encoded        = await encodeSession(updatedSession)
+    const response       = NextResponse.json<ApiResponse<{ nextStep: number; onboardingComplete: boolean }>>({
       data: { nextStep: 2, onboardingComplete: false },
     })
+    setSessionCookie(response, encoded, updatedSession.expiresAt - Math.floor(Date.now() / 1000))
+    return response
   }
 
   if (step === 2) {

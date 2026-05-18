@@ -443,6 +443,50 @@ describe('GET /auth/callback — roleRedirect complet', () => {
   })
 })
 
+// ── Normalisation E.164 du téléphone ─────────────────────────────────────
+
+describe('GET /auth/callback — E.164 téléphone', () => {
+  beforeEach(() => {
+    mockExchangeCode.mockResolvedValue(TOKEN_RESPONSE)
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+  })
+
+  function validRequest(): NextRequest {
+    return makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz' },
+    )
+  }
+
+  it('numéro déjà E.164 (+221…) → conservé tel quel', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, phone_number: '+221771234567' })
+    await GET(validRequest())
+    const session = mockEncodeSession.mock.calls[0]?.[0]
+    expect(session.telephone).toBe('+221771234567')
+  })
+
+  it('numéro local 9 chiffres → +221 ajouté', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, phone_number: '771234567' })
+    await GET(validRequest())
+    const session = mockEncodeSession.mock.calls[0]?.[0]
+    expect(session.telephone).toBe('+221771234567')
+  })
+
+  it('numéro format 00221… → +221…', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, phone_number: '00221771234567' })
+    await GET(validRequest())
+    const session = mockEncodeSession.mock.calls[0]?.[0]
+    expect(session.telephone).toBe('+221771234567')
+  })
+
+  it('phone_number null → telephone null dans la session', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, phone_number: null })
+    await GET(validRequest())
+    const session = mockEncodeSession.mock.calls[0]?.[0]
+    expect(session.telephone).toBeNull()
+  })
+})
+
 // ── safeReturnTo ──────────────────────────────────────────────────────────
 
 describe('GET /auth/callback — safeReturnTo', () => {

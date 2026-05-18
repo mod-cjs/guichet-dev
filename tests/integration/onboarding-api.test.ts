@@ -214,6 +214,19 @@ describe('PUT /api/v1/onboarding — étape 1 (identité)', () => {
     const res = await PUT(makePutRequest({ step: 1, data: { prenom: 'Fatou' } }))
     expect(res.status).toBe(422)
   })
+
+  it('synchronise le cookie de session avec le nouveau nom/prenom', async () => {
+    mockUpdate.mockResolvedValue({})
+    await PUT(makePutRequest({
+      step: 1,
+      data: { nom: 'Sow', prenom: 'Ibrahima', dateNaissance: null, genre: null },
+    }))
+
+    expect(mockEncodeSession).toHaveBeenCalledWith(
+      expect.objectContaining({ nom: 'Sow', prenom: 'Ibrahima' })
+    )
+    expect(mockSetSessionCookie).toHaveBeenCalled()
+  })
 })
 
 describe('PUT /api/v1/onboarding — étape 2 (localisation)', () => {

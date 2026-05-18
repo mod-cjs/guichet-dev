@@ -16,6 +16,17 @@ jest.mock('@/lib/auth', () => ({
   setSessionCookie: (...args: unknown[]) => mockSetSessionCookie(...args),
 }))
 
+const mockIsSessionActive = jest.fn()
+const mockRevokeToken     = jest.fn()
+
+jest.mock('@/lib/session-store', () => ({
+  isSessionActive: (...args: unknown[]) => mockIsSessionActive(...args),
+}))
+
+jest.mock('@/lib/sso-client', () => ({
+  revokeToken: (...args: unknown[]) => mockRevokeToken(...args),
+}))
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function makeRequest(path: string): NextRequest {
@@ -40,7 +51,11 @@ function makeSession(overrides = {}) {
   }
 }
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockIsSessionActive.mockResolvedValue(true) // actif par défaut
+  mockRevokeToken.mockResolvedValue(undefined)
+})
 
 // ── Routes non-protégées ───────────────────────────────────────────────────
 
@@ -141,6 +156,37 @@ describe('accès autorisé', () => {
   })
 })
 
+// ── Denylist Redis (backchannel logout) ──────────────────────────────────
+
+describe('denylist Redis', () => {
+  it('redirige vers login si session révoquée (backchannel logout)', async () => {
+    mockGetSession.mockResolvedValue(makeSession())
+    mockIsSessionActive.mockResolvedValue(false) // révoquée
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/auth/connexion')
+    const cookie = res.headers.get('set-cookie') ?? ''
+    expect(cookie).toContain('cjs_session=;')
+  })
+
+  it('laisse passer si session active en Redis', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
+    mockIsSessionActive.mockResolvedValue(true)
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('fail-open : Redis indisponible → session considérée active', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
+    mockIsSessionActive.mockResolvedValue(true) // session-store catch → true
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+})
+
 // ── Rôles admin étendus (moderator, super_admin) ─────────────────────────
 
 describe('rôles admin étendus', () => {
@@ -203,6 +249,28 @@ describe('refresh de token', () => {
     expect(fetchSpy).toHaveBeenCalled()
     expect(mockEncodeSession).toHaveBeenCalled()
     expect(mockSetSessionCookie).toHaveBeenCalled()
+
+    fetchSpy.mockRestore()
+  })
+
+  it('révoque l\'ancien token après refresh réussi', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mockGetSession.mockResolvedValue(
+      makeSession({ expiresAt: now + 120, onboardingComplete: true, accessToken: 'old-at' })
+    )
+    mockEncodeSession.mockResolvedValue('new-encoded-session')
+
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ access_token: 'new-at', refresh_token: 'new-rt', expires_in: 3600 }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    await proxy(makeRequest('/jeune/profil'))
+
+    // Attendre que la révocation fire-and-forget se termine
+    await new Promise(r => setTimeout(r, 10))
+    expect(mockRevokeToken).toHaveBeenCalledWith('old-at')
 
     fetchSpy.mockRestore()
   })

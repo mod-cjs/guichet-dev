@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { revokeSession } from '@/lib/session-store'
+import { rateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
 const JWKS_URL   = `${process.env.SSO_BASE_URL}/oauth/keys`
@@ -14,6 +15,9 @@ function getJwks() {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimit(request, { windowMs: 60_000, max: 20, keyPrefix: 'backchannel-logout' })
+  if (limited) return limited
+
   const body = await request.text()
   const params = new URLSearchParams(body)
   const logoutToken = params.get('logout_token')

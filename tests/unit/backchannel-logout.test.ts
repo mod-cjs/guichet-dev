@@ -19,9 +19,14 @@ jest.mock('jose', () => {
 })
 
 const mockRevokeSession = jest.fn()
+const mockRateLimit     = jest.fn()
 
 jest.mock('@/lib/session-store', () => ({
   revokeSession: (...args: unknown[]) => mockRevokeSession(...args),
+}))
+
+jest.mock('@/lib/rate-limit', () => ({
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }))
 
 jest.mock('@/lib/logger', () => ({
@@ -46,7 +51,10 @@ beforeAll(async () => {
   )
 })
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockRateLimit.mockResolvedValue(null) // pas limité par défaut
+})
 
 async function signToken(claims: Record<string, unknown>): Promise<string> {
   return new SignJWT(claims)
@@ -65,6 +73,22 @@ function makeRequest(body: string) {
 }
 
 const LOGOUT_EVENT = 'http://schemas.openid.net/event/backchannel-logout'
+
+describe('rate limiting', () => {
+  it('retourne 429 si le rate limit est atteint', async () => {
+    mockRateLimit.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 })
+    )
+    const res = await POST(makeRequest('logout_token=anything'))
+    expect(res.status).toBe(429)
+  })
+
+  it('continue si le rate limit n\'est pas atteint', async () => {
+    mockRateLimit.mockResolvedValue(null)
+    const res = await POST(makeRequest(''))
+    expect(res.status).toBe(400) // manque logout_token, mais pas 429
+  })
+})
 
 describe('POST /api/auth/backchannel-logout', () => {
   it('retourne 400 si logout_token absent', async () => {
