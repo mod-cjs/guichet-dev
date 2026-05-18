@@ -4,29 +4,10 @@ import { Region, Genre } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { calculerScore } from '@/lib/profil-score'
+import { loadProfilComplet } from '@/lib/profil-loader'
 import type { ApiResponse } from '@/types/api'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
-
-// ── Score ─────────────────────────────────────────────────────────────────────
-
-function calculerScore(
-  identite: { region: unknown; commune: unknown; genre: unknown; dateNaissance: unknown },
-  profil:   { biographie: unknown; niveauEtude: unknown; situationEmploi: unknown; domainesInteret: unknown; competences: unknown } | null,
-  expCount: number,
-): number {
-  let s = 0
-  if (identite.region)                                                                          s += 10
-  if (identite.genre)                                                                           s += 5
-  if (identite.dateNaissance)                                                                   s += 5
-  if (identite.commune)                                                                         s += 5
-  if (profil?.biographie)                                                                       s += 20
-  if (profil?.niveauEtude)                                                                      s += 10
-  if (profil?.situationEmploi)                                                                  s += 10
-  if (Array.isArray(profil?.domainesInteret) && (profil.domainesInteret as unknown[]).length)  s += 15
-  if (Array.isArray(profil?.competences)     && (profil.competences as unknown[]).length)      s += 10
-  if (expCount > 0)                                                                             s += 10
-  return Math.min(s, 100)
-}
 
 // ── Schéma PUT ────────────────────────────────────────────────────────────────
 
@@ -61,66 +42,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   const limited = await rateLimit(request, { windowMs: 60_000, max: 30, keyPrefix: 'profil-get' })
   if (limited) return limited as NextResponse<ApiResponse<ProfilComplet>>
 
-  const utilisateur = await prisma.utilisateur.findUnique({
-    where: { cjsUid: session.cjsUid },
-    select: {
-      cjsUid: true, nom: true, prenom: true, email: true, telephone: true,
-      region: true, commune: true, genre: true, dateNaissance: true,
-      profil: {
-        select: {
-          id: true, biographie: true, niveauEtude: true, situationEmploi: true,
-          domainesInteret: true, competences: true, completionScore: true, profileVisibility: true,
-          experiences: {
-            select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
-            orderBy: { dateDebut: 'desc' },
-          },
-          certificats: {
-            select: { id: true, formation: true, obtenuLe: true, urlCertificat: true },
-            orderBy: { obtenuLe: 'desc' },
-          },
-        },
-      },
-    },
-  })
-
-  if (!utilisateur) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Utilisateur introuvable' } }, { status: 404 })
-
-  const profil = utilisateur.profil
-  const data: ProfilComplet = {
-    cjsUid:        utilisateur.cjsUid,
-    nom:           utilisateur.nom,
-    prenom:        utilisateur.prenom,
-    email:         utilisateur.email,
-    telephone:     utilisateur.telephone,
-    region:        utilisateur.region,
-    commune:       utilisateur.commune,
-    genre:         utilisateur.genre,
-    dateNaissance: utilisateur.dateNaissance?.toISOString().slice(0, 10) ?? null,
-    profil: profil ? {
-      id:                profil.id,
-      biographie:        profil.biographie,
-      niveauEtude:       profil.niveauEtude,
-      situationEmploi:   profil.situationEmploi,
-      domainesInteret:   (profil.domainesInteret as string[] | null) ?? [],
-      competences:       (profil.competences as string[] | null) ?? [],
-      completionScore:   profil.completionScore,
-      profileVisibility: profil.profileVisibility,
-    } : null,
-    experiences: (profil?.experiences ?? []).map(e => ({
-      id:           e.id,
-      poste:        e.poste,
-      organisation: e.organisation,
-      dateDebut:    e.dateDebut.toISOString().slice(0, 10),
-      dateFin:      e.dateFin?.toISOString().slice(0, 10) ?? null,
-      description:  e.description,
-    })),
-    certificats: (profil?.certificats ?? []).map(c => ({
-      id:            c.id,
-      formation:     c.formation,
-      obtenuLe:      c.obtenuLe.toISOString().slice(0, 10),
-      urlCertificat: c.urlCertificat,
-    })),
-  }
+  const data = await loadProfilComplet(session.cjsUid)
+  if (!data) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Utilisateur introuvable' } }, { status: 404 })
 
   return NextResponse.json({ data })
 }
