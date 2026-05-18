@@ -141,6 +141,47 @@ describe('accès autorisé', () => {
   })
 })
 
+// ── Rôles admin étendus (moderator, super_admin) ─────────────────────────
+
+describe('rôles admin étendus', () => {
+  it('moderator accède à /admin/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
+    const res = await proxy(makeRequest('/admin/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('super_admin accède à /admin/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['super_admin'] }))
+    const res = await proxy(makeRequest('/admin/utilisateurs'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('moderator redirigé vers /admin/ depuis /jeune/ (mauvais espace)', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
+  })
+
+  it('jeune accède à /jeune/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['jeune'], onboardingComplete: true }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('chercheur_d_emploi accède à /jeune/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['chercheur_d_emploi'], onboardingComplete: true }))
+    const res = await proxy(makeRequest('/jeune/profil'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('rôle inconnu → redirige vers /auth/connexion?error=no_role', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['inconnu'] }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.headers.get('location')).toContain('error=no_role')
+  })
+})
+
 // ── Refresh automatique ───────────────────────────────────────────────────
 
 describe('refresh de token', () => {

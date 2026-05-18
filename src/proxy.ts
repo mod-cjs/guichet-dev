@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
 
 const PROTECTED: { pattern: RegExp; check: (roles: string[]) => boolean }[] = [
   { pattern: /^\/jeune\//,     check: roles => roles.some(r => BENEFICIAIRE_ROLES.has(r)) },
   { pattern: /^\/recruteur\//, check: roles => roles.includes('recruteur')                },
-  { pattern: /^\/admin\//,     check: roles => roles.includes('admin')                    },
+  { pattern: /^\/admin\//,     check: roles => roles.some(r => ADMIN_ROLES.has(r))        },
 ]
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
@@ -90,8 +91,8 @@ export async function proxy(request: NextRequest) {
 }
 
 function roleHome(roles: string[]): string | null {
-  if (roles.includes('admin'))                  return '/admin/tableau-de-bord'
-  if (roles.includes('recruteur'))              return '/recruteur/tableau-de-bord'
+  if (roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
+  if (roles.includes('recruteur'))                return '/recruteur/tableau-de-bord'
   if (roles.some(r => BENEFICIAIRE_ROLES.has(r))) return '/jeune/tableau-de-bord'
   return null
 }

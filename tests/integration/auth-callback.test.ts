@@ -242,3 +242,235 @@ describe('GET /auth/callback — flux nominal', () => {
     expect(setCookie).toMatch(/oauth_state=;/)
   })
 })
+
+// ── Cas limites — champs SSO null ─────────────────────────────────────────
+
+describe('GET /auth/callback — champs SSO null ou absents', () => {
+  beforeEach(() => {
+    mockExchangeCode.mockResolvedValue(TOKEN_RESPONSE)
+    mockUpsert.mockResolvedValue({ onboardingComplete: false, region: null, commune: null })
+  })
+
+  function validRequest(extraCookies: Record<string, string> = {}): NextRequest {
+    return makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz', ...extraCookies },
+    )
+  }
+
+  it('family_name null → upsert avec nom=""', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, family_name: null })
+    await GET(validRequest())
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ nom: '' }),
+      })
+    )
+  })
+
+  it('given_name null → upsert avec prenom=""', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, given_name: null })
+    await GET(validRequest())
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ prenom: '' }),
+      })
+    )
+  })
+
+  it('family_name null → session.nom=""  (pas undefined)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, family_name: null })
+    await GET(validRequest())
+    const sessionArg = mockEncodeSession.mock.calls[0]?.[0]
+    expect(sessionArg?.nom).toBe('')
+  })
+
+  it('given_name null → session.prenom="" (pas undefined)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, given_name: null })
+    await GET(validRequest())
+    const sessionArg = mockEncodeSession.mock.calls[0]?.[0]
+    expect(sessionArg?.prenom).toBe('')
+  })
+
+  it('email null → upsert sans email (undefined)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, email: null })
+    await GET(validRequest())
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ email: undefined }),
+      })
+    )
+  })
+
+  it('family_name existant → update avec nom=undefined (ne pas écraser)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, family_name: null })
+    await GET(validRequest())
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ nom: undefined }),
+      })
+    )
+  })
+
+  it('cjs_roles comme string CSV → parsé correctement', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: 'beneficiaire,jeune' as unknown as string[] })
+    const res = await GET(validRequest())
+    // Doit procéder normalement — bénéficiaire reconnu
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/jeune/onboarding')
+    expect(mockRevokeToken).not.toHaveBeenCalled()
+  })
+
+  it('Prisma upsert échoue → revoke token et redirige vers auth_failed', async () => {
+    mockGetUserInfo.mockResolvedValue(SSO_CLAIMS)
+    mockUpsert.mockRejectedValue(new Error('Unique constraint failed'))
+    const res = await GET(validRequest())
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('error=auth_failed')
+    expect(mockRevokeToken).toHaveBeenCalledWith(TOKEN_RESPONSE.access_token)
+  })
+})
+
+// ── Vérification du statut de compte ─────────────────────────────────────
+
+describe('GET /auth/callback — cjs_status', () => {
+  beforeEach(() => {
+    mockExchangeCode.mockResolvedValue(TOKEN_RESPONSE)
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+  })
+
+  function validRequest(): NextRequest {
+    return makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz' },
+    )
+  }
+
+  it('accepte un compte active', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_status: 'active' })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).not.toContain('account_inactive')
+    expect(mockRevokeToken).not.toHaveBeenCalled()
+  })
+
+  it('rejette un compte inactive → error=account_inactive', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_status: 'inactive' })
+    const res = await GET(validRequest())
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('error=account_inactive')
+    expect(mockRevokeToken).toHaveBeenCalledWith(TOKEN_RESPONSE.access_token)
+  })
+
+  it('rejette un compte suspended → error=account_inactive', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_status: 'suspended' })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('error=account_inactive')
+    expect(mockRevokeToken).toHaveBeenCalledWith(TOKEN_RESPONSE.access_token)
+  })
+
+  it('accepte si cjs_status absent (compte non-migré)', async () => {
+    const claimsWithoutStatus = { ...SSO_CLAIMS }
+    delete (claimsWithoutStatus as Record<string, unknown>).cjs_status
+    mockGetUserInfo.mockResolvedValue(claimsWithoutStatus)
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).not.toContain('account_inactive')
+  })
+})
+
+// ── Routing par rôle — cas complets ──────────────────────────────────────
+
+describe('GET /auth/callback — roleRedirect complet', () => {
+  beforeEach(() => {
+    mockExchangeCode.mockResolvedValue(TOKEN_RESPONSE)
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+  })
+
+  function validRequest(): NextRequest {
+    return makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz' },
+    )
+  }
+
+  it('moderator → /admin/tableau-de-bord', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['moderator'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
+  })
+
+  it('super_admin → /admin/tableau-de-bord', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['super_admin'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
+  })
+
+  it('admin + beneficiaire → /admin/ (admin prioritaire)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['admin', 'beneficiaire'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
+  })
+
+  it('jeune → /jeune/tableau-de-bord (BENEFICIAIRE_ROLES)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['jeune'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
+  })
+
+  it('chercheur_d_emploi → /jeune/tableau-de-bord', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['chercheur_d_emploi'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
+  })
+
+  it('rôle inconnu → error=no_role (pas de révocation — token valide mais rôle non géré)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['unknown_role'] })
+    const res = await GET(validRequest())
+    expect(res.headers.get('location')).toContain('error=no_role')
+    // Le token n'est PAS révoqué : l'utilisateur est authentifié côté SSO,
+    // il n'a simplement pas de rôle reconnu par le Guichet.
+    expect(mockRevokeToken).not.toHaveBeenCalled()
+  })
+
+  it('bénéficiaire non-onboardé avec returnTo → ignoré, redirige onboarding', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['beneficiaire'] })
+    mockUpsert.mockResolvedValue({ onboardingComplete: false, region: null, commune: null })
+    const res = await GET(makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz', auth_return_to: '/jeune/profil' },
+    ))
+    expect(res.headers.get('location')).toContain('/jeune/onboarding')
+    expect(res.headers.get('location')).not.toContain('/jeune/profil')
+  })
+})
+
+// ── safeReturnTo ──────────────────────────────────────────────────────────
+
+describe('GET /auth/callback — safeReturnTo', () => {
+  beforeEach(() => {
+    mockExchangeCode.mockResolvedValue(TOKEN_RESPONSE)
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['admin'] })
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+  })
+
+  function withReturnTo(path: string): NextRequest {
+    return makeRequest(
+      { code: 'auth-code', state: 'state-abc' },
+      { oauth_state: 'state-abc', pkce_verifier: 'verifier-xyz', auth_return_to: path },
+    )
+  }
+
+  it('utilise auth_return_to si chemin local valide', async () => {
+    const res = await GET(withReturnTo('/admin/utilisateurs'))
+    expect(res.headers.get('location')).toContain('/admin/utilisateurs')
+  })
+
+  it('ignore auth_return_to avec domaine externe', async () => {
+    const res = await GET(withReturnTo('https://evil.com/steal'))
+    expect(res.headers.get('location')).not.toContain('evil.com')
+  })
+
+  it('ignore auth_return_to avec protocole javascript:', async () => {
+    const res = await GET(withReturnTo('javascript:alert(1)'))
+    expect(res.headers.get('location')).not.toContain('javascript')
+  })
+})

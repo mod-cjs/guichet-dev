@@ -18,16 +18,16 @@ export interface TokenResponse {
 
 export interface CJSClaims {
   sub:                    string
-  name:                   string
-  given_name:             string
-  family_name:            string
+  name?:                  string | null
+  given_name?:            string | null
+  family_name?:           string | null
   email:                  string | null
   email_verified:         boolean
   phone_number:           string | null
   phone_number_verified:  boolean
   address?:               { region?: string }
   cjs_roles:              string[]
-  cjs_status:             string
+  cjs_status?:            string
 }
 
 export interface IntrospectionResult {

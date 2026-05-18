@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     }
 
+    if (claims.cjs_status && claims.cjs_status !== 'active') {
+      await revokeToken(tokens.access_token).catch(() => {})
+      return NextResponse.redirect(new URL('/auth/connexion?error=account_inactive', request.url))
+    }
+
     // Upsert Utilisateur — synchronise les données SSO en base
     const utilisateur = await prisma.utilisateur.upsert({
       where:  { cjsUid: claims.sub },
@@ -60,8 +65,8 @@ export async function GET(request: NextRequest) {
 
     const session: CJSSession = {
       cjsUid:             claims.sub,
-      nom:                claims.family_name,
-      prenom:             claims.given_name,
+      nom:                claims.family_name ?? '',
+      prenom:             claims.given_name  ?? '',
       email:              claims.email,
       telephone:          claims.phone_number,
       region:             utilisateur.region ?? claims.address?.region ?? null,
@@ -104,10 +109,11 @@ export async function GET(request: NextRequest) {
 }
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
 
 function roleRedirect(session: CJSSession): string {
-  if (session.roles.includes('admin'))     return '/admin/tableau-de-bord'
-  if (session.roles.includes('recruteur')) return '/recruteur/tableau-de-bord'
+  if (session.roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
+  if (session.roles.includes('recruteur'))                 return '/recruteur/tableau-de-bord'
   if (session.roles.some(r => BENEFICIAIRE_ROLES.has(r))) {
     return session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding'
   }
