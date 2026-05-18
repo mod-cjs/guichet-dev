@@ -9,10 +9,11 @@ import { SectionCertificats } from './SectionCertificats'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
-  initial: ProfilComplet
+  initial:      ProfilComplet
+  ssoProfilUrl: string | null
 }
 
-export function ProfilClient({ initial }: Props) {
+export function ProfilClient({ initial, ssoProfilUrl }: Props) {
   const [score, setScore] = useState(initial.profil?.completionScore ?? 0)
 
   function handleSaved(data: PutProfilResponse) {
@@ -37,6 +38,7 @@ export function ProfilClient({ initial }: Props) {
 
       <SectionIdentite
         data={initial}
+        ssoProfilUrl={ssoProfilUrl}
         onSaved={handleSaved}
       />
 

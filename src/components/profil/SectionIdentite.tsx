@@ -10,14 +10,15 @@ const REGIONS = [
 ].map(r => ({ value: r, label: r.replace('_', '-') }))
 
 interface Props {
-  data: Pick<ProfilComplet, 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
-  onSaved: (data: PutProfilResponse) => void
+  data:         Pick<ProfilComplet, 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
+  ssoProfilUrl: string | null
+  onSaved:      (data: PutProfilResponse) => void
 }
 
-export function SectionIdentite({ data, onSaved }: Props) {
-  const [editing, setEditing]   = useState(false)
-  const [saving,  setSaving]    = useState(false)
-  const [error,   setError]     = useState<string | null>(null)
+export function SectionIdentite({ data, ssoProfilUrl, onSaved }: Props) {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
 
   const [displayed, setDisplayed] = useState({
     region:        data.region,
@@ -97,9 +98,32 @@ export function SectionIdentite({ data, onSaved }: Props) {
         </dl>
       ) : (
         <div className="flex flex-col gap-space-4">
-          <p className="text-fs-200 text-color-text-secondary">
-            Nom, email et téléphone sont gérés par le compte CJS.
-          </p>
+
+          {/* Bloc coordonnées SSO — lecture seule */}
+          <div className="rounded-gj-md bg-gj-bg border border-gj-line p-space-3 flex flex-col gap-space-2">
+            <p className="text-fs-200 font-bold text-color-text-primary">
+              Nom, email et téléphone
+            </p>
+            <p className="text-fs-200 text-color-text-secondary">
+              Ces informations sont gérées sur votre compte CJS et synchronisées
+              automatiquement à chaque connexion.
+            </p>
+            {ssoProfilUrl ? (
+              <a
+                href={ssoProfilUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fs-200 font-bold text-gj-teal-deep underline underline-offset-2 self-start"
+              >
+                Modifier sur mon compte CJS →
+              </a>
+            ) : (
+              <p className="text-fs-200 text-color-text-secondary italic">
+                Contactez le support CJS pour modifier ces informations.
+              </p>
+            )}
+          </div>
+
           <Select
             id="region" label="Région" value={form.region}
             options={REGIONS} placeholder="Sélectionner une région"

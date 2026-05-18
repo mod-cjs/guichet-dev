@@ -10,5 +10,9 @@ export default async function MonProfilPage() {
   const data = await loadProfilComplet(session.cjsUid)
   if (!data) redirect('/auth/connexion')
 
-  return <ProfilClient initial={data} />
+  const ssoProfilUrl = process.env.SSO_BASE_URL
+    ? `${process.env.SSO_BASE_URL}/profil`
+    : null
+
+  return <ProfilClient initial={data} ssoProfilUrl={ssoProfilUrl} />
 }
