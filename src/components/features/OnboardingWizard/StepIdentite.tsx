@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Select } from '@/components/ui/Select'
 import { Input }  from '@/components/ui/Input'
 import type { StepIdentiteData } from '@/lib/validations/onboarding'
@@ -35,16 +36,36 @@ const YEARS = Array.from({ length: 60 }, (_, i) => {
   return { value: String(y), label: String(y) }
 })
 
+function splitDate(iso: string | null | undefined) {
+  const parts = (iso ?? '').split('-')
+  return {
+    year:  parts[0] ?? '',
+    month: parts[1] ?? '',
+    day:   parts[2] ?? '',
+  }
+}
+
 export function StepIdentite({ data, onChange, errors }: Props) {
-  const parts = (data.dateNaissance ?? '').split('-')
-  const selYear  = parts[0] ?? ''
-  const selMonth = parts[1] ?? ''
-  const selDay   = parts[2] ?? ''
+  const initial = splitDate(data.dateNaissance)
+  const [day,   setDay]   = useState(initial.day)
+  const [month, setMonth] = useState(initial.month)
+  const [year,  setYear]  = useState(initial.year)
+
+  // Resync si dateNaissance change depuis l'extérieur (initialData pré-rempli)
+  useEffect(() => {
+    const s = splitDate(data.dateNaissance)
+    setDay(s.day)
+    setMonth(s.month)
+    setYear(s.year)
+  }, [data.dateNaissance])
 
   function handleDatePart(part: 'year' | 'month' | 'day', value: string) {
-    const y = part === 'year'  ? value : selYear
-    const m = part === 'month' ? value : selMonth
-    const d = part === 'day'   ? value : selDay
+    const d = part === 'day'   ? value : day
+    const m = part === 'month' ? value : month
+    const y = part === 'year'  ? value : year
+    if (part === 'day')   setDay(value)
+    if (part === 'month') setMonth(value)
+    if (part === 'year')  setYear(value)
     const assembled = y && m && d ? `${y}-${m}-${d}` : null
     onChange({ ...data, dateNaissance: assembled })
   }
@@ -80,7 +101,7 @@ export function StepIdentite({ data, onChange, errors }: Props) {
             label="Jour"
             options={DAYS}
             placeholder="Jour"
-            value={selDay}
+            value={day}
             onChange={e => handleDatePart('day', e.target.value)}
           />
           <Select
@@ -88,7 +109,7 @@ export function StepIdentite({ data, onChange, errors }: Props) {
             label="Mois"
             options={MONTHS}
             placeholder="Mois"
-            value={selMonth}
+            value={month}
             onChange={e => handleDatePart('month', e.target.value)}
           />
           <Select
@@ -96,7 +117,7 @@ export function StepIdentite({ data, onChange, errors }: Props) {
             label="Année"
             options={YEARS}
             placeholder="Année"
-            value={selYear}
+            value={year}
             onChange={e => handleDatePart('year', e.target.value)}
           />
         </div>

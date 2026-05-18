@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { calculerScore } from '@/lib/profil-score'
 import {
   stepIdentiteSchema,
   stepLocalisationSchema,
@@ -129,6 +130,29 @@ export async function PUT(request: NextRequest) {
   }
 
   // step === 3 — complétion finale
+  // Lire l'identité déjà sauvegardée (steps 1+2) pour calculer le score initial
+  const identiteExistante = await prisma.utilisateur.findUnique({
+    where:  { cjsUid: session.cjsUid },
+    select: { region: true, commune: true, genre: true, dateNaissance: true },
+  })
+
+  const score = calculerScore(
+    {
+      region:        identiteExistante?.region        ?? null,
+      commune:       identiteExistante?.commune       ?? null,
+      genre:         identiteExistante?.genre         ?? null,
+      dateNaissance: identiteExistante?.dateNaissance ?? null,
+    },
+    {
+      biographie:      null,
+      niveauEtude:     data.niveauEtude     ?? null,
+      situationEmploi: data.situationEmploi ?? null,
+      domainesInteret: data.domainesInteret ?? [],
+      competences:     [],
+    },
+    0,
+  )
+
   await prisma.$transaction(async (tx) => {
     await tx.profilJeune.upsert({
       where:  { cjsUid: session.cjsUid },
@@ -136,12 +160,14 @@ export async function PUT(request: NextRequest) {
         niveauEtude:     data.niveauEtude     ?? null,
         situationEmploi: data.situationEmploi ?? null,
         domainesInteret: data.domainesInteret ?? [],
+        completionScore: score,
       },
       create: {
         cjsUid:          session.cjsUid,
         niveauEtude:     data.niveauEtude     ?? null,
         situationEmploi: data.situationEmploi ?? null,
         domainesInteret: data.domainesInteret ?? [],
+        completionScore: score,
       },
     })
 

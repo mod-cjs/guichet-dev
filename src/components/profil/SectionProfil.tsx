@@ -1,20 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, Button, Input } from '@/components/ui'
+import { Card, Button, Input, Select } from '@/components/ui'
+import {
+  NIVEAU_ETUDE_OPTIONS,
+  SITUATION_EMPLOI_OPTIONS,
+  DOMAINES_INTERET,
+  niveauLabel,
+  situationLabel,
+} from '@/lib/profil-constants'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
-
-const NIVEAUX = [
-  'Sans diplôme','BFEM','BAC','BTS','Licence','Master','Doctorat','Formation professionnelle',
-]
-
-const SITUATIONS = [
-  "En recherche d'emploi",'En emploi','En stage','En formation','Entrepreneur','Autre',
-]
-
-const DOMAINES = [
-  'Agriculture','Numérique','Entrepreneuriat','Citoyenneté','Environnement','Santé','Éducation','Culture','Autre',
-]
 
 interface Props {
   data: ProfilComplet['profil']
@@ -103,13 +98,13 @@ export function SectionProfil({ data, onSaved }: Props) {
           {displayed.niveauEtude && (
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Niveau d&apos;étude :</span>
-              <span className="font-medium text-color-text-primary">{displayed.niveauEtude}</span>
+              <span className="font-medium text-color-text-primary">{niveauLabel(displayed.niveauEtude)}</span>
             </div>
           )}
           {displayed.situationEmploi && (
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Situation :</span>
-              <span className="font-medium text-color-text-primary">{displayed.situationEmploi}</span>
+              <span className="font-medium text-color-text-primary">{situationLabel(displayed.situationEmploi)}</span>
             </div>
           )}
           {displayed.domainesInteret.length > 0 && (
@@ -155,46 +150,28 @@ export function SectionProfil({ data, onSaved }: Props) {
             <p className="text-fs-200 text-color-text-secondary text-right">{form.biographie.length}/2000</p>
           </div>
 
-          <div className="flex flex-col gap-space-1">
-            <label className="text-fs-300 font-bold text-color-text-primary">Niveau d&apos;étude</label>
-            <div className="flex flex-wrap gap-space-2">
-              {NIVEAUX.map(n => (
-                <button
-                  key={n} type="button"
-                  onClick={() => setForm(f => ({ ...f, niveauEtude: f.niveauEtude === n ? '' : n }))}
-                  className={`px-space-3 py-space-1 rounded-full text-fs-200 border transition-colors
-                    ${form.niveauEtude === n
-                      ? 'bg-gj-teal text-white border-gj-teal'
-                      : 'bg-white text-color-text-primary border-gj-line hover:border-gj-teal'}`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Select
+            id="niveauEtude"
+            label="Niveau d'étude"
+            options={NIVEAU_ETUDE_OPTIONS as unknown as { value: string; label: string }[]}
+            placeholder="Sélectionner…"
+            value={form.niveauEtude}
+            onChange={e => setForm(f => ({ ...f, niveauEtude: e.target.value }))}
+          />
 
-          <div className="flex flex-col gap-space-1">
-            <label className="text-fs-300 font-bold text-color-text-primary">Situation professionnelle</label>
-            <div className="flex flex-wrap gap-space-2">
-              {SITUATIONS.map(s => (
-                <button
-                  key={s} type="button"
-                  onClick={() => setForm(f => ({ ...f, situationEmploi: f.situationEmploi === s ? '' : s }))}
-                  className={`px-space-3 py-space-1 rounded-full text-fs-200 border transition-colors
-                    ${form.situationEmploi === s
-                      ? 'bg-gj-teal text-white border-gj-teal'
-                      : 'bg-white text-color-text-primary border-gj-line hover:border-gj-teal'}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Select
+            id="situationEmploi"
+            label="Situation professionnelle"
+            options={SITUATION_EMPLOI_OPTIONS as unknown as { value: string; label: string }[]}
+            placeholder="Sélectionner…"
+            value={form.situationEmploi}
+            onChange={e => setForm(f => ({ ...f, situationEmploi: e.target.value }))}
+          />
 
           <div className="flex flex-col gap-space-1">
             <label className="text-fs-300 font-bold text-color-text-primary">Domaines d&apos;intérêt</label>
             <div className="flex flex-wrap gap-space-2">
-              {DOMAINES.map(d => (
+              {DOMAINES_INTERET.map(d => (
                 <button
                   key={d} type="button"
                   onClick={() => toggleDomaine(d)}
