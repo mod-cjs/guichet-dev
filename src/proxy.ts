@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
