@@ -69,8 +69,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
 
   const { region, commune, genre, dateNaissance, ...profilFields } = parsed.data
 
-  // Lire état actuel + count expériences pour calculer le score avant transaction
-  const [existing, expCount] = await Promise.all([
+  // Lire état actuel + count expériences + count diplômes pour calculer le score avant transaction
+  const [existing, expCount, diplomeCount] = await Promise.all([
     prisma.utilisateur.findUnique({
       where: { cjsUid: session.cjsUid },
       select: {
@@ -79,6 +79,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
       },
     }),
     prisma.experience.count({ where: { profil: { cjsUid: session.cjsUid } } }),
+    prisma.diplome.count({ where: { profil: { cjsUid: session.cjsUid } } }),
   ])
 
   // Fusionner état actuel + champs soumis pour le calcul du score
@@ -95,7 +96,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
     domainesInteret: profilFields.domainesInteret !== undefined ? profilFields.domainesInteret : (existing?.profil?.domainesInteret as string[] | null) ?? [],
     competences:     profilFields.competences     !== undefined ? profilFields.competences     : (existing?.profil?.competences as string[] | null) ?? [],
   }
-  const score = calculerScore(mergedIdentite, mergedProfil, expCount)
+  const score = calculerScore(mergedIdentite, mergedProfil, expCount, diplomeCount)
 
   // Construire les données à persister
   const identiteData = {

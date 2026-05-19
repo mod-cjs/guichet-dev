@@ -14,6 +14,15 @@ export interface CertificatItem {
   urlCertificat: string | null
 }
 
+export interface DiplomeItem {
+  id:             string
+  intitule:       string
+  etablissement:  string
+  anneeObtention: number
+  niveau:         string
+  mention:        string | null
+}
+
 export interface ProfilComplet {
   cjsUid:          string
   nom:             string
@@ -35,6 +44,7 @@ export interface ProfilComplet {
     profileVisibility: string
   } | null
   experiences: ExperienceItem[]
+  diplomes:    DiplomeItem[]
   certificats:  CertificatItem[]
 }
 

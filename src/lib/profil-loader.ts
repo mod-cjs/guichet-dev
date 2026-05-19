@@ -3,7 +3,7 @@ import { calculerScore } from '@/lib/profil-score'
 import type { ProfilComplet } from '@/types/profil'
 
 export async function recalculerEtPersisterScore(cjsUid: string): Promise<number> {
-  const [utilisateur, expCount] = await Promise.all([
+  const [utilisateur, expCount, diplomeCount] = await Promise.all([
     prisma.utilisateur.findUnique({
       where:  { cjsUid },
       select: {
@@ -14,6 +14,7 @@ export async function recalculerEtPersisterScore(cjsUid: string): Promise<number
       },
     }),
     prisma.experience.count({ where: { profil: { cjsUid } } }),
+    prisma.diplome.count({ where: { profil: { cjsUid } } }),
   ])
 
   const score = calculerScore(
@@ -25,6 +26,7 @@ export async function recalculerEtPersisterScore(cjsUid: string): Promise<number
     },
     utilisateur?.profil ?? null,
     expCount,
+    diplomeCount,
   )
 
   await prisma.profilJeune.update({ where: { cjsUid }, data: { completionScore: score } })
@@ -44,6 +46,10 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
           experiences: {
             select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
             orderBy: { dateDebut: 'desc' },
+          },
+          diplomes: {
+            select: { id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true },
+            orderBy: { anneeObtention: 'desc' },
           },
           certificats: {
             select: { id: true, formation: true, obtenuLe: true, urlCertificat: true },
@@ -84,6 +90,14 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       dateDebut:    e.dateDebut.toISOString().slice(0, 10),
       dateFin:      e.dateFin?.toISOString().slice(0, 10) ?? null,
       description:  e.description,
+    })),
+    diplomes: (p?.diplomes ?? []).map(d => ({
+      id:             d.id,
+      intitule:       d.intitule,
+      etablissement:  d.etablissement,
+      anneeObtention: d.anneeObtention,
+      niveau:         d.niveau,
+      mention:        d.mention,
     })),
     certificats: (p?.certificats ?? []).map(c => ({
       id:            c.id,
