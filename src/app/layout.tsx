@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Lexend } from 'next/font/google'
+import { MobileAppShell } from '@/components/layout/MobileAppShell'
 import '@/styles/globals.css'
 
 const lexend = Lexend({
@@ -28,6 +29,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" className={lexend.variable}>
       <body className="antialiased">
         {children}
+        {/* Shell mobile global pour user connecté — voir GUIC-166 */}
+        <MobileAppShell />
       </body>
     </html>
   )

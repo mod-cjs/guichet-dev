@@ -1,8 +1,19 @@
 # Spec — Architecture Layout & Navigation
 
-**Décision validée :** 2026-05-05  
-**Auteur :** mod-cjs  
+**Décision validée :** 2026-05-05
+**Révisée :** 2026-05-19 (GUIC-166) — correction du bug "shell mobile perdu sur routes publiques"
+**Auteur :** mod-cjs
 **Statut :** VALIDÉE — à respecter dans tous les modules
+
+---
+
+## ⚠ Révision GUIC-166 — Shell mobile global pour user connecté
+
+L'archi initiale rendait `AppTopbar` + `BottomNav` uniquement dans `/jeune/(app)/layout.tsx`. Or les items BottomNav pointent vers `/opportunites`, `/evenements`, `/ressources` (routes publiques) → le shell disparaissait dès que l'utilisateur cliquait sur un item.
+
+**Correction :** `AppTopbar` + `BottomNav` sont désormais rendus globalement par `<MobileAppShell />` dans `src/app/layout.tsx`, conditionnellement à la présence d'une session SSO et à l'exclusion des routes `/admin/*` et `/recruteur/*`.
+
+→ Voir `src/components/layout/MobileAppShell/` et la classe `body.has-mobile-shell` dans `globals.css` qui gère le padding-bottom global.
 
 ---
 
