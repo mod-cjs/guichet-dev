@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { NextRequest } from 'next/server'
-import { proxy } from '@/proxy'
+import { middleware } from '@/middleware'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -61,17 +61,17 @@ beforeEach(() => {
 
 describe('routes non-protégées', () => {
   it('laisse passer /opportunites', async () => {
-    const res = await proxy(makeRequest('/opportunites'))
+    const res = await middleware(makeRequest('/opportunites'))
     expect(res.status).not.toBe(302)
   })
 
   it('laisse passer /auth/connexion', async () => {
-    const res = await proxy(makeRequest('/auth/connexion'))
+    const res = await middleware(makeRequest('/auth/connexion'))
     expect(res.status).not.toBe(302)
   })
 
   it('laisse passer /', async () => {
-    const res = await proxy(makeRequest('/'))
+    const res = await middleware(makeRequest('/'))
     expect(res.status).not.toBe(302)
   })
 })
@@ -82,13 +82,13 @@ describe('session absente', () => {
   beforeEach(() => mockGetSession.mockResolvedValue(null))
 
   it('redirige vers /auth/connexion pour /jeune/tableau-de-bord', async () => {
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/auth/connexion')
   })
 
   it('pose le cookie auth_return_to avec le chemin', async () => {
-    const res = await proxy(makeRequest('/jeune/profil'))
+    const res = await middleware(makeRequest('/jeune/profil'))
     const cookie = res.headers.get('set-cookie') ?? ''
     expect(cookie).toContain('auth_return_to')
     // La valeur est URL-encodée dans le cookie
@@ -96,7 +96,7 @@ describe('session absente', () => {
   })
 
   it('redirige vers /auth/connexion pour /admin/dashboard', async () => {
-    const res = await proxy(makeRequest('/admin/dashboard'))
+    const res = await middleware(makeRequest('/admin/dashboard'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/auth/connexion')
   })
@@ -107,14 +107,14 @@ describe('session absente', () => {
 describe('rôle insuffisant', () => {
   it('bénéficiaire → /admin/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
-    const res = await proxy(makeRequest('/admin/dashboard'))
+    const res = await middleware(makeRequest('/admin/dashboard'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
   })
 
   it('bénéficiaire → /recruteur/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
-    const res = await proxy(makeRequest('/recruteur/offres'))
+    const res = await middleware(makeRequest('/recruteur/offres'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
   })
@@ -130,13 +130,13 @@ describe('onboarding obligatoire', () => {
   })
 
   it('redirige vers /jeune/onboarding si non complété', async () => {
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/jeune/onboarding')
   })
 
   it('ne redirige pas si déjà sur /jeune/onboarding', async () => {
-    const res = await proxy(makeRequest('/jeune/onboarding'))
+    const res = await middleware(makeRequest('/jeune/onboarding'))
     expect(res.status).not.toBe(307)
   })
 })
@@ -151,7 +151,7 @@ describe('accès autorisé', () => {
   })
 
   it('laisse passer /jeune/tableau-de-bord avec session valide', async () => {
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).not.toBe(307)
   })
 })
@@ -163,7 +163,7 @@ describe('denylist Redis', () => {
     mockGetSession.mockResolvedValue(makeSession())
     mockIsSessionActive.mockResolvedValue(false) // révoquée
 
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/auth/connexion')
     const cookie = res.headers.get('set-cookie') ?? ''
@@ -174,7 +174,7 @@ describe('denylist Redis', () => {
     mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
     mockIsSessionActive.mockResolvedValue(true)
 
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).not.toBe(307)
   })
 
@@ -182,7 +182,7 @@ describe('denylist Redis', () => {
     mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
     mockIsSessionActive.mockResolvedValue(true) // session-store catch → true
 
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).not.toBe(307)
   })
 })
@@ -192,38 +192,38 @@ describe('denylist Redis', () => {
 describe('rôles admin étendus', () => {
   it('moderator accède à /admin/', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
-    const res = await proxy(makeRequest('/admin/tableau-de-bord'))
+    const res = await middleware(makeRequest('/admin/tableau-de-bord'))
     expect(res.status).not.toBe(307)
   })
 
   it('super_admin accède à /admin/', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['super_admin'] }))
-    const res = await proxy(makeRequest('/admin/utilisateurs'))
+    const res = await middleware(makeRequest('/admin/utilisateurs'))
     expect(res.status).not.toBe(307)
   })
 
   it('moderator redirigé vers /admin/ depuis /jeune/ (mauvais espace)', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
   })
 
   it('jeune accède à /jeune/', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['jeune'], onboardingComplete: true }))
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).not.toBe(307)
   })
 
   it('chercheur_d_emploi accède à /jeune/', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['chercheur_d_emploi'], onboardingComplete: true }))
-    const res = await proxy(makeRequest('/jeune/profil'))
+    const res = await middleware(makeRequest('/jeune/profil'))
     expect(res.status).not.toBe(307)
   })
 
   it('rôle inconnu → redirige vers /auth/connexion?error=no_role', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['inconnu'] }))
-    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    const res = await middleware(makeRequest('/jeune/tableau-de-bord'))
     expect(res.headers.get('location')).toContain('error=no_role')
   })
 })
@@ -245,7 +245,7 @@ describe('refresh de token', () => {
       })
     )
 
-    const res = await proxy(makeRequest('/jeune/profil'))
+    const res = await middleware(makeRequest('/jeune/profil'))
     expect(fetchSpy).toHaveBeenCalled()
     expect(mockEncodeSession).toHaveBeenCalled()
     expect(mockSetSessionCookie).toHaveBeenCalled()
@@ -266,7 +266,7 @@ describe('refresh de token', () => {
       })
     )
 
-    await proxy(makeRequest('/jeune/profil'))
+    await middleware(makeRequest('/jeune/profil'))
 
     // Attendre que la révocation fire-and-forget se termine
     await new Promise(r => setTimeout(r, 10))
@@ -285,7 +285,7 @@ describe('refresh de token', () => {
       new Response('error', { status: 401 })
     )
 
-    const res = await proxy(makeRequest('/jeune/profil'))
+    const res = await middleware(makeRequest('/jeune/profil'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/auth/connexion')
     expect(res.headers.get('set-cookie')).toContain('cjs_session=;')

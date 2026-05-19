@@ -28,7 +28,7 @@ async function refreshToken(token: string) {
   return res.json() as Promise<{ access_token: string; refresh_token: string; expires_in: number }>
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
@@ -110,5 +110,9 @@ function roleHome(roles: string[]): string | null {
 }
 
 export const config = {
+  // Node.js runtime requis : le middleware utilise ioredis (session-store)
+  // qui n'est pas Edge-compatible. Next.js 16 a stabilisé ce runtime et
+  // remplacé l'ancien experimental.nodeMiddleware par cette déclaration.
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth/).*)'],
 }

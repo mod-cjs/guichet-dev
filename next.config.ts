@@ -24,10 +24,8 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  experimental: {
-    // @ts-expect-error — nodeMiddleware existe en Next.js 16 mais absent des types stables
-    nodeMiddleware: true,
-  },
+  // experimental.nodeMiddleware retiré en Next.js 16.2 — le runtime du middleware
+  // est désormais déclaré dans src/middleware.ts via `export const config.runtime`.
   images: {
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
