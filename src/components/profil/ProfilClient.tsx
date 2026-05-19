@@ -5,6 +5,7 @@ import { ProfilHeader }       from './ProfilHeader'
 import { SectionIdentite }    from './SectionIdentite'
 import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
+import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -49,6 +50,11 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
 
       <SectionExperiences
         experiences={initial.experiences}
+        onScoreChange={setScore}
+      />
+
+      <SectionDiplomes
+        diplomes={initial.diplomes}
         onScoreChange={setScore}
       />
 

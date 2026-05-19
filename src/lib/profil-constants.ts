@@ -41,3 +41,18 @@ export function situationLabel(value: string | null | undefined): string | null 
   if (!value) return null
   return SITUATION_EMPLOI_OPTIONS.find(o => o.value === value)?.label ?? value
 }
+
+export const MENTION_OPTIONS = [
+  { value: 'passable',   label: 'Passable'   },
+  { value: 'assez_bien', label: 'Assez bien' },
+  { value: 'bien',       label: 'Bien'       },
+  { value: 'tres_bien',  label: 'Très bien'  },
+  { value: 'excellent',  label: 'Excellent'  },
+] as const
+
+export type MentionValue = typeof MENTION_OPTIONS[number]['value']
+
+export function mentionLabel(value: string | null | undefined): string | null {
+  if (!value) return null
+  return MENTION_OPTIONS.find(o => o.value === value)?.label ?? value
+}
