@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, clearSessionCookie } from '@/lib/auth'
 import { revokeToken } from '@/lib/sso-client'
 import { revokeSession } from '@/lib/session-store'
+import { clearTokens } from '@/lib/token-store'
 import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXTAUTH_URL ?? ''
@@ -21,12 +22,15 @@ export async function POST(request: NextRequest) {
 
   if (session) {
     await Promise.allSettled([
-      revokeToken(session.accessToken).catch(err =>
-        logger.warn('auth/logout: révocation SSO échouée', {
-          error: err instanceof Error ? err.message : String(err),
-        })
-      ),
+      session.accessToken
+        ? revokeToken(session.accessToken).catch(err =>
+            logger.warn('auth/logout: révocation SSO échouée', {
+              error: err instanceof Error ? err.message : String(err),
+            })
+          )
+        : Promise.resolve(),
       revokeSession(session.cjsUid),
+      clearTokens(session.cjsUid),
     ])
   }
 

@@ -21,6 +21,22 @@ export async function revokeSession(cjsUid: string): Promise<void> {
   }
 }
 
+/**
+ * Retire le flag de révocation Redis. À appeler lors d'une nouvelle authentification
+ * réussie (callback SSO) : le user vient de prouver son identité au SSO, sa session
+ * précédente ne doit plus le bloquer.
+ *
+ * Sans ça, un user qui se déconnecte est verrouillé hors de la plateforme pendant
+ * 7 jours (TTL de la denylist) — cf bug GUIC-166 boucle login.
+ */
+export async function clearRevocation(cjsUid: string): Promise<void> {
+  try {
+    await redis.del(key(cjsUid))
+  } catch (err) {
+    logger.warn('session-store: clear revocation échouée', { cjsUid, error: String(err) })
+  }
+}
+
 /** Retourne false uniquement si la session est explicitement révoquée dans Redis. */
 export async function isSessionActive(cjsUid: string): Promise<boolean> {
   try {

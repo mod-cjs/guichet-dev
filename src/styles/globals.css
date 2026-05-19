@@ -43,3 +43,13 @@
   .container-md     { max-width: var(--gj-container-md); margin-inline: auto; padding-inline: var(--space-4); }
   .container-narrow { max-width: var(--gj-container-narrow); margin-inline: auto; padding-inline: var(--space-4); }
 }
+
+/* Shell mobile global (GUIC-166) — CSS-only via :has() pour éviter tout flash.
+   Quand la BottomNav (`.gj-bottom-nav`) est présente dans le DOM, on réserve la
+   place sous le contenu. Cette approche est purement déclarative — pas de JS,
+   pas de useEffect, donc pas de layout shift au premier paint. */
+@media (max-width: 767px) {
+  body:has(.gj-bottom-nav) {
+    padding-bottom: calc(var(--gj-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
+}

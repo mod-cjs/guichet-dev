@@ -219,6 +219,9 @@
   --gj-z-chat:       400;
   --gj-z-overlay:    600;
   --gj-z-toast:      800;
+
+  /* Hauteur de la BottomNav mobile (cf src/components/layout/BottomNav). */
+  --gj-bottom-nav-h: 56px;
 }
 
 /* =========================================================

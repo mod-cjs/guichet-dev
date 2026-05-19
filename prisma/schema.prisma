@@ -140,28 +140,28 @@ enum RoleAgent {
 // Identité de base — synchronisée depuis le SSO via webhook user.*
 // Ne jamais modifier directement : la source de vérité est le SSO CJS
 model Utilisateur {
-  cjsUid       String       @id @map("cjs_uid") @db.VarChar(36)
-  telephone    String?      @unique @db.VarChar(20)
-  email        String?      @unique @db.VarChar(255)
-  nom          String       @db.VarChar(100)
-  prenom       String       @db.VarChar(100)
-  region       Region?
-  genre        Genre?
-  dateNaissance DateTime?   @map("date_naissance")
+  cjsUid             String       @id @map("cjs_uid") @db.VarChar(36)
+  telephone          String?      @unique @db.VarChar(20)
+  email              String?      @unique @db.VarChar(255)
+  nom                String       @db.VarChar(100)
+  prenom             String       @db.VarChar(100)
+  region             Region?
+  genre              Genre?
+  dateNaissance      DateTime?    @map("date_naissance")
   statut             StatutCompte @default(actif)
   commune            String?      @db.VarChar(100)
   onboardingComplete Boolean      @default(false) @map("onboarding_complete")
   drupalUid          Int?         @unique @map("drupal_uid")
   createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  deletedAt    DateTime?    @map("deleted_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  deletedAt          DateTime?    @map("deleted_at")
 
-  profil           ProfilJeune?
-  candidatures     Candidature[]
-  inscriptions     InscriptionEvenement[]
+  profil            ProfilJeune?
+  candidatures      Candidature[]
+  inscriptions      InscriptionEvenement[]
   ressourcesFavoris RessourceFavorite[]
-  conversations    ConversationWhatsApp[]
-  recommandations  RecommandationIA[]
+  conversations     ConversationWhatsApp[]
+  recommandations   RecommandationIA[]
 
   @@index([email])
   @@index([telephone])
@@ -171,25 +171,25 @@ model Utilisateur {
 
 // Profil enrichi — rempli par le jeune après inscription
 model ProfilJeune {
-  id              String   @id @default(uuid()) @db.VarChar(36)
-  cjsUid          String   @unique @map("cjs_uid") @db.VarChar(36)
-  photoUrl        String?  @map("photo_url") @db.VarChar(500)
-  biographie      String?  @db.Text
+  id                String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid            String   @unique @map("cjs_uid") @db.VarChar(36)
+  photoUrl          String?  @map("photo_url") @db.VarChar(500)
+  biographie        String?  @db.Text
   // JSON arrays stockés en texte — ex: ["JavaScript","Python"] ou ["Agriculture","Numérique"]
-  competences     Json?
-  domainesInteret Json?    @map("domaines_interet")
-  diplomes        Json?
-  niveauEtude     String?  @map("niveau_etude") @db.VarChar(50)
-  situationEmploi String?  @map("situation_emploi") @db.VarChar(50)
+  competences       Json?
+  domainesInteret   Json?    @map("domaines_interet")
+  niveauEtude       String?  @map("niveau_etude") @db.VarChar(50)
+  situationEmploi   String?  @map("situation_emploi") @db.VarChar(50)
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
-  completionScore Int      @default(0) @map("completion_score")
-  profileVisibility String @default("public") @map("profile_visibility") @db.VarChar(20)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  completionScore   Int      @default(0) @map("completion_score")
+  profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  utilisateur     Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
-  experiences     Experience[]
-  certificats     CertificatMoodle[]
+  utilisateur Utilisateur        @relation(fields: [cjsUid], references: [cjsUid])
+  experiences Experience[]
+  diplomes    Diplome[]
+  certificats CertificatMoodle[]
 
   @@map("profils_jeunes")
 }
@@ -205,10 +205,28 @@ model Experience {
   description  String?   @db.Text
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  profil       ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
+  profil ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
 
   @@index([profilId])
   @@map("experiences")
+}
+
+// Diplômes du jeune (GUIC-19) — remplace l'ancienne colonne Json `diplomes`
+model Diplome {
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  profilId       String   @map("profil_id") @db.VarChar(36)
+  intitule       String   @db.VarChar(200)
+  etablissement  String   @db.VarChar(200)
+  anneeObtention Int      @map("annee_obtention")
+  niveau         String   @db.VarChar(50)
+  mention        String?  @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  profil ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
+
+  @@index([profilId])
+  @@map("diplomes")
 }
 
 // ─────────────────────────────────────────────
@@ -216,19 +234,19 @@ model Experience {
 // ─────────────────────────────────────────────
 
 model Organisation {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  cjsUid      String   @map("cjs_uid") @db.VarChar(36)
-  nom         String   @db.VarChar(200)
-  secteur     Domaine?
-  region      Region?
-  adresse     String?  @db.VarChar(300)
-  telephone   String?  @db.VarChar(20)
-  email       String?  @db.VarChar(255)
-  siteWeb     String?  @map("site_web") @db.VarChar(500)
-  logoUrl     String?  @map("logo_url") @db.VarChar(500)
-  estVerifie  Boolean  @default(false) @map("est_verifie")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid     String   @map("cjs_uid") @db.VarChar(36)
+  nom        String   @db.VarChar(200)
+  secteur    Domaine?
+  region     Region?
+  adresse    String?  @db.VarChar(300)
+  telephone  String?  @db.VarChar(20)
+  email      String?  @db.VarChar(255)
+  siteWeb    String?  @map("site_web") @db.VarChar(500)
+  logoUrl    String?  @map("logo_url") @db.VarChar(500)
+  estVerifie Boolean  @default(false) @map("est_verifie")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   opportunites Opportunite[]
 
@@ -241,26 +259,26 @@ model Organisation {
 // ─────────────────────────────────────────────
 
 model Opportunite {
-  id              String            @id @default(uuid()) @db.VarChar(36)
-  titre           String            @db.VarChar(255)
-  description     String            @db.LongText
-  type            TypeOpportunite
-  domaine         Domaine
-  region          Region?
-  organisation    String            @db.VarChar(200)
-  organisationId  String?           @map("organisation_id") @db.VarChar(36)
-  remuneration    String?           @db.VarChar(100)
-  deadline        DateTime?
-  lienExterne     String?           @map("lien_externe") @db.VarChar(500)
-  statut          StatutOpportunite @default(brouillon)
-  recruteurUid    String?           @map("recruteur_uid") @db.VarChar(36)
-  vues            Int               @default(0)
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  deletedAt       DateTime?         @map("deleted_at")
+  id             String            @id @default(uuid()) @db.VarChar(36)
+  titre          String            @db.VarChar(255)
+  description    String            @db.LongText
+  type           TypeOpportunite
+  domaine        Domaine
+  region         Region?
+  organisation   String            @db.VarChar(200)
+  organisationId String?           @map("organisation_id") @db.VarChar(36)
+  remuneration   String?           @db.VarChar(100)
+  deadline       DateTime?
+  lienExterne    String?           @map("lien_externe") @db.VarChar(500)
+  statut         StatutOpportunite @default(brouillon)
+  recruteurUid   String?           @map("recruteur_uid") @db.VarChar(36)
+  vues           Int               @default(0)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  deletedAt      DateTime?         @map("deleted_at")
 
-  org             Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
-  candidatures    Candidature[]
+  org          Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  candidatures Candidature[]
 
   @@index([statut, deletedAt])
   @@index([type, domaine])
@@ -271,17 +289,17 @@ model Opportunite {
 }
 
 model Candidature {
-  id              String            @id @default(uuid()) @db.VarChar(36)
-  cjsUid          String            @map("cjs_uid") @db.VarChar(36)
-  opportuniteId   String            @map("opportunite_id") @db.VarChar(36)
-  statut          StatutCandidature @default(En_attente)
-  lettreMotivation String?          @map("lettre_motivation") @db.Text
-  cvUrl           String?           @map("cv_url") @db.VarChar(500)
-  soumiseA        DateTime          @default(now()) @map("soumise_a")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  id               String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid           String            @map("cjs_uid") @db.VarChar(36)
+  opportuniteId    String            @map("opportunite_id") @db.VarChar(36)
+  statut           StatutCandidature @default(En_attente)
+  lettreMotivation String?           @map("lettre_motivation") @db.Text
+  cvUrl            String?           @map("cv_url") @db.VarChar(500)
+  soumiseA         DateTime          @default(now()) @map("soumise_a")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  utilisateur     Utilisateur  @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
-  opportunite     Opportunite  @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
@@ -293,21 +311,21 @@ model Candidature {
 // ─────────────────────────────────────────────
 
 model Centre {
-  id          String  @id @default(uuid()) @db.VarChar(36)
-  nom         String  @db.VarChar(200)
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  nom         String   @db.VarChar(200)
   region      Region
-  adresse     String  @db.VarChar(300)
+  adresse     String   @db.VarChar(300)
   latitude    Float
   longitude   Float
-  telephone   String  @db.VarChar(20)
-  responsable String  @db.VarChar(150)
-  gcId        Int?    @unique @map("gc_id")
-  estActif    Boolean @default(true) @map("est_actif")
+  telephone   String   @db.VarChar(20)
+  responsable String   @db.VarChar(150)
+  gcId        Int?     @unique @map("gc_id")
+  estActif    Boolean  @default(true) @map("est_actif")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  evenements  Evenement[]
-  agents      AgentCentre[]
+  evenements Evenement[]
+  agents     AgentCentre[]
 
   @@index([region])
   @@map("centres")
@@ -320,7 +338,7 @@ model AgentCentre {
   role      RoleAgent @default(conseiller)
   createdAt DateTime  @default(now()) @map("created_at")
 
-  centre    Centre @relation(fields: [centreId], references: [id])
+  centre Centre @relation(fields: [centreId], references: [id])
 
   @@unique([cjsUid, centreId])
   @@map("agents_centres")
@@ -347,7 +365,7 @@ model Evenement {
   createdAt    DateTime        @default(now()) @map("created_at")
   updatedAt    DateTime        @updatedAt @map("updated_at")
 
-  centre       Centre? @relation(fields: [centreId], references: [id])
+  centre       Centre?                @relation(fields: [centreId], references: [id])
   inscriptions InscriptionEvenement[]
 
   @@index([dateDebut, statut])
@@ -385,7 +403,7 @@ model Ressource {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  favoris     RessourceFavorite[]
+  favoris RessourceFavorite[]
 
   @@index([type, theme])
   @@map("ressources")
@@ -429,15 +447,15 @@ model InteropLog {
 // ─────────────────────────────────────────────
 
 model ConversationWhatsApp {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  telephone   String   @db.VarChar(20)
-  cjsUid      String?  @map("cjs_uid") @db.VarChar(36)
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  telephone String   @db.VarChar(20)
+  cjsUid    String?  @map("cjs_uid") @db.VarChar(36)
   // Contexte de conversation sérialisé (historique Groq)
-  contexte    Json?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  contexte  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  utilisateur Utilisateur? @relation(fields: [cjsUid], references: [cjsUid])
+  utilisateur Utilisateur?      @relation(fields: [cjsUid], references: [cjsUid])
   messages    MessageWhatsApp[]
 
   @@unique([telephone])
@@ -445,15 +463,15 @@ model ConversationWhatsApp {
 }
 
 model MessageWhatsApp {
-  id              String   @id @default(uuid()) @db.VarChar(36)
-  conversationId  String   @map("conversation_id") @db.VarChar(36)
-  wamid           String   @unique @db.VarChar(100)
-  sens            String   @db.VarChar(10)
-  contenu         String   @db.Text
-  type            String   @db.VarChar(20)
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  conversationId String   @map("conversation_id") @db.VarChar(36)
+  wamid          String   @unique @db.VarChar(100)
+  sens           String   @db.VarChar(10)
+  contenu        String   @db.Text
+  type           String   @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  conversation    ConversationWhatsApp @relation(fields: [conversationId], references: [id])
+  conversation ConversationWhatsApp @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
   @@map("messages_whatsapp")
@@ -464,15 +482,15 @@ model MessageWhatsApp {
 // ─────────────────────────────────────────────
 
 model RecommandationIA {
-  id            String   @id @default(uuid()) @db.VarChar(36)
-  cjsUid        String   @map("cjs_uid") @db.VarChar(36)
-  opportuniteId String?  @map("opportunite_id") @db.VarChar(36)
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  cjsUid        String    @map("cjs_uid") @db.VarChar(36)
+  opportuniteId String?   @map("opportunite_id") @db.VarChar(36)
   score         Float
-  raison        String?  @db.Text
+  raison        String?   @db.Text
   vuePar        DateTime? @map("vue_par")
-  createdAt     DateTime @default(now()) @map("created_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  utilisateur   Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
 
   @@index([cjsUid, score(sort: Desc)])
   @@map("recommandations_ia")
@@ -483,15 +501,15 @@ model RecommandationIA {
 // ─────────────────────────────────────────────
 
 model CertificatMoodle {
-  id          String   @id @default(uuid()) @db.VarChar(36)
-  profilId    String   @map("profil_id") @db.VarChar(36)
-  moodleCertId String  @unique @map("moodle_cert_id") @db.VarChar(100)
-  formation   String   @db.VarChar(255)
-  obtenuLe    DateTime @map("obtenu_le")
-  urlCertificat String? @map("url_certificat") @db.VarChar(500)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  profilId      String   @map("profil_id") @db.VarChar(36)
+  moodleCertId  String   @unique @map("moodle_cert_id") @db.VarChar(100)
+  formation     String   @db.VarChar(255)
+  obtenuLe      DateTime @map("obtenu_le")
+  urlCertificat String?  @map("url_certificat") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  profil      ProfilJeune @relation(fields: [profilId], references: [id])
+  profil ProfilJeune @relation(fields: [profilId], references: [id])
 
   @@index([profilId])
   @@map("certificats_moodle")

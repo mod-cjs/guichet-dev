@@ -18,11 +18,11 @@ export function AppTopbar({ session }: Props) {
     >
       <div className="flex items-center gap-space-2 px-space-3 h-12">
 
-        {/* Logo */}
+        {/* Logo — pointe vers le dashboard (user toujours connecté à ce stade) */}
         <Link
-          href="/"
+          href="/jeune/tableau-de-bord"
           className="flex items-center gap-[6px] no-underline flex-shrink-0"
-          aria-label="Guichet Jeunesse — accueil"
+          aria-label="Tableau de bord"
         >
           <div className="w-8 h-8 bg-gj-teal rounded-[7px] flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 13 13" fill="none" aria-hidden>
@@ -37,21 +37,8 @@ export function AppTopbar({ session }: Props) {
 
         <div className="flex-1" />
 
-        {/* Notifications */}
-        <button
-          className="relative flex items-center justify-center bg-gj-bg rounded-full flex-shrink-0"
-          style={{ width: 'var(--tap-min)', height: 'var(--tap-min)' }}
-          aria-label="Notifications"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className="text-gj-grey" aria-hidden>
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-        </button>
-
-        {/* Avatar / menu utilisateur */}
+        {/* Avatar / menu utilisateur (bouton notifications retiré tant que la page
+            /jeune/notifications n'existe pas — sera ajouté en m11/m12) */}
         <UserMenu
           initials={initials}
           prenom={session.prenom ?? ''}

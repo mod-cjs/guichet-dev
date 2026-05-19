@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { HeaderNav } from './HeaderNav'
 
 export async function Header() {
   const session = await getSession()
@@ -29,37 +30,18 @@ export async function Header() {
           </span>
         </Link>
 
-        {/* Nav links — desktop uniquement */}
-        <nav className="hidden md:flex items-center">
-          {[
-            { href: '/',             label: 'Accueil' },
-            { href: '/opportunites', label: 'Opportunités' },
-            { href: '/evenements',   label: 'Agenda' },
-            { href: '/ressources',   label: 'Ressources' },
-            { href: '/centres',      label: 'Centres CJS' },
-          ].map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="px-[8px] text-[11px] text-gj-grey hover:text-gj-teal hover:bg-gj-teal-soft
-                no-underline whitespace-nowrap flex-shrink-0 transition-colors
-                border-b-[3px] border-transparent"
-              style={{ paddingTop: 13, paddingBottom: 13 }}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        {/* Nav desktop — composant client pour route active state via usePathname */}
+        <HeaderNav isAuthenticated={!!session} />
 
         {/* Côté droit */}
         <div className="ml-auto flex items-center gap-[4px] pl-[5px] flex-shrink-0 py-[10px]">
 
-          {/* Liens externes — desktop uniquement */}
+          {/* Liens externes — large desktop uniquement (≥ lg) pour désurcharger les écrans moyens */}
           <a
             href="https://elearning.cjs.sn"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-line
+            className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-line
               rounded-[5px] text-[10px] text-gj-grey bg-gj-bg whitespace-nowrap no-underline
               hover:border-gj-teal transition-colors"
           >
@@ -69,7 +51,7 @@ export async function Header() {
             href="https://yeah.cjs.sn"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-yellow
+            className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-yellow
               rounded-[5px] text-[10px] text-gj-yellow-ink bg-gj-yellow-soft whitespace-nowrap
               font-bold no-underline hover:opacity-90 transition-opacity"
           >

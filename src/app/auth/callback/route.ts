@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
+import { saveTokens } from '@/lib/token-store'
+import { clearRevocation } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
@@ -77,7 +79,20 @@ export async function GET(request: NextRequest) {
       onboardingComplete: utilisateur.onboardingComplete,
     }
 
-    const encoded     = await encodeSession(session)
+    // GUIC-166 : tokens stockés dans Redis, pas dans le cookie
+    await saveTokens(claims.sub, {
+      accessToken:  tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt:    session.expiresAt,
+    })
+
+    // Nettoyer toute révocation précédente (sinon le middleware redirige en
+    // boucle pendant 7 jours après une déconnexion — cf bug GUIC-166).
+    // Le user vient de re-prouver son identité au SSO, sa session précédente
+    // n'a plus à le bloquer.
+    await clearRevocation(claims.sub)
+
+    const encoded = await encodeSession(session)
     logger.info('session-size', {
       accessToken:  tokens.access_token.length,
       refreshToken: tokens.refresh_token.length,

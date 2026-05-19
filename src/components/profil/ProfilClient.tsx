@@ -5,6 +5,7 @@ import { ProfilHeader }       from './ProfilHeader'
 import { SectionIdentite }    from './SectionIdentite'
 import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
+import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -21,7 +22,7 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-space-5 pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
+    <div className="flex flex-col gap-space-5">
       <div>
         <h1 className="text-fs-600 font-black text-color-text-primary">Mon profil</h1>
         <p className="text-fs-300 text-color-text-secondary mt-space-1">
@@ -49,6 +50,11 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
 
       <SectionExperiences
         experiences={initial.experiences}
+        onScoreChange={setScore}
+      />
+
+      <SectionDiplomes
+        diplomes={initial.diplomes}
         onScoreChange={setScore}
       />
 

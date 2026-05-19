@@ -14,9 +14,10 @@ interface ProfilForScore {
 }
 
 export function calculerScore(
-  identite: IdentiteForScore,
-  profil:   ProfilForScore | null,
-  expCount: number,
+  identite:     IdentiteForScore,
+  profil:       ProfilForScore | null,
+  expCount:     number,
+  diplomeCount: number = 0,
 ): number {
   let s = 0
   if (identite.region)        s += 10
@@ -29,5 +30,6 @@ export function calculerScore(
   if (Array.isArray(profil?.domainesInteret) && (profil.domainesInteret as unknown[]).length) s += 15
   if (Array.isArray(profil?.competences)     && (profil.competences     as unknown[]).length) s += 10
   if (expCount > 0)            s += 10
+  if (diplomeCount > 0)        s += 10
   return Math.min(s, 100)
 }

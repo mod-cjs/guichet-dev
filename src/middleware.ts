@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
+import { saveTokens, clearTokens } from '@/lib/token-store'
 import { revokeToken } from '@/lib/sso-client'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
@@ -28,7 +29,7 @@ async function refreshToken(token: string) {
   return res.json() as Promise<{ access_token: string; refresh_token: string; expires_in: number }>
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
@@ -57,10 +58,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!matched.check(session.roles)) {
-    // Rediriger vers le bon espace sans effacer la session
     const home = roleHome(session.roles)
     if (home) return NextResponse.redirect(new URL(home, request.url))
-    // Aucun rôle connu → déconnexion propre
     const response = NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     response.cookies.delete('cjs_session')
     return response
@@ -75,26 +74,34 @@ export async function proxy(request: NextRequest) {
   }
 
   const now = Math.floor(Date.now() / 1000)
-  if (session.expiresAt - now < REFRESH_THRESHOLD) {
+  if (session.expiresAt - now < REFRESH_THRESHOLD && session.refreshToken) {
     try {
       const oldToken = session.accessToken
       const tokens   = await refreshToken(session.refreshToken)
+      const newExpiresAt = now + tokens.expires_in
       const updated  = {
         ...session,
         accessToken:  tokens.access_token,
         refreshToken: tokens.refresh_token,
-        expiresAt:    now + tokens.expires_in,
+        expiresAt:    newExpiresAt,
       }
+      // Persiste les nouveaux tokens dans Redis (cf token-store GUIC-166)
+      await saveTokens(session.cjsUid, {
+        accessToken:  tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt:    newExpiresAt,
+      })
       const encoded  = await encodeSession(updated)
       const response = NextResponse.next()
       setSessionCookie(response, encoded, tokens.expires_in)
       // Révoquer l'ancien token en arrière-plan (ne bloque pas la réponse)
-      revokeToken(oldToken).catch(() => {})
+      if (oldToken) revokeToken(oldToken).catch(() => {})
       return response
     } catch {
       const loginUrl = new URL('/auth/connexion', request.url)
       const response = NextResponse.redirect(loginUrl)
       response.cookies.delete('cjs_session')
+      await clearTokens(session.cjsUid).catch(() => {})
       return response
     }
   }
@@ -110,5 +117,9 @@ function roleHome(roles: string[]): string | null {
 }
 
 export const config = {
+  // Node.js runtime requis : le middleware utilise ioredis (session-store)
+  // qui n'est pas Edge-compatible. Next.js 16 a stabilisé ce runtime et
+  // remplacé l'ancien experimental.nodeMiddleware par cette déclaration.
+  runtime: 'nodejs',
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth/).*)'],
 }
