@@ -46,6 +46,12 @@ jest.mock('@/lib/token-store', () => ({
   clearTokens: jest.fn().mockResolvedValue(undefined),
 }))
 
+jest.mock('@/lib/session-store', () => ({
+  clearRevocation: jest.fn().mockResolvedValue(undefined),
+  revokeSession:   jest.fn().mockResolvedValue(undefined),
+  isSessionActive: jest.fn().mockResolvedValue(true),
+}))
+
 jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }))
