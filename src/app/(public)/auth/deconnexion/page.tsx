@@ -1,10 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function DeconnexionPage() {
-  const router = useRouter()
   const [done, setDone] = useState(false)
 
   useEffect(() => {
@@ -12,10 +10,13 @@ export default function DeconnexionPage() {
     fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
       .finally(() => {
         setDone(true)
-        t = setTimeout(() => router.replace('/'), 2000)
+        // Hard reload (pas router.replace) : indispensable pour purger le cache RSC
+        // des Server Components (Header, AppTopbar, etc.) qui gardent sinon l'avatar
+        // de la session précédente affiché jusqu'au prochain rafraîchissement manuel.
+        t = setTimeout(() => { window.location.replace('/') }, 1500)
       })
     return () => clearTimeout(t)
-  }, [router])
+  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gj-bg px-space-4">
