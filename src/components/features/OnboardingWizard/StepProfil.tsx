@@ -1,6 +1,11 @@
 'use client'
 
 import { Select } from '@/components/ui/Select'
+import {
+  NIVEAU_ETUDE_OPTIONS,
+  SITUATION_EMPLOI_OPTIONS,
+  DOMAINES_INTERET,
+} from '@/lib/profil-constants'
 import type { StepProfilData } from '@/lib/validations/onboarding'
 
 interface Props {
@@ -8,32 +13,6 @@ interface Props {
   onChange: (data: Partial<StepProfilData>) => void
   errors:   Partial<Record<keyof StepProfilData, string>>
 }
-
-const NIVEAU_OPTIONS = [
-  { value: 'aucun',     label: 'Aucun diplôme'     },
-  { value: 'primaire',  label: 'Primaire (CFEE)'   },
-  { value: 'brevet',    label: 'Collège (BFEM)'    },
-  { value: 'bac',       label: 'Baccalauréat'      },
-  { value: 'bac+2',     label: 'Bac +2 (BTS/DUT)'  },
-  { value: 'licence',   label: 'Licence (Bac +3)'  },
-  { value: 'master',    label: 'Master (Bac +5)'   },
-  { value: 'doctorat',  label: 'Doctorat'          },
-]
-
-const EMPLOI_OPTIONS = [
-  { value: 'sans_emploi',   label: 'Sans emploi'          },
-  { value: 'en_recherche',  label: 'En recherche active'  },
-  { value: 'employe',       label: 'Employé(e)'           },
-  { value: 'independant',   label: 'Indépendant / Auto-entrepreneur' },
-  { value: 'etudiant',      label: 'Étudiant(e)'          },
-  { value: 'stagiaire',     label: 'Stagiaire / Apprenti' },
-]
-
-const DOMAINES = [
-  'Agriculture', 'Numérique', 'Commerce', 'Artisanat', 'Santé',
-  'Éducation', 'BTP', 'Transport', 'Tourisme', 'Élevage',
-  'Pêche', 'Environnement', 'Finance', 'Industrie', 'Mode & Textile',
-]
 
 export function StepProfil({ data, onChange, errors }: Props) {
   const selected = data.domainesInteret ?? []
@@ -52,7 +31,7 @@ export function StepProfil({ data, onChange, errors }: Props) {
       <Select
         id="niveauEtude"
         label="Niveau d'étude"
-        options={NIVEAU_OPTIONS}
+        options={NIVEAU_ETUDE_OPTIONS as unknown as { value: string; label: string }[]}
         placeholder="Sélectionner…"
         value={data.niveauEtude ?? ''}
         error={errors.niveauEtude}
@@ -62,7 +41,7 @@ export function StepProfil({ data, onChange, errors }: Props) {
       <Select
         id="situationEmploi"
         label="Situation professionnelle"
-        options={EMPLOI_OPTIONS}
+        options={SITUATION_EMPLOI_OPTIONS as unknown as { value: string; label: string }[]}
         placeholder="Sélectionner…"
         value={data.situationEmploi ?? ''}
         error={errors.situationEmploi}
@@ -78,7 +57,7 @@ export function StepProfil({ data, onChange, errors }: Props) {
           <p className="text-fs-200 text-gj-red">{errors.domainesInteret}</p>
         )}
         <div className="flex flex-wrap gap-space-2">
-          {DOMAINES.map(d => (
+          {DOMAINES_INTERET.map(d => (
             <button
               key={d}
               type="button"

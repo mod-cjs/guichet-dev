@@ -1,0 +1,7 @@
+export { ProfilHeader }       from './ProfilHeader'
+export { CompletionBar }      from './CompletionBar'
+export { ProfilClient }       from './ProfilClient'
+export { SectionIdentite }    from './SectionIdentite'
+export { SectionProfil }      from './SectionProfil'
+export { SectionExperiences } from './SectionExperiences'
+export { SectionCertificats } from './SectionCertificats'

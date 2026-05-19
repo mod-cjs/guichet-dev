@@ -1,0 +1,6 @@
+{
+  "buildCommand": "prisma migrate deploy && prisma generate && next build",
+  "installCommand": "npm install --include=dev",
+  "framework": "nextjs",
+  "regions": ["cdg1"]
+}

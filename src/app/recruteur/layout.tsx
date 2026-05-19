@@ -1,12 +1,10 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { isSessionActive } from '@/lib/session-store'
 import { RecruteurSidebar } from '@/components/layout/RecruteurSidebar'
 
 export default async function RecruteurLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
-  if (!(await isSessionActive(session.cjsUid))) redirect('/auth/connexion?error=session_expired')
 
   return (
     <>

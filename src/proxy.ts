@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
+import { revokeToken } from '@/lib/sso-client'
 
-const PROTECTED: { pattern: RegExp; role: string }[] = [
-  { pattern: /^\/jeune\//,     role: 'beneficiaire' },
-  { pattern: /^\/recruteur\//, role: 'recruteur'    },
-  { pattern: /^\/admin\//,     role: 'admin'        },
+const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
+
+const PROTECTED: { pattern: RegExp; check: (roles: string[]) => boolean }[] = [
+  { pattern: /^\/jeune\//,     check: roles => roles.some(r => BENEFICIAIRE_ROLES.has(r)) },
+  { pattern: /^\/recruteur\//, check: roles => roles.includes('recruteur')                },
+  { pattern: /^\/admin\//,     check: roles => roles.some(r => ADMIN_ROLES.has(r))        },
 ]
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
@@ -45,16 +49,14 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // Vérifier la révocation Redis — fail-open si Redis indisponible
-  const active = await isSessionActive(session.cjsUid)
-  if (!active) {
-    const loginUrl = new URL('/auth/connexion?error=session_expired', request.url)
-    const response = NextResponse.redirect(loginUrl)
+  // Vérifier la denylist Redis (backchannel logout SSO)
+  if (!(await isSessionActive(session.cjsUid))) {
+    const response = NextResponse.redirect(new URL('/auth/connexion', request.url))
     response.cookies.delete('cjs_session')
     return response
   }
 
-  if (!session.roles.includes(matched.role)) {
+  if (!matched.check(session.roles)) {
     // Rediriger vers le bon espace sans effacer la session
     const home = roleHome(session.roles)
     if (home) return NextResponse.redirect(new URL(home, request.url))
@@ -65,7 +67,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
-    session.roles.includes('beneficiaire') &&
+    session.roles.some(r => BENEFICIAIRE_ROLES.has(r)) &&
     !session.onboardingComplete &&
     !pathname.startsWith('/jeune/onboarding')
   ) {
@@ -75,8 +77,9 @@ export async function proxy(request: NextRequest) {
   const now = Math.floor(Date.now() / 1000)
   if (session.expiresAt - now < REFRESH_THRESHOLD) {
     try {
-      const tokens  = await refreshToken(session.refreshToken)
-      const updated = {
+      const oldToken = session.accessToken
+      const tokens   = await refreshToken(session.refreshToken)
+      const updated  = {
         ...session,
         accessToken:  tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -85,6 +88,8 @@ export async function proxy(request: NextRequest) {
       const encoded  = await encodeSession(updated)
       const response = NextResponse.next()
       setSessionCookie(response, encoded, tokens.expires_in)
+      // Révoquer l'ancien token en arrière-plan (ne bloque pas la réponse)
+      revokeToken(oldToken).catch(() => {})
       return response
     } catch {
       const loginUrl = new URL('/auth/connexion', request.url)
@@ -98,9 +103,9 @@ export async function proxy(request: NextRequest) {
 }
 
 function roleHome(roles: string[]): string | null {
-  if (roles.includes('admin'))       return '/admin/tableau-de-bord'
-  if (roles.includes('recruteur'))   return '/recruteur/tableau-de-bord'
-  if (roles.includes('beneficiaire')) return '/jeune/tableau-de-bord'
+  if (roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
+  if (roles.includes('recruteur'))                return '/recruteur/tableau-de-bord'
+  if (roles.some(r => BENEFICIAIRE_ROLES.has(r))) return '/jeune/tableau-de-bord'
   return null
 }
 

@@ -6,9 +6,8 @@ import { proxy } from '@/proxy'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
-const mockGetSession     = jest.fn()
-const mockIsSessionActive = jest.fn()
-const mockEncodeSession  = jest.fn()
+const mockGetSession       = jest.fn()
+const mockEncodeSession    = jest.fn()
 const mockSetSessionCookie = jest.fn()
 
 jest.mock('@/lib/auth', () => ({
@@ -17,8 +16,15 @@ jest.mock('@/lib/auth', () => ({
   setSessionCookie: (...args: unknown[]) => mockSetSessionCookie(...args),
 }))
 
+const mockIsSessionActive = jest.fn()
+const mockRevokeToken     = jest.fn()
+
 jest.mock('@/lib/session-store', () => ({
   isSessionActive: (...args: unknown[]) => mockIsSessionActive(...args),
+}))
+
+jest.mock('@/lib/sso-client', () => ({
+  revokeToken: (...args: unknown[]) => mockRevokeToken(...args),
 }))
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -45,7 +51,11 @@ function makeSession(overrides = {}) {
   }
 }
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockIsSessionActive.mockResolvedValue(true) // actif par défaut
+  mockRevokeToken.mockResolvedValue(undefined)
+})
 
 // ── Routes non-protégées ───────────────────────────────────────────────────
 
@@ -92,29 +102,9 @@ describe('session absente', () => {
   })
 })
 
-// ── Session révoquée (Redis) ───────────────────────────────────────────────
-
-describe('session révoquée', () => {
-  beforeEach(() => {
-    mockGetSession.mockResolvedValue(makeSession())
-    mockIsSessionActive.mockResolvedValue(false)
-  })
-
-  it('redirige avec error=session_expired et supprime le cookie', async () => {
-    const res = await proxy(makeRequest('/jeune/profil'))
-    expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('session_expired')
-    expect(res.headers.get('set-cookie')).toContain('cjs_session=;')
-  })
-})
-
 // ── Mauvais rôle ──────────────────────────────────────────────────────────
 
 describe('rôle insuffisant', () => {
-  beforeEach(() => {
-    mockIsSessionActive.mockResolvedValue(true)
-  })
-
   it('bénéficiaire → /admin/* redirige vers son dashboard', async () => {
     mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
     const res = await proxy(makeRequest('/admin/dashboard'))
@@ -137,7 +127,6 @@ describe('onboarding obligatoire', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ roles: ['beneficiaire'], onboardingComplete: false })
     )
-    mockIsSessionActive.mockResolvedValue(true)
   })
 
   it('redirige vers /jeune/onboarding si non complété', async () => {
@@ -159,12 +148,83 @@ describe('accès autorisé', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ roles: ['beneficiaire'], onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
   })
 
   it('laisse passer /jeune/tableau-de-bord avec session valide', async () => {
     const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
     expect(res.status).not.toBe(307)
+  })
+})
+
+// ── Denylist Redis (backchannel logout) ──────────────────────────────────
+
+describe('denylist Redis', () => {
+  it('redirige vers login si session révoquée (backchannel logout)', async () => {
+    mockGetSession.mockResolvedValue(makeSession())
+    mockIsSessionActive.mockResolvedValue(false) // révoquée
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/auth/connexion')
+    const cookie = res.headers.get('set-cookie') ?? ''
+    expect(cookie).toContain('cjs_session=;')
+  })
+
+  it('laisse passer si session active en Redis', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
+    mockIsSessionActive.mockResolvedValue(true)
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('fail-open : Redis indisponible → session considérée active', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ onboardingComplete: true }))
+    mockIsSessionActive.mockResolvedValue(true) // session-store catch → true
+
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+})
+
+// ── Rôles admin étendus (moderator, super_admin) ─────────────────────────
+
+describe('rôles admin étendus', () => {
+  it('moderator accède à /admin/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
+    const res = await proxy(makeRequest('/admin/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('super_admin accède à /admin/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['super_admin'] }))
+    const res = await proxy(makeRequest('/admin/utilisateurs'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('moderator redirigé vers /admin/ depuis /jeune/ (mauvais espace)', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['moderator'] }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/admin/tableau-de-bord')
+  })
+
+  it('jeune accède à /jeune/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['jeune'], onboardingComplete: true }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('chercheur_d_emploi accède à /jeune/', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['chercheur_d_emploi'], onboardingComplete: true }))
+    const res = await proxy(makeRequest('/jeune/profil'))
+    expect(res.status).not.toBe(307)
+  })
+
+  it('rôle inconnu → redirige vers /auth/connexion?error=no_role', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['inconnu'] }))
+    const res = await proxy(makeRequest('/jeune/tableau-de-bord'))
+    expect(res.headers.get('location')).toContain('error=no_role')
   })
 })
 
@@ -176,7 +236,6 @@ describe('refresh de token', () => {
     mockGetSession.mockResolvedValue(
       makeSession({ expiresAt: now + 120, onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
     mockEncodeSession.mockResolvedValue('new-encoded-session')
 
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
@@ -194,12 +253,33 @@ describe('refresh de token', () => {
     fetchSpy.mockRestore()
   })
 
+  it('révoque l\'ancien token après refresh réussi', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    mockGetSession.mockResolvedValue(
+      makeSession({ expiresAt: now + 120, onboardingComplete: true, accessToken: 'old-at' })
+    )
+    mockEncodeSession.mockResolvedValue('new-encoded-session')
+
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ access_token: 'new-at', refresh_token: 'new-rt', expires_in: 3600 }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    await proxy(makeRequest('/jeune/profil'))
+
+    // Attendre que la révocation fire-and-forget se termine
+    await new Promise(r => setTimeout(r, 10))
+    expect(mockRevokeToken).toHaveBeenCalledWith('old-at')
+
+    fetchSpy.mockRestore()
+  })
+
   it('redirige vers login si le refresh échoue', async () => {
     const now = Math.floor(Date.now() / 1000)
     mockGetSession.mockResolvedValue(
       makeSession({ expiresAt: now + 120, onboardingComplete: true })
     )
-    mockIsSessionActive.mockResolvedValue(true)
 
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response('error', { status: 401 })

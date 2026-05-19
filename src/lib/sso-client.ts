@@ -18,16 +18,16 @@ export interface TokenResponse {
 
 export interface CJSClaims {
   sub:                    string
-  name:                   string
-  given_name:             string
-  family_name:            string
+  name?:                  string | null
+  given_name?:            string | null
+  family_name?:           string | null
   email:                  string | null
   email_verified:         boolean
   phone_number:           string | null
   phone_number_verified:  boolean
   address?:               { region?: string }
   cjs_roles:              string[]
-  cjs_status:             string
+  cjs_status?:            string
 }
 
 export interface IntrospectionResult {
@@ -92,6 +92,9 @@ async function buildHmacHeaders(body: string): Promise<HeadersInit> {
   }
 }
 
+// Timeout global sur tous les appels SSO — évite les 504 Vercel si le SSO ne répond pas
+const SSO_TIMEOUT_MS = 8_000
+
 // ── Flux OAuth PKCE ───────────────────────────────────────────────────────
 
 export async function getAuthorizationUrl(
@@ -134,6 +137,7 @@ export async function exchangeCode(
       redirect_uri:  REDIRECT_URI,
       code_verifier: pkceVerifier,
     }),
+    signal: AbortSignal.timeout(SSO_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`SSO token exchange failed: ${res.status}`)
   return res.json()
@@ -142,6 +146,7 @@ export async function exchangeCode(
 export async function getUserInfo(accessToken: string): Promise<CJSClaims> {
   const res = await fetch(`${SSO_BASE_URL}/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    signal:  AbortSignal.timeout(SSO_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`SSO userinfo failed: ${res.status}`)
   return res.json()
@@ -156,6 +161,7 @@ export async function refreshAccessToken(token: string): Promise<TokenResponse> 
       client_id:     CLIENT_ID,
       refresh_token: token,
     }),
+    signal: AbortSignal.timeout(SSO_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`SSO refresh failed: ${res.status}`)
   return res.json()
@@ -165,6 +171,7 @@ export async function revokeToken(accessToken: string): Promise<void> {
   await fetch(`${SSO_BASE_URL}/oauth/token/revoke`, {
     method:  'POST',
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    signal:  AbortSignal.timeout(SSO_TIMEOUT_MS),
   })
 }
 
@@ -177,6 +184,7 @@ export async function verifyToken(
     method:  'POST',
     headers: await buildHmacHeaders(body),
     body,
+    signal:  AbortSignal.timeout(SSO_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`SSO token verify failed: ${res.status}`)
   return res.json()

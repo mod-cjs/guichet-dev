@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
-import { activateSession } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
@@ -41,30 +40,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     }
 
+    if (claims.cjs_status && claims.cjs_status !== 'active') {
+      await revokeToken(tokens.access_token).catch(() => {})
+      return NextResponse.redirect(new URL('/auth/connexion?error=account_inactive', request.url))
+    }
+
     // Upsert Utilisateur — synchronise les données SSO en base
     const utilisateur = await prisma.utilisateur.upsert({
       where:  { cjsUid: claims.sub },
       update: {
-        nom:    claims.family_name,
-        prenom: claims.given_name,
-        email:  claims.email ?? undefined,
+        nom:    claims.family_name ?? undefined,
+        prenom: claims.given_name  ?? undefined,
+        email:  claims.email       ?? undefined,
       },
       create: {
         cjsUid:    claims.sub,
-        nom:       claims.family_name,
-        prenom:    claims.given_name,
-        email:     claims.email ?? undefined,
-        telephone: claims.phone_number ?? undefined,
+        nom:       claims.family_name ?? '',
+        prenom:    claims.given_name  ?? '',
+        email:     claims.email       ?? undefined,
+        telephone: toE164(claims.phone_number),
       },
       select: { onboardingComplete: true, region: true, commune: true },
     })
 
     const session: CJSSession = {
       cjsUid:             claims.sub,
-      nom:                claims.family_name,
-      prenom:             claims.given_name,
+      nom:                claims.family_name ?? '',
+      prenom:             claims.given_name  ?? '',
       email:              claims.email,
-      telephone:          claims.phone_number,
+      telephone:          toE164(claims.phone_number) ?? null,
       region:             utilisateur.region ?? claims.address?.region ?? null,
       roles,
       accessToken:        tokens.access_token,
@@ -74,7 +78,6 @@ export async function GET(request: NextRequest) {
     }
 
     const encoded     = await encodeSession(session)
-    await activateSession(session.cjsUid, tokens.expires_in)
     logger.info('session-size', {
       accessToken:  tokens.access_token.length,
       refreshToken: tokens.refresh_token.length,
@@ -105,10 +108,27 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
+
+/**
+ * Normalise un numéro de téléphone en E.164.
+ * Gère les formats : +221XXXXXXXXX, 00221XXXXXXXXX, et locaux sénégalais 9 chiffres.
+ * Retourne undefined si null/vide, le numéro tel quel si format non reconnu.
+ */
+function toE164(phone: string | null | undefined): string | undefined {
+  if (!phone) return undefined
+  const cleaned = phone.replace(/[\s\-\.\(\)]/g, '')
+  if (cleaned.startsWith('+'))  return cleaned
+  if (cleaned.startsWith('00')) return '+' + cleaned.slice(2)
+  if (/^\d{9}$/.test(cleaned))  return '+221' + cleaned
+  return cleaned
+}
+const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
+
 function roleRedirect(session: CJSSession): string {
-  if (session.roles.includes('admin'))    return '/admin/tableau-de-bord'
-  if (session.roles.includes('recruteur')) return '/recruteur/tableau-de-bord'
-  if (session.roles.includes('beneficiaire')) {
+  if (session.roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
+  if (session.roles.includes('recruteur'))                 return '/recruteur/tableau-de-bord'
+  if (session.roles.some(r => BENEFICIAIRE_ROLES.has(r))) {
     return session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding'
   }
   return '/auth/connexion?error=no_role'

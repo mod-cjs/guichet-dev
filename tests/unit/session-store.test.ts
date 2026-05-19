@@ -11,51 +11,41 @@ jest.mock('@/lib/logger', () => ({
 
 const mockRedis = redis as jest.Mocked<typeof redis>
 
-const UID = 'uuid-test-1234'
-const KEY = `guichet:session:${UID}`
+const UID      = 'uuid-test-1234'
+const REVOKED_KEY = `guichet:session:revoked:${UID}`
 
 beforeEach(() => jest.clearAllMocks())
 
 describe('activateSession', () => {
-  it('stocke la clé avec TTL en Redis', async () => {
-    mockRedis.set.mockResolvedValue('OK')
+  it('ne fait aucun appel Redis (denylist — JWT est la source de vérité)', async () => {
     await activateSession(UID, 3600)
-    expect(mockRedis.set).toHaveBeenCalledWith(KEY, '1', 'EX', 3600)
-  })
-
-  it('force un TTL minimum de 60s', async () => {
-    mockRedis.set.mockResolvedValue('OK')
-    await activateSession(UID, 10)
-    expect(mockRedis.set).toHaveBeenCalledWith(KEY, '1', 'EX', 60)
-  })
-
-  it('ne throw pas si Redis est indisponible', async () => {
-    mockRedis.set.mockRejectedValue(new Error('ECONNREFUSED'))
-    await expect(activateSession(UID, 3600)).resolves.toBeUndefined()
+    expect(mockRedis.set).not.toHaveBeenCalled()
+    expect(mockRedis.del).not.toHaveBeenCalled()
+    expect(mockRedis.get).not.toHaveBeenCalled()
   })
 })
 
 describe('revokeSession', () => {
-  it('supprime la clé Redis', async () => {
-    mockRedis.del.mockResolvedValue(1)
+  it('écrit le marqueur revoked avec TTL 7 jours', async () => {
+    mockRedis.set.mockResolvedValue('OK')
     await revokeSession(UID)
-    expect(mockRedis.del).toHaveBeenCalledWith(KEY)
+    expect(mockRedis.set).toHaveBeenCalledWith(REVOKED_KEY, 'revoked', 'EX', 7 * 24 * 3600)
   })
 
   it('ne throw pas si Redis est indisponible', async () => {
-    mockRedis.del.mockRejectedValue(new Error('ECONNREFUSED'))
+    mockRedis.set.mockRejectedValue(new Error('ECONNREFUSED'))
     await expect(revokeSession(UID)).resolves.toBeUndefined()
   })
 })
 
 describe('isSessionActive', () => {
-  it('retourne true si la clé existe', async () => {
-    mockRedis.get.mockResolvedValue('1')
+  it('retourne true si aucun marqueur de révocation (cas normal)', async () => {
+    mockRedis.get.mockResolvedValue(null)
     expect(await isSessionActive(UID)).toBe(true)
   })
 
-  it('retourne false si la clé est absente (session révoquée)', async () => {
-    mockRedis.get.mockResolvedValue(null)
+  it('retourne false si le marqueur revoked est présent', async () => {
+    mockRedis.get.mockResolvedValue('revoked')
     expect(await isSessionActive(UID)).toBe(false)
   })
 

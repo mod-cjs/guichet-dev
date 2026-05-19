@@ -23,6 +23,7 @@ prisma/migrations/*.sql.lock
 # Logs
 *.log
 npm-debug.log*
+logs/
 
 # OS
 .DS_Store

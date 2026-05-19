@@ -24,19 +24,36 @@ type Draft = {
 const DRAFT_KEY = 'onboarding_draft'
 const STEPS = ['Identité', 'Localisation', 'Profil'] as const
 
-function useDraft() {
-  const [draft, setDraft] = useState<Draft>({
-    identite:     {},
-    localisation: {},
-    profil:       {},
-  })
+// Garde uniquement les champs avec une valeur explicite (pas null ni undefined)
+function definedOnly<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
+  ) as Partial<T>
+}
+
+function useDraft(initialData?: Partial<Draft>) {
+  const [draft, setDraft] = useState<Draft>({ identite: {}, localisation: {}, profil: {} })
 
   useEffect(() => {
+    // Lire localStorage
+    let local: Partial<Draft> = {}
     try {
-      const saved = localStorage.getItem(DRAFT_KEY)
-      if (saved) setDraft(JSON.parse(saved))
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (raw) local = JSON.parse(raw)
     } catch {}
-  }, [])
+
+    // Fusion : localStorage de base, initialData (DB) a priorité sur ses champs définis.
+    // Raison : les données DB sont la source de vérité ; localStorage comble les champs
+    // non encore sauvegardés (session interrompue mid-step).
+    const merged: Draft = {
+      identite:     { ...(local.identite     ?? {}), ...(definedOnly(initialData?.identite     ?? {})) },
+      localisation: { ...(local.localisation ?? {}), ...(definedOnly(initialData?.localisation ?? {})) },
+      profil:       { ...(local.profil       ?? {}), ...(definedOnly(initialData?.profil       ?? {})) },
+    }
+
+    setDraft(merged)
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(merged)) } catch {}
+  }, []) // effet d'initialisation — doit tourner une seule fois au montage
 
   function updateDraft(next: Draft) {
     setDraft(next)
@@ -55,22 +72,11 @@ interface Props {
 }
 
 export function OnboardingWizard({ initialData }: Props) {
-  const router             = useRouter()
-  const { draft, updateDraft, clearDraft } = useDraft()
-  const [step, setStep]    = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors]  = useState<Record<string, string>>({})
-
-  // Pré-remplir depuis les données existantes (GET /api/v1/onboarding)
-  useEffect(() => {
-    if (initialData) {
-      updateDraft({
-        identite:     initialData.identite     ?? {},
-        localisation: initialData.localisation ?? {},
-        profil:       initialData.profil        ?? {},
-      })
-    }
-  }, [])
+  const router                             = useRouter()
+  const { draft, updateDraft, clearDraft } = useDraft(initialData)
+  const [step, setStep]                    = useState(1)
+  const [loading, setLoading]              = useState(false)
+  const [errors, setErrors]                = useState<Record<string, string>>({})
 
   async function handleNext() {
     setErrors({})
@@ -128,7 +134,7 @@ export function OnboardingWizard({ initialData }: Props) {
     }
   }
 
-  const progressPct = Math.round((step / STEPS.length) * 100)
+  const progressPct = Math.round(((step - 1) / STEPS.length) * 100)
 
   return (
     <div className="min-h-screen bg-gj-bg flex flex-col items-center justify-start px-space-4 py-space-8">
