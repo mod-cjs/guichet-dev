@@ -58,6 +58,16 @@ export interface DeleteExperienceResponse {
   completionScore: number
 }
 
+// Retourné par POST/PUT /api/profil/diplomes
+export interface DiplomeResponse extends DiplomeItem {
+  completionScore: number
+}
+
+// Retourné par DELETE /api/profil/diplomes/:id
+export interface DeleteDiplomeResponse {
+  completionScore: number
+}
+
 // Retourné par PUT /api/profil — tous les champs à jour + score
 export interface PutProfilResponse {
   region:          string | null
