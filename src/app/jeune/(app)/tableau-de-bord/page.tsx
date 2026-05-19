@@ -2,11 +2,8 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { loadDashboardCounts, loadRecentActivity, ACTIVITY_LIMIT_DEFAULT } from '@/lib/dashboard-loader'
 import { prisma } from '@/lib/prisma'
-import { Card, Button } from '@/components/ui'
-import { CompletionBar } from '@/components/profil'
-import { DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
+import { DashboardHero, DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
 import { IconCandidature, IconEvenement, IconDiplome } from '@/components/dashboard/icons'
-import Link from 'next/link'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
 
@@ -26,53 +23,46 @@ export default async function TableauDeBordPage() {
   const completionScore = profil?.completionScore ?? 0
 
   return (
-    <div className="flex flex-col gap-space-5 pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
-      <div>
-        <h1 className="text-fs-600 font-black text-color-text-primary">
-          Bonjour, {session.prenom}
-        </h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Voici un aperçu de votre activité.
-        </p>
-      </div>
+    <div className="flex flex-col gap-space-5">
+      <DashboardHero
+        prenom={session.prenom ?? ''}
+        nom={session.nom ?? ''}
+        completionScore={completionScore}
+      />
 
-      <Card>
-        <CompletionBar score={completionScore} />
-        {completionScore < 80 && (
-          <div className="flex items-center justify-between gap-space-3 mt-space-3">
-            <p className="text-fs-200 text-color-text-secondary">
-              Complétez votre profil pour accéder à plus d&apos;opportunités.
-            </p>
-            <Link href="/jeune/mon-profil">
-              <Button variant="ghost" size="sm">Compléter</Button>
-            </Link>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-5">
+        {/* Colonne principale : compteurs + CTA (2/3) */}
+        <div className="lg:col-span-2 flex flex-col gap-space-5">
+          <DashboardCompteurs counts={counts} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-3">
+            <DashboardCTACard
+              href="/jeune/mon-profil"
+              title="Compléter mon profil"
+              description="Diplômes, expériences, compétences"
+              icon={<IconDiplome />}
+            />
+            <DashboardCTACard
+              href="/opportunites"
+              title="Voir les opportunités"
+              description="Stages, emplois, formations, bourses"
+              icon={<IconCandidature />}
+            />
+            <DashboardCTACard
+              href="/evenements"
+              title="Voir les événements"
+              description="Forums, ateliers, webinaires"
+              icon={<IconEvenement />}
+            />
           </div>
-        )}
-      </Card>
+        </div>
 
-      <DashboardCompteurs counts={counts} />
-
-      <ActivityFeed items={activity} />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-space-3">
-        <DashboardCTACard
-          href="/jeune/mon-profil"
-          title="Compléter mon profil"
-          description="Diplômes, expériences, compétences"
-          icon={<IconDiplome />}
-        />
-        <DashboardCTACard
-          href="/opportunites"
-          title="Voir les opportunités"
-          description="Stages, emplois, formations, bourses"
-          icon={<IconCandidature />}
-        />
-        <DashboardCTACard
-          href="/evenements"
-          title="Voir les événements"
-          description="Forums, ateliers, webinaires"
-          icon={<IconEvenement />}
-        />
+        {/* Colonne secondaire : flux d'activités sticky desktop (1/3) */}
+        <aside className="lg:col-span-1">
+          <div className="lg:sticky lg:top-[80px]">
+            <ActivityFeed items={activity} />
+          </div>
+        </aside>
       </div>
     </div>
   )
