@@ -1,22 +1,33 @@
 import { getSession } from '@/lib/auth'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { MobileShellPadding } from './MobileShellPadding'
+import { MobileShellGate } from './MobileShellGate'
 
 /**
- * Shell mobile global : rend AppTopbar + BottomNav pour tout utilisateur connecté,
- * sur toutes les routes sauf /admin/* et /recruteur/* (qui ont leur sidebar).
- * Rendu dans le root layout pour éviter la perte de nav lors de la navigation
- * entre routes publiques (/opportunites, etc.) et privées (/jeune/*).
+ * Top bar mobile du shell global pour user connecté.
+ * À rendre AVANT {children} dans le root layout pour que `sticky top-0` fonctionne
+ * (l'élément doit être en haut du flow DOM).
  */
-export async function MobileAppShell() {
+export async function MobileTopShell() {
   const session = await getSession()
   if (!session) return null
-
   return (
-    <MobileShellPadding>
+    <MobileShellGate>
       <AppTopbar session={session} />
+    </MobileShellGate>
+  )
+}
+
+/**
+ * Bottom nav mobile du shell global pour user connecté.
+ * À rendre APRÈS {children} dans le root layout (cohérent avec `fixed bottom-0`).
+ */
+export async function MobileBottomShell() {
+  const session = await getSession()
+  if (!session) return null
+  return (
+    <MobileShellGate>
       <BottomNav />
-    </MobileShellPadding>
+    </MobileShellGate>
   )
 }

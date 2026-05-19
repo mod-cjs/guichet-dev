@@ -72,7 +72,8 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed left-0 right-0 bottom-0 bg-white border-t border-gj-line"
+      data-mobile-bottom-nav
+      className="gj-bottom-nav md:hidden fixed left-0 right-0 bottom-0 bg-white border-t border-gj-line"
       style={{
         zIndex: 'var(--gj-z-bottom-nav)',
         boxShadow: 'var(--gj-shadow-bottom-nav)',
