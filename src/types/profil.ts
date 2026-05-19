@@ -68,6 +68,25 @@ export interface DeleteDiplomeResponse {
   completionScore: number
 }
 
+// ── Dashboard jeune ──────────────────────────────────────────────────────────
+
+export interface DashboardCounts {
+  candidatures:   number
+  eventsInscrits: number
+  favoris:        number
+  certificats:    number
+  experiences:    number
+  diplomes:       number
+}
+
+export type ActivityItem =
+  | { type: 'candidature';           id: string; date: string; opportuniteTitre: string;  statut: string }
+  | { type: 'inscription_evenement'; id: string; date: string; evenementTitre: string;    dateEvent: string }
+  | { type: 'favori_ressource';      id: string; date: string; ressourceTitre: string }
+  | { type: 'experience_ajoutee';    id: string; date: string; poste: string;             organisation: string }
+  | { type: 'diplome_ajoute';        id: string; date: string; intitule: string;          anneeObtention: number }
+  | { type: 'certificat_recu';       id: string; date: string; intitule: string;          urlCertificat: string | null }
+
 // Retourné par PUT /api/profil — tous les champs à jour + score
 export interface PutProfilResponse {
   region:          string | null
