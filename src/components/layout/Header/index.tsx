@@ -29,7 +29,7 @@ export async function Header() {
           </span>
         </Link>
 
-        {/* Nav links — desktop uniquement */}
+        {/* Nav links — desktop uniquement. Liens contextuels "Mon espace" si session active. */}
         <nav className="hidden md:flex items-center">
           {[
             { href: '/',             label: 'Accueil' },
@@ -49,6 +49,27 @@ export async function Header() {
               {link.label}
             </Link>
           ))}
+
+          {session && (
+            <>
+              <span className="mx-[6px] h-5 w-px bg-gj-line" aria-hidden />
+              {[
+                { href: '/jeune/tableau-de-bord', label: 'Mon dashboard' },
+                { href: '/jeune/mon-profil',      label: 'Mon profil'    },
+              ].map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="px-[8px] text-[11px] font-bold text-gj-teal-deep
+                    hover:bg-gj-teal-soft no-underline whitespace-nowrap flex-shrink-0
+                    transition-colors border-b-[3px] border-transparent"
+                  style={{ paddingTop: 13, paddingBottom: 13 }}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* Côté droit */}
