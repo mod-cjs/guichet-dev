@@ -2,16 +2,21 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+// BottomNav rendue uniquement pour user connecté (cf MobileBottomShell).
+// L'item Accueil renvoyait vers la landing publique pour un user authentifié,
+// ce qui était incohérent : remplacé par "Dashboard" → /jeune/tableau-de-bord.
 const ITEMS = [
   {
-    href: '/',
-    label: 'Accueil',
-    match: (p: string) => p === '/',
+    href: '/jeune/tableau-de-bord',
+    label: 'Dashboard',
+    match: (p: string) => p === '/jeune/tableau-de-bord' || p.startsWith('/jeune/tableau-de-bord/'),
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
+        <rect x="3" y="3" width="7" height="9"/>
+        <rect x="14" y="3" width="7" height="5"/>
+        <rect x="14" y="12" width="7" height="9"/>
+        <rect x="3" y="16" width="7" height="5"/>
       </svg>
     ),
   },
@@ -56,7 +61,7 @@ const ITEMS = [
   {
     href: '/jeune/mon-profil',
     label: 'Profil',
-    match: (p: string) => p.startsWith('/jeune'),
+    match: (p: string) => p.startsWith('/jeune/mon-profil'),
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

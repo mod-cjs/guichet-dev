@@ -1,0 +1,70 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const PUBLIC_LINKS = [
+  { href: '/',             label: 'Accueil',      match: (p: string) => p === '/' },
+  { href: '/opportunites', label: 'Opportunités', match: (p: string) => p.startsWith('/opportunites') },
+  { href: '/evenements',   label: 'Agenda',       match: (p: string) => p.startsWith('/evenements') },
+  { href: '/ressources',   label: 'Ressources',   match: (p: string) => p.startsWith('/ressources') },
+  { href: '/centres',      label: 'Centres CJS',  match: (p: string) => p.startsWith('/centres') },
+]
+
+const AUTH_LINKS = [
+  { href: '/jeune/tableau-de-bord', label: 'Mon dashboard', match: (p: string) => p.startsWith('/jeune/tableau-de-bord') },
+  { href: '/jeune/mon-profil',      label: 'Mon profil',    match: (p: string) => p.startsWith('/jeune/mon-profil') },
+]
+
+interface Props { isAuthenticated: boolean }
+
+export function HeaderNav({ isAuthenticated }: Props) {
+  const pathname = usePathname()
+
+  return (
+    <nav className="hidden md:flex items-center">
+      {PUBLIC_LINKS.map(link => {
+        const active = link.match(pathname)
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            aria-current={active ? 'page' : undefined}
+            className={`px-[8px] text-[11px] no-underline whitespace-nowrap flex-shrink-0 transition-colors
+              border-b-[3px] ${active
+                ? 'text-gj-teal-deep border-gj-teal bg-gj-teal-soft/40'
+                : 'text-gj-grey hover:text-gj-teal hover:bg-gj-teal-soft border-transparent'
+              }`}
+            style={{ paddingTop: 13, paddingBottom: 13 }}
+          >
+            {link.label}
+          </Link>
+        )
+      })}
+
+      {isAuthenticated && (
+        <>
+          <span className="mx-[6px] h-5 w-px bg-gj-line" aria-hidden />
+          {AUTH_LINKS.map(link => {
+            const active = link.match(pathname)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? 'page' : undefined}
+                className={`px-[8px] text-[11px] font-bold no-underline whitespace-nowrap flex-shrink-0
+                  transition-colors border-b-[3px] ${active
+                    ? 'text-gj-teal-deep border-gj-teal bg-gj-teal-soft/40'
+                    : 'text-gj-teal-deep hover:bg-gj-teal-soft border-transparent'
+                  }`}
+                style={{ paddingTop: 13, paddingBottom: 13 }}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+        </>
+      )}
+    </nav>
+  )
+}
