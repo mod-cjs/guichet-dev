@@ -28,6 +28,12 @@ jest.mock('@/lib/session-store', () => ({
   revokeSession: (...args: unknown[]) => mockRevokeSession(...args),
 }))
 
+jest.mock('@/lib/token-store', () => ({
+  saveTokens:  jest.fn().mockResolvedValue(undefined),
+  getTokens:   jest.fn().mockResolvedValue(null),
+  clearTokens: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }))

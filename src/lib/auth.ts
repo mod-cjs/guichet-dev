@@ -2,8 +2,9 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
 import type { CJSSession } from '@/types/user'
+import { getTokens } from '@/lib/token-store'
 
-// Compatible Edge Runtime — aucun import Node.js
+// Compatible Edge Runtime jusqu'à getSession qui utilise token-store (Node uniquement).
 
 const SESSION_COOKIE = 'cjs_session'
 const JWT_ISSUER     = 'guichet-jeunesse'
@@ -16,10 +17,42 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(s)
 }
 
+// ── Cookie payload (minimal — GUIC-166) ───────────────────────────────────
+// Le cookie JWT NE contient PAS access/refresh tokens (trop volumineux —
+// causait des soucis SafariMobile et limites proxy). Les tokens sont
+// stockés dans Redis via lib/token-store et assemblés à la lecture.
+
+interface MinimalSessionClaims {
+  cjsUid:             string
+  nom:                string
+  prenom:             string
+  email:              string | null
+  telephone:          string | null
+  region:             string | null
+  roles:              string[]
+  onboardingComplete: boolean
+  expiresAt:          number
+}
+
+function pickMinimalClaims(session: CJSSession): MinimalSessionClaims {
+  return {
+    cjsUid:             session.cjsUid,
+    nom:                session.nom,
+    prenom:             session.prenom,
+    email:              session.email,
+    telephone:          session.telephone,
+    region:             session.region,
+    roles:              session.roles,
+    onboardingComplete: session.onboardingComplete,
+    expiresAt:          session.expiresAt,
+  }
+}
+
 // ── Encode / decode ───────────────────────────────────────────────────────
 
 export async function encodeSession(session: CJSSession): Promise<string> {
-  return new SignJWT(session as unknown as JWTPayload)
+  // Ne sérialise que les claims légères dans le JWT (cookie ~400 bytes).
+  return new SignJWT(pickMinimalClaims(session) as unknown as JWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuer(JWT_ISSUER)
     .setAudience(JWT_AUDIENCE)
@@ -27,13 +60,13 @@ export async function encodeSession(session: CJSSession): Promise<string> {
     .sign(getSecret())
 }
 
-async function decodeSession(token: string): Promise<CJSSession | null> {
+async function decodeSessionMinimal(token: string): Promise<MinimalSessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret(), {
       issuer:   JWT_ISSUER,
       audience: JWT_AUDIENCE,
     })
-    return payload as unknown as CJSSession
+    return payload as unknown as MinimalSessionClaims
   } catch {
     return null
   }
@@ -50,7 +83,28 @@ export async function getSession(request?: NextRequest): Promise<CJSSession | nu
     value = store.get(SESSION_COOKIE)?.value
   }
   if (!value) return null
-  return decodeSession(value)
+
+  const minimal = await decodeSessionMinimal(value)
+  if (!minimal) return null
+
+  // Assemble : cookie minimal + tokens lus depuis Redis
+  // Si Redis indispo ou clé absente, retourne quand même la session avec tokens
+  // vides — le user reste connecté pour la navigation mais un refresh échouera.
+  const tokens = await getTokens(minimal.cjsUid)
+
+  return {
+    cjsUid:             minimal.cjsUid,
+    nom:                minimal.nom,
+    prenom:             minimal.prenom,
+    email:              minimal.email,
+    telephone:          minimal.telephone,
+    region:             minimal.region,
+    roles:              minimal.roles,
+    onboardingComplete: minimal.onboardingComplete,
+    expiresAt:          tokens?.expiresAt ?? minimal.expiresAt,
+    accessToken:        tokens?.accessToken  ?? '',
+    refreshToken:       tokens?.refreshToken ?? '',
+  }
 }
 
 export async function isAuthenticated(request?: NextRequest): Promise<boolean> {

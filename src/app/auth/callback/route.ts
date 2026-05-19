@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { exchangeCode, getUserInfo, revokeToken, type TokenResponse } from '@/lib/sso-client'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
+import { saveTokens } from '@/lib/token-store'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
@@ -77,7 +78,14 @@ export async function GET(request: NextRequest) {
       onboardingComplete: utilisateur.onboardingComplete,
     }
 
-    const encoded     = await encodeSession(session)
+    // GUIC-166 : tokens stockés dans Redis, pas dans le cookie
+    await saveTokens(claims.sub, {
+      accessToken:  tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt:    session.expiresAt,
+    })
+
+    const encoded = await encodeSession(session)
     logger.info('session-size', {
       accessToken:  tokens.access_token.length,
       refreshToken: tokens.refresh_token.length,

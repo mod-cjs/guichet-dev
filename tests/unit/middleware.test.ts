@@ -27,6 +27,12 @@ jest.mock('@/lib/sso-client', () => ({
   revokeToken: (...args: unknown[]) => mockRevokeToken(...args),
 }))
 
+jest.mock('@/lib/token-store', () => ({
+  saveTokens:  jest.fn().mockResolvedValue(undefined),
+  getTokens:   jest.fn().mockResolvedValue(null),
+  clearTokens: jest.fn().mockResolvedValue(undefined),
+}))
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function makeRequest(path: string): NextRequest {
