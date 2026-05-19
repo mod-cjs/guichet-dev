@@ -3,6 +3,7 @@ import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
 import { saveTokens, clearTokens } from '@/lib/token-store'
 import { revokeToken } from '@/lib/sso-client'
+import { logger } from '@/lib/logger'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
 const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
@@ -35,9 +36,18 @@ export async function middleware(request: NextRequest) {
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
   if (!matched) return NextResponse.next()
 
+  // GUIC-166 debug temporaire : tracer ce que le middleware reçoit
+  const rawCookie = request.cookies.get('cjs_session')?.value
+  logger.info('mw-trace', {
+    pathname,
+    hasCookie:    !!rawCookie,
+    cookieLength: rawCookie?.length ?? 0,
+  })
+
   const session = await getSession(request)
 
   if (!session) {
+    logger.info('mw-trace-no-session', { pathname, hasCookie: !!rawCookie })
     const loginUrl = new URL('/auth/connexion', request.url)
     const response = NextResponse.redirect(loginUrl)
     response.cookies.set('auth_return_to', pathname + request.nextUrl.search, {
@@ -50,18 +60,25 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
+  logger.info('mw-trace-session', {
+    pathname,
+    cjsUid:             session.cjsUid,
+    roles:              session.roles,
+    onboardingComplete: session.onboardingComplete,
+  })
+
   // Vérifier la denylist Redis (backchannel logout SSO)
   if (!(await isSessionActive(session.cjsUid))) {
+    logger.info('mw-trace-revoked', { pathname, cjsUid: session.cjsUid })
     const response = NextResponse.redirect(new URL('/auth/connexion', request.url))
     response.cookies.delete('cjs_session')
     return response
   }
 
   if (!matched.check(session.roles)) {
-    // Rediriger vers le bon espace sans effacer la session
+    logger.info('mw-trace-role-mismatch', { pathname, roles: session.roles })
     const home = roleHome(session.roles)
     if (home) return NextResponse.redirect(new URL(home, request.url))
-    // Aucun rôle connu → déconnexion propre
     const response = NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
     response.cookies.delete('cjs_session')
     return response
@@ -72,6 +89,7 @@ export async function middleware(request: NextRequest) {
     !session.onboardingComplete &&
     !pathname.startsWith('/jeune/onboarding')
   ) {
+    logger.info('mw-trace-onboarding-redirect', { pathname, cjsUid: session.cjsUid })
     return NextResponse.redirect(new URL('/jeune/onboarding', request.url))
   }
 
