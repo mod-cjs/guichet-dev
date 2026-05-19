@@ -50,6 +50,6 @@
    pas de useEffect, donc pas de layout shift au premier paint. */
 @media (max-width: 767px) {
   body:has(.gj-bottom-nav) {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--gj-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
 }

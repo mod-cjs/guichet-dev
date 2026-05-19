@@ -35,7 +35,10 @@ export default async function TableauDeBordPage() {
         <div className="lg:col-span-2 flex flex-col gap-space-5">
           <DashboardCompteurs counts={counts} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-3">
+          {/* CTA cachés en mobile (redondants avec la BottomNav qui couvre déjà
+              profil, opportunités et événements). Visibles à partir de md où il
+              n'y a pas de BottomNav. */}
+          <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-space-3">
             <DashboardCTACard
               href="/jeune/mon-profil"
               title="Compléter mon profil"
