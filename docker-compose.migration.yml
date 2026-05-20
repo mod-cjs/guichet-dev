@@ -1,0 +1,71 @@
+#
+# Stack de répétition générale pour la migration Drupal → Guichet (GUIC-17)
+#
+# Cette stack isole les 3 bases nécessaires + un cjs_auth jetable pointant sur
+# la branche feature/GUIC-17-sso-bulk-import-endpoints (qui contient les nouveaux
+# endpoints API consommés par scripts/migrate-all.ts).
+#
+# USAGE
+#   1. Placer les dumps SQL dans ./data/migration-fixtures/ :
+#        - drupal.sql        (dump complet de la prod Drupal)
+#        - auth_database.sql (dump SSO production)
+#   2. docker compose -f docker-compose.migration.yml up -d
+#   3. Attendre que les 3 bases soient healthy
+#   4. npm run migration:rehearsal
+#
+# Une fois la répétition validée, tear down avec :
+#   docker compose -f docker-compose.migration.yml down -v
+#
+
+services:
+
+  # ── Base Drupal source (lecture seule logique) ───────────────────────────
+  drupal_source:
+    image: mariadb:11
+    container_name: migration_drupal_source
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: drupal_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./data/migration-fixtures/drupal.sql:/docker-entrypoint-initdb.d/01-dump.sql:ro
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Base SSO source (lecture seule logique) ──────────────────────────────
+  sso_source:
+    image: mariadb:11
+    container_name: migration_sso_source
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: auth_database
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./data/migration-fixtures/auth_database.sql:/docker-entrypoint-initdb.d/01-dump.sql:ro
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Base Guichet cible (vierge, recevra les écritures) ───────────────────
+  guichet_target:
+    image: mariadb:11
+    container_name: migration_guichet_target
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: guichet_jeunesse
+      MARIADB_USER: guichet
+      MARIADB_PASSWORD: guichet_dev_password
+    ports:
+      - "3309:3306"
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-uguichet", "-pguichet_dev_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

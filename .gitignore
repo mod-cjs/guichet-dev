@@ -38,3 +38,7 @@ Thumbs.db
 .claude/settings.local.json
 
 data/migration_report_*.txt
+data/backfill_sso_phones.sql
+data/drupal_uid_cjs_uid_map.json
+data/drupal_uid_cjs_uid_map_updated.json
+data/create_sso_accounts.sql
