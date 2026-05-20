@@ -74,6 +74,21 @@ function mapGender(val: string | null): 'M' | 'F' | null {
   return null
 }
 
+// Le SSO exige first_name / last_name non vides. Certains comptes Drupal n'ont
+// ni nom ni prénom → on retombe sur la partie locale de l'email, puis un défaut.
+function deriveNames(prenom: string | null, nom: string | null, email: string): {
+  first: string
+  last:  string
+} {
+  const local = (email.split('@')[0] ?? '').replace(/[._-]+/g, ' ').trim()
+  const p = prenom?.trim()
+  const n = nom?.trim()
+  return {
+    first: p || local || 'Jeune',
+    last:  n || local || 'Migration',
+  }
+}
+
 function mapRegion(val: string | null): string | null {
   if (!val) return null
   const map: Record<string, string> = {
@@ -119,8 +134,8 @@ async function main() {
             s.field_sexe_value         AS sexe,
             t.field_telephone_value    AS telephone,
             d.field_date_de_naissance_value AS date_naissance,
-            r.field_region_value       AS region,
-            c.field_commune_value      AS commune
+            NULL                       AS region,
+            NULL                       AS commune
        FROM users u
        JOIN users_field_data f ON f.uid = u.uid AND f.status = 1
        LEFT JOIN user__field_nom               n ON n.entity_id = u.uid AND n.deleted = 0
@@ -128,8 +143,6 @@ async function main() {
        LEFT JOIN user__field_sexe              s ON s.entity_id = u.uid AND s.deleted = 0
        LEFT JOIN user__field_telephone         t ON t.entity_id = u.uid AND t.deleted = 0
        LEFT JOIN user__field_date_de_naissance d ON d.entity_id = u.uid AND d.deleted = 0
-       LEFT JOIN user__field_region            r ON r.entity_id = u.uid AND r.deleted = 0
-       LEFT JOIN user__field_commune           c ON c.entity_id = u.uid AND c.deleted = 0
        WHERE u.uid > 0 AND f.mail IS NOT NULL
        ${LIMIT ? `LIMIT ${LIMIT}` : ''}`
   )
@@ -148,19 +161,23 @@ async function main() {
   // Construire le payload bulk
   const payload: BulkUser[] = unmapped
     .filter(u => u.mail?.trim())
-    .map(u => ({
-      drupal_uid:      u.uid,
-      email:           u.mail.trim().toLowerCase(),
-      phone:           normalizePhone(u.telephone),
-      first_name:      u.prenom ?? '',
-      last_name:       u.nom    ?? '',
-      gender:          mapGender(u.sexe),
-      date_of_birth:   u.date_naissance ? u.date_naissance.split('T')[0] : null,
-      region:          mapRegion(u.region),
-      commune:         u.commune,
-      source_platform: 'drupal_migration',
-      import_batch:    IMPORT_BATCH,
-    }))
+    .map(u => {
+      const email = u.mail.trim().toLowerCase()
+      const names = deriveNames(u.prenom, u.nom, email)
+      return {
+        drupal_uid:      u.uid,
+        email,
+        phone:           normalizePhone(u.telephone),
+        first_name:      names.first,
+        last_name:       names.last,
+        gender:          mapGender(u.sexe),
+        date_of_birth:   u.date_naissance ? u.date_naissance.split('T')[0] : null,
+        region:          mapRegion(u.region),
+        commune:         u.commune,
+        source_platform: 'drupal_migration',
+        import_batch:    IMPORT_BATCH,
+      }
+    })
 
   console.log(`Payload prêt   : ${payload.length} entrées (${unmapped.length - payload.length} ignorés - email vide)`)
 

@@ -51,7 +51,10 @@ export interface UpdateOptions {
   silent?:     boolean
 }
 
-const BULK_BATCH_SIZE = 500
+// Lots de 500 par défaut. Configurable via SSO_BULK_BATCH_SIZE : le hachage
+// bcrypt côté SSO est coûteux et un trop gros lot peut dépasser le
+// max_execution_time PHP — réduire la taille du lot dans ce cas.
+const BULK_BATCH_SIZE = Number(process.env.SSO_BULK_BATCH_SIZE) || 500
 const MAX_RETRIES     = 3
 
 export class SSOApiClient {

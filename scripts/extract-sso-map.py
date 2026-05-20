@@ -10,6 +10,8 @@ Produit:
     data/drupal_uid_cjs_uid_map.json  — utilisé par scripts/migrate-drupal.ts
 """
 
+from __future__ import annotations  # compat annotations PEP 585 sous Python 3.8
+
 import re
 import json
 import os

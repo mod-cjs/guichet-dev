@@ -125,17 +125,33 @@ function mapGenre(val: string | null): 'M' | 'F' | null {
   return null
 }
 
+// `field_emplacement` est du texte libre (ville ou quartier le plus souvent).
+// On reconnaît les 14 régions et les principales villes/quartiers qui les composent.
+const REGION_CITIES: Record<string, string> = {
+  Dakar:       'dakar rufisque guediawaye guédiawaye pikine bargny diamniadio liberte liberté point-e parcelles yoff ouakam almadies plateau hann medina médina sicap',
+  Thies:       'thies thiès mbour tivaouane joal popenguine kayar pout saly',
+  Diourbel:    'diourbel mbacke mbacké touba bambey',
+  Fatick:      'fatick foundiougne gossas sokone',
+  Kaolack:     'kaolack guinguineo nioro',
+  Kaffrine:    'kaffrine birkelane koungheul malem',
+  Louga:       'louga kebemer kébémer linguere linguère',
+  Saint_Louis: 'saint-louis saint louis richard-toll dagana podor',
+  Matam:       'matam kanel ranerou',
+  Tambacounda: 'tambacounda bakel goudiry koumpentoum',
+  Kedougou:    'kedougou kédougou salemata saraya',
+  Kolda:       'kolda velingara vélingara medina yoro',
+  Ziguinchor:  'ziguinchor bignona oussouye cap skirring',
+  Sedhiou:     'sedhiou sédhiou bounkiling goudomp',
+}
+
 function mapRegion(val: string | null): string | null {
   if (!val) return null
-  const map: Record<string, string> = {
-    'dakar': 'Dakar', 'thiès': 'Thies', 'thies': 'Thies', 'diourbel': 'Diourbel',
-    'fatick': 'Fatick', 'kaolack': 'Kaolack', 'kaffrine': 'Kaffrine',
-    'louga': 'Louga', 'saint-louis': 'Saint_Louis', 'saint_louis': 'Saint_Louis',
-    'matam': 'Matam', 'tambacounda': 'Tambacounda', 'kédougou': 'Kedougou',
-    'kedougou': 'Kedougou', 'kolda': 'Kolda', 'ziguinchor': 'Ziguinchor',
-    'sédhiou': 'Sedhiou', 'sedhiou': 'Sedhiou',
+  const v = val.trim().toLowerCase()
+  if (!v) return null
+  for (const [region, cities] of Object.entries(REGION_CITIES)) {
+    if (cities.split(' ').some(city => v.includes(city))) return region
   }
-  return map[val.toLowerCase()] ?? null
+  return null
 }
 
 function mapDomaine(val: string | null): string {
@@ -174,7 +190,8 @@ function mapTypeRessource(drupalType: string): string {
   const map: Record<string, string> = {
     'video': 'Video', 'document': 'PDF', 'guide': 'Guide', 'outil': 'Outil',
   }
-  return map[drupalType] ?? 'Lien'
+  // Le bundle Drupal réel est `ressources` (documentaire, sans lien) → Guide par défaut.
+  return map[drupalType] ?? 'Guide'
 }
 
 function toDate(ts: number): Date {
@@ -256,8 +273,8 @@ async function migrateProfilsJeune(
        s.field_sexe_value                    AS sexe,
        t.field_telephone_value               AS telephone,
        d.field_date_de_naissance_value       AS date_naissance,
-       r.field_region_value                  AS region,
-       c.field_commune_value                 AS commune
+       NULL                                  AS region,
+       NULL                                  AS commune
      FROM users u
      JOIN users_field_data f   ON f.uid = u.uid AND f.status = 1
      LEFT JOIN user__field_nom               n  ON n.entity_id = u.uid AND n.deleted = 0
@@ -265,8 +282,6 @@ async function migrateProfilsJeune(
      LEFT JOIN user__field_sexe              s  ON s.entity_id = u.uid AND s.deleted = 0
      LEFT JOIN user__field_telephone         t  ON t.entity_id = u.uid AND t.deleted = 0
      LEFT JOIN user__field_date_de_naissance d  ON d.entity_id = u.uid AND d.deleted = 0
-     LEFT JOIN user__field_region            r  ON r.entity_id = u.uid AND r.deleted = 0
-     LEFT JOIN user__field_commune           c  ON c.entity_id = u.uid AND c.deleted = 0
      WHERE u.uid > 0 AND f.mail IS NOT NULL
      ${limitSql}`
   )
@@ -354,17 +369,17 @@ async function migrateOpportunites(
   const [nodes] = await drupal.query<DrupalNode[]>(
     `SELECT
        n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-       b.body_value                        AS body,
-       lien.field_lien_externe_uri         AS lien,
-       reg.field_region_value              AS region,
-       dom.field_domaine_target_id         AS domaine,
-       type_o.field_type_opportunite_value AS type_opp
+       b.body_value                              AS body,
+       cand.field_envoyer_ma_candidature_uri     AS lien,
+       emp.field_emplacement_value               AS region,
+       dom.field_domaine_value                   AS domaine,
+       tc.field_type_de_contrat_value            AS type_opp
      FROM node_field_data n
-     LEFT JOIN node__body                    b      ON b.entity_id      = n.nid AND b.deleted = 0
-     LEFT JOIN node__field_lien_externe      lien   ON lien.entity_id   = n.nid AND lien.deleted = 0
-     LEFT JOIN node__field_region            reg    ON reg.entity_id    = n.nid AND reg.deleted = 0
-     LEFT JOIN node__field_domaine           dom    ON dom.entity_id    = n.nid AND dom.deleted = 0
-     LEFT JOIN node__field_type_opportunite  type_o ON type_o.entity_id = n.nid AND type_o.deleted = 0
+     LEFT JOIN node__body                         b    ON b.entity_id    = n.nid AND b.deleted = 0
+     LEFT JOIN node__field_envoyer_ma_candidature cand ON cand.entity_id = n.nid AND cand.deleted = 0
+     LEFT JOIN node__field_emplacement            emp  ON emp.entity_id  = n.nid AND emp.deleted = 0
+     LEFT JOIN node__field_domaine                dom  ON dom.entity_id  = n.nid AND dom.deleted = 0
+     LEFT JOIN node__field_type_de_contrat        tc   ON tc.entity_id   = n.nid AND tc.deleted = 0
      WHERE n.type IN (${TYPES.map(() => '?').join(',')})
      ${limitSql}`,
     TYPES
@@ -419,7 +434,6 @@ async function migrateEvenements(
 ) {
   console.log('\n[Phase 3] Migration des événements...')
 
-  const TYPES = ['evenement', 'event', 'atelier', 'webinar', 'conference', 'formation_event']
   const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
   try {
@@ -429,23 +443,22 @@ async function migrateEvenements(
     return
   }
 
+  // Les événements sont des nœuds `actualite` marqués field_event = 1
+  // (les autres `actualite` sont des actualités/news, hors périmètre).
   const [nodes] = await drupal.query<DrupalNode[]>(
     `SELECT
        n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-       b.body_value              AS body,
-       dd.field_date_debut_value AS date_debut,
-       df.field_date_fin_value   AS date_fin,
-       li.field_lieu_value       AS lieu,
-       reg.field_region_value    AS region
+       b.body_value          AS body,
+       dt.field_date_value     AS date_debut,
+       dt.field_date_end_value AS date_fin,
+       NULL                  AS lieu,
+       NULL                  AS region
      FROM node_field_data n
-     LEFT JOIN node__body             b   ON b.entity_id   = n.nid AND b.deleted = 0
-     LEFT JOIN node__field_date_debut dd  ON dd.entity_id  = n.nid AND dd.deleted = 0
-     LEFT JOIN node__field_date_fin   df  ON df.entity_id  = n.nid AND df.deleted = 0
-     LEFT JOIN node__field_lieu       li  ON li.entity_id  = n.nid AND li.deleted = 0
-     LEFT JOIN node__field_region     reg ON reg.entity_id = n.nid AND reg.deleted = 0
-     WHERE n.type IN (${TYPES.map(() => '?').join(',')})
-     ${limitSql}`,
-    TYPES
+     JOIN node__field_event ev ON ev.entity_id = n.nid AND ev.deleted = 0 AND ev.field_event_value = 1
+     LEFT JOIN node__body        b  ON b.entity_id  = n.nid AND b.deleted = 0
+     LEFT JOIN node__field_date  dt ON dt.entity_id = n.nid AND dt.deleted = 0
+     WHERE n.type = 'actualite'
+     ${limitSql}`
   )
 
   stats.evenements.total = nodes.length
@@ -500,7 +513,6 @@ async function migrateRessources(
 ) {
   console.log('\n[Phase 4] Migration des ressources...')
 
-  const TYPES = ['ressources', 'ressource', 'document', 'video', 'guide', 'outil']
   const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
   try {
@@ -510,19 +522,17 @@ async function migrateRessources(
     return
   }
 
+  // Le Drupal réel n'a ni champ lien ni domaine sur le bundle `ressources`.
   const [nodes] = await drupal.query<DrupalNode[]>(
     `SELECT
        n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-       b.body_value                AS body,
-       lien.field_lien_uri         AS lien,
-       dom.field_domaine_target_id AS domaine
+       b.body_value AS body,
+       NULL         AS lien,
+       NULL         AS domaine
      FROM node_field_data n
-     LEFT JOIN node__body           b    ON b.entity_id    = n.nid AND b.deleted = 0
-     LEFT JOIN node__field_lien     lien ON lien.entity_id = n.nid AND lien.deleted = 0
-     LEFT JOIN node__field_domaine  dom  ON dom.entity_id  = n.nid AND dom.deleted = 0
-     WHERE n.type IN (${TYPES.map(() => '?').join(',')})
-     ${limitSql}`,
-    TYPES
+     LEFT JOIN node__body b ON b.entity_id = n.nid AND b.deleted = 0
+     WHERE n.type = 'ressources'
+     ${limitSql}`
   )
 
   stats.ressources.total = nodes.length
