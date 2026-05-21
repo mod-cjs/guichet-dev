@@ -102,7 +102,7 @@ async function main() {
   }
 
   // Exécuter avec parallélisme borné
-  const results = { ok: 0, notFound: 0, errors: [] as Array<{ uuid: string; error: string }> }
+  const results = { ok: 0, skipped: 0, notFound: 0, errors: [] as Array<{ uuid: string; error: string }> }
   const t0 = Date.now()
 
   await runWithConcurrency(jobs, CONCURRENCY, async job => {
@@ -112,8 +112,9 @@ async function main() {
         { phone: job.phone },
         { onlyIfNull: true, silent: true },
       )
-      if (res === null) results.notFound++
-      else              results.ok++
+      if (res === null)                                      results.notFound++
+      else if ((res as { updated?: boolean }).updated === false) results.skipped++
+      else                                                   results.ok++
     } catch (e) {
       results.errors.push({ uuid: job.uuid, error: (e as Error).message })
     }
@@ -122,6 +123,7 @@ async function main() {
   const dt = ((Date.now() - t0) / 1000).toFixed(1)
   console.log(`\nTerminé (${dt}s) :`)
   console.log(`  Mis à jour    : ${results.ok}`)
+  console.log(`  Déjà renseigné: ${results.skipped}`)
   console.log(`  Introuvables  : ${results.notFound}`)
   console.log(`  Erreurs       : ${results.errors.length}`)
 

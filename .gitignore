@@ -41,6 +41,7 @@ Thumbs.db
 data/migration_report_*.txt
 data/migrate_all_report_*.json
 data/create_sso_accounts_report_*.json
+data/backfill_phones_report_*.json
 data/backfill_sso_phones.sql
 data/drupal_uid_cjs_uid_map.json
 data/drupal_uid_cjs_uid_map_updated.json
