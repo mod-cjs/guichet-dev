@@ -1,9 +1,13 @@
 # Migration Drupal 8/9 → Guichet Jeunesse
 
 **Ticket :** GUIC-17  
-**Branche :** `feature/GUIC-17-migration-orchestrator`  
-**Dépend de :** PR SSO `cjs_auth#24` (endpoints API étendus)  
-**Dernière mise à jour :** 2026-05-19
+**Branche :** `feature/GUIC-17-migration-v2`  
+**Dépend de :** PR SSO `cjs_auth#24` (endpoints API) + `cjs_auth#25` (provision/bulk asynchrone)  
+**Dernière mise à jour :** 2026-05-21
+
+> Cartographie du schéma Drupal réel (tables/colonnes ciblées par l'ETL) :
+> voir [`migration-schema-mapping.md`](./migration-schema-mapping.md).
+> `extract-sso-map.py` requiert **Python 3.9+**.
 
 ---
 
@@ -22,7 +26,9 @@ L'orchestrateur enchaîne les 5 phases avec rapport JSON consolidé et reprise s
 extract-map → create-sso → sync-utilisateurs → migrate-drupal → backfill-phones
 ```
 
-Toutes les écritures côté SSO passent par l'API (`POST /users/provision/bulk`, `PATCH /users/{uuid}`) — **aucun SQL manuel** sur le serveur SSO. Les webhooks `user.provisioned` sont dispatchés vers les plateformes abonnées (BRM, Moodle, Centres). Le backfill téléphones utilise `silent=true` pour ne pas saturer ces webhooks.
+Toutes les écritures côté SSO passent par l'API (`POST /users/provision/bulk`, `PATCH /users/{uuid}`) — **aucun SQL manuel** sur le serveur SSO. Les webhooks `user.provisioned` sont dispatchés (en file Horizon) vers les plateformes abonnées (BRM, Moodle, Centres). Le backfill téléphones utilise `silent=true` pour ne pas saturer ces webhooks.
+
+`POST /users/provision/bulk` est **asynchrone** (`cjs_auth#25`) : il renvoie `202` + un `batch_id`, le lot est traité par un job ; le client `SSOApiClient` poll `GET /users/provision/bulk/{batch}` jusqu'à complétion. Transparent pour les scripts.
 
 **Reprise après échec :**
 
@@ -96,7 +102,7 @@ mkdir -p data/migration-fixtures
 cp /chemin/cjs_prod_db.sql       data/migration-fixtures/drupal.sql
 cp /chemin/auth_database.sql      data/migration-fixtures/auth_database.sql
 
-# 2. Lancer la stack dédiée (3 bases isolées sur 3307 / 3308 / 3309)
+# 2. Lancer la stack dédiée (3 bases isolées sur 3317 / 3308 / 3309)
 npm run migration:rehearsal:up
 
 # 3. Lancer cjs_auth côté SSO sur la branche feature
@@ -106,8 +112,9 @@ docker compose up -d
 # (le cjs_auth pointe sur sa propre DB MariaDB locale ; pour le test E2E,
 #  utiliser la stack migration_sso_source comme source du mapping uniquement)
 
-# 4. Configurer .env.migration en pointant sur les ports locaux 3307/3308/3309
-#    + SSO_BASE_URL=http://localhost:8000 (cjs_auth local)
+# 4. Configurer .env.migration en pointant sur les ports locaux 3317/3308/3309
+#    + SSO_BASE_URL=http://localhost (cjs_auth local)
+#    SSO_BULK_BATCH_SIZE permet de réduire la taille des lots si besoin.
 
 # 5. Lancer l'orchestrateur
 cd ../guichet
@@ -146,7 +153,7 @@ python3 scripts/extract-sso-map.py /chemin/vers/auth_database.sql
 
 ### Étape 2 — Créer les comptes SSO manquants (API)
 
-Les utilisateurs Drupal actifs sans compte SSO correspondant sont créés via `POST /users/provision/bulk` (batches de 500, HMAC + Bearer admin). Le mapping local est mis à jour incrémentalement depuis les réponses API.
+Les utilisateurs Drupal actifs sans compte SSO correspondant sont créés via `POST /users/provision/bulk` (lots de `SSO_BULK_BATCH_SIZE`, défaut 500 ; HMAC + Bearer admin ; soumission 202 + polling du statut). Le mapping local est mis à jour incrémentalement depuis les réponses API.
 
 ```bash
 # Dry-run : interroge Drupal, prépare le payload, n'appelle pas l'API
@@ -245,7 +252,7 @@ DRUPAL_DB_URL="mysql://..." \
 npm run migrate:phones -- --concurrency=5
 ```
 
-Sortie : `data/backfill_phones_report_<ts>.json` avec compteurs `ok / notFound / errors`.
+Sortie : `data/backfill_phones_report_<ts>.json` avec compteurs `ok / skipped / notFound / errors`. Un PATCH `only_if_null` dont tous les champs sont déjà renseignés est compté `skipped` (no-op), pas `errors`.
 
 ---
 
@@ -305,7 +312,7 @@ Normalisation vers les codes enum Prisma (`Dakar`, `Thies`, `Saint_Louis`…). L
 Détection par mots-clés sur le libellé Drupal. Valeur par défaut : `Autre`.
 
 ### Type d'opportunité
-Détection sur `field_type_opportunite` en priorité, puis sur le type de nœud Drupal. Défaut : `Emploi`.
+Détection sur `field_type_de_contrat` (`cdd`, `cdi`, `stage`, `prestation`…) puis sur le type de nœud Drupal. Défaut : `Emploi`.
 
 ### Statut événement
 | Condition | Statut |
@@ -354,7 +361,7 @@ WHERE drupal_uid IS NOT NULL
   AND cjs_uid NOT IN (SELECT DISTINCT cjs_uid FROM inscriptions_evenements);
 ```
 
-Pour le backfill téléphones SSO, il n'y a pas de rollback automatique — le fichier `data/backfill_sso_phones.sql` sert de trace des UIDs modifiés.
+Pour le backfill téléphones SSO, il n'y a pas de rollback automatique — le rapport `data/backfill_phones_report_<ts>.json` sert de trace des UUIDs modifiés.
 
 ---
 
@@ -368,12 +375,12 @@ Pour le backfill téléphones SSO, il n'y a pas de rollback automatique — le f
 [ ] DATABASE_URL pointe sur la base prod Guichet
 
 [ ] Étape 1 : data/drupal_uid_cjs_uid_map.json présent (>20 000 entrées)
-[ ] Étape 2 : create_sso_accounts.sql appliqué côté SSO
-[ ] Étape 2 : drupal_uid_cjs_uid_map_updated.json copié → drupal_uid_cjs_uid_map.json
+[ ] Étape 2 : migrate:sso:create terminé (comptes créés via API, 0 erreur)
+[ ] Étape 2 : drupal_uid_cjs_uid_map.json à jour (mis à jour en place par le script)
 [ ] Étape 3 : migrate:sso:sync terminé sans erreur (0 erreurs, 0 conflits bloquants)
 [ ] Étape 4 : dry-run → Utilisateur absent = 0, erreurs = 0
 [ ] Étape 5 : migration réelle exécutée
 [ ] Étape 6 : totaux vérifiés en SQL (écart < 5 % vs dry-run)
 
-[ ] (optionnel) Étape 7 : backfill_sso_phones.sql généré, relu et appliqué côté SSO
+[ ] (optionnel) Étape 7 : migrate:phones terminé (backfill via API, 0 erreur)
 ```

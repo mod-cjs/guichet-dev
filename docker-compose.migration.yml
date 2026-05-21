@@ -5,16 +5,18 @@
 # la branche feature/GUIC-17-sso-bulk-import-endpoints (qui contient les nouveaux
 # endpoints API consommés par scripts/migrate-all.ts).
 #
+# Bases exposées : drupal_source 3317 · sso_source 3308 · guichet_target 3309.
+#
 # USAGE
 #   1. Placer les dumps SQL dans ./data/migration-fixtures/ :
 #        - drupal.sql        (dump complet de la prod Drupal)
 #        - auth_database.sql (dump SSO production)
-#   2. docker compose -f docker-compose.migration.yml up -d
+#   2. npm run migration:rehearsal:up
 #   3. Attendre que les 3 bases soient healthy
-#   4. npm run migration:rehearsal
+#   4. npm run migrate:all -- --yes   (voir docs/migration-drupal.md)
 #
 # Une fois la répétition validée, tear down avec :
-#   docker compose -f docker-compose.migration.yml down -v
+#   npm run migration:rehearsal:down
 #
 
 services:
