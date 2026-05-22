@@ -42,6 +42,8 @@ jest.mock('@/lib/rate-limit', () => ({
 const listRoute = require('@/app/api/favoris/route')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const itemRoute = require('@/app/api/favoris/[opportuniteId]/route')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const idsRoute = require('@/app/api/favoris/ids/route')
 
 const SESSION = { cjsUid: 'uid-1', nom: 'Diallo', prenom: 'Awa' }
 const OPP_ID = '11111111-1111-4111-8111-111111111111'
@@ -167,5 +169,26 @@ describe('DELETE /api/favoris/[opportuniteId]', () => {
     mockFavDeleteMany.mockResolvedValue({ count: 0 })
     const res = await itemRoute.DELETE(delReq(), { params: Promise.resolve({ opportuniteId: OPP_ID }) })
     expect(res.status).toBe(204)
+  })
+})
+
+describe('GET /api/favoris/ids', () => {
+  it('renvoie 401 si non authentifié', async () => {
+    mockGetSession.mockResolvedValue(null)
+    expect((await idsRoute.GET(getReq())).status).toBe(401)
+  })
+
+  it('renvoie le set complet (non paginé) des IDs favoris', async () => {
+    mockFavFindMany.mockResolvedValue([
+      { opportuniteId: 'opp-1' },
+      { opportuniteId: 'opp-2' },
+    ])
+    const res = await idsRoute.GET(getReq())
+    expect(res.status).toBe(200)
+    expect((await res.json()).data).toEqual(['opp-1', 'opp-2'])
+    expect(mockFavFindMany.mock.calls[0][0]).toEqual({
+      where: { cjsUid: 'uid-1' },
+      select: { opportuniteId: true },
+    })
   })
 })

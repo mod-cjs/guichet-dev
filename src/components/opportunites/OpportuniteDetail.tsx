@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button, Toast } from '@/components/ui'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
+import { useFavoris } from './FavorisProvider'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 
@@ -27,13 +28,14 @@ function KeyFact({ label, value }: { label: string; value: string }) {
 export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
   const searchParams = useSearchParams()
   const expired = detail.deadline !== null && new Date(detail.deadline) < new Date()
+  const { has: isFavoriOf, toggle: toggleFavoriId } = useFavoris()
+  const isFavori = isFavoriOf(detail.id)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [dejaCandidate, setDejaCandidate] = useState(false)
-  const [isFavori, setIsFavori] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
-  // État par-utilisateur : a-t-il déjà candidaté / mis en favori ?
+  // État par-utilisateur : a-t-il déjà candidaté ?
   useEffect(() => {
     if (!viewer) return
     fetch('/api/candidatures')
@@ -44,13 +46,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
         }
       })
       .catch(() => {})
-    fetch('/api/favoris')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b) => {
-        if (b?.data?.some((o: { id: string }) => o.id === detail.id)) setIsFavori(true)
-      })
-      .catch(() => {})
-  }, [viewer, detail.slug, detail.id])
+  }, [viewer, detail.slug])
 
   // Ré-ouverture du formulaire après connexion (?postuler=1).
   useEffect(() => {
@@ -60,28 +56,8 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
   }, [viewer, expired, dejaCandidate, searchParams])
 
   const toggleFavori = useCallback(() => {
-    if (!viewer) {
-      setToast({ message: 'Connectez-vous pour sauvegarder', type: 'info' })
-      return
-    }
-    const was = isFavori
-    setIsFavori(!was)
-    const req = was
-      ? fetch(`/api/favoris/${detail.id}`, { method: 'DELETE' })
-      : fetch('/api/favoris', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ opportuniteId: detail.id }),
-        })
-    req
-      .then((r) => {
-        if (!r.ok) throw new Error()
-      })
-      .catch(() => {
-        setIsFavori(was)
-        setToast({ message: 'Action impossible, réessayez', type: 'error' })
-      })
-  }, [viewer, isFavori, detail.id])
+    toggleFavoriId(detail.id)
+  }, [toggleFavoriId, detail.id])
 
   const share = useCallback(() => {
     const url = `${window.location.origin}/opportunites/${detail.slug}`
