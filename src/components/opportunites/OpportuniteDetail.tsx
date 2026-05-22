@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button, Toast } from '@/components/ui'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
+import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -113,8 +114,9 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
         </a>
       )}
 
-      {/* Barre d'actions */}
-      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-white py-space-2">
+      {/* Barre d'actions — collante, séparée du contenu qui défile dessous */}
+      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-white py-space-3
+        border-t border-gj-line">
         {!viewer ? (
           <a
             href="/api/auth/login"
@@ -134,9 +136,23 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
             {dejaCandidate ? 'Déjà candidaté' : expired ? 'Candidatures closes' : 'Postuler'}
           </Button>
         )}
-        <Button variant="ghost" size="lg" onClick={toggleFavori}>
-          {isFavori ? 'Sauvegardé' : 'Sauvegarder'}
-        </Button>
+        <button
+          type="button"
+          onClick={toggleFavori}
+          aria-pressed={isFavori}
+          aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          className={`inline-flex items-center justify-center gap-2 rounded-gj-md font-bold
+            text-fs-300 px-space-4 min-h-[var(--tap-comfortable)] border-[1.5px]
+            transition-colors cursor-pointer
+            ${
+              isFavori
+                ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep'
+                : 'bg-white border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
+            }`}
+        >
+          <HeartIcon filled={isFavori} />
+          {isFavori ? 'Sauvegardée' : 'Sauvegarder'}
+        </button>
         <Button variant="ghost" size="lg" onClick={share}>
           Partager
         </Button>

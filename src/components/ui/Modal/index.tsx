@@ -32,7 +32,8 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-[460
       <div
         role="dialog"
         aria-modal
-        className={`relative bg-white rounded-gj-2xl shadow-gj-lg w-full max-w-full mx-space-4 p-space-5 ${maxWidth}`}
+        className={`relative bg-white rounded-gj-2xl shadow-gj-lg w-full max-w-full mx-space-4 p-space-5
+          max-h-[85dvh] overflow-y-auto ${maxWidth}`}
       >
         <div className="flex items-start justify-between mb-space-3">
           {title && <h2 className="text-fs-600 font-black text-color-text-primary">{title}</h2>}

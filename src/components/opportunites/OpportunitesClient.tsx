@@ -137,6 +137,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
   }
 
   const hasFilters = Boolean(filters.q || filters.domaine || filters.type || filters.region)
+  const activeFilterCount = [filters.domaine, filters.type, filters.region].filter(Boolean).length
   const showRegionBanner = Boolean(filters.region && filters.region === initialRegion)
 
   return (
@@ -181,7 +182,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       {/* Bouton filtres — mobile */}
       <div className="md:hidden mb-space-3">
         <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
-          Filtres{hasFilters ? ' ·' : ''}
+          Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
@@ -272,7 +273,9 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
             setFiltersOpen(false)
           }}
         />
-        <div className="pt-space-3">
+        {/* Bouton d'application — collant en bas du sheet, toujours atteignable */}
+        <div className="sticky bottom-0 -mx-space-4 px-space-4 pt-space-3 pb-space-2
+          bg-white border-t border-gj-line">
           <Button variant="primary" size="lg" className="w-full" onClick={() => setFiltersOpen(false)}>
             Voir les {total} résultat{total > 1 ? 's' : ''}
           </Button>

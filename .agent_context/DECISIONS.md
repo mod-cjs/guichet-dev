@@ -83,6 +83,8 @@ Succès : `data` + `meta` renseignés. Erreur : `error` renseigné, `data` absen
 
 **Contexte :** `src/lib/opportunites-loader.ts` doit faire une recherche plein-texte sur `opportunites(titre, description)`. La recherche natural-language de MariaDB applique un seuil de 50 % et `ft_min_word_len` — inopérante sur un petit jeu de données (50 opportunités seedées : une requête courante peut ne rien renvoyer). Prisma `where: { titre: { search } }` ne pilote pas le mode.
 
-**Décision :** unique exception à la règle « toujours Prisma » — la recherche utilise `prisma.$queryRaw` avec `MATCH(titre, description) AGAINST (? IN BOOLEAN MODE)`. Requête paramétrée via `Prisma.sql` / `Prisma.join` (aucune interpolation de chaîne). Limitée à la fonction `searchFulltext` ; tout le reste du loader passe par Prisma standard.
+**Décision :** la liste du catalogue (fonction `queryList`) passe par `prisma.$queryRaw`, requête entièrement paramétrée via `Prisma.sql` / `Prisma.join` (aucune interpolation de chaîne). Exception assumée à « toujours Prisma » pour **deux limites de MariaDB que Prisma ne pilote pas** :
+1. **Recherche plein-texte** `MATCH(...) AGAINST (? IN BOOLEAN MODE)`. BOOLEAN MODE supprime le seuil de 50 %. `ft_min_word_len`/`innodb_ft_min_token_size` reste actif : les mots < 4 caractères sont ignorés par l'index → repli automatique sur `LIKE` quand aucun mot du terme n'atteint 4 caractères.
+2. **Tri par échéance NULLS LAST** : `ORDER BY deadline IS NULL, deadline ASC` — MariaDB n'a pas `NULLS LAST`, et Prisma `orderBy { nulls }` n'est pas supporté sur MySQL.
 
-**Pourquoi :** BOOLEAN MODE supprime le seuil de 50 %, gère les préfixes et reste scalable.
+**Pourquoi :** sans ça, une recherche courte ne renvoie rien et les opportunités sans échéance remontent en tête du tri « échéance proche ». Le détail (`getOpportuniteDetail`) et le reste du code restent en Prisma standard.

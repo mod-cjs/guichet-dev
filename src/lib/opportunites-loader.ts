@@ -91,78 +91,68 @@ async function cacheSet(key: string, value: OpportuniteListResult): Promise<void
   }
 }
 
-/** Liste filtrée sans recherche plein-texte — requête Prisma standard. */
-async function listFiltered(f: OpportuniteFiltres): Promise<OpportuniteListResult> {
-  const where: Prisma.OpportuniteWhereInput = {
-    statut: 'publiee',
-    deletedAt: null,
-    OR: [{ deadline: null }, { deadline: { gte: new Date() } }],
-    ...(f.domaine ? { domaine: f.domaine } : {}),
-    ...(f.type ? { type: f.type } : {}),
-    ...(f.region ? { region: f.region } : {}),
-  }
+/** Longueur minimale d'un mot exploitable par l'index plein-texte MariaDB. */
+const MIN_FULLTEXT_WORD = 4
 
-  // MySQL place les NULL en premier sur un ORDER BY ASC ; le « nulls last »
-  // strict n'est appliqué que sur le chemin recherche ($queryRaw).
-  const orderBy: Prisma.OpportuniteOrderByWithRelationInput[] =
-    f.sortBy === 'deadline' ? [{ deadline: 'asc' }] : [{ createdAt: 'desc' }]
+/** Échappe les métacaractères LIKE (`\`, `%`, `_`). */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
 
-  const [rows, total] = await Promise.all([
-    prisma.opportunite.findMany({
-      where,
-      select: CARD_SELECT,
-      orderBy,
-      skip: (f.page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.opportunite.count({ where }),
-  ])
-
-  return {
-    items: (rows as RawRow[]).map(toListItem),
-    total,
-    page: f.page,
-    pageSize: PAGE_SIZE,
-  }
+/** Au moins un mot ≥ 4 caractères → l'index plein-texte est exploitable. */
+function fulltextUsable(q: string): boolean {
+  return q.split(/\s+/).some((w) => w.length >= MIN_FULLTEXT_WORD)
 }
 
 /**
- * Recherche plein-texte en BOOLEAN MODE.
- * Exception SQL brut tolérée (cf DECISIONS.md) : Prisma `search` ne pilote pas
- * le mode et la recherche natural-language de MariaDB est inopérante sur un
- * petit jeu de données (seuil 50 %).
+ * Liste paginée du catalogue via `$queryRaw`.
+ * Exception SQL brut tolérée (cf DECISIONS.md) — deux limites de MariaDB que
+ * Prisma ne sait pas piloter :
+ *  - recherche plein-texte en BOOLEAN MODE ;
+ *  - tri par échéance avec NULLS LAST (`ORDER BY deadline IS NULL, deadline`).
+ * Requête entièrement paramétrée (aucune interpolation de chaîne).
  */
-async function searchFulltext(f: OpportuniteFiltres): Promise<OpportuniteListResult> {
-  const q = (f.q ?? '').trim()
-
+async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> {
   const conditions: Prisma.Sql[] = [
     Prisma.sql`statut = 'publiee'`,
     Prisma.sql`deleted_at IS NULL`,
     Prisma.sql`(deadline IS NULL OR deadline >= NOW())`,
-    Prisma.sql`MATCH(titre, description) AGAINST (${q} IN BOOLEAN MODE)`,
   ]
   if (f.domaine) conditions.push(Prisma.sql`domaine = ${f.domaine}`)
   if (f.type) conditions.push(Prisma.sql`type = ${f.type}`)
   if (f.region) conditions.push(Prisma.sql`region = ${f.region}`)
+
+  const q = (f.q ?? '').trim()
+  if (q) {
+    if (fulltextUsable(q)) {
+      conditions.push(Prisma.sql`MATCH(titre, description) AGAINST (${q} IN BOOLEAN MODE)`)
+    } else {
+      // Terme court (< 4 car.) : l'index plein-texte l'ignore → repli LIKE.
+      const like = `%${escapeLike(q)}%`
+      conditions.push(Prisma.sql`(titre LIKE ${like} OR description LIKE ${like})`)
+    }
+  }
   const whereSql = Prisma.join(conditions, ' AND ')
 
+  // Tri « échéance » : NULLS LAST — les opportunités sans échéance en dernier.
   const orderSql =
     f.sortBy === 'deadline'
       ? Prisma.sql`deadline IS NULL, deadline ASC`
       : Prisma.sql`created_at DESC`
   const offset = (f.page - 1) * PAGE_SIZE
 
-  const rows = await prisma.$queryRaw<RawRow[]>(Prisma.sql`
-    SELECT id, slug, titre, type, domaine, region, organisation, remuneration, deadline
-    FROM opportunites
-    WHERE ${whereSql}
-    ORDER BY ${orderSql}
-    LIMIT ${PAGE_SIZE} OFFSET ${offset}
-  `)
-
-  const countRows = await prisma.$queryRaw<{ total: bigint }[]>(Prisma.sql`
-    SELECT COUNT(*) AS total FROM opportunites WHERE ${whereSql}
-  `)
+  const [rows, countRows] = await Promise.all([
+    prisma.$queryRaw<RawRow[]>(Prisma.sql`
+      SELECT id, slug, titre, type, domaine, region, organisation, remuneration, deadline
+      FROM opportunites
+      WHERE ${whereSql}
+      ORDER BY ${orderSql}
+      LIMIT ${PAGE_SIZE} OFFSET ${offset}
+    `),
+    prisma.$queryRaw<{ total: bigint }[]>(Prisma.sql`
+      SELECT COUNT(*) AS total FROM opportunites WHERE ${whereSql}
+    `),
+  ])
 
   return {
     items: rows.map(toListItem),
@@ -184,9 +174,7 @@ export async function listOpportunites(
   const cached = await cacheGet(key)
   if (cached) return cached
 
-  const result = (f.q ?? '').trim()
-    ? await searchFulltext(f)
-    : await listFiltered(f)
+  const result = await queryList(f)
 
   await cacheSet(key, result)
   return result
