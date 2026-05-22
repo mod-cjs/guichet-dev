@@ -7,6 +7,7 @@ import type {
   OpportuniteListItem,
   OpportuniteListResult,
 } from '@/types/opportunite'
+import type { OpportuniteDetail } from '@/types/candidature'
 
 /** Taille de page du catalogue public (règle CLAUDE.md : 20 items/page). */
 export const PAGE_SIZE = 20
@@ -189,4 +190,50 @@ export async function listOpportunites(
 
   await cacheSet(key, result)
   return result
+}
+
+// ── Détail d'une opportunité (GUIC-21) ──────────────────────────────────────
+
+const DETAIL_SELECT = {
+  id: true,
+  slug: true,
+  titre: true,
+  description: true,
+  type: true,
+  domaine: true,
+  region: true,
+  organisation: true,
+  remuneration: true,
+  deadline: true,
+  lienExterne: true,
+  vues: true,
+} satisfies Prisma.OpportuniteSelect
+
+/** Détail public d'une opportunité par slug, ou null si introuvable/non publiée. */
+export async function getOpportuniteDetail(slug: string): Promise<OpportuniteDetail | null> {
+  const o = await prisma.opportunite.findFirst({
+    where: { slug, statut: 'publiee', deletedAt: null },
+    select: DETAIL_SELECT,
+  })
+  if (!o) return null
+  return { ...o, deadline: toIso(o.deadline) }
+}
+
+/**
+ * Incrémente le compteur `vues`, best-effort et dédoublonné par IP.
+ * Clé Redis `vue:<slug>:<ip>` TTL 30 min — l'incrément n'a lieu qu'à la
+ * première vue de cette IP. N'échoue jamais (erreurs avalées).
+ */
+export async function incrementVue(slug: string, ip: string): Promise<void> {
+  try {
+    const firstView = await redis.set(`vue:${slug}:${ip}`, '1', 'EX', 1800, 'NX')
+    if (firstView) {
+      await prisma.opportunite.update({
+        where: { slug },
+        data: { vues: { increment: 1 } },
+      })
+    }
+  } catch (err) {
+    logger.warn('[opportunites-loader] incrément des vues échoué', { err })
+  }
 }
