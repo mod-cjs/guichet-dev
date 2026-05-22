@@ -78,3 +78,11 @@ Succès : `data` + `meta` renseignés. Erreur : `error` renseigné, `data` absen
 - `../cjs_auth/app/Services/WebhookService.php` — events webhooks émis
 
 ---
+
+## 2026-05-22 — Exception SQL brut : recherche plein-texte opportunités (GUIC-20)
+
+**Contexte :** `src/lib/opportunites-loader.ts` doit faire une recherche plein-texte sur `opportunites(titre, description)`. La recherche natural-language de MariaDB applique un seuil de 50 % et `ft_min_word_len` — inopérante sur un petit jeu de données (50 opportunités seedées : une requête courante peut ne rien renvoyer). Prisma `where: { titre: { search } }` ne pilote pas le mode.
+
+**Décision :** unique exception à la règle « toujours Prisma » — la recherche utilise `prisma.$queryRaw` avec `MATCH(titre, description) AGAINST (? IN BOOLEAN MODE)`. Requête paramétrée via `Prisma.sql` / `Prisma.join` (aucune interpolation de chaîne). Limitée à la fonction `searchFulltext` ; tout le reste du loader passe par Prisma standard.
+
+**Pourquoi :** BOOLEAN MODE supprime le seuil de 50 %, gère les préfixes et reste scalable.

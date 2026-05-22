@@ -45,13 +45,12 @@
  * seront ajoutées ici au fur et à mesure des sprints.
  */
 
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '../../src/lib/prisma'
+import { seedOpportunites } from './opportunites'
 
 async function main() {
-  console.log('Seed Guichet Jeunesse — aucun modèle de données à insérer (Sprint 0).')
-  console.log('Voir les commentaires de ce fichier pour la configuration SSO requise.')
+  const count = await seedOpportunites(prisma)
+  console.log(`Seed Guichet Jeunesse — ${count} opportunités insérées (GUIC-20).`)
 }
 
 main()
