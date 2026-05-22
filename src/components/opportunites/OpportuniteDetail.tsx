@@ -16,6 +16,27 @@ interface OpportuniteDetailProps {
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 const humanize = (v: string) => v.replace(/_/g, ' ')
 
+function ShareIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+    </svg>
+  )
+}
+
 function KeyFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gj-bg rounded-gj-md px-space-3 py-space-2">
@@ -153,8 +174,9 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
           <HeartIcon filled={isFavori} />
           {isFavori ? 'Sauvegardée' : 'Sauvegarder'}
         </button>
-        <Button variant="ghost" size="lg" onClick={share}>
-          Partager
+        <Button variant="ghost" size="lg" onClick={share} aria-label="Partager">
+          <ShareIcon />
+          <span className="sr-only md:not-sr-only">Partager</span>
         </Button>
       </div>
 

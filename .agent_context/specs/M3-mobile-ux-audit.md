@@ -103,13 +103,17 @@ avec le design avant application (non corrigé dans cette passe).
 
 ## Synthèse
 
-**Corrigé dans cette passe (5)** : 1.1, 1.2, 3.1, 3.2, 4.1 — dont un 🔴 (modale candidature
-qui pouvait couper ses boutons sur petit écran).
+**Tous les constats de l'audit sont corrigés (2 passes, 2026-05-22) :**
 
-**Recommandations de suivi (non corrigées, à arbitrer)** :
-- 6.2 — pastilles de filtre à 44 px (impact visuel, valider avec le design).
-- 5.2 — swipe-to-dismiss du `Sheet`.
-- 4.x — formulaire de candidature en bottom-sheet mobile plutôt qu'en modale centrée.
-- 3.3 — « Partager » en icône seule sur mobile.
+Passe 1 — 1.1, 1.2, 3.1, 3.2, 4.1 (dont un 🔴 : modale candidature qui pouvait couper ses
+boutons sur petit écran).
 
-Aucun défaut bloquant restant après cette passe.
+Passe 2 — les 4 recommandations initialement différées, finalement traitées :
+- ✅ 6.2 — pastilles de filtre à `--tap-min` (44 px) sur mobile, 36 px sur desktop
+  (`tokens.css` proscrit explicitement 36 px sur mobile).
+- ✅ 5.2 — `Sheet` : fermeture au glissement vers le bas du grab handle (seuil 90 px).
+- ✅ 4.x — `CandidatureModal` bascule de `ui/Modal` vers `ui/Sheet` (`variant="side"`) :
+  bottom-sheet plein écran sur mobile, slide-over sur desktop.
+- ✅ 3.3 — « Partager » en icône seule sur mobile (libellé `sr-only md:not-sr-only`).
+
+Aucun défaut ni recommandation en suspens.

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Modal, Button } from '@/components/ui'
+import { Sheet, Button } from '@/components/ui'
 
 export interface ViewerInfo {
   prenom: string
@@ -62,7 +62,12 @@ export function CandidatureModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Postuler — ${opportuniteTitre}`}>
+    <Sheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Postuler — ${opportuniteTitre}`}
+      variant="side"
+    >
       {error && (
         <div className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3">
           {error}
@@ -126,6 +131,6 @@ export function CandidatureModal({
           Envoyer ma candidature
         </Button>
       </div>
-    </Modal>
+    </Sheet>
   )
 }
