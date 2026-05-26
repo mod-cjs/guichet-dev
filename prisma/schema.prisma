@@ -261,6 +261,7 @@ model Organisation {
 
 model Opportunite {
   id             String            @id @default(uuid()) @db.VarChar(36)
+  drupalNid      Int?              @unique @map("drupal_nid")
   slug           String            @unique @db.VarChar(280)
   titre          String            @db.VarChar(255)
   description    String            @db.LongText
@@ -367,6 +368,7 @@ model AgentCentre {
 
 model Evenement {
   id           String          @id @default(uuid()) @db.VarChar(36)
+  drupalNid    Int?            @unique @map("drupal_nid")
   titre        String          @db.VarChar(255)
   description  String          @db.Text
   type         TypeEvenement
@@ -410,6 +412,7 @@ model InscriptionEvenement {
 
 model Ressource {
   id          String        @id @default(uuid()) @db.VarChar(36)
+  drupalNid   Int?          @unique @map("drupal_nid")
   titre       String        @db.VarChar(255)
   description String        @db.Text
   type        TypeRessource

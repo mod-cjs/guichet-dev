@@ -16,6 +16,7 @@ tsconfig.tsbuildinfo
 .env.test.local
 .env.production.local
 .env.prod
+.env.migration
 
 # Prisma
 prisma/migrations/*.sql.lock
@@ -38,3 +39,11 @@ Thumbs.db
 .claude/settings.local.json
 
 data/migration_report_*.txt
+data/migrate_all_report_*.json
+data/create_sso_accounts_report_*.json
+data/backfill_phones_report_*.json
+data/backfill_sso_phones.sql
+data/drupal_uid_cjs_uid_map.json
+data/drupal_uid_cjs_uid_map_updated.json
+data/create_sso_accounts.sql
+data/migration-fixtures/
