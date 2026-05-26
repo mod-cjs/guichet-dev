@@ -49,7 +49,7 @@ function Pastille({
       onClick={onClick}
       aria-pressed={active}
       className={`px-space-3 py-[6px] rounded-gj-pill text-fs-200 font-bold
-        border-[1.5px] transition-colors min-h-[36px]
+        border-[1.5px] transition-colors min-h-[var(--tap-min)] md:min-h-[36px]
         ${
           active
             ? 'bg-gj-teal border-gj-teal text-white'

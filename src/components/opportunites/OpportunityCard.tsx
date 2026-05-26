@@ -24,7 +24,7 @@ function humanize(value: string): string {
   return value.replace(/_/g, ' ')
 }
 
-function HeartIcon({ filled }: { filled: boolean }) {
+export function HeartIcon({ filled }: { filled: boolean }) {
   return (
     <svg
       width="22"

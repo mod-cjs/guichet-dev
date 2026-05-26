@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
+import { MesCandidatures } from '@/components/jeune/MesCandidatures'
 
 export const metadata: Metadata = { title: 'Mes candidatures' }
 
-export default function Page() {
+export default function MesCandidaturesPage() {
   return (
     <div>
       <div className="mb-space-5">
@@ -11,9 +12,7 @@ export default function Page() {
           Suivi de vos candidatures aux opportunités
         </p>
       </div>
-      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        🚧 Suivi des candidatures — Sprint 1 (M3)
-      </div>
+      <MesCandidatures />
     </div>
   )
 }

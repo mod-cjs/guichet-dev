@@ -10,6 +10,7 @@
 const mockCandidatureCount  = jest.fn()
 const mockInscriptionCount  = jest.fn()
 const mockFavoriCount       = jest.fn()
+const mockOppFavoriCount    = jest.fn()
 const mockCertificatCount   = jest.fn()
 const mockExperienceCount   = jest.fn()
 const mockDiplomeCount      = jest.fn()
@@ -26,6 +27,7 @@ jest.mock('@/lib/prisma', () => ({
     candidature:          { count: (...a: unknown[]) => mockCandidatureCount(...a),  findMany: (...a: unknown[]) => mockCandidatureFindMany(...a) },
     inscriptionEvenement: { count: (...a: unknown[]) => mockInscriptionCount(...a),  findMany: (...a: unknown[]) => mockInscriptionFindMany(...a) },
     ressourceFavorite:    { count: (...a: unknown[]) => mockFavoriCount(...a),       findMany: (...a: unknown[]) => mockFavoriFindMany(...a) },
+    opportuniteFavorite:  { count: (...a: unknown[]) => mockOppFavoriCount(...a) },
     certificatMoodle:     { count: (...a: unknown[]) => mockCertificatCount(...a),   findMany: (...a: unknown[]) => mockCertificatFindMany(...a) },
     experience:           { count: (...a: unknown[]) => mockExperienceCount(...a),   findMany: (...a: unknown[]) => mockExperienceFindMany(...a) },
     diplome:              { count: (...a: unknown[]) => mockDiplomeCount(...a),      findMany: (...a: unknown[]) => mockDiplomeFindMany(...a) },
@@ -54,10 +56,11 @@ beforeEach(() => {
 // ── loadDashboardCounts ────────────────────────────────────────────────────
 
 describe('loadDashboardCounts', () => {
-  it('agrège les 6 compteurs en parallèle', async () => {
+  it('agrège les compteurs ; favoris = ressources + opportunités', async () => {
     mockCandidatureCount.mockResolvedValue(3)
     mockInscriptionCount.mockResolvedValue(2)
     mockFavoriCount.mockResolvedValue(7)
+    mockOppFavoriCount.mockResolvedValue(3)
     mockCertificatCount.mockResolvedValue(1)
     mockExperienceCount.mockResolvedValue(4)
     mockDiplomeCount.mockResolvedValue(2)
@@ -67,7 +70,7 @@ describe('loadDashboardCounts', () => {
     expect(counts).toEqual({
       candidatures:   3,
       eventsInscrits: 2,
-      favoris:        7,
+      favoris:        10, // 7 ressources + 3 opportunités
       certificats:    1,
       experiences:    4,
       diplomes:       2,
@@ -78,6 +81,7 @@ describe('loadDashboardCounts', () => {
     mockCandidatureCount.mockResolvedValue(0)
     mockInscriptionCount.mockResolvedValue(0)
     mockFavoriCount.mockResolvedValue(0)
+    mockOppFavoriCount.mockResolvedValue(0)
     mockCertificatCount.mockResolvedValue(0)
     mockExperienceCount.mockResolvedValue(0)
     mockDiplomeCount.mockResolvedValue(0)
@@ -87,6 +91,7 @@ describe('loadDashboardCounts', () => {
     expect(mockCandidatureCount).toHaveBeenCalledWith({ where: { cjsUid: 'uid-xyz' } })
     expect(mockInscriptionCount).toHaveBeenCalledWith({ where: { cjsUid: 'uid-xyz' } })
     expect(mockFavoriCount).toHaveBeenCalledWith({ where: { cjsUid: 'uid-xyz' } })
+    expect(mockOppFavoriCount).toHaveBeenCalledWith({ where: { cjsUid: 'uid-xyz' } })
     // Pour les modèles liés au profil (pas directement à Utilisateur), filtre via la relation
     expect(mockCertificatCount).toHaveBeenCalledWith({ where: { profil: { cjsUid: 'uid-xyz' } } })
     expect(mockExperienceCount).toHaveBeenCalledWith({ where: { profil: { cjsUid: 'uid-xyz' } } })

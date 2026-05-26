@@ -1,6 +1,9 @@
 {
-  "buildCommand": "prisma migrate deploy && prisma generate && next build",
+  "buildCommand": "prisma generate && next build",
   "installCommand": "npm install --include=dev",
   "framework": "nextjs",
-  "regions": ["cdg1"]
+  "regions": ["cdg1"],
+  "crons": [
+    { "path": "/api/internal/notifications-dlq", "schedule": "*/10 * * * *" }
+  ]
 }

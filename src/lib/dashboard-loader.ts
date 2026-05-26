@@ -6,15 +6,32 @@ export const ACTIVITY_LIMIT_MAX = 20
 export const ACTIVITY_LIMIT_DEFAULT = 10
 
 export async function loadDashboardCounts(cjsUid: string): Promise<DashboardCounts> {
-  const [candidatures, eventsInscrits, favoris, certificats, experiences, diplomes] = await Promise.all([
+  const [
+    candidatures,
+    eventsInscrits,
+    ressourceFavoris,
+    opportuniteFavoris,
+    certificats,
+    experiences,
+    diplomes,
+  ] = await Promise.all([
     prisma.candidature.count({          where: { cjsUid } }),
     prisma.inscriptionEvenement.count({ where: { cjsUid } }),
     prisma.ressourceFavorite.count({    where: { cjsUid } }),
+    prisma.opportuniteFavorite.count({  where: { cjsUid } }),
     prisma.certificatMoodle.count({     where: { profil: { cjsUid } } }),
     prisma.experience.count({           where: { profil: { cjsUid } } }),
     prisma.diplome.count({              where: { profil: { cjsUid } } }),
   ])
-  return { candidatures, eventsInscrits, favoris, certificats, experiences, diplomes }
+  // `favoris` agrège les favoris ressources ET opportunités.
+  return {
+    candidatures,
+    eventsInscrits,
+    favoris: ressourceFavoris + opportuniteFavoris,
+    certificats,
+    experiences,
+    diplomes,
+  }
 }
 
 export function clampLimit(limit: number): number {

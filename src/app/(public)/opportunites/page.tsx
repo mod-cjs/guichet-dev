@@ -22,10 +22,7 @@ export default async function OpportunitesPage() {
       </header>
 
       <Suspense fallback={null}>
-        <OpportunitesClient
-          isAuthenticated={session !== null}
-          initialRegion={session?.region ?? null}
-        />
+        <OpportunitesClient initialRegion={session?.region ?? null} />
       </Suspense>
     </div>
   )

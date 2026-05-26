@@ -299,6 +299,7 @@ model Candidature {
   statut           StatutCandidature @default(En_attente)
   lettreMotivation String?           @map("lettre_motivation") @db.Text
   cvUrl            String?           @map("cv_url") @db.VarChar(500)
+  notificationsConsent Boolean       @default(false) @map("notifications_consent")
   soumiseA         DateTime          @default(now()) @map("soumise_a")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 

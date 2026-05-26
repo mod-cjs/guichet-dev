@@ -1,13 +1,13 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, EmptyState, SkeletonCard, Sheet, Toast } from '@/components/ui'
+import { Button, EmptyState, SkeletonCard, Sheet } from '@/components/ui'
 import { OpportunityCard } from './OpportunityCard'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
+import { useFavoris } from './FavorisProvider'
 import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite'
 
 interface OpportunitesClientProps {
-  isAuthenticated: boolean
   initialRegion: string | null
 }
 
@@ -42,11 +42,12 @@ function apiQuery(f: Filters, page: number): string {
   return p.toString()
 }
 
-export function OpportunitesClient({ isAuthenticated, initialRegion }: OpportunitesClientProps) {
+export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const filters = useMemo(() => readFilters(searchParams), [searchParams])
   const filtersKey = urlQuery(filters)
+  const { has: isFavori, toggle: toggleFavori } = useFavoris()
 
   const [items, setItems] = useState<OpportuniteListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -54,8 +55,6 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
   const [status, setStatus] = useState<Status>('loading')
   const [searchInput, setSearchInput] = useState(filters.q)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [favSet, setFavSet] = useState<Set<string>>(new Set())
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   const prefilterDone = useRef(false)
 
@@ -107,17 +106,6 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
     }
   }, [filtersKey])
 
-  /** Chargement des opportunités du profil favori. */
-  useEffect(() => {
-    if (!isAuthenticated) return
-    fetch('/api/favoris')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (body?.data) setFavSet(new Set(body.data.map((o: OpportuniteListItem) => o.id)))
-      })
-      .catch(() => {})
-  }, [isAuthenticated])
-
   const loadMore = useCallback(() => {
     if (status !== 'idle' || items.length >= total) return
     const nextPage = page + 1
@@ -143,50 +131,13 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
     return () => obs.disconnect()
   }, [loadMore])
 
-  const toggleFavori = useCallback(
-    (id: string) => {
-      if (!isAuthenticated) {
-        setToast({ message: 'Connectez-vous pour sauvegarder', type: 'info' })
-        return
-      }
-      const wasFavori = favSet.has(id)
-      setFavSet((prev) => {
-        const next = new Set(prev)
-        if (wasFavori) next.delete(id)
-        else next.add(id)
-        return next
-      })
-      const request = wasFavori
-        ? fetch(`/api/favoris/${id}`, { method: 'DELETE' })
-        : fetch('/api/favoris', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ opportuniteId: id }),
-          })
-      request
-        .then((r) => {
-          if (!r.ok) throw new Error(String(r.status))
-        })
-        .catch(() => {
-          // Rollback optimiste.
-          setFavSet((prev) => {
-            const next = new Set(prev)
-            if (wasFavori) next.add(id)
-            else next.delete(id)
-            return next
-          })
-          setToast({ message: 'Action impossible, réessayez', type: 'error' })
-        })
-    },
-    [isAuthenticated, favSet],
-  )
-
   const resetFilters = () => {
     setSearchInput('')
     router.replace('/opportunites', { scroll: false })
   }
 
   const hasFilters = Boolean(filters.q || filters.domaine || filters.type || filters.region)
+  const activeFilterCount = [filters.domaine, filters.type, filters.region].filter(Boolean).length
   const showRegionBanner = Boolean(filters.region && filters.region === initialRegion)
 
   return (
@@ -231,7 +182,7 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
       {/* Bouton filtres — mobile */}
       <div className="md:hidden mb-space-3">
         <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
-          Filtres{hasFilters ? ' ·' : ''}
+          Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
@@ -289,7 +240,7 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
                 <OpportunityCard
                   key={item.id}
                   item={item}
-                  isFavori={favSet.has(item.id)}
+                  isFavori={isFavori(item.id)}
                   onToggleFavori={toggleFavori}
                 />
               ))}
@@ -322,16 +273,14 @@ export function OpportunitesClient({ isAuthenticated, initialRegion }: Opportuni
             setFiltersOpen(false)
           }}
         />
-        <div className="pt-space-3">
+        {/* Bouton d'application — collant en bas du sheet, toujours atteignable */}
+        <div className="sticky bottom-0 -mx-space-4 px-space-4 pt-space-3 pb-space-2
+          bg-white border-t border-gj-line">
           <Button variant="primary" size="lg" className="w-full" onClick={() => setFiltersOpen(false)}>
             Voir les {total} résultat{total > 1 ? 's' : ''}
           </Button>
         </div>
       </Sheet>
-
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
     </div>
   )
 }
