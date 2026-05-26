@@ -156,12 +156,13 @@ model Utilisateur {
   updatedAt          DateTime     @updatedAt @map("updated_at")
   deletedAt          DateTime?    @map("deleted_at")
 
-  profil            ProfilJeune?
-  candidatures      Candidature[]
-  inscriptions      InscriptionEvenement[]
-  ressourcesFavoris RessourceFavorite[]
-  conversations     ConversationWhatsApp[]
-  recommandations   RecommandationIA[]
+  profil                ProfilJeune?
+  candidatures          Candidature[]
+  inscriptions          InscriptionEvenement[]
+  ressourcesFavoris     RessourceFavorite[]
+  opportunitesFavorites OpportuniteFavorite[]
+  conversations         ConversationWhatsApp[]
+  recommandations       RecommandationIA[]
 
   @@index([email])
   @@index([telephone])
@@ -261,6 +262,7 @@ model Organisation {
 model Opportunite {
   id             String            @id @default(uuid()) @db.VarChar(36)
   drupalNid      Int?              @unique @map("drupal_nid")
+  slug           String            @unique @db.VarChar(280)
   titre          String            @db.VarChar(255)
   description    String            @db.LongText
   type           TypeOpportunite
@@ -278,8 +280,9 @@ model Opportunite {
   updatedAt      DateTime          @updatedAt @map("updated_at")
   deletedAt      DateTime?         @map("deleted_at")
 
-  org          Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  org          Organisation?         @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   candidatures Candidature[]
+  favoris      OpportuniteFavorite[]
 
   @@index([statut, deletedAt])
   @@index([type, domaine])
@@ -305,6 +308,20 @@ model Candidature {
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
   @@map("candidatures")
+}
+
+// Favori d'opportunité — aligné sur le pattern RessourceFavorite (clé composite, pas de uuid).
+model OpportuniteFavorite {
+  cjsUid        String   @map("cjs_uid") @db.VarChar(36)
+  opportuniteId String   @map("opportunite_id") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@id([cjsUid, opportuniteId])
+  @@index([cjsUid])
+  @@map("opportunites_favorites")
 }
 
 // ─────────────────────────────────────────────

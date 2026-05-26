@@ -6,6 +6,10 @@ const createJestConfig = nextJest({ dir: './' })
 const config: Config = {
   coverageProvider: 'v8',
   testEnvironment: 'jsdom',
+  // Le client Redis (ioredis) et le pool Prisma laissent des handles ouverts
+  // après la suite ; sans forceExit, le process Jest ne rend pas la main et le
+  // job CI tourne jusqu'au hard-limit (6 h) avant d'être annulé.
+  forceExit: true,
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   testMatch: [
