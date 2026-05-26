@@ -1,270 +1,349 @@
 /**
  * Migration Drupal 8/9 → Guichet Jeunesse (Prisma / MariaDB)
- * GUIC-17 — Sprint 0, M1
+ * GUIC-17 — M1
  *
- * PRÉREQUIS
+ * PRÉREQUIS (dans cet ordre)
+ * --------------------------
+ * 1. Migrations Prisma appliquées    → npx prisma migrate deploy
+ * 2. Comptes SSO créés pour non-mappés → npm run migrate:sso:create
+ * 3. Utilisateurs synchronisés       → npm run migrate:sso:sync
+ * 4. Mapping à jour                  → CJS_UID_MAP_FILE pointe vers map_updated.json
+ *
+ * VARIABLES
  * ---------
- * 1. Export SQL Drupal disponible (dump complet ou accès MySQL read-only)
- *    Structure Drupal 8/9 : users + users_field_data + user__field_*
- * 2. CSV export SSO (admin → Utilisateurs → Exporter CSV)
- *    Colonnes requises : "CJS UID (UUID)", "Drupal UID", "Email"
- * 3. Variables d'environnement :
- *    DRUPAL_DB_URL      = mysql://user:pass@host:3306/drupal_db
- *    DATABASE_URL       = mysql://user:pass@host:3306/guichet_jeunesse
- *    CJS_UID_MAP_FILE   = ./data/utilisateurs_export_sso.csv
- *
- * STRATÉGIE DE MAPPING
- * --------------------
- * 1. Par drupal_uid  : si la colonne "Drupal UID" est renseignée dans le CSV SSO
- * 2. Par email       : fallback — jointure sur l'email commun aux deux systèmes
- * Les comptes SSO sans correspondance Drupal sont ignorés.
- *
- * ARCHITECTURE
- * ------------
- * Le SSO détient l'identité (nom, email, téléphone, cjs_uid).
- * Ce script ne crée PAS de comptes SSO — ils existent déjà.
- * Il crée uniquement les données Guichet-spécifiques : ProfilJeune
+ *   DRUPAL_DB_URL    = mysql://user:pass@host:3306/drupal_db
+ *   DATABASE_URL     = mysql://user:pass@host:3306/guichet_jeunesse
+ *   CJS_UID_MAP_FILE = ./data/drupal_uid_cjs_uid_map.json  (défaut)
  *
  * EXÉCUTION
  * ---------
- *   npx tsx scripts/migrate-drupal.ts [--dry-run] [--phase=profils|all]
- *
- * OPTIONS
- * -------
- *   --dry-run    : Analyse sans écriture en base
- *   --phase=X    : Migrer uniquement la phase X (défaut: all)
- *   --limit=N    : Limiter à N enregistrements (debug)
+ *   npx tsx scripts/migrate-drupal.ts [--dry-run] [--phase=profils|opportunites|evenements|ressources|all] [--limit=N] [--skip-preflight]
  */
 
-import { PrismaClient } from '@prisma/client'
-import { PrismaMariaDb } from '@prisma/adapter-mariadb'
-import * as mysql from 'mysql2/promise'
+import { PrismaClient }       from '@prisma/client'
+import { PrismaMariaDb }      from '@prisma/adapter-mariadb'
+import * as mysql             from 'mysql2/promise'
 import type { RowDataPacket } from 'mysql2'
-import * as fs from 'fs'
-import * as path from 'path'
+import * as fs                from 'fs'
+import * as path              from 'path'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const DRY_RUN  = process.argv.includes('--dry-run')
-const LIMIT    = (() => { const m = process.argv.find(a => a.startsWith('--limit=')); return m ? parseInt(m.split('=')[1]) : undefined })()
-const PHASE    = (() => { const m = process.argv.find(a => a.startsWith('--phase=')); return m ? m.split('=')[1] : 'all' })()
-
-const DRUPAL_DB_URL    = process.env.DRUPAL_DB_URL
+const DRY_RUN         = process.argv.includes('--dry-run')
+const SKIP_PREFLIGHT  = process.argv.includes('--skip-preflight')
+const LIMIT           = (() => { const m = process.argv.find(a => a.startsWith('--limit=')); return m ? parseInt(m.split('=')[1]) : undefined })()
+const PHASE           = (() => { const m = process.argv.find(a => a.startsWith('--phase=')); return m ? m.split('=')[1] : 'all' })()
+const DRUPAL_DB_URL   = process.env.DRUPAL_DB_URL
 const CJS_UID_MAP_FILE = process.env.CJS_UID_MAP_FILE ?? './data/drupal_uid_cjs_uid_map.json'
-
-// Colonnes du CSV export SSO (utilisateurs_YYYY-MM-DD.csv)
-const SSO_CSV_COL_CJS_UID    = 1 // "CJS UID (UUID)"
-const SSO_CSV_COL_DRUPAL_UID = 2 // "Drupal UID"
-const SSO_CSV_COL_EMAIL      = 5 // "Email"
+const CHUNK_SIZE      = 100
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// Structure Drupal 8/9 : jointure users + users_field_data + user__field_*
-interface Drupal8User extends RowDataPacket {
+interface DrupalUser extends RowDataPacket {
   uid:            number
-  drupal_uuid:    string   // uuid interne Drupal (≠ cjs_uid)
   mail:           string
   status:         number
   created:        number
   nom:            string | null
   prenom:         string | null
-  sexe:           string | null  // 'homme' | 'femme'
+  sexe:           string | null
   telephone:      string | null
-  date_naissance: string | null  // DATE au format YYYY-MM-DD
-  type_profil:    string | null
+  date_naissance: string | null
+  region:         string | null
+  commune:        string | null
 }
 
 interface DrupalNode extends RowDataPacket {
-  nid:         number
-  type:        string
-  title:       string
-  uid:         number
-  status:      number
-  created:     number
-  changed:     number
-  description: string | null
+  nid:        number
+  type:       string
+  title:      string
+  uid:        number
+  status:     number
+  created:    number
+  changed:    number
+  body:       string | null
+  lien:       string | null
+  region:     string | null
+  date_debut: string | null
+  date_fin:   string | null
+  lieu:       string | null
+  domaine:    string | null
+  type_opp:   string | null
 }
 
 interface MigrationStats {
-  profils:    { total: number; ok: number; skipped: number; errors: number }
-  opportunites: { total: number; ok: number; skipped: number; errors: number }
-  evenements: { total: number; ok: number; skipped: number; errors: number }
-  ressources: { total: number; ok: number; skipped: number; errors: number }
+  profils: {
+    total:             number
+    created:           number
+    alreadyExists:     number
+    notMapped:         number
+    utilisateurAbsent: number
+    errors:            number
+  }
+  opportunites: { total: number; created: number; alreadyExists: number; errors: number }
+  evenements:   { total: number; created: number; alreadyExists: number; errors: number }
+  ressources:   { total: number; created: number; alreadyExists: number; errors: number }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function parseCsvLine(line: string): string[] {
-  const cols: string[] = []
-  let current = ''
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]
-    if (ch === '"') { inQuotes = !inQuotes }
-    else if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = '' }
-    else { current += ch }
-  }
-  cols.push(current.trim())
-  return cols
-}
-
 interface SsoMaps {
-  byDrupalUid: Map<number, string>  // drupal_uid → cjs_uid
-  byEmail:     Map<string, string>  // email (lowercase) → cjs_uid
+  byDrupalUid: Map<number, string>
+  byEmail:     Map<string, string>
 }
 
 function loadSsoMaps(): SsoMaps {
   if (!fs.existsSync(CJS_UID_MAP_FILE)) {
     throw new Error(`Fichier mapping introuvable : ${CJS_UID_MAP_FILE}`)
   }
-
+  const raw         = JSON.parse(fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8')) as Record<string, string>
   const byDrupalUid = new Map<number, string>()
   const byEmail     = new Map<string, string>()
-
-  if (CJS_UID_MAP_FILE.endsWith('.csv')) {
-    const lines = fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8').split('\n').slice(1)
-    for (const line of lines) {
-      if (!line.trim()) continue
-      const cols    = parseCsvLine(line)
-      const cjsUid  = cols[SSO_CSV_COL_CJS_UID]?.replace(/^"|"$/g, '')
-      const drupalUid = cols[SSO_CSV_COL_DRUPAL_UID]?.replace(/^"|"$/g, '')
-      const email   = cols[SSO_CSV_COL_EMAIL]?.replace(/^"|"$/g, '').toLowerCase()
-      if (!cjsUid) continue
-      if (drupalUid && !isNaN(parseInt(drupalUid))) {
-        byDrupalUid.set(parseInt(drupalUid), cjsUid)
-      }
-      if (email) byEmail.set(email, cjsUid)
-    }
-    console.log(`Mapping SSO chargé — par drupal_uid: ${byDrupalUid.size} | par email: ${byEmail.size}`)
-    return { byDrupalUid, byEmail }
+  for (const [k, v] of Object.entries(raw)) {
+    const uid = parseInt(k)
+    if (!isNaN(uid)) byDrupalUid.set(uid, v)
   }
-
-  // Format JSON : { "drupal_uid": "cjs_uuid" }
-  const data = JSON.parse(fs.readFileSync(CJS_UID_MAP_FILE, 'utf-8')) as Record<string, string>
-  for (const [k, v] of Object.entries(data)) byDrupalUid.set(parseInt(k), v)
-  console.log(`Mapping JSON chargé : ${byDrupalUid.size} entrées`)
+  console.log(`Mapping SSO chargé — par drupal_uid: ${byDrupalUid.size}`)
   return { byDrupalUid, byEmail }
 }
 
 function normalizePhone(raw: string | null): string | null {
   if (!raw) return null
-  // Supprimer espaces et tirets
   const digits = raw.replace(/[\s\-().]/g, '')
-  // Déjà E.164
   if (/^\+\d{10,15}$/.test(digits)) return digits
-  // 9 chiffres locaux sénégalais → +221
-  if (/^\d{9}$/.test(digits)) return `+221${digits}`
-  // 8 chiffres avec leading zero → +221 + sans le zero
-  if (/^0\d{9}$/.test(digits)) return `+221${digits.slice(1)}`
-  return null // format non reconnu — on ne stocke pas
+  if (/^\d{9}$/.test(digits))       return `+221${digits}`
+  if (/^0\d{9}$/.test(digits))      return `+221${digits.slice(1)}`
+  if (/^221\d{9}$/.test(digits))    return `+${digits}`
+  return null
 }
 
-function mapGenre(val: string | null): string | null {
+function mapGenre(val: string | null): 'M' | 'F' | null {
   if (!val) return null
   const v = val.toLowerCase()
-  if (v === 'homme' || v === 'm' || v === 'male')   return 'HOMME'
-  if (v === 'femme' || v === 'f' || v === 'female') return 'FEMME'
-  return 'AUTRE'
+  if (v === 'homme' || v === 'm' || v === 'male')   return 'M'
+  if (v === 'femme' || v === 'f' || v === 'female') return 'F'
+  return null
 }
 
-function drupalTimestampToDate(ts: number): Date {
+// `field_emplacement` est du texte libre (ville ou quartier le plus souvent).
+// On reconnaît les 14 régions et les principales villes/quartiers qui les composent.
+const REGION_CITIES: Record<string, string> = {
+  Dakar:       'dakar rufisque guediawaye guédiawaye pikine bargny diamniadio liberte liberté point-e parcelles yoff ouakam almadies plateau hann medina médina sicap',
+  Thies:       'thies thiès mbour tivaouane joal popenguine kayar pout saly',
+  Diourbel:    'diourbel mbacke mbacké touba bambey',
+  Fatick:      'fatick foundiougne gossas sokone',
+  Kaolack:     'kaolack guinguineo nioro',
+  Kaffrine:    'kaffrine birkelane koungheul malem',
+  Louga:       'louga kebemer kébémer linguere linguère',
+  Saint_Louis: 'saint-louis saint louis richard-toll dagana podor',
+  Matam:       'matam kanel ranerou',
+  Tambacounda: 'tambacounda bakel goudiry koumpentoum',
+  Kedougou:    'kedougou kédougou salemata saraya',
+  Kolda:       'kolda velingara vélingara medina yoro',
+  Ziguinchor:  'ziguinchor bignona oussouye cap skirring',
+  Sedhiou:     'sedhiou sédhiou bounkiling goudomp',
+}
+
+function mapRegion(val: string | null): string | null {
+  if (!val) return null
+  const v = val.trim().toLowerCase()
+  if (!v) return null
+  for (const [region, cities] of Object.entries(REGION_CITIES)) {
+    if (cities.split(' ').some(city => v.includes(city))) return region
+  }
+  return null
+}
+
+function mapDomaine(val: string | null): string {
+  if (!val) return 'Autre'
+  const v = val.toLowerCase()
+  if (v.includes('agri') || v.includes('élevage') || v.includes('elevage')) return 'Agriculture'
+  if (v.includes('numéri') || v.includes('numeri') || v.includes('tech') || v.includes('info')) return 'Numerique'
+  if (v.includes('entrepr')) return 'Entrepreneuriat'
+  if (v.includes('citoyen') || v.includes('gouver')) return 'Citoyennete'
+  if (v.includes('environ') || v.includes('climat')) return 'Environnement'
+  if (v.includes('santé') || v.includes('sante')) return 'Sante'
+  if (v.includes('éduc') || v.includes('educ') || v.includes('form')) return 'Education'
+  if (v.includes('cultur') || v.includes('art')) return 'Culture'
+  return 'Autre'
+}
+
+function mapTypeOpportunite(drupalType: string, typeOpp: string | null): string {
+  const src = (typeOpp ?? drupalType).toLowerCase()
+  if (src.includes('stage'))  return 'Stage'
+  if (src.includes('form'))   return 'Formation'
+  if (src.includes('bourse')) return 'Bourse'
+  if (src.includes('volont')) return 'Volontariat'
+  if (src.includes('appel'))  return 'Appel_a_projets'
+  return 'Emploi'
+}
+
+function mapTypeEvenement(drupalType: string): string {
+  const map: Record<string, string> = {
+    'atelier': 'Atelier', 'webinar': 'Webinar',
+    'conference': 'Conference', 'formation_event': 'Formation',
+  }
+  return map[drupalType] ?? 'Forum'
+}
+
+function mapTypeRessource(drupalType: string): string {
+  const map: Record<string, string> = {
+    'video': 'Video', 'document': 'PDF', 'guide': 'Guide', 'outil': 'Outil',
+  }
+  // Le bundle Drupal réel est `ressources` (documentaire, sans lien) → Guide par défaut.
+  return map[drupalType] ?? 'Guide'
+}
+
+function toDate(ts: number): Date {
   return new Date(ts * 1000)
 }
 
-function slugify(text: string, id: number): string {
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 260)
-    + `-${id}`
+// ─── Pre-flight ───────────────────────────────────────────────────────────────
+
+async function preflight(prisma: PrismaClient, maps: SsoMaps): Promise<void> {
+  console.log('\n[Pre-flight] Vérifications...')
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // 1. Migrations Prisma appliquées
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM _prisma_migrations LIMIT 1`
+  } catch {
+    errors.push('Table _prisma_migrations inaccessible — prisma migrate deploy non exécuté ?')
+  }
+
+  // 2. Compter les Utilisateurs en base vs taille du mapping
+  const nbUtilisateurs = await prisma.utilisateur.count()
+  const nbMapped       = maps.byDrupalUid.size
+  const nbProfilJeune  = await prisma.profilJeune.count()
+
+  console.log(`  Utilisateurs en DB    : ${nbUtilisateurs}`)
+  console.log(`  Mappés (drupal→sso)   : ${nbMapped}`)
+  console.log(`  ProfilJeune en DB     : ${nbProfilJeune}`)
+
+  if (nbUtilisateurs === 0) {
+    errors.push(
+      `Aucun Utilisateur en base — exécuter d'abord : npm run migrate:sso:sync`
+    )
+  } else if (nbUtilisateurs < nbMapped * 0.8) {
+    warnings.push(
+      `Seulement ${nbUtilisateurs} Utilisateurs pour ${nbMapped} mappés (${Math.round(nbUtilisateurs / nbMapped * 100)}%) — ` +
+      `relancer migrate:sso:sync avant le run complet`
+    )
+  }
+
+  // 3. Vérifier que les tables Drupal requises existent
+  // (déjà géré par la connexion Drupal plus haut)
+
+  if (errors.length > 0) {
+    console.error('\n[Pre-flight] ❌ Erreurs bloquantes :')
+    errors.forEach(e => console.error(`  - ${e}`))
+    throw new Error('Pre-flight échoué — corriger les erreurs ci-dessus avant de continuer.')
+  }
+
+  if (warnings.length > 0) {
+    console.warn('\n[Pre-flight] ⚠️  Avertissements :')
+    warnings.forEach(w => console.warn(`  - ${w}`))
+    console.warn('')
+  }
+
+  console.log('  ✓ Pre-flight OK\n')
 }
 
-// ─── Phase 1 : ProfilJeune (Drupal 8/9) ──────────────────────────────────────
+// ─── Phase 1 : ProfilJeune ────────────────────────────────────────────────────
 
 async function migrateProfilsJeune(
-  drupal:  mysql.Connection,
-  prisma:  PrismaClient,
-  maps:    SsoMaps,
-  stats:   MigrationStats,
+  drupal: mysql.Connection,
+  prisma: PrismaClient,
+  maps:   SsoMaps,
+  stats:  MigrationStats,
 ) {
-  console.log('\n[Phase 1] Migration des profils jeune (Drupal 8/9)...')
+  console.log('[Phase 1] Migration des profils jeune...')
 
-  const limitClause = LIMIT ? `LIMIT ${LIMIT}` : ''
+  const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
-  // Jointure complète Drupal 8/9 : users + users_field_data + champs custom
-  const [users] = await drupal.query<Drupal8User[]>(
+  const [users] = await drupal.query<DrupalUser[]>(
     `SELECT
        u.uid,
-       u.uuid                                    AS drupal_uuid,
        f.mail,
        f.status,
        f.created,
-       n.field_nom_value                         AS nom,
-       p.field_prenom_value                      AS prenom,
-       s.field_sexe_value                        AS sexe,
-       t.field_telephone_value                   AS telephone,
-       DATE(d.field_date_de_naissance_value)     AS date_naissance,
-       tp.field_type_de_profile_target_id        AS type_profil
+       n.field_nom_value                     AS nom,
+       p.field_prenom_value                  AS prenom,
+       s.field_sexe_value                    AS sexe,
+       t.field_telephone_value               AS telephone,
+       d.field_date_de_naissance_value       AS date_naissance,
+       NULL                                  AS region,
+       NULL                                  AS commune
      FROM users u
-     JOIN users_field_data f  ON f.uid = u.uid AND f.status = 1
-     LEFT JOIN user__field_nom              n  ON n.entity_id  = u.uid AND n.deleted = 0
-     LEFT JOIN user__field_prenom           p  ON p.entity_id  = u.uid AND p.deleted = 0
-     LEFT JOIN user__field_sexe             s  ON s.entity_id  = u.uid AND s.deleted = 0
-     LEFT JOIN user__field_telephone        t  ON t.entity_id  = u.uid AND t.deleted = 0
-     LEFT JOIN user__field_date_de_naissance d  ON d.entity_id  = u.uid AND d.deleted = 0
-     LEFT JOIN user__field_type_de_profile  tp ON tp.entity_id = u.uid AND tp.deleted = 0
+     JOIN users_field_data f   ON f.uid = u.uid AND f.status = 1
+     LEFT JOIN user__field_nom               n  ON n.entity_id = u.uid AND n.deleted = 0
+     LEFT JOIN user__field_prenom            p  ON p.entity_id = u.uid AND p.deleted = 0
+     LEFT JOIN user__field_sexe              s  ON s.entity_id = u.uid AND s.deleted = 0
+     LEFT JOIN user__field_telephone         t  ON t.entity_id = u.uid AND t.deleted = 0
+     LEFT JOIN user__field_date_de_naissance d  ON d.entity_id = u.uid AND d.deleted = 0
      WHERE u.uid > 0 AND f.mail IS NOT NULL
-     ${limitClause}`
+     ${limitSql}`
   )
 
   stats.profils.total = users.length
   console.log(`  Utilisateurs Drupal actifs : ${users.length}`)
 
-  let mappedByUid = 0, mappedByEmail = 0, notMapped = 0
+  // Pré-charger les ProfilJeune existants (une seule requête — élimine le N+1)
+  const existingProfils = await prisma.profilJeune.findMany({ select: { cjsUid: true } })
+  const existingProfilSet = new Set(existingProfils.map(p => p.cjsUid))
+
+  // Pré-charger les Utilisateurs existants
+  const existingUtilisateurs = await prisma.utilisateur.findMany({ select: { cjsUid: true } })
+  const existingUtilisateurSet = new Set(existingUtilisateurs.map(u => u.cjsUid))
+
+  let byUid = 0, byEmail = 0
 
   for (const user of users) {
-    // Stratégie 1 : mapping par drupal_uid
+    // Résoudre cjsUid
     let cjsUid = maps.byDrupalUid.get(user.uid)
-    if (cjsUid) { mappedByUid++ }
+    if (cjsUid) { byUid++ }
     else {
-      // Stratégie 2 : mapping par email
       cjsUid = maps.byEmail.get(user.mail?.toLowerCase() ?? '')
-      if (cjsUid) { mappedByEmail++ }
+      if (cjsUid) { byEmail++ }
     }
 
     if (!cjsUid) {
-      notMapped++
-      stats.profils.skipped++
+      stats.profils.notMapped++
       continue
     }
 
-    const existing = await prisma.profilJeune.findUnique({ where: { cjsUid } })
-    if (existing) { stats.profils.skipped++; continue }
+    // Vérifier que l'Utilisateur parent existe (FK guard)
+    if (!existingUtilisateurSet.has(cjsUid)) {
+      stats.profils.utilisateurAbsent++
+      continue
+    }
+
+    // Idempotence : skip si ProfilJeune déjà présent
+    if (existingProfilSet.has(cjsUid)) {
+      stats.profils.alreadyExists++
+      continue
+    }
 
     try {
       if (!DRY_RUN) {
         await prisma.profilJeune.create({
-          data: {
-            cjsUid,
-            drupalUid:    user.uid,
-            genre:        mapGenre(user.sexe) as any,
-            dateNaissance: user.date_naissance ? new Date(user.date_naissance) : null,
-            createdAt:    drupalTimestampToDate(user.created),
-          },
+          data: { cjsUid, createdAt: toDate(user.created) },
         })
+        existingProfilSet.add(cjsUid) // mettre à jour le set en mémoire
       }
-      stats.profils.ok++
+      stats.profils.created++
     } catch (err) {
-      console.error(`  [ERR] uid=${user.uid} mail=${user.mail}`, err)
+      console.error(`  [ERR] uid=${user.uid} mail=${user.mail}`, (err as Error).message)
       stats.profils.errors++
     }
   }
 
-  console.log(`  Mapping — par drupal_uid: ${mappedByUid} | par email: ${mappedByEmail} | non trouvés: ${notMapped}`)
-  console.log(`  → ok: ${stats.profils.ok} | skipped: ${stats.profils.skipped} | errors: ${stats.profils.errors}`)
+  console.log(`  Mapping — par drupal_uid: ${byUid} | par email: ${byEmail} | non trouvés: ${stats.profils.notMapped}`)
+  if (stats.profils.utilisateurAbsent > 0) {
+    console.warn(`  ⚠️  Utilisateur absent en DB : ${stats.profils.utilisateurAbsent} → relancer migrate:sso:sync`)
+  }
+  console.log(`  → créés: ${stats.profils.created} | existants: ${stats.profils.alreadyExists} | non-mappés: ${stats.profils.notMapped} | erreurs: ${stats.profils.errors}`)
 }
 
 // ─── Phase 2 : Opportunités ───────────────────────────────────────────────────
@@ -276,67 +355,74 @@ async function migrateOpportunites(
 ) {
   console.log('\n[Phase 2] Migration des opportunités...')
 
-  const limitClause = LIMIT ? `LIMIT ${LIMIT}` : ''
+  const TYPES = ['opportunites', 'offre_emploi', 'stage', 'formation', 'bourse', 'volontariat', 'appel_projets']
+  const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
-  // Les types de nœuds Drupal pour les opportunités — adapter selon la structure réelle
-  const DRUPAL_OPP_TYPES = ['offre_emploi', 'stage', 'volontariat', 'formation', 'bourse', 'appel_projet']
+  // Vérifier que node_field_data existe
+  try {
+    await drupal.query('SELECT 1 FROM node_field_data LIMIT 1')
+  } catch {
+    console.warn('  ⚠️  Table node_field_data absente du dump Drupal — phase ignorée.')
+    return
+  }
 
   const [nodes] = await drupal.query<DrupalNode[]>(
-    `SELECT n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-            b.body_value AS description
-     FROM node n
-     LEFT JOIN field_data_body b ON b.entity_id = n.nid AND b.entity_type = 'node'
-     WHERE n.type IN (${DRUPAL_OPP_TYPES.map(() => '?').join(',')})
-     AND n.status IN (0, 1)
-     ${limitClause}`,
-    DRUPAL_OPP_TYPES
+    `SELECT
+       n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
+       b.body_value                              AS body,
+       cand.field_envoyer_ma_candidature_uri     AS lien,
+       emp.field_emplacement_value               AS region,
+       dom.field_domaine_value                   AS domaine,
+       tc.field_type_de_contrat_value            AS type_opp
+     FROM node_field_data n
+     LEFT JOIN node__body                         b    ON b.entity_id    = n.nid AND b.deleted = 0
+     LEFT JOIN node__field_envoyer_ma_candidature cand ON cand.entity_id = n.nid AND cand.deleted = 0
+     LEFT JOIN node__field_emplacement            emp  ON emp.entity_id  = n.nid AND emp.deleted = 0
+     LEFT JOIN node__field_domaine                dom  ON dom.entity_id  = n.nid AND dom.deleted = 0
+     LEFT JOIN node__field_type_de_contrat        tc   ON tc.entity_id   = n.nid AND tc.deleted = 0
+     WHERE n.type IN (${TYPES.map(() => '?').join(',')})
+     ${limitSql}`,
+    TYPES
   )
 
   stats.opportunites.total = nodes.length
   console.log(`  Nœuds opportunités : ${nodes.length}`)
+  if (nodes.length === 0) return
 
-  // Mapping type Drupal → enum Prisma
-  const typeMap: Record<string, string> = {
-    offre_emploi: 'EMPLOI',
-    stage:        'STAGE',
-    volontariat:  'VOLONTARIAT',
-    formation:    'FORMATION',
-    bourse:       'BOURSE',
-    appel_projet: 'APPEL_PROJET',
-  }
+  // Pré-charger les drupalNid existants
+  const existing = await prisma.opportunite.findMany({ select: { drupalNid: true } })
+  const existingNids = new Set(existing.map(o => o.drupalNid))
 
   for (const node of nodes) {
-    const existing = await prisma.opportunite.findUnique({ where: { drupalNid: node.nid } })
-    if (existing) {
-      stats.opportunites.skipped++
-      continue
-    }
+    if (existingNids.has(node.nid)) { stats.opportunites.alreadyExists++; continue }
 
     try {
       if (!DRY_RUN) {
         await prisma.opportunite.create({
           data: {
-            drupalNid:   node.nid,
-            slug:        slugify(node.title, node.nid),
-            titre:       node.title,
-            description: node.description ?? '',
-            type:        typeMap[node.type] as any ?? 'EMPLOI',
-            domaine:     'Non classé', // À enrichir via field_data_field_domaine
-            publiePar:   'migration-drupal', // Pas de cjsUid recruteur — placeholder
-            statut:      node.status === 1 ? 'PUBLIE' : 'ARCHIVE',
-            createdAt:   drupalTimestampToDate(node.created),
-            updatedAt:   drupalTimestampToDate(node.changed),
+            drupalNid:    node.nid,
+            titre:        node.title,
+            description:  node.body ?? '',
+            type:         mapTypeOpportunite(node.type, node.type_opp) as any,
+            domaine:      mapDomaine(node.domaine) as any,
+            region:       mapRegion(node.region) as any,
+            organisation: 'Migration Drupal',
+            lienExterne:  node.lien ?? null,
+            statut:       (node.status === 1 ? 'publiee' : 'archivee') as any,
+            createdAt:    toDate(node.created),
+            updatedAt:    toDate(node.changed),
           },
         })
+        existingNids.add(node.nid)
       }
-      stats.opportunites.ok++
+      stats.opportunites.created++
     } catch (err) {
-      console.error(`  [ERR] nid=${node.nid}`, err)
+      console.error(`  [ERR] nid=${node.nid} "${node.title}"`, (err as Error).message)
       stats.opportunites.errors++
     }
   }
 
-  console.log(`  → ok: ${stats.opportunites.ok} | skipped: ${stats.opportunites.skipped} | errors: ${stats.opportunites.errors}`)
+  console.log(`  → créés: ${stats.opportunites.created} | existants: ${stats.opportunites.alreadyExists} | erreurs: ${stats.opportunites.errors}`)
 }
 
 // ─── Phase 3 : Événements ─────────────────────────────────────────────────────
@@ -348,56 +434,74 @@ async function migrateEvenements(
 ) {
   console.log('\n[Phase 3] Migration des événements...')
 
-  const limitClause = LIMIT ? `LIMIT ${LIMIT}` : ''
+  const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
+  try {
+    await drupal.query('SELECT 1 FROM node_field_data LIMIT 1')
+  } catch {
+    console.warn('  ⚠️  Table node_field_data absente du dump Drupal — phase ignorée.')
+    return
+  }
+
+  // Les événements sont des nœuds `actualite` marqués field_event = 1
+  // (les autres `actualite` sont des actualités/news, hors périmètre).
   const [nodes] = await drupal.query<DrupalNode[]>(
-    `SELECT n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-            b.body_value AS description
-     FROM node n
-     LEFT JOIN field_data_body b ON b.entity_id = n.nid AND b.entity_type = 'node'
-     WHERE n.type IN ('evenement', 'event', 'formation_event')
-     AND n.status IN (0, 1)
-     ${limitClause}`
+    `SELECT
+       n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
+       b.body_value          AS body,
+       dt.field_date_value     AS date_debut,
+       dt.field_date_end_value AS date_fin,
+       NULL                  AS lieu,
+       NULL                  AS region
+     FROM node_field_data n
+     JOIN node__field_event ev ON ev.entity_id = n.nid AND ev.deleted = 0 AND ev.field_event_value = 1
+     LEFT JOIN node__body        b  ON b.entity_id  = n.nid AND b.deleted = 0
+     LEFT JOIN node__field_date  dt ON dt.entity_id = n.nid AND dt.deleted = 0
+     WHERE n.type = 'actualite'
+     ${limitSql}`
   )
 
   stats.evenements.total = nodes.length
   console.log(`  Nœuds événements : ${nodes.length}`)
+  if (nodes.length === 0) return
+
+  const existing = await prisma.evenement.findMany({ select: { drupalNid: true } })
+  const existingNids = new Set(existing.map(e => e.drupalNid))
 
   for (const node of nodes) {
-    const existing = await prisma.evenement.findUnique({ where: { drupalNid: node.nid } })
-    if (existing) {
-      stats.evenements.skipped++
-      continue
-    }
+    if (existingNids.has(node.nid)) { stats.evenements.alreadyExists++; continue }
+
+    const dateDebut = node.date_debut ? new Date(node.date_debut) : toDate(node.created)
+    const dateFin   = node.date_fin   ? new Date(node.date_fin)   : null
 
     try {
       if (!DRY_RUN) {
-        // Dates réelles à extraire de field_data_field_date_debut / field_date_fin
-        const dateRef = drupalTimestampToDate(node.created)
         await prisma.evenement.create({
           data: {
-            drupalNid:    node.nid,
-            slug:         slugify(node.title, node.nid),
-            titre:        node.title,
-            description:  node.description ?? '',
-            type:         'AUTRE',
-            dateDebut:    dateRef,
-            dateFin:      dateRef,
-            organisateur: 'migration-drupal',
-            statut:       node.status === 1 ? 'PUBLIE' : 'ARCHIVE',
-            createdAt:    dateRef,
-            updatedAt:    drupalTimestampToDate(node.changed),
+            drupalNid:   node.nid,
+            titre:       node.title,
+            description: node.body ?? '',
+            type:        mapTypeEvenement(node.type) as any,
+            dateDebut,
+            dateFin,
+            lieu:        node.lieu ?? 'Non renseigné',
+            statut:      (node.status === 1
+              ? (dateDebut > new Date() ? 'a_venir' : 'termine')
+              : 'annule') as any,
+            createdAt:   toDate(node.created),
+            updatedAt:   toDate(node.changed),
           },
         })
+        existingNids.add(node.nid)
       }
-      stats.evenements.ok++
+      stats.evenements.created++
     } catch (err) {
-      console.error(`  [ERR] nid=${node.nid}`, err)
+      console.error(`  [ERR] nid=${node.nid} "${node.title}"`, (err as Error).message)
       stats.evenements.errors++
     }
   }
 
-  console.log(`  → ok: ${stats.evenements.ok} | skipped: ${stats.evenements.skipped} | errors: ${stats.evenements.errors}`)
+  console.log(`  → créés: ${stats.evenements.created} | existants: ${stats.evenements.alreadyExists} | erreurs: ${stats.evenements.errors}`)
 }
 
 // ─── Phase 4 : Ressources ─────────────────────────────────────────────────────
@@ -407,101 +511,129 @@ async function migrateRessources(
   prisma: PrismaClient,
   stats:  MigrationStats,
 ) {
-  console.log('\n[Phase 4] Migration des ressources pédagogiques...')
+  console.log('\n[Phase 4] Migration des ressources...')
 
-  const limitClause = LIMIT ? `LIMIT ${LIMIT}` : ''
+  const limitSql = LIMIT ? `LIMIT ${LIMIT}` : ''
 
+  try {
+    await drupal.query('SELECT 1 FROM node_field_data LIMIT 1')
+  } catch {
+    console.warn('  ⚠️  Table node_field_data absente du dump Drupal — phase ignorée.')
+    return
+  }
+
+  // Le Drupal réel n'a ni champ lien ni domaine sur le bundle `ressources`.
   const [nodes] = await drupal.query<DrupalNode[]>(
-    `SELECT n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
-            b.body_value AS description
-     FROM node n
-     LEFT JOIN field_data_body b ON b.entity_id = n.nid AND b.entity_type = 'node'
-     WHERE n.type IN ('ressource', 'document', 'video', 'guide')
-     AND n.status IN (0, 1)
-     ${limitClause}`
+    `SELECT
+       n.nid, n.type, n.title, n.uid, n.status, n.created, n.changed,
+       b.body_value AS body,
+       NULL         AS lien,
+       NULL         AS domaine
+     FROM node_field_data n
+     LEFT JOIN node__body b ON b.entity_id = n.nid AND b.deleted = 0
+     WHERE n.type = 'ressources'
+     ${limitSql}`
   )
 
   stats.ressources.total = nodes.length
   console.log(`  Nœuds ressources : ${nodes.length}`)
+  if (nodes.length === 0) return
+
+  const existing = await prisma.ressource.findMany({ select: { drupalNid: true } })
+  const existingNids = new Set(existing.map(r => r.drupalNid))
 
   for (const node of nodes) {
-    const existing = await prisma.ressource.findUnique({ where: { drupalNid: node.nid } })
-    if (existing) {
-      stats.ressources.skipped++
-      continue
-    }
-
-    const formatMap: Record<string, string> = {
-      video:    'VIDEO',
-      document: 'PDF',
-      guide:    'PDF',
-      ressource: 'ARTICLE',
-    }
+    if (existingNids.has(node.nid)) { stats.ressources.alreadyExists++; continue }
 
     try {
       if (!DRY_RUN) {
         await prisma.ressource.create({
           data: {
-            drupalNid:  node.nid,
-            slug:       slugify(node.title, node.nid),
-            titre:      node.title,
-            description:node.description ?? null,
-            theme:      'Non classé',
-            format:     formatMap[node.type] as any ?? 'ARTICLE',
-            statut:     node.status === 1 ? 'PUBLIE' : 'ARCHIVE',
-            createdAt:  drupalTimestampToDate(node.created),
-            updatedAt:  drupalTimestampToDate(node.changed),
+            drupalNid:   node.nid,
+            titre:       node.title,
+            description: node.body ?? '',
+            type:        mapTypeRessource(node.type) as any,
+            theme:       mapDomaine(node.domaine),
+            url:         node.lien ?? '',
+            estPublic:   node.status === 1,
+            createdAt:   toDate(node.created),
+            updatedAt:   toDate(node.changed),
           },
         })
+        existingNids.add(node.nid)
       }
-      stats.ressources.ok++
+      stats.ressources.created++
     } catch (err) {
-      console.error(`  [ERR] nid=${node.nid}`, err)
+      console.error(`  [ERR] nid=${node.nid} "${node.title}"`, (err as Error).message)
       stats.ressources.errors++
     }
   }
 
-  console.log(`  → ok: ${stats.ressources.ok} | skipped: ${stats.ressources.skipped} | errors: ${stats.ressources.errors}`)
+  console.log(`  → créés: ${stats.ressources.created} | existants: ${stats.ressources.alreadyExists} | erreurs: ${stats.ressources.errors}`)
 }
 
 // ─── Rapport ─────────────────────────────────────────────────────────────────
 
 function printReport(stats: MigrationStats, startMs: number) {
-  const durationSec = ((Date.now() - startMs) / 1000).toFixed(1)
-  const report = [
+  const duration = ((Date.now() - startMs) / 1000).toFixed(1)
+
+  const hasWarning = stats.profils.utilisateurAbsent > 0 || stats.profils.notMapped > 0
+  const totalErrors = stats.profils.errors + stats.opportunites.errors + stats.evenements.errors + stats.ressources.errors
+
+  const lines = [
     '',
     '═══════════════════════════════════════════════════',
     `  RAPPORT DE MIGRATION — GUIC-17`,
-    `  Mode: ${DRY_RUN ? 'DRY RUN (aucune écriture)' : 'RÉEL'}`,
-    `  Durée: ${durationSec}s`,
+    `  Mode    : ${DRY_RUN ? 'DRY RUN (aucune écriture)' : 'RÉEL'}`,
+    `  Phase   : ${PHASE}`,
+    `  Durée   : ${duration}s`,
     '═══════════════════════════════════════════════════',
-    `  ProfilJeune   : ${stats.profils.ok} ok / ${stats.profils.skipped} skip / ${stats.profils.errors} err (total ${stats.profils.total})`,
-    `  Opportunités  : ${stats.opportunites.ok} ok / ${stats.opportunites.skipped} skip / ${stats.opportunites.errors} err (total ${stats.opportunites.total})`,
-    `  Événements    : ${stats.evenements.ok} ok / ${stats.evenements.skipped} skip / ${stats.evenements.errors} err (total ${stats.evenements.total})`,
-    `  Ressources    : ${stats.ressources.ok} ok / ${stats.ressources.skipped} skip / ${stats.ressources.errors} err (total ${stats.ressources.total})`,
+    `  ProfilJeune`,
+    `    créés             : ${stats.profils.created}`,
+    `    déjà existants    : ${stats.profils.alreadyExists}`,
+    `    non-mappés SSO    : ${stats.profils.notMapped}`,
+    `    Utilisateur absent: ${stats.profils.utilisateurAbsent}`,
+    `    erreurs           : ${stats.profils.errors}`,
+    `    total Drupal      : ${stats.profils.total}`,
+    `  Opportunités  : ${stats.opportunites.created} créées / ${stats.opportunites.alreadyExists} existantes / ${stats.opportunites.errors} err (${stats.opportunites.total} total)`,
+    `  Événements    : ${stats.evenements.created} créés / ${stats.evenements.alreadyExists} existants / ${stats.evenements.errors} err (${stats.evenements.total} total)`,
+    `  Ressources    : ${stats.ressources.created} créées / ${stats.ressources.alreadyExists} existantes / ${stats.ressources.errors} err (${stats.ressources.total} total)`,
     '═══════════════════════════════════════════════════',
-  ].join('\n')
+  ]
 
+  if (hasWarning) {
+    lines.push(`  ⚠️  ${stats.profils.notMapped} non-mappés → npm run migrate:sso:create`)
+    if (stats.profils.utilisateurAbsent > 0) {
+      lines.push(`  ⚠️  ${stats.profils.utilisateurAbsent} Utilisateurs absents → npm run migrate:sso:sync`)
+    }
+    lines.push('═══════════════════════════════════════════════════')
+  }
+
+  if (totalErrors > 0) {
+    lines.push(`  ❌ ${totalErrors} erreur(s) — vérifier les logs ci-dessus`)
+    lines.push('═══════════════════════════════════════════════════')
+  }
+
+  const report = lines.join('\n')
   console.log(report)
 
-  const reportPath = path.join('data', `migration_report_${Date.now()}.txt`)
   fs.mkdirSync('data', { recursive: true })
+  const reportPath = path.join('data', `migration_report_${Date.now()}.txt`)
   fs.writeFileSync(reportPath, report)
-  console.log(`\nRapport écrit : ${reportPath}`)
+  console.log(`\nRapport sauvegardé : ${reportPath}`)
 }
 
-// ─── Entrée principale ────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
   const startMs = Date.now()
 
-  if (!DRUPAL_DB_URL) {
-    throw new Error('DRUPAL_DB_URL est requis. Exemple: mysql://user:pass@host:3306/drupal_db')
-  }
+  if (!DRUPAL_DB_URL)            throw new Error('DRUPAL_DB_URL manquant')
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL manquant')
 
-  console.log(`\nGuichet Jeunesse — Migration Drupal → Prisma`)
-  console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'RÉEL'} | Phase: ${PHASE}${LIMIT ? ` | Limit: ${LIMIT}` : ''}`)
-  console.log('─────────────────────────────────────────────')
+  console.log(`\nGuichet Jeunesse — Migration Drupal 8/9 → Prisma`)
+  console.log(`Mode  : ${DRY_RUN ? 'DRY RUN' : 'RÉEL'} | Phase: ${PHASE}${LIMIT ? ` | Limit: ${LIMIT}` : ''}`)
+  console.log('─────────────────────────────────────────────────')
 
   const maps    = loadSsoMaps()
   const adapter = new PrismaMariaDb(process.env.DATABASE_URL!)
@@ -509,25 +641,19 @@ async function main() {
   const drupal  = await mysql.createConnection(DRUPAL_DB_URL)
 
   const stats: MigrationStats = {
-    profils:       { total: 0, ok: 0, skipped: 0, errors: 0 },
-    opportunites:  { total: 0, ok: 0, skipped: 0, errors: 0 },
-    evenements:    { total: 0, ok: 0, skipped: 0, errors: 0 },
-    ressources:    { total: 0, ok: 0, skipped: 0, errors: 0 },
+    profils:      { total: 0, created: 0, alreadyExists: 0, notMapped: 0, utilisateurAbsent: 0, errors: 0 },
+    opportunites: { total: 0, created: 0, alreadyExists: 0, errors: 0 },
+    evenements:   { total: 0, created: 0, alreadyExists: 0, errors: 0 },
+    ressources:   { total: 0, created: 0, alreadyExists: 0, errors: 0 },
   }
 
   try {
-    if (PHASE === 'all' || PHASE === 'profils') {
-      await migrateProfilsJeune(drupal, prisma, maps, stats)
-    }
-    if (PHASE === 'all' || PHASE === 'opportunites') {
-      await migrateOpportunites(drupal, prisma, stats)
-    }
-    if (PHASE === 'all' || PHASE === 'evenements') {
-      await migrateEvenements(drupal, prisma, stats)
-    }
-    if (PHASE === 'all' || PHASE === 'ressources') {
-      await migrateRessources(drupal, prisma, stats)
-    }
+    if (!SKIP_PREFLIGHT) await preflight(prisma, maps)
+
+    if (PHASE === 'all' || PHASE === 'profils')      await migrateProfilsJeune(drupal, prisma, maps, stats)
+    if (PHASE === 'all' || PHASE === 'opportunites') await migrateOpportunites(drupal, prisma, stats)
+    if (PHASE === 'all' || PHASE === 'evenements')   await migrateEvenements(drupal, prisma, stats)
+    if (PHASE === 'all' || PHASE === 'ressources')   await migrateRessources(drupal, prisma, stats)
   } finally {
     await drupal.end()
     await prisma.$disconnect()
