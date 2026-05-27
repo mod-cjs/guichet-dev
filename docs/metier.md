@@ -170,18 +170,18 @@ Le champ `region` dans toutes les entités utilise ces valeurs exactes.
 
 ---
 
-## 7. L'agent WhatsApp Aïssatou
+## 7. L'agent WhatsApp Yaye
 
-L'agent WhatsApp du Guichet Jeunesse s'appelle **Aïssatou**. Il est **distinct et indépendant** de **Fatou**, l'IA d'EduPop.
+L'agent WhatsApp du Guichet Jeunesse s'appelle **Yaye**. Il est **distinct et indépendant** de **Fatou**, l'IA d'EduPop.
 
-| | Aïssatou (Guichet) | Fatou (EduPop) |
+| | Yaye (Guichet) | Fatou (EduPop) |
 |---|---|---|
 | Périmètre | Opportunités, événements, candidatures | Contenus pédagogiques EduPop |
 | Stack IA | Groq (llama-3.3-70b-versatile) | Groq + RAG Pinecone + Voyage AI |
 | Canal | Meta Cloud API v19 | Meta Cloud API v19 |
 | Numéro | Numéro dédié Guichet | Numéro dédié EduPop |
 
-Ne jamais réutiliser la logique d'EduPop IA pour Aïssatou. Ce sont deux agents indépendants.
+Ne jamais réutiliser la logique d'EduPop IA pour Yaye. Ce sont deux agents indépendants.
 
 ---
 

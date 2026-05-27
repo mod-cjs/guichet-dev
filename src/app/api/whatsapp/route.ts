@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   return new Response('Forbidden', { status: 403 })
 }
 
-// Réception des messages WhatsApp (agent Aïssatou)
+// Réception des messages WhatsApp (agent Yaye)
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const signature = request.headers.get('x-hub-signature-256') ?? ''

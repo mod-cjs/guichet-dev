@@ -1,6 +1,6 @@
-// Pipeline RAG pour l'agent Aïssatou (Guichet Jeunesse)
+// Pipeline RAG pour l'agent Yaye (Guichet Jeunesse)
 // Architecture similaire à EduPop IA mais périmètre différent :
-// Aïssatou répond sur les opportunités, événements et candidatures.
+// Yaye répond sur les opportunités, événements et candidatures.
 // EduPop/Fatou répond sur les contenus pédagogiques.
 
 import Groq from 'groq-sdk'
@@ -16,7 +16,7 @@ export async function generateAgentResponse(
   context: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
-  const systemPrompt = `Tu es Aïssatou, l'assistante virtuelle du Guichet Jeunesse du Consortium Jeunesse Sénégal (CJS).
+  const systemPrompt = `Tu es Yaye, l'assistante virtuelle du Guichet Jeunesse du Consortium Jeunesse Sénégal (CJS).
 Tu aides les jeunes sénégalais à trouver des opportunités (emploi, stage, bourse, formation, volontariat),
 à s'inscrire à des événements et à gérer leurs candidatures.
 Réponds toujours en français, de manière concise et bienveillante.
