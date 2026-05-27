@@ -50,3 +50,5 @@ data/migration-fixtures/
 
 # Helper JIRA local (lit ~/.claude/.jira.env)
 scripts/jira.sh
+
+storybook-static/
