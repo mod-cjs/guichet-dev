@@ -4,7 +4,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 
 **Stack :** Next.js 16 (App Router) · TypeScript 5 · Prisma 7 · MariaDB 11 · Redis 7
 **Auth :** SSO CJS OAuth2/OIDC (Laravel Passport) · next-auth v5
-**IA :** Groq llama-3.3-70b · **WhatsApp :** Meta Cloud API v19 · **Agent :** Aïssatou
+**IA :** Groq llama-3.3-70b · **WhatsApp :** Meta Cloud API v19 · **Agent :** Yaye
 
 ---
 
@@ -34,9 +34,8 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 **Interface**
 - Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
-- `gj-indigo` réservé au chatbot Aïssatou — jamais utilisé ailleurs
-- Police : Lexend via `next/font/google` — variable `--font-lexend` injectée sur `<html>`
-- **`design/html/`** = source de vérité visuelle — lire le fichier HTML avant toute nouvelle page
+- Police : stack système (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`) — variable CSS `--gj-font-sans` injectée par `src/styles/tokens.css`
+- **`design-guichet-v2/`** = source de vérité visuelle (livraison PO 2026-05-26). `design/html.archive/` = ancien prototype, lecture seule.
 
 **Navigation — architecture validée (lire `.agent_context/specs/layout-navigation.md`)**
 - Pages publiques (`/`, `/opportunites`, `/evenements`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**
