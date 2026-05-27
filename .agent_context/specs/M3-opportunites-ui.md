@@ -23,7 +23,7 @@
   - `.fm-form` / `.fm-field` — formulaire mobile.
 - **Règles CLAUDE.md** : composants `src/components/ui/` exclusivement, tokens `gj-*`
   (jamais de hex), SVG inline `currentColor` (jamais d'emoji comme icône fonctionnelle),
-  `gj-indigo` interdit (réservé Aïssatou).
+  `gj-indigo` DEPRECATED (anciennement réservé Yaye, voir refonte v2).
 
 ---
 

@@ -1,6 +1,6 @@
 // Sprint 4 — M12 : Recommandation intelligente d'opportunités
 // À implémenter une fois le modèle de données confirmé
-// Voir docs/metier.md — section "Agent Aïssatou"
+// Voir docs/metier.md — section "Agent Yaye"
 
 export interface RecommandationResult {
   opportuniteId: string

@@ -251,7 +251,7 @@ Le fichier `src/styles/design-tokens.ts` exporte les valeurs TypeScript pour usa
 className="bg-gj-teal text-white"          // ✅ bouton primaire
 className="bg-gj-yellow text-gj-ink"       // ✅ accent secondaire
 className="text-gj-red"                    // ✅ urgence / erreur
-className="bg-gj-indigo"                   // ✅ chatbot Aïssatou uniquement
+className="bg-gj-indigo"                   // ⚠️ DEPRECATED — anciennement chatbot Yaye, alias vers gj-teal-deep
 
 // Aliases legacy (compatibilité — à éviter dans le nouveau code)
 // cjs-vert → gj-teal | cjs-or → gj-yellow | cjs-rouge → gj-red
@@ -266,7 +266,7 @@ className="bg-cjs-vert"                    // ⚠️ alias — préférer bg-gj-
 | `gj-teal-deep` | `--gj-teal-deep` (#007A5C) | Hero, headers de page |
 | `gj-yellow` | `--gj-yellow` (#F9C400) | CTA secondaire, "aujourd'hui", alertes |
 | `gj-red` | `--gj-red` (#D92A1E) | Urgences, deadlines, erreurs |
-| `gj-indigo` | `--gj-indigo` (#6366F1) | **Réservé chatbot Aïssatou** — jamais ailleurs |
+| ~~`gj-indigo`~~ | `--gj-indigo` (alias `--gj-teal-deep`) | **DEPRECATED** depuis refonte v2 — utiliser `--gj-yaye-deep` pour Yaye |
 | `gj-ink` | `--gj-ink` (#1A1A1A) | Texte principal |
 | `gj-bg` | `--gj-bg` | Fond de page |
 
