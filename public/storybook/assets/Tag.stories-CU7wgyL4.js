@@ -1,0 +1,11 @@
+import{j as t}from"./jsx-runtime-DmkHMFbR.js";import"./iframe-C5hSx71m.js";import"./preload-helper-Dp1pzeXC.js";const u={cjs:"bg-gj-teal-soft text-gj-teal-deep",partner:"bg-gj-yellow-soft text-gj-yellow-ink",urgent:"bg-gj-red-soft text-gj-red-ink",new:"bg-gj-teal text-white",confirmed:"bg-gj-teal-soft text-gj-teal-deep",planned:"bg-gj-yellow-soft text-gj-yellow-ink",online:"bg-gj-blue-soft text-gj-blue-ink"};function r({variant:e="cjs",children:c,className:g="",...m}){return t.jsx("span",{className:`inline-flex items-center gap-[3px] px-[8px] py-[3px]
+        rounded-gj-pill text-fs-100 font-bold leading-none
+        ${u[e]} ${g}`,...m,children:c})}r.__docgenInfo={description:"",methods:[],displayName:"Tag",props:{variant:{required:!1,tsType:{name:"union",raw:"'cjs' | 'partner' | 'urgent' | 'new' | 'confirmed' | 'planned' | 'online'",elements:[{name:"literal",value:"'cjs'"},{name:"literal",value:"'partner'"},{name:"literal",value:"'urgent'"},{name:"literal",value:"'new'"},{name:"literal",value:"'confirmed'"},{name:"literal",value:"'planned'"},{name:"literal",value:"'online'"}]},description:"",defaultValue:{value:"'cjs'",computed:!1}},className:{defaultValue:{value:"''",computed:!1},required:!1}},composes:["HTMLAttributes"]};const v={title:"UI/Tag",component:r,argTypes:{variant:{control:"select",options:["cjs","partner","urgent","new","confirmed","planned","online"]}},args:{children:"CJS"}},a={},n={render:()=>t.jsx("div",{style:{display:"flex",gap:8,flexWrap:"wrap"},children:["cjs","partner","urgent","new","confirmed","planned","online"].map(e=>t.jsx(r,{variant:e,children:e},e))})};var l,s,o;a.parameters={...a.parameters,docs:{...(l=a.parameters)==null?void 0:l.docs,source:{originalSource:"{}",...(o=(s=a.parameters)==null?void 0:s.docs)==null?void 0:o.source}}};var i,p,d;n.parameters={...n.parameters,docs:{...(i=n.parameters)==null?void 0:i.docs,source:{originalSource:`{
+  render: () => <div style={{
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap'
+  }}>
+      {(['cjs', 'partner', 'urgent', 'new', 'confirmed', 'planned', 'online'] as const).map(v => <Tag key={v} variant={v}>{v}</Tag>)}
+    </div>
+}`,...(d=(p=n.parameters)==null?void 0:p.docs)==null?void 0:d.source}}};const w=["Default","AllVariants"];export{n as AllVariants,a as Default,w as __namedExportsOrder,v as default};

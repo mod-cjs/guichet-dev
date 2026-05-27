@@ -36,7 +36,8 @@
     "migration:rehearsal:up": "docker compose -f docker-compose.migration.yml up -d",
     "migration:rehearsal:down": "docker compose -f docker-compose.migration.yml down -v",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "storybook:public": "storybook build --output-dir public/storybook --quiet"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.8.0",

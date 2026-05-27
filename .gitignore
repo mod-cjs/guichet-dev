@@ -51,4 +51,5 @@ data/migration-fixtures/
 # Helper JIRA local (lit ~/.claude/.jira.env)
 scripts/jira.sh
 
+# Storybook build à la racine — ignoré (committé uniquement sous public/storybook/ pour servir via Vercel)
 storybook-static/

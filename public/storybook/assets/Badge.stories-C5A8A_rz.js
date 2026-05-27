@@ -1,0 +1,11 @@
+import{j as r}from"./jsx-runtime-DmkHMFbR.js";import"./iframe-C5hSx71m.js";import"./preload-helper-Dp1pzeXC.js";const c={teal:"bg-gj-teal-soft text-gj-teal-deep",yellow:"bg-gj-yellow-soft text-gj-yellow-ink",red:"bg-gj-red-soft text-gj-red-ink",blue:"bg-gj-blue-soft text-gj-blue-ink",green:"bg-gj-green-soft text-gj-green-ink",grey:"bg-gj-bg text-gj-grey",new:"bg-gj-teal text-white"};function t({variant:e="teal",children:p,className:u="",...m}){return r.jsx("span",{className:`inline-flex items-center px-[5px] py-[2px] rounded-[3px]
+        text-fs-100 font-bold leading-none
+        ${c[e]} ${u}`,...m,children:p})}t.__docgenInfo={description:"",methods:[],displayName:"Badge",props:{variant:{required:!1,tsType:{name:"union",raw:"'teal' | 'yellow' | 'red' | 'blue' | 'green' | 'grey' | 'new'",elements:[{name:"literal",value:"'teal'"},{name:"literal",value:"'yellow'"},{name:"literal",value:"'red'"},{name:"literal",value:"'blue'"},{name:"literal",value:"'green'"},{name:"literal",value:"'grey'"},{name:"literal",value:"'new'"}]},description:"",defaultValue:{value:"'teal'",computed:!1}},className:{defaultValue:{value:"''",computed:!1},required:!1}},composes:["HTMLAttributes"]};const b={title:"UI/Badge",component:t,argTypes:{variant:{control:"select",options:["teal","yellow","red","blue","green","grey","new"]}},args:{children:"12"}},a={},l={render:()=>r.jsx("div",{style:{display:"flex",gap:8,flexWrap:"wrap"},children:["teal","yellow","red","blue","green","grey","new"].map(e=>r.jsx(t,{variant:e,children:e},e))})};var n,s,o;a.parameters={...a.parameters,docs:{...(n=a.parameters)==null?void 0:n.docs,source:{originalSource:"{}",...(o=(s=a.parameters)==null?void 0:s.docs)==null?void 0:o.source}}};var g,d,i;l.parameters={...l.parameters,docs:{...(g=l.parameters)==null?void 0:g.docs,source:{originalSource:`{
+  render: () => <div style={{
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap'
+  }}>
+      {(['teal', 'yellow', 'red', 'blue', 'green', 'grey', 'new'] as const).map(v => <Badge key={v} variant={v}>{v}</Badge>)}
+    </div>
+}`,...(i=(d=l.parameters)==null?void 0:d.docs)==null?void 0:i.source}}};const j=["Default","AllTones"];export{l as AllTones,a as Default,j as __namedExportsOrder,b as default};
