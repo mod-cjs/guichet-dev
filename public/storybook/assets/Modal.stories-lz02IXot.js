@@ -1,0 +1,35 @@
+import{j as e}from"./jsx-runtime-DmkHMFbR.js";import{r as o}from"./iframe-C5hSx71m.js";import{B as v}from"./index-YJrtzRXp.js";import"./preload-helper-Dp1pzeXC.js";const U={sm:"max-w-[380px]",md:"max-w-[560px]",lg:"max-w-[680px]"},T='a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';function h({isOpen:t,onClose:r,title:s,children:i,size:_="md",footer:b,maxWidth:$}){const[j,w]=o.useState(!1),c=o.useRef(null),S=o.useRef(null),k=o.useId(),y=o.useCallback(n=>{if(n.key==="Escape"){n.preventDefault(),r();return}if(n.key!=="Tab"||!c.current)return;const a=Array.from(c.current.querySelectorAll(T)).filter(C=>!C.hasAttribute("disabled")&&C.tabIndex!==-1);if(a.length===0)return;const l=a[0],d=a[a.length-1];n.shiftKey&&document.activeElement===l?(n.preventDefault(),d.focus()):!n.shiftKey&&document.activeElement===d&&(n.preventDefault(),l.focus())},[r]);if(o.useEffect(()=>{if(!t)return;S.current=document.activeElement??null,document.body.style.overflow="hidden",document.addEventListener("keydown",y);const n=requestAnimationFrame(()=>{var d;w(!0);const l=(d=c.current)==null?void 0:d.querySelector(T);l==null||l.focus()}),a=S.current;return()=>{if(document.body.style.overflow="",document.removeEventListener("keydown",y),cancelAnimationFrame(n),w(!1),a&&document.body.contains(a))try{a.focus()}catch{}}},[t,y]),!t)return null;const K=$??U[_];return e.jsxs("div",{className:"fixed inset-0 flex items-center justify-center",style:{zIndex:"var(--gj-z-overlay)"},children:[e.jsx("div",{className:`absolute inset-0 transition-opacity duration-[var(--motion-base)] ease-[var(--motion-ease)]
+          ${j?"opacity-100":"opacity-0"}`,style:{background:"var(--gj-overlay)"},onClick:r,"aria-hidden":!0}),e.jsxs("div",{ref:c,role:"dialog","aria-modal":"true","aria-labelledby":s?k:void 0,tabIndex:-1,className:`relative bg-white rounded-gj-2xl shadow-gj-lg w-full mx-space-4
+          max-h-[85dvh] flex flex-col
+          transition-[transform,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease)]
+          ${j?"opacity-100 scale-100":"opacity-0 scale-95"} ${K}`,children:[s!==void 0&&e.jsxs("div",{className:"flex items-start justify-between px-space-5 pt-space-5 pb-space-3 border-b border-gj-line",children:[e.jsx("h2",{id:k,className:"text-fs-600 font-black text-color-text-primary",children:s}),e.jsx("button",{onClick:r,"aria-label":"Fermer",className:"ml-auto text-gj-grey hover:text-gj-ink transition-colors min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center rounded-gj-pill",children:"✕"})]}),e.jsx("div",{className:"flex-1 overflow-y-auto px-space-5 py-space-4",children:i}),b&&e.jsx("div",{className:"px-space-5 py-space-4 border-t border-gj-line flex justify-end gap-space-2",children:b}),s===void 0&&e.jsx("button",{onClick:r,"aria-label":"Fermer",className:"absolute top-space-3 right-space-3 text-gj-grey hover:text-gj-ink transition-colors min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center rounded-gj-pill",children:"✕"})]})]})}h.__docgenInfo={description:`Modal — dialogue centré du design system v2.
+
+v2 :
+- Sizes sm/md/lg (380 / 560 / 680 px)
+- Header avec close button top-right, footer slot CTAs
+- Overlay --gj-overlay, motion fade + scale via --motion-base
+- Focus trap + restitution focus à la fermeture
+- ARIA role=dialog + aria-modal + aria-labelledby si title`,methods:[],displayName:"Modal",props:{isOpen:{required:!0,tsType:{name:"boolean"},description:""},onClose:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""},title:{required:!1,tsType:{name:"string"},description:""},children:{required:!0,tsType:{name:"ReactNode"},description:""},size:{required:!1,tsType:{name:"union",raw:"'sm' | 'md' | 'lg'",elements:[{name:"literal",value:"'sm'"},{name:"literal",value:"'md'"},{name:"literal",value:"'lg'"}]},description:"Taille du panel — `sm` 380px · `md` 560px · `lg` 680px. Défaut `md`.",defaultValue:{value:"'md'",computed:!1}},footer:{required:!1,tsType:{name:"ReactNode"},description:"Slot footer pour CTAs (boutons groupés en bas)."},maxWidth:{required:!1,tsType:{name:"string"},description:"Override raw max-width (compat ascendante)."}}};const P={title:"UI/Modal",component:h,argTypes:{size:{control:"select",options:["sm","md","lg"]}}};function g({size:t,withFooter:r}){const[s,i]=o.useState(!0);return e.jsxs("div",{style:{minHeight:300},children:[e.jsx(v,{onClick:()=>i(!0),children:"Ouvrir"}),e.jsx(h,{isOpen:s,onClose:()=>i(!1),size:t,title:`Modal ${t}`,footer:r?e.jsxs(e.Fragment,{children:[e.jsx(v,{variant:"ghost",onClick:()=>i(!1),children:"Annuler"}),e.jsx(v,{onClick:()=>i(!1),children:"Confirmer"})]}):void 0,children:e.jsxs("p",{children:["Contenu de la modal. Taille ",t,"."]})})]})}const u={render:()=>e.jsx(g,{size:"sm"})},m={render:()=>e.jsx(g,{size:"md"})},p={render:()=>e.jsx(g,{size:"lg"})},f={render:()=>e.jsx(g,{size:"md",withFooter:!0})},x={render:()=>{const t=()=>{const[r,s]=o.useState(!0);return e.jsxs("div",{style:{minHeight:300},children:[e.jsx(v,{onClick:()=>s(!0),children:"Ouvrir"}),e.jsx(h,{isOpen:r,onClose:()=>s(!1),size:"sm",children:e.jsx("p",{children:"Modal sans header, close button flottant."})})]})};return e.jsx(t,{})}};var z,O,A;u.parameters={...u.parameters,docs:{...(z=u.parameters)==null?void 0:z.docs,source:{originalSource:`{
+  render: () => <Demo size="sm" />
+}`,...(A=(O=u.parameters)==null?void 0:O.docs)==null?void 0:A.source}}};var D,E,F;m.parameters={...m.parameters,docs:{...(D=m.parameters)==null?void 0:D.docs,source:{originalSource:`{
+  render: () => <Demo size="md" />
+}`,...(F=(E=m.parameters)==null?void 0:E.docs)==null?void 0:F.source}}};var N,M,q;p.parameters={...p.parameters,docs:{...(N=p.parameters)==null?void 0:N.docs,source:{originalSource:`{
+  render: () => <Demo size="lg" />
+}`,...(q=(M=p.parameters)==null?void 0:M.docs)==null?void 0:q.source}}};var I,R,H;f.parameters={...f.parameters,docs:{...(I=f.parameters)==null?void 0:I.docs,source:{originalSource:`{
+  render: () => <Demo size="md" withFooter />
+}`,...(H=(R=f.parameters)==null?void 0:R.docs)==null?void 0:H.source}}};var B,L,W;x.parameters={...x.parameters,docs:{...(B=x.parameters)==null?void 0:B.docs,source:{originalSource:`{
+  render: () => {
+    const Demo = () => {
+      const [open, setOpen] = useState(true);
+      return <div style={{
+        minHeight: 300
+      }}>
+          <Button onClick={() => setOpen(true)}>Ouvrir</Button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} size="sm">
+            <p>Modal sans header, close button flottant.</p>
+          </Modal>
+        </div>;
+    };
+    return <Demo />;
+  }
+}`,...(W=(L=x.parameters)==null?void 0:L.docs)==null?void 0:W.source}}};const Q=["Small","Medium","Large","WithFooterCTAs","WithoutHeader"];export{p as Large,m as Medium,u as Small,f as WithFooterCTAs,x as WithoutHeader,Q as __namedExportsOrder,P as default};
