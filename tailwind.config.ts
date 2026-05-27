@@ -62,7 +62,7 @@ const config: Config = {
         'cjs-fond':       'var(--gj-bg)',
       },
       fontFamily: {
-        sans: ['var(--font-lexend)', 'system-ui', 'sans-serif'],
+        sans: ['var(--gj-font-sans)', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'fs-100': ['var(--fs-100)', { lineHeight: 'var(--gj-lh-body)' }],

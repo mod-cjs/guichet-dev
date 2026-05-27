@@ -47,3 +47,6 @@ data/drupal_uid_cjs_uid_map.json
 data/drupal_uid_cjs_uid_map_updated.json
 data/create_sso_accounts.sql
 data/migration-fixtures/
+
+# Helper JIRA local (lit ~/.claude/.jira.env)
+scripts/jira.sh

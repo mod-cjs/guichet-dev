@@ -270,8 +270,7 @@ className="bg-cjs-vert"                    // ⚠️ alias — préférer bg-gj-
 | `gj-ink` | `--gj-ink` (#1A1A1A) | Texte principal |
 | `gj-bg` | `--gj-bg` | Fond de page |
 
-**Police : Lexend** — configurée via `next/font/google` dans `src/app/layout.tsx`.
-Variable CSS : `--font-lexend`. Classe Tailwind : `font-sans` (mappée sur Lexend dans `tailwind.config.ts`).
+**Police : stack système** — variable CSS `--gj-font-sans` définie dans `src/styles/tokens.css` (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`). Classe Tailwind : `font-sans` (mappée sur `var(--gj-font-sans)` dans `tailwind.config.ts`).
 
 ### Utilisation des composants UI
 
