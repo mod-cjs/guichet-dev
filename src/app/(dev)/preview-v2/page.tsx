@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { PhoneFrame } from '@/components/dev/PhoneFrame'
+import { StepBar } from '@/components/ui/StepBar'
+import { FooterCTA } from '@/components/ui/FooterCTA'
 
 export const dynamic = 'force-dynamic'
 
@@ -185,6 +188,29 @@ export default function PreviewV2Page() {
           <p style={{ fontSize: 12, color: 'var(--gj-grey)' }}>
             Police stack système : <code style={{ fontFamily: 'ui-monospace, monospace' }}>{'"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif'}</code>
           </p>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>PhoneFrame demo (dev only)</h2>
+        <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginBottom: 16 }}>
+          Simulateur iPhone 14 (390×844) embarquant <code>StepBar</code> + <code>FooterCTA</code>.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <PhoneFrame>
+            <StepBar step={2} total={5} />
+            <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800 }}>Démo onboarding</h3>
+              <p style={{ fontSize: 14, color: 'var(--gj-grey)' }}>
+                Contenu placeholder pour valider visuellement le cadre, la status bar et la footer
+                CTA dans un viewport mobile.
+              </p>
+            </div>
+            <FooterCTA
+              primary={{ label: 'Continuer' }}
+              secondary={{ label: 'Retour' }}
+            />
+          </PhoneFrame>
         </div>
       </section>
 
