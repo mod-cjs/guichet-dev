@@ -294,6 +294,9 @@
   70%  { box-shadow: 0 0 0 8px rgba(123,229,181,0); }
   100% { box-shadow: 0 0 0 0 rgba(123,229,181,0); }
 }
+@keyframes gj-spin {
+  to { transform: rotate(360deg); }
+}
 
 /* =========================================================
    RÈGLES GLOBALES UTILES
