@@ -37,6 +37,9 @@ const config: Config = {
         'gj-line-strong': 'var(--gj-line-strong)',
         'gj-bg':          'var(--gj-bg)',
         'gj-surface':     'var(--gj-surface)',
+        'gj-ink-teal':    'var(--gj-ink-teal)',
+        'gj-yellow-deep': 'var(--gj-yellow-deep)',
+        'gj-whatsapp-deep': 'var(--gj-whatsapp-deep)',
         // Sémantiques
         'color-action-primary':   'var(--color-action-primary)',
         'color-action-secondary': 'var(--color-action-secondary)',
