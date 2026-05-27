@@ -14,7 +14,8 @@ export function Skeleton({ height = '14px', width = '100%', rounded = 'var(--gj-
         height,
         width,
         borderRadius: rounded,
-        background: 'linear-gradient(90deg,#eef0ee 0,#f7f9f7 40%,#eef0ee 80%)',
+        background:
+          'linear-gradient(90deg, var(--gj-skel-from) 0, var(--gj-skel-to) 40%, var(--gj-skel-from) 80%)',
         backgroundSize: '200px 100%',
         animation: 'gj-shimmer 1.4s infinite linear',
         ...style,

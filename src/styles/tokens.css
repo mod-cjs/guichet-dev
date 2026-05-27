@@ -207,6 +207,13 @@
   --focus-ring-offset: 2px;
   --focus-ring-color:  #00B287;        /* teal lumineux, AA contraste */
   --focus-ring:        var(--focus-ring-width) solid var(--focus-ring-color);
+  /* Halo transparent utilisé sur les champs (Input/Select) au focus.
+     Remplace l'ancien rgba(0,178,135,.18) en dur. */
+  --focus-ring-soft:   rgba(0, 178, 135, .18);
+
+  /* Skeleton — gradient shimmer (anciennement hex en dur dans Skeleton.tsx) */
+  --gj-skel-from:  #EEF0EE;
+  --gj-skel-to:    #F7F9F7;
 
   /* =========================================================
      10 · LAYOUT — breakpoints documentés

@@ -22,7 +22,7 @@ const ICONS: Record<ToastType, { symbol: string; label: string }> = {
 const COLORS: Record<ToastType, string> = {
   success: 'bg-gj-green',
   error:   'bg-gj-red',
-  info:    'bg-[#0E2E25]',
+  info:    'bg-gj-ink-teal',
 }
 
 export function Toast({ message, detail, type = 'success', onClose, duration = 4000, bottomOffset = 0 }: ToastProps) {
