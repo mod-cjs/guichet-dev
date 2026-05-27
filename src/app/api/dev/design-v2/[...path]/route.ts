@@ -37,6 +37,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ path: string[]
   }
   const ext = full.slice(full.lastIndexOf('.')).toLowerCase()
   const data = await readFile(full)
+  // CSP et X-Frame-Options permissifs gérés dans next.config.ts (matcher dev).
   return new NextResponse(data as unknown as BodyInit, {
     status: 200,
     headers: {
