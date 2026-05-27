@@ -4,6 +4,7 @@ export { Badge }      from './Badge'
 export { BottomNav }  from './BottomNav'
 export { Button }     from './Button'
 export { Card }       from './Card'
+export type { CardProps, CardVariant, CardAccent } from './Card'
 export { Chip }       from './Chip'
 export type { ChipProps } from './Chip'
 export { DataTable }  from './DataTable'
@@ -19,3 +20,19 @@ export { Sheet }      from './Sheet'
 export { Skeleton, SkeletonCard } from './Skeleton'
 export { Tag }        from './Tag'
 export { Toast }      from './Toast'
+
+// === Yaye — assistant IA (refonte v2) ===
+export { YayeAvatar } from './Yaye/YayeAvatar'
+export type { YayeAvatarProps, YayeAvatarSize } from './Yaye/YayeAvatar'
+export { YayeFab }    from './Yaye/YayeFab'
+export type { YayeFabProps } from './Yaye/YayeFab'
+export { YayeBubble } from './Yaye/YayeBubble'
+export type { YayeBubbleProps } from './Yaye/YayeBubble'
+export { YayeActionCard } from './Yaye/YayeActionCard'
+export type {
+  YayeActionCardProps,
+  YayeAction,
+  YayeActionButton,
+} from './Yaye/YayeActionCard'
+export { QuickReplies } from './Yaye/QuickReplies'
+export type { QuickRepliesProps, QuickReply } from './Yaye/QuickReplies'
