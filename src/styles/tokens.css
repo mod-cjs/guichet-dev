@@ -23,6 +23,7 @@
 
   /* Yellow — secondary */
   --gj-yellow:      #F9C400;
+  --gj-yellow-deep: #C79C00;   /* hover / gradient stop */
   --gj-yellow-soft: #FFF8E0;
   --gj-yellow-ink:  #6B5300;   /* texte sur yellow-soft (AA passé) */
 
@@ -33,15 +34,40 @@
 
   /* Statuts */
   --gj-blue:        #1A4ED8;
+  --gj-blue-deep:   #0E2A7A;   /* gradient stop / pressed */
   --gj-blue-soft:   #E8EFFF;
   --gj-blue-ink:    #1A3FA8;
   --gj-green:       #15803D;
   --gj-green-soft:  #E5F6E9;
   --gj-green-ink:   #0F5C2C;
 
-  /* Chatbot — réservé */
-  --gj-indigo:      #6366F1;
-  --gj-indigo-soft: #E0E7FF;
+  /* Chatbot — DEPRECATED v1.5, alias\u00e9s sur le brand teal-deep */
+  --gj-indigo:      var(--gj-teal-deep);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+  --gj-indigo-soft: var(--gj-teal-soft);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+
+  /* Yaye \u2014 assistant IA (v1.5 : Yaye = brand teal-deep, plus de surface s\u00e9par\u00e9e)
+     Les tokens --gj-yaye-* restent comme alias r\u00e9troactifs vers le brand
+     pour ne pas casser le code existant. Le wordmark logotype porte SEUL
+     le gradient signature ci-dessous. */
+  --gj-yaye-deep:   var(--gj-teal-deep);   /* alias \u2014 #007A5C */
+  --gj-yaye-deep-2: var(--gj-teal-deep-2); /* alias \u2014 #005A43 */
+  --gj-yaye-ink:    var(--gj-teal-soft);   /* texte sur surface Yaye */
+  --gj-yaye-accent: var(--gj-yellow);      /* accent jaune = "IA" / call-out */
+
+  /* Gradient signature Yaye \u2014 r\u00e9serv\u00e9 WORDMARK + AVATAR uniquement.
+     Extrait du logo officiel `assets/logo-yeah.svg`. */
+  --gj-yaye-grad-1: #19A757;
+  --gj-yaye-grad-2: #159D60;
+  --gj-yaye-grad-3: #10906D;
+  --gj-yaye-grad-4: #0A807F;
+  --gj-yaye-gradient: linear-gradient(135deg,
+    var(--gj-yaye-grad-1) 0%,
+    var(--gj-yaye-grad-2) 50%,
+    var(--gj-yaye-grad-4) 100%);
+
+  /* Ink-teal — la nuance la plus sombre de la palette,
+     pour footers, wallpapers, fin-de-gradient hero. */
+  --gj-ink-teal:    #0A2820;
 
   /* WhatsApp */
   --gj-whatsapp:      #25D366;
@@ -93,7 +119,8 @@
   /* =========================================================
      3 · TYPOGRAPHIE — échelle remontée
      ========================================================= */
-  --gj-font-sans: var(--font-lexend, system-ui), -apple-system, sans-serif;
+  --gj-font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+                  Arial, "Noto Sans", sans-serif;
 
   /* v2 — échelle accessible */
   --fs-100: 11px;   /* tags & métadonnées (jamais en-dessous) */
@@ -106,16 +133,16 @@
   --fs-800: 28px;   /* titres de page */
   --fs-900: 36px;   /* hero */
 
-  /* v1 aliases — remappés vers v2 (corrects) */
-  --gj-fs-xs:   var(--fs-100);   /* 11px */
-  --gj-fs-sm:   var(--fs-200);   /* 13px */
-  --gj-fs-base: var(--fs-400);   /* 16px — corps, était --fs-200 (bug) */
-  --gj-fs-md:   var(--fs-400);   /* 16px */
-  --gj-fs-lg:   var(--fs-500);   /* 18px */
-  --gj-fs-xl:   var(--fs-600);   /* 20px */
-  --gj-fs-2xl:  var(--fs-700);   /* 24px */
-  --gj-fs-h2:   var(--fs-700);   /* 24px */
-  --gj-fs-h1:   var(--fs-800);   /* 28px */
+  /* v1 aliases — pour ne rien casser ; remappés vers v2 */
+  --gj-fs-xs:   var(--fs-100);
+  --gj-fs-sm:   var(--fs-100);
+  --gj-fs-base: var(--fs-200);
+  --gj-fs-md:   var(--fs-300);
+  --gj-fs-lg:   var(--fs-400);
+  --gj-fs-xl:   var(--fs-500);
+  --gj-fs-2xl:  var(--fs-700);
+  --gj-fs-h2:   var(--fs-700);
+  --gj-fs-h1:   var(--fs-800);
 
   --gj-fw-regular:  400;
   --gj-fw-semibold: 600;
@@ -219,9 +246,47 @@
   --gj-z-chat:       400;
   --gj-z-overlay:    600;
   --gj-z-toast:      800;
+}
 
-  /* Hauteur de la BottomNav mobile (cf src/components/layout/BottomNav). */
-  --gj-bottom-nav-h: 56px;
+  /* =========================================================
+     14 · PROGRAMMES DU CJS — palettes signature
+     ========================================================= */
+  --prog-yaakaar-1: #A3742A;
+  --prog-yaakaar-2: #5C4118;
+  --prog-yaakaar:   linear-gradient(135deg, var(--prog-yaakaar-1), var(--prog-yaakaar-2));
+
+  --prog-yeah-1:    #0A807F;
+  --prog-yeah-2:    #0D4D3A;
+  --prog-yeah:      linear-gradient(135deg, var(--prog-yeah-1), var(--prog-yeah-2));
+
+  --prog-yjc-1:     #15803D;
+  --prog-yjc-2:     #082F19;
+  --prog-yjc:       linear-gradient(135deg, var(--prog-yjc-1), var(--prog-yjc-2));
+
+  --prog-brm-1:     #1A4ED8;
+  --prog-brm-2:     #0E2A7A;
+  --prog-brm:       linear-gradient(135deg, var(--prog-brm-1), var(--prog-brm-2));
+
+  --prog-edupop-1:  #007A5C;
+  --prog-edupop-2:  #0A2820;
+  --prog-edupop:    linear-gradient(135deg, var(--prog-edupop-1), var(--prog-edupop-2));
+}
+
+/* =========================================================
+   PULSE — 3 keyframes standardisés (utilitaires globales)
+   ========================================================= */
+@keyframes gj-pulse-urgent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,42,30,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(217,42,30,0); }
+}
+@keyframes gj-pulse-yaye {
+  0%   { transform: scale(1);    opacity: .7; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes gj-pulse-live {
+  0%   { box-shadow: 0 0 0 0 rgba(123,229,181,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(123,229,181,0); }
+  100% { box-shadow: 0 0 0 0 rgba(123,229,181,0); }
 }
 
 /* =========================================================
@@ -257,7 +322,54 @@
   justify-content: center;
 }
 
-/* Reduced motion — respecter les préférences */
+/* =========================================================
+   ACCESSIBILITY MODES — v1.5
+   Active via data-attributes on <html>. Persistés via localStorage,
+   pilot\u00e9s par les toggles de l'onglet Inclusion (app PWA + utilisateur web).
+   ========================================================= */
+
+/* --- Contraste \u00e9lev\u00e9 ---
+   Renforce les contrastes texte/fond, durcit les bordures, supprime les
+   teintes douces qui passent mal pour les basses visions. */
+:root[data-contrast="high"] {
+  --gj-ink:         #000000;
+  --gj-grey:        #1A1A1A;
+  --gj-grey-2:      #333333;
+  --gj-line:        #000000;
+  --gj-line-strong: #000000;
+  --gj-bg:          #FFFFFF;
+  --gj-teal-soft:   #FFFFFF;
+  --gj-yellow-soft: #FFFFFF;
+  --gj-blue-soft:   #FFFFFF;
+  --gj-green-soft:  #FFFFFF;
+  --gj-red-soft:    #FFFFFF;
+  --gj-bw:          2px;
+  --gj-bw-strong:   3px;
+}
+:root[data-contrast="high"] body { background: #fff; }
+
+/* --- Taille texte ---
+   Multiplicateur appliqu\u00e9 \u00e0 toute l'\u00e9chelle typographique. */
+:root[data-text="s"]  { font-size: 14px; }
+:root[data-text="m"]  { font-size: 16px; }  /* default */
+:root[data-text="l"]  { font-size: 18px; }
+:root[data-text="xl"] { font-size: 20px; }
+
+/* --- Mode FALC (Facile \u00c0 Lire et \u00e0 Comprendre) ---
+   Espacement plus a\u00e9r\u00e9, line-height plus \u00e9lev\u00e9, gras renforc\u00e9
+   sur titres pour le scan visuel. */
+:root[data-falc="on"] {
+  --gj-lh-body:  1.75;
+  --gj-lh-tight: 1.4;
+}
+:root[data-falc="on"] body { letter-spacing: .015em; }
+:root[data-falc="on"] h1, :root[data-falc="on"] h2, :root[data-falc="on"] h3 { font-weight: 900; }
+
+/* --- Lecture audio Wolof ---
+   Marqueur visuel uniquement (le branchement TTS est c\u00f4t\u00e9 app). */
+:root[data-audio="wo"] .gj-audio-hint::before {
+  content: "\ud83d\udd0a "; margin-right: 4px;
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;
