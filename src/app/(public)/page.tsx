@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: 'Accueil' }
 
 const SECTIONS = [
   { href: '/opportunites', label: 'Opportunités',  desc: 'Emplois, stages, formations, bourses' },
-  { href: '/evenements',   label: 'Événements',    desc: 'Agenda et activités du réseau CJS' },
+  { href: '/agenda',       label: 'Agenda',        desc: 'Agenda et activités du réseau CJS' },
   { href: '/ressources',   label: 'Ressources',    desc: 'Bibliothèque pédagogique' },
   { href: '/centres',      label: 'Centres CJS',   desc: '9 centres à travers le Sénégal' },
 ]
