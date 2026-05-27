@@ -3,7 +3,7 @@
 **Ticket :** [GUIC-169](https://consortiumjeunesse.atlassian.net/browse/GUIC-169) (Epic) · [GUIC-170](https://consortiumjeunesse.atlassian.net/browse/GUIC-170) (Phase 1 spec)
 **Branche :** `feature/GUIC-169-refonte-design-v2`
 **Tag rollback :** `pre-refonte-v2` (sur `dev@ff6e094`)
-**Statut :** Spec en cours de validation
+**Statut :** Spec validée — 15 questions tranchées (2026-05-27)
 **Auteur :** mod-cjs · **Date :** 2026-05-27
 
 ---
@@ -458,20 +458,26 @@ Badges urgents (J-3, J-1).
 
 ---
 
-## 10. Objections & questions ouvertes
+## 10. Décisions complémentaires (questions tranchées 2026-05-27)
 
-1. **Renommage de la route `/evenements` en `/agenda`** — le design v2 utilise "Agenda" partout, mais la route actuelle est `/evenements`. Faut-il renommer (avec redirect 301 SEO) ou garder l'URL et adapter le label ?
-2. **Layout desktop bénéficiaire** — passer d'un layout marketing (header + footer) à un layout applicatif (sidebar + topbar) casse l'expérience web actuelle des bénéficiaires (déjà en prod sur `/jeune/*`). Confirmer que c'est acceptable et planifier un message in-app à la bascule.
-3. **PhoneFrame en prod ?** — `design-guichet-v2/phone.jsx` est un simulateur device. Il est utile en dev/Storybook mais n'a rien à faire en production. Confirmer qu'on l'embarque uniquement dans une route `/dev/*` (gardée par flag NODE_ENV) ou pas du tout.
-4. **Score de matching mocké** — le design affiche un "match score" sur chaque opportunité. Q4 dit "mocké pour l'instant". Quelle formule mock retenir ? Région+domaine simple (3 niveaux) ou plus subtil ? Le composant doit-il afficher "estimation" ou un % brut ?
-5. **MyCard QR** — quelle donnée encode le QR exactement ? `cjs_uid` brut (sensible), URL signée vers profil public, ou jeton JWT one-shot ? Impact sécurité CDP à valider.
-6. **OTP WhatsApp fallback (Q6)** — l'onboarding mobile v2 montre un écran Phone+OTP. Aujourd'hui l'OTP est géré 100% par le SSO. Confirmer qu'on n'affiche PAS un input OTP en propre dans le Guichet, mais qu'on redirige vers le flow SSO (sinon double maintenance).
-7. **Yaye plein écran mobile vs page dédiée** — actuellement existe `/jeune/(app)/ia/` (M12). Faut-il garder cette route comme conteneur de YayeFullScreen, ou faire de Yaye un overlay full-screen au-dessus de n'importe quelle page (sans changement de route) ?
-8. **Modes a11y différés (Q3)** — confirmer qu'aucun toggle d'a11y n'est rendu visible en MVP, même pas dans un coin caché. Les tokens `[data-contrast]` etc. resteront en place sans contrôle utilisateur jusqu'à une phase ultérieure.
-9. **Notifications dédoublonnage** — le drawer mobile groupe par type ; la page `/jeune/mes-notifications` n'existe pas encore. Faut-il créer la page web ou tout faire en popover ?
-10. **Storybook** — la quantité de nouveaux composants (≥ 25) justifierait un Storybook pour cataloguer. Décision PO : on l'ajoute en Phase 1, ou on reste sans ?
-11. **Tablet landscape (Q8)** — entre 768 et 1024px, on bascule en layout web (sidebar) ou en layout mobile élargi (bottom-nav) ? Le design v2 montre les deux variantes mais ne tranche pas la frontière exacte.
-12. **Centres web** — pas de design web explicite pour les centres dans v2 (seulement mobile). Phase 3 doit-elle inclure une page centres web (responsive du mobile) ou reporter à Phase 4 ?
-13. **Programmes sectoriels (Q5+Q7)** — gradients dans les tokens, constante TS, mais aucun écran prévu avant Phase 4. Confirmer qu'aucune page programme ne sera ajoutée avant cela (et que les opportunités gardent un simple badge programme sans page dédiée).
-14. **Suppression `next/font/google`** — passe à police système. Impact perf (suppression d'un asset font WOFF2 ≈ 50KB) positif. Confirmer qu'aucun composant marketing print/email ne dépend de Lexend ailleurs.
-15. **Tag `pre-refonte-v2`** — confirmé créé sur `dev@ff6e094` (commit "GUIC-21 feat: détail opportunité..."). Si un hotfix doit passer sur dev pendant la refonte, prévoir un re-tag ou un cherry-pick discipliné.
+| # | Décision | Mise en œuvre |
+|---|---|---|
+| Q9 | `/evenements` → `/agenda` | Rename de route + redirect 301 dans `next.config.ts`. À faire en Phase 0. |
+| Q10 | Layout desktop bénéficiaire | Bascule vers layout applicatif (sidebar + topbar). Bandeau in-app la première fois pour annoncer la nouvelle expérience. Phase 3. |
+| Q11 | `PhoneFrame` en prod | Embarqué uniquement dans `/dev/preview` (gardée par `process.env.NODE_ENV !== 'production'`). Storybook ailleurs. |
+| Q12 | Formule du score mocké | `min(95, 60 + (régionMatch ? 15 : 0) + (objectifMatch ? 15 : 0) + (âgeMatch ? 5 : 0))`, arrondi au palier de 5%. Range affichée 60–95%. Libellé `Estimation` en gris 13px sous le %, tooltip "Calculé selon ton profil". Implémenté dans `src/lib/matching.ts` (pur, testable). |
+| Q13 | MyCard QR | URL signée HMAC : `https://guichet.../m/<token>` avec `token = base64url(HMAC-SHA256(cjs_uid \| exp, MEMBER_QR_SECRET))`. Expiration 5 min, régénération auto côté client toutes les 4 min via `/api/me/qr-token`. Endpoint Next côté serveur valide le HMAC et affiche une page vérif. **Aucun `cjs_uid` brut dans le QR** (CDP-safe). |
+| Q14 | OTP WhatsApp fallback | Pas d'input OTP propre dans le Guichet. L'écran Phone+OTP du design v2 est conçu pour s'intégrer au flow SSO existant (redirect vers SSO si possible, sinon embed de l'iframe Passport). À détailler dans la spec M2 lors de la Phase 2. |
+| Q15 | Yaye plein écran | **Mobile : route dédiée** `/jeune/yaye` (deep-link, back button OS, partage, historique). **Web : side panel non-routé** (n'occupe pas l'écran principal, conserve le contexte). Route `/jeune/(app)/ia/` actuelle de M12 est renommée en `/jeune/yaye`. |
+| Q16 | Modes a11y | Hors MVP. Tokens `[data-contrast]`, `[data-text]`, `[data-falc]`, `[data-audio="wo"]` restent dans `tokens.css` mais aucun toggle UI. Réactivation prévue en phase post-MVP avec ticket dédié. |
+| Q17 | Notifications web | Page `/jeune/mes-notifications` créée en Phase 3 (cohérence avec dashboard tracker). Popover topbar pour aperçu rapide (5 dernières), CTA "Voir tout" → page complète. |
+| Q18 | Storybook | **Adopté en Phase 1**. Setup ~1.5j, gain énorme pour tester variants/responsive isolément. Story par composant `src/components/ui/*` et par composant Yaye. Doc vivante du design system. |
+| Q19 | Tablet landscape | **Frontière à 1024px** (token `--bp-lg`). En dessous de 1024 : layout mobile (BottomNav, contenu pleine largeur, hero compact). À partir de 1024 : layout web (sidebar BenefSidebar, topbar BenefTopBar, contenu fluide). Conforme aux breakpoints du design v2. |
+| Q20 | Centres web | **Phase 3** — responsive du `mobile-centres.jsx` en layout 2 colonnes (liste à gauche, carte/détail à droite). Pas de design dédié fourni, on adapte. Décision tech lead. |
+| Q21 | Programmes sectoriels | Pas de page programme dédiée avant Phase 4. Les opportunités portent un champ `programme` (constante TS) qui affiche un badge avec le gradient correspondant. |
+| Q22 | Suppression Lexend | Audit à faire en Phase 0 : grep `Lexend` dans `src/**`, `public/**`, `prisma/**` et templates emails. Si dépendance résiduelle (ex: signature email), supprimer ou remplacer. Sinon retirer `next/font/google` du layout root. |
+| Q23 | Hotfix sur `dev` pendant la refonte | **Interdit sauf force majeure** (bug sécurité, prod cassée). Si nécessaire : hotfix sur `dev`, puis rebase de `feature/GUIC-169-refonte-design-v2` sur `dev`. Re-tag `pre-refonte-v2.N` à chaque hotfix appliqué. |
+
+### Synthèse — décisions PO requises encore en attente
+
+Aucune. Toutes les questions soulevées par la Phase 1 ont été tranchées par le PO ou par décision tech lead documentée ci-dessus. Phase 0 peut démarrer.
