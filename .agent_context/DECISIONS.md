@@ -88,3 +88,16 @@ Succès : `data` + `meta` renseignés. Erreur : `error` renseigné, `data` absen
 2. **Tri par échéance NULLS LAST** : `ORDER BY deadline IS NULL, deadline ASC` — MariaDB n'a pas `NULLS LAST`, et Prisma `orderBy { nulls }` n'est pas supporté sur MySQL.
 
 **Pourquoi :** sans ça, une recherche courte ne renvoie rien et les opportunités sans échéance remontent en tête du tri « échéance proche ». Le détail (`getOpportuniteDetail`) et le reste du code restent en Prisma standard.
+
+---
+
+## 2026-05-27 — Police : passage au stack système (refonte v2)
+
+Décision PO (GUIC-169) : abandon de Lexend au profit d'un stack système
+(`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`).
+
+Raison : design-guichet-v2/ adopte ce stack pour des raisons de perf
+(pas de WOFF2 à charger) et de cohérence avec les apparels système.
+
+La décision du 2026-05-04 (Lexend) est obsolète mais conservée pour
+trace historique.
