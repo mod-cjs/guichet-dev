@@ -38,7 +38,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - **`design-guichet-v2/`** = source de vérité visuelle (livraison PO 2026-05-26). `design/html.archive/` = ancien prototype, lecture seule.
 
 **Navigation — architecture validée (lire `.agent_context/specs/layout-navigation.md`)**
-- Pages publiques (`/`, `/opportunites`, `/evenements`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**
+- Pages publiques (`/`, `/opportunites`, `/agenda`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**
 - App jeune (`/jeune/*`) → `AppTopbar` + `BottomNav` 5 items (SVG) sur mobile. `pb-[calc(56px+env(safe-area-inset-bottom,0px))]` sur le contenu.
 - Admin / Recruteur → Sidebar desktop + drawer hamburger mobile. **Pas de bottom-nav.**
 - **Jamais** `overflow-x-auto` sur un container de navigation

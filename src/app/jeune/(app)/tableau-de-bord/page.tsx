@@ -52,7 +52,7 @@ export default async function TableauDeBordPage() {
               icon={<IconCandidature />}
             />
             <DashboardCTACard
-              href="/evenements"
+              href="/agenda"
               title="Voir les événements"
               description="Forums, ateliers, webinaires"
               icon={<IconEvenement />}

@@ -50,6 +50,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/node/:path*', destination: '/', permanent: false },
       { source: '/user/login',  destination: '/auth/connexion', permanent: false },
+      { source: '/evenements',         destination: '/agenda',         permanent: true },
+      { source: '/evenements/:path*',  destination: '/agenda/:path*',  permanent: true },
     ]
   },
 }

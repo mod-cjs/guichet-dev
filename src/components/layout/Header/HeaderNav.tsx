@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 const PUBLIC_LINKS = [
   { href: '/',             label: 'Accueil',      match: (p: string) => p === '/' },
   { href: '/opportunites', label: 'Opportunités', match: (p: string) => p.startsWith('/opportunites') },
-  { href: '/evenements',   label: 'Agenda',       match: (p: string) => p.startsWith('/evenements') },
+  { href: '/agenda',       label: 'Agenda',       match: (p: string) => p.startsWith('/agenda') },
   { href: '/ressources',   label: 'Ressources',   match: (p: string) => p.startsWith('/ressources') },
   { href: '/centres',      label: 'Centres CJS',  match: (p: string) => p.startsWith('/centres') },
 ]

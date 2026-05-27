@@ -15,7 +15,7 @@ export function Footer() {
           <h3 className="text-gj-yellow font-bold text-fs-300 mb-space-3">Liens rapides</h3>
           <ul className="flex flex-col gap-space-2 text-fs-200 text-white/60">
             <li><Link href="/opportunites" className="hover:text-white no-underline transition-colors">Opportunités</Link></li>
-            <li><Link href="/evenements"   className="hover:text-white no-underline transition-colors">Événements</Link></li>
+            <li><Link href="/agenda"       className="hover:text-white no-underline transition-colors">Agenda</Link></li>
             <li><Link href="/ressources"   className="hover:text-white no-underline transition-colors">Ressources</Link></li>
             <li><Link href="/centres"      className="hover:text-white no-underline transition-colors">Centres CJS</Link></li>
           </ul>
