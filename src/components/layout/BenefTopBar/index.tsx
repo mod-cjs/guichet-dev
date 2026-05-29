@@ -49,7 +49,7 @@ export function BenefTopBar({
       role="banner"
       className="hidden lg:flex sticky top-0"
       style={{
-        background: '#fff',
+        background: 'var(--gj-surface)',
         borderBottom: '1px solid var(--gj-line)',
         padding: '10px 24px',
         alignItems: 'center',
@@ -96,7 +96,7 @@ export function BenefTopBar({
           style={{
             fontFamily: 'ui-monospace, monospace',
             fontSize: 10,
-            background: '#fff',
+            background: 'var(--gj-surface)',
             border: '1px solid var(--gj-line)',
             borderRadius: 4,
             padding: '1px 5px',
@@ -155,7 +155,7 @@ export function BenefTopBar({
             height: 42,
             borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
-            color: '#fff',
+            color: 'var(--gj-surface)',
             fontWeight: 800,
             fontSize: 13,
             border: 0,
@@ -179,7 +179,7 @@ const iconBtn = {
   display: 'inline-flex' as const,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  background: '#fff',
+  background: 'var(--gj-surface)',
   border: '1.5px solid var(--gj-line)',
   borderRadius: 10,
   color: 'var(--gj-grey)',
@@ -198,12 +198,12 @@ function countBadge(bg: string) {
     padding: '0 5px',
     borderRadius: 999,
     background: bg,
-    color: '#fff',
+    color: 'var(--gj-surface)',
     fontSize: 10,
     fontWeight: 800,
     display: 'inline-flex' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    border: '2px solid #fff',
+    border: '2px solid var(--gj-surface)',
   }
 }

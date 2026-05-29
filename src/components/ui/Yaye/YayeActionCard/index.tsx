@@ -45,7 +45,7 @@ export function YayeActionCard({
     >
       <div
         className="flex items-center gap-space-2 px-space-3 py-space-2 border-b border-gj-line"
-        style={{ backgroundImage: 'linear-gradient(135deg, var(--gj-teal-soft), #fff)' }}
+        style={{ backgroundImage: 'linear-gradient(135deg, var(--gj-teal-soft), var(--gj-surface))' }}
       >
         <span
           className="w-7 h-7 rounded-gj-md bg-gj-teal text-white inline-flex items-center justify-center flex-shrink-0"

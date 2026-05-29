@@ -40,7 +40,7 @@ export function YayeFab({
         right,
         bottom: `calc(${bottom}px + var(--safe-bottom))`,
         background: 'var(--gj-teal-deep)',
-        color: '#fff',
+        color: 'var(--gj-surface)',
         border: 0,
         cursor: 'pointer',
         boxShadow: '0 8px 24px rgba(7,77,57,.45)',
