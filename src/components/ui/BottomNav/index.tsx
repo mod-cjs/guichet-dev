@@ -43,7 +43,7 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
       aria-label="Navigation principale"
     >
       {ITEMS.map(item => {
-        const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+        const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href) === true)
         const badge = badges[item.href]
         return (
           <Link
