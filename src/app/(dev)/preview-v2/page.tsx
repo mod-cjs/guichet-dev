@@ -67,7 +67,6 @@ const PROGRAMMES = [
   { name: '--prog-yaakaar', stops: ['#A3742A', '#5C4118'] },
   { name: '--prog-yeah', stops: ['#0A807F', '#0D4D3A'] },
   { name: '--prog-yjc', stops: ['#15803D', '#082F19'] },
-  { name: '--prog-brm', stops: ['#1A4ED8', '#0E2A7A'] },
   { name: '--prog-edupop', stops: ['#007A5C', '#0A2820'] },
 ]
 

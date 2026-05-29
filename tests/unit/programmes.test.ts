@@ -1,8 +1,12 @@
 import { PROGRAMMES, getProgramme } from '@/lib/programmes'
 
 describe('programmes', () => {
-  it('expose les 5 programmes CJS', () => {
-    expect(Object.keys(PROGRAMMES)).toEqual(['yaakaar', 'yeah', 'yjc', 'brm', 'edupop'])
+  it('expose les 4 programmes sectoriels CJS (BRM est un outil interne, pas un programme)', () => {
+    expect(Object.keys(PROGRAMMES)).toEqual(['yaakaar', 'yeah', 'yjc', 'edupop'])
+  })
+  it('ne contient pas BRM (outil interne Beneficiary Relationship Management)', () => {
+    expect('brm' in PROGRAMMES).toBe(false)
+    expect(getProgramme('brm')).toBeNull()
   })
   it('chaque programme a un gradient token --prog-*', () => {
     Object.values(PROGRAMMES).forEach(p => {
