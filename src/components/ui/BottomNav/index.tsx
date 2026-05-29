@@ -19,9 +19,9 @@ interface NavItem {
  */
 const ITEMS: NavItem[] = [
   { href: '/',                 icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites',     icon: 'search',   label: 'Opp' },
+  { href: '/opportunites',     icon: 'search',   label: 'Explorer' },
   { href: '/agenda',           icon: 'calendar', label: 'Agenda' },
-  { href: '/ressources',       icon: 'document', label: 'Resso' },
+  { href: '/ressources',       icon: 'document', label: 'Ressources' },
   { href: '/jeune/mon-profil', icon: 'profile',  label: 'Profil' },
 ]
 
@@ -73,7 +73,18 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
               </span>
             ) : null}
             <Icon name={item.icon} size={22} />
-            <span style={{ fontSize: 'var(--fs-100)', fontWeight: isActive ? 800 : 600, lineHeight: 1 }}>
+            <span
+              className="px-[2px] max-w-full"
+              style={{
+                fontSize: 'var(--fs-100)',
+                fontWeight: isActive ? 800 : 600,
+                lineHeight: 1.1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                letterSpacing: '-0.01em',
+              }}
+            >
               {item.label}
             </span>
           </Link>
