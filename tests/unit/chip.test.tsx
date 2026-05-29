@@ -35,16 +35,16 @@ describe('<Chip />', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('déclenche onRemove à la touche Enter sur la croix', () => {
-    const onRemove = jest.fn()
-    render(
-      <Chip removable onRemove={onRemove}>
+  it('ne crée pas de bouton imbriqué quand removable (a11y HTML)', () => {
+    // Refactor GUIC-175 : 2 buttons sibling dans un span role=group,
+    // au lieu d'un <button> contenant un span role=button (interdit par HTML).
+    const { container } = render(
+      <Chip removable onRemove={jest.fn()}>
         Dakar
       </Chip>,
     )
-    const remove = screen.getByRole('button', { name: /retirer dakar/i })
-    fireEvent.keyDown(remove, { key: 'Enter' })
-    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('button button')).toBeNull()
+    expect(container.querySelector('[role="group"]')).not.toBeNull()
   })
 
   it('rend une icône à gauche si icon est fourni', () => {
