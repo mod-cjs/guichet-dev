@@ -89,7 +89,7 @@ export default function PreviewV2Page() {
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Lots HTML (interactifs)</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
           {LOTS.map((lot) => (
-            <article key={lot.file} style={{ background: '#fff', border: '1.5px solid var(--gj-line)', borderRadius: 10, overflow: 'hidden' }}>
+            <article key={lot.file} style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--gj-line)' }}>
                 <p style={{ fontWeight: 600, fontSize: 14 }}>{lot.label}</p>
                 <Link
@@ -104,7 +104,7 @@ export default function PreviewV2Page() {
               <iframe
                 src={`/api/dev/design-v2/${encodeURIComponent(lot.file)}`}
                 title={lot.label}
-                style={{ width: '100%', height: 520, border: 'none', display: 'block', background: '#fff' }}
+                style={{ width: '100%', height: 520, border: 'none', display: 'block', background: 'var(--gj-surface)' }}
                 loading="lazy"
               />
             </article>
@@ -142,7 +142,7 @@ export default function PreviewV2Page() {
               {group.swatches.map((s) => (
                 <div key={s.name} style={{ width: 140, border: '1px solid var(--gj-line)', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{ background: s.hex, height: 64 }} />
-                  <div style={{ padding: 8, background: '#fff' }}>
+                  <div style={{ padding: 8, background: 'var(--gj-surface)' }}>
                     <p style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 600 }}>{s.name}</p>
                     <p style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--gj-grey)' }}>{s.hex}</p>
                   </div>
@@ -160,7 +160,7 @@ export default function PreviewV2Page() {
             {PROGRAMMES.map((p) => (
               <div key={p.name} style={{ width: 180, border: '1px solid var(--gj-line)', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ background: `linear-gradient(135deg, ${p.stops[0]}, ${p.stops[1]})`, height: 80 }} />
-                <div style={{ padding: 8, background: '#fff' }}>
+                <div style={{ padding: 8, background: 'var(--gj-surface)' }}>
                   <p style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 600 }}>{p.name}</p>
                   <p style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, color: 'var(--gj-grey)' }}>
                     {p.stops.join(' → ')}
@@ -174,7 +174,7 @@ export default function PreviewV2Page() {
 
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Typographie</h2>
-        <div style={{ background: '#fff', border: '1px solid var(--gj-line)', borderRadius: 10, padding: 24 }}>
+        <div style={{ background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 10, padding: 24 }}>
           <p style={{ fontSize: 36, fontWeight: 800, margin: '0 0 4px' }}>--fs-900 · 36px / hero</p>
           <p style={{ fontSize: 28, fontWeight: 800, margin: '8px 0 4px' }}>--fs-800 · 28px / page</p>
           <p style={{ fontSize: 24, fontWeight: 700, margin: '8px 0 4px' }}>--fs-700 · 24px / section</p>

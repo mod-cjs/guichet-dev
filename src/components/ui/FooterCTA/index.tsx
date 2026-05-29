@@ -51,7 +51,7 @@ export function FooterCTA({
       style={{
         padding: 14,
         paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
-        background: '#fff',
+        background: 'var(--gj-surface)',
         borderTop: '1px solid var(--gj-line)',
         display: 'flex',
         gap: 8,
@@ -68,7 +68,7 @@ export function FooterCTA({
           disabled={isDisabled}
           style={{
             flex: '0 0 auto',
-            background: '#fff',
+            background: 'var(--gj-surface)',
             color: 'var(--gj-teal-deep)',
             border: '1.5px solid var(--gj-line)',
             padding: '0 18px',
@@ -92,7 +92,7 @@ export function FooterCTA({
         style={{
           flex: 1,
           background: 'var(--gj-teal-deep)',
-          color: '#fff',
+          color: 'var(--gj-surface)',
           border: 0,
           padding: '0 18px',
           minHeight: 48,
@@ -115,7 +115,7 @@ export function FooterCTA({
               width: 16,
               height: 16,
               border: '2px solid rgba(255,255,255,.4)',
-              borderTopColor: '#fff',
+              borderTopColor: 'var(--gj-surface)',
               borderRadius: '50%',
               animation: 'gj-spin .8s linear infinite',
               display: 'inline-block',

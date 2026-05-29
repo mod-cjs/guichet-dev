@@ -31,7 +31,7 @@ export function StepBar({ step, total, label, sticky = false, className = '' }: 
       className={className}
       style={{
         padding: '10px 16px 6px',
-        background: '#fff',
+        background: 'var(--gj-surface)',
         flexShrink: 0,
         position: sticky ? 'sticky' : undefined,
         top: sticky ? 0 : undefined,

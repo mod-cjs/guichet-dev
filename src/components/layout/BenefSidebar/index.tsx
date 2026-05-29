@@ -90,7 +90,7 @@ export function BenefSidebar({
       className="hidden lg:flex"
       style={{
         width: 260,
-        background: '#fff',
+        background: 'var(--gj-surface)',
         borderRight: '1px solid var(--gj-line)',
         padding: '16px 12px',
         height: '100%',
@@ -153,7 +153,7 @@ export function BenefSidebar({
               height: 36,
               borderRadius: '50%',
               background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
-              color: '#fff',
+              color: 'var(--gj-surface)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -239,7 +239,7 @@ export function BenefSidebar({
                     style={{
                       marginLeft: 'auto',
                       background: item.badgeMuted ? 'var(--gj-line)' : 'var(--gj-red)',
-                      color: item.badgeMuted ? 'var(--gj-grey)' : '#fff',
+                      color: item.badgeMuted ? 'var(--gj-grey)' : 'var(--gj-surface)',
                       fontSize: 9.5,
                       fontWeight: 800,
                       padding: '2px 7px',
@@ -264,7 +264,7 @@ export function BenefSidebar({
           padding: '12px 10px',
           background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-ink)))',
           borderRadius: 12,
-          color: '#fff',
+          color: 'var(--gj-surface)',
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
@@ -280,7 +280,7 @@ export function BenefSidebar({
                 fontFamily: 'Georgia, serif',
                 fontWeight: 900,
                 fontSize: 14,
-                color: '#fff',
+                color: 'var(--gj-surface)',
               }}
             >
               Yaye
