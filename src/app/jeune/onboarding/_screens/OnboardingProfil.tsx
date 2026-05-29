@@ -47,20 +47,26 @@ export function OnboardingProfil({ initial }: Props) {
   const [errors, setErrors]               = useState<Record<string, string>>({})
 
   useEffect(() => {
-    const draft = readDraft()
-    if (draft.prenom)        setPrenom(draft.prenom)
-    if (draft.nom)           setNom(draft.nom)
-    if (draft.dateNaissance) setDateNaissance(draft.dateNaissance)
-    if (draft.genre)         setGenre(draft.genre)
-    if (draft.region)        setRegion(draft.region)
-    if (draft.commune)       setCommune(draft.commune)
+    let alive = true
+    // On ne surcharge que les champs vides actuellement (cas reprise) pour
+    // éviter d'écraser une saisie en cours si le fetch tarde.
+    readDraft().then(draft => {
+      if (!alive) return
+      if (draft.prenom)        setPrenom(p        => p        || draft.prenom!)
+      if (draft.nom)           setNom(n           => n           || draft.nom!)
+      if (draft.dateNaissance) setDateNaissance(d => d || draft.dateNaissance!)
+      if (draft.genre)         setGenre(g         => g         ?? draft.genre!)
+      if (draft.region)        setRegion(r        => r        || draft.region!)
+      if (draft.commune)       setCommune(c       => c       || draft.commune!)
+    })
+    return () => { alive = false }
   }, [])
 
   function setGenreAndPersist(g: 'M' | 'F' | 'Autre') {
     setGenre(g)
     // 'Autre' n'est pas envoyé à l'API (enum Prisma = M|F seulement).
     // On garde l'info en local pour l'UX mais on n'altère pas le draft persisté.
-    if (g === 'M' || g === 'F') patchDraft({ genre: g })
+    if (g === 'M' || g === 'F') void patchDraft({ genre: g })
   }
 
   async function handleSubmit() {
@@ -113,7 +119,7 @@ export function OnboardingProfil({ initial }: Props) {
         return
       }
 
-      patchDraft({
+      await patchDraft({
         prenom: prenom.trim(),
         nom: nom.trim(),
         dateNaissance: dateNaissance || undefined,
@@ -215,7 +221,7 @@ export function OnboardingProfil({ initial }: Props) {
                 selected={region === r.value}
                 onClick={() => {
                   setRegion(r.value)
-                  patchDraft({ region: r.value })
+                  void patchDraft({ region: r.value })
                 }}
               >
                 {r.label}
@@ -237,7 +243,7 @@ export function OnboardingProfil({ initial }: Props) {
             value={commune}
             onChange={e => {
               setCommune(e.target.value)
-              patchDraft({ commune: e.target.value || undefined })
+              void patchDraft({ commune: e.target.value || undefined })
             }}
           />
         </div>
