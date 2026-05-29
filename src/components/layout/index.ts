@@ -8,7 +8,8 @@
  */
 export { AppTopbar } from './AppTopbar'
 export type { AppTopbarProps } from './AppTopbar'
-export { BottomNav } from './BottomNav'
+// BottomNav vit dans src/components/ui/BottomNav (refonte v2 — composant UI réutilisable)
+export { BottomNav } from '@/components/ui/BottomNav'
 export { BenefSidebar } from './BenefSidebar'
 export type {
   BenefSidebarProps,
