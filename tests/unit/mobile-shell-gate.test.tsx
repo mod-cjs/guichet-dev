@@ -67,4 +67,14 @@ describe('MobileShellGate', () => {
       expect(getByTestId('child')).toBeTruthy()
     })
   })
+
+  describe('robustesse', () => {
+    it('ne crashe pas si usePathname() retourne null (rend le shell par défaut)', () => {
+      mockUsePathname.mockReturnValue(null)
+      const { getByTestId } = render(
+        <MobileShellGate><div data-testid="child">SHELL</div></MobileShellGate>
+      )
+      expect(getByTestId('child')).toBeTruthy()
+    })
+  })
 })

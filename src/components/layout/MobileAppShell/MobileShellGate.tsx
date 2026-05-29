@@ -19,7 +19,9 @@ function isExcluded(path: string): boolean {
  * dans globals.css pour éviter tout flash au premier paint.
  */
 export function MobileShellGate({ children }: { children: ReactNode }) {
-  const pathname = usePathname()
+  // usePathname() peut retourner null hors contexte Next router — fallback
+  // sur '/' qui n'est jamais dans EXCLUDED_PREFIXES (donc on rend le shell).
+  const pathname = usePathname() ?? '/'
   if (isExcluded(pathname)) return null
   return <>{children}</>
 }
