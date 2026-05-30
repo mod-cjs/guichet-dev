@@ -1068,4 +1068,84 @@ Récapitulatif des choix faits dans cette spec faute d'arbitrage explicite Lead/
 | DP5 | M3 livré (GUIC-20/21) : loaders adaptés en silence, UI inchangée Phase 1 (§12.2) | Si Phase 2B retarde, les nouveaux champs (programme, actionLabel) restent invisibles côté front mais disponibles côté DTO |
 | DP6 | `niveauEtudeMin` = String libre (§15 Q8) | Si enum demandé : refonte mineure tests + 0.2 j |
 | DP7 | Format Data Hub : sous-types aplatis avec préfixe (§6.3) | Si BI préfère JSON imbriqué : refonte mineure + 0.2 j |
-| DP8 | BRM gardé dans `src/lib/programmes.ts` (gradient uniquement), exclu de la table | Si BRM doit redevenir programme jeune : ajout d'une 5e ligne seed |
+| DP8 | ~~BRM gardé dans `src/lib/programmes.ts` (gradient uniquement), exclu de la table~~ | ❌ **Obsolète** depuis GUIC-176 (PR #26 cleanup BRM) : BRM est totalement retiré de `programmes.ts` et de `tokens.css` (`--prog-brm-*` supprimés). Il reste un outil interne référencé via `/api/interconnexion/brm` uniquement. La table `Programme` ne doit PAS le contenir. |
+
+---
+
+## 18. Décisions validées 2026-05-30 (PO/tech lead)
+
+Toutes les questions ouvertes de §15 ont été tranchées. La spec est exécutable.
+
+### Q0 — Correction DP8 (BRM)
+✅ BRM **totalement absent** de la table `Programme` et de `programmes.ts`. Cleanup déjà fait dans GUIC-176 (PR #26). La spec est ici alignée par la note barrée ci-dessus.
+
+### Q1 — Libellés FR seed `OpportuniteType`
+
+| Type | `actionLabel` | `fileLabel` | `requiresFileUpload` |
+|---|---|---|---|
+| `emploi` | Postuler | CV (PDF) | `true` |
+| `stage` | Postuler | CV (PDF) | `true` |
+| `formation` | S'inscrire | Justificatif niveau (optionnel) | `false` |
+| `bourse` | Demander | Justificatifs académiques | `true` |
+| `concours` | Participer | Soumission (PDF/lien) | `true` |
+| `appel_a_projets` | Déposer un dossier | Note conceptuelle + budget | `true` |
+
+À utiliser tels quels dans le seed `prisma/seed/opportunite-types.ts` lors de GUIC-178.
+
+### Q2 — `Domaine` et `Region` restent `enum`
+✅ Confirme DP1. Pas de migration table. Justification : listes stables, perf > 2 jointures supplémentaires.
+
+### Q3 — Seed `Skill`
+✅ **Seed initial CJS** de 30-40 skills à co-construire avec PO en 30 min lors de GUIC-178. Liste indicative : Excel, Word, Communication, Gestion projet, Comptabilité, Anglais, Wolof, Permis B, Couture, Maraîchage, Soudure, Mécanique, Photographie, Marketing digital, Vente, etc. (couvre YJC + Yaakaar + EduPop). Extensible via admin Phase 4. Évite la table vide initiale.
+
+### Q4 — Seed `Tag`
+✅ **Seed minimal de 7 tags** : `urgent`, `remote`, `diaspora`, `priorité-femmes`, `priorité-handicap`, `priorité-rural`, `nouveau`. Évite la prolifération anarchique au démarrage. Ajouts via admin.
+
+### Q5 — Migration `Volontariat` legacy
+✅ **Count d'abord** en dev : `SELECT count(*) FROM opportunites WHERE type='AUTRE' OR type='VOLONTARIAT'`.
+- Si <50 instances → classification **manuelle** (script SQL ou UI admin minimaliste)
+- Si ≥50 → règle automatique (mots-clés titre/description → APPEL_A_PROJETS ou STAGE) + flag `_migration_review` pour vérification
+
+GUIC-178 doit prévoir les deux chemins (le count détermine lequel exécuter).
+
+### Q6 — Partenaires interop hors Data Hub
+✅ **Considérer le pire** — gel des contrats sur `/api/v1/export/opportunites` ET `/api/interconnexion/opportunites/*` via couche DTO (confirme DP5). Engagement docs/architecture respecté.
+
+### Q7 — UI revue admin `_migration_review`
+✅ **Ticket distinct** si besoin (déterminé par Q5). Pas dans GUIC-178 (qui reste focalisé migration). Si Q5 < 50 instances → simple script SQL, pas d'UI.
+
+### Q8 — `niveauEtudeMin` : enum strict
+✅ Override DP6 (qui proposait String libre). **Enum strict** :
+```
+enum NiveauEtudes {
+  BFEM
+  BAC
+  BAC_PLUS_2
+  BAC_PLUS_3
+  BAC_PLUS_5
+  DOCTORAT
+}
+```
+Si équivalences étrangères nécessaires → champ `niveauEtudeNotes` String? optionnel en complément. Modifier §3 (modèle `Opportunite`) en conséquence lors de GUIC-178.
+
+### Q9 — `Programme.actif`
+✅ **Garder** le champ `actif Boolean @default(true)`. Coût zéro maintenant, évite migration future quand un programme CJS sera mis en pause.
+
+---
+
+### Récap impact pour GUIC-178
+
+| Décision validée | Impact code |
+|---|---|
+| Q0 BRM exclu confirmé | Aligner la spec, seed Programme = 4 lignes (Yaakaar, YEAH, YJC, EduPop) |
+| Q1 libellés FR fournis | Seed `OpportuniteType` directement codable |
+| Q2 enums conservés | Migration plus simple, pas de table Domaine/Region |
+| Q3 seed Skill 30-40 entrées | Pause 30 min co-construction PO pendant GUIC-178 |
+| Q4 seed Tag 7 entrées | Codable directement |
+| Q5 count Volontariat first | Première étape de GUIC-178 = SQL count |
+| Q6 DTO gel contrats | Implémentation DTO obligatoire dans §6 |
+| Q7 UI review séparée | Hors scope GUIC-178 |
+| Q8 enum NiveauEtudes | Override §3 — utiliser enum strict, pas String |
+| Q9 `actif` conservé | Confirme bloc Prisma §3 |
+
+Spec **finale validée**. GUIC-178 peut être lancée.
