@@ -36,6 +36,8 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - Police : stack système (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`) — variable CSS `--gj-font-sans` injectée par `src/styles/tokens.css`
 - **`design-guichet-v2/`** = source de vérité visuelle (livraison PO 2026-05-26). `design/html.archive/` = ancien prototype, lecture seule.
+- **Storybook** = catalogue UI vivant. Lancer `npm run storybook` (port 6006) pour explorer les primitives et leurs variants. Toute nouvelle primitive doit venir avec sa story `*.stories.tsx` à côté du composant.
+- **Icônes** : sprite SVG global servi depuis `/icons.svg`. Toujours utiliser `<Icon name="..." />` (jamais d'`<svg>` inline manuel ni d'emoji comme icône).
 
 **Navigation — architecture validée (lire `.agent_context/specs/layout-navigation.md`)**
 - Pages publiques (`/`, `/opportunites`, `/agenda`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**

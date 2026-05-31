@@ -21,7 +21,7 @@ export function Select({ label, error, options, placeholder, id, className = '',
           text-[16px] min-h-[var(--tap-input)]
           transition-colors cursor-pointer
           ${error ? 'border-gj-red' : 'border-gj-line focus:border-gj-teal-deep'}
-          focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]
+          focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring-soft)]
           ${className}`}
         {...props}
       >

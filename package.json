@@ -34,28 +34,32 @@
     "migrate:sso:sync": "tsx scripts/sync-utilisateurs-sso.ts",
     "migrate:sso:sync:dry-run": "tsx scripts/sync-utilisateurs-sso.ts --dry-run",
     "migration:rehearsal:up": "docker compose -f docker-compose.migration.yml up -d",
-    "migration:rehearsal:down": "docker compose -f docker-compose.migration.yml down -v"
+    "migration:rehearsal:down": "docker compose -f docker-compose.migration.yml down -v",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/adapter-planetscale": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "autoprefixer": "^10.4.20",
     "groq-sdk": "^0.7.0",
     "ioredis": "^5.4.1",
     "jose": "^5.9.6",
     "mysql2": "^3.22.3",
     "next": "16.2.4",
     "next-auth": "^5.0.0-beta.25",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "prisma": "^7.8.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tailwindcss": "^3.4.14",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
+    "@storybook/addon-a11y": "^9.1.20",
+    "@storybook/nextjs-vite": "^9.1.20",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
     "@types/jest": "^29.5.13",
@@ -63,15 +67,17 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "dotenv": "^16.6.1",
-    "tsx": "^4.22.3",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.2.4",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "storybook": "^9.1.20",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.3",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.59.2"
+    "typescript-eslint": "^8.59.2",
+    "vite": "^6.4.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed/index.ts"

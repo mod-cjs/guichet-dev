@@ -24,7 +24,7 @@ export function Input({ label, error, hint, id, className = '', ...props }: Inpu
             ? 'border-gj-red focus:border-gj-red'
             : 'border-gj-line focus:border-gj-teal-deep'
           }
-          focus:outline-none focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]
+          focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring-soft)]
           disabled:bg-gj-bg disabled:text-gj-grey
           ${className}`}
         {...props}
