@@ -16,7 +16,7 @@
 | Q2 | Police | **Stack système** `"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif` — abandon Lexend (suppression `next/font/google`) |
 | Q3 | Modes a11y avancés (`data-contrast`, `data-text`, `data-falc`, `data-audio="wo"`) | **Hors MVP** — tokens préservés dans `tokens.css` mais aucun toggle UI, branchement TTS Wolof reporté |
 | Q4 | Score de matching | **Mocké** — pas de moteur réel pour l'instant, valeur calculée côté front à partir de critères simples (région, domaine, niveau études) |
-| Q5 | Modules sans design v2 (M8 admin, M9 recruteur, M10 interop, M11 whatsapp, M12 IA, M13 data, programmes Yaakaar/YEAH/YJC/BRM/EduPop) | **Refondus en dernier**, après le périmètre jeune complet. UI actuelle préservée jusque-là |
+| Q5 | Modules sans design v2 (M8 admin, M9 recruteur, M10 interop, M11 whatsapp, M12 IA, M13 data, programmes Yaakaar/YEAH/YJC/EduPop) | **Refondus en dernier**, après le périmètre jeune complet. UI actuelle préservée jusque-là |
 | Q6 | WhatsApp OTP | **Fallback uniquement** — ne pas modifier M11. OTP SMS reste géré par le SSO |
 | Q7 | Programmes CJS | **Constante TypeScript** (`src/lib/programmes.ts`), pas d'entité Prisma dédiée. Gradients déjà tokenisés (`--prog-yaakaar`, `--prog-yeah`, etc.) |
 | Q8 | Tablet landscape (768-1024) | **Traité dans le MVP web** — responsive obligatoire à partir de 768px |
@@ -49,7 +49,7 @@
 ### 2.2 Tokens nouveaux (vs `design/html/tokens.css` actuel)
 
 - **Couleurs ajoutées** : `--gj-teal-deep-2`, `--gj-yellow-deep`, `--gj-yellow-ink`, `--gj-red-soft`, `--gj-red-ink`, `--gj-blue-deep`, `--gj-blue-soft`, `--gj-blue-ink`, `--gj-green-soft`, `--gj-green-ink`, `--gj-yaye-grad-1..4`, `--gj-yaye-gradient`, `--gj-ink-teal`, `--gj-whatsapp`, `--gj-whatsapp-deep`
-- **Programmes sectoriels** : `--prog-yaakaar`, `--prog-yeah`, `--prog-yjc`, `--prog-brm`, `--prog-edupop` (gradients 135deg)
+- **Programmes sectoriels** : `--prog-yaakaar`, `--prog-yeah`, `--prog-yjc`, `--prog-edupop` (gradients 135deg). BRM = outil interne, pas programme sectoriel.
 - **Sémantiques** : `--color-action-*`, `--color-status-*`, `--color-text-*`, `--color-bg-*`, `--color-border-*`
 - **Yaye** : `--gj-yaye-deep`, `--gj-yaye-ink`, `--gj-yaye-accent`, `--gj-yaye-gradient` (réservé wordmark + avatar)
 - **Hit-targets** : `--tap-min` (44px), `--tap-comfortable` (48px), `--tap-input` (48px), `--tap-dense` (36px desktop only)

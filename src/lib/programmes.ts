@@ -1,7 +1,11 @@
 // Programmes CJS — constante typée (décision Q7 REFONTE-V2.md)
 // Phase 0 : pas d'entité Prisma dédiée, simple constante.
+//
+// Note : BRM (Beneficiary Relationship Management) n'est PAS un programme
+// sectoriel — c'est un outil interne CJS. Référencé uniquement comme
+// plateforme externe via /api/interconnexion/brm.
 
-export type ProgrammeId = 'yaakaar' | 'yeah' | 'yjc' | 'brm' | 'edupop'
+export type ProgrammeId = 'yaakaar' | 'yeah' | 'yjc' | 'edupop'
 
 export interface Programme {
   id: ProgrammeId
@@ -28,12 +32,6 @@ export const PROGRAMMES: Record<ProgrammeId, Programme> = {
     nom: 'YJC',
     description: 'Youth Job Connect',
     gradientToken: 'var(--prog-yjc)',
-  },
-  brm: {
-    id: 'brm',
-    nom: 'BRM',
-    description: 'Bourse Régionale de la Mobilité',
-    gradientToken: 'var(--prog-brm)',
   },
   edupop: {
     id: 'edupop',
