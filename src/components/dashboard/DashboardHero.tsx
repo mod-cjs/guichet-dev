@@ -14,7 +14,7 @@ function message(score: number): string {
 }
 
 function ringStroke(score: number): string {
-  if (score >= 80) return '#FFFFFF'
+  if (score >= 80) return 'var(--gj-surface)'
   if (score >= 50) return '#F9C400'
   return '#FFB4A6'
 }

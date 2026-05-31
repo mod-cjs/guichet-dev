@@ -19,7 +19,9 @@ const AUTH_LINKS = [
 interface Props { isAuthenticated: boolean }
 
 export function HeaderNav({ isAuthenticated }: Props) {
-  const pathname = usePathname()
+  // usePathname() peut retourner null (Storybook hors contexte Next router,
+  // ou edge case rendu) — on retombe sur '/' qui ne matchera que la home.
+  const pathname = usePathname() ?? '/'
 
   return (
     <nav className="hidden md:flex items-center">

@@ -32,7 +32,7 @@ export function YayeAvatar({ size = 32, withBadge = false, className = '', style
         height: size,
         borderRadius: '50%',
         backgroundImage: 'var(--gj-yaye-gradient)',
-        color: '#fff',
+        color: 'var(--gj-surface)',
         fontWeight: 900,
         fontSize,
         lineHeight: 1,
