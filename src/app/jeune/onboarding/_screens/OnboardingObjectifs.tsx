@@ -59,24 +59,31 @@ export function OnboardingObjectifs({ prenom }: Props) {
   const [selected, setSelected] = useState<ObjectifId[]>([])
 
   useEffect(() => {
-    setSelected(readDraft().objectifs)
+    let alive = true
+    readDraft().then(d => {
+      // On ne restaure que si le draft serveur contient déjà des objectifs,
+      // pour ne pas écraser une sélection en cours si le fetch tarde.
+      if (alive && d.objectifs.length > 0) setSelected(d.objectifs)
+    })
+    return () => { alive = false }
   }, [])
 
   function toggle(id: ObjectifId) {
     setSelected(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-      patchDraft({ objectifs: next })
+      // Fire-and-forget : l'UI ne bloque pas sur la persistance serveur.
+      void patchDraft({ objectifs: next })
       return next
     })
   }
 
-  function handleNext() {
-    patchDraft({ objectifs: selected })
+  async function handleNext() {
+    await patchDraft({ objectifs: selected })
     router.push('/jeune/onboarding/profil')
   }
 
-  function handleSkip() {
-    patchDraft({ objectifs: [] })
+  async function handleSkip() {
+    await patchDraft({ objectifs: [] })
     router.push('/jeune/onboarding/profil')
   }
 

@@ -72,10 +72,15 @@ describe('<OnboardingProfil /> — écran 4/5', () => {
     expect(pushMock).toHaveBeenCalledWith('/jeune/onboarding/recommandations')
   })
 
-  it('séléction d\'une région persiste le draft', () => {
+  it('sélection d\'une région envoie un PATCH region au backend', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: null }) })
+    global.fetch = fetchMock as unknown as typeof fetch
     render(<OnboardingProfil initial={EMPTY_INITIAL} />)
     fireEvent.click(screen.getByRole('button', { name: 'Tambacounda' }))
-    const raw = window.sessionStorage.getItem('gj_onboarding_draft_v2')
-    expect(JSON.parse(raw ?? '{}').region).toBe('Tambacounda')
+    await waitFor(() => {
+      const patchCall = fetchMock.mock.calls.find(c => c[1]?.method === 'PATCH')
+      expect(patchCall).toBeDefined()
+      expect(JSON.parse(patchCall![1].body)).toMatchObject({ region: 'Tambacounda' })
+    })
   })
 })

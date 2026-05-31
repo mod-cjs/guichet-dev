@@ -293,15 +293,15 @@ model Opportunite {
 }
 
 model Candidature {
-  id               String            @id @default(uuid()) @db.VarChar(36)
-  cjsUid           String            @map("cjs_uid") @db.VarChar(36)
-  opportuniteId    String            @map("opportunite_id") @db.VarChar(36)
-  statut           StatutCandidature @default(En_attente)
-  lettreMotivation String?           @map("lettre_motivation") @db.Text
-  cvUrl            String?           @map("cv_url") @db.VarChar(500)
-  notificationsConsent Boolean       @default(false) @map("notifications_consent")
-  soumiseA         DateTime          @default(now()) @map("soumise_a")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  id                   String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid               String            @map("cjs_uid") @db.VarChar(36)
+  opportuniteId        String            @map("opportunite_id") @db.VarChar(36)
+  statut               StatutCandidature @default(En_attente)
+  lettreMotivation     String?           @map("lettre_motivation") @db.Text
+  cvUrl                String?           @map("cv_url") @db.VarChar(500)
+  notificationsConsent Boolean           @default(false) @map("notifications_consent")
+  soumiseA             DateTime          @default(now()) @map("soumise_a")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
   opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
@@ -534,4 +534,27 @@ model CertificatMoodle {
 
   @@index([profilId])
   @@map("certificats_moodle")
+}
+
+// ─────────────────────────────────────────────
+// ONBOARDING DRAFT
+// ─────────────────────────────────────────────
+// Brouillon onboarding persisté server-side (remplace sessionStorage).
+// Permet la reprise multi-device et la résilience (cybercafé, switch desktop/mobile).
+// Une seule ligne par utilisateur (clé = cjs_uid). Supprimé à la finalisation.
+model OnboardingDraft {
+  cjsUid        String    @id @map("cjs_uid") @db.VarChar(36)
+  // Tableau d'IDs d'objectifs (ex: ["emploi","projet"]) — JSON
+  objectifs     Json?
+  telephone     String?   @db.VarChar(20)
+  prenom        String?   @db.VarChar(100)
+  nom           String?   @db.VarChar(100)
+  dateNaissance DateTime? @map("date_naissance")
+  // Stocké en VARCHAR car peut contenir une valeur non encore alignée sur l'enum Region (saisie partielle).
+  genre         String?   @db.VarChar(20)
+  region        String?   @db.VarChar(50)
+  commune       String?   @db.VarChar(100)
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("onboarding_drafts")
 }

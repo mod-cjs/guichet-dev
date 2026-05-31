@@ -1,42 +1,120 @@
 /**
  * @jest-environment jsdom
+ *
+ * Tests du module client `src/lib/onboarding-draft.ts` (GUIC-181).
+ * Le storage est maintenant côté serveur via /api/onboarding/draft : on
+ * mocke `fetch` global et on vérifie le cache + le wire format.
  */
-import { readDraft, patchDraft, clearDraft } from '@/lib/onboarding-draft'
+import {
+  readDraft,
+  patchDraft,
+  clearDraft,
+  __resetDraftCache,
+} from '@/lib/onboarding-draft'
 
-describe('onboarding-draft (sessionStorage)', () => {
-  beforeEach(() => {
-    window.sessionStorage.clear()
+function jsonResponse(body: unknown, status = 200): { ok: boolean; status: number; json: () => Promise<unknown> } {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  }
+}
+
+beforeEach(() => {
+  __resetDraftCache()
+  ;(global.fetch as unknown) = jest.fn()
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
+})
+
+describe('onboarding-draft client (serveur Prisma)', () => {
+  it('readDraft : retourne un draft vide quand l\'API renvoie data=null', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(jsonResponse({ data: null }))
+    const d = await readDraft()
+    expect(d).toEqual({ objectifs: [] })
+    expect(global.fetch).toHaveBeenCalledWith('/api/onboarding/draft', expect.objectContaining({ method: 'GET' }))
   })
 
-  it('retourne un draft vide par défaut', () => {
-    expect(readDraft()).toEqual({ objectifs: [] })
+  it('readDraft : normalise une réponse non vide', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          objectifs: ['emploi', 'projet'],
+          telephone: null, prenom: 'Awa', nom: 'Diop',
+          dateNaissance: '2000-05-01', genre: 'F',
+          region: 'Dakar', commune: null,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    )
+    const d = await readDraft()
+    expect(d.prenom).toBe('Awa')
+    expect(d.objectifs).toEqual(['emploi', 'projet'])
+    expect(d.dateNaissance).toBe('2000-05-01')
   })
 
-  it('patchDraft persiste et merge avec l\'état existant', () => {
-    patchDraft({ prenom: 'Awa', objectifs: ['emploi'] })
-    expect(readDraft()).toMatchObject({ prenom: 'Awa', objectifs: ['emploi'] })
-
-    patchDraft({ nom: 'Diop', region: 'Tambacounda' })
-    const after = readDraft()
-    expect(after.prenom).toBe('Awa')
-    expect(after.nom).toBe('Diop')
-    expect(after.region).toBe('Tambacounda')
-    expect(after.objectifs).toEqual(['emploi'])
+  it('readDraft : cache en mémoire — pas de double fetch', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(jsonResponse({ data: null }))
+    await readDraft()
+    await readDraft()
+    expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
-  it('clearDraft retire toutes les clés', () => {
-    patchDraft({ prenom: 'Awa' })
-    clearDraft()
-    expect(readDraft()).toEqual({ objectifs: [] })
+  it('patchDraft : envoie un PATCH JSON et met à jour le cache', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          objectifs: ['emploi'],
+          telephone: null, prenom: 'Awa', nom: null,
+          dateNaissance: null, genre: null, region: null, commune: null,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    )
+    const d = await patchDraft({ prenom: 'Awa', objectifs: ['emploi'] })
+    expect(d.prenom).toBe('Awa')
+    expect(d.objectifs).toEqual(['emploi'])
+    const call = (global.fetch as jest.Mock).mock.calls[0]
+    expect(call[1].method).toBe('PATCH')
+    expect(JSON.parse(call[1].body)).toEqual({ prenom: 'Awa', objectifs: ['emploi'] })
+
+    // cache hit — pas de nouveau fetch
+    const again = await readDraft()
+    expect(again.prenom).toBe('Awa')
+    expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
-  it('tolère un JSON corrompu en sessionStorage', () => {
-    window.sessionStorage.setItem('gj_onboarding_draft_v2', '{not json')
-    expect(readDraft()).toEqual({ objectifs: [] })
+  it('clearDraft : appelle DELETE et invalide le cache', async () => {
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce(jsonResponse({ data: null }, 204))
+      .mockResolvedValueOnce(jsonResponse({ data: null }))
+
+    await clearDraft()
+    const after = await readDraft()
+    expect(after).toEqual({ objectifs: [] })
+    expect((global.fetch as jest.Mock).mock.calls[0][1].method).toBe('DELETE')
   })
 
-  it('objectifs absent → tableau vide (jamais undefined)', () => {
-    window.sessionStorage.setItem('gj_onboarding_draft_v2', JSON.stringify({ prenom: 'X' }))
-    expect(readDraft().objectifs).toEqual([])
+  it('readDraft : tolère une erreur réseau (retourne draft vide)', async () => {
+    ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('offline'))
+    const d = await readDraft()
+    expect(d).toEqual({ objectifs: [] })
+  })
+
+  it('readDraft : objectifs invalide → tableau vide (jamais undefined)', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          objectifs: 'pas-un-tableau',
+          telephone: null, prenom: 'X', nom: null, dateNaissance: null,
+          genre: null, region: null, commune: null,
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    )
+    const d = await readDraft()
+    expect(d.objectifs).toEqual([])
   })
 })

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { StepBar } from '@/components/ui/StepBar'
 import { FooterCTA } from '@/components/ui/FooterCTA'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
-import { clearDraft, readDraft } from '@/lib/onboarding-draft'
+import { clearDraft, readDraft, type OnboardingDraft } from '@/lib/onboarding-draft'
 import { regionLabel } from '@/lib/regions'
 
 interface Props {
@@ -70,6 +70,22 @@ const RECOS: ReadonlyArray<MockOpportunite> = [
   },
 ]
 
+/**
+ * Mapping objectif → domaine (`Domaine` enum Prisma — voir schema).
+ * Permet de persister des `domainesInteret` cohérents dès la finalisation
+ * de l'onboarding court, plutôt qu'un tableau vide.
+ */
+function mapObjectifToDomaine(o: string): string | null {
+  switch (o) {
+    case 'agriculture': return 'Agriculture'
+    case 'formation':   return 'Education'
+    case 'engagement':  return 'Citoyennete'
+    case 'projet':      return 'Entrepreneuriat'
+    case 'emploi':      return null // pas de domaine spécifique
+    default:            return null
+  }
+}
+
 function tileBg(accent: MockOpportunite['accent']): string {
   return `var(--gj-${accent}-soft)`
 }
@@ -94,24 +110,36 @@ function tagColor(c: 'red' | 'blue' | 'yellow'): string {
 export function OnboardingRecommandations({ prenom }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const draft = typeof window !== 'undefined' ? readDraft() : { objectifs: [], region: undefined }
+  const [draft, setDraft] = useState<OnboardingDraft>({ objectifs: [] })
+
+  useEffect(() => {
+    let alive = true
+    readDraft().then(d => { if (alive) setDraft(d) })
+    return () => { alive = false }
+  }, [])
+
   const regionStr = regionLabel(draft.region)
 
   async function finaliser(redirectTo: string) {
     setLoading(true)
     try {
-      // Step 3 : profil minimal — pas de niveauEtude/situation/domaines saisis
-      // au cours de ce funnel court, mais on marque onboardingComplete=true.
+      // Step 3 : finalisation onboarding. On envoie les domaines d'intérêt
+      // déduits des objectifs choisis (mapping 1-1 : `agriculture` →
+      // domaine "Agriculture", etc.) — voir GUIC-181 commit body.
+      const domainesInteret = draft.objectifs
+        .map(mapObjectifToDomaine)
+        .filter((v): v is string => v !== null)
+
       const r = await fetch('/api/v1/onboarding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 3, data: { domainesInteret: [] } }),
+        body: JSON.stringify({ step: 3, data: { domainesInteret } }),
       })
       if (!r.ok) {
         setLoading(false)
         return
       }
-      clearDraft()
+      await clearDraft()
       router.push(redirectTo)
     } catch {
       setLoading(false)

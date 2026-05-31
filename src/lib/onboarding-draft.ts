@@ -1,22 +1,28 @@
 /**
- * Onboarding draft client-side — `sessionStorage`.
+ * Onboarding draft — client API (GUIC-181).
  *
- * État partagé entre les écrans `/jeune/onboarding/*`. On utilise
- * `sessionStorage` (et non `localStorage`) pour éviter qu'un draft traîne
- * d'une session à l'autre sur un appareil partagé (cybercafé Sénégal).
+ * Persisté côté serveur dans la table Prisma `OnboardingDraft` via les
+ * routes `/api/onboarding/draft` (GET / PATCH / DELETE). Remplace l'ancien
+ * `sessionStorage` (GUIC-179) pour permettre la reprise multi-device et la
+ * résilience (cybercafé Sénégal, switch desktop/mobile).
  *
  * Schéma :
  * - `objectifs`     : tableau d'IDs ('emploi' | 'projet' | …) — écran 3
  * - `prenom/nom/dateNaissance/genre` — écran 4
  * - `region/commune` — écran 4
  *
- * Le téléphone n'est PAS stocké ici : c'est le SSO qui le porte (claim
- * `phone_number`). L'écran 2 redirige vers le flow SSO.
+ * Le téléphone est porté par le SSO (claim `phone_number`) ; il peut
+ * néanmoins être stocké ici en transit (champ optionnel pour évolutions
+ * futures).
  *
- * Décision : pas de migration Prisma `OnboardingDraft` pour le MVP — on
- * persiste uniquement les champs `Utilisateur`+`ProfilJeune` via
- * `PUT /api/v1/onboarding` à l'écran 5. Si une étape est abandonnée, le
- * draft client expire avec la session navigateur.
+ * API publique stable :
+ * - `readDraft()`              : `Promise<OnboardingDraft>` — lit le draft.
+ * - `patchDraft(patch)`        : `Promise<OnboardingDraft>` — merge partiel.
+ * - `clearDraft()`             : `Promise<void>` — supprime le draft.
+ *
+ * Un cache mémoire (par tab) évite les fetch redondants entre `readDraft()`
+ * et le rendu initial des écrans. Le cache est invalidé à chaque
+ * `patchDraft()` réussi.
  */
 
 export type ObjectifId = 'emploi' | 'projet' | 'formation' | 'agriculture' | 'engagement'
@@ -32,48 +38,98 @@ export interface OnboardingDraft {
   commune?:      string
 }
 
-const KEY = 'gj_onboarding_draft_v2'
+interface RawDraft {
+  objectifs:     string[] | null
+  telephone:     string | null
+  prenom:        string | null
+  nom:           string | null
+  dateNaissance: string | null
+  genre:         string | null
+  region:        string | null
+  commune:       string | null
+  updatedAt:     string
+}
 
-/** Lit le draft courant. Retourne un objet vide si rien n'est stocké. */
-export function readDraft(): OnboardingDraft {
+const ENDPOINT = '/api/onboarding/draft'
+
+/** Cache en mémoire par onglet — invalidé à chaque mutation. */
+let _cache: OnboardingDraft | null = null
+
+function normalize(raw: RawDraft | null): OnboardingDraft {
+  if (!raw) return { objectifs: [] }
+  return {
+    objectifs:     Array.isArray(raw.objectifs)
+      ? (raw.objectifs.filter(isObjectifId))
+      : [],
+    prenom:        raw.prenom        ?? undefined,
+    nom:           raw.nom           ?? undefined,
+    dateNaissance: raw.dateNaissance ?? undefined,
+    genre:         raw.genre === 'M' || raw.genre === 'F' ? raw.genre : undefined,
+    region:        raw.region        ?? undefined,
+    commune:       raw.commune       ?? undefined,
+  }
+}
+
+function isObjectifId(v: unknown): v is ObjectifId {
+  return v === 'emploi' || v === 'projet' || v === 'formation'
+    || v === 'agriculture' || v === 'engagement'
+}
+
+/** Lit le draft courant (cache en mémoire après le 1er fetch). */
+export async function readDraft(): Promise<OnboardingDraft> {
+  if (_cache) return _cache
   if (typeof window === 'undefined') return { objectifs: [] }
   try {
-    const raw = window.sessionStorage.getItem(KEY)
-    if (!raw) return { objectifs: [] }
-    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>
-    return {
-      objectifs: Array.isArray(parsed.objectifs) ? parsed.objectifs : [],
-      prenom:        parsed.prenom,
-      nom:           parsed.nom,
-      dateNaissance: parsed.dateNaissance,
-      genre:         parsed.genre,
-      region:        parsed.region,
-      commune:       parsed.commune,
+    const res = await fetch(ENDPOINT, { method: 'GET', credentials: 'same-origin' })
+    if (!res.ok) {
+      _cache = { objectifs: [] }
+      return _cache
     }
+    const body = (await res.json()) as { data: RawDraft | null }
+    _cache = normalize(body.data)
+    return _cache
   } catch {
+    _cache = { objectifs: [] }
+    return _cache
+  }
+}
+
+/** Merge partiel et persiste côté serveur. Retourne le nouvel état. */
+export async function patchDraft(patch: Partial<OnboardingDraft>): Promise<OnboardingDraft> {
+  if (typeof window === 'undefined') return { objectifs: [] }
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!res.ok) {
+      // Échec serveur : invalider le cache pour forcer un refetch propre
+      _cache = null
+      return readDraft()
+    }
+    const body = (await res.json()) as { data: RawDraft | null }
+    _cache = normalize(body.data)
+    return _cache
+  } catch {
+    _cache = null
     return { objectifs: [] }
   }
 }
 
-/** Merge partiel et persiste. Retourne le nouvel état. */
-export function patchDraft(patch: Partial<OnboardingDraft>): OnboardingDraft {
-  const next = { ...readDraft(), ...patch }
-  if (typeof window !== 'undefined') {
-    try {
-      window.sessionStorage.setItem(KEY, JSON.stringify(next))
-    } catch {
-      /* quota / private mode — silencieux */
-    }
-  }
-  return next
-}
-
 /** Vide le draft (après finalisation onboarding). */
-export function clearDraft(): void {
+export async function clearDraft(): Promise<void> {
+  _cache = null
   if (typeof window === 'undefined') return
   try {
-    window.sessionStorage.removeItem(KEY)
+    await fetch(ENDPOINT, { method: 'DELETE', credentials: 'same-origin' })
   } catch {
     /* silencieux */
   }
+}
+
+/** Pour les tests : reset du cache en mémoire. */
+export function __resetDraftCache(): void {
+  _cache = null
 }
