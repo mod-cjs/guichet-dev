@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { AppTopbar } from '@/components/layout/AppTopbar'
-import { BottomNav } from '@/components/layout/BottomNav'
+import { BottomNav } from '@/components/ui/BottomNav'
 import { MobileShellGate } from './MobileShellGate'
 
 /**

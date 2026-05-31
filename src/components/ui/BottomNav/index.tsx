@@ -1,20 +1,28 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Icon, type IconName } from '@/components/ui/Icon'
 
 interface NavItem {
   href: string
-  emoji: string
+  icon: IconName
   label: string
-  badge?: number
 }
 
+/**
+ * 5 onglets de la nav bénéficiaire mobile (refonte v2).
+ * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
+ * aucun emoji comme icône de nav.
+ *
+ * Note : le sprite n'expose pas d'icône `user` — on utilise `profile`
+ * (équivalent sémantique le plus proche dans ICON_NAMES).
+ */
 const ITEMS: NavItem[] = [
-  { href: '/',               emoji: '🏠', label: 'Accueil' },
-  { href: '/opportunites',   emoji: '🔍', label: 'Opp' },
-  { href: '/agenda',         emoji: '📅', label: 'Agenda' },
-  { href: '/ressources',     emoji: '📚', label: 'Resso' },
-  { href: '/jeune/mon-profil', emoji: '👤', label: 'Profil' },
+  { href: '/',                 icon: 'home',     label: 'Accueil' },
+  { href: '/opportunites',     icon: 'search',   label: 'Explorer' },
+  { href: '/agenda',           icon: 'calendar', label: 'Agenda' },
+  { href: '/ressources',       icon: 'document', label: 'Ressources' },
+  { href: '/jeune/mon-profil', icon: 'profile',  label: 'Profil' },
 ]
 
 interface BottomNavProps {
@@ -35,7 +43,7 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
       aria-label="Navigation principale"
     >
       {ITEMS.map(item => {
-        const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+        const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href) === true)
         const badge = badges[item.href]
         return (
           <Link
@@ -45,20 +53,40 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
               pt-[6px] pb-[4px] relative cursor-pointer no-underline
               min-h-[var(--tap-min)] transition-colors
               ${isActive ? 'text-gj-teal-deep' : 'text-color-text-secondary'}`}
+            style={{
+              color: isActive ? 'var(--gj-teal-deep)' : 'var(--color-text-secondary)',
+            }}
             aria-current={isActive ? 'page' : undefined}
           >
             {isActive && (
-              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-gj-teal rounded-b-[3px]" />
+              <span
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 rounded-b-[3px]"
+                style={{ height: 3, background: 'var(--gj-teal-deep)' }}
+                aria-hidden
+              />
             )}
-            {badge && badge > 0 && (
+            {badge && badge > 0 ? (
               <span className="absolute top-[2px] right-[14px] min-w-[16px] h-4 bg-gj-red text-white
                 rounded-[8px] text-[10px] font-bold px-[4px] flex items-center justify-center
                 border-2 border-white">
                 {badge > 9 ? '9+' : badge}
               </span>
-            )}
-            <span className="text-[22px] leading-none">{item.emoji}</span>
-            <span>{item.label}</span>
+            ) : null}
+            <Icon name={item.icon} size={22} />
+            <span
+              className="px-[2px] max-w-full"
+              style={{
+                fontSize: 'var(--fs-100)',
+                fontWeight: isActive ? 800 : 600,
+                lineHeight: 1.1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {item.label}
+            </span>
           </Link>
         )
       })}
