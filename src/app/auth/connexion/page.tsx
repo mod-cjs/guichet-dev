@@ -44,7 +44,7 @@ export default async function ConnexionPage({ searchParams }: Props) {
           {[
             'Des offres d\'emploi adaptées à votre profil',
             'Des formations et bourses accessibles',
-            'Un accompagnement personnalisé par Aïssatou',
+            'Un accompagnement personnalisé par Yaye',
           ].map(item => (
             <li key={item} className="flex items-start gap-space-2 text-fs-200 text-color-text-secondary">
               <svg className="w-4 h-4 text-gj-teal mt-[2px] flex-shrink-0" viewBox="0 0 20 20"

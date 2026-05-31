@@ -42,7 +42,7 @@ Rien de fonctionnel côté utilisateur final — tout est infrastructure et cont
 - [ ] Migration initiale + seed de démonstration
 - [ ] CI/CD GitHub Actions : tests → staging → production
 - [ ] Docker Compose fonctionnel en local (MariaDB + Redis)
-- [ ] Police Lexend chargée dans `src/app/layout.tsx`
+- [ ] ~~Police Lexend chargée dans `src/app/layout.tsx`~~ (remplacée par stack système — refonte v2)
 - [ ] Tokens CSS sync (`design/html/tokens.css` ↔ `src/styles/tokens.css`)
 - [ ] `/api/health` → 200 avec statuts DB + Redis
 

@@ -1,4 +1,4 @@
-// Client Meta Cloud API v19 — Agent Aïssatou (Guichet Jeunesse)
+// Client Meta Cloud API v19 — Agent Yaye (Guichet Jeunesse)
 // Distinct de Fatou (EduPop) — voir docs/metier.md
 
 const WA_API_URL = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}`

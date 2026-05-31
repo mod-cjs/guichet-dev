@@ -36,7 +36,7 @@ export const CJS_COLORS = {
   fond:      GJ_COLORS.bg,
 } as const
 
-export const CJS_FONT   = "'Lexend', sans-serif"
+export const CJS_FONT   = "var(--gj-font-sans)"
 export const CJS_RADIUS = '8px'
 
 export type GJColor  = keyof typeof GJ_COLORS

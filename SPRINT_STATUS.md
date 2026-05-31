@@ -28,7 +28,7 @@
 | Docker Compose MariaDB + Redis fonctionnel | todo |
 | Design tokens CSS sync (`design/html/` ↔ `src/styles/tokens.css`) | todo |
 | Composants UI de base (Button, Card, Input, Badge, Modal) | todo |
-| Police Lexend configurée | todo |
+| ~~Police Lexend configurée~~ (remplacée par stack système — refonte v2) | done |
 | `/api/health` → 200 avec statut DB + Redis | todo |
 
 ### Détail GUIC-16 — tâches techniques

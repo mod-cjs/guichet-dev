@@ -12,7 +12,7 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { href: '/',               emoji: '🏠', label: 'Accueil' },
   { href: '/opportunites',   emoji: '🔍', label: 'Opp' },
-  { href: '/evenements',     emoji: '📅', label: 'Agenda' },
+  { href: '/agenda',         emoji: '📅', label: 'Agenda' },
   { href: '/ressources',     emoji: '📚', label: 'Resso' },
   { href: '/jeune/mon-profil', emoji: '👤', label: 'Profil' },
 ]
