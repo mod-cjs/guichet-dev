@@ -29,6 +29,7 @@ interface MemoryStore {
   opportuniteBourse: Row[]
   opportuniteConcours: Row[]
   opportuniteAppelAProjets: Row[]
+  opportuniteVolontariat: Row[]
 }
 
 type MemoryClient = {
@@ -41,6 +42,7 @@ type MemoryClient = {
   opportuniteBourse: { findUnique: jest.Mock; create: jest.Mock }
   opportuniteConcours: { findUnique: jest.Mock; create: jest.Mock }
   opportuniteAppelAProjets: { findUnique: jest.Mock; create: jest.Mock }
+  opportuniteVolontariat: { findUnique: jest.Mock; create: jest.Mock }
   $transaction: jest.Mock
 }
 
@@ -52,6 +54,7 @@ function makeMemoryClient(store: MemoryStore): MemoryClient {
     opportuniteBourse: store.opportuniteBourse,
     opportuniteConcours: store.opportuniteConcours,
     opportuniteAppelAProjets: store.opportuniteAppelAProjets,
+    opportuniteVolontariat: store.opportuniteVolontariat,
   }
 
   function makeSubtypeModel(name: string): {
@@ -121,6 +124,7 @@ function makeMemoryClient(store: MemoryStore): MemoryClient {
     opportuniteBourse: makeSubtypeModel('opportuniteBourse'),
     opportuniteConcours: makeSubtypeModel('opportuniteConcours'),
     opportuniteAppelAProjets: makeSubtypeModel('opportuniteAppelAProjets'),
+    opportuniteVolontariat: makeSubtypeModel('opportuniteVolontariat'),
     $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(client)),
   }
 
@@ -138,6 +142,11 @@ function freshStore(): MemoryStore {
       { id: 'type-bourse', slug: 'bourse' },
       { id: 'type-concours', slug: 'concours' },
       { id: 'type-appel_a_projets', slug: 'appel_a_projets' },
+      // Post-audit §19 : 4 sous-types ajoutés (financement, mentorat, mobilite, volontariat)
+      { id: 'type-financement', slug: 'financement' },
+      { id: 'type-mentorat', slug: 'mentorat' },
+      { id: 'type-mobilite', slug: 'mobilite' },
+      { id: 'type-volontariat', slug: 'volontariat' },
     ],
     organisation: [{ id: 'org-cjs', nom: 'CJS' }],
     opportunite: [
@@ -156,6 +165,7 @@ function freshStore(): MemoryStore {
     opportuniteBourse: [],
     opportuniteConcours: [],
     opportuniteAppelAProjets: [],
+    opportuniteVolontariat: [],
   }
 }
 
@@ -201,14 +211,15 @@ describe('migrate-opportunites-to-polymorphic — GUIC-185', () => {
       stage: 1,
       formation: 1,
       bourse: 1,
-      appel_a_projets: 3, // 1 vrai + 2 Volontariat fusionnés
+      appel_a_projets: 1, // les Volontariat ont leur propre sous-type maintenant
+      volontariat: 2, // o6 et o7 — sous-type dédié (post-audit spec §19)
     })
 
     // typeId backfillé sur toutes
     const oppEmploi = store.opportunite.find((o) => o.id === 'o1')!
     expect(oppEmploi.typeId).toBe('type-emploi')
     const oppVolontariat = store.opportunite.find((o) => o.id === 'o6')!
-    expect(oppVolontariat.typeId).toBe('type-appel_a_projets')
+    expect(oppVolontariat.typeId).toBe('type-volontariat')
 
     // organisationLibelle copié depuis organisation legacy
     expect(store.opportunite.every((o) => o.organisationLibelle !== null)).toBe(true)
@@ -235,7 +246,7 @@ describe('migrate-opportunites-to-polymorphic — GUIC-185', () => {
     })
   })
 
-  it('Q5 — Volontariat legacy retombe sur appel_a_projets + flag review', async () => {
+  it('Volontariat legacy → sous-type volontariat dédié (post-audit §19, override §18 Q5)', async () => {
     const store = freshStore()
     const client = makeMemoryClient(store)
 
@@ -243,17 +254,23 @@ describe('migrate-opportunites-to-polymorphic — GUIC-185', () => {
 
     expect(report.volontariatCount).toBe(2)
     expect(report.volontariatStrategy).toBe('manual') // < 50
-    expect(report.flaggedReview).toBe(2) // 2 Volontariat fusionnés
+    // Plus de flag review puisque le sous-type dédié existe
+    // (flaggedReview ne concerne plus que les 'AUTRE' legacy)
 
-    // Vérifie que les opps Volontariat ont bien le typeId appel_a_projets
+    // Les opps Volontariat ont bien le typeId du sous-type dédié
     const o6 = store.opportunite.find((o) => o.id === 'o6')!
     const o7 = store.opportunite.find((o) => o.id === 'o7')!
-    expect(o6.typeId).toBe('type-appel_a_projets')
-    expect(o7.typeId).toBe('type-appel_a_projets')
+    expect(o6.typeId).toBe('type-volontariat')
+    expect(o7.typeId).toBe('type-volontariat')
 
-    // Et le sous-type appel_a_projets a bien été créé pour eux
-    expect(store.opportuniteAppelAProjets.find((r) => r.opportuniteId === 'o6')).toBeTruthy()
-    expect(store.opportuniteAppelAProjets.find((r) => r.opportuniteId === 'o7')).toBeTruthy()
+    // Et le sous-type volontariat a bien été créé pour eux avec valeurs par défaut
+    const v6 = store.opportuniteVolontariat.find((r) => r.opportuniteId === 'o6')
+    expect(v6).toMatchObject({
+      opportuniteId: 'o6',
+      dureeMois: 6,
+      typeVolontariat: 'ENGAGEMENT',
+    })
+    expect(store.opportuniteVolontariat.find((r) => r.opportuniteId === 'o7')).toBeTruthy()
   })
 
   it('Q5 — stratégie auto si >= 50 Volontariat legacy', async () => {

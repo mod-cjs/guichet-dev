@@ -95,9 +95,10 @@ const TYPE_MAPPING: Record<TypeOpportuniteLegacy, string> = {
   Formation: 'formation',
   Bourse: 'bourse',
   Appel_a_projets: 'appel_a_projets',
-  // Q5 §18 : Volontariat fusionne dans appel_a_projets par défaut + flag review
-  Volontariat: 'appel_a_projets',
-  // Sécurité — si AUTRE découvert (ex. import Drupal corrompu) → appel_a_projets
+  // Q5 §18 obsolète depuis §19 : sous-type Volontariat dédié maintenant disponible.
+  // Volontariat legacy → sous-type volontariat (au lieu de appel_a_projets).
+  Volontariat: 'volontariat',
+  // Sécurité — si AUTRE découvert (ex. import Drupal corrompu) → appel_a_projets + flag review
   AUTRE: 'appel_a_projets',
 }
 
@@ -220,6 +221,20 @@ async function ensureSubtype(ctx: SubtypeCreateContext): Promise<string | null> 
         },
       })
       return 'appel_a_projets'
+    }
+    case 'volontariat': {
+      if (await client.opportuniteVolontariat.findUnique({ where: { opportuniteId } }))
+        return null
+      if (DRY_RUN) return 'volontariat'
+      await client.opportuniteVolontariat.create({
+        data: {
+          opportuniteId,
+          dureeMois: 6, // défaut prudent — à compléter par admin Phase 4
+          typeVolontariat: 'ENGAGEMENT',
+          domaineMission: ctx.domaineLegacy || 'À renseigner',
+        },
+      })
+      return 'volontariat'
     }
     default:
       throw new Error(`Slug sous-type inconnu : ${typeSlug}`)
