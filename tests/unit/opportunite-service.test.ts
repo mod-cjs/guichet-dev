@@ -162,7 +162,7 @@ describe('OpportuniteService.create', () => {
     expect(mocks[subModel].create).toHaveBeenCalledTimes(1)
     expect(res.id).toBe('opp-1')
     // L'assertion XOR a été appliquée : exactement 1 sous-type non null aligné sur typeRef.slug
-    expect((res as Record<string, unknown>)[expectedSubKey]).toBeTruthy()
+    expect((res as unknown as Record<string, unknown>)[expectedSubKey]).toBeTruthy()
   })
 
   it('rejette si le type slug est inconnu en base', async () => {
