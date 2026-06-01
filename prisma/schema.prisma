@@ -558,3 +558,66 @@ model OnboardingDraft {
 
   @@map("onboarding_drafts")
 }
+
+// ─────────────────────────────────────────────
+// M3 v2 — Tables de référence (GUIC-182 / 178a/4)
+// Voir .agent_context/specs/M3-schema-polymorphique.md §3
+// Les jonctions OpportuniteSkill / OpportuniteTag arrivent en 178b
+// (FK vers la nouvelle table Opportunite polymorphique).
+// ─────────────────────────────────────────────
+
+/// Programmes sectoriels CJS (4 — Yaakaar, YEAH, YJC, EduPop).
+/// BRM = outil interne, exclu (décision Lead 2026-05-29).
+model Programme {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  slug          String   @unique @db.VarChar(40)
+  nom           String   @db.VarChar(80)
+  description   String   @db.VarChar(255)
+  gradientToken String   @map("gradient_token") @db.VarChar(80)
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("programmes")
+}
+
+/// Types d'opportunité — remplace l'enum TypeOpportunite (qui survit pendant migration).
+/// Permet d'ajouter dynamiquement actionLabel / workflow sans migration Prisma.
+model OpportuniteType {
+  id                  String   @id @default(uuid()) @db.VarChar(36)
+  slug                String   @unique @db.VarChar(40)
+  libelle             String   @db.VarChar(80)
+  actionLabel         String   @map("action_label") @db.VarChar(40)
+  requiresFileUpload  Boolean  @default(false) @map("requires_file_upload")
+  fileLabel           String?  @map("file_label") @db.VarChar(80)
+  decisionAuthority   String?  @map("decision_authority") @db.VarChar(100)
+  actif               Boolean  @default(true)
+  ordre               Int      @default(0)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("opportunite_types")
+}
+
+/// Compétences requises sur les opportunités (M:N).
+/// Jonction OpportuniteSkill créée en 178b avec la table Opportunite mère.
+model Skill {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  slug      String   @unique @db.VarChar(80)
+  libelle   String   @db.VarChar(120)
+  categorie String?  @db.VarChar(60)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("skills")
+}
+
+/// Tags transversaux (urgent, télétravail, diaspora…).
+/// Jonction OpportuniteTag créée en 178b avec la table Opportunite mère.
+model Tag {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  slug      String   @unique @db.VarChar(80)
+  libelle   String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("tags")
+}
