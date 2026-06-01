@@ -55,6 +55,39 @@ enum TypeOpportunite {
   @@map("type_opportunite")
 }
 
+/// Type de contrat employé sur OpportuniteEmploi (GUIC-183 / 178b).
+enum TypeContrat {
+  CDI
+  CDD
+  FREELANCE
+  ALTERNANCE
+  STAGE_ALTERNE
+
+  @@map("type_contrat")
+}
+
+/// Modalité pédagogique sur OpportuniteFormation (GUIC-183 / 178b).
+enum ModaliteFormation {
+  PRESENTIEL
+  DISTANCE
+  HYBRIDE
+
+  @@map("modalite_formation")
+}
+
+/// Niveau d'études minimum requis (GUIC-183 / 178b).
+/// Décision Q8 spec §18 : enum strict (override DP6 String libre).
+enum NiveauEtudes {
+  BFEM
+  BAC
+  BAC_PLUS_2
+  BAC_PLUS_3
+  BAC_PLUS_5
+  DOCTORAT
+
+  @@map("niveau_etudes")
+}
+
 enum Domaine {
   Agriculture
   Numerique
@@ -259,16 +292,32 @@ model Organisation {
 // M3 — OPPORTUNITÉS & CANDIDATURES
 // ─────────────────────────────────────────────
 
+/// Table mère M3 v2 (CTI). Colonnes legacy (type, organisation) conservées
+/// pendant la migration data — supprimées en 178d après backfill.
+/// Les colonnes polymorphiques (typeId, programmeId, organisationId déjà présent,
+/// organisationLibelle, niveauEtudeMin) sont ajoutées en NULL dans cette étape (178b)
+/// pour ne pas casser les rows existantes ; elles passent NOT NULL en 178d.
+/// L'invariant XOR (1 et 1 seul sous-type non null) est garanti côté applicatif
+/// via OpportuniteService — cf. spec §8.4 et `opportunite-integrity.ts`.
 model Opportunite {
-  id             String            @id @default(uuid()) @db.VarChar(36)
-  drupalNid      Int?              @unique @map("drupal_nid")
-  slug           String            @unique @db.VarChar(280)
-  titre          String            @db.VarChar(255)
-  description    String            @db.LongText
-  type           TypeOpportunite
+  id          String @id @default(uuid()) @db.VarChar(36)
+  drupalNid   Int?   @unique @map("drupal_nid")
+  slug        String @unique @db.VarChar(280)
+  titre       String @db.VarChar(255)
+  description String @db.LongText
+
+  // Champs legacy — conservés jusqu'en 178d (drop après backfill)
+  type         TypeOpportunite
+  organisation String          @db.VarChar(200)
+
+  // Nouveaux champs polymorphiques (nullable durant migration data — 178b/c)
+  typeId              String?       @map("type_id") @db.VarChar(36)
+  programmeId         String?       @map("programme_id") @db.VarChar(36)
+  organisationLibelle String?       @map("organisation_libelle") @db.VarChar(200)
+  niveauEtudeMin      NiveauEtudes? @map("niveau_etude_min")
+
   domaine        Domaine
   region         Region?
-  organisation   String            @db.VarChar(200)
   organisationId String?           @map("organisation_id") @db.VarChar(36)
   remuneration   String?           @db.VarChar(100)
   deadline       DateTime?
@@ -280,12 +329,27 @@ model Opportunite {
   updatedAt      DateTime          @updatedAt @map("updated_at")
   deletedAt      DateTime?         @map("deleted_at")
 
-  org          Organisation?         @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  org       Organisation?    @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  typeRef   OpportuniteType? @relation(fields: [typeId], references: [id])
+  programme Programme?       @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+
+  // Sous-types 1:1 (un seul des six non-null — invariant applicatif)
+  emploi        OpportuniteEmploi?
+  stage         OpportuniteStage?
+  formation     OpportuniteFormation?
+  bourse        OpportuniteBourse?
+  concours      OpportuniteConcours?
+  appelAProjets OpportuniteAppelAProjets?
+
+  skills       OpportuniteSkill[]
+  tags         OpportuniteTag[]
   candidatures Candidature[]
   favoris      OpportuniteFavorite[]
 
   @@index([statut, deletedAt])
   @@index([type, domaine])
+  @@index([typeId, domaine])
+  @@index([programmeId])
   @@index([region])
   @@index([deadline])
   @@fulltext([titre, description])
@@ -578,23 +642,27 @@ model Programme {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  opportunites Opportunite[]
+
   @@map("programmes")
 }
 
 /// Types d'opportunité — remplace l'enum TypeOpportunite (qui survit pendant migration).
 /// Permet d'ajouter dynamiquement actionLabel / workflow sans migration Prisma.
 model OpportuniteType {
-  id                  String   @id @default(uuid()) @db.VarChar(36)
-  slug                String   @unique @db.VarChar(40)
-  libelle             String   @db.VarChar(80)
-  actionLabel         String   @map("action_label") @db.VarChar(40)
-  requiresFileUpload  Boolean  @default(false) @map("requires_file_upload")
-  fileLabel           String?  @map("file_label") @db.VarChar(80)
-  decisionAuthority   String?  @map("decision_authority") @db.VarChar(100)
-  actif               Boolean  @default(true)
-  ordre               Int      @default(0)
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid()) @db.VarChar(36)
+  slug               String   @unique @db.VarChar(40)
+  libelle            String   @db.VarChar(80)
+  actionLabel        String   @map("action_label") @db.VarChar(40)
+  requiresFileUpload Boolean  @default(false) @map("requires_file_upload")
+  fileLabel          String?  @map("file_label") @db.VarChar(80)
+  decisionAuthority  String?  @map("decision_authority") @db.VarChar(100)
+  actif              Boolean  @default(true)
+  ordre              Int      @default(0)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  opportunites Opportunite[]
 
   @@map("opportunite_types")
 }
@@ -608,6 +676,8 @@ model Skill {
   categorie String?  @db.VarChar(60)
   createdAt DateTime @default(now()) @map("created_at")
 
+  opportunites OpportuniteSkill[]
+
   @@map("skills")
 }
 
@@ -619,5 +689,124 @@ model Tag {
   libelle   String   @db.VarChar(120)
   createdAt DateTime @default(now()) @map("created_at")
 
+  opportunites OpportuniteTag[]
+
   @@map("tags")
+}
+
+// ─────────────────────────────────────────────
+// M3 v2 — Sous-types CTI (GUIC-183 / 178b/4)
+// Cf. spec §3.4 et §3.5 — relations 1:1 vers Opportunite avec cascade.
+// L'invariant XOR (exactement 1 sous-type non-null par Opportunite) est
+// garanti côté applicatif via OpportuniteService (cf. spec §8.4) ; pas de
+// CHECK SQL portable MariaDB.
+// ─────────────────────────────────────────────
+
+model OpportuniteEmploi {
+  opportuniteId     String        @id @map("opportunite_id") @db.VarChar(36)
+  typeContrat       TypeContrat   @map("type_contrat")
+  dureeContratMois  Int?          @map("duree_contrat_mois")
+  experienceRequise String?       @map("experience_requise") @db.VarChar(100)
+  teletravail       Boolean       @default(false)
+  niveauEtudeMin    NiveauEtudes? @map("niveau_etude_min")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_emploi")
+}
+
+model OpportuniteStage {
+  opportuniteId          String        @id @map("opportunite_id") @db.VarChar(36)
+  dureeMois              Int           @map("duree_mois")
+  conventionneEcole      Boolean       @default(false) @map("conventionne_ecole")
+  indemnise              Boolean       @default(false)
+  indemniteMensuelleFcfa Int?          @map("indemnite_mensuelle_fcfa")
+  niveauEtudeMin         NiveauEtudes? @map("niveau_etude_min")
+  dateDebutPrevue        DateTime?     @map("date_debut_prevue")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_stage")
+}
+
+model OpportuniteFormation {
+  opportuniteId          String            @id @map("opportunite_id") @db.VarChar(36)
+  dureeHeures            Int               @map("duree_heures")
+  modalite               ModaliteFormation
+  certifiante            Boolean           @default(false)
+  organismeCertificateur String?           @map("organisme_certificateur") @db.VarChar(150)
+  prerequis              String?           @db.Text
+  gratuite               Boolean           @default(true)
+  fraisInscriptionFcfa   Int?              @map("frais_inscription_fcfa")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_formation")
+}
+
+model OpportuniteBourse {
+  opportuniteId      String        @id @map("opportunite_id") @db.VarChar(36)
+  montantTotalFcfa   Int           @map("montant_total_fcfa")
+  dureeMois          Int?          @map("duree_mois")
+  niveauEtudeRequis  NiveauEtudes? @map("niveau_etude_requis")
+  paysDestination    String?       @map("pays_destination") @db.VarChar(80)
+  organismeFinanceur String        @map("organisme_financeur") @db.VarChar(150)
+  coupleObligatoire  Boolean       @default(false) @map("couple_obligatoire")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_bourse")
+}
+
+model OpportuniteConcours {
+  opportuniteId         String    @id @map("opportunite_id") @db.VarChar(36)
+  organismeOrganisateur String    @map("organisme_organisateur") @db.VarChar(150)
+  dateEpreuves          DateTime? @map("date_epreuves")
+  lieuEpreuves          String?   @map("lieu_epreuves") @db.VarChar(200)
+  preuvesDemandees      String?   @map("preuves_demandees") @db.Text
+  placesDisponibles     Int?      @map("places_disponibles")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_concours")
+}
+
+model OpportuniteAppelAProjets {
+  opportuniteId       String  @id @map("opportunite_id") @db.VarChar(36)
+  budgetMaxFcfa       Int?    @map("budget_max_fcfa")
+  dureeProjetMois     Int?    @map("duree_projet_mois")
+  thematique          String? @db.VarChar(150)
+  dossierRequis       String  @map("dossier_requis") @db.Text
+  criteresEligibilite String  @map("criteres_eligibilite") @db.Text
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_appel_a_projets")
+}
+
+// Jonctions M:N (Skills, Tags)
+
+model OpportuniteSkill {
+  opportuniteId String  @map("opportunite_id") @db.VarChar(36)
+  skillId       String  @map("skill_id") @db.VarChar(36)
+  requise       Boolean @default(true)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([opportuniteId, skillId])
+  @@index([skillId])
+  @@map("opportunites_skills")
+}
+
+model OpportuniteTag {
+  opportuniteId String @map("opportunite_id") @db.VarChar(36)
+  tagId         String @map("tag_id") @db.VarChar(36)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([opportuniteId, tagId])
+  @@index([tagId])
+  @@map("opportunites_tags")
 }
