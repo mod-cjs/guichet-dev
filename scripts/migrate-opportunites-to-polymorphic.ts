@@ -46,19 +46,20 @@ import * as path from 'path'
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const DRY_RUN = process.argv.includes('--dry-run')
-const DATABASE_URL = process.env.DATABASE_URL
 const BATCH_SIZE = 100
 const VOLONTARIAT_AUTO_THRESHOLD = 50
 
-if (!DATABASE_URL) {
-  console.error('[migrate-m3-v2] DATABASE_URL manquante')
-  process.exit(1)
+function createPrisma(): PrismaClient {
+  const url = process.env.DATABASE_URL
+  if (!url) {
+    console.error('[migrate-m3-v2] DATABASE_URL manquante')
+    process.exit(1)
+  }
+  return new PrismaClient({
+    adapter: new PrismaMariaDb(url),
+    log: ['error', 'warn'],
+  })
 }
-
-const prisma = new PrismaClient({
-  adapter: new PrismaMariaDb(DATABASE_URL),
-  log: ['error', 'warn'],
-})
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -378,6 +379,7 @@ export async function migrateOpportunites(client: PrismaClient): Promise<Migrati
 
 async function main(): Promise<void> {
   logStep(`Démarrage migration (DRY_RUN=${DRY_RUN})`)
+  const prisma = createPrisma()
   try {
     const report = await migrateOpportunites(prisma)
     const file = writeReport(report)
