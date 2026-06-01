@@ -33,6 +33,10 @@ const mocks = {
   opportuniteBourse: makeModel(),
   opportuniteConcours: makeModel(),
   opportuniteAppelAProjets: makeModel(),
+  opportuniteFinancement: makeModel(),
+  opportuniteMentorat: makeModel(),
+  opportuniteMobilite: makeModel(),
+  opportuniteVolontariat: makeModel(),
   opportuniteSkill: makeModel(),
   opportuniteTag: makeModel(),
 }
@@ -80,6 +84,10 @@ function freshOpp(id: string, slug: string, sub: Record<string, unknown>) {
     bourse: null,
     concours: null,
     appelAProjets: null,
+    financement: null,
+    mentorat: null,
+    mobilite: null,
+    volontariat: null,
     ...sub,
   }
 }
@@ -94,7 +102,17 @@ beforeEach(() => {
 
 describe('OpportuniteService.create', () => {
   const cases: Array<{
-    type: 'emploi' | 'stage' | 'formation' | 'bourse' | 'concours' | 'appel_a_projets'
+    type:
+      | 'emploi'
+      | 'stage'
+      | 'formation'
+      | 'bourse'
+      | 'concours'
+      | 'appel_a_projets'
+      | 'financement'
+      | 'mentorat'
+      | 'mobilite'
+      | 'volontariat'
     subModel: keyof typeof mocks
     details: Record<string, unknown>
     expectedSubKey: string
@@ -141,6 +159,34 @@ describe('OpportuniteService.create', () => {
       details: { dossierRequis: 'PDF', criteresEligibilite: 'Sénégal' },
       expectedSubKey: 'appelAProjets',
       expectedSub: { dossierRequis: 'PDF', criteresEligibilite: 'Sénégal' },
+    },
+    {
+      type: 'financement',
+      subModel: 'opportuniteFinancement',
+      details: { montantFcfa: 5_000_000, typeFinancement: 'MICROCREDIT', organismeFinanceur: 'BNDE' },
+      expectedSubKey: 'financement',
+      expectedSub: { montantFcfa: 5_000_000, typeFinancement: 'MICROCREDIT', organismeFinanceur: 'BNDE' },
+    },
+    {
+      type: 'mentorat',
+      subModel: 'opportuniteMentorat',
+      details: { dureeMois: 6, modalite: 'COHORTE', organisateurLibelle: 'CJS Incubateur' },
+      expectedSubKey: 'mentorat',
+      expectedSub: { dureeMois: 6, modalite: 'COHORTE', organisateurLibelle: 'CJS Incubateur' },
+    },
+    {
+      type: 'mobilite',
+      subModel: 'opportuniteMobilite',
+      details: { destination: 'France', typeMobilite: 'ETUDE', dureeMois: 12 },
+      expectedSubKey: 'mobilite',
+      expectedSub: { destination: 'France', typeMobilite: 'ETUDE', dureeMois: 12 },
+    },
+    {
+      type: 'volontariat',
+      subModel: 'opportuniteVolontariat',
+      details: { dureeMois: 9, typeVolontariat: 'SERVICE_CIVIQUE', domaineMission: 'Éducation' },
+      expectedSubKey: 'volontariat',
+      expectedSub: { dureeMois: 9, typeVolontariat: 'SERVICE_CIVIQUE', domaineMission: 'Éducation' },
     },
   ]
 
@@ -239,6 +285,22 @@ describe('OpportuniteService.findByIdWithDetails', () => {
     expect(res).not.toBeNull()
     expect(res!.typeRef.slug).toBe('bourse')
     expect(res!.bourse).toEqual({ montantTotalFcfa: 100 })
+  })
+
+  it.each([
+    ['financement', { montantFcfa: 1_000_000, typeFinancement: 'SUBVENTION', organismeFinanceur: 'CJS' }],
+    ['mentorat', { dureeMois: 3, modalite: 'INDIVIDUEL', organisateurLibelle: 'CJS' }],
+    ['mobilite', { destination: 'Maroc', typeMobilite: 'STAGE', dureeMois: 6 }],
+    ['volontariat', { dureeMois: 12, typeVolontariat: 'ENGAGEMENT', domaineMission: 'Santé' }],
+  ] as const)('retourne le sous-type discriminé %s (post-audit)', async (slug, payload) => {
+    mocks.opportunite.findUnique.mockResolvedValue(
+      freshOpp('o', slug, { [slug]: payload }),
+    )
+    const svc = new OpportuniteService(prismaMock as never)
+    const res = await svc.findByIdWithDetails('o')
+    expect(res).not.toBeNull()
+    expect(res!.typeRef.slug).toBe(slug)
+    expect((res as unknown as Record<string, unknown>)[slug]).toEqual(payload)
   })
 
   it('retourne null si soft-deleted', async () => {
