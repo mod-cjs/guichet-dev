@@ -20,13 +20,13 @@ export const PROGRAMMES_SEED: ProgrammeSeed[] = [
   {
     slug: 'yaakaar',
     nom: 'Yaakaar',
-    description: 'Programme entrepreneuriat et auto-emploi du Consortium Jeunesse Sénégal.',
+    description: 'Stratégie globale CJS 2030 — accès, apprentissage et travail des jeunes (Bokk/Jàng/Ligeey).',
     gradientToken: 'var(--prog-yaakaar)',
   },
   {
     slug: 'yeah',
     nom: 'YEAH',
-    description: 'Youth Empowerment for African Health — santé jeune.',
+    description: 'Youth Employment & Agricultural Hub — employabilité, entrepreneuriat et agriculture (70% jeunes femmes).',
     gradientToken: 'var(--prog-yeah)',
   },
   {
@@ -38,7 +38,7 @@ export const PROGRAMMES_SEED: ProgrammeSeed[] = [
   {
     slug: 'edupop',
     nom: 'EduPop',
-    description: 'Éducation populaire — formations courtes et ateliers communautaires.',
+    description: 'Plateforme de compétences fondamentales et de connaissances de base.',
     gradientToken: 'var(--prog-edupop)',
   },
 ]

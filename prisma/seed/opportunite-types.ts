@@ -75,6 +75,42 @@ export const OPPORTUNITE_TYPES_SEED: OpportuniteTypeSeed[] = [
     decisionAuthority: 'comite_financement',
     ordre: 6,
   },
+  {
+    slug: 'financement',
+    libelle: 'Financement',
+    actionLabel: 'Demander',
+    requiresFileUpload: true,
+    fileLabel: 'Dossier de demande',
+    decisionAuthority: 'officier_credit',
+    ordre: 7,
+  },
+  {
+    slug: 'mentorat',
+    libelle: 'Mentorat',
+    actionLabel: 'Candidater',
+    requiresFileUpload: false,
+    fileLabel: 'Lettre de motivation (optionnel)',
+    decisionAuthority: 'jury',
+    ordre: 8,
+  },
+  {
+    slug: 'mobilite',
+    libelle: 'Mobilité',
+    actionLabel: 'Postuler',
+    requiresFileUpload: true,
+    fileLabel: 'Dossier mobilité (justificatifs + projet)',
+    decisionAuthority: 'commission',
+    ordre: 9,
+  },
+  {
+    slug: 'volontariat',
+    libelle: 'Volontariat',
+    actionLabel: 'S\'engager',
+    requiresFileUpload: false,
+    fileLabel: 'CV (optionnel)',
+    decisionAuthority: 'organisation_accueil',
+    ordre: 10,
+  },
 ]
 
 export async function seedOpportuniteTypes(prisma: PrismaClient): Promise<number> {

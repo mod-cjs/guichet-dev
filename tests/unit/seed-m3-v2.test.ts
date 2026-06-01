@@ -42,16 +42,35 @@ describe('Seed M3 v2 — Programme', () => {
 })
 
 describe('Seed M3 v2 — OpportuniteType', () => {
-  it('expose exactement 6 types', () => {
-    expect(OPPORTUNITE_TYPES_SEED).toHaveLength(6)
+  it('expose exactement 10 types (6 initiaux + 4 ajoutés après audit site officiel guichetjeunesse.sn)', () => {
+    expect(OPPORTUNITE_TYPES_SEED).toHaveLength(10)
     expect(OPPORTUNITE_TYPES_SEED.map(t => t.slug).sort()).toEqual([
       'appel_a_projets',
       'bourse',
       'concours',
       'emploi',
+      'financement',
       'formation',
+      'mentorat',
+      'mobilite',
       'stage',
+      'volontariat',
     ])
+  })
+
+  it('financement est distinct d\'appel_a_projets (microcrédit / subvention au fil de l\'eau, pas de jury de sélection)', () => {
+    const financement = OPPORTUNITE_TYPES_SEED.find(t => t.slug === 'financement')!
+    expect(financement.decisionAuthority).toBe('officier_credit')
+    expect(financement.actionLabel).toBe('Demander')
+  })
+
+  it('mentorat, mobilité et volontariat sont alignés avec les types CJS', () => {
+    const mentorat = OPPORTUNITE_TYPES_SEED.find(t => t.slug === 'mentorat')!
+    const mobilite = OPPORTUNITE_TYPES_SEED.find(t => t.slug === 'mobilite')!
+    const volontariat = OPPORTUNITE_TYPES_SEED.find(t => t.slug === 'volontariat')!
+    expect(mentorat.decisionAuthority).toBe('jury')
+    expect(mobilite.decisionAuthority).toBe('commission')
+    expect(volontariat.decisionAuthority).toBe('organisation_accueil')
   })
 
   it('chaque type a un actionLabel non vide', () => {
