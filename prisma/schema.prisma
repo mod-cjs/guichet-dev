@@ -88,6 +88,46 @@ enum NiveauEtudes {
   @@map("niveau_etudes")
 }
 
+/// Type de financement (GUIC-183 / 178b post-audit — spec §19).
+enum TypeFinancement {
+  MICROCREDIT
+  SUBVENTION
+  DOTATION
+  PRET_HONNEUR
+  CAPITAL_AMORCAGE
+
+  @@map("type_financement")
+}
+
+/// Modalité de mentorat (GUIC-183 / 178b post-audit — spec §19).
+enum ModaliteMentorat {
+  INDIVIDUEL
+  GROUPE
+  COHORTE
+
+  @@map("modalite_mentorat")
+}
+
+/// Type de mobilité (GUIC-183 / 178b post-audit — spec §19).
+enum TypeMobilite {
+  ETUDE
+  STAGE
+  PROFESSIONNELLE
+  RECHERCHE
+
+  @@map("type_mobilite")
+}
+
+/// Type de volontariat (GUIC-183 / 178b post-audit — spec §19).
+enum TypeVolontariat {
+  SERVICE_CIVIQUE
+  ENGAGEMENT
+  INTERNATIONAL
+  HUMANITAIRE
+
+  @@map("type_volontariat")
+}
+
 enum Domaine {
   Agriculture
   Numerique
@@ -333,13 +373,18 @@ model Opportunite {
   typeRef   OpportuniteType? @relation(fields: [typeId], references: [id])
   programme Programme?       @relation(fields: [programmeId], references: [id], onDelete: SetNull)
 
-  // Sous-types 1:1 (un seul des six non-null — invariant applicatif)
+  // Sous-types 1:1 (un seul des dix non-null — invariant applicatif)
+  // Spec §19 — 4 sous-types ajoutés post-audit guichetjeunesse.sn (2026-06-01)
   emploi        OpportuniteEmploi?
   stage         OpportuniteStage?
   formation     OpportuniteFormation?
   bourse        OpportuniteBourse?
   concours      OpportuniteConcours?
   appelAProjets OpportuniteAppelAProjets?
+  financement   OpportuniteFinancement?
+  mentorat      OpportuniteMentorat?
+  mobilite      OpportuniteMobilite?
+  volontariat   OpportuniteVolontariat?
 
   skills       OpportuniteSkill[]
   tags         OpportuniteTag[]
@@ -809,4 +854,71 @@ model OpportuniteTag {
   @@id([opportuniteId, tagId])
   @@index([tagId])
   @@map("opportunites_tags")
+}
+
+// ─────────────────────────────────────────────
+// M3 v2 — Sous-types post-audit guichetjeunesse.sn (GUIC-183 / 178b — spec §19)
+// 4 sous-types ajoutés 2026-06-01 : FINANCEMENT, MENTORAT, MOBILITE, VOLONTARIAT
+// ─────────────────────────────────────────────
+
+/// Financements (microcrédit, subvention, dotation, prêt d'honneur, capital amorçage).
+/// Distinct d'OpportuniteAppelAProjets : guichet ouvert, décideur = officier de crédit
+/// (pas un jury de sélection compétitive).
+model OpportuniteFinancement {
+  opportuniteId          String          @id @map("opportunite_id") @db.VarChar(36)
+  montantFcfa            Int             @map("montant_fcfa")
+  typeFinancement        TypeFinancement @map("type_financement")
+  tauxAnnuel             Decimal?        @map("taux_annuel") @db.Decimal(5, 2)
+  garanties              String?         @db.Text
+  dureeRemboursementMois Int?            @map("duree_remboursement_mois")
+  organismeFinanceur     String          @map("organisme_financeur") @db.VarChar(150)
+  isContinuous           Boolean         @default(false) @map("is_continuous")
+  dateLimiteDepot        DateTime?       @map("date_limite_depot")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_financement")
+}
+
+/// Mentorat (incubation, coaching cohorte).
+model OpportuniteMentorat {
+  opportuniteId       String           @id @map("opportunite_id") @db.VarChar(36)
+  dureeMois           Int              @map("duree_mois")
+  modalite            ModaliteMentorat
+  thematique          String?          @db.VarChar(150)
+  placesDisponibles   Int?             @map("places_disponibles")
+  organisateurLibelle String           @map("organisateur_libelle") @db.VarChar(150)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_mentorat")
+}
+
+/// Mobilité (étude, stage, pro, recherche — internationale ou régionale).
+model OpportuniteMobilite {
+  opportuniteId      String       @id @map("opportunite_id") @db.VarChar(36)
+  destination        String       @db.VarChar(120)
+  typeMobilite       TypeMobilite @map("type_mobilite")
+  dureeMois          Int          @map("duree_mois")
+  prisEnCharge       String?      @map("pris_en_charge") @db.Text
+  niveauLangueRequis String?      @map("niveau_langue_requis") @db.VarChar(50)
+  dateDepartPrevue   DateTime?    @map("date_depart_prevue")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_mobilite")
+}
+
+/// Volontariat (service civique, engagement, international, humanitaire).
+model OpportuniteVolontariat {
+  opportuniteId          String          @id @map("opportunite_id") @db.VarChar(36)
+  dureeMois              Int             @map("duree_mois")
+  typeVolontariat        TypeVolontariat @map("type_volontariat")
+  indemniteMensuelleFcfa Int?            @map("indemnite_mensuelle_fcfa")
+  domaineMission         String          @map("domaine_mission") @db.VarChar(150)
+  placesDisponibles      Int?            @map("places_disponibles")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@map("opportunites_volontariat")
 }
