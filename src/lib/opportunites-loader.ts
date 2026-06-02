@@ -8,6 +8,7 @@ import type {
   OpportuniteListResult,
 } from '@/types/opportunite'
 import type { OpportuniteDetail } from '@/types/candidature'
+import { toOpportuniteDetailDTO, type OpportuniteRow } from '@/lib/opportunites/dto'
 
 /** Taille de page du catalogue public (règle CLAUDE.md : 20 items/page). */
 export const PAGE_SIZE = 20
@@ -182,29 +183,36 @@ export async function listOpportunites(
 
 // ── Détail d'une opportunité (GUIC-21) ──────────────────────────────────────
 
-const DETAIL_SELECT = {
-  id: true,
-  slug: true,
-  titre: true,
-  description: true,
-  type: true,
-  domaine: true,
-  region: true,
-  organisation: true,
-  remuneration: true,
-  deadline: true,
-  lienExterne: true,
-  vues: true,
-} satisfies Prisma.OpportuniteSelect
+/**
+ * Include pour le détail — charge la table mère + relations polymorphiques
+ * (GUIC-184 / 178c). Tant que la migration data (178d) n'est pas exécutée, les
+ * sous-types et `typeRef` peuvent être null : le DTO gère le cas legacy.
+ */
+const DETAIL_INCLUDE = {
+  typeRef: true,
+  programme: true,
+  emploi: true,
+  stage: true,
+  formation: true,
+  bourse: true,
+  concours: true,
+  appelAProjets: true,
+  financement: true,
+  mentorat: true,
+  mobilite: true,
+  volontariat: true,
+  skills: { include: { skill: true } },
+  tags: { include: { tag: true } },
+} satisfies Prisma.OpportuniteInclude
 
 /** Détail public d'une opportunité par slug, ou null si introuvable/non publiée. */
 export async function getOpportuniteDetail(slug: string): Promise<OpportuniteDetail | null> {
   const o = await prisma.opportunite.findFirst({
     where: { slug, statut: 'publiee', deletedAt: null },
-    select: DETAIL_SELECT,
+    include: DETAIL_INCLUDE,
   })
   if (!o) return null
-  return { ...o, deadline: toIso(o.deadline) }
+  return toOpportuniteDetailDTO(o as OpportuniteRow)
 }
 
 /**
