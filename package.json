@@ -28,6 +28,8 @@
     "migrate:drupal:dry-run": "tsx scripts/migrate-drupal.ts --dry-run",
     "migrate:drupal:profils": "tsx scripts/migrate-drupal.ts --phase=profils",
     "migrate:drupal:contenus": "tsx scripts/migrate-drupal.ts --phase=opportunites && tsx scripts/migrate-drupal.ts --phase=evenements && tsx scripts/migrate-drupal.ts --phase=ressources",
+    "migrate:drupal:users:dry-run": "tsx scripts/migrate-drupal-users.ts",
+    "migrate:drupal:users:apply": "tsx scripts/migrate-drupal-users.ts --apply",
     "migrate:phones": "tsx scripts/backfill-sso-phones.ts",
     "migrate:sso:create": "tsx scripts/create-sso-accounts.ts",
     "migrate:sso:create:dry-run": "tsx scripts/create-sso-accounts.ts --dry-run",

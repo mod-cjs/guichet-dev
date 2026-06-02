@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button, Toast } from '@/components/ui'
+import { Icon } from '@/components/ui/Icon'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
 import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
@@ -15,27 +16,6 @@ interface OpportuniteDetailProps {
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 const humanize = (v: string) => v.replace(/_/g, ' ')
-
-function ShareIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-    </svg>
-  )
-}
 
 function KeyFact({ label, value }: { label: string; value: string }) {
   return (
@@ -175,7 +155,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
           {isFavori ? 'Sauvegardée' : 'Sauvegarder'}
         </button>
         <Button variant="ghost" size="lg" onClick={share} aria-label="Partager">
-          <ShareIcon />
+          <Icon name="share" />
           <span className="sr-only md:not-sr-only">Partager</span>
         </Button>
       </div>
