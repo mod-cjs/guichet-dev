@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 /**
  * Layout des pages app jeune.
@@ -17,6 +18,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
 
   return (
     <>
+      <SkipLink />
       {/* Desktop : header marketing + footer (mobile shell géré globalement) */}
       <div className="hidden md:block">
         <Header />

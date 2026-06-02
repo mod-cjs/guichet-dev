@@ -43,6 +43,8 @@
   .container-wide   { max-width: var(--gj-container-wide); margin-inline: auto; padding-inline: var(--space-4); }
   .container-md     { max-width: var(--gj-container-md); margin-inline: auto; padding-inline: var(--space-4); }
   .container-narrow { max-width: var(--gj-container-narrow); margin-inline: auto; padding-inline: var(--space-4); }
+  /* Lecture longue (articles, pages éditoriales) — largeur de lecture confortable */
+  .container-prose  { max-width: 720px; margin-inline: auto; padding-inline: var(--space-4); }
 }
 
 /* Onboarding — switch mobile/web purement CSS au breakpoint `--bp-lg` (1024px).
