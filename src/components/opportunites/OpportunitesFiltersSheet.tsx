@@ -218,7 +218,7 @@ export function OpportunitesFiltersSheet({
       {/* Barre d'action collante */}
       <div
         className="sticky bottom-0 -mx-space-4 mt-space-4 px-space-4 pt-space-3 pb-space-2
-          bg-white border-t border-gj-line flex gap-space-2"
+          bg-gj-surface border-t border-gj-line flex gap-space-2"
       >
         <Button variant="ghost" size="lg" onClick={reset} className="shrink-0">
           Réinitialiser

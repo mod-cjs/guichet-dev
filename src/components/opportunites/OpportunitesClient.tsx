@@ -166,7 +166,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Rechercher un emploi, un stage, une bourse…"
-          className="w-full px-space-4 rounded-gj-md border-[1.5px] border-gj-line bg-white
+          className="w-full px-space-4 rounded-gj-md border-[1.5px] border-gj-line bg-gj-surface
             text-[16px] min-h-[var(--tap-input)] focus:outline-none focus:border-gj-teal-deep
             focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
         />
