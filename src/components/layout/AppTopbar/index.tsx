@@ -113,7 +113,8 @@ export function AppTopbar({
                 borderRadius: 999,
                 fontSize: 11.5,
                 fontWeight: 800,
-                minHeight: 36,
+                minHeight: 'var(--tap-min)',
+                minWidth: 'var(--tap-min)',
               }}
             >
               <YayeAvatar size={24} />
@@ -143,7 +144,8 @@ export function AppTopbar({
                 borderRadius: 999,
                 fontSize: 11.5,
                 fontWeight: 800,
-                minHeight: 36,
+                minHeight: 'var(--tap-min)',
+                minWidth: 'var(--tap-min)',
               }}
             >
               <YayeAvatar size={24} />
@@ -170,7 +172,11 @@ export function AppTopbar({
               onClick={onBellClick}
               aria-label={hasUnread ? `Notifications (${unread} non lues)` : 'Notifications'}
               className="relative inline-flex items-center justify-center bg-transparent border-0 cursor-pointer"
-              style={{ width: 36, height: 36, color: 'var(--gj-ink)' }}
+              style={{
+                minWidth: 'var(--tap-min)',
+                minHeight: 'var(--tap-min)',
+                color: 'var(--gj-ink)',
+              }}
             >
               <Icon name="bell" size={20} />
               {hasUnread ? (
@@ -203,7 +209,11 @@ export function AppTopbar({
               href="/jeune/notifications"
               aria-label={hasUnread ? `Notifications (${unread} non lues)` : 'Notifications'}
               className="relative inline-flex items-center justify-center no-underline"
-              style={{ width: 36, height: 36, color: 'var(--gj-ink)' }}
+              style={{
+                minWidth: 'var(--tap-min)',
+                minHeight: 'var(--tap-min)',
+                color: 'var(--gj-ink)',
+              }}
             >
               <Icon name="bell" size={20} />
               {hasUnread ? (
