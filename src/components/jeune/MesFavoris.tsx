@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { EmptyState, SkeletonCard } from '@/components/ui'
-import { OpportunityCard } from '@/components/opportunites/OpportunityCard'
+import { OppCard } from '@/components/opportunites/OppCard'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
 /** Liste des opportunités sauvegardées par le jeune connecté (GUIC-20). */
@@ -64,7 +64,7 @@ export function MesFavoris() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
       {items.map((item) => (
-        <OpportunityCard key={item.id} item={item} isFavori onToggleFavori={remove} />
+        <OppCard key={item.id} item={item} isFavori onToggleFavori={remove} />
       ))}
     </div>
   )

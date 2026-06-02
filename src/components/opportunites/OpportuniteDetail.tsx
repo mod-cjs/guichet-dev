@@ -1,10 +1,8 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button, Toast } from '@/components/ui'
-import { Icon } from '@/components/ui/Icon'
+import { Button, Icon, Toast } from '@/components/ui'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
-import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -116,7 +114,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
       )}
 
       {/* Barre d'actions — collante, séparée du contenu qui défile dessous */}
-      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-white py-space-3
+      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-gj-surface py-space-3
         border-t border-gj-line">
         {!viewer ? (
           <a
@@ -148,14 +146,14 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
             ${
               isFavori
                 ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep'
-                : 'bg-white border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
+                : 'bg-gj-surface border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
             }`}
         >
-          <HeartIcon filled={isFavori} />
+          <Icon name="heart" size={20} className={isFavori ? 'fill-current' : undefined} />
           {isFavori ? 'Sauvegardée' : 'Sauvegarder'}
         </button>
         <Button variant="ghost" size="lg" onClick={share} aria-label="Partager">
-          <Icon name="share" />
+          <Icon name="share" size={20} />
           <span className="sr-only md:not-sr-only">Partager</span>
         </Button>
       </div>
