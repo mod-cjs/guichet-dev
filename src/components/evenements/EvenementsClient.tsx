@@ -94,7 +94,7 @@ export function EvenementsClient({ initialItems, total }: EvenementsClientProps)
         />
       ) : (
         <>
-          <ul className="flex flex-col gap-space-3 list-none p-0 m-0">
+          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-space-3 list-none p-0 m-0">
             {shown.map((ev) => (
               <li key={ev.id}>
                 <EventCard item={ev} onInscrire={handleInscrire} />

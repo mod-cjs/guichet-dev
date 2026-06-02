@@ -192,7 +192,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
 
       {/* Rangée horizontale de chips types — mobile uniquement (design v2 M1). */}
       <div
-        className="md:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
+        className="lg:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
           snap-x snap-mandatory scrollbar-none"
         role="tablist"
         aria-label="Filtrer par type d'opportunité"
@@ -225,15 +225,17 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       </div>
 
       {/* Bouton filtres avancés — mobile */}
-      <div className="md:hidden mb-space-3">
+      <div className="lg:hidden mb-space-3">
         <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
           Filtres avancés{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
-      <div className="flex gap-space-5">
+      {/* Layout desktop conforme design v2 (lot3-opps-web.jsx#WebOppList) :
+          sidebar filtres 280px à gauche + liste 1-col à droite. Mobile : sheet. */}
+      <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-space-5">
         {/* Panneau filtres — desktop */}
-        <aside className="hidden md:block w-[260px] flex-shrink-0">
+        <aside className="hidden lg:block">
           <div className="sticky top-space-4">
             <FiltresPanel
               value={filters}
@@ -243,10 +245,10 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           </div>
         </aside>
 
-        {/* Grille de résultats */}
+        {/* Liste de résultats — 1 colonne en desktop (conforme design v2) */}
         <div className="flex-1 min-w-0">
           {status === 'loading' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
+            <div className="grid grid-cols-1 gap-space-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -280,7 +282,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           )}
 
           {items.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
+            <div className="grid grid-cols-1 gap-space-3">
               {items.map((item) => (
                 <OppCard
                   key={item.id}
