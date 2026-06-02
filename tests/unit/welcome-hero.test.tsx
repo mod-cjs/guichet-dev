@@ -2,35 +2,60 @@
  * @jest-environment jsdom
  */
 import { render, screen } from '@testing-library/react'
-import { WelcomeHero } from '@/components/home/WelcomeHero'
+import { WelcomeHeroMobile } from '@/components/home/WelcomeHeroMobile'
+import { WelcomeHeroWeb } from '@/components/home/WelcomeHeroWeb'
 
-describe('<WelcomeHero /> — homepage publique (GUIC-199)', () => {
-  it('affiche les 3 stats CJS', () => {
-    render(<WelcomeHero />)
+describe('<WelcomeHeroMobile />', () => {
+  it('affiche les stats CJS', () => {
+    render(<WelcomeHeroMobile />)
     expect(screen.getByText('22 695')).toBeInTheDocument()
     expect(screen.getByText('1 240')).toBeInTheDocument()
     expect(screen.getByText('14')).toBeInTheDocument()
   })
 
-  it('CTA primaire "Créer mon profil" pointe vers /auth/connexion', () => {
-    render(<WelcomeHero />)
-    const cta = screen.getByRole('link', { name: /créer mon profil/i })
-    expect(cta).toHaveAttribute('href', '/auth/connexion')
+  it('CTA primaire pointe vers /auth/connexion', () => {
+    render(<WelcomeHeroMobile />)
+    expect(screen.getByRole('link', { name: /créer mon profil/i })).toHaveAttribute(
+      'href',
+      '/auth/connexion',
+    )
   })
 
-  it('CTA secondaire "Voir les opportunités" pointe vers /opportunites', () => {
-    render(<WelcomeHero />)
-    const cta = screen.getByRole('link', { name: /voir les opportunités/i })
-    expect(cta).toHaveAttribute('href', '/opportunites')
+  it('CTA secondaire pointe vers /opportunites', () => {
+    render(<WelcomeHeroMobile />)
+    expect(screen.getByRole('link', { name: /voir les opportunités/i })).toHaveAttribute(
+      'href',
+      '/opportunites',
+    )
+  })
+})
+
+describe('<WelcomeHeroWeb />', () => {
+  it('affiche les 4 stats CJS (incluant Centres)', () => {
+    render(<WelcomeHeroWeb />)
+    expect(screen.getByText('22 695')).toBeInTheDocument()
+    expect(screen.getByText('9')).toBeInTheDocument()
+    expect(screen.getByText(/centres cjs/i)).toBeInTheDocument()
   })
 
-  it('affiche l\'eyebrow marketing "Le guichet unique du CJS"', () => {
-    render(<WelcomeHero />)
-    expect(screen.getByText(/le guichet unique du cjs/i)).toBeInTheDocument()
+  it('CTA primaire "Créer mon compte gratuit" pointe vers /auth/connexion', () => {
+    render(<WelcomeHeroWeb />)
+    expect(screen.getByRole('link', { name: /créer mon compte gratuit/i })).toHaveAttribute(
+      'href',
+      '/auth/connexion',
+    )
   })
 
-  it('affiche le titre principal', () => {
-    render(<WelcomeHero />)
-    expect(screen.getByRole('heading', { level: 1, name: /trouve ta prochaine opportunité/i })).toBeInTheDocument()
+  it('CTA secondaire pointe vers /opportunites', () => {
+    render(<WelcomeHeroWeb />)
+    expect(screen.getByRole('link', { name: /voir les opportunités/i })).toHaveAttribute(
+      'href',
+      '/opportunites',
+    )
+  })
+
+  it('affiche le titre "Ton avenir, commence ici."', () => {
+    render(<WelcomeHeroWeb />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/ton avenir/i)
   })
 })
