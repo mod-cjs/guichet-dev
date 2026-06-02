@@ -83,7 +83,7 @@ export function OnboardingRecommandationsWeb({ prenom }: Props) {
           }}
         >
           <div className="flex items-center gap-3">
-            <YayeAvatar size={60} withBadge />
+            <YayeAvatar size={64} withBadge />
             <div>
               <h2 className="font-black" style={{ fontSize: 26, lineHeight: 1.2, letterSpacing: '-.3px' }}>
                 {headline}

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OnboardingProfil } from '../_screens/OnboardingProfil'
+import { OnboardingProfilWeb } from '../_screens-web/OnboardingProfilWeb'
 
 export const metadata = { title: 'Ton profil — Guichet Jeunesse' }
 
@@ -35,5 +36,10 @@ export default async function OnboardingProfilPage() {
     commune:       utilisateur?.commune ?? '',
   }
 
-  return <OnboardingProfil initial={initial} />
+  return (
+    <>
+      <div className="gj-onboarding-mobile"><OnboardingProfil initial={initial} /></div>
+      <div className="gj-onboarding-web"><OnboardingProfilWeb initial={initial} /></div>
+    </>
+  )
 }
