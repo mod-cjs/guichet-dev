@@ -481,3 +481,90 @@ Badges urgents (J-3, J-1).
 ### Synthèse — décisions PO requises encore en attente
 
 Aucune. Toutes les questions soulevées par la Phase 1 ont été tranchées par le PO ou par décision tech lead documentée ci-dessus. Phase 0 peut démarrer.
+
+---
+
+## 20. État réel de la refonte au 2026-06-01 (audit complet)
+
+Audit complet effectué après livraison de Phase 0 + Phase 1 + Phase 2A + chaîne M3 v2 (PR #31-34). Constat : **l'outillage est en place (~95%), mais l'intégration dans les pages applicatives est très partielle (~5%)** — l'utilisateur final voit encore l'ancien design partout sauf sur l'onboarding mobile.
+
+### 20.1 Inventaire des pages refondues / non refondues
+
+**Pages utilisant les composants v2** (5) :
+- `/jeune/onboarding` (5 écrans Phase 2A — GUIC-179 ✅)
+- `/preview-v2` (page dev de démo, GUIC-171)
+
+**Pages NON refondues** (utilisent l'ancien design) :
+
+| Page | Statut | Cible design v2 |
+|---|---|---|
+| `/jeune/(app)/tableau-de-bord` | 🔴 Ancien | Hero gradient + KPIs + carousel + tracker + events + centres |
+| `/jeune/(app)/mes-candidatures` | 🔴 Ancien | Pipeline 5 étapes par opportunité |
+| `/jeune/(app)/mes-favoris` | 🔴 Ancien | Liste cards v2 |
+| `/jeune/(app)/mes-formations` | 🔴 Ancien | Liste + état |
+| `/jeune/(app)/mon-profil` | 🔴 Ancien | Profil + MyCard QR (Q5 HMAC) |
+| `/opportunites` (liste publique + connectée) | 🔴 Ancien | Search + chips + bottom-sheet filtres + cards |
+| `/opportunites/[slug]` | 🔴 Ancien | Bottom-sheet hero + tabs + sticky CTA |
+| `/agenda` | 🔴 Ancien | Liste événements v2 |
+| `/ressources` | 🔴 Ancien | Liste ressources v2 |
+| `/centres` | 🔴 Ancien | Map + liste + ateliers |
+| `/jeune/yaye` | 🔴 N'existe pas | Chat plein écran (Q7 spec) |
+| Drawer notifications mobile | 🔴 N'existe pas | Tab filter, groupé par date |
+| Onboarding web (5 écrans) | 🔴 N'existe pas | Wizard 5 étapes |
+| Dashboard web | 🔴 Ancien header marketing | Sidebar + topbar + hero + tracker |
+| Opportunités web (slide-over + modal) | 🔴 Ancien | Web complet |
+| Yaye side panel web | 🔴 N'existe pas | Side panel non-routé |
+
+### 20.2 Score réel par couche
+
+| Couche | % livré | Détail |
+|---|---|---|
+| Design system (tokens, composants, layouts) | ~95% | `src/components/ui/` + `tokens.css` complets |
+| Schéma DB M3 polymorphique | ~80% | Tables + sous-types + service + DTO ✅, migration data 🔴 (GUIC-185) |
+| **Pages refondues (UX livrée)** | **~5%** | Onboarding mobile seulement (5/~30 pages cibles) |
+| **Refonte globale (perception utilisateur)** | **~30%** | L'utilisateur final voit encore l'ancien design partout sauf onboarding |
+
+### 20.3 Phase 2B — Mobile bénéficiaire (8 stories créées 2026-06-01)
+
+| Story | Périmètre | Bloqué par |
+|---|---|---|
+| [GUIC-187](https://consortiumjeunesse.atlassian.net/browse/GUIC-187) | Phase 2B-1 — Dashboard bénéficiaire mobile | GUIC-185 |
+| [GUIC-188](https://consortiumjeunesse.atlassian.net/browse/GUIC-188) | Phase 2B-2 — Opportunités mobile : liste + filtres bottom-sheet | GUIC-185 |
+| [GUIC-189](https://consortiumjeunesse.atlassian.net/browse/GUIC-189) | Phase 2B-3 — Opportunités mobile : détail + candidature + confirmation | GUIC-185, GUIC-180 (upload CV) |
+| [GUIC-190](https://consortiumjeunesse.atlassian.net/browse/GUIC-190) | Phase 2B-4 — Candidatures pipeline mobile | — |
+| [GUIC-191](https://consortiumjeunesse.atlassian.net/browse/GUIC-191) | Phase 2B-5 — Favoris + Profil mobile + MyCard QR | GUIC-180 |
+| [GUIC-192](https://consortiumjeunesse.atlassian.net/browse/GUIC-192) | Phase 2B-6 — Agenda + Ressources mobile | — |
+| [GUIC-193](https://consortiumjeunesse.atlassian.net/browse/GUIC-193) | Phase 2B-7 — Centres CJS mobile | — |
+| [GUIC-194](https://consortiumjeunesse.atlassian.net/browse/GUIC-194) | Phase 2B-8 — Yaye fullscreen + Drawer notifications mobile | — |
+
+**Stories non bloquées** (peuvent démarrer immédiatement) : 190, 192, 193, 194. Idéales pour avancer pendant GUIC-185.
+
+### 20.4 Phase 3 — Web bénéficiaire (4 stories créées 2026-06-01)
+
+| Story | Périmètre | Bloqué par |
+|---|---|---|
+| [GUIC-195](https://consortiumjeunesse.atlassian.net/browse/GUIC-195) | Phase 3-1 — Onboarding web (5 écrans) | — |
+| [GUIC-196](https://consortiumjeunesse.atlassian.net/browse/GUIC-196) | Phase 3-2 — Dashboard web bénéficiaire | GUIC-185 + Phase 2B-1 |
+| [GUIC-197](https://consortiumjeunesse.atlassian.net/browse/GUIC-197) | Phase 3-3 — Opportunités web (slide-over + modal apply) | GUIC-185 + Phase 2B-2/3 |
+| [GUIC-198](https://consortiumjeunesse.atlassian.net/browse/GUIC-198) | Phase 3-4 — Yaye side panel + Centres web + Notifications web | — |
+
+### 20.5 Phase 4 — Modules différés (Q5 spec — pas dans périmètre immédiat)
+
+`M8 admin`, `M9 recruteur`, `M10 interop`, `M11 whatsapp`, `M12 IA`, `M13 data` + pages programmes sectoriels. Refondus en dernier, après le périmètre jeune complet.
+
+### 20.6 Estimation de l'effort restant
+
+- **Phase 2B mobile** : 8 stories × ~1.5 jour = ~3 sprints
+- **Phase 3 web** : 4 stories × ~2 jours = ~2 sprints
+- **GUIC-185** (migration data, bloquant transverse) : 1-1.5 jour
+- **Total avant Phase 4** : ~6 sprints (12 semaines) pour atteindre 95%+ de la refonte côté utilisateur final
+
+### 20.7 Recommandation parallélisation
+
+Les stories non bloquées par GUIC-185 (190, 192, 193, 194, 195, 198) peuvent démarrer immédiatement en parallèle de la migration data. Cela permet de livrer en continu et d'éviter d'attendre la fin du chantier M3 pour voir le design v2 dans l'app.
+
+**Ordre suggéré sprint suivant** :
+1. Merger chaîne PR #31-34 (M3 v2 complet) → `dev`
+2. Lancer **GUIC-185** (migration data) + **GUIC-194** (Yaye fullscreen) en parallèle
+3. Puis **GUIC-187** (Dashboard mobile) et **GUIC-188** (Opportunités mobile) une fois GUIC-185 mergée
+4. Le reste suit en parallèle selon priorisation PO
