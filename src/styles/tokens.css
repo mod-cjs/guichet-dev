@@ -53,6 +53,7 @@
   --gj-yaye-deep-2: var(--gj-teal-deep-2); /* alias \u2014 #005A43 */
   --gj-yaye-ink:    var(--gj-teal-soft);   /* texte sur surface Yaye */
   --gj-yaye-accent: var(--gj-yellow);      /* accent jaune = "IA" / call-out */
+  --gj-yaye-font:   Georgia, serif;        /* police signature Yaye (wordmark / labels IA) */
 
   /* Gradient signature Yaye \u2014 r\u00e9serv\u00e9 WORDMARK + AVATAR uniquement.
      Extrait du logo officiel `assets/logo-yeah.svg`. */
