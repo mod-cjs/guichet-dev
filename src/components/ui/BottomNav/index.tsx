@@ -14,15 +14,16 @@ interface NavItem {
  * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
  * aucun emoji comme icône de nav.
  *
- * Note : le sprite n'expose pas d'icône `user` — on utilise `profile`
- * (équivalent sémantique le plus proche dans ICON_NAMES).
+ * Note : item Profil retiré (accessible via AppTopbar mobile, icône user
+ * en haut). Remplacé par Centres pour exposer la cartographie YEAH —
+ * cf GUIC-205 sous-PR A.
  */
 const ITEMS: NavItem[] = [
-  { href: '/',                 icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites',     icon: 'search',   label: 'Explorer' },
-  { href: '/agenda',           icon: 'calendar', label: 'Agenda' },
-  { href: '/ressources',       icon: 'document', label: 'Ressources' },
-  { href: '/jeune/mon-profil', icon: 'profile',  label: 'Profil' },
+  { href: '/',             icon: 'home',     label: 'Accueil' },
+  { href: '/opportunites', icon: 'search',   label: 'Explorer' },
+  { href: '/agenda',       icon: 'calendar', label: 'Agenda' },
+  { href: '/ressources',   icon: 'document', label: 'Ressources' },
+  { href: '/centres',      icon: 'pin',      label: 'Centres' },
 ]
 
 interface BottomNavProps {
@@ -34,7 +35,7 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
+      className="lg:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
         grid grid-cols-5"
       style={{
         paddingBottom: 'calc(6px + var(--safe-bottom))',
