@@ -8,23 +8,16 @@ const STATS = [
 ] as const
 
 /**
- * Hero d'accueil — design v2 (anciennement `OnboardingWelcome` écran 1/5).
- *
- * Déplacé du funnel onboarding vers la homepage publique `/` (GUIC-199),
- * parce que le funnel est désormais entré post-SSO : un user qui visite
- * `/jeune/onboarding` est déjà connecté, donc l'écran marketing avec
- * "J'ai déjà un compte" n'avait plus de sens.
- *
- * CTAs :
- * - Primaire jaune "Créer mon profil" → `/auth/connexion` (SSO unique)
- * - Ghost "Voir les opportunités" → `/opportunites`
+ * Hero d'accueil mobile — affiché < 1024px (la variante desktop a son propre layout split).
+ * Container max-w-[480px] centré pour ne pas s'étirer sur tablette portrait.
  */
-export function WelcomeHero() {
+export function WelcomeHeroMobile() {
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-col mx-auto"
       style={{
         minHeight: 'calc(100dvh - 3rem)',
+        maxWidth: 480,
         background: 'var(--gj-ink-teal)',
         color: '#fff',
       }}
