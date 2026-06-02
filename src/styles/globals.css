@@ -45,6 +45,18 @@
   .container-narrow { max-width: var(--gj-container-narrow); margin-inline: auto; padding-inline: var(--space-4); }
 }
 
+/* Onboarding — switch mobile/web purement CSS au breakpoint `--bp-lg` (1024px).
+   Phase 3-1 (GUIC-195) : les routes `/jeune/onboarding/*` rendent côte-à-côte
+   la version mobile et la version web ; le viewport courant affiche
+   l'une OU l'autre via `display: none`. Aucun flash : tout est résolu par
+   le navigateur avant le 1er paint. */
+.gj-onboarding-mobile { display: block; }
+.gj-onboarding-web    { display: none; }
+@media (min-width: 1024px) {
+  .gj-onboarding-mobile { display: none; }
+  .gj-onboarding-web    { display: block; }
+}
+
 /* Shell mobile global (GUIC-166) — CSS-only via :has() pour éviter tout flash.
    Quand la BottomNav (`.gj-bottom-nav`) est présente dans le DOM, on réserve la
    place sous le contenu. Cette approche est purement déclarative — pas de JS,
