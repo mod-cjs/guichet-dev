@@ -26,6 +26,7 @@ import * as mysql             from 'mysql2/promise'
 import type { RowDataPacket } from 'mysql2'
 import * as fs                from 'fs'
 import * as path              from 'path'
+import { slugify }            from '../src/lib/slug'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -401,6 +402,9 @@ async function migrateOpportunites(
         await prisma.opportunite.create({
           data: {
             drupalNid:    node.nid,
+            // Slug unique : slugify(titre) + suffixe drupalNid pour garantir l'unicité
+            // (les titres Drupal peuvent collider après slugification).
+            slug:         `${slugify(node.title || `opp-${node.nid}`)}-${node.nid}`,
             titre:        node.title,
             description:  node.body ?? '',
             type:         mapTypeOpportunite(node.type, node.type_opp) as any,

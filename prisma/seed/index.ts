@@ -47,8 +47,22 @@
 
 import { prisma } from '../../src/lib/prisma'
 import { seedOpportunites } from './opportunites'
+import { seedProgrammes } from './programmes'
+import { seedOpportuniteTypes } from './opportunite-types'
+import { seedSkills } from './skills'
+import { seedTags } from './tags'
 
 async function main() {
+  // Tables de référence M3 v2 (GUIC-182 / 178a) — ordre indépendant, sans FK croisées
+  const nbProgrammes = await seedProgrammes(prisma)
+  const nbTypes = await seedOpportuniteTypes(prisma)
+  const nbSkills = await seedSkills(prisma)
+  const nbTags = await seedTags(prisma)
+  console.log(
+    `Seed M3 v2 — ${nbProgrammes} programmes, ${nbTypes} types, ${nbSkills} skills, ${nbTags} tags.`,
+  )
+
+  // Opportunités legacy (sera repris par 178d via OpportuniteService)
   const count = await seedOpportunites(prisma)
   console.log(`Seed Guichet Jeunesse — ${count} opportunités insérées (GUIC-20).`)
 }

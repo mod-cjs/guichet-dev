@@ -1149,3 +1149,127 @@ Si équivalences étrangères nécessaires → champ `niveauEtudeNotes` String? 
 | Q9 `actif` conservé | Confirme bloc Prisma §3 |
 
 Spec **finale validée**. GUIC-178 peut être lancée.
+
+---
+
+## 19. Extension post-audit site officiel (2026-06-01)
+
+Audit du site officiel **`guichetjeunesse.sn`** + page institutionnelle **`consortiumjeunessesenegal.org`** lors du lancement GUIC-183 a révélé des manques par rapport à l'UX existante et aux programmes CJS effectivement actifs.
+
+### 19.1 Manques identifiés
+
+1. **Catégorie `Financements`** : `guichetjeunesse.sn` expose **6 catégories** (Emplois · Stages · Formations · Concours · Bourses · **Financements**). `Financements` est sémantiquement distinct de `Bourses` (individuel) et `Appels à projets` (compétitif).
+2. **Types CJS explicitement listés** mais initialement exclus du MVP : **mentorship, mobility, volunteering** (cités sur la page institutionnelle).
+3. **Descriptions Programme inexactes** : YEAH n'est pas "Youth Empowerment for African Health" (erreur héritée) mais **"Youth Employment & Agricultural Hub"** (employabilité + agriculture, 70% femmes). Yaakaar est en fait la stratégie globale CJS 2030 (3 piliers Bokk/Jàng/Ligeey). EduPop = plateforme de compétences fondamentales.
+
+### 19.2 Décisions PO 2026-06-01
+
+| Décision | Impact |
+|---|---|
+| Ajouter **`FINANCEMENT`** comme 7e sous-type CTI | Distinct d'APPEL_A_PROJETS — microcrédit / subvention / dotation / capital amorçage, guichet ouvert, décideur = officier de crédit |
+| Ajouter **`MENTORAT`** comme 8e sous-type CTI | Programmes d'incubation / coaching cohorte, jury sélection |
+| Ajouter **`MOBILITE`** comme 9e sous-type CTI | Étude / stage / pro internationale, commission de sélection |
+| Ajouter **`VOLONTARIAT`** comme 10e sous-type CTI | Service civique / engagement, indemnité variable, organisation d'accueil |
+| Corriger description **YEAH** | "Youth Employment & Agricultural Hub" (pas "for African Health") |
+| Corriger description **Yaakaar** | "Stratégie globale CJS 2030 — Bokk/Jàng/Ligeey" |
+| Corriger description **EduPop** | "Plateforme de compétences fondamentales" |
+
+### 19.3 Périmètre final — 10 sous-types CTI
+
+1. EMPLOI · 2. STAGE · 3. FORMATION · 4. BOURSE · 5. CONCOURS · 6. APPEL_A_PROJETS · 7. **FINANCEMENT** · 8. **MENTORAT** · 9. **MOBILITE** · 10. **VOLONTARIAT**
+
+### 19.4 Champs spécifiques aux nouveaux sous-types
+
+```prisma
+model OpportuniteFinancement {
+  opportuniteId          String           @id @map("opportunite_id") @db.VarChar(36)
+  montantFcfa            Int              @map("montant_fcfa")
+  typeFinancement        TypeFinancement  @map("type_financement") // microcrédit | subvention | dotation | pret_honneur | capital_amorcage
+  tauxAnnuel             Decimal?         @map("taux_annuel") @db.Decimal(5,2) // null si subvention/dotation
+  garanties              String?          @db.Text
+  dureeRemboursementMois Int?             @map("duree_remboursement_mois")
+  organismeFinanceur     String           @map("organisme_financeur") @db.VarChar(150)
+  isContinuous           Boolean          @default(false) @map("is_continuous") // guichet ouvert vs date limite
+  dateLimiteDepot        DateTime?        @map("date_limite_depot")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  @@map("opportunites_financement")
+}
+
+model OpportuniteMentorat {
+  opportuniteId        String          @id @map("opportunite_id") @db.VarChar(36)
+  dureeMois            Int             @map("duree_mois")
+  modalite             ModaliteMentorat // individuel | groupe | cohorte
+  thematique           String?         @db.VarChar(150)
+  placesDisponibles    Int?            @map("places_disponibles")
+  organisateurLibelle  String          @map("organisateur_libelle") @db.VarChar(150)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  @@map("opportunites_mentorat")
+}
+
+model OpportuniteMobilite {
+  opportuniteId       String       @id @map("opportunite_id") @db.VarChar(36)
+  destination         String       @db.VarChar(120)
+  typeMobilite        TypeMobilite @map("type_mobilite") // etude | stage | professionnelle | recherche
+  dureeMois           Int          @map("duree_mois")
+  prisEnCharge        String?      @map("pris_en_charge") @db.Text // bourse + billet + logement…
+  niveauLangueRequis  String?      @map("niveau_langue_requis") @db.VarChar(50)
+  dateDepartPrevue    DateTime?    @map("date_depart_prevue")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  @@map("opportunites_mobilite")
+}
+
+model OpportuniteVolontariat {
+  opportuniteId          String           @id @map("opportunite_id") @db.VarChar(36)
+  dureeMois              Int              @map("duree_mois")
+  typeVolontariat        TypeVolontariat  @map("type_volontariat") // service_civique | engagement | international | humanitaire
+  indemniteMensuelleFcfa Int?             @map("indemnite_mensuelle_fcfa")
+  domaineMission         String           @map("domaine_mission") @db.VarChar(150) // santé | éducation | environnement…
+  placesDisponibles      Int?             @map("places_disponibles")
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  @@map("opportunites_volontariat")
+}
+
+enum TypeFinancement {
+  MICROCREDIT
+  SUBVENTION
+  DOTATION
+  PRET_HONNEUR
+  CAPITAL_AMORCAGE
+  @@map("type_financement")
+}
+
+enum ModaliteMentorat {
+  INDIVIDUEL
+  GROUPE
+  COHORTE
+  @@map("modalite_mentorat")
+}
+
+enum TypeMobilite {
+  ETUDE
+  STAGE
+  PROFESSIONNELLE
+  RECHERCHE
+  @@map("type_mobilite")
+}
+
+enum TypeVolontariat {
+  SERVICE_CIVIQUE
+  ENGAGEMENT
+  INTERNATIONAL
+  HUMANITAIRE
+  @@map("type_volontariat")
+}
+```
+
+### 19.5 Impact migrations / code
+
+- **GUIC-182 (178a)** : amendement — corriger seeds `Programme` + ajouter 4 entrées `OpportuniteType` (financement, mentorat, mobilité, volontariat). Effort : 30 min.
+- **GUIC-183 (178b)** : amendement — ajouter 4 modèles Prisma + 4 enums + 1 nouvelle migration SQL + étendre `OpportuniteService` (CRUD pour les 4 nouveaux sous-types) + étendre discriminated unions + tests. Effort : 1-1.5h.
+- **GUIC-184 (178c)** : DTO étendu pour exposer les 4 nouveaux types côté API (préservation contrat pour ce qui existait, ajout naturel pour le reste).
+- **GUIC-185 (178d)** : pas d'impact spécifique (pas de données legacy pour ces 4 types).
+- **Spec mergée dans `dev`** : cette section §19 sera ajoutée via la PR de GUIC-182 amendée (cohérence : seed updates + spec updates dans le même commit).
