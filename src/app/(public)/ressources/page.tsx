@@ -1,20 +1,30 @@
 import type { Metadata } from 'next'
+import { listRessources } from '@/lib/loaders/ressources'
+import { RessourcesClient } from '@/components/ressources'
 
-export const metadata: Metadata = { title: 'Ressources' }
+export const metadata: Metadata = {
+  title: 'Ressources',
+  description:
+    'Bibliothèque de guides, vidéos et outils pédagogiques pour les jeunes du Sénégal.',
+}
 
-export default function Page() {
+export const dynamic = 'force-dynamic'
+
+export default async function RessourcesPage() {
+  const { items, total } = await listRessources()
+
   return (
     <div className="container-page py-space-6">
-      <div className="mb-space-5">
-        <h1 className="text-fs-800 font-black text-color-text-primary">Bibliothèque de ressources</h1>
+      <header className="mb-space-5">
+        <h1 className="text-fs-800 font-black text-color-text-primary">
+          Bibliothèque de ressources
+        </h1>
         <p className="text-fs-300 text-color-text-secondary mt-space-1">
           Guides, vidéos et outils pédagogiques
         </p>
-      </div>
-      {/* Sprint 2 — M6 : catalogue + filtres + favoris */}
-      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        🚧 Bibliothèque de ressources — Sprint 2 (M6)
-      </div>
+      </header>
+
+      <RessourcesClient initialItems={items} total={total} />
     </div>
   )
 }
