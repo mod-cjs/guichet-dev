@@ -140,7 +140,7 @@ export function OnboardingProfil({ initial }: Props) {
 
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-5 overflow-y-auto">
         <div>
-          <h1 className="font-black text-color-text-primary" style={{ fontSize: 22, lineHeight: 1.2 }}>
+          <h1 className="font-black text-color-text-primary text-fs-500" style={{ lineHeight: 1.2 }}>
             Qui es-tu&nbsp;?
           </h1>
           <p className="text-fs-100 text-gj-grey mt-1" style={{ lineHeight: 1.5 }}>

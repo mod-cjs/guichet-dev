@@ -157,10 +157,9 @@ export function OnboardingRecommandations({ prenom }: Props) {
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-4 overflow-y-auto">
         {/* Bulle Yaye gradient */}
         <div
-          className="relative overflow-hidden"
+          className="relative overflow-hidden text-white"
           style={{
             background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))',
-            color: '#fff',
             borderRadius: 14,
             padding: 16,
           }}

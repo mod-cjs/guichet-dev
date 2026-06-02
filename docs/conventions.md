@@ -312,3 +312,18 @@ import { Badge } from '@/components/ui/Badge'
 | `import` avec chemin relatif remontant | Alias `@/` |
 | Composant HTML brut sans design system | Composants `src/components/ui/` |
 | Logique métier dans un composant | Hook ou fonction dans `src/lib/` |
+
+---
+
+## 9. Design checklist v2
+
+Toute PR touchant l'UI doit respecter ces 8 règles (issues de l'audit refonte v2, vagues 1 à 3) :
+
+1. **Pas d'hex en dur** dans le code applicatif — utiliser les tokens `var(--gj-*)` ou les classes Tailwind correspondantes. Seule exception tolérée : le gradient photo testimonial historique (`#C49A5A → #7A5C3A`).
+2. **Pas d'emoji comme icône** — toujours `<Icon name="..." />` (sprite SVG `/icons.svg`). Les emojis dans du contenu rédactionnel restent autorisés.
+3. **Police** : `--gj-font-sans` partout (stack système). Seule exception : le wordmark Yaye qui conserve `--gj-yaye-font` (Georgia) comme signature volontaire.
+4. **Cible tactile** : `min-h-[var(--tap-min)] md:min-h-[36px]` sur tous les éléments cliquables (44px mobile / 36px desktop).
+5. **Skip-link** : chaque layout doit exposer un `<SkipLink>` ciblant `#main`.
+6. **Indicateurs de progression** : `role="progressbar"` + `aria-valuenow`/`aria-valuemin`/`aria-valuemax` obligatoires.
+7. **Largeurs de container** : `container-page` (1280px max, catalogue/listings) ou `container-prose` (720px, longue lecture / formulaire).
+8. **Tokens typo / espacement / radius** : utiliser les classes `text-fs-*`, `p-space-*` / `gap-space-*`, `rounded-gj-*` plutôt que des valeurs `fontSize` / `padding` / `borderRadius` en px inline.
