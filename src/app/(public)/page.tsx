@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { WelcomeHero } from '@/components/home/WelcomeHero'
+import { getSession } from '@/lib/auth'
 
 export const metadata: Metadata = { title: 'Accueil' }
 
@@ -10,35 +13,16 @@ const SECTIONS = [
   { href: '/centres',      label: 'Centres CJS',   desc: '9 centres à travers le Sénégal' },
 ]
 
-export default function Accueil() {
+export default async function Accueil() {
+  const session = await getSession()
+  if (session) {
+    redirect(session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding/telephone')
+  }
+
   return (
     <>
-      {/* Hero */}
-      <section className="bg-gj-teal text-white">
-        <div className="container-page py-space-8">
-          <h1 className="text-fs-900 font-black leading-tight mb-space-3">
-            Le Guichet<br />Jeunesse Sénégal
-          </h1>
-          <p className="text-fs-500 text-white/80 mb-space-5 max-w-[540px]">
-            Opportunités, formations et ressources pour les jeunes du Sénégal.
-          </p>
-          <div className="flex flex-wrap gap-space-3">
-            <Link href="/opportunites"
-              className="bg-gj-yellow text-gj-ink font-bold px-space-5 py-space-3
-                rounded-gj-md hover:opacity-90 transition-opacity no-underline text-fs-400">
-              Voir les opportunités
-            </Link>
-            <Link href="/auth/connexion"
-              className="bg-white/15 text-white border border-white/30 font-bold
-                px-space-5 py-space-3 rounded-gj-md hover:bg-white/25 transition-colors
-                no-underline text-fs-400">
-              Créer mon profil
-            </Link>
-          </div>
-        </div>
-      </section>
+      <WelcomeHero />
 
-      {/* Sections */}
       <section className="container-page py-space-7">
         <h2 className="text-fs-700 font-black text-color-text-primary mb-space-5">
           Nos services
