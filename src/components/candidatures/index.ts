@@ -4,6 +4,9 @@ export { CandidatureCard } from './CandidatureCard'
 export type { CandidatureCardProps } from './CandidatureCard'
 export { CandidaturesFilterChips } from './CandidaturesFilterChips'
 export type { CandidaturesFilterChipsProps } from './CandidaturesFilterChips'
+export { CandidaturesClient } from './CandidaturesClient'
+export type { CandidaturesClientProps } from './CandidaturesClient'
+export { CANDIDATURES_MOCK } from './mock-data'
 export type {
   CandidatureMock,
   CandidatureDecision,
