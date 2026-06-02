@@ -76,7 +76,7 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
 
       {shown.length === 0 ? (
         <EmptyState
-          emoji="📚"
+          icon="document"
           title="Aucune ressource trouvée"
           description={
             total === 0
