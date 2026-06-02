@@ -1,22 +1,17 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { OnboardingWelcome } from './_screens/OnboardingWelcome'
-
-export const metadata = { title: 'Bienvenue — Guichet Jeunesse' }
 
 /**
- * Écran 1/5 — Welcome (étape "0", pas de StepBar).
+ * `/jeune/onboarding` — entrée du funnel post-SSO.
  *
- * Hero gradient teal-deep → ink-teal, stats CJS, photo testimonial,
- * 2 CTAs : "Commencer" (→ /jeune/onboarding/telephone) et
- * "J'ai déjà un compte" (→ /auth/connexion).
- *
- * Si l'utilisateur a déjà terminé son onboarding → redirect dashboard.
+ * Décision GUIC-199 : on n'affiche plus l'écran "Welcome" ici (il vit
+ * désormais sur `/` comme page d'accueil publique). Un user qui arrive sur
+ * cette route a déjà une session valide ; on le pousse direct sur l'étape
+ * de saisie du téléphone, ou sur son dashboard si l'onboarding est terminé.
  */
-export default async function OnboardingWelcomePage() {
+export default async function OnboardingEntryPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
-
-  return <OnboardingWelcome prenom={session.prenom || undefined} />
+  redirect('/jeune/onboarding/telephone')
 }
