@@ -47,4 +47,12 @@ describe('<BottomNav /> (ui v2)', () => {
     render(<BottomNav />)
     expect(screen.getByRole('navigation', { name: /navigation/i })).toBeInTheDocument()
   })
+
+  // GUIC-201 — la classe gj-bottom-nav est nécessaire pour que le sélecteur
+  // global `body:has(.gj-bottom-nav)` (globals.css) applique le padding-bottom
+  // qui empêche le dernier item de contenu d'être masqué par la nav fixed.
+  it('porte la classe gj-bottom-nav (sélecteur globals.css)', () => {
+    render(<BottomNav />)
+    expect(screen.getByRole('navigation')).toHaveClass('gj-bottom-nav')
+  })
 })
