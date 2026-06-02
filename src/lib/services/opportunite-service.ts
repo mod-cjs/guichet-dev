@@ -21,6 +21,10 @@ import type {
   OpportuniteBourse,
   OpportuniteConcours,
   OpportuniteAppelAProjets,
+  OpportuniteFinancement,
+  OpportuniteMentorat,
+  OpportuniteMobilite,
+  OpportuniteVolontariat,
   OpportuniteSkill,
   OpportuniteTag,
   Skill,
@@ -31,6 +35,10 @@ import type {
   TypeContrat,
   ModaliteFormation,
   NiveauEtudes,
+  TypeFinancement,
+  ModaliteMentorat,
+  TypeMobilite,
+  TypeVolontariat,
 } from '@prisma/client'
 
 // ─────────────────────────────────────────────
@@ -44,6 +52,10 @@ export type SousTypeSlug =
   | 'bourse'
   | 'concours'
   | 'appel_a_projets'
+  | 'financement'
+  | 'mentorat'
+  | 'mobilite'
+  | 'volontariat'
 
 export interface BaseInput {
   titre: string
@@ -111,6 +123,38 @@ export interface AppelAProjetsDetailsInput {
   dossierRequis: string
   criteresEligibilite: string
 }
+export interface FinancementDetailsInput {
+  montantFcfa: number
+  typeFinancement: TypeFinancement
+  tauxAnnuel?: number | string | null
+  garanties?: string | null
+  dureeRemboursementMois?: number | null
+  organismeFinanceur: string
+  isContinuous?: boolean
+  dateLimiteDepot?: Date | null
+}
+export interface MentoratDetailsInput {
+  dureeMois: number
+  modalite: ModaliteMentorat
+  thematique?: string | null
+  placesDisponibles?: number | null
+  organisateurLibelle: string
+}
+export interface MobiliteDetailsInput {
+  destination: string
+  typeMobilite: TypeMobilite
+  dureeMois: number
+  prisEnCharge?: string | null
+  niveauLangueRequis?: string | null
+  dateDepartPrevue?: Date | null
+}
+export interface VolontariatDetailsInput {
+  dureeMois: number
+  typeVolontariat: TypeVolontariat
+  indemniteMensuelleFcfa?: number | null
+  domaineMission: string
+  placesDisponibles?: number | null
+}
 
 /** Union discriminée par `type` — empêche structurellement les combinaisons incohérentes. */
 export type CreateOpportuniteInput =
@@ -120,6 +164,10 @@ export type CreateOpportuniteInput =
   | { type: 'bourse';          base: BaseInput; details: BourseDetailsInput }
   | { type: 'concours';        base: BaseInput; details: ConcoursDetailsInput }
   | { type: 'appel_a_projets'; base: BaseInput; details: AppelAProjetsDetailsInput }
+  | { type: 'financement';     base: BaseInput; details: FinancementDetailsInput }
+  | { type: 'mentorat';        base: BaseInput; details: MentoratDetailsInput }
+  | { type: 'mobilite';        base: BaseInput; details: MobiliteDetailsInput }
+  | { type: 'volontariat';     base: BaseInput; details: VolontariatDetailsInput }
 
 // ─────────────────────────────────────────────
 // Types retour (discriminated unions)
@@ -136,56 +184,53 @@ export type OpportuniteAvecDetails =
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'emploi' }
       emploi: OpportuniteEmploi
-      stage: null
-      formation: null
-      bourse: null
-      concours: null
-      appelAProjets: null
+      stage: null; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: null
     })
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'stage' }
-      emploi: null
-      stage: OpportuniteStage
-      formation: null
-      bourse: null
-      concours: null
-      appelAProjets: null
+      emploi: null; stage: OpportuniteStage; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: null
     })
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'formation' }
-      emploi: null
-      stage: null
-      formation: OpportuniteFormation
-      bourse: null
-      concours: null
-      appelAProjets: null
+      emploi: null; stage: null; formation: OpportuniteFormation; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: null
     })
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'bourse' }
-      emploi: null
-      stage: null
-      formation: null
-      bourse: OpportuniteBourse
-      concours: null
-      appelAProjets: null
+      emploi: null; stage: null; formation: null; bourse: OpportuniteBourse; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: null
     })
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'concours' }
-      emploi: null
-      stage: null
-      formation: null
-      bourse: null
-      concours: OpportuniteConcours
-      appelAProjets: null
+      emploi: null; stage: null; formation: null; bourse: null; concours: OpportuniteConcours; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: null
     })
   | (OpportuniteCore & {
       typeRef: OpportuniteType & { slug: 'appel_a_projets' }
-      emploi: null
-      stage: null
-      formation: null
-      bourse: null
-      concours: null
-      appelAProjets: OpportuniteAppelAProjets
+      emploi: null; stage: null; formation: null; bourse: null; concours: null; appelAProjets: OpportuniteAppelAProjets
+      financement: null; mentorat: null; mobilite: null; volontariat: null
+    })
+  | (OpportuniteCore & {
+      typeRef: OpportuniteType & { slug: 'financement' }
+      emploi: null; stage: null; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: OpportuniteFinancement; mentorat: null; mobilite: null; volontariat: null
+    })
+  | (OpportuniteCore & {
+      typeRef: OpportuniteType & { slug: 'mentorat' }
+      emploi: null; stage: null; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: OpportuniteMentorat; mobilite: null; volontariat: null
+    })
+  | (OpportuniteCore & {
+      typeRef: OpportuniteType & { slug: 'mobilite' }
+      emploi: null; stage: null; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: OpportuniteMobilite; volontariat: null
+    })
+  | (OpportuniteCore & {
+      typeRef: OpportuniteType & { slug: 'volontariat' }
+      emploi: null; stage: null; formation: null; bourse: null; concours: null; appelAProjets: null
+      financement: null; mentorat: null; mobilite: null; volontariat: OpportuniteVolontariat
     })
 
 const DETAIL_INCLUDE = {
@@ -197,6 +242,10 @@ const DETAIL_INCLUDE = {
   bourse: true,
   concours: true,
   appelAProjets: true,
+  financement: true,
+  mentorat: true,
+  mobilite: true,
+  volontariat: true,
   skills: { include: { skill: true } },
   tags: { include: { tag: true } },
 } satisfies Prisma.OpportuniteInclude
@@ -227,6 +276,10 @@ type Tx = Pick<
   | 'opportuniteBourse'
   | 'opportuniteConcours'
   | 'opportuniteAppelAProjets'
+  | 'opportuniteFinancement'
+  | 'opportuniteMentorat'
+  | 'opportuniteMobilite'
+  | 'opportuniteVolontariat'
   | 'opportuniteSkill'
   | 'opportuniteTag'
 >
@@ -315,7 +368,19 @@ export class OpportuniteService {
    */
   async update(
     id: string,
-    patch: { base?: Partial<BaseInput>; details?: Partial<EmploiDetailsInput & StageDetailsInput & FormationDetailsInput & BourseDetailsInput & ConcoursDetailsInput & AppelAProjetsDetailsInput> },
+    patch: {
+      base?: Partial<BaseInput>
+      details?: Partial<EmploiDetailsInput> &
+        Partial<StageDetailsInput> &
+        Partial<FormationDetailsInput> &
+        Partial<BourseDetailsInput> &
+        Partial<ConcoursDetailsInput> &
+        Partial<AppelAProjetsDetailsInput> &
+        Partial<FinancementDetailsInput> &
+        Partial<MentoratDetailsInput> &
+        Partial<MobiliteDetailsInput> &
+        Partial<VolontariatDetailsInput>
+    },
   ): Promise<OpportuniteAvecDetails> {
     return this.db.$transaction(async (tx) => {
       const existing = await tx.opportunite.findUnique({
@@ -461,6 +526,58 @@ export class OpportuniteService {
           },
         })
         return
+      case 'financement':
+        await tx.opportuniteFinancement.create({
+          data: {
+            opportuniteId,
+            montantFcfa: input.details.montantFcfa,
+            typeFinancement: input.details.typeFinancement,
+            tauxAnnuel: input.details.tauxAnnuel ?? null,
+            garanties: input.details.garanties ?? null,
+            dureeRemboursementMois: input.details.dureeRemboursementMois ?? null,
+            organismeFinanceur: input.details.organismeFinanceur,
+            isContinuous: input.details.isContinuous ?? false,
+            dateLimiteDepot: input.details.dateLimiteDepot ?? null,
+          },
+        })
+        return
+      case 'mentorat':
+        await tx.opportuniteMentorat.create({
+          data: {
+            opportuniteId,
+            dureeMois: input.details.dureeMois,
+            modalite: input.details.modalite,
+            thematique: input.details.thematique ?? null,
+            placesDisponibles: input.details.placesDisponibles ?? null,
+            organisateurLibelle: input.details.organisateurLibelle,
+          },
+        })
+        return
+      case 'mobilite':
+        await tx.opportuniteMobilite.create({
+          data: {
+            opportuniteId,
+            destination: input.details.destination,
+            typeMobilite: input.details.typeMobilite,
+            dureeMois: input.details.dureeMois,
+            prisEnCharge: input.details.prisEnCharge ?? null,
+            niveauLangueRequis: input.details.niveauLangueRequis ?? null,
+            dateDepartPrevue: input.details.dateDepartPrevue ?? null,
+          },
+        })
+        return
+      case 'volontariat':
+        await tx.opportuniteVolontariat.create({
+          data: {
+            opportuniteId,
+            dureeMois: input.details.dureeMois,
+            typeVolontariat: input.details.typeVolontariat,
+            indemniteMensuelleFcfa: input.details.indemniteMensuelleFcfa ?? null,
+            domaineMission: input.details.domaineMission,
+            placesDisponibles: input.details.placesDisponibles ?? null,
+          },
+        })
+        return
     }
   }
 
@@ -488,6 +605,18 @@ export class OpportuniteService {
         return
       case 'appel_a_projets':
         await tx.opportuniteAppelAProjets.update({ where: { opportuniteId }, data: patch })
+        return
+      case 'financement':
+        await tx.opportuniteFinancement.update({ where: { opportuniteId }, data: patch })
+        return
+      case 'mentorat':
+        await tx.opportuniteMentorat.update({ where: { opportuniteId }, data: patch })
+        return
+      case 'mobilite':
+        await tx.opportuniteMobilite.update({ where: { opportuniteId }, data: patch })
+        return
+      case 'volontariat':
+        await tx.opportuniteVolontariat.update({ where: { opportuniteId }, data: patch })
         return
     }
   }
@@ -518,7 +647,7 @@ export class OpportuniteService {
 // ─────────────────────────────────────────────
 
 /** Mappe un slug v2 vers la valeur de l'enum legacy `TypeOpportunite` (colonne pleine de transition). */
-export function legacyTypeFromSlug(slug: SousTypeSlug): 'Emploi' | 'Stage' | 'Formation' | 'Bourse' | 'Appel_a_projets' {
+export function legacyTypeFromSlug(slug: SousTypeSlug): 'Emploi' | 'Stage' | 'Formation' | 'Bourse' | 'Appel_a_projets' | 'Volontariat' {
   switch (slug) {
     case 'emploi':          return 'Emploi'
     case 'stage':           return 'Stage'
@@ -526,6 +655,11 @@ export function legacyTypeFromSlug(slug: SousTypeSlug): 'Emploi' | 'Stage' | 'Fo
     case 'bourse':          return 'Bourse'
     case 'concours':        return 'Appel_a_projets' // pas d'équivalent dans l'enum legacy — mappé en attendant 178d
     case 'appel_a_projets': return 'Appel_a_projets'
+    // Sous-types post-audit — mapping vers enum legacy le plus proche (en attendant 178d).
+    case 'financement':     return 'Bourse'
+    case 'mentorat':        return 'Formation'
+    case 'mobilite':        return 'Bourse'
+    case 'volontariat':     return 'Volontariat'
   }
 }
 
@@ -545,6 +679,10 @@ export function assertAvecDetails(row: unknown): OpportuniteAvecDetails {
     bourse: OpportuniteBourse | null
     concours: OpportuniteConcours | null
     appelAProjets: OpportuniteAppelAProjets | null
+    financement: OpportuniteFinancement | null
+    mentorat: OpportuniteMentorat | null
+    mobilite: OpportuniteMobilite | null
+    volontariat: OpportuniteVolontariat | null
   }
   if (!r.typeRef) {
     throw new Error(`Opportunite ${r.id}: typeRef manquant (migration data 178c/d non appliquée ?)`)
@@ -556,6 +694,10 @@ export function assertAvecDetails(row: unknown): OpportuniteAvecDetails {
     r.bourse && 'bourse',
     r.concours && 'concours',
     r.appelAProjets && 'appel_a_projets',
+    r.financement && 'financement',
+    r.mentorat && 'mentorat',
+    r.mobilite && 'mobilite',
+    r.volontariat && 'volontariat',
   ].filter(Boolean) as string[]
   if (present.length !== 1) {
     throw new Error(

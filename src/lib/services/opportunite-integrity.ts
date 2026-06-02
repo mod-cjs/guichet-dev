@@ -5,8 +5,9 @@
  *
  * Pour chaque `Opportunite` (non soft-deleted), on vérifie :
  *  - `typeRef` non null
- *  - exactement 1 sous-type (`emploi|stage|formation|bourse|concours|appelAProjets`)
- *    non null
+ *  - exactement 1 sous-type non null parmi les 10 :
+ *    emploi | stage | formation | bourse | concours | appelAProjets
+ *    | financement | mentorat | mobilite | volontariat (GUIC-186 / post-audit §19)
  *  - ce sous-type aligné avec `typeRef.slug`
  *
  * L'appel CRON quotidien sera câblé dans un ticket dédié ; ici on n'expose que la
@@ -43,6 +44,10 @@ export async function checkOpportuniteIntegrity(): Promise<OpportuniteIntegrityI
       bourse: { select: { opportuniteId: true } },
       concours: { select: { opportuniteId: true } },
       appelAProjets: { select: { opportuniteId: true } },
+      financement: { select: { opportuniteId: true } },
+      mentorat: { select: { opportuniteId: true } },
+      mobilite: { select: { opportuniteId: true } },
+      volontariat: { select: { opportuniteId: true } },
     },
   })
 
@@ -59,6 +64,10 @@ export async function checkOpportuniteIntegrity(): Promise<OpportuniteIntegrityI
     if (r.bourse) present.push('bourse')
     if (r.concours) present.push('concours')
     if (r.appelAProjets) present.push('appel_a_projets')
+    if (r.financement) present.push('financement')
+    if (r.mentorat) present.push('mentorat')
+    if (r.mobilite) present.push('mobilite')
+    if (r.volontariat) present.push('volontariat')
 
     if (present.length === 0) {
       issues.push({

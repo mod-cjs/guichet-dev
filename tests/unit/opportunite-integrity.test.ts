@@ -22,6 +22,10 @@ function row(id: string, slug: string, opts: {
   bourse?: boolean
   concours?: boolean
   appelAProjets?: boolean
+  financement?: boolean
+  mentorat?: boolean
+  mobilite?: boolean
+  volontariat?: boolean
 } = {}) {
   const sub = (b?: boolean) => (b ? { opportuniteId: id } : null)
   return {
@@ -34,6 +38,10 @@ function row(id: string, slug: string, opts: {
     bourse: sub(opts.bourse),
     concours: sub(opts.concours),
     appelAProjets: sub(opts.appelAProjets),
+    financement: sub(opts.financement),
+    mentorat: sub(opts.mentorat),
+    mobilite: sub(opts.mobilite),
+    volontariat: sub(opts.volontariat),
   }
 }
 
@@ -101,5 +109,28 @@ describe('checkOpportuniteIntegrity', () => {
       row('o3', 'c', { typeSlug: 'formation', formation: true }),
     ])
     expect(await checkOpportuniteIntegrity()).toEqual([])
+  })
+
+  // GUIC-186 — extension aux 4 sous-types post-audit
+  it.each([
+    ['financement'],
+    ['mentorat'],
+    ['mobilite'],
+    ['volontariat'],
+  ] as const)('XOR satisfait pour le sous-type post-audit %s', async (slug) => {
+    mockFindMany.mockResolvedValue([row('o1', 'a', { typeSlug: slug, [slug]: true })])
+    expect(await checkOpportuniteIntegrity()).toEqual([])
+  })
+
+  it('flag PLUSIEURS_SOUS_TYPES quand mère a financement + mentorat (post-audit)', async () => {
+    mockFindMany.mockResolvedValue([
+      row('o1', 'a', { typeSlug: 'financement', financement: true, mentorat: true }),
+    ])
+    const issues = await checkOpportuniteIntegrity()
+    expect(issues[0]).toMatchObject({
+      reason: 'PLUSIEURS_SOUS_TYPES',
+      expected: 'financement',
+      actual: ['financement', 'mentorat'],
+    })
   })
 })
