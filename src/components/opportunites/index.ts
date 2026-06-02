@@ -1,3 +1,5 @@
 export { OpportunitesClient } from './OpportunitesClient'
 export { OpportunityCard } from './OpportunityCard'
+export { OppCard, buildDeadlineInfo } from './OppCard'
+export { OpportuniteTypeChip, typeLabel } from './OpportuniteTypeChip'
 export { FiltresPanel } from './FiltresPanel'
