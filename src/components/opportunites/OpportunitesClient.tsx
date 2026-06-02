@@ -1,11 +1,24 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, EmptyState, SkeletonCard, Sheet } from '@/components/ui'
-import { OpportunityCard } from './OpportunityCard'
+import type { TypeOpportunite } from '@prisma/client'
+import { Button, EmptyState, SkeletonCard } from '@/components/ui'
+import { OppCard } from './OppCard'
+import { typeLabel } from './OpportuniteTypeChip'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
+import { OpportunitesFiltersSheet } from './OpportunitesFiltersSheet'
 import { useFavoris } from './FavorisProvider'
 import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite'
+
+/** Types disponibles dans la rangée horizontale de chips (mobile). */
+const TYPE_CHIPS: TypeOpportunite[] = [
+  'Emploi',
+  'Stage',
+  'Formation',
+  'Bourse',
+  'Volontariat',
+  'Appel_a_projets',
+]
 
 interface OpportunitesClientProps {
   initialRegion: string | null
@@ -179,10 +192,43 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
         </div>
       )}
 
-      {/* Bouton filtres — mobile */}
+      {/* Rangée horizontale de chips types — mobile uniquement (design v2 M1). */}
+      <div
+        className="md:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
+          snap-x snap-mandatory scrollbar-none"
+        role="tablist"
+        aria-label="Filtrer par type d'opportunité"
+      >
+        {TYPE_CHIPS.map((t) => {
+          const active = filters.type === t
+          return (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() =>
+                pushFilters({ ...filters, type: active ? undefined : t })
+              }
+              className={[
+                'snap-start shrink-0 inline-flex items-center px-space-3 py-[7px] rounded-gj-pill',
+                'text-fs-200 leading-none whitespace-nowrap border-[1.5px] min-h-[36px]',
+                'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
+                active
+                  ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep font-black'
+                  : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong font-semibold',
+              ].join(' ')}
+            >
+              {typeLabel(t)}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Bouton filtres avancés — mobile */}
       <div className="md:hidden mb-space-3">
         <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
-          Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          Filtres avancés{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
@@ -237,7 +283,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           {items.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
               {items.map((item) => (
-                <OpportunityCard
+                <OppCard
                   key={item.id}
                   item={item}
                   isFavori={isFavori(item.id)}
@@ -258,29 +304,17 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
         </div>
       </div>
 
-      {/* Filtres — bottom-sheet mobile */}
-      <Sheet
+      {/* Filtres avancés — bottom-sheet mobile (GUIC-188) */}
+      <OpportunitesFiltersSheet
         isOpen={filtersOpen}
         onClose={() => setFiltersOpen(false)}
-        title="Filtres"
-        variant="bottom"
-      >
-        <FiltresPanel
-          value={filters}
-          onChange={(next) => pushFilters({ ...filters, ...next })}
-          onReset={() => {
-            resetFilters()
-            setFiltersOpen(false)
-          }}
-        />
-        {/* Bouton d'application — collant en bas du sheet, toujours atteignable */}
-        <div className="sticky bottom-0 -mx-space-4 px-space-4 pt-space-3 pb-space-2
-          bg-white border-t border-gj-line">
-          <Button variant="primary" size="lg" className="w-full" onClick={() => setFiltersOpen(false)}>
-            Voir les {total} résultat{total > 1 ? 's' : ''}
-          </Button>
-        </div>
-      </Sheet>
+        value={filters}
+        totalCount={total}
+        onApply={(next) => {
+          // Préserve la recherche `q` portée par le state local + URL.
+          pushFilters({ ...filters, ...next })
+        }}
+      />
     </div>
   )
 }
