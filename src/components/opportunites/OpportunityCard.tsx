@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { Card, Badge } from '@/components/ui'
+import { Icon } from '@/components/ui/Icon'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
 interface OpportunityCardProps {
@@ -24,21 +25,19 @@ function humanize(value: string): string {
   return value.replace(/_/g, ' ')
 }
 
+/**
+ * Icône favori — utilise le sprite global (`bookmark`) au lieu d'un SVG inline.
+ * Conservée pour compat (re-exportée par `OpportuniteDetail.tsx`) jusqu'à
+ * la migration `MesFavoris` → `OppCard` v2 (post-merge PR #42).
+ */
 export function HeartIcon({ filled }: { filled: boolean }) {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <Icon
+      name="bookmark"
+      size={22}
       aria-hidden
-    >
-      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
-    </svg>
+      style={{ fill: filled ? 'currentColor' : 'none' }}
+    />
   )
 }
 
