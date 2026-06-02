@@ -11,7 +11,7 @@ export async function Header() {
       className="sticky top-0 bg-white border-b-[1.5px] border-gj-line"
       style={{ zIndex: 'var(--gj-z-nav)' }}
     >
-      <div className="flex items-center" style={{ padding: '0 var(--space-3)' }}>
+      <div className="container-page flex items-center">
 
         {/* Logo — toujours visible */}
         <Link
