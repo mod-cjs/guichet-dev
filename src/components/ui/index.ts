@@ -40,3 +40,5 @@ export type {
 } from './Yaye/YayeActionCard'
 export { QuickReplies } from './Yaye/QuickReplies'
 export type { QuickRepliesProps, QuickReply } from './Yaye/QuickReplies'
+export { YayeSidePanel } from './Yaye/YayeSidePanel'
+export type { YayeSidePanelProps, YayeMessage } from './Yaye/YayeSidePanel'
