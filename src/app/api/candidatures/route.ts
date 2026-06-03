@@ -113,6 +113,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         cjsUid: session.cjsUid,
         opportuniteId: opportunite.id,
         lettreMotivation: parsed.data.lettreMotivation ?? null,
+        cvUrl: parsed.data.cvUrl ?? null,
         notificationsConsent: parsed.data.notificationsConsent,
       },
     })

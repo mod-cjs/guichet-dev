@@ -55,8 +55,18 @@ function createPrisma(): PrismaClient {
     console.error('[migrate-m3-v2] DATABASE_URL manquante')
     process.exit(1)
   }
+  const parsed = new URL(url)
   return new PrismaClient({
-    adapter: new PrismaMariaDb(url),
+    adapter: new PrismaMariaDb({
+      host: parsed.hostname,
+      port: Number(parsed.port) || 3306,
+      user: parsed.username,
+      password: parsed.password,
+      database: parsed.pathname.replace(/^\//, ''),
+      connectionLimit: 3,
+      acquireTimeout: 60_000,
+      connectTimeout: 30_000,
+    }),
     log: ['error', 'warn'],
   })
 }
@@ -375,7 +385,7 @@ export async function migrateOpportunites(client: PrismaClient): Promise<Migrati
           } else {
             report.alreadyMigrated += 1
           }
-        })
+        }, { maxWait: 30_000, timeout: 60_000 })
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         report.errors.push({ opportuniteId: opp.id, message })

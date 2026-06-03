@@ -38,7 +38,12 @@ export default async function OpportuniteDetailPage({
 
   const session = await getSession()
   const viewer = session
-    ? { prenom: session.prenom, nom: session.nom, telephone: session.telephone }
+    ? {
+        prenom: session.prenom,
+        nom: session.nom,
+        email: session.email,
+        telephone: session.telephone,
+      }
     : null
 
   return (
