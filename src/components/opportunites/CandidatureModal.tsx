@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { Sheet, Button } from '@/components/ui'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Sheet, Button, Icon } from '@/components/ui'
 
 export interface ViewerInfo {
   prenom: string
@@ -10,6 +12,8 @@ export interface ViewerInfo {
 
 interface CandidatureModalProps {
   opportuniteId: string
+  /** Slug — utilisé pour le deep-link Yaye (`?opp=<slug>`). */
+  opportuniteSlug?: string
   opportuniteTitre: string
   viewer: ViewerInfo
   isOpen: boolean
@@ -19,15 +23,17 @@ interface CandidatureModalProps {
 
 const MAX = 2000
 
-/** Formulaire de candidature (GUIC-21) — lettre de motivation + consentement. */
+/** Formulaire de candidature (GUIC-21, GUIC-221) — lettre de motivation, Yaye + profil. */
 export function CandidatureModal({
   opportuniteId,
+  opportuniteSlug,
   opportuniteTitre,
   viewer,
   isOpen,
   onClose,
   onSuccess,
 }: CandidatureModalProps) {
+  const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -61,6 +67,15 @@ export function CandidatureModal({
     }
   }
 
+  // Déclenche la navigation vers Yaye avec le contexte de candidature.
+  // GUIC-221 #2 : MVP pragmatique — toujours naviguer ; sur desktop, BenefTopBar
+  // peut intercepter `?from=postuler` pour ouvrir le YayeSidePanel.
+  function openYaye() {
+    const params = new URLSearchParams({ from: 'postuler' })
+    if (opportuniteSlug) params.set('opp', opportuniteSlug)
+    router.push(`/jeune/yaye?${params.toString()}`)
+  }
+
   return (
     <Sheet
       isOpen={isOpen}
@@ -74,6 +89,20 @@ export function CandidatureModal({
         </div>
       )}
 
+      {/* Bouton "Yaye m'aide à postuler" — GUIC-221 #2 */}
+      <button
+        type="button"
+        onClick={openYaye}
+        data-testid="yaye-help-button"
+        className="w-full flex items-center gap-space-2 mb-space-4 px-space-3 py-space-2
+          rounded-gj-md border-[1.5px] border-gj-teal-deep bg-gj-teal-soft text-gj-teal-deep
+          font-bold text-fs-300 hover:bg-gj-teal/10 transition-colors"
+      >
+        <Icon name="chat" size={18} aria-hidden />
+        <span className="text-left flex-1">Yaye m’aide à postuler</span>
+        <Icon name="arrow-right" size={16} aria-hidden />
+      </button>
+
       <div className="bg-gj-bg rounded-gj-md p-space-3 mb-space-4 text-fs-200">
         <p className="font-bold text-color-text-primary">
           {viewer.prenom} {viewer.nom}
@@ -82,6 +111,17 @@ export function CandidatureModal({
         <p className="text-color-text-muted mt-space-1">
           Ces informations seront transmises au recruteur avec votre candidature.
         </p>
+        {/* Lien profil — GUIC-221 #3 (Next Link, ne déclenche pas de confirm) */}
+        <Link
+          href="/jeune/mon-profil"
+          data-testid="edit-profile-link"
+          className="inline-flex items-center gap-1 mt-space-2 text-fs-200 font-bold
+            text-gj-teal-deep underline focus:outline-none focus-visible:ring-[3px]
+            focus-visible:ring-[var(--focus-ring-soft)] rounded-gj-sm"
+        >
+          Modifier dans mon profil
+          <Icon name="arrow-right" size={14} aria-hidden />
+        </Link>
       </div>
 
       <label htmlFor="lettre" className="text-fs-300 font-bold text-color-text-primary">

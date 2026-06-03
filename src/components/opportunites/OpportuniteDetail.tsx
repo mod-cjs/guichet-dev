@@ -1,10 +1,13 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { Button, Toast } from '@/components/ui'
-import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
+import { OpportuniteTypeChip, typeLabel } from './OpportuniteTypeChip'
 import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
+import { formatDeadline, formatDeadlineFull } from '@/lib/format-date'
+import type { ViewerInfo } from './CandidatureModal'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 
@@ -13,8 +16,18 @@ interface OpportuniteDetailProps {
   viewer: ViewerInfo | null
 }
 
-const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+/** Seuil "urgent" pour le badge fusionné — aligné avec OppCard mais centré sur le détail. */
+export const URGENT_DAYS_THRESHOLD = 3
+const DAY = 86_400_000
+
 const humanize = (v: string) => v.replace(/_/g, ' ')
+
+// Modal chargé en lazy : on remplace le contenu par un skeleton léger
+// pendant l'hydratation pour donner un feedback immédiat au clic "Postuler".
+const CandidatureModal = dynamic(
+  () => import('./CandidatureModal').then((m) => m.CandidatureModal),
+  { ssr: false },
+)
 
 function ShareIcon() {
   return (
@@ -37,13 +50,29 @@ function ShareIcon() {
   )
 }
 
-function KeyFact({ label, value }: { label: string; value: string }) {
+function KeyFact({ label, value, title }: { label: string; value: string; title?: string }) {
   return (
-    <div className="bg-gj-bg rounded-gj-md px-space-3 py-space-2">
+    <div className="bg-gj-bg rounded-gj-md px-space-3 py-space-2" title={title}>
       <p className="text-fs-100 uppercase font-bold text-color-text-muted tracking-wide">{label}</p>
       <p className="text-fs-300 font-bold text-color-text-primary mt-[2px]">{value}</p>
     </div>
   )
+}
+
+/**
+ * Calcule l'état d'urgence (J ≤ URGENT_DAYS_THRESHOLD) + libellé compact
+ * pour le badge fusionné "TYPE · CLÔTURE J-N".
+ */
+function buildClotureSuffix(iso: string | null, now: number = Date.now()):
+  { suffix: string; urgent: boolean } | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  const days = Math.ceil((d.getTime() - now) / DAY)
+  if (days < 0) return { suffix: 'CLÔTURÉE', urgent: true }
+  if (days === 0) return { suffix: "CLÔTURE AUJOURD'HUI", urgent: true }
+  if (days <= URGENT_DAYS_THRESHOLD) return { suffix: `CLÔTURE J-${days}`, urgent: true }
+  if (days <= 7) return { suffix: `CLÔTURE J-${days}`, urgent: false }
+  return null
 }
 
 /** Contenu du détail d'une opportunité — partagé entre la page SSR et le slide-over. */
@@ -54,6 +83,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
   const isFavori = isFavoriOf(detail.id)
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [isOpening, setIsOpening] = useState(false)
   const [dejaCandidate, setDejaCandidate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
@@ -77,9 +107,22 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
     }
   }, [viewer, expired, dejaCandidate, searchParams])
 
+  // Dès que le modal est monté/ouvert, on retire l'état "Ouverture…".
+  useEffect(() => {
+    if (modalOpen) setIsOpening(false)
+  }, [modalOpen])
+
   const toggleFavori = useCallback(() => {
     toggleFavoriId(detail.id)
   }, [toggleFavoriId, detail.id])
+
+  const handlePostuler = useCallback(() => {
+    setIsOpening(true)
+    // Préchargement explicite du chunk modal + ouverture.
+    import('./CandidatureModal').finally(() => {
+      setModalOpen(true)
+    })
+  }, [])
 
   const share = useCallback(() => {
     const url = `${window.location.origin}/opportunites/${detail.slug}`
@@ -93,7 +136,11 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
     }
   }, [detail.slug, detail.titre])
 
-  const facts: { label: string; value: string }[] = [
+  const cloture = useMemo(() => buildClotureSuffix(detail.deadline), [detail.deadline])
+  // Badge unique : "STAGE · CLÔTURE J-3" quand cloture présente, sinon juste le type.
+  const badgeTone: 'red' | undefined = cloture?.urgent || expired ? 'red' : undefined
+
+  const facts: { label: string; value: string; title?: string }[] = [
     { label: 'Type', value: humanize(detail.type) },
     { label: 'Domaine', value: humanize(detail.domaine) },
   ]
@@ -101,19 +148,29 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
   if (detail.remuneration) facts.push({ label: 'Rémunération', value: detail.remuneration })
   facts.push({
     label: 'Échéance',
-    value: detail.deadline ? dateFmt.format(new Date(detail.deadline)) : 'Sans échéance',
+    value: detail.deadline ? formatDeadline(detail.deadline) : 'Sans échéance',
+    title: detail.deadline ? formatDeadlineFull(detail.deadline) : undefined,
   })
 
   return (
     <article className="flex flex-col gap-space-4">
-      <header>
+      <header className="flex flex-col gap-space-2">
+        {/* Badge fusionné — une seule pill compacte (GUIC-221 #1). */}
+        <div className="flex" data-testid="detail-badge">
+          <OpportuniteTypeChip
+            type={detail.type}
+            tone={badgeTone}
+            suffix={expired ? 'CLÔTURÉE' : cloture?.suffix}
+            leadingIcon={badgeTone === 'red' ? 'alert' : undefined}
+          />
+        </div>
         <h1 className="text-fs-600 font-black text-color-text-primary">{detail.titre}</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">{detail.organisation}</p>
+        <p className="text-fs-300 text-color-text-secondary">{detail.organisation}</p>
       </header>
 
       <div className="grid grid-cols-2 gap-space-2">
         {facts.map((f) => (
-          <KeyFact key={f.label} label={f.label} value={f.value} />
+          <KeyFact key={f.label} label={f.label} value={f.value} title={f.title} />
         ))}
       </div>
 
@@ -152,9 +209,18 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
             size="lg"
             className="flex-1 min-w-[160px]"
             disabled={expired || dejaCandidate}
-            onClick={() => setModalOpen(true)}
+            loading={isOpening}
+            onClick={handlePostuler}
+            data-testid="postuler-cta"
+            aria-label={isOpening ? 'Ouverture du formulaire de candidature' : undefined}
           >
-            {dejaCandidate ? 'Déjà candidaté' : expired ? 'Candidatures closes' : 'Postuler'}
+            {dejaCandidate
+              ? 'Déjà candidaté'
+              : expired
+              ? 'Candidatures closes'
+              : isOpening
+              ? 'Ouverture…'
+              : 'Postuler'}
           </Button>
         )}
         <button
@@ -180,9 +246,10 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
         </Button>
       </div>
 
-      {viewer && (
+      {viewer && modalOpen && (
         <CandidatureModal
           opportuniteId={detail.id}
+          opportuniteSlug={detail.slug}
           opportuniteTitre={detail.titre}
           viewer={viewer}
           isOpen={modalOpen}
@@ -198,6 +265,8 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
+      {/* Marqueur sémantique : type lisible pour SEO/SR sous le badge majuscule. */}
+      <span className="sr-only">Type d’opportunité : {typeLabel(detail.type)}</span>
     </article>
   )
 }
