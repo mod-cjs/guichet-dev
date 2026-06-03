@@ -64,7 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           // Namespacing automatique côté Blob — clé finale: cv/<cjsUid>/<file>-<rand>.pdf
         }
       },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
+      onUploadCompleted: async ({ blob, tokenPayload }: { blob: { url: string }; tokenPayload?: string | null }) => {
         // Pas de DB write ici : l'URL est persistée via POST /api/candidatures.
         // Ce callback sert au monitoring/observabilité.
         logger.info('[upload/cv] terminé', {

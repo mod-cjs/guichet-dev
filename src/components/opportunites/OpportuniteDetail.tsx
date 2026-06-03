@@ -1,9 +1,8 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button, Toast } from '@/components/ui'
+import { Button, Icon, Toast } from '@/components/ui'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
-import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -349,7 +348,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
                 : 'bg-white border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
             }`}
         >
-          <HeartIcon filled={isFavori} />
+          <Icon name="bookmark" size={22} aria-hidden style={{ fill: isFavori ? 'currentColor' : 'none' }} />
           <span className="sr-only">
             {isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           </span>

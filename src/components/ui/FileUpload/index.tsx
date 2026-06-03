@@ -66,7 +66,7 @@ export function FileUpload({
         const blob = await upload(file.name, file, {
           access: 'public',
           handleUploadUrl,
-          onUploadProgress: (e) => setProgress(Math.round(e.percentage)),
+          onUploadProgress: (e: { percentage: number }) => setProgress(Math.round(e.percentage)),
         })
         const sizeKb = Math.round(file.size / 1024)
         setFileMeta({ name: file.name, sizeKb })
