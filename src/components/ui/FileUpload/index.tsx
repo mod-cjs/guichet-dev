@@ -1,173 +1,210 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
-
-export interface FileUploadProps {
-  /** Endpoint serveur qui implémente le pattern `handleUpload` de Vercel Blob. */
-  handleUploadUrl: string
-  /** MIME accepté (défaut `application/pdf`). */
-  accept?: string
-  /** Taille max en MiB (défaut 5). */
-  maxSizeMb?: number
-  /** Label visible au-dessus du sélecteur. */
-  label?: string
-  /** Texte d'aide (taille, format). */
-  hint?: string
-  /** Valeur courante (URL Blob déjà uploadée). */
-  value?: string | null
-  onChange: (next: { url: string; name: string; sizeKb: number } | null) => void
-  /** Appelé en cas d'erreur (validation MIME/taille ou réseau). */
-  onError?: (msg: string) => void
-  disabled?: boolean
-  id?: string
-}
-
-const DEFAULT_ACCEPT = 'application/pdf'
-const DEFAULT_MAX_MB = 5
+import { ChangeEvent, useCallback, useId, useRef, useState } from 'react'
+import { Icon } from '../Icon'
+import {
+  ALLOWED_CV_MIME,
+  MAX_CV_BYTES,
+  MAX_CV_MB,
+} from '@/lib/constants/candidature'
 
 /**
- * GUIC-189 — Champ d'upload de fichier (CV) qui pousse vers Vercel Blob via
- * `@vercel/blob/client#upload`. Validation MIME + taille côté client avant le
- * round-trip ; la garantie finale reste côté serveur (`onBeforeGenerateToken`).
+ * Métadonnées renvoyées par l'appelant après upload réussi.
+ * Compatible avec `CvBlobMeta` (src/types/candidature.ts).
+ */
+export interface UploadedFileMeta {
+  url: string
+  name: string
+  sizeKb: number
+}
+
+/**
+ * Callback d'upload — l'appelant décide où poster (Vercel Blob, API
+ * proxy /api/upload/cv, etc.). Doit renvoyer la meta blob ou throw.
+ *
+ * `safeName` est déjà sanitizé (caractères dangereux remplacés par `_`)
+ * pour limiter les risques côté stockage / URL.
+ */
+export type FileUploader = (safeName: string, file: File) => Promise<UploadedFileMeta>
+
+export interface FileUploadProps {
+  /** Libellé visuel (par défaut « CV »). */
+  label?: string
+  /** Implémentation d'upload (réseau). */
+  upload: FileUploader
+  /** Notifie le parent quand un fichier est uploadé / supprimé. */
+  onChange?: (meta: UploadedFileMeta | null) => void
+  /** Types MIME acceptés (défaut PDF uniquement). */
+  accept?: readonly string[]
+  /** Taille max en octets (défaut `MAX_CV_BYTES`). */
+  maxBytes?: number
+  /** Désactive l'interaction. */
+  disabled?: boolean
+}
+
+/** Remplace les caractères non sûrs du nom de fichier par `_`. */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
+/**
+ * Primitive `FileUpload` — CV / pièce jointe (GUIC-189 / Wave 6 / GUIC-217).
+ *
+ * - A11y : `role="progressbar"` pendant l'upload, `aria-live="polite"`
+ *   sur le résumé, `role="alert"` sur l'erreur.
+ * - Sécurité : sanitization du nom de fichier avant appel `upload()`.
+ * - Mobile : bouton « Changer » respecte `--tap-min` (44px).
  */
 export function FileUpload({
-  handleUploadUrl,
-  accept = DEFAULT_ACCEPT,
-  maxSizeMb = DEFAULT_MAX_MB,
-  label = 'Fichier',
-  hint,
-  value,
+  label = 'CV',
+  upload,
   onChange,
-  onError,
-  disabled,
-  id,
+  accept = ALLOWED_CV_MIME,
+  maxBytes = MAX_CV_BYTES,
+  disabled = false,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [progress, setProgress] = useState(0)
-  const [uploading, setUploading] = useState(false)
-  const [fileMeta, setFileMeta] = useState<{ name: string; sizeKb: number } | null>(null)
-  const inputId = id ?? 'file-upload'
-  const maxBytes = maxSizeMb * 1024 * 1024
+  const [progress, setProgress] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<UploadedFileMeta | null>(null)
+  const inputId = useId()
 
-  const handleFile = useCallback(
-    async (file: File) => {
-      if (file.type !== accept) {
-        onError?.(`Format invalide — ${accept} attendu`)
+  const openPicker = useCallback(() => {
+    if (disabled) return
+    inputRef.current?.click()
+  }, [disabled])
+
+  const handlePick = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      // Toujours réinitialiser la valeur pour qu'un même fichier puisse
+      // être resélectionné après suppression / erreur.
+      if (e.target) e.target.value = ''
+      if (!file) return
+
+      setError(null)
+
+      if (!(accept as readonly string[]).includes(file.type)) {
+        setError(`Format non supporté — accepté : ${accept.join(', ')}.`)
         return
       }
       if (file.size > maxBytes) {
-        onError?.(`Fichier trop volumineux (max ${maxSizeMb} Mo)`)
+        setError(`Fichier trop volumineux (max ${MAX_CV_MB} Mo).`)
         return
       }
-      setUploading(true)
+
+      const safeName = sanitizeFilename(file.name)
       setProgress(0)
       try {
-        // Import dynamique : évite d'embarquer le SDK Blob côté serveur.
-        const { upload } = await import('@vercel/blob/client')
-        const blob = await upload(file.name, file, {
-          access: 'public',
-          handleUploadUrl,
-          onUploadProgress: (e: { percentage: number }) => setProgress(Math.round(e.percentage)),
-        })
-        const sizeKb = Math.round(file.size / 1024)
-        setFileMeta({ name: file.name, sizeKb })
-        onChange({ url: blob.url, name: file.name, sizeKb })
+        // Fake-progress ramp pour feedback utilisateur ; l'upload réel
+        // est piloté par l'appelant (souvent un POST atomique).
+        setProgress(40)
+        const result = await upload(safeName, file)
+        setProgress(100)
+        setMeta(result)
+        onChange?.(result)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Upload impossible'
-        onError?.(msg)
+        const msg = err instanceof Error ? err.message : 'Échec de l’upload.'
+        setError(msg)
       } finally {
-        setUploading(false)
+        setProgress(null)
       }
     },
-    [accept, handleUploadUrl, maxBytes, maxSizeMb, onChange, onError],
+    [accept, maxBytes, onChange, upload],
   )
 
-  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) void handleFile(f)
-  }
-
-  const reset = () => {
-    setFileMeta(null)
-    onChange(null)
-    if (inputRef.current) inputRef.current.value = ''
-  }
-
-  if (value || fileMeta) {
-    return (
-      <div className="flex flex-col gap-space-1">
-        {label && (
-          <span className="text-fs-100 font-bold uppercase tracking-wide text-color-text-muted">
-            {label}
-          </span>
-        )}
-        <div
-          className="flex items-center gap-space-3 rounded-gj-md border-[1.5px] border-gj-line
-            bg-white px-space-3 py-space-2"
-        >
-          <span
-            className="inline-flex h-10 w-8 items-center justify-center rounded-[4px]
-              bg-gj-red-soft text-gj-red-ink text-[10px] font-black"
-            aria-hidden
-          >
-            PDF
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-fs-200 font-bold text-color-text-primary">
-              {fileMeta?.name ?? 'CV'}
-            </p>
-            <p className="text-fs-100 text-color-text-muted">
-              {fileMeta ? `${fileMeta.sizeKb} Ko` : 'Fichier enregistré'} · coffre-fort
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={reset}
-            disabled={disabled || uploading}
-            className="text-fs-200 font-bold text-gj-teal-deep hover:underline disabled:opacity-50"
-          >
-            Changer
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const reset = useCallback(() => {
+    setMeta(null)
+    setError(null)
+    onChange?.(null)
+  }, [onChange])
 
   return (
-    <div className="flex flex-col gap-space-1">
-      {label && (
-        <label
-          htmlFor={inputId}
-          className="text-fs-100 font-bold uppercase tracking-wide text-color-text-muted"
-        >
-          {label}
-        </label>
-      )}
-      <label
-        htmlFor={inputId}
-        className={`flex flex-col items-center justify-center gap-space-1 rounded-gj-md
-          border-[1.5px] border-dashed border-gj-line bg-gj-bg px-space-4 py-space-4
-          text-center cursor-pointer hover:border-gj-teal-deep transition-colors
-          ${disabled || uploading ? 'opacity-60 pointer-events-none' : ''}`}
-      >
-        <span className="text-fs-300 font-bold text-color-text-primary">
-          {uploading ? `Envoi… ${progress}%` : 'Choisir un fichier'}
-        </span>
-        {hint && <span className="text-fs-100 text-color-text-muted">{hint}</span>}
-        {!hint && (
-          <span className="text-fs-100 text-color-text-muted">
-            PDF · max {maxSizeMb} Mo
-          </span>
-        )}
-        <input
-          ref={inputRef}
-          id={inputId}
-          type="file"
-          accept={accept}
-          className="sr-only"
-          onChange={onPick}
-          disabled={disabled || uploading}
-        />
+    <div className="flex flex-col gap-space-2">
+      <label htmlFor={inputId} className="text-fs-200 font-bold text-color-text-primary">
+        {label}
       </label>
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept={accept.join(',')}
+        className="sr-only"
+        onChange={handlePick}
+        disabled={disabled}
+      />
+
+      {!meta && progress === null && (
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={disabled}
+          className="min-h-[var(--tap-min)] inline-flex items-center justify-center gap-space-2
+            px-space-4 py-space-2 rounded-gj-md border border-gj-line bg-white
+            text-color-text-primary hover:bg-gj-bg disabled:opacity-50"
+        >
+          <Icon name="upload" />
+          <span>Choisir un fichier</span>
+        </button>
+      )}
+
+      {progress !== null && (
+        <div
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Upload de ${label}`}
+          className="h-2 w-full rounded-gj-pill bg-gj-bg overflow-hidden"
+        >
+          <div
+            className="h-full bg-gj-teal transition-[width] duration-[var(--motion-base)]"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
+      <div aria-live="polite" className="contents">
+        {meta && progress === null && (
+          <div className="flex items-center justify-between gap-space-2 rounded-gj-md
+            border border-gj-line px-space-3 py-space-2 bg-gj-bg">
+            <div className="flex items-center gap-space-2 min-w-0">
+              <Icon name="document" />
+              <span className="truncate text-fs-200 text-color-text-primary">
+                {label} chargé : {meta.name}
+              </span>
+              <span className="text-fs-100 text-gj-grey shrink-0">
+                ({meta.sizeKb} Ko)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                reset()
+                openPicker()
+              }}
+              disabled={disabled}
+              className="min-h-[var(--tap-min)] px-space-3 text-fs-200 font-bold
+                text-gj-teal hover:underline disabled:opacity-50"
+            >
+              Changer
+            </button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-space-2 rounded-gj-md border border-gj-red
+            bg-gj-red-soft px-space-3 py-space-2 text-fs-200 text-gj-red-ink"
+        >
+          <Icon name="alert" />
+          <span>{error}</span>
+        </div>
+      )}
     </div>
   )
 }
+
+// Export pour tests / réutilisation interne.
+export { sanitizeFilename }
