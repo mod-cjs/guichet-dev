@@ -1,88 +1,151 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+/**
+ * CandidatureModal — formulaire unique de candidature (GUIC-189 / Wave 6 / GUIC-220).
+ *
+ * Refonte v2 : on supprime le stepper en 4 étapes pour un single-sheet scroll
+ * aligné sur `design-guichet-v2/lot3-opps-mobile.jsx#MobileApplySheet` (L.408-538).
+ *
+ * Le formulaire affiche :
+ *  - un bandeau « Pré-rempli depuis ton profil »
+ *  - une carte profil (avatar gradient + identité)
+ *  - une textarea lettre de motivation (compteur live, bouton « Yaye m'aide »)
+ *  - un FileUpload CV (composant v2 — GUIC-217)
+ *  - une checkbox CGU unique
+ *  - un CTA sticky bas + footer WhatsApp
+ *
+ * À la réussite (`201`), l'écran bascule sur un état succès « WhatsApp preview »
+ * avec animation pulse, référence candidature et 2 CTAs. Le parent décide via
+ * `onSuccess()` quoi faire ensuite, mais l'écran succès reste dans le sheet.
+ */
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Sheet, Button, FileUpload, Icon } from '@/components/ui'
+import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
+import type { UploadedFileMeta, FileUploader } from '@/components/ui'
+import {
+  LETTRE_MAX_CHARS,
+  MAX_CV_MB,
+} from '@/lib/constants/candidature'
 
 export interface ViewerInfo {
   prenom: string
   nom: string
-  email?: string | null
   telephone: string | null
+  /** Âge optionnel (rendu si fourni). */
+  age?: number | null
+  /** Région optionnelle (rendu si fourni). */
+  region?: string | null
 }
 
 interface CandidatureModalProps {
   opportuniteId: string
   opportuniteTitre: string
-  /** Indique si le sous-type d'opportunité réclame un fichier (CV) — sinon il reste facultatif. */
-  requiresFileUpload?: boolean
-  /** Libellé du fichier attendu (ex. « Dossier de bourse »). Défaut : « CV ». */
-  fileLabel?: string | null
   viewer: ViewerInfo
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  /** Nom de l'organisation, intégré au texte de consentement. */
+  organisationName?: string
+  /** Si vrai, le CV est obligatoire (sinon facultatif — design v2). */
+  requiresFileUpload?: boolean
+  /**
+   * Implémentation d'upload du CV — injectable pour tests. Par défaut, POST
+   * vers `/api/upload/cv` (GUIC-218 / GUIC-217).
+   */
+  uploader?: FileUploader
 }
 
-const LETTRE_MAX = 2000
-const LETTRE_MIN = 300
+/** Upload par défaut — POST atomique vers `/api/upload/cv`. */
+const defaultUploader: FileUploader = async (safeName, file) => {
+  const fd = new FormData()
+  fd.append('file', file, safeName)
+  const res = await fetch('/api/upload/cv', { method: 'POST', body: fd })
+  if (!res.ok) {
+    throw new Error(`Échec de l'upload (${res.status}).`)
+  }
+  const body = (await res.json()) as { data?: UploadedFileMeta }
+  if (!body.data) throw new Error("Réponse d'upload invalide.")
+  return body.data
+}
 
-type Step = 1 | 2 | 3 | 4
+/** Retourne les initiales (max 2) à partir de prénom + nom. */
+function initiales(prenom: string, nom: string): string {
+  return `${prenom[0] ?? ''}${nom[0] ?? ''}`.toUpperCase()
+}
 
-/**
- * GUIC-189 — Flow candidature multi-étapes (Vérif profil → Lettre + CV → Récap →
- * Confirmation). Mobile : bottom-sheet plein écran. Desktop : slide-over droit
- * via le composant `<Sheet variant="side">`.
- *
- * L'upload de CV utilise `@vercel/blob/client#upload` ; l'URL retournée est
- * persistée via `POST /api/candidatures` avec le reste du formulaire.
- */
+/** Raccourcit un UUID en référence lisible `CAND-XXXXXXXX`. */
+function refCandidature(id: string): string {
+  const short = id.replace(/-/g, '').slice(0, 8).toUpperCase()
+  return `CAND-${short}`
+}
+
 export function CandidatureModal({
   opportuniteId,
   opportuniteTitre,
-  requiresFileUpload = false,
-  fileLabel,
   viewer,
   isOpen,
   onClose,
   onSuccess,
+  organisationName,
+  requiresFileUpload = false,
+  uploader = defaultUploader,
 }: CandidatureModalProps) {
-  const [step, setStep] = useState<Step>(1)
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
-  const [cgu, setCgu] = useState(false)
-  const [cv, setCv] = useState<{ url: string; name: string; sizeKb: number } | null>(null)
+  const [cv, setCv] = useState<UploadedFileMeta | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
 
-  const profilComplet = useMemo(
-    () => Boolean(viewer.prenom && viewer.nom && viewer.telephone),
-    [viewer],
-  )
+  const lettreId = useId()
+  const helperId = useId()
+  const counterId = useId()
+  const cguId = useId()
 
-  const lettreLen = lettre.trim().length
-  const lettreValid = lettreLen >= LETTRE_MIN
-  const cvValid = !requiresFileUpload || cv !== null
-  const canSubmit = lettreValid && cvValid && cgu && !sending
-
-  const reset = useCallback(() => {
-    setStep(1)
-    setLettre('')
-    setConsent(false)
-    setCgu(false)
-    setCv(null)
-    setError(null)
-  }, [])
-
-  const close = useCallback(() => {
-    reset()
-    onClose()
-  }, [onClose, reset])
-
-  // Notifie le parent dès l'arrivée à l'écran succès (mise à jour optimiste
-  // de l'état « déjà candidaté » côté détail).
+  // Reset complet à la (re)fermeture pour éviter de réafficher l'écran succès
+  // à la prochaine ouverture.
   useEffect(() => {
-    if (step === 4) onSuccess()
-  }, [step, onSuccess])
+    if (!isOpen) {
+      setLettre('')
+      setConsent(false)
+      setCv(null)
+      setError(null)
+      setSubmitted(null)
+      setSending(false)
+    }
+  }, [isOpen])
+
+  const lettreOk = lettre.trim().length > 0
+  const cvOk = !requiresFileUpload || cv !== null
+  const canSubmit = lettreOk && cvOk && consent && !sending
+
+  const disabledReason = useMemo(() => {
+    if (sending) return 'Envoi en cours…'
+    if (!lettreOk) return 'Rédigez votre lettre de motivation.'
+    if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
+    if (!consent) return 'Vous devez accepter la transmission du profil.'
+    return undefined
+  }, [sending, lettreOk, cvOk, consent])
+
+  const handleClose = useCallback(() => {
+    if (submitted) {
+      onClose()
+      return
+    }
+    const hasData = lettre.trim().length > 0 || cv !== null
+    if (hasData) {
+      // Garde-fou perte de données : confirm natif (composant Modal serait
+      // plus joli mais induirait un état imbriqué — `window.confirm` reste
+      // accessible, focus-safe, et a l'aval design pour ce cas extrême).
+      const ok =
+        typeof window === 'undefined'
+          ? true
+          : window.confirm(
+              'Vous avez des données non envoyées. Quitter quand même ?',
+            )
+      if (!ok) return
+    }
+    onClose()
+  }, [submitted, lettre, cv, onClose])
 
   async function submit() {
     if (!canSubmit) return
@@ -94,17 +157,23 @@ export function CandidatureModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           opportuniteId,
-          lettreMotivation: lettre.trim(),
+          lettreMotivation: lettre.trim() || undefined,
           notificationsConsent: consent,
+          // Champs ajoutés par GUIC-218 — l'API actuelle ignore les
+          // propriétés inconnues, donc rétrocompatible.
           cvUrl: cv?.url,
         }),
       })
       if (res.status === 201) {
-        setStep(4)
+        const body = (await res.json().catch(() => null)) as
+          | { data?: { id?: string } }
+          | null
+        setSubmitted({ id: body?.data?.id ?? opportuniteId })
+        onSuccess()
         return
       }
       if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
-      else if (res.status === 422) setError('Cette opportunité n’accepte plus de candidatures.')
+      else if (res.status === 422) setError("Cette opportunité n'accepte plus de candidatures.")
       else if (res.status === 401) setError('Votre session a expiré, reconnectez-vous.')
       else setError('Une erreur est survenue. Réessayez.')
     } catch {
@@ -114,29 +183,30 @@ export function CandidatureModal({
     }
   }
 
-  // Stepper visuel (3 étapes — la 4 = écran succès).
-  const Stepper = () => (
-    <div className="flex items-center gap-space-1 mb-space-3" aria-hidden={step === 4}>
-      {[1, 2, 3].map((n) => (
-        <span
-          key={n}
-          className={`h-1 flex-1 rounded-full transition-colors ${
-            n <= step ? 'bg-gj-teal-deep' : 'bg-gj-line'
-          }`}
+  if (submitted) {
+    return (
+      <Sheet
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Candidature envoyée"
+        variant="side"
+      >
+        <SuccessScreen
+          refId={refCandidature(submitted.id)}
+          opportuniteTitre={opportuniteTitre}
+          telephone={viewer.telephone}
         />
-      ))}
-    </div>
-  )
+      </Sheet>
+    )
+  }
 
   return (
     <Sheet
       isOpen={isOpen}
-      onClose={close}
-      title={step === 4 ? 'Candidature envoyée' : `Postuler — ${opportuniteTitre}`}
+      onClose={handleClose}
+      title={`Postuler — ${opportuniteTitre}`}
       variant="side"
     >
-      {step !== 4 && <Stepper />}
-
       {error && (
         <div
           role="alert"
@@ -146,348 +216,246 @@ export function CandidatureModal({
         </div>
       )}
 
-      {step === 1 && (
-        <Step1Profil
-          viewer={viewer}
-          profilComplet={profilComplet}
-          onContinue={() => setStep(2)}
-          onCancel={close}
-        />
-      )}
+      {/* Bandeau pré-rempli */}
+      <div
+        className="flex items-center gap-space-2 rounded-gj-md border border-gj-green
+          bg-gj-green-soft text-gj-green-ink px-space-3 py-space-2 text-fs-200 font-bold mb-space-3"
+      >
+        <Icon name="check-circle" size={18} />
+        <span>Pré-rempli depuis ton profil. Vérifie et ajuste.</span>
+      </div>
 
-      {step === 2 && (
-        <Step2LettreCV
-          lettre={lettre}
-          onLettreChange={setLettre}
-          lettreValid={lettreValid}
-          lettreLen={lettreLen}
-          cv={cv}
-          onCvChange={setCv}
-          onCvError={setError}
-          requiresFileUpload={requiresFileUpload}
-          fileLabel={fileLabel}
-          onBack={() => setStep(1)}
-          onContinue={() => setStep(3)}
-          canContinue={lettreValid && cvValid}
-        />
-      )}
+      {/* Carte profil */}
+      <div className="rounded-gj-md border border-gj-line bg-white p-space-3 mb-space-4">
+        <div className="flex items-center gap-space-2">
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center shrink-0 rounded-full text-white font-black"
+            style={{
+              width: 36,
+              height: 36,
+              fontSize: 13,
+              background:
+                'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
+            }}
+          >
+            {initiales(viewer.prenom, viewer.nom)}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-fs-300 font-bold text-color-text-primary truncate">
+              {viewer.prenom} {viewer.nom}
+              {viewer.age ? ` · ${viewer.age} ans` : ''}
+            </p>
+            <p className="text-fs-100 text-color-text-muted truncate">
+              {viewer.telephone ?? '—'}
+              {viewer.region ? ` · ${viewer.region}` : ''}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/jeune/profil"
+          className="inline-block mt-space-2 text-fs-200 font-bold text-gj-teal-deep hover:underline"
+        >
+          Modifier dans mon profil →
+        </Link>
+      </div>
 
-      {step === 3 && (
-        <Step3Recap
-          viewer={viewer}
-          lettre={lettre}
-          cv={cv}
-          consent={consent}
-          onConsentChange={setConsent}
-          cgu={cgu}
-          onCguChange={setCgu}
-          onBack={() => setStep(2)}
-          onSubmit={submit}
-          canSubmit={canSubmit}
-          sending={sending}
-        />
-      )}
+      {/* Lettre de motivation */}
+      <label
+        htmlFor={lettreId}
+        className="text-fs-300 font-bold text-color-text-primary"
+      >
+        Lettre de motivation <span className="text-gj-red">*</span>
+      </label>
+      <textarea
+        id={lettreId}
+        value={lettre}
+        onChange={(e) => setLettre(e.target.value.slice(0, LETTRE_MAX_CHARS))}
+        rows={6}
+        aria-required="true"
+        aria-invalid={!lettreOk && lettre.length > 0 ? 'true' : 'false'}
+        aria-describedby={`${helperId} ${counterId}`}
+        placeholder="Pourquoi cette opportunité te correspond ? Parle de ton parcours, tes envies, ce que tu apporterais."
+        className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
+          text-[16px] font-[inherit] focus:outline-none focus:border-gj-teal-deep
+          focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+      />
+      <div className="flex justify-between gap-space-2 mt-space-1 text-fs-100">
+        <button
+          type="button"
+          onClick={() => {
+            // Mock — l'intégration LLM réelle viendra via le module Yaye.
+            setLettre((prev) =>
+              prev.length > 0
+                ? prev
+                : "Cette opportunité m'intéresse car elle correspond à mon parcours et à mes envies. Je souhaite contribuer à...",
+            )
+          }}
+          className="inline-flex items-center gap-space-1 text-gj-teal-deep font-bold hover:underline"
+        >
+          <Icon name="sparkle" size={14} /> Yaye m'aide
+        </button>
+        <span
+          id={counterId}
+          aria-live="polite"
+          className="text-color-text-muted shrink-0"
+        >
+          {lettre.length} / {LETTRE_MAX_CHARS}
+        </span>
+      </div>
+      <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
+        Quelques lignes sur ta motivation augmentent tes chances.
+      </p>
 
-      {step === 4 && <Step4Success onClose={close} />}
+      {/* CV */}
+      <div className="mt-space-4">
+        <FileUpload
+          label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
+          upload={uploader}
+          onChange={setCv}
+        />
+      </div>
+
+      {/* Consentement CGU unique */}
+      <label
+        htmlFor={cguId}
+        className="flex items-start gap-space-2 mt-space-4 text-fs-300 text-color-text-primary cursor-pointer"
+      >
+        <input
+          id={cguId}
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-[2px] w-5 h-5 accent-gj-teal shrink-0"
+        />
+        <span>
+          J&apos;accepte que {organisationName ?? "l'organisation"} reçoive mon
+          profil CJS et me contacte.{' '}
+          <Link href="/cgu" className="text-gj-teal-deep font-bold hover:underline">
+            en savoir plus
+          </Link>
+        </span>
+      </label>
+
+      {/* CTA sticky */}
+      <div
+        className="sticky bottom-0 left-0 right-0 bg-white pt-space-3 pb-space-2 mt-space-5
+          border-t border-gj-line -mx-space-4 px-space-4"
+      >
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          loading={sending}
+          disabled={!canSubmit}
+          onClick={submit}
+          aria-describedby={disabledReason ? counterId : undefined}
+          title={disabledReason}
+        >
+          Envoyer ma candidature
+        </Button>
+        <p className="flex items-center justify-center gap-space-1 mt-space-2 text-fs-100 text-color-text-muted">
+          <Icon name="whatsapp" size={14} />
+          Tu seras notifié par WhatsApp dès qu&apos;on a une réponse.
+        </p>
+      </div>
     </Sheet>
   )
 }
 
-// ─────────────────────────────────────────────
-// Étapes
-// ─────────────────────────────────────────────
-
-function Step1Profil({
-  viewer,
-  profilComplet,
-  onContinue,
-  onCancel,
+/** Écran succès — preview WhatsApp + pulse animation. */
+function SuccessScreen({
+  refId,
+  opportuniteTitre,
+  telephone,
 }: {
-  viewer: ViewerInfo
-  profilComplet: boolean
-  onContinue: () => void
-  onCancel: () => void
+  refId: string
+  opportuniteTitre: string
+  telephone: string | null
 }) {
   return (
-    <div className="flex flex-col gap-space-3">
-      <p className="text-fs-300 text-color-text-secondary">
-        Vérifiez que ces informations seront transmises au recruteur.
-      </p>
-      <dl className="bg-gj-bg rounded-gj-md p-space-3 grid gap-space-2 text-fs-200">
-        <Row label="Prénom" value={viewer.prenom} />
-        <Row label="Nom" value={viewer.nom} />
-        {viewer.email && <Row label="Email" value={viewer.email} />}
-        <Row label="Téléphone" value={viewer.telephone ?? '—'} missing={!viewer.telephone} />
-      </dl>
-      {!profilComplet && (
-        <Link
-          href="/jeune/profil"
-          className="text-fs-300 font-bold text-gj-teal-deep underline"
-        >
-          Compléter mon profil →
-        </Link>
-      )}
-      <div className="flex gap-space-2 mt-space-2">
-        <Button variant="ghost" size="lg" onClick={onCancel}>
-          Annuler
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          className="flex-1"
-          onClick={onContinue}
-          disabled={!profilComplet}
-        >
-          Continuer
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function Row({ label, value, missing }: { label: string; value: string; missing?: boolean }) {
-  return (
-    <div className="flex justify-between gap-space-2">
-      <dt className="text-color-text-muted">{label}</dt>
-      <dd
-        className={`font-bold ${
-          missing ? 'text-gj-red-ink' : 'text-color-text-primary'
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
-  )
-}
-
-function Step2LettreCV({
-  lettre,
-  onLettreChange,
-  lettreValid,
-  lettreLen,
-  cv,
-  onCvChange,
-  onCvError,
-  requiresFileUpload,
-  fileLabel,
-  onBack,
-  onContinue,
-  canContinue,
-}: {
-  lettre: string
-  onLettreChange: (v: string) => void
-  lettreValid: boolean
-  lettreLen: number
-  cv: { url: string; name: string; sizeKb: number } | null
-  onCvChange: (v: { url: string; name: string; sizeKb: number } | null) => void
-  onCvError: (msg: string) => void
-  requiresFileUpload: boolean
-  fileLabel?: string | null
-  onBack: () => void
-  onContinue: () => void
-  canContinue: boolean
-}) {
-  return (
-    <div className="flex flex-col gap-space-4">
-      <div>
-        <label
-          htmlFor="lettre"
-          className="text-fs-100 font-bold uppercase tracking-wide text-color-text-muted"
-        >
-          Lettre de motivation <span className="text-gj-red">*</span>
-        </label>
-        <textarea
-          id="lettre"
-          value={lettre}
-          onChange={(e) => onLettreChange(e.target.value.slice(0, LETTRE_MAX))}
-          rows={8}
-          aria-invalid={!lettreValid && lettreLen > 0}
-          className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-            text-[16px] font-[inherit] focus:outline-none focus:border-gj-teal-deep
-            focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+    <div className="flex flex-col items-center gap-space-4 text-center py-space-3">
+      {/* Pulse success — réutilise keyframe `gj-pulse-live` (tokens.css). */}
+      <div className="relative" style={{ width: 100, height: 100 }}>
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-gj-green-soft"
         />
-        <div className="flex justify-between gap-space-2 mt-space-1 text-fs-100">
-          <span className={lettreValid ? 'text-color-text-muted' : 'text-gj-red-ink'}>
-            {lettreValid ? 'Bien, c’est suffisant.' : `Minimum ${LETTRE_MIN} caractères.`}
-          </span>
-          <span className="text-color-text-muted shrink-0">
-            {lettreLen} / {LETTRE_MAX}
-          </span>
-        </div>
-      </div>
-
-      <FileUpload
-        handleUploadUrl="/api/upload/cv"
-        accept="application/pdf"
-        maxSizeMb={5}
-        label={`${fileLabel ?? 'CV'}${requiresFileUpload ? ' *' : ' (facultatif)'}`}
-        hint="PDF · max 5 Mo · stocké dans un coffre-fort sécurisé"
-        value={cv?.url}
-        onChange={onCvChange}
-        onError={onCvError}
-      />
-
-      <div className="flex gap-space-2 mt-space-2">
-        <Button variant="ghost" size="lg" onClick={onBack}>
-          Retour
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          className="flex-1"
-          onClick={onContinue}
-          disabled={!canContinue}
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full border-[3px] border-gj-green"
+          style={{ animation: 'gj-pulse-live 2s infinite' }}
+        />
+        <span
+          className="absolute rounded-full bg-gj-green text-white flex items-center justify-center"
+          style={{
+            inset: 18,
+            boxShadow: '0 4px 20px rgba(0,170,90,.4)',
+          }}
         >
-          Continuer
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function Step3Recap({
-  viewer,
-  lettre,
-  cv,
-  consent,
-  onConsentChange,
-  cgu,
-  onCguChange,
-  onBack,
-  onSubmit,
-  canSubmit,
-  sending,
-}: {
-  viewer: ViewerInfo
-  lettre: string
-  cv: { url: string; name: string; sizeKb: number } | null
-  consent: boolean
-  onConsentChange: (v: boolean) => void
-  cgu: boolean
-  onCguChange: (v: boolean) => void
-  onBack: () => void
-  onSubmit: () => void
-  canSubmit: boolean
-  sending: boolean
-}) {
-  return (
-    <div className="flex flex-col gap-space-3">
-      <div className="bg-gj-bg rounded-gj-md p-space-3 text-fs-200">
-        <p className="font-bold text-color-text-primary">
-          {viewer.prenom} {viewer.nom}
-        </p>
-        {viewer.telephone && (
-          <p className="text-color-text-secondary">{viewer.telephone}</p>
-        )}
+          <Icon name="check" size={36} title="Candidature envoyée" />
+        </span>
       </div>
 
       <div>
-        <p className="text-fs-100 font-bold uppercase tracking-wide text-color-text-muted">
-          Lettre de motivation
-        </p>
-        <p className="text-fs-200 text-color-text-primary whitespace-pre-line mt-space-1">
-          {lettre}
+        <h2 className="text-fs-500 font-black text-color-text-primary">
+          Candidature envoyée 🎉
+        </h2>
+        <p className="text-fs-300 text-color-text-muted mt-space-1">
+          <b className="text-color-text-primary">{opportuniteTitre}</b> vient de
+          recevoir ton dossier.
+          <br />
+          Référence{' '}
+          <b className="text-gj-teal-deep" data-testid="candidature-ref">
+            {refId}
+          </b>
         </p>
       </div>
 
-      {cv && (
-        <div className="bg-gj-bg rounded-gj-md p-space-3 flex items-center gap-space-2 text-fs-200">
-          <span
-            className="inline-flex h-10 w-8 items-center justify-center rounded-[4px]
-              bg-gj-red-soft text-gj-red-ink text-[10px] font-black"
-            aria-hidden
-          >
-            PDF
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-bold text-color-text-primary">{cv.name}</p>
-            <p className="text-fs-100 text-color-text-muted">{cv.sizeKb} Ko</p>
+      {/* Preview WhatsApp */}
+      <div className="w-full rounded-gj-md border border-gj-line bg-white overflow-hidden text-left">
+        <div className="flex items-center gap-space-2 px-space-3 py-space-2 bg-gj-whatsapp text-white">
+          <Icon name="whatsapp" size={18} />
+          <div className="flex-1 min-w-0">
+            <p className="text-fs-200 font-bold">WhatsApp · Guichet Jeunesse</p>
+            <p className="text-fs-100 opacity-90 truncate">
+              {telephone ?? '—'} · à l&apos;instant
+            </p>
           </div>
         </div>
-      )}
-
-      <label className="flex items-start gap-space-2 text-fs-200 text-color-text-primary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => onConsentChange(e.target.checked)}
-          className="mt-[2px] w-5 h-5 accent-gj-teal shrink-0"
-        />
-        <span>
-          J’accepte de recevoir la confirmation et le suivi de ma candidature par WhatsApp/SMS.
-        </span>
-      </label>
-
-      <label className="flex items-start gap-space-2 text-fs-200 text-color-text-primary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={cgu}
-          onChange={(e) => onCguChange(e.target.checked)}
-          className="mt-[2px] w-5 h-5 accent-gj-teal shrink-0"
-          aria-required
-        />
-        <span>
-          J’accepte que le recruteur reçoive mon profil CJS et me contacte (CGU).
-        </span>
-      </label>
-
-      <div className="flex gap-space-2 mt-space-2">
-        <Button variant="ghost" size="lg" onClick={onBack} disabled={sending}>
-          Retour
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          className="flex-1"
-          loading={sending}
-          disabled={!canSubmit}
-          onClick={onSubmit}
+        <div
+          className="px-space-3 py-space-3 flex flex-col gap-space-2"
+          style={{ background: '#E5F0EC' }}
         >
-          Envoyer ma candidature
-        </Button>
+          <div
+            className="self-start bg-white px-space-3 py-space-2 max-w-[92%]
+              text-fs-200 text-color-text-primary shadow-gj-sm"
+            style={{ borderRadius: '14px 14px 14px 4px' }}
+          >
+            Ta candidature pour <b>{opportuniteTitre}</b> a bien été envoyée.
+            <br />
+            Réf. <b className="text-gj-teal-deep">{refId}</b>.<br />
+            Tu reçois un message dès qu&apos;il y a une mise à jour.
+          </div>
+        </div>
       </div>
-    </div>
-  )
-}
 
-function Step4Success({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="flex flex-col items-center text-center gap-space-3 py-space-4">
-      <div
-        className="w-16 h-16 rounded-full bg-gj-green-soft text-gj-green-ink
-          flex items-center justify-center"
-        aria-hidden
-      >
-        <Icon name="check-circle" className="w-8 h-8" />
-      </div>
-      <h3 className="text-fs-500 font-black text-color-text-primary">
-        Candidature envoyée
-      </h3>
-      <p className="text-fs-300 text-color-text-secondary max-w-[40ch]">
-        Le recruteur a reçu votre dossier. Vous serez notifié·e de la suite par
-        WhatsApp ou SMS.
-      </p>
-      <div className="flex flex-col gap-space-2 w-full max-w-[280px]">
+      <div className="flex flex-col gap-space-2 w-full">
         <Link
           href="/jeune/mes-candidatures"
-          className="inline-flex items-center justify-center bg-gj-teal-deep text-white
-            font-bold rounded-gj-md min-h-[var(--tap-comfortable)] px-space-4"
+          className="inline-flex items-center justify-center gap-space-2 min-h-[50px]
+            rounded-gj-md bg-gj-teal-deep text-white font-bold text-fs-300 hover:opacity-90"
         >
-          Suivre ma candidature
+          Suivre ma candidature <Icon name="arrow-right" size={18} />
         </Link>
-        <Button variant="ghost" size="lg" onClick={onClose}>
-          Fermer
-        </Button>
+        <Link
+          href="/opportunites"
+          className="inline-flex items-center justify-center min-h-[46px]
+            rounded-gj-md border border-gj-line bg-white text-gj-teal-deep font-bold text-fs-200 hover:bg-gj-bg"
+        >
+          Voir d&apos;autres opportunités
+        </Link>
       </div>
     </div>
   )
 }
-
-// Notification finale est confiée au parent via `onSuccess` (toast), si fourni.
-// Le composant exporte un effet : quand on atteint step 4, on notifie.
-// Implémentation : le parent observe `onSuccess` indirectement via le clic Fermer
-// ou la redirection (la candidature est déjà enregistrée serveur-side).
-//
-// NB : pour notifier le parent dès l'arrivée à step 4 (mise à jour de
-// `dejaCandidate`), on déclenche dans le composant principal :
-export const __INTERNAL = { LETTRE_MIN, LETTRE_MAX } // pour les tests
