@@ -257,6 +257,9 @@ model ProfilJeune {
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int      @default(0) @map("completion_score")
   profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
+  // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
+  cvUrl             String?  @map("cv_url") @db.VarChar(500)
+  cvUploadedAt      DateTime? @map("cv_uploaded_at")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
