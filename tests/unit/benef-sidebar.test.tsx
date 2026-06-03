@@ -77,4 +77,16 @@ describe('<BenefSidebar />', () => {
     expect(hrefs).toContain('/jeune/mes-favoris')
     expect(hrefs).toContain('/jeune/mes-candidatures')
   })
+
+  it('rend les liens externes YEAH et E-learning avec target=_blank', () => {
+    render(<BenefSidebar />)
+    const yeah = screen.getByRole('link', { name: /YEAH \(ouvre dans un nouvel onglet\)/i })
+    expect(yeah).toHaveAttribute('target', '_blank')
+    expect(yeah).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    expect(yeah).toHaveAttribute('href', 'https://yeah.consortiumjeunessesenegal.org')
+
+    const elearning = screen.getByRole('link', { name: /E-learning \(ouvre dans un nouvel onglet\)/i })
+    expect(elearning).toHaveAttribute('target', '_blank')
+    expect(elearning).toHaveAttribute('href', 'https://elearning.guichetjeunesse.sn')
+  })
 })
