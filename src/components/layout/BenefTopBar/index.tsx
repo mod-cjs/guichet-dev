@@ -1,5 +1,8 @@
 'use client'
+import { useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
@@ -19,6 +22,10 @@ export interface BenefTopBarProps {
   onBellClick?: () => void
   onInfoClick?: () => void
   onUserClick?: () => void
+  /** Etat (controlled) du side panel Yaye. Si omis, l'état est géré en interne. */
+  yayeOpen?: boolean
+  /** Callback ouverture/fermeture Yaye (controlled). */
+  onYayeOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -43,8 +50,19 @@ export function BenefTopBar({
   onBellClick,
   onInfoClick,
   onUserClick,
+  yayeOpen: yayeOpenProp,
+  onYayeOpenChange,
 }: BenefTopBarProps) {
+  const [yayeOpenInternal, setYayeOpenInternal] = useState(false)
+  const isYayeControlled = yayeOpenProp !== undefined
+  const yayeOpen = isYayeControlled ? yayeOpenProp : yayeOpenInternal
+  const setYayeOpen = (next: boolean) => {
+    if (!isYayeControlled) setYayeOpenInternal(next)
+    onYayeOpenChange?.(next)
+  }
+
   return (
+    <>
     <header
       role="banner"
       className="hidden lg:flex sticky top-0"
@@ -144,6 +162,25 @@ export function BenefTopBar({
         <Icon name="info" size={18} />
       </button>
 
+      {/* Yaye trigger */}
+      <button
+        type="button"
+        onClick={() => setYayeOpen(!yayeOpen)}
+        aria-label="Ouvrir la conversation avec Yaye"
+        aria-haspopup="dialog"
+        aria-expanded={yayeOpen}
+        style={{
+          ...iconBtn,
+          background: 'transparent',
+          border: 0,
+          padding: 0,
+          width: 42,
+          height: 42,
+        }}
+      >
+        <YayeAvatar size={32} withBadge />
+      </button>
+
       {/* User */}
       {userInitials ? (
         <button
@@ -170,6 +207,8 @@ export function BenefTopBar({
         </button>
       ) : null}
     </header>
+    <YayeSidePanel open={yayeOpen} onClose={() => setYayeOpen(false)} />
+    </>
   )
 }
 
