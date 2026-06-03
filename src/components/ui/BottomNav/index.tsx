@@ -34,8 +34,8 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
-        grid grid-cols-5"
+      className="gj-bottom-nav fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
+        grid grid-cols-5 md:hidden"
       style={{
         paddingBottom: 'calc(6px + var(--safe-bottom))',
         zIndex: 'var(--gj-z-bottom-nav)',

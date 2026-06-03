@@ -1,14 +1,19 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}))
+
 describe('<BenefTopBar />', () => {
-  it('rend search + 3 actions + avatar', () => {
-    render(<BenefTopBar userInitials="AD" />)
+  it('rend search + 3 actions + UserMenu', () => {
+    render(<BenefTopBar userInitials="AD" userPrenom="Awa" userNom="Diop" />)
     expect(screen.getByRole('searchbox', { name: /Rechercher/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /favoris/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Notifications/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Aide/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Profil/i })).toBeInTheDocument()
+    // UserMenu — aria-label inclut prénom + nom
+    expect(screen.getByRole('button', { name: /Menu utilisateur/i })).toBeInTheDocument()
   })
 
   it('appelle onSearchChange', () => {
@@ -38,23 +43,28 @@ describe('<BenefTopBar />', () => {
     const onBookmark = jest.fn()
     const onBell = jest.fn()
     const onInfo = jest.fn()
-    const onUser = jest.fn()
     render(
       <BenefTopBar
         userInitials="AD"
+        userPrenom="Awa"
+        userNom="Diop"
         onBookmarkClick={onBookmark}
         onBellClick={onBell}
         onInfoClick={onInfo}
-        onUserClick={onUser}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /favoris/i }))
     fireEvent.click(screen.getByRole('button', { name: /Notifications/i }))
     fireEvent.click(screen.getByRole('button', { name: /Aide/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Profil/i }))
     expect(onBookmark).toHaveBeenCalled()
     expect(onBell).toHaveBeenCalled()
     expect(onInfo).toHaveBeenCalled()
-    expect(onUser).toHaveBeenCalled()
+  })
+
+  it('ouvre le UserMenu (profil + déconnexion)', () => {
+    render(<BenefTopBar userInitials="AD" userPrenom="Awa" userNom="Diop" />)
+    fireEvent.click(screen.getByRole('button', { name: /Menu utilisateur/i }))
+    expect(screen.getByRole('menuitem', { name: /Mon profil/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /déconnecter/i })).toBeInTheDocument()
   })
 })

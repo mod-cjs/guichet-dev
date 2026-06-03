@@ -1,6 +1,7 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 
@@ -42,13 +43,14 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
     title: 'Opportunités',
     items: [
       { id: 'opportunites', href: '/opportunites', icon: 'target', label: 'Toutes les opportunités' },
-      { id: 'favoris', href: '/jeune/favoris', icon: 'bookmark', label: 'Mes favoris' },
+      { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes favoris' },
     ],
   },
   {
     title: 'Mon parcours',
     items: [
-      { id: 'candidatures', href: '/jeune/candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'candidatures', href: '/jeune/mes-candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
@@ -58,10 +60,29 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
     title: 'Mon compte',
     items: [
       { id: 'profil', href: '/jeune/mon-profil', icon: 'profile', label: 'Mon profil' },
-      { id: 'parametres', href: '/jeune/parametres', icon: 'settings', label: 'Paramètres' },
     ],
   },
 ]
+
+/**
+ * Détermine l'id de l'item actif à partir du pathname courant.
+ * - Match exact en priorité
+ * - Sinon match préfixe sur href (hors `/`)
+ */
+function resolveActiveId(
+  pathname: string,
+  sections: BenefSidebarSection[],
+): string | undefined {
+  const items = sections.flatMap(s => s.items)
+  // Match exact
+  const exact = items.find(it => it.href === pathname)
+  if (exact) return exact.id
+  // Match préfixe — privilégier le href le plus long
+  const candidates = items
+    .filter(it => it.href !== '/' && pathname.startsWith(it.href + '/'))
+    .sort((a, b) => b.href.length - a.href.length)
+  return candidates[0]?.id
+}
 
 /**
  * BenefSidebar — sidebar gauche web bénéficiaire (≥1024px).
@@ -83,6 +104,10 @@ export function BenefSidebar({
   userInitials,
   yayeHref = '/jeune/yaye',
 }: BenefSidebarProps) {
+  // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
+  const pathname = usePathname() ?? '/'
+  const activeId = active ?? resolveActiveId(pathname, sections)
+
   return (
     <aside
       role="navigation"
@@ -211,7 +236,7 @@ export function BenefSidebar({
             </div>
           ) : null}
           {section.items.map(item => {
-            const on = item.id === active
+            const on = item.id === activeId
             return (
               <Link
                 key={item.id}
