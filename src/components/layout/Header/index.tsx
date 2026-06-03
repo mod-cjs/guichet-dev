@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { UserMenu } from '@/components/layout/UserMenu'
@@ -13,24 +14,20 @@ export async function Header() {
     >
       <div className="container-page flex items-center">
 
-        {/* Logo — toujours visible */}
+        {/* Logo — toujours visible (image unifiée cf. AppTopbar/BenefSidebar) */}
         <Link
           href="/"
-          className="flex items-center gap-[6px] no-underline flex-shrink-0 py-[10px] mr-[5px]"
+          className="flex items-center no-underline flex-shrink-0 py-[10px] mr-[5px]"
           aria-label="Guichet Jeunesse — accueil"
         >
-          <div
-            className="w-6 h-6 bg-gj-teal rounded-[5px] flex items-center justify-center flex-shrink-0"
-            style={{ color: 'var(--gj-yellow)' }}
-          >
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
-              <circle cx="6.5" cy="3.5" r="2.1" fill="currentColor"/>
-              <path d="M1.5 12c0-2.8 2.3-4.3 5-4.3s5 1.5 5 4.3" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <span className="text-[13px] font-black text-gj-teal-deep whitespace-nowrap">
-            Guichet<b className="text-gj-yellow-ink">Jeunesse</b>.sn
-          </span>
+          <Image
+            src="/logo-guichet.png"
+            alt="Guichet Jeunesse"
+            width={120}
+            height={30}
+            priority
+            style={{ height: 30, width: 'auto' }}
+          />
         </Link>
 
         {/* Nav desktop — composant client pour route active state via usePathname */}

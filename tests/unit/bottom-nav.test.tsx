@@ -67,9 +67,9 @@ describe('<BottomNav /> (ui v2)', () => {
     expect(centres).toHaveAttribute('href', '/centres')
   })
 
-  it('est cachée en desktop (≥lg) via classe Tailwind lg:hidden', () => {
-    const { container } = render(<BottomNav />)
-    const nav = container.querySelector('nav')
-    expect(nav?.className).toMatch(/\blg:hidden\b/)
+  it('est masquée à partir de md (≥ 768px) — md:hidden (GUIC-216)', () => {
+    render(<BottomNav />)
+    const nav = screen.getByRole('navigation', { name: /navigation/i })
+    expect(nav.className).toContain('md:hidden')
   })
 })
