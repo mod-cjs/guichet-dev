@@ -1,4 +1,6 @@
 'use client'
+import { useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 
 export interface BenefTopBarProps {
@@ -6,6 +8,8 @@ export interface BenefTopBarProps {
   searchQuery?: string
   /** Callback recherche (controlled). */
   onSearchChange?: (value: string) => void
+  /** Callback submit — si absent, navigue vers /opportunites?q=<query>. */
+  onSearchSubmit?: (value: string) => void
   /** Placeholder du champ recherche. */
   searchPlaceholder?: string
   /** Nombre de notifications non lues. */
@@ -35,6 +39,7 @@ export interface BenefTopBarProps {
 export function BenefTopBar({
   searchQuery,
   onSearchChange,
+  onSearchSubmit,
   searchPlaceholder = 'Rechercher une opportunité, un centre, un atelier…',
   unread = 0,
   bookmarkCount = 0,
@@ -44,6 +49,24 @@ export function BenefTopBar({
   onInfoClick,
   onUserClick,
 }: BenefTopBarProps) {
+  const router = useRouter()
+  const isControlled = typeof searchQuery === 'string'
+  const [internalQuery, setInternalQuery] = useState('')
+  const value = isControlled ? searchQuery : internalQuery
+  const handleChange = (v: string) => {
+    if (!isControlled) setInternalQuery(v)
+    onSearchChange?.(v)
+  }
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const q = (value ?? '').trim()
+    if (onSearchSubmit) {
+      onSearchSubmit(q)
+      return
+    }
+    if (q.length === 0) return
+    router.push(`/opportunites?q=${encodeURIComponent(q)}`)
+  }
   return (
     <header
       role="banner"
@@ -60,7 +83,9 @@ export function BenefTopBar({
       }}
     >
       {/* Search */}
-      <div
+      <form
+        role="search"
+        onSubmit={handleSubmit}
         style={{
           flex: 1,
           maxWidth: 520,
@@ -77,8 +102,9 @@ export function BenefTopBar({
         <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
         <input
           type="search"
-          value={searchQuery ?? ''}
-          onChange={e => onSearchChange?.(e.target.value)}
+          name="q"
+          value={value ?? ''}
+          onChange={e => handleChange(e.target.value)}
           placeholder={searchPlaceholder}
           aria-label="Rechercher"
           style={{
@@ -105,7 +131,9 @@ export function BenefTopBar({
         >
           ⌘ K
         </kbd>
-      </div>
+        {/* Submit invisible pour soumettre via Enter (a11y form natif). */}
+        <button type="submit" aria-label="Lancer la recherche" style={{ display: 'none' }} />
+      </form>
 
       <span style={{ flex: 1 }} />
 

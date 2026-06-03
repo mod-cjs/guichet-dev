@@ -13,6 +13,8 @@ export interface BenefSidebarItem {
   badge?: string | number
   /** Badge muted (compteur indicatif) vs vif (alerte). */
   badgeMuted?: boolean
+  /** Lien externe (ouvre dans un nouvel onglet, rendu avec <a> au lieu de <Link>). */
+  external?: boolean
 }
 
 export interface BenefSidebarSection {
@@ -52,6 +54,25 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
+    ],
+  },
+  {
+    title: 'Plateformes partenaires',
+    items: [
+      {
+        id: 'yeah',
+        href: 'https://yeah.consortiumjeunessesenegal.org',
+        icon: 'sparkle',
+        label: 'YEAH',
+        external: true,
+      },
+      {
+        id: 'elearning',
+        href: 'https://elearning.guichetjeunesse.sn',
+        icon: 'learning',
+        label: 'E-learning',
+        external: true,
+      },
     ],
   },
   {
@@ -212,26 +233,21 @@ export function BenefSidebar({
           ) : null}
           {section.items.map(item => {
             const on = item.id === active
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-current={on ? 'page' : undefined}
-                className="no-underline"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '9px 10px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  color: on ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
-                  fontWeight: on ? 800 : 600,
-                  minHeight: 38,
-                  background: on ? 'var(--gj-teal-soft)' : 'transparent',
-                  width: '100%',
-                }}
-              >
+            const itemStyle = {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '9px 10px',
+              borderRadius: 8,
+              fontSize: 13,
+              color: on ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
+              fontWeight: on ? 800 : 600,
+              minHeight: 38,
+              background: on ? 'var(--gj-teal-soft)' : 'transparent',
+              width: '100%',
+            } as const
+            const inner = (
+              <>
                 <Icon name={item.icon} size={18} />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.badge ? (
@@ -249,6 +265,39 @@ export function BenefSidebar({
                     {item.badge}
                   </span>
                 ) : null}
+                {item.external ? (
+                  <Icon
+                    name="external"
+                    size={12}
+                    style={{ color: 'var(--gj-grey)', marginLeft: item.badge ? 4 : 'auto' }}
+                  />
+                ) : null}
+              </>
+            )
+            if (item.external) {
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${item.label} (ouvre dans un nouvel onglet)`}
+                  className="no-underline"
+                  style={itemStyle}
+                >
+                  {inner}
+                </a>
+              )
+            }
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-current={on ? 'page' : undefined}
+                className="no-underline"
+                style={itemStyle}
+              >
+                {inner}
               </Link>
             )
           })}

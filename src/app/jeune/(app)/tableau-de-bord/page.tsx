@@ -30,9 +30,9 @@ export default async function TableauDeBordPage() {
         completionScore={completionScore}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-5">
-        {/* Colonne principale : compteurs + CTA (2/3) */}
-        <div className="lg:col-span-2 flex flex-col gap-space-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-space-5">
+        {/* Colonne principale : compteurs + CTA (2fr) */}
+        <div className="flex flex-col gap-space-5">
           <DashboardCompteurs counts={counts} />
 
           {/* CTA cachés en mobile (redondants avec la BottomNav qui couvre déjà
@@ -60,8 +60,8 @@ export default async function TableauDeBordPage() {
           </div>
         </div>
 
-        {/* Colonne secondaire : flux d'activités sticky desktop (1/3) */}
-        <aside className="lg:col-span-1">
+        {/* Colonne secondaire : flux d'activités sticky desktop (1fr) */}
+        <aside>
           <div className="lg:sticky lg:top-[80px]">
             <ActivityFeed items={activity} />
           </div>
