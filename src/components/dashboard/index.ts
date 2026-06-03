@@ -1,4 +1,20 @@
+// Legacy (v1) — conservés pour compatibilité ascendante
 export { DashboardHero }      from './DashboardHero'
 export { DashboardCompteurs } from './DashboardCompteurs'
 export { ActivityFeed }       from './ActivityFeed'
 export { DashboardCTACard }   from './DashboardCTACard'
+
+// v2 — refonte dashboard web bénéficiaire (GUIC-196)
+export { WebDashHero }                 from './WebDashHero'
+export { WebDashKPIs }                 from './WebDashKPIs'
+export type { KPIItem }                from './WebDashKPIs'
+export { WebDashTracker }              from './WebDashTracker'
+export type { TrackerItem }            from './WebDashTracker'
+export { WebDashEvents }               from './WebDashEvents'
+export type { DashEventItem }          from './WebDashEvents'
+export { WebDashCenters }              from './WebDashCenters'
+export type { DashCenterItem }         from './WebDashCenters'
+export { WebDashProfileNudge }         from './WebDashProfileNudge'
+export { WebDashYayePanel }            from './WebDashYayePanel'
+export { OpportunitesRecoCarousel }    from './OpportunitesRecoCarousel'
+export type { OppRecoCard, OppTone }   from './OpportunitesRecoCarousel'
