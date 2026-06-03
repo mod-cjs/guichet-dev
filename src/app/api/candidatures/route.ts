@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { rateLimit } from '@/lib/rate-limit'
-import { logger } from '@/lib/logger'
+import { rateLimit, extractIp } from '@/lib/rate-limit'
+import { logger, hashId } from '@/lib/logger'
 import { CandidatureBodySchema } from '@/lib/validations/candidature'
 import { notifyCandidatureConfirmee } from '@/lib/notifications'
 import type { ApiResponse } from '@/types/api'
 import type { CandidatureListItem } from '@/types/candidature'
+
+/** Version courante des CGU acceptées au moment du POST candidature. */
+const CGU_VERSION = 'v1.0'
 
 // GUIC-21 — M3 · Candidatures (auth SSO requise).
 
@@ -24,6 +27,7 @@ export async function GET(
     windowMs: 60_000,
     max: 30,
     keyPrefix: `candidatures-get:${session.cjsUid}`,
+    authenticated: true,
   })
   if (limited) return limited as NextResponse<ApiResponse<CandidatureListItem[]>>
 
@@ -54,7 +58,11 @@ export async function GET(
     soumiseA: c.soumiseA.toISOString(),
   }))
 
-  return NextResponse.json({ data, meta: { total, page, limit: PAGE_SIZE } })
+  // Cache-Control: 'private, no-store' — données personnelles (CDP).
+  return NextResponse.json(
+    { data, meta: { total, page, limit: PAGE_SIZE } },
+    { headers: { 'Cache-Control': 'private, no-store' } },
+  )
 }
 
 /** POST /api/candidatures — soumet une candidature ; 409 si doublon. */
@@ -66,6 +74,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     windowMs: 60_000,
     max: 10,
     keyPrefix: `candidatures-post:${session.cjsUid}`,
+    authenticated: true,
   })
   if (limited) return limited as NextResponse<ApiResponse>
 
@@ -106,15 +115,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     )
   }
 
+  // Traçabilité du consentement CGU (audit CDP / GUIC-218).
+  const consentIp = extractIp(request)
+
   let candidature
   try {
     candidature = await prisma.candidature.create({
       data: {
         cjsUid: session.cjsUid,
         opportuniteId: opportunite.id,
-        lettreMotivation: parsed.data.lettreMotivation ?? null,
+        lettreMotivation: parsed.data.lettreMotivation,
         cvUrl: parsed.data.cvUrl ?? null,
         notificationsConsent: parsed.data.notificationsConsent,
+        consentAt: new Date(),
+        cguVersion: CGU_VERSION,
+        consentIp,
       },
     })
   } catch (err) {
@@ -144,6 +159,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     } catch (err) {
       logger.error('[candidatures] dispatch des notifications échoué', { err })
     }
+  })
+
+  logger.info('[candidatures] créée', {
+    cjsUidHash: hashId(session.cjsUid),
+    candidatureId: candidature.id,
   })
 
   return NextResponse.json({ data: candidature }, { status: 201 })

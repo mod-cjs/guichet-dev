@@ -1,27 +1,38 @@
 /**
- * GUIC-189 — Upload CV via Vercel Blob (handleUpload pattern).
+ * GUIC-189 / GUIC-218 — Upload CV via Vercel Blob (handleUpload pattern).
  *
  * Le client appelle `upload(file, { handleUploadUrl: '/api/upload/cv' })` du SDK
  * `@vercel/blob/client`. Vercel Blob requête ici deux fois :
  *   1. `onBeforeGenerateToken` — on authentifie le user SSO + on contraint MIME/taille
  *   2. `onUploadCompleted` — callback informatif (no-op : on persiste l'URL via POST /api/candidatures)
  *
- * Sécurité :
+ * Sécurité (GUIC-218) :
  *   - Auth SSO obligatoire (cookie httpOnly)
  *   - MIME forcé : application/pdf
  *   - Taille max : 5 MiB
- *   - Rate-limit Redis : 5 upload/min/cjs_uid
- *   - Pathname namespacé par cjs_uid → un user ne peut écraser le CV d'un autre
+ *   - Rate-limit Redis : 5 upload/min/cjs_uid — `authenticated: true` (pas d'IP
+ *     dans la clé, évite que plusieurs jeunes derrière le même NAT s'éjectent)
+ *   - Pathname namespacé par cjs_uid + addRandomSuffix → un user ne peut écraser
+ *     le CV d'un autre, ni deviner l'URL d'un CV existant
+ *   - cacheControlMaxAge=24h : limite l'exposition d'un blob orphelin si le
+ *     POST /api/candidatures n'arrive jamais
+ *   - Logs sans PII : `cjsUid` est haché, l'URL complète n'est jamais loguée
+ *
+ * TODO (hors scope cette PR — créer ticket de suite) :
+ *   - Cleanup périodique des blobs orphelins : `DELETE FROM blob WHERE pathname
+ *     NOT IN (SELECT cv_url FROM candidatures WHERE cv_url IS NOT NULL)`. Vercel
+ *     Blob n'expose pas de TTL natif, il faut un cron applicatif.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
-import { logger } from '@/lib/logger'
+import { logger, hashId } from '@/lib/logger'
+import { ALLOWED_CV_MIME, MAX_CV_BYTES, RATE_LIMIT_UPLOAD } from '@/lib/constants/candidature'
 import type { ApiResponse } from '@/types/api'
 
-const MAX_BYTES = 5 * 1024 * 1024
-const ALLOWED_MIME = ['application/pdf']
+/** TTL minimum imposé côté Blob — limite l'exposition d'un orphelin à 24h. */
+const BLOB_CACHE_MAX_AGE_SEC = 60 * 60 * 24
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   const session = await getSession(request)
@@ -33,9 +44,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   }
 
   const limited = await rateLimit(request, {
-    windowMs: 60_000,
-    max: 5,
+    windowMs: RATE_LIMIT_UPLOAD.windowMs,
+    max: RATE_LIMIT_UPLOAD.max,
     keyPrefix: `upload-cv:${session.cjsUid}`,
+    authenticated: true,
   })
   if (limited) return limited as NextResponse<ApiResponse>
 
@@ -57,26 +69,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           throw new Error('Seuls les fichiers PDF sont acceptés')
         }
         return {
-          allowedContentTypes: ALLOWED_MIME,
-          maximumSizeInBytes: MAX_BYTES,
+          allowedContentTypes: [...ALLOWED_CV_MIME],
+          maximumSizeInBytes: MAX_CV_BYTES,
           addRandomSuffix: true,
-          tokenPayload: JSON.stringify({ cjsUid: session.cjsUid }),
-          // Namespacing automatique côté Blob — clé finale: cv/<cjsUid>/<file>-<rand>.pdf
+          cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
+          tokenPayload: JSON.stringify({ cjsUidHash: hashId(session.cjsUid) }),
         }
       },
-      onUploadCompleted: async ({ blob, tokenPayload }: { blob: { url: string }; tokenPayload?: string | null }) => {
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
         // Pas de DB write ici : l'URL est persistée via POST /api/candidatures.
-        // Ce callback sert au monitoring/observabilité.
+        // Log uniquement la taille et un hash du cjs_uid — pas l'URL (PII).
         logger.info('[upload/cv] terminé', {
-          url: blob.url,
-          payload: tokenPayload,
+          cjsUidHash: tokenPayload,
+          sizeBytes: typeof blob === 'object' && blob !== null && 'size' in blob ? (blob as { size?: number }).size : undefined,
         })
       },
     })
     return NextResponse.json(json as never)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload impossible'
-    logger.warn('[upload/cv] refusé', { cjsUid: session.cjsUid, err: message })
+    logger.warn('[upload/cv] refusé', {
+      cjsUidHash: hashId(session.cjsUid),
+      err: message,
+    })
     return NextResponse.json(
       { error: { code: 'UPLOAD_FAILED', message } },
       { status: 400 },
