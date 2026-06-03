@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { Sheet, Button } from '@/components/ui'
+import { useEffect, useState } from 'react'
+import { Sheet, Modal, Button } from '@/components/ui'
 
 export interface ViewerInfo {
   prenom: string
@@ -61,13 +61,21 @@ export function CandidatureModal({
     }
   }
 
-  return (
-    <Sheet
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Postuler — ${opportuniteTitre}`}
-      variant="side"
-    >
+  // Choix présentation : bottom-sheet mobile (< md), modal centrée desktop (≥ md).
+  // GUIC-197 — design v2 WebApplyModal : modal centrée 680px sur desktop.
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  const title = `Postuler — ${opportuniteTitre}`
+  const body = (
+    <>
       {error && (
         <div className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3">
           {error}
@@ -131,6 +139,20 @@ export function CandidatureModal({
           Envoyer ma candidature
         </Button>
       </div>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={title} size="lg">
+        {body}
+      </Modal>
+    )
+  }
+
+  return (
+    <Sheet isOpen={isOpen} onClose={onClose} title={title} variant="bottom">
+      {body}
     </Sheet>
   )
 }
