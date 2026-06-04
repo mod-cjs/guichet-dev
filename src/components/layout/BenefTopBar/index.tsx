@@ -1,5 +1,6 @@
 'use client'
 import { Icon } from '@/components/ui/Icon'
+import { UserMenu } from '@/components/layout/UserMenu'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
@@ -14,10 +15,15 @@ export interface BenefTopBarProps {
   bookmarkCount?: number
   /** Initiales utilisateur (affichées en bout de barre). */
   userInitials?: string
+  /** Prénom utilisateur (passé au UserMenu). */
+  userPrenom?: string
+  /** Nom utilisateur (passé au UserMenu). */
+  userNom?: string
   /** Callbacks pour chaque action. */
   onBookmarkClick?: () => void
   onBellClick?: () => void
   onInfoClick?: () => void
+  /** @deprecated — l'avatar ouvre désormais un `UserMenu`. */
   onUserClick?: () => void
 }
 
@@ -39,10 +45,11 @@ export function BenefTopBar({
   unread = 0,
   bookmarkCount = 0,
   userInitials,
+  userPrenom = '',
+  userNom = '',
   onBookmarkClick,
   onBellClick,
   onInfoClick,
-  onUserClick,
 }: BenefTopBarProps) {
   return (
     <header
@@ -56,7 +63,7 @@ export function BenefTopBar({
         gap: 14,
         minHeight: 64,
         flexShrink: 0,
-        zIndex: 5,
+        zIndex: 'var(--gj-z-nav)',
       }}
     >
       {/* Search */}
@@ -144,30 +151,9 @@ export function BenefTopBar({
         <Icon name="info" size={18} />
       </button>
 
-      {/* User */}
+      {/* User — menu déroulant (profil + déconnexion) */}
       {userInitials ? (
-        <button
-          type="button"
-          onClick={onUserClick}
-          aria-label="Profil"
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
-            color: 'var(--gj-surface)',
-            fontWeight: 800,
-            fontSize: 13,
-            border: 0,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {userInitials}
-        </button>
+        <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} />
       ) : null}
     </header>
   )
