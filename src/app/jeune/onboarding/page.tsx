@@ -1,9 +1,13 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { loadHomeStatsSafe } from '@/lib/loaders/home-stats'
 import { OnboardingWelcome } from './_screens/OnboardingWelcome'
 import { OnboardingWelcomeWeb } from './_screens-web/OnboardingWelcomeWeb'
 
 export const metadata = { title: 'Bienvenue — Guichet Jeunesse' }
+
+/** ISR 10 min — les stats CJS ne bougent pas vite (GUIC-235). */
+export const revalidate = 600
 
 /**
  * Écran 1/5 — Welcome (étape "0", pas de StepBar).
@@ -22,10 +26,11 @@ export default async function OnboardingWelcomePage() {
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
 
   const prenom = session.prenom || undefined
+  const stats = await loadHomeStatsSafe()
   return (
     <>
-      <div className="gj-onboarding-mobile"><OnboardingWelcome prenom={prenom} /></div>
-      <div className="gj-onboarding-web"><OnboardingWelcomeWeb prenom={prenom} /></div>
+      <div className="gj-onboarding-mobile"><OnboardingWelcome prenom={prenom} stats={stats} /></div>
+      <div className="gj-onboarding-web"><OnboardingWelcomeWeb prenom={prenom} stats={stats} /></div>
     </>
   )
 }

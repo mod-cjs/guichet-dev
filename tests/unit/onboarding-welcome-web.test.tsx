@@ -15,11 +15,27 @@ describe('OnboardingWelcomeWeb', () => {
     expect(login).toHaveAttribute('href', '/auth/connexion')
   })
 
-  test('affiche les 4 stats CJS', () => {
+  test('affiche les 4 stats CJS (fallback snapshot par défaut)', () => {
     render(<OnboardingWelcomeWeb />)
-    expect(screen.getByText('22 695')).toBeInTheDocument()
-    expect(screen.getByText('1 240')).toBeInTheDocument()
+    expect(screen.getByText(/^22\s695$/)).toBeInTheDocument()
+    expect(screen.getByText(/^1\s240$/)).toBeInTheDocument()
     expect(screen.getByText('Centres CJS')).toBeInTheDocument()
+  })
+
+  test('affiche les stats injectées en props (GUIC-235)', () => {
+    render(
+      <OnboardingWelcomeWeb
+        stats={{
+          jeunesInscrits: 30_412,
+          opportunitesActives: 1_587,
+          regionsCouvertes: 14,
+          centresActifs: 12,
+        }}
+      />,
+    )
+    expect(screen.getByText(/^30\s412$/)).toBeInTheDocument()
+    expect(screen.getByText(/^1\s587$/)).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
   })
 
   test('eyebrow personnalisé si prénom fourni', () => {

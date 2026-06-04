@@ -5,14 +5,30 @@ import { render, screen } from '@testing-library/react'
 import { OnboardingWelcome } from '@/app/jeune/onboarding/_screens/OnboardingWelcome'
 
 describe('<OnboardingWelcome /> — écran 1/5', () => {
-  it('affiche les 3 stats CJS hardcodées', () => {
+  it('affiche les 3 stats CJS (fallback snapshot par défaut)', () => {
     render(<OnboardingWelcome />)
-    expect(screen.getByText('22 695')).toBeInTheDocument()
-    expect(screen.getByText('1 240')).toBeInTheDocument()
+    // Intl.NumberFormat('fr-FR') utilise U+202F (narrow no-break space) — match large \s
+    expect(screen.getByText(/^22\s695$/)).toBeInTheDocument()
+    expect(screen.getByText(/^1\s240$/)).toBeInTheDocument()
     expect(screen.getByText('14')).toBeInTheDocument()
     expect(screen.getByText(/jeunes inscrits/i)).toBeInTheDocument()
     expect(screen.getByText(/opps actives/i)).toBeInTheDocument()
     expect(screen.getByText(/régions/i)).toBeInTheDocument()
+  })
+
+  it('affiche les stats injectées en props (GUIC-235)', () => {
+    render(
+      <OnboardingWelcome
+        stats={{
+          jeunesInscrits: 30_412,
+          opportunitesActives: 1_587,
+          regionsCouvertes: 14,
+          centresActifs: 9,
+        }}
+      />,
+    )
+    expect(screen.getByText(/^30\s412$/)).toBeInTheDocument()
+    expect(screen.getByText(/^1\s587$/)).toBeInTheDocument()
   })
 
   it('CTA primaire pointe vers /jeune/onboarding/telephone', () => {
