@@ -143,9 +143,15 @@ export async function POST(
   const pathname = `cv/${session.cjsUid}/${safeName}`
 
   // 6. Upload serveur → Vercel Blob.
+  // Le store Vercel Blob du projet est configuré en **private** (cf. audit GUIC-189 C1 :
+  // les CV sont des données nominatives, ne doivent pas être accessibles via URL publique).
+  // Le SDK rejette `access: 'public'` sur un store privé → on utilise `'private'`.
+  // Note : la lecture du CV par un recruteur nécessitera une signed URL générée
+  // server-side via un endpoint dédié (TODO Phase 4).
   try {
     const blob = await put(pathname, file, {
-      access: 'public',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      access: 'private' as any,
       addRandomSuffix: true,
       contentType: file.type,
       cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
