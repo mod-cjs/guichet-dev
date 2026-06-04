@@ -26,7 +26,7 @@ export default async function NotificationsPage() {
       </div>
 
       <EmptyState
-        emoji="🔔"
+        icon="bell"
         title="Aucune notification pour le moment"
         description="Vos prochaines notifications apparaîtront ici dès qu'un événement vous concernera."
       />

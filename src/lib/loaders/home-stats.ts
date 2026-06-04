@@ -1,7 +1,11 @@
+import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat } from '@/lib/types/home-stats'
+
+export { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat }
 
 /**
- * Stats temps réel affichées sur l'écran Welcome (onboarding 1/5) — GUIC-235.
+ * Stats temps réel affichées sur la home publique — GUIC-235.
  *
  * - `jeunesInscrits`  : `Utilisateur.count()` filtré sur statut actif, hors soft-delete.
  * - `opportunitesActives` : `Opportunite.count()` publiees, deadline future (ou nulle), hors soft-delete.
@@ -11,21 +15,10 @@ import { prisma } from '@/lib/prisma'
  * - `centresActifs`   : `Centre.count({ where: { estActif: true } })`.
  *
  * Le calcul est cacheable côté page via `revalidate = 600`.
+ * Marquage `server-only` : le loader ne doit JAMAIS être bundle côté client
+ * (Prisma + mariadb driver). Les composants client utilisent les types via
+ * `@/lib/types/home-stats`.
  */
-export interface HomeStats {
-  jeunesInscrits: number
-  opportunitesActives: number
-  regionsCouvertes: number
-  centresActifs: number
-}
-
-/** Valeurs de repli affichées si la base est indisponible (snapshot CJS 2026-05). */
-export const FALLBACK_HOME_STATS: HomeStats = {
-  jeunesInscrits: 22_695,
-  opportunitesActives: 1_240,
-  regionsCouvertes: 14,
-  centresActifs: 9,
-}
 
 export async function loadHomeStats(): Promise<HomeStats> {
   const now = new Date()
@@ -68,9 +61,5 @@ export async function loadHomeStatsSafe(): Promise<HomeStats> {
   }
 }
 
-const NF_FR = new Intl.NumberFormat('fr-FR')
-
-/** Formate `22695` → `"22 695"` (espace insécable U+202F via Intl fr-FR). */
-export function formatHomeStat(value: number): string {
-  return NF_FR.format(value)
-}
+// formatHomeStat est désormais ré-exporté depuis @/lib/types/home-stats
+// (déplacé pour permettre l'usage côté client sans bundler Prisma).

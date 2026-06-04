@@ -1,36 +1,21 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { loadHomeStatsSafe } from '@/lib/loaders/home-stats'
-import { OnboardingWelcome } from './_screens/OnboardingWelcome'
-import { OnboardingWelcomeWeb } from './_screens-web/OnboardingWelcomeWeb'
-
-export const metadata = { title: 'Bienvenue — Guichet Jeunesse' }
-
-/** ISR 10 min — les stats CJS ne bougent pas vite (GUIC-235). */
-export const revalidate = 600
 
 /**
- * Écran 1/5 — Welcome (étape "0", pas de StepBar).
+ * `/jeune/onboarding` — entrée du funnel post-SSO.
  *
- * Mobile (<1024px) : hero vertical PhoneFrame, stats, photo testimonial.
- * Web    (≥1024px) : split hero desktop avec stack visuel (cf GUIC-195).
+ * Décision GUIC-199 : on n'affiche plus l'écran "Welcome" ici (il vit
+ * désormais sur `/` comme page d'accueil publique). Un user qui arrive sur
+ * cette route a déjà une session valide ; on le pousse direct sur l'étape
+ * de saisie du téléphone, ou sur son dashboard si l'onboarding est terminé.
  *
- * Le switch est purement CSS (cf `.gj-onboarding-mobile/-web` dans
- * `globals.css`) — pas de hook `useMediaQuery`, pas de flash au 1er paint.
- *
- * Si l'utilisateur a déjà terminé son onboarding → redirect dashboard.
+ * Note : la PR #84 (GUIC-235 stats homepage) introduit `loadHomeStats()` —
+ * les stats sont consommées par WelcomeHero* sur la home publique `/`,
+ * plus depuis cette route (Welcome retiré ici).
  */
-export default async function OnboardingWelcomePage() {
+export default async function OnboardingEntryPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
-
-  const prenom = session.prenom || undefined
-  const stats = await loadHomeStatsSafe()
-  return (
-    <>
-      <div className="gj-onboarding-mobile"><OnboardingWelcome prenom={prenom} stats={stats} /></div>
-      <div className="gj-onboarding-web"><OnboardingWelcomeWeb prenom={prenom} stats={stats} /></div>
-    </>
-  )
+  redirect('/jeune/onboarding/telephone')
 }
