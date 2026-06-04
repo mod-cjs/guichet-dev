@@ -1,9 +1,8 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button, Toast } from '@/components/ui'
+import { Button, Icon, Toast } from '@/components/ui'
 import { CandidatureModal, type ViewerInfo } from './CandidatureModal'
-import { HeartIcon } from './OpportunityCard'
 import { useFavoris } from './FavorisProvider'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -15,27 +14,6 @@ interface OpportuniteDetailProps {
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 const humanize = (v: string) => v.replace(/_/g, ' ')
-
-function ShareIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-    </svg>
-  )
-}
 
 function KeyFact({ label, value }: { label: string; value: string }) {
   return (
@@ -136,7 +114,7 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
       )}
 
       {/* Barre d'actions — collante, séparée du contenu qui défile dessous */}
-      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-white py-space-3
+      <div className="flex flex-wrap gap-space-2 sticky bottom-0 bg-gj-surface py-space-3
         border-t border-gj-line">
         {!viewer ? (
           <a
@@ -168,14 +146,14 @@ export function OpportuniteDetail({ detail, viewer }: OpportuniteDetailProps) {
             ${
               isFavori
                 ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep'
-                : 'bg-white border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
+                : 'bg-gj-surface border-gj-teal-deep text-gj-teal-deep hover:bg-gj-teal-soft'
             }`}
         >
-          <HeartIcon filled={isFavori} />
+          <Icon name="heart" size={20} className={isFavori ? 'fill-current' : undefined} />
           {isFavori ? 'Sauvegardée' : 'Sauvegarder'}
         </button>
         <Button variant="ghost" size="lg" onClick={share} aria-label="Partager">
-          <ShareIcon />
+          <Icon name="share" size={20} />
           <span className="sr-only md:not-sr-only">Partager</span>
         </Button>
       </div>

@@ -54,10 +54,9 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
       >
         {/* Pane gauche — hero teal */}
         <section
-          className="relative overflow-hidden flex flex-col justify-center"
+          className="relative overflow-hidden flex flex-col justify-center text-white"
           style={{
             background: 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
-            color: '#fff',
             padding: 60,
           }}
         >
@@ -131,7 +130,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
             maxWidth: 640,
           }}
         >
-          <h2 className="font-black text-color-text-primary" style={{ fontSize: 28, lineHeight: 1.15 }}>
+          <h2 className="font-black text-color-text-primary text-fs-700" style={{ lineHeight: 1.15 }}>
             Ton numéro sénégalais
           </h2>
           <p className="text-gj-grey" style={{ fontSize: 13.5, lineHeight: 1.5 }}>

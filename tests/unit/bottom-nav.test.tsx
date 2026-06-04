@@ -59,4 +59,15 @@ describe('<BottomNav /> (ui v2)', () => {
     const nav = screen.getByRole('navigation', { name: /navigation/i })
     expect(nav.classList.contains('gj-bottom-nav')).toBe(true)
   })
+
+  it('ne contient plus l\'item Profil (déplacé dans AppTopbar mobile)', () => {
+    render(<BottomNav />)
+    expect(screen.queryByRole('link', { name: /profil/i })).not.toBeInTheDocument()
+  })
+
+  it('expose l\'item Centres (remplace Profil — GUIC-205)', () => {
+    render(<BottomNav />)
+    const centres = screen.getByRole('link', { name: /centres/i })
+    expect(centres).toHaveAttribute('href', '/centres')
+  })
 })

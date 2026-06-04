@@ -14,15 +14,16 @@ interface NavItem {
  * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
  * aucun emoji comme icône de nav.
  *
- * Note : le sprite n'expose pas d'icône `user` — on utilise `profile`
- * (équivalent sémantique le plus proche dans ICON_NAMES).
+ * Note : item Profil retiré (accessible via AppTopbar mobile, icône user
+ * en haut). Remplacé par Centres pour exposer la cartographie YEAH —
+ * cf GUIC-205 sous-PR A.
  */
 const ITEMS: NavItem[] = [
-  { href: '/',                 icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites',     icon: 'search',   label: 'Explorer' },
-  { href: '/agenda',           icon: 'calendar', label: 'Agenda' },
-  { href: '/ressources',       icon: 'document', label: 'Ressources' },
-  { href: '/jeune/mon-profil', icon: 'profile',  label: 'Profil' },
+  { href: '/',             icon: 'home',     label: 'Accueil' },
+  { href: '/opportunites', icon: 'search',   label: 'Explorer' },
+  { href: '/agenda',       icon: 'calendar', label: 'Agenda' },
+  { href: '/ressources',   icon: 'document', label: 'Ressources' },
+  { href: '/centres',      icon: 'pin',      label: 'Centres' },
 ]
 
 interface BottomNavProps {
