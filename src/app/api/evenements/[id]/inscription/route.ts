@@ -59,7 +59,7 @@ export async function POST(
 
   const evenement = await prisma.evenement.findUnique({
     where: { id },
-    select: { id: true, statut: true },
+    select: { id: true, statut: true, dateDebut: true, dateFin: true },
   })
   if (!evenement) {
     return NextResponse.json(
@@ -70,6 +70,17 @@ export async function POST(
   if (evenement.statut === 'termine' || evenement.statut === 'annule') {
     return NextResponse.json(
       { error: { code: 'CONFLICT', message: 'Événement non ouvert aux inscriptions' } },
+      { status: 409 },
+    )
+  }
+  // Garde-fou : un événement dont la date de fin (ou la date de début, si pas de fin)
+  // est dépassée ne doit pas accepter d'inscription, même si son `statut` n'a pas
+  // encore été basculé à `termine` par le job de transition.
+  const now = Date.now()
+  const endTs = (evenement.dateFin ?? evenement.dateDebut).getTime()
+  if (endTs < now) {
+    return NextResponse.json(
+      { error: { code: 'CONFLICT', message: 'Événement déjà passé' } },
       { status: 409 },
     )
   }

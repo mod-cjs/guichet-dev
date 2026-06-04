@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input, Chip, EmptyState, Icon, Button, Toast } from '@/components/ui'
 import { EventCard } from './EventCard'
@@ -55,7 +55,10 @@ export function EvenementsClient({
   // État inscriptions : set d'eventIds. Chargé une fois si authentifié.
   const [inscriptions, setInscriptions] = useState<Set<string>>(new Set())
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(
+  // Ref miroir : permet de bloquer les double-clics ultra-rapides AVANT le re-render
+  // (setState est asynchrone, le state `pendingId` peut encore être null au 2e clic).
+  const pendingRef = useRef<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'danger' | 'info' } | null>(
     null,
   )
 
@@ -101,11 +104,15 @@ export function EvenementsClient({
   const handleInscrire = useCallback(
     (id: string) => {
       if (!isAuthenticated) {
-        router.push('/auth/login')
+        // Page humaine `/auth/connexion` (le bouton SSO appelle ensuite `/api/auth/login`).
+        // `/auth/login` n'existe pas côté pages — c'est `/auth/connexion`.
+        router.push('/auth/connexion')
         return
       }
-      if (pendingId) return // évite double-clic concurrent
+      // Garde anti double-clic : vérifie le ref (synchrone) AVANT le state.
+      if (pendingRef.current) return
       const wasInscrit = inscriptions.has(id)
+      pendingRef.current = id
       setPendingId(id)
       // Mise à jour optimiste
       setInscriptions((prev) => {
@@ -122,10 +129,12 @@ export function EvenementsClient({
 
       req
         .then((r) => {
+          // 409 sur POST = déjà inscrit → état optimiste déjà correct, traiter comme succès.
+          // 409 sur DELETE n'existe pas (toujours 204), mais on reste tolérant.
           if (!r.ok && r.status !== 409) throw new Error(String(r.status))
           setToast({
             message: wasInscrit ? 'Désinscription confirmée' : 'Inscription confirmée',
-            type: 'success',
+            variant: 'success',
           })
         })
         .catch(() => {
@@ -136,11 +145,14 @@ export function EvenementsClient({
             else next.delete(id)
             return next
           })
-          setToast({ message: 'Action impossible, réessayez', type: 'error' })
+          setToast({ message: 'Action impossible, réessayez', variant: 'danger' })
         })
-        .finally(() => setPendingId(null))
+        .finally(() => {
+          pendingRef.current = null
+          setPendingId(null)
+        })
     },
-    [isAuthenticated, inscriptions, pendingId, router],
+    [isAuthenticated, inscriptions, router],
   )
 
   return (
@@ -236,7 +248,7 @@ export function EvenementsClient({
       )}
 
       {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />
       )}
     </div>
   )

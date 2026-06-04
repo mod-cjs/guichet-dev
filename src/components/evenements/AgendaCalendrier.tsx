@@ -114,13 +114,35 @@ export function AgendaCalendrier({ events, mois, onMoisChange, onInscrire }: Age
   })
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  // Ne se déclenche que lors d'un changement explicite de focusIndex (clavier) —
-  // pas au render initial. On suit volontairement uniquement focusIndex pour
-  // éviter un vol de focus au montage / lors d'un changement de mois.
+  // Quand le mois change (clic ◀ ▶), recalibre focusIndex sur le 1er du nouveau
+  // mois afin que le tabIndex roving reste cohérent avec la grille rebuild.
+  // Sinon un focusIndex hérité de l'ancienne grille pointe vers une autre date.
+  const moisKey = `${mois.getFullYear()}-${mois.getMonth()}`
+  const prevMoisKeyRef = useRef(moisKey)
+  // Bloque le focus auto sur changement de mois (l'utilisateur est sur le bouton
+  // ◀ ▶, on ne lui vole pas le focus). Le tabIndex roving est resynchronisé sur
+  // le 1er du nouveau mois pour rester logique au prochain Tab.
+  const skipFocusRef = useRef(false)
+  if (prevMoisKeyRef.current !== moisKey) {
+    prevMoisKeyRef.current = moisKey
+    const firstInMonth = cells.findIndex((c) => c.inMonth)
+    if (firstInMonth !== -1 && firstInMonth !== focusIndex) {
+      skipFocusRef.current = true
+      // setState pendant le render est OK : React batch et évite la double-pass.
+      setFocusIndex(firstInMonth)
+    }
+  }
+
+  // Ne se déclenche que lors d'un changement explicite de focusIndex via clavier
+  // (Arrow/Enter). On neutralise le 1er render et les changements de mois.
   const hasMountedRef = useRef(false)
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true
+      return
+    }
+    if (skipFocusRef.current) {
+      skipFocusRef.current = false
       return
     }
     cellRefs.current[focusIndex]?.focus({ preventScroll: true })

@@ -41,6 +41,8 @@ const route = require('@/app/api/evenements/[id]/inscription/route')
 
 const SESSION = { cjsUid: 'uid-1', nom: 'Diallo', prenom: 'Awa' }
 const EVT_ID = 'evt-123'
+const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000) // J+1
+const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000) // J-1
 
 function req(method: 'GET' | 'POST' | 'DELETE'): NextRequest {
   return new NextRequest(`http://localhost/api/evenements/${EVT_ID}/inscription`, { method })
@@ -94,13 +96,21 @@ describe('POST /api/evenements/[id]/inscription', () => {
   })
 
   it('renvoie 409 si événement terminé', async () => {
-    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'termine' })
+    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'termine', dateDebut: futureDate, dateFin: null })
     const res = await route.POST(req('POST'), ctx)
     expect(res.status).toBe(409)
   })
 
+  it('renvoie 409 si date déjà passée même si statut=a_venir (cron en retard)', async () => {
+    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir', dateDebut: pastDate, dateFin: pastDate })
+    const res = await route.POST(req('POST'), ctx)
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.message).toMatch(/passé/i)
+    expect(mockInscCreate).not.toHaveBeenCalled()
+  })
+
   it('crée l\'inscription et renvoie 201', async () => {
-    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir' })
+    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir', dateDebut: futureDate, dateFin: null })
     mockInscFindUnique.mockResolvedValue(null)
     mockInscCreate.mockResolvedValue({ id: 'i1', cjsUid: 'uid-1', evenementId: EVT_ID })
     const res = await route.POST(req('POST'), ctx)
@@ -111,7 +121,7 @@ describe('POST /api/evenements/[id]/inscription', () => {
   })
 
   it('est idempotent : 200 sans recréer si déjà inscrit', async () => {
-    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir' })
+    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir', dateDebut: futureDate, dateFin: null })
     mockInscFindUnique.mockResolvedValue({ id: 'i1', statut: 'inscrit' })
     const res = await route.POST(req('POST'), ctx)
     expect(res.status).toBe(200)
@@ -119,7 +129,7 @@ describe('POST /api/evenements/[id]/inscription', () => {
   })
 
   it('réactive une inscription annulée', async () => {
-    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir' })
+    mockEvtFindUnique.mockResolvedValue({ id: EVT_ID, statut: 'a_venir', dateDebut: futureDate, dateFin: null })
     mockInscFindUnique.mockResolvedValue({ id: 'i1', statut: 'annule' })
     mockInscUpdate.mockResolvedValue({ id: 'i1', statut: 'inscrit' })
     const res = await route.POST(req('POST'), ctx)
