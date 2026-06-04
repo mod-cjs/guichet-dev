@@ -1,33 +1,56 @@
+'use client'
+
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats'
 
-const STATS = [
-  { value: '22 695', label: 'Jeunes inscrits' },
-  { value: '1 240',  label: 'Opps actives'    },
-  { value: '14',     label: 'Régions'         },
-] as const
+interface Props {
+  /** Prénom affiché en eyebrow s'il est connu (sinon "Le guichet unique du CJS"). */
+  prenom?: string
+  /**
+   * Stats CJS injectées par le Server Component parent (GUIC-235).
+   * Fallback sur le snapshot 2026-05 pour Storybook / contexts sans DB.
+   */
+  stats?: HomeStats
+}
 
 /**
- * Hero d'accueil mobile — affiché < 1024px (la variante desktop a son propre layout split).
- * Container max-w-[480px] centré pour ne pas s'étirer sur tablette portrait.
+ * Onboarding écran 1/5 — Welcome.
+ *
+ * Hero gradient `gj-teal-deep → ink-teal`, glow jaune en haut à droite,
+ * stats CJS hardcodées, photo testimonial placeholder, CTA primaire jaune
+ * "Commencer" → `/jeune/onboarding/telephone`, CTA ghost "J'ai déjà un compte"
+ * → `/auth/connexion`.
+ *
+ * Conforme `design-guichet-v2/onboarding.jsx#Onboard1Welcome`.
  */
-export function WelcomeHeroMobile() {
+export function OnboardingWelcome({ prenom, stats = FALLBACK_HOME_STATS }: Props) {
+  const STATS = [
+    { value: formatHomeStat(stats.jeunesInscrits),      label: 'Jeunes inscrits' },
+    { value: formatHomeStat(stats.opportunitesActives), label: 'Opps actives'    },
+    { value: formatHomeStat(stats.regionsCouvertes),    label: 'Régions'         },
+  ] as const
   return (
     <div
-      className="flex flex-col mx-auto"
+      className="flex flex-col"
       style={{
         minHeight: 'calc(100dvh - 3rem)',
-        maxWidth: 480,
         background: 'var(--gj-ink-teal)',
         color: '#fff',
       }}
     >
+      {/* Hero */}
       <section
         className="relative flex-1 flex flex-col px-space-5 pt-space-5 overflow-hidden"
         style={{
           background: 'linear-gradient(180deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
         }}
       >
+        {/* glow jaune */}
         <span
           aria-hidden
           className="absolute pointer-events-none"
@@ -50,7 +73,7 @@ export function WelcomeHeroMobile() {
             marginTop: 24,
           }}
         >
-          Le guichet unique du CJS
+          {prenom ? `Bienvenue ${prenom}` : 'Le guichet unique du CJS'}
         </span>
         <h1
           className="relative font-black"
@@ -65,6 +88,7 @@ export function WelcomeHeroMobile() {
           Emploi · stage · bourse · projet. Pour les 16–35 ans, partout au Sénégal.
         </p>
 
+        {/* photo testimonial placeholder */}
         <div
           className="relative overflow-hidden"
           style={{
@@ -86,6 +110,7 @@ export function WelcomeHeroMobile() {
           </div>
         </div>
 
+        {/* Stats */}
         <div
           className="relative flex justify-around py-space-3"
           style={{ borderTop: '1px solid rgba(255,255,255,.12)' }}
@@ -104,6 +129,7 @@ export function WelcomeHeroMobile() {
         </div>
       </section>
 
+      {/* CTA wrap (sticky bottom, ink-teal) */}
       <div
         className="flex-shrink-0 px-space-5"
         style={{
@@ -113,7 +139,7 @@ export function WelcomeHeroMobile() {
         }}
       >
         <Link
-          href="/auth/connexion"
+          href="/jeune/onboarding/telephone"
           className="inline-flex items-center justify-center gap-2 w-full font-black no-underline"
           style={{
             background: 'var(--gj-yellow)',
@@ -125,11 +151,11 @@ export function WelcomeHeroMobile() {
             padding: '0 18px',
           }}
         >
-          <span>Créer mon profil</span>
+          <span>Commencer</span>
           <Icon name="arrow-right" size={16} aria-hidden />
         </Link>
         <Link
-          href="/opportunites"
+          href="/auth/connexion"
           className="inline-flex items-center justify-center w-full font-bold no-underline mt-space-2"
           style={{
             background: 'transparent',
@@ -141,7 +167,7 @@ export function WelcomeHeroMobile() {
             padding: '0 18px',
           }}
         >
-          Voir les opportunités
+          J&apos;ai déjà un compte
         </Link>
       </div>
     </div>

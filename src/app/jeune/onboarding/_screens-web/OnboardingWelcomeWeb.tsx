@@ -2,17 +2,17 @@
 
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats'
 
 interface Props {
   prenom?: string
+  /** Stats CJS temps réel — GUIC-235. Fallback snapshot si non fourni. */
+  stats?: HomeStats
 }
-
-const STATS = [
-  { value: '22 695', label: 'Jeunes inscrits' },
-  { value: '1 240',  label: 'Opps actives'    },
-  { value: '14',     label: 'Régions'         },
-  { value: '9',      label: 'Centres CJS'     },
-] as const
 
 /**
  * Onboarding écran 1/5 — version WEB (≥1024px, GUIC-195 phase 3-1).
@@ -24,7 +24,13 @@ const STATS = [
  * Pas de logique métier : 2 liens vers `/jeune/onboarding/telephone`
  * et `/auth/connexion`.
  */
-export function OnboardingWelcomeWeb({ prenom }: Props) {
+export function OnboardingWelcomeWeb({ prenom, stats = FALLBACK_HOME_STATS }: Props) {
+  const STATS = [
+    { value: formatHomeStat(stats.jeunesInscrits),      label: 'Jeunes inscrits' },
+    { value: formatHomeStat(stats.opportunitesActives), label: 'Opps actives'    },
+    { value: formatHomeStat(stats.regionsCouvertes),    label: 'Régions'         },
+    { value: formatHomeStat(stats.centresActifs),       label: 'Centres CJS'     },
+  ] as const
   return (
     <div
       className="flex flex-col text-white"
