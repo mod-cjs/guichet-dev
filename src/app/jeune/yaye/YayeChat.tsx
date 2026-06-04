@@ -226,7 +226,7 @@ export function YayeChat() {
             className="inline-flex items-center justify-center bg-transparent border-0 cursor-pointer text-gj-grey hover:text-gj-ink"
             style={{ width: 36, height: 36 }}
           >
-            <Icon name="phone" size={20} />
+            <Icon name="mic" size={20} />
           </button>
           <button
             type="submit"

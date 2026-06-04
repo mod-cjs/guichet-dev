@@ -42,6 +42,7 @@ export const ICON_NAMES = [
   'learning',
   'mail',
   'menu',
+  'mic',
   'phone',
   'pin',
   'play',
