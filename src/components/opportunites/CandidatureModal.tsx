@@ -411,7 +411,7 @@ export function CandidatureModal({
         <span>
           J&apos;accepte que {organisationName ?? "l'organisation"} reçoive mon
           profil CJS et me contacte.{' '}
-          <Link href="/cgu" className="text-gj-teal-deep font-bold hover:underline">
+          <Link href="/legal/cgu" className="text-gj-teal-deep font-bold hover:underline">
             en savoir plus
           </Link>
         </span>
