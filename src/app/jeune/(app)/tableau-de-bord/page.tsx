@@ -30,9 +30,12 @@ export default async function TableauDeBordPage() {
         completionScore={completionScore}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-5">
-        {/* Colonne principale : compteurs + CTA (2/3) */}
-        <div className="lg:col-span-2 flex flex-col gap-space-5">
+      {/* Layout desktop conforme design v2 (web-dashboard.jsx#WebDashboard l.614-689) :
+          colonne principale 2fr (KPIs + CTAs) + aside 1fr (ActivityFeed sticky).
+          Mobile : empilement vertical. */}
+      <div className="lg:grid lg:grid-cols-[2fr_1fr] lg:gap-space-5 flex flex-col gap-space-5">
+        {/* Colonne principale (2fr) */}
+        <div className="flex flex-col gap-space-5">
           <DashboardCompteurs counts={counts} />
 
           {/* CTA cachés en mobile (redondants avec la BottomNav qui couvre déjà
@@ -60,8 +63,8 @@ export default async function TableauDeBordPage() {
           </div>
         </div>
 
-        {/* Colonne secondaire : flux d'activités sticky desktop (1/3) */}
-        <aside className="lg:col-span-1">
+        {/* Aside (1fr) — flux d'activités sticky desktop */}
+        <aside>
           <div className="lg:sticky lg:top-[80px]">
             <ActivityFeed items={activity} />
           </div>
