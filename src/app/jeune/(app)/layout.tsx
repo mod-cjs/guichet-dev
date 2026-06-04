@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
-import { Footer } from '@/components/layout/Footer'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 import { SkipLink } from '@/components/ui/SkipLink'
@@ -12,11 +11,14 @@ import { SkipLink } from '@/components/ui/SkipLink'
  * Mobile (<md) : AppTopbar + BottomNav rendus globalement par MobileAppShell
  * (cf src/app/layout.tsx) — pas de duplication ici.
  *
- * Tablet [md, lg) : Header marketing + Footer (transition).
+ * Tablet [md, lg) : Header marketing (transition).
  *
  * Desktop (≥lg) : layout 2 colonnes — BenefSidebar gauche (260px, sticky)
  * + BenefTopBar haut (sticky) + contenu. C'est le shell web bénéficiaire
  * v2 (cf `design-guichet-v2/web-dashboard.jsx`). Sous-PR A GUIC-205.
+ *
+ * Pas de footer marketing dans l'espace jeune (GUIC-216) — l'app a sa propre
+ * identité, le footer corporate n'a pas sa place ici.
  *
  * On utilise un seul `<main>` autour de `{children}` (pas de duplication
  * de l'arbre React) et on conditionne uniquement le chrome (sidebar/topbar
@@ -59,11 +61,6 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
         <main id="main" className="flex-1 min-h-screen container-page py-space-5">
           {children}
         </main>
-
-        {/* Footer : caché en mobile (shell global), visible tablet + desktop */}
-        <div className="hidden md:block">
-          <Footer />
-        </div>
       </div>
     </div>
   )

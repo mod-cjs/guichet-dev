@@ -48,6 +48,18 @@ describe('<BottomNav /> (ui v2)', () => {
     expect(screen.getByRole('navigation', { name: /navigation/i })).toBeInTheDocument()
   })
 
+  it('est masquée à partir de md (≥ 768px) — md:hidden', () => {
+    render(<BottomNav />)
+    const nav = screen.getByRole('navigation', { name: /navigation/i })
+    expect(nav.className).toContain('md:hidden')
+  })
+
+  it('porte la classe .gj-bottom-nav (sélecteur CSS body:has)', () => {
+    render(<BottomNav />)
+    const nav = screen.getByRole('navigation', { name: /navigation/i })
+    expect(nav.classList.contains('gj-bottom-nav')).toBe(true)
+  })
+
   it('ne contient plus l\'item Profil (déplacé dans AppTopbar mobile)', () => {
     render(<BottomNav />)
     expect(screen.queryByRole('link', { name: /profil/i })).not.toBeInTheDocument()
@@ -57,11 +69,5 @@ describe('<BottomNav /> (ui v2)', () => {
     render(<BottomNav />)
     const centres = screen.getByRole('link', { name: /centres/i })
     expect(centres).toHaveAttribute('href', '/centres')
-  })
-
-  it('est cachée en desktop (≥lg) via classe Tailwind lg:hidden', () => {
-    const { container } = render(<BottomNav />)
-    const nav = container.querySelector('nav')
-    expect(nav?.className).toMatch(/\blg:hidden\b/)
   })
 })
