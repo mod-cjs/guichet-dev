@@ -78,7 +78,7 @@ export function OnboardingObjectifsWeb({ prenom }: Props) {
           </div>
 
           <div>
-            <h2 className="font-black text-color-text-primary" style={{ fontSize: 28, lineHeight: 1.15, letterSpacing: '-.4px' }}>
+            <h2 className="font-black text-color-text-primary text-fs-700" style={{ lineHeight: 1.15, letterSpacing: '-.4px' }}>
               C&apos;est quoi ton objectif&nbsp;?
             </h2>
             <p className="text-gj-grey" style={{ fontSize: 13.5, marginTop: 6 }}>

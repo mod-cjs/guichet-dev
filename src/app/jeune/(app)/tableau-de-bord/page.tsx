@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { loadDashboardCounts, loadRecentActivity, ACTIVITY_LIMIT_DEFAULT } from '@/lib/dashboard-loader'
 import { prisma } from '@/lib/prisma'
 import { DashboardHero, DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
-import { IconCandidature, IconEvenement, IconDiplome } from '@/components/dashboard/icons'
+import { Icon } from '@/components/ui/Icon'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
 
@@ -43,19 +43,19 @@ export default async function TableauDeBordPage() {
               href="/jeune/mon-profil"
               title="Compléter mon profil"
               description="Diplômes, expériences, compétences"
-              icon={<IconDiplome />}
+              icon={<Icon name="learning" />}
             />
             <DashboardCTACard
               href="/opportunites"
               title="Voir les opportunités"
               description="Stages, emplois, formations, bourses"
-              icon={<IconCandidature />}
+              icon={<Icon name="document" />}
             />
             <DashboardCTACard
               href="/agenda"
               title="Voir les événements"
               description="Forums, ateliers, webinaires"
-              icon={<IconEvenement />}
+              icon={<Icon name="calendar" />}
             />
           </div>
         </div>

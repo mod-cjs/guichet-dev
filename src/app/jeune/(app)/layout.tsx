@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 /**
  * Layout des pages app jeune.
@@ -33,6 +34,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
 
   return (
     <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
+      <SkipLink />
       {/* Sidebar desktop (≥lg) — composant déjà `hidden lg:flex` en interne.
           Wrapper sticky pour la garder visible au scroll. */}
       <div className="hidden lg:block sticky top-0 h-screen">
