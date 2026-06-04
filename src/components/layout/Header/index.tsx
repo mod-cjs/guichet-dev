@@ -38,7 +38,7 @@ export async function Header() {
 
           {/* Liens externes — large desktop uniquement (≥ lg) pour désurcharger les écrans moyens */}
           <a
-            href="https://elearning.cjs.sn"
+            href="https://elearning.guichetjeunesse.sn"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-line
@@ -48,7 +48,7 @@ export async function Header() {
             e-learning ↗
           </a>
           <a
-            href="https://yeah.cjs.sn"
+            href="https://yeah.consortiumjeunessesenegal.org"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-yellow
