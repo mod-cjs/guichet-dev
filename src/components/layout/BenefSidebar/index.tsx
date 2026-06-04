@@ -277,7 +277,7 @@ export function BenefSidebar({
           <span style={{ flex: 1, minWidth: 0, lineHeight: 1.15 }}>
             <span
               style={{
-                fontFamily: 'Georgia, serif',
+                fontFamily: 'var(--gj-yaye-font)',
                 fontWeight: 900,
                 fontSize: 14,
                 color: 'var(--gj-surface)',

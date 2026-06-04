@@ -97,7 +97,8 @@ function PillToggle({
       aria-pressed={selected}
       className={[
         'inline-flex items-center px-space-3 py-[8px] rounded-gj-pill',
-        'text-fs-200 leading-none border-[1.5px] transition-colors min-h-[36px]',
+        'text-fs-200 leading-none border-[1.5px] transition-colors',
+        'min-h-[var(--tap-min)] md:min-h-[36px]',
         'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
         selected
           ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep font-black'
