@@ -45,6 +45,7 @@
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/adapter-planetscale": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@vercel/blob": "^2.4.0",
     "autoprefixer": "^10.4.20",
     "groq-sdk": "^0.7.0",
     "ioredis": "^5.4.1",
