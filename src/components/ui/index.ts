@@ -12,7 +12,13 @@ export { EmptyState } from './EmptyState'
 export { FieldLabel } from './FieldLabel'
 export type { FieldLabelProps } from './FieldLabel'
 export { FileUpload } from './FileUpload'
-export type { FileUploadProps, FileUploader, UploadedFileMeta } from './FileUpload'
+export type {
+  FileUploadProps,
+  FileUploader,
+  UploadedFileMeta,
+  DeferredFile,
+  FileUploadMode,
+} from './FileUpload'
 export { Icon, ICON_NAMES } from './Icon'
 export type { IconName, IconProps } from './Icon'
 export { Input }      from './Input'
