@@ -72,9 +72,42 @@ async function uploadCv(container: HTMLElement) {
   await waitFor(() => expect(screen.getByText(/chargé : cv\.pdf/i)).toBeInTheDocument())
 }
 
+/**
+ * Helper : enveloppe une `fetch` mock pour que tout appel à
+ * `/api/profil/completude` retourne un profil complet par défaut. Les autres
+ * URLs sont déléguées à la fonction passée. Ainsi les tests existants n'ont
+ * pas à mocker explicitement la complétude (GUIC-232).
+ */
+function withCompletudeOk(
+  inner: (url: string, init?: RequestInit) => Promise<Response>,
+  missing: string[] = [],
+): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString()
+    if (url.includes('/api/profil/completude')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { complet: missing.length === 0, missing } }),
+      } as unknown as Response
+    }
+    return inner(url, init)
+  }) as unknown as typeof fetch
+}
+
 describe('<CandidatureModal /> — refonte v2', () => {
   const originalFetch = global.fetch
   const originalConfirm = window.confirm
+
+  beforeEach(() => {
+    // Par défaut : profil complet, autres routes échouent (les tests qui
+    // soumettent override `global.fetch`).
+    global.fetch = withCompletudeOk(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    }) as unknown as Response)
+  })
 
   afterEach(() => {
     global.fetch = originalFetch
@@ -183,7 +216,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
         json: async () => ({ data: { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } }),
       }) as unknown as Response,
     )
-    global.fetch = fetchMock as unknown as typeof fetch
+    global.fetch = withCompletudeOk(fetchMock as unknown as (u: string) => Promise<Response>)
     const { props } = renderModal()
     await typeLettre()
     await checkConsent()
@@ -200,7 +233,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('submission 500 → message d’erreur générique', async () => {
-    global.fetch = jest.fn(async () => ({ status: 500, ok: false, json: async () => ({}) })) as unknown as typeof fetch
+    global.fetch = withCompletudeOk(async () => ({ status: 500, ok: false, json: async () => ({}) }) as unknown as Response)
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -213,7 +246,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('422 deadline expirée → message dédié', async () => {
-    global.fetch = jest.fn(async () => ({ status: 422, ok: false, json: async () => ({}) })) as unknown as typeof fetch
+    global.fetch = withCompletudeOk(async () => ({ status: 422, ok: false, json: async () => ({}) }) as unknown as Response)
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -226,7 +259,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('401 session expirée → message dédié', async () => {
-    global.fetch = jest.fn(async () => ({ status: 401, ok: false, json: async () => ({}) })) as unknown as typeof fetch
+    global.fetch = withCompletudeOk(async () => ({ status: 401, ok: false, json: async () => ({}) }) as unknown as Response)
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -239,9 +272,9 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('network error catch → message générique de connexion', async () => {
-    global.fetch = jest.fn(async () => {
+    global.fetch = withCompletudeOk(async () => {
       throw new TypeError('Failed to fetch')
-    }) as unknown as typeof fetch
+    })
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -277,10 +310,11 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('upload réussi + soumission 201 envoie cvUrl dans le payload', async () => {
-    const fetchMock = jest.fn(async () => ({
+    const innerMock = jest.fn(async (_url: string, _init?: RequestInit) => ({
       status: 201, ok: true,
       json: async () => ({ data: { id: '11111111-2222-3333-4444-555555555555' } }),
-    })) as unknown as typeof fetch
+    } as unknown as Response))
+    const fetchMock = withCompletudeOk(innerMock)
     global.fetch = fetchMock
     const { container } = renderModal()
     await uploadCv(container)
@@ -289,11 +323,26 @@ describe('<CandidatureModal /> — refonte v2', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
     })
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
-    const callBody = JSON.parse(
-      (fetchMock as unknown as jest.Mock).mock.calls[0][1].body as string,
-    )
+    await waitFor(() => expect(innerMock).toHaveBeenCalled())
+    const callBody = JSON.parse(innerMock.mock.calls[0][1]!.body as string)
     expect(callBody.cvUrl).toMatch(/^https:\/\/blob\.example\//)
     expect(callBody.notificationsConsent).toBe(true)
+  })
+
+  it('GUIC-232 — profil incomplet : bandeau + bouton désactivé', async () => {
+    global.fetch = withCompletudeOk(
+      async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response,
+      ['region', 'niveauEtude', 'domainesInteret'],
+    )
+    renderModal()
+    expect(await screen.findByTestId('profil-incomplet-banner')).toBeInTheDocument()
+    expect(screen.getByText(/région/)).toBeInTheDocument()
+    expect(screen.getByText(/Compléter mon profil/i)).toBeInTheDocument()
+    // Même après lettre + CGU, le bouton reste désactivé.
+    await typeLettre()
+    await checkConsent()
+    expect(
+      screen.getByRole('button', { name: /Envoyer ma candidature/i }),
+    ).toBeDisabled()
   })
 })
