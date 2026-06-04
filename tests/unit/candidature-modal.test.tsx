@@ -69,6 +69,8 @@ async function uploadCv(container: HTMLElement) {
   await act(async () => {
     pickFile(input, makePdf('cv.pdf'))
   })
+  // GUIC-229 — mode `defer` : on affiche le fichier sélectionné, mais
+  // aucun upload réseau n'a encore eu lieu (il aura lieu au submit).
   await waitFor(() => expect(screen.getByText(/chargé : cv\.pdf/i)).toBeInTheDocument())
 }
 
@@ -161,7 +163,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
     )
   })
 
-  it('upload échec réseau → message d’erreur dans la zone CV', async () => {
+  it('upload échec réseau au submit → message d’erreur (mode defer GUIC-229)', async () => {
     const uploader = jest.fn(async () => {
       throw new Error('Network down')
     })
@@ -170,9 +172,82 @@ describe('<CandidatureModal /> — refonte v2', () => {
     await act(async () => {
       pickFile(input, makePdf('cv.pdf'))
     })
+    // En mode defer, la sélection ne déclenche AUCUN upload.
+    expect(uploader).not.toHaveBeenCalled()
+    await typeLettre()
+    await checkConsent()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
+    })
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/Network down/i),
     )
+    // L'uploader a été appelé une seule fois (et a échoué).
+    expect(uploader).toHaveBeenCalledTimes(1)
+  })
+
+  it('GUIC-229 — 3 changements de fichier avant submit → 0 upload réseau', async () => {
+    const uploader = fakeUploader()
+    const { container } = renderModal({ uploader })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    await act(async () => {
+      pickFile(input, makePdf('first.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('second.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('third.pdf'))
+    })
+    // Trois sélections, zéro blob créé : c'est précisément le bug fixé.
+    expect(uploader).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-229 — fermeture sans submit ne déclenche aucun upload', async () => {
+    const uploader = fakeUploader()
+    window.confirm = jest.fn().mockReturnValue(true) as unknown as typeof window.confirm
+    const onClose = jest.fn()
+    const { container } = renderModal({ uploader, onClose })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    await act(async () => {
+      pickFile(input, makePdf('cv.pdf'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Fermer/i }))
+    })
+    expect(onClose).toHaveBeenCalled()
+    expect(uploader).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-229 — submit upload une seule fois puis POST /api/candidatures', async () => {
+    const uploader = fakeUploader()
+    const fetchMock = jest.fn(async () => ({
+      status: 201,
+      ok: true,
+      json: async () => ({ data: { id: '11111111-2222-3333-4444-555555555555' } }),
+    })) as unknown as typeof fetch
+    global.fetch = fetchMock
+    const { container } = renderModal({ uploader })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    // Trois changements avant le submit
+    await act(async () => {
+      pickFile(input, makePdf('first.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('second.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('third.pdf'))
+    })
+    await typeLettre()
+    await checkConsent()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    // 1 seul upload pour les 3 sélections — le fichier final.
+    expect(uploader).toHaveBeenCalledTimes(1)
+    expect(uploader.mock.calls[0][0]).toBe('third.pdf')
   })
 
   it('submission 201 → écran succès rendu + onSuccess() appelé', async () => {

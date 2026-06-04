@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
-import type { UploadedFileMeta, FileUploader } from '@/components/ui'
+import type { UploadedFileMeta, FileUploader, DeferredFile } from '@/components/ui'
 import {
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
@@ -91,7 +91,13 @@ export function CandidatureModal({
 }: CandidatureModalProps) {
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
-  const [cv, setCv] = useState<UploadedFileMeta | null>(null)
+  // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
+  // soumise, on garde le `File` côté client (zéro blob créé). À la
+  // soumission, on uploade le fichier puis on POST la candidature avec
+  // son URL. Si un CV a déjà été uploadé (retry après échec serveur),
+  // on conserve la meta pour ne pas créer un nouveau blob orphelin.
+  const [cvFile, setCvFile] = useState<DeferredFile | null>(null)
+  const [cvUploaded, setCvUploaded] = useState<UploadedFileMeta | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
@@ -107,7 +113,8 @@ export function CandidatureModal({
     if (!isOpen) {
       setLettre('')
       setConsent(false)
-      setCv(null)
+      setCvFile(null)
+      setCvUploaded(null)
       setError(null)
       setSubmitted(null)
       setSending(false)
@@ -115,7 +122,8 @@ export function CandidatureModal({
   }, [isOpen])
 
   const lettreOk = lettre.trim().length > 0
-  const cvOk = !requiresFileUpload || cv !== null
+  const hasCv = cvFile !== null || cvUploaded !== null
+  const cvOk = !requiresFileUpload || hasCv
   const canSubmit = lettreOk && cvOk && consent && !sending
 
   const disabledReason = useMemo(() => {
@@ -131,7 +139,7 @@ export function CandidatureModal({
       onClose()
       return
     }
-    const hasData = lettre.trim().length > 0 || cv !== null
+    const hasData = lettre.trim().length > 0 || hasCv
     if (hasData) {
       // Garde-fou perte de données : confirm natif (composant Modal serait
       // plus joli mais induirait un état imbriqué — `window.confirm` reste
@@ -145,13 +153,29 @@ export function CandidatureModal({
       if (!ok) return
     }
     onClose()
-  }, [submitted, lettre, cv, onClose])
+  }, [submitted, lettre, hasCv, onClose])
 
   async function submit() {
     if (!canSubmit) return
     setSending(true)
     setError(null)
     try {
+      // GUIC-229 — upload différé : on n'envoie le CV sur Vercel Blob
+      // QU'AU submit (et au plus une fois — un retry réseau sur la
+      // candidature ne déclenche pas un second blob).
+      let cvMeta = cvUploaded
+      if (!cvMeta && cvFile) {
+        try {
+          cvMeta = await uploader(cvFile.safeName, cvFile.file)
+          setCvUploaded(cvMeta)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Échec de l'upload du CV."
+          setError(msg)
+          setSending(false)
+          return
+        }
+      }
+
       const res = await fetch('/api/candidatures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,7 +185,7 @@ export function CandidatureModal({
           notificationsConsent: consent,
           // Champs ajoutés par GUIC-218 — l'API actuelle ignore les
           // propriétés inconnues, donc rétrocompatible.
-          cvUrl: cv?.url,
+          cvUrl: cvMeta?.url,
         }),
       })
       if (res.status === 201) {
@@ -311,8 +335,15 @@ export function CandidatureModal({
       <div className="mt-space-4">
         <FileUpload
           label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
-          upload={uploader}
-          onChange={setCv}
+          mode="defer"
+          onSelect={(deferred) => {
+            setCvFile(deferred)
+            // Tout changement de fichier invalide le précédent upload
+            // (s'il y en avait eu un suite à un retry). Le blob déjà
+            // poussé sur Vercel restera 24h max (cacheControlMaxAge)
+            // et sera nettoyé par le cron GUIC-230.
+            setCvUploaded(null)
+          }}
         />
       </div>
 
