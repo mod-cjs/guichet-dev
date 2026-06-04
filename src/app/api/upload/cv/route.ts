@@ -66,13 +66,34 @@ export async function POST(
     )
   }
 
-  // 2. Rate limit Redis par cjs_uid.
-  const limited = await rateLimit(request, {
-    windowMs: RATE_LIMIT_UPLOAD.windowMs,
-    max: RATE_LIMIT_UPLOAD.max,
-    keyPrefix: `upload-cv:${session.cjsUid}`,
-  })
-  if (limited) return limited as NextResponse<ApiResponse<UploadedFileMeta>>
+  // 2. Pré-check : token Blob configuré ? (sinon `put()` throw cryptiquement)
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    logger.error('[upload/cv] BLOB_READ_WRITE_TOKEN absent — variable Vercel Blob non configurée')
+    return NextResponse.json(
+      {
+        error: {
+          code: 'BLOB_NOT_CONFIGURED',
+          message: 'Service de stockage non configuré. Contactez le support.',
+        },
+      },
+      { status: 503 },
+    )
+  }
+
+  // 3. Rate limit Redis par cjs_uid — catch pour distinguer Redis down (503) du throw Blob (502).
+  try {
+    const limited = await rateLimit(request, {
+      windowMs: RATE_LIMIT_UPLOAD.windowMs,
+      max: RATE_LIMIT_UPLOAD.max,
+      keyPrefix: `upload-cv:${session.cjsUid}`,
+    })
+    if (limited) return limited as NextResponse<ApiResponse<UploadedFileMeta>>
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Redis indisponible'
+    logger.error('[upload/cv] rate-limit Redis indisponible', { err: message })
+    // Soft-fail : on laisse passer (ne pas bloquer l'utilisateur si Redis tombe).
+    // Le risque rate-limit est temporairement levé mais l'auth SSO reste obligatoire.
+  }
 
   // 3. Parse FormData (et non JSON — c'est précisément la cause du bug d'origine).
   let formData: FormData
@@ -140,9 +161,13 @@ export async function POST(
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload impossible'
-    logger.warn('[upload/cv] refusé', {
+    const stack = err instanceof Error ? err.stack : undefined
+    logger.error('[upload/cv] Blob put() failed', {
       cjsUidHash: await hashId(session.cjsUid),
       err: message,
+      stack,
+      pathname,
+      sizeBytes: file.size,
     })
     return NextResponse.json(
       { error: { code: 'UPLOAD_FAILED', message } },
