@@ -5,6 +5,10 @@ import type { RessourceListItem, TypeRessourceValue } from '@/lib/loaders/ressou
 
 interface ResourceCardProps {
   item: RessourceListItem
+  /** Indique si la ressource est dans les favoris de l'utilisateur (GUIC-24). */
+  isFavori?: boolean
+  /** Callback de toggle favori — si non fournie, le bouton bookmark est masqué. */
+  onToggleFavori?: (id: string) => void
 }
 
 /** Icône + couleur d'accent selon le type de ressource. */
@@ -19,10 +23,11 @@ const TYPE_META: Record<
   Outil: { icon: 'bolt',     bg: 'bg-gj-green-soft',  text: 'text-gj-green-ink',  badge: 'green',  cta: 'Utiliser'    },
 }
 
-/** Carte ressource (M6 — refonte v2). */
-export function ResourceCard({ item }: ResourceCardProps) {
+/** Carte ressource (M6 — refonte v2, GUIC-24 favoris). */
+export function ResourceCard({ item, isFavori = false, onToggleFavori }: ResourceCardProps) {
   const meta = TYPE_META[item.type]
   const isExternal = /^https?:\/\//.test(item.url)
+  const showFavori = typeof onToggleFavori === 'function'
 
   return (
     <Card variant="opportunite" className="relative flex gap-space-3">
@@ -46,7 +51,29 @@ export function ResourceCard({ item }: ResourceCardProps) {
           <h3 className="text-fs-400 font-black text-color-text-primary line-clamp-2">
             {item.titre}
           </h3>
-          <Badge variant={meta.badge}>{item.type}</Badge>
+          <div className="flex items-center gap-space-1 shrink-0">
+            <Badge variant={meta.badge}>{item.type}</Badge>
+            {showFavori && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onToggleFavori!(item.id)
+                }}
+                aria-pressed={isFavori}
+                aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                data-testid="ressource-favori-btn"
+                className={`relative z-[1] inline-flex items-center justify-center
+                  w-[32px] h-[32px] rounded-full border-[1.5px] transition-colors
+                  ${isFavori
+                    ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink'
+                    : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
+              >
+                <Icon name="bookmark" size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="text-fs-200 text-color-text-secondary line-clamp-2">
