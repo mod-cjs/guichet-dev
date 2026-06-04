@@ -288,7 +288,7 @@ export function CandidatureModal({
               .join(', ')}
           </p>
           <Link
-            href="/jeune/profil"
+            href="/jeune/mon-profil"
             className="inline-block mt-space-2 font-bold underline"
           >
             Compléter mon profil →
@@ -333,7 +333,7 @@ export function CandidatureModal({
           </div>
         </div>
         <Link
-          href="/jeune/profil"
+          href="/jeune/mon-profil"
           className="inline-block mt-space-2 text-fs-200 font-bold text-gj-teal-deep hover:underline"
         >
           Modifier dans mon profil →
