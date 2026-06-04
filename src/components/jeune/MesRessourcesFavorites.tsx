@@ -60,7 +60,7 @@ export function MesRessourcesFavorites() {
   if (items.length === 0) {
     return (
       <EmptyState
-        emoji="📚"
+        icon="bookmark"
         title="Aucune ressource favorite"
         description="Touchez le bookmark sur une ressource pour la retrouver ici."
         actionLabel="Voir la bibliothèque"

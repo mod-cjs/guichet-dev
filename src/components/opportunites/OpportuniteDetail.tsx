@@ -430,7 +430,6 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         <CandidatureModal
           opportuniteId={detail.id}
           opportuniteTitre={detail.titre}
-          opportuniteSlug={detail.slug}
           viewer={viewer}
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
