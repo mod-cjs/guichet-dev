@@ -102,6 +102,26 @@ describe('CandidatureBodySchema', () => {
     expect(res.success).toBe(false)
   })
 
+  it('GUIC-232 — LETTRE_MAX_CHARS est désormais à 4000', () => {
+    expect(LETTRE_MAX_CHARS).toBe(4000)
+  })
+
+  it('GUIC-232 — accepte une lettre de pile 4000 caractères', () => {
+    const res = CandidatureBodySchema.safeParse({
+      opportuniteId: VALID_UUID,
+      lettreMotivation: lettre(4000),
+    })
+    expect(res.success).toBe(true)
+  })
+
+  it('GUIC-232 — refuse une lettre de 4001 caractères', () => {
+    const res = CandidatureBodySchema.safeParse({
+      opportuniteId: VALID_UUID,
+      lettreMotivation: lettre(4001),
+    })
+    expect(res.success).toBe(false)
+  })
+
   it('refuse un opportuniteId non-UUID', () => {
     const res = CandidatureBodySchema.safeParse({
       opportuniteId: 'pas-un-uuid',

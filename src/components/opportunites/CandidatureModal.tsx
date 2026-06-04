@@ -19,43 +19,12 @@
  */
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
-import type { UploadedFileMeta, FileUploader, DeferredFile } from '@/components/ui'
+import type { UploadedFileMeta, FileUploader } from '@/components/ui'
 import {
-  LETTRE_MIN_CHARS,
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
-
-/**
- * Métadonnées du CV stocké sur le profil jeune (GUIC-223 / GUIC-224).
- * Renvoyé par `GET /api/profil/cv`.
- */
-interface ProfilCvData {
-  cvUrl: string | null
-  name: string
-  uploadedAt: string | null
-}
-
-const dateFmtCv = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
-
-/** Déduit un nom de fichier lisible à partir d'une URL. */
-function deduceCvName(url: string, fallback?: string): string {
-  if (fallback && fallback.trim().length > 0) return fallback
-  try {
-    const u = new URL(url, 'https://placeholder.local')
-    const last = u.pathname.split('/').filter(Boolean).pop()
-    if (last) return decodeURIComponent(last)
-  } catch {
-    /* noop */
-  }
-  return 'mon-cv.pdf'
-}
 
 export interface ViewerInfo {
   prenom: string
@@ -76,11 +45,6 @@ interface CandidatureModalProps {
   onSuccess: () => void
   /** Nom de l'organisation, intégré au texte de consentement. */
   organisationName?: string
-  /**
-   * Slug de l'opportunité — utilisé pour deep-linker Yaye
-   * (`/jeune/yaye?from=postuler&opp=<slug>`).
-   */
-  opportuniteSlug?: string
   /** Si vrai, le CV est obligatoire (sinon facultatif — design v2). */
   requiresFileUpload?: boolean
   /**
@@ -114,6 +78,18 @@ function refCandidature(id: string): string {
   return `CAND-${short}`
 }
 
+/** Libellés FR des champs profil manquants (GUIC-232). */
+const PROFIL_FIELD_LABELS: Record<string, string> = {
+  prenom: 'prénom',
+  nom: 'nom',
+  email: 'email',
+  telephone: 'téléphone',
+  region: 'région',
+  niveauEtude: 'niveau d’études',
+  situationEmploi: 'situation actuelle',
+  domainesInteret: 'domaines d’intérêt',
+}
+
 export function CandidatureModal({
   opportuniteId,
   opportuniteTitre,
@@ -122,27 +98,17 @@ export function CandidatureModal({
   onClose,
   onSuccess,
   organisationName,
-  opportuniteSlug,
   requiresFileUpload = false,
   uploader = defaultUploader,
 }: CandidatureModalProps) {
-  const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
-  // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
-  // soumise, on garde le `File` côté client (zéro blob créé). À la
-  // soumission, on uploade le fichier puis on POST la candidature avec
-  // son URL. Si un CV a déjà été uploadé (retry après échec serveur),
-  // on conserve la meta pour ne pas créer un nouveau blob orphelin.
-  const [cvFile, setCvFile] = useState<DeferredFile | null>(null)
-  const [cvUploaded, setCvUploaded] = useState<UploadedFileMeta | null>(null)
+  const [cv, setCv] = useState<UploadedFileMeta | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
-  // CV depuis profil (GUIC-223 / GUIC-224) — null = pas encore chargé, {cvUrl:null} = profil sans CV.
-  const [profileCv, setProfileCv] = useState<ProfilCvData | null>(null)
-  // Mode CV : 'profile' = réutilise le CV du profil, 'upload' = upload manuel.
-  const [cvMode, setCvMode] = useState<'profile' | 'upload'>('upload')
+  // GUIC-232 — état complétude profil (null = en cours de chargement).
+  const [profilMissing, setProfilMissing] = useState<string[] | null>(null)
 
   const lettreId = useId()
   const helperId = useId()
@@ -155,61 +121,62 @@ export function CandidatureModal({
     if (!isOpen) {
       setLettre('')
       setConsent(false)
-      setCvFile(null)
-      setCvUploaded(null)
+      setCv(null)
       setError(null)
       setSubmitted(null)
       setSending(false)
-      setCvMode('upload')
+      setProfilMissing(null)
     }
   }, [isOpen])
 
-  // GUIC-224 — Récupère le CV stocké sur le profil pour proposer sa réutilisation.
+  // GUIC-232 — vérifie la complétude du profil à l'ouverture du modal.
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
-    fetch('/api/profil/cv')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (cancelled) return
-        const data = (body?.data ?? null) as ProfilCvData | null
-        setProfileCv(data)
-        // Si un CV est dispo, on bascule par défaut sur le mode 'profile' —
-        // l'utilisateur peut toujours charger un autre via "Charger un nouveau CV".
-        if (data?.cvUrl) setCvMode('profile')
-      })
-      .catch(() => {
-        if (!cancelled) setProfileCv({ cvUrl: null, name: '', uploadedAt: null })
-      })
+    ;(async () => {
+      try {
+        const res = await fetch('/api/profil/completude', { credentials: 'same-origin' })
+        if (!res.ok) {
+          if (!cancelled) setProfilMissing([])
+          return
+        }
+        const body = (await res.json()) as {
+          data?: { complet?: boolean; missing?: string[] }
+        }
+        if (!cancelled) {
+          setProfilMissing(body.data?.missing ?? [])
+        }
+      } catch {
+        // En cas d'erreur réseau, on n'empêche pas l'utilisateur d'essayer ;
+        // le backend re-validera et renverra 403 si besoin.
+        if (!cancelled) setProfilMissing([])
+      }
+    })()
     return () => {
       cancelled = true
     }
   }, [isOpen])
 
-  const lettreLen = lettre.trim().length
-  const lettreOk = lettreLen >= LETTRE_MIN_CHARS
-  const hasCv = cvFile !== null || cvUploaded !== null
-  const cvOk = !requiresFileUpload || hasCv
-  const canSubmit = lettreOk && cvOk && consent && !sending
+  const lettreOk = lettre.trim().length > 0
+  const cvOk = !requiresFileUpload || cv !== null
+  const profilIncomplet = (profilMissing?.length ?? 0) > 0
+  const canSubmit = lettreOk && cvOk && consent && !sending && !profilIncomplet
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
-    if (!lettreOk) {
-      const remaining = LETTRE_MIN_CHARS - lettreLen
-      if (lettreLen === 0) return `Rédigez votre lettre de motivation (${LETTRE_MIN_CHARS} caractères minimum).`
-      return `Lettre trop courte : encore ${remaining} caractère${remaining > 1 ? 's' : ''}.`
-    }
+    if (profilIncomplet) return 'Complétez votre profil pour candidater.'
+    if (!lettreOk) return 'Rédigez votre lettre de motivation.'
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
-  }, [sending, lettreOk, cvOk, consent])
+  }, [sending, lettreOk, cvOk, consent, profilIncomplet])
 
   const handleClose = useCallback(() => {
     if (submitted) {
       onClose()
       return
     }
-    const hasData = lettre.trim().length > 0 || hasCv
+    const hasData = lettre.trim().length > 0 || cv !== null
     if (hasData) {
       // Garde-fou perte de données : confirm natif (composant Modal serait
       // plus joli mais induirait un état imbriqué — `window.confirm` reste
@@ -223,29 +190,13 @@ export function CandidatureModal({
       if (!ok) return
     }
     onClose()
-  }, [submitted, lettre, hasCv, onClose])
+  }, [submitted, lettre, cv, onClose])
 
   async function submit() {
     if (!canSubmit) return
     setSending(true)
     setError(null)
     try {
-      // GUIC-229 — upload différé : on n'envoie le CV sur Vercel Blob
-      // QU'AU submit (et au plus une fois — un retry réseau sur la
-      // candidature ne déclenche pas un second blob).
-      let cvMeta = cvUploaded
-      if (!cvMeta && cvFile) {
-        try {
-          cvMeta = await uploader(cvFile.safeName, cvFile.file)
-          setCvUploaded(cvMeta)
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Échec de l'upload du CV."
-          setError(msg)
-          setSending(false)
-          return
-        }
-      }
-
       const res = await fetch('/api/candidatures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -255,7 +206,7 @@ export function CandidatureModal({
           notificationsConsent: consent,
           // Champs ajoutés par GUIC-218 — l'API actuelle ignore les
           // propriétés inconnues, donc rétrocompatible.
-          cvUrl: cvMeta?.url,
+          cvUrl: cv?.url,
         }),
       })
       if (res.status === 201) {
@@ -266,7 +217,19 @@ export function CandidatureModal({
         onSuccess()
         return
       }
-      if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
+      if (res.status === 403) {
+        // GUIC-232 — profil incomplet : recharge la liste des champs manquants.
+        const body = (await res.json().catch(() => null)) as
+          | { error?: { code?: string; missing?: string[] } }
+          | null
+        if (body?.error?.code === 'PROFILE_INCOMPLETE') {
+          setProfilMissing(body.error.missing ?? [])
+          setError('Complétez votre profil pour pouvoir candidater.')
+        } else {
+          setError('Accès refusé.')
+        }
+      }
+      else if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
       else if (res.status === 422) setError("Cette opportunité n'accepte plus de candidatures.")
       else if (res.status === 401) setError('Votre session a expiré, reconnectez-vous.')
       else setError('Une erreur est survenue. Réessayez.')
@@ -310,6 +273,29 @@ export function CandidatureModal({
         </div>
       )}
 
+      {/* GUIC-232 — Bandeau profil incomplet */}
+      {profilIncomplet && (
+        <div
+          role="alert"
+          data-testid="profil-incomplet-banner"
+          className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3"
+        >
+          <p className="font-bold">Complète ton profil pour pouvoir candidater.</p>
+          <p className="mt-space-1">
+            Champs manquants :{' '}
+            {(profilMissing ?? [])
+              .map((f) => PROFIL_FIELD_LABELS[f] ?? f)
+              .join(', ')}
+          </p>
+          <Link
+            href="/jeune/mon-profil"
+            className="inline-block mt-space-2 font-bold underline"
+          >
+            Compléter mon profil →
+          </Link>
+        </div>
+      )}
+
       {/* Bandeau pré-rempli */}
       <div
         className="flex items-center gap-space-2 rounded-gj-md border border-gj-green
@@ -348,7 +334,6 @@ export function CandidatureModal({
         </div>
         <Link
           href="/jeune/mon-profil"
-          data-testid="edit-profile-link"
           className="inline-block mt-space-2 text-fs-200 font-bold text-gj-teal-deep hover:underline"
         >
           Modifier dans mon profil →
@@ -378,146 +363,37 @@ export function CandidatureModal({
       <div className="flex justify-between gap-space-2 mt-space-1 text-fs-100">
         <button
           type="button"
-          data-testid="yaye-help-button"
           onClick={() => {
-            // GUIC-224 — Deep-link vers Yaye avec le contexte de l'opportunité.
-            // Yaye prendra le relais pour assister la rédaction de la lettre.
-            const qs = opportuniteSlug
-              ? `?from=postuler&opp=${encodeURIComponent(opportuniteSlug)}`
-              : '?from=postuler'
-            router.push(`/jeune/yaye${qs}`)
+            // Mock — l'intégration LLM réelle viendra via le module Yaye.
+            setLettre((prev) =>
+              prev.length > 0
+                ? prev
+                : "Cette opportunité m'intéresse car elle correspond à mon parcours et à mes envies. Je souhaite contribuer à...",
+            )
           }}
           className="inline-flex items-center gap-space-1 text-gj-teal-deep font-bold hover:underline"
         >
-          <Icon name="sparkle" size={14} /> Yaye m&apos;aide
+          <Icon name="sparkle" size={14} /> Yaye m'aide
         </button>
         <span
           id={counterId}
           aria-live="polite"
-          className={`shrink-0 font-bold ${
-            lettreLen === 0
-              ? 'text-color-text-muted'
-              : lettreLen < LETTRE_MIN_CHARS
-                ? 'text-gj-red'
-                : 'text-gj-teal-deep'
-          }`}
+          className="text-color-text-muted shrink-0"
         >
-          {lettreLen} / {LETTRE_MAX_CHARS}
-          {lettreLen < LETTRE_MIN_CHARS && (
-            <span className="text-color-text-muted font-normal"> · min {LETTRE_MIN_CHARS}</span>
-          )}
+          {lettre.length} / {LETTRE_MAX_CHARS}
         </span>
       </div>
-      {/* Barre de progression vers 300 chars min — feedback live. */}
-      {lettreLen > 0 && lettreLen < LETTRE_MIN_CHARS && (
-        <div
-          className="mt-space-1 h-1 rounded-full bg-gj-line overflow-hidden"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={LETTRE_MIN_CHARS}
-          aria-valuenow={lettreLen}
-          aria-label="Progression vers le minimum de 300 caractères"
-        >
-          <div
-            className="h-full bg-gj-red transition-all"
-            style={{ width: `${(lettreLen / LETTRE_MIN_CHARS) * 100}%` }}
-          />
-        </div>
-      )}
-      <p
-        id={helperId}
-        className={`text-fs-100 mt-space-1 ${
-          lettreLen >= LETTRE_MIN_CHARS ? 'text-gj-teal-deep' : 'text-color-text-muted'
-        }`}
-      >
-        {lettreLen === 0
-          ? `Minimum ${LETTRE_MIN_CHARS} caractères. Yaye peut t'aider à rédiger.`
-          : lettreLen < LETTRE_MIN_CHARS
-            ? `Encore ${LETTRE_MIN_CHARS - lettreLen} caractère${LETTRE_MIN_CHARS - lettreLen > 1 ? 's' : ''} pour atteindre le minimum.`
-            : '✓ Lettre suffisamment détaillée.'}
+      <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
+        Quelques lignes sur ta motivation augmentent tes chances.
       </p>
 
-      {/* CV — GUIC-224 carte « Utiliser mon CV de profil » + GUIC-229 lazy upload */}
-      <div
-        className="mt-space-4"
-        aria-live="polite"
-        data-testid="cv-section"
-      >
-        {profileCv?.cvUrl && cvMode === 'profile' ? (
-          <div
-            data-testid="profile-cv-card"
-            className="rounded-gj-md border border-gj-line bg-white p-space-3"
-          >
-            <p className="text-fs-300 font-bold text-color-text-primary">
-              CV{requiresFileUpload ? '' : ' (facultatif)'}
-            </p>
-            <div className="mt-space-2 flex items-start gap-space-2">
-              <Icon name="document" size={20} />
-              <div className="flex-1 min-w-0">
-                <p className="text-fs-200 font-bold text-color-text-primary truncate">
-                  {deduceCvName(profileCv.cvUrl, profileCv.name)}
-                </p>
-                <p className="text-fs-100 text-color-text-muted">
-                  {profileCv.uploadedAt
-                    ? `Ajouté le ${dateFmtCv.format(new Date(profileCv.uploadedAt))}`
-                    : 'Stocké sur ton profil'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-space-3 flex flex-wrap gap-space-2">
-              <Button
-                variant="primary"
-                size="sm"
-                data-testid="use-profile-cv-button"
-                onClick={() => {
-                  if (!profileCv.cvUrl) return
-                  // CV profil déjà uploadé → on le pose directement comme uploaded
-                  setCvUploaded({
-                    url: profileCv.cvUrl,
-                    name: deduceCvName(profileCv.cvUrl, profileCv.name),
-                    sizeKb: 0,
-                  })
-                  setCvFile(null)
-                }}
-              >
-                Utiliser ce CV
-              </Button>
-              <button
-                type="button"
-                data-testid="upload-new-cv-button"
-                onClick={() => {
-                  setCvUploaded(null)
-                  setCvFile(null)
-                  setCvMode('upload')
-                }}
-                className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
-              >
-                Charger un nouveau CV
-              </button>
-            </div>
-            {cvUploaded?.url === profileCv.cvUrl && (
-              <p
-                className="mt-space-2 text-fs-100 text-gj-green-ink inline-flex items-center gap-space-1"
-                data-testid="profile-cv-selected"
-              >
-                <Icon name="check-circle" size={14} /> CV de profil sélectionné
-              </p>
-            )}
-          </div>
-        ) : (
-          <FileUpload
-            label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
-            mode="defer"
-            onSelect={(deferred) => {
-              setCvFile(deferred)
-              // Tout changement de fichier invalide le précédent upload
-              // (s'il y en avait eu un suite à un retry). Le blob déjà
-              // poussé sur Vercel restera 24h max (cacheControlMaxAge)
-              // et sera nettoyé par le cron GUIC-230.
-              setCvUploaded(null)
-            }}
-          />
-        )}
+      {/* CV */}
+      <div className="mt-space-4">
+        <FileUpload
+          label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
+          upload={uploader}
+          onChange={setCv}
+        />
       </div>
 
       {/* Consentement CGU unique */}

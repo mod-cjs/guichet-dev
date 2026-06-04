@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit, extractIp } from '@/lib/rate-limit'
 import { logger, hashId } from '@/lib/logger'
 import { CandidatureBodySchema } from '@/lib/validations/candidature'
+import { checkProfilCompletude } from '@/lib/profil-completude'
 import { notifyCandidatureConfirmee } from '@/lib/notifications'
 import type { ApiResponse } from '@/types/api'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -98,6 +99,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         },
       },
       { status: 400 },
+    )
+  }
+
+  // GUIC-232 — profil de base obligatoire pour candidater.
+  const completude = await checkProfilCompletude(session.cjsUid, {
+    prenom: session.prenom,
+    nom: session.nom,
+    email: session.email,
+    telephone: session.telephone,
+    region: session.region,
+  })
+  if (!completude.complet) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PROFILE_INCOMPLETE',
+          message: `Complétez votre profil : ${completude.missing.join(', ')}`,
+          missing: completude.missing,
+        },
+      },
+      { status: 403 },
     )
   }
 

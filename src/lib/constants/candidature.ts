@@ -22,11 +22,32 @@ export const LETTRE_MIN_CHARS = 300
 /**
  * Longueur maximale de la lettre de motivation (caractères).
  *
- * Aligné design v2 — audit GUIC-189 (cap réduit de 2000 → 1000 pour
- * cohérence avec la maquette PO 2026-05-26 et limiter le bruit côté
- * recruteur).
+ * GUIC-232 — Relevée à 4000 caractères (depuis 1000) suite à retour PO :
+ * permet aux candidats de structurer une vraie lettre (parcours, motivations,
+ * projet), tout en gardant un plafond raisonnable pour les recruteurs.
  */
-export const LETTRE_MAX_CHARS = 1000
+export const LETTRE_MAX_CHARS = 4000
+
+/**
+ * Champs minimaux requis (Utilisateur + ProfilJeune) pour candidater à une
+ * opportunité (GUIC-232).
+ *
+ * Le CV restant facultatif (décision PO), on exige au minimum un profil de
+ * base rempli pour éviter les candidatures vides. Diplômes, expériences et
+ * certificats restent optionnels.
+ */
+export const PROFIL_REQUIS_CANDIDATURE = [
+  'prenom',
+  'nom',
+  'email',
+  'telephone',
+  'region',
+  'niveauEtude',
+  'situationEmploi',
+  'domainesInteret',
+] as const
+
+export type ChampProfilRequis = (typeof PROFIL_REQUIS_CANDIDATURE)[number]
 
 /** Longueur maximale de l'URL de CV stockée en base. */
 export const CV_URL_MAX_LEN = 500
