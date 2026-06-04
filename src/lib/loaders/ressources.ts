@@ -15,7 +15,10 @@ export interface RessourceFiltres {
   type?: TypeRessourceValue
   niveau?: NiveauRessourceValue
   langue?: LangueRessourceValue
+  /** Filtre catégorie unique (compat). */
   categorie?: string
+  /** Filtre catégorie multi-select (GUIC-24 B1). Si fourni, prime sur `categorie`. */
+  categories?: string[]
   /** `recent` = 30 derniers jours ; `year` = année en cours. */
   date?: DateBucket
   page?: number
@@ -86,7 +89,11 @@ export async function listRessources(
   if (filtres.type) where.type = filtres.type
   if (filtres.niveau) where.niveau = filtres.niveau
   if (filtres.langue) where.langue = filtres.langue
-  if (filtres.categorie && filtres.categorie.trim()) where.categorie = filtres.categorie.trim()
+  if (filtres.categories && filtres.categories.length) {
+    where.categorie = { in: filtres.categories.map((c) => c.trim()).filter(Boolean) }
+  } else if (filtres.categorie && filtres.categorie.trim()) {
+    where.categorie = filtres.categorie.trim()
+  }
 
   const dateMin = dateLowerBound(filtres.date)
   if (dateMin) where.createdAt = { gte: dateMin }

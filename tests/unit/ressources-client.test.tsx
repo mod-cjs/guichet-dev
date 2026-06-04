@@ -1,10 +1,16 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { RessourcesClient } from '@/components/ressources/RessourcesClient'
-import type { RessourceListItem } from '@/lib/loaders/ressources'
+import type {
+  RessourceListItem,
+  RessourceFiltres,
+} from '@/lib/loaders/ressources'
 
 const pushMock = jest.fn()
+let currentSearch = ''
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
+  usePathname: () => '/ressources',
+  useSearchParams: () => new URLSearchParams(currentSearch),
 }))
 
 function makeItem(overrides: Partial<RessourceListItem>): RessourceListItem {
@@ -24,71 +30,134 @@ function makeItem(overrides: Partial<RessourceListItem>): RessourceListItem {
   }
 }
 
+function defaultFilters(over: Partial<RessourceFiltres> = {}): RessourceFiltres {
+  return { date: 'all', page: 1, ...over }
+}
+
+function renderClient(props: {
+  items: RessourceListItem[]
+  total?: number
+  page?: number
+  filters?: Partial<RessourceFiltres>
+}) {
+  return render(
+    <RessourcesClient
+      initialItems={props.items}
+      total={props.total ?? props.items.length}
+      page={props.page ?? 1}
+      pageSize={20}
+      initialFilters={defaultFilters(props.filters)}
+    />,
+  )
+}
+
 beforeEach(() => {
   pushMock.mockClear()
-  // GUIC-24 — le client charge maintenant /api/favoris/ressources/ids
-  // au montage. On stubbe `fetch` globalement pour ces tests unitaires.
+  currentSearch = ''
+  jest.useFakeTimers()
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
     json: async () => ({ data: [] }),
   }) as unknown as typeof fetch
 })
 
+afterEach(() => {
+  act(() => {
+    jest.runOnlyPendingTimers()
+  })
+  jest.useRealTimers()
+})
+
 describe('<RessourcesClient />', () => {
   it('rend la liste initiale', () => {
-    render(
-      <RessourcesClient
-        initialItems={[
-          makeItem({ id: '1', titre: 'Guide A', type: 'Guide' }),
-          makeItem({ id: '2', titre: 'Vidéo B', type: 'Video' }),
-        ]}
-        total={2}
-      />,
-    )
+    renderClient({
+      items: [
+        makeItem({ id: '1', titre: 'Guide A', type: 'Guide' }),
+        makeItem({ id: '2', titre: 'Vidéo B', type: 'Video' }),
+      ],
+    })
     expect(screen.getByText('Guide A')).toBeInTheDocument()
     expect(screen.getByText('Vidéo B')).toBeInTheDocument()
   })
 
-  it('filtre par type via chip', () => {
-    render(
-      <RessourcesClient
-        initialItems={[
-          makeItem({ id: '1', titre: 'Guide A', type: 'Guide' }),
-          makeItem({ id: '2', titre: 'Vidéo B', type: 'Video' }),
-        ]}
-        total={2}
-      />,
-    )
+  it('filtre par type via chip — pousse ?type=Video', () => {
+    renderClient({
+      items: [makeItem({ id: '1', titre: 'Guide A', type: 'Guide' })],
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Vidéos' }))
-    expect(screen.queryByText('Guide A')).toBeNull()
-    expect(screen.getByText('Vidéo B')).toBeInTheDocument()
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/ressources\?.*type=Video/),
+      { scroll: false },
+    )
   })
 
-  it('filtre via recherche texte', () => {
-    render(
-      <RessourcesClient
-        initialItems={[
-          makeItem({ id: '1', titre: 'Guide A', theme: 'Agriculture' }),
-          makeItem({ id: '2', titre: 'Vidéo B', theme: 'Entrepreneuriat' }),
-        ]}
-        total={2}
-      />,
-    )
+  it('recherche texte (debounced 300ms) pousse ?q=…', () => {
+    renderClient({ items: [makeItem({ id: '1', titre: 'Guide A' })] })
     fireEvent.change(screen.getByLabelText('Rechercher une ressource'), {
       target: { value: 'agric' },
     })
-    expect(screen.getByText('Guide A')).toBeInTheDocument()
-    expect(screen.queryByText('Vidéo B')).toBeNull()
+    expect(pushMock).not.toHaveBeenCalled()
+    act(() => {
+      jest.advanceTimersByTime(300)
+    })
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/ressources\?.*q=agric/),
+      { scroll: false },
+    )
+  })
+
+  it('compteur affiche le total serveur (pas la longueur locale)', () => {
+    renderClient({
+      items: [makeItem({ id: '1' })],
+      total: 42,
+    })
+    expect(screen.getByTestId('results-count')).toHaveTextContent('42 résultats')
+  })
+
+  it('affiche "Charger plus" quand total > items chargés', () => {
+    renderClient({
+      items: Array.from({ length: 20 }, (_, i) => makeItem({ id: `r${i}` })),
+      total: 50,
+    })
+    expect(
+      screen.getByRole('button', { name: 'Charger plus de ressources' }),
+    ).toBeInTheDocument()
+  })
+
+  it('"Charger plus" pousse ?page=N+1', () => {
+    currentSearch = 'type=PDF'
+    renderClient({
+      items: Array.from({ length: 20 }, (_, i) => makeItem({ id: `r${i}` })),
+      total: 50,
+      page: 1,
+      filters: { type: 'PDF' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Charger plus de ressources' }))
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/ressources\?.*page=2/),
+      { scroll: false },
+    )
   })
 
   it('affiche un empty state quand aucun résultat', () => {
-    render(<RessourcesClient initialItems={[]} total={0} />)
+    renderClient({ items: [], total: 0 })
     expect(screen.getByText('Aucune ressource trouvée')).toBeInTheDocument()
   })
 
   it('redirige sur /opportunites depuis le empty state', () => {
-    render(<RessourcesClient initialItems={[]} total={0} />)
+    renderClient({ items: [], total: 0 })
     fireEvent.click(screen.getByRole('button', { name: 'Voir les opportunités' }))
     expect(pushMock).toHaveBeenCalledWith('/opportunites')
+  })
+
+  it('Réinitialiser repousse vers /ressources sans params', () => {
+    currentSearch = 'q=foo&type=PDF'
+    renderClient({
+      items: [makeItem({ id: '1' })],
+      total: 1,
+      filters: { q: 'foo', type: 'PDF' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser' }))
+    expect(pushMock).toHaveBeenCalledWith('/ressources', { scroll: false })
   })
 })

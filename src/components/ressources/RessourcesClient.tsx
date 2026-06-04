@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Input, Chip, EmptyState, Icon, Button } from '@/components/ui'
 import { ResourceCard } from './ResourceCard'
 import {
@@ -11,12 +11,16 @@ import {
 } from './RessourcesFiltersSheet'
 import type {
   RessourceListItem,
+  RessourceFiltres,
   TypeRessourceValue,
 } from '@/lib/loaders/ressources'
 
 interface RessourcesClientProps {
   initialItems: RessourceListItem[]
   total: number
+  page: number
+  pageSize: number
+  initialFilters: RessourceFiltres
 }
 
 const FILTRES: { value: TypeRessourceValue | 'all'; label: string }[] = [
@@ -28,41 +32,56 @@ const FILTRES: { value: TypeRessourceValue | 'all'; label: string }[] = [
   { value: 'Outil', label: 'Outils' },
 ]
 
-const PAGE_SIZE = 6
-
-function matchAdvanced(item: RessourceListItem, f: RessourcesFiltresValue): boolean {
-  if (f.niveau && item.niveau !== f.niveau) return false
-  if (f.langue && item.langue !== f.langue) return false
-  if (f.categories && f.categories.length) {
-    if (!item.categorie || !f.categories.includes(item.categorie)) return false
-  }
-  if (f.date && f.date !== 'all') {
-    const now = Date.now()
-    const created = new Date(item.createdAt).getTime()
-    if (f.date === 'recent') {
-      if (created < now - 30 * 86_400_000) return false
-    } else if (f.date === 'year') {
-      const year = new Date().getFullYear()
-      if (new Date(item.createdAt).getFullYear() !== year) return false
-    }
-  }
-  return true
-}
-
 /**
  * UI client — recherche + filtres principaux + bottom-sheet de filtres avancés
  * + favoris ressources (GUIC-24).
+ *
+ * GUIC-24 B1 : tous les filtres passent désormais côté serveur via searchParams.
+ * Le state des filtres vit dans l'URL ; ce composant pousse les changements
+ * via router.push() (debounce 300 ms pour la recherche texte). "Charger plus"
+ * navigue vers ?page=N+1 et agrège côté client via append sur changement de page.
  */
-export function RessourcesClient({ initialItems, total }: RessourcesClientProps) {
+export function RessourcesClient({
+  initialItems,
+  total,
+  page,
+  initialFilters,
+}: RessourcesClientProps) {
   const router = useRouter()
-  const [query, setQuery] = useState('')
-  const [type, setType] = useState<TypeRessourceValue | 'all'>('all')
-  const [advanced, setAdvanced] = useState<RessourcesFiltresValue>({})
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [favoriIds, setFavoriIds] = useState<Set<string>>(new Set())
-  const [visible, setVisible] = useState(PAGE_SIZE)
+  const pathname = usePathname()
+  const sp = useSearchParams()
+  const [isPending, startTransition] = useTransition()
 
-  // Charge les IDs favoris (silencieux si user non connecté).
+  // ── State local "input" recherche (debounced vers URL) ─────────────────
+  const [query, setQuery] = useState(initialFilters.q ?? '')
+
+  // ── Aggrégation des pages (Charger plus) ───────────────────────────────
+  // On garde une liste cumulée d'items pour les pages > 1.
+  const [accumulated, setAccumulated] = useState<RessourceListItem[]>(initialItems)
+  const prevPageRef = useRef<number>(page)
+  const prevFiltersKeyRef = useRef<string>(JSON.stringify(initialFilters))
+
+  useEffect(() => {
+    const key = JSON.stringify(initialFilters)
+    const filtersChanged = key !== prevFiltersKeyRef.current
+    if (filtersChanged || page === 1) {
+      setAccumulated(initialItems)
+    } else if (page > prevPageRef.current) {
+      // Page suivante : on append, en dédupliquant par id.
+      setAccumulated((prev) => {
+        const seen = new Set(prev.map((i) => i.id))
+        return [...prev, ...initialItems.filter((i) => !seen.has(i.id))]
+      })
+    } else {
+      // Cas de repli (back/forward).
+      setAccumulated(initialItems)
+    }
+    prevPageRef.current = page
+    prevFiltersKeyRef.current = key
+  }, [initialItems, page, initialFilters])
+
+  // ── Favoris ────────────────────────────────────────────────────────────
+  const [favoriIds, setFavoriIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     let cancelled = false
     fetch('/api/favoris/ressources/ids', { credentials: 'include' })
@@ -77,40 +96,92 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
     }
   }, [])
 
+  // ── Helpers d'écriture dans l'URL ──────────────────────────────────────
+  const buildParams = useCallback(
+    (mut: (p: URLSearchParams) => void): URLSearchParams => {
+      const params = new URLSearchParams(sp?.toString() ?? '')
+      mut(params)
+      return params
+    },
+    [sp],
+  )
+
+  const pushParams = useCallback(
+    (params: URLSearchParams) => {
+      const qs = params.toString()
+      startTransition(() => {
+        router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      })
+    },
+    [router, pathname],
+  )
+
+  const setSingle = useCallback(
+    (key: string, value: string | null) => {
+      const params = buildParams((p) => {
+        if (value === null || value === '') p.delete(key)
+        else p.set(key, value)
+        p.delete('page')
+      })
+      pushParams(params)
+    },
+    [buildParams, pushParams],
+  )
+
+  // ── Debounce recherche texte ───────────────────────────────────────────
+  useEffect(() => {
+    const trimmed = query.trim()
+    const current = (initialFilters.q ?? '').trim()
+    if (trimmed === current) return
+    const t = setTimeout(() => {
+      setSingle('q', trimmed || null)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [query, initialFilters.q, setSingle])
+
+  // ── Vue dérivée des filtres avancés depuis initialFilters ──────────────
+  const advanced: RessourcesFiltresValue = useMemo(
+    () => ({
+      type: initialFilters.type,
+      niveau: initialFilters.niveau,
+      langue: initialFilters.langue,
+      categories: initialFilters.categories,
+      date: initialFilters.date,
+    }),
+    [initialFilters],
+  )
+
   const categoriesOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          initialItems
+          accumulated
             .map((r) => r.categorie)
             .filter((c): c is string => Boolean(c && c.trim())),
         ),
       ).sort(),
-    [initialItems],
+    [accumulated],
   )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return initialItems.filter((r) => {
-      if (type !== 'all' && r.type !== type) return false
-      if (advanced.type && r.type !== advanced.type) return false
-      if (!matchAdvanced(r, advanced)) return false
-      if (!q) return true
-      return (
-        r.titre.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q) ||
-        r.theme.toLowerCase().includes(q)
-      )
-    })
-  }, [initialItems, query, type, advanced])
+  const [sheetOpen, setSheetOpen] = useState(false)
 
-  const shown = filtered.slice(0, visible)
-  const hasMore = filtered.length > visible
   const activeAdvanced = countActiveFilters(advanced)
-  const hasActiveFilters = activeAdvanced > 0 || type !== 'all' || query.trim().length > 0
+  const currentType = initialFilters.type ?? 'all'
+  const hasActiveFilters =
+    activeAdvanced > 0 || currentType !== 'all' || (initialFilters.q?.trim().length ?? 0) > 0
 
+  // ── Pagination ─────────────────────────────────────────────────────────
+  const loadedCount = accumulated.length
+  const hasMore = loadedCount < total
+  const loadMore = () => {
+    const params = buildParams((p) => {
+      p.set('page', String(page + 1))
+    })
+    pushParams(params)
+  }
+
+  // ── Favoris ────────────────────────────────────────────────────────────
   const handleToggleFavori = async (id: string) => {
-    // Optimiste : on bascule localement, on rétablit si l'API échoue.
     setFavoriIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -123,7 +194,6 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
         credentials: 'include',
       })
       if (res.status === 401) {
-        // Non connecté → rollback et rediriger vers l'auth.
         setFavoriIds((prev) => {
           const next = new Set(prev)
           if (next.has(id)) next.delete(id)
@@ -135,7 +205,6 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
       }
       if (!res.ok) throw new Error('toggle failed')
     } catch {
-      // Rollback en cas d'erreur réseau.
       setFavoriIds((prev) => {
         const next = new Set(prev)
         if (next.has(id)) next.delete(id)
@@ -147,13 +216,43 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
 
   const resetAll = () => {
     setQuery('')
-    setType('all')
-    setAdvanced({})
-    setVisible(PAGE_SIZE)
+    startTransition(() => {
+      router.push(pathname, { scroll: false })
+    })
+  }
+
+  const onApplyAdvanced = (next: RessourcesFiltresValue) => {
+    const params = buildParams((p) => {
+      // Type
+      if (next.type) p.set('type', next.type)
+      else if (!initialFilters.type) p.delete('type')
+      else p.delete('type')
+      // Niveau
+      if (next.niveau) p.set('niveau', next.niveau)
+      else p.delete('niveau')
+      // Langue
+      if (next.langue) p.set('langue', next.langue)
+      else p.delete('langue')
+      // Catégories (multi)
+      p.delete('categorie')
+      if (next.categories && next.categories.length) {
+        for (const c of next.categories) p.append('categorie', c)
+      }
+      // Date
+      if (next.date && next.date !== 'all') p.set('date', next.date)
+      else p.delete('date')
+      // Reset pagination
+      p.delete('page')
+    })
+    pushParams(params)
+  }
+
+  const setType = (value: TypeRessourceValue | 'all') => {
+    setSingle('type', value === 'all' ? null : value)
   }
 
   return (
-    <div className="flex flex-col gap-space-4">
+    <div className="flex flex-col gap-space-4" aria-busy={isPending}>
       <div className="flex flex-col gap-space-3">
         <div className="relative">
           <span className="absolute left-space-3 top-1/2 -translate-y-1/2 text-color-text-muted pointer-events-none">
@@ -171,7 +270,11 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
 
         <div className="flex flex-wrap items-center gap-space-2" role="group" aria-label="Filtres par type">
           {FILTRES.map((f) => (
-            <Chip key={f.value} selected={type === f.value} onClick={() => setType(f.value)}>
+            <Chip
+              key={f.value}
+              selected={currentType === f.value}
+              onClick={() => setType(f.value)}
+            >
               {f.label}
             </Chip>
           ))}
@@ -201,7 +304,7 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
 
         <div className="flex items-center justify-between text-fs-200 text-color-text-secondary">
           <span data-testid="results-count">
-            {filtered.length} résultat{filtered.length > 1 ? 's' : ''}
+            {total} résultat{total > 1 ? 's' : ''}
           </span>
           {hasActiveFilters && (
             <button
@@ -215,12 +318,12 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
         </div>
       </div>
 
-      {shown.length === 0 ? (
+      {accumulated.length === 0 ? (
         <EmptyState
           emoji="📚"
           title="Aucune ressource trouvée"
           description={
-            total === 0
+            total === 0 && !hasActiveFilters
               ? 'Aucune ressource publiée pour le moment. Revenez bientôt.'
               : 'Aucune ressource ne correspond à votre recherche.'
           }
@@ -230,7 +333,7 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
       ) : (
         <>
           <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-3 list-none p-0 m-0">
-            {shown.map((r) => (
+            {accumulated.map((r) => (
               <li key={r.id}>
                 <ResourceCard
                   item={r}
@@ -245,10 +348,11 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
             <div className="flex justify-center mt-space-2">
               <Button
                 variant="ghost"
-                onClick={() => setVisible((v) => v + PAGE_SIZE)}
+                onClick={loadMore}
+                disabled={isPending}
                 aria-label="Charger plus de ressources"
               >
-                Charger plus
+                {isPending ? 'Chargement…' : 'Charger plus'}
               </Button>
             </div>
           )}
@@ -260,12 +364,10 @@ export function RessourcesClient({ initialItems, total }: RessourcesClientProps)
         onClose={() => setSheetOpen(false)}
         value={advanced}
         categoriesOptions={categoriesOptions}
-        totalCount={filtered.length}
-        onApply={(next) => {
-          setAdvanced(next)
-          setVisible(PAGE_SIZE)
-        }}
+        totalCount={total}
+        onApply={onApplyAdvanced}
       />
     </div>
   )
 }
+
