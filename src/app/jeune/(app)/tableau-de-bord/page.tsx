@@ -16,6 +16,8 @@ import {
 } from '@/components/dashboard'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
+// CDP : page personnelle, jamais cachée par le CDN. Force le rendu dynamique.
+export const dynamic = 'force-dynamic'
 
 export default async function TableauDeBordPage() {
   const session = await getSession()

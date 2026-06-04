@@ -19,6 +19,7 @@ import type { DashEventItem } from '@/components/dashboard/WebDashEvents'
 import type { DashCenterItem } from '@/components/dashboard/WebDashCenters'
 import type { TrackerItem } from '@/components/dashboard/WebDashTracker'
 import type { Prisma } from '@prisma/client'
+import { Domaine } from '@prisma/client'
 
 export const RECO_LIMIT = 5
 export const EVENT_LIMIT = 3
@@ -62,20 +63,46 @@ function statutToStep(statut: string): { step: number; label: string; tone: Trac
 }
 
 /**
- * Parse la propriété JSON `domainesInteret` en liste de strings.
- * Robuste : accepte string JSON encodé ou array natif (Prisma Json).
+ * Whitelist des valeurs valides de l'enum Prisma Domaine.
+ * Fix audit PR #78 : `domainesInteret` (JSON utilisateur, parfois accentué via onboarding
+ * legacy) doit être strictement filtré contre l'enum Prisma pour éviter P2009 runtime.
  */
-function parseDomainesInteret(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string')
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === 'string')
-    } catch {
-      // ignore
+const DOMAINE_VALUES = new Set<string>(Object.values(Domaine))
+
+/**
+ * Parse la propriété JSON `domainesInteret` en liste de valeurs enum valides.
+ * Robuste : accepte string JSON encodé ou array natif, tolère accents/casse hérités
+ * de l'onboarding en mappant vers l'enum Prisma sans accents.
+ */
+function parseDomainesInteret(value: unknown): Domaine[] {
+  const raw: string[] = Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string')
+    : typeof value === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value)
+            return Array.isArray(parsed)
+              ? parsed.filter((v): v is string => typeof v === 'string')
+              : []
+          } catch {
+            return []
+          }
+        })()
+      : []
+  const normalize = (s: string) =>
+    s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const byNormalized = new Map<string, Domaine>()
+  for (const v of Object.values(Domaine)) byNormalized.set(normalize(v), v)
+  const out: Domaine[] = []
+  for (const r of raw) {
+    if (DOMAINE_VALUES.has(r)) {
+      out.push(r as Domaine)
+      continue
     }
+    const mapped = byNormalized.get(normalize(r))
+    if (mapped) out.push(mapped)
   }
-  return []
+  return out
 }
 
 /** Tonalité d'une card opportunité selon urgence (J-N). */
@@ -120,7 +147,7 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
   // Si on a des domaines d'intérêt, on les utilise comme filtre prioritaire ;
   // sinon on prend les opportunités les plus récentes toutes catégories.
   if (domainesInteret.length > 0) {
-    oppsWhere.domaine = { in: domainesInteret as never }
+    oppsWhere.domaine = { in: domainesInteret }
   }
 
   const [recosRaw, eventsRaw, centresRaw, candidaturesRaw] = await Promise.all([

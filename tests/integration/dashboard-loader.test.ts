@@ -51,7 +51,8 @@ describe('loadDashboardData', () => {
     const call = mockOpportuniteFindMany.mock.calls[0][0]
     expect(call.where.statut).toBe('publiee')
     expect(call.where.deletedAt).toBeNull()
-    expect(call.where.domaine).toEqual({ in: ['Numérique', 'Agriculture'] })
+    // Whitelist enum Domaine : "Numérique" (accent) doit être normalisé vers "Numerique" (enum Prisma)
+    expect(call.where.domaine).toEqual({ in: ['Numerique', 'Agriculture'] })
     expect(call.take).toBe(5)
   })
 
