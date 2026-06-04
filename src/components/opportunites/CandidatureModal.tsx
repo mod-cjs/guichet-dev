@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation'
 import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader } from '@/components/ui'
 import {
+  LETTRE_MIN_CHARS,
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
@@ -178,13 +179,18 @@ export function CandidatureModal({
     }
   }, [isOpen])
 
-  const lettreOk = lettre.trim().length > 0
+  const lettreLen = lettre.trim().length
+  const lettreOk = lettreLen >= LETTRE_MIN_CHARS
   const cvOk = !requiresFileUpload || cv !== null
   const canSubmit = lettreOk && cvOk && consent && !sending
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
-    if (!lettreOk) return 'Rédigez votre lettre de motivation.'
+    if (!lettreOk) {
+      const remaining = LETTRE_MIN_CHARS - lettreLen
+      if (lettreLen === 0) return `Rédigez votre lettre de motivation (${LETTRE_MIN_CHARS} caractères minimum).`
+      return `Lettre trop courte : encore ${remaining} caractère${remaining > 1 ? 's' : ''}.`
+    }
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
@@ -364,13 +370,47 @@ export function CandidatureModal({
         <span
           id={counterId}
           aria-live="polite"
-          className="text-color-text-muted shrink-0"
+          className={`shrink-0 font-bold ${
+            lettreLen === 0
+              ? 'text-color-text-muted'
+              : lettreLen < LETTRE_MIN_CHARS
+                ? 'text-gj-red'
+                : 'text-gj-teal-deep'
+          }`}
         >
-          {lettre.length} / {LETTRE_MAX_CHARS}
+          {lettreLen} / {LETTRE_MAX_CHARS}
+          {lettreLen < LETTRE_MIN_CHARS && (
+            <span className="text-color-text-muted font-normal"> · min {LETTRE_MIN_CHARS}</span>
+          )}
         </span>
       </div>
-      <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
-        Quelques lignes sur ta motivation augmentent tes chances.
+      {/* Barre de progression vers 300 chars min — feedback live. */}
+      {lettreLen > 0 && lettreLen < LETTRE_MIN_CHARS && (
+        <div
+          className="mt-space-1 h-1 rounded-full bg-gj-line overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={LETTRE_MIN_CHARS}
+          aria-valuenow={lettreLen}
+          aria-label="Progression vers le minimum de 300 caractères"
+        >
+          <div
+            className="h-full bg-gj-red transition-all"
+            style={{ width: `${(lettreLen / LETTRE_MIN_CHARS) * 100}%` }}
+          />
+        </div>
+      )}
+      <p
+        id={helperId}
+        className={`text-fs-100 mt-space-1 ${
+          lettreLen >= LETTRE_MIN_CHARS ? 'text-gj-teal-deep' : 'text-color-text-muted'
+        }`}
+      >
+        {lettreLen === 0
+          ? `Minimum ${LETTRE_MIN_CHARS} caractères. Yaye peut t'aider à rédiger.`
+          : lettreLen < LETTRE_MIN_CHARS
+            ? `Encore ${LETTRE_MIN_CHARS - lettreLen} caractère${LETTRE_MIN_CHARS - lettreLen > 1 ? 's' : ''} pour atteindre le minimum.`
+            : '✓ Lettre suffisamment détaillée.'}
       </p>
 
       {/* CV — GUIC-224 : carte « Utiliser mon CV de profil » si dispo, sinon FileUpload */}
