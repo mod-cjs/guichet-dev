@@ -189,6 +189,23 @@ enum TypeRessource {
   @@map("type_ressource")
 }
 
+// GUIC-24 — niveau de difficulté pour filtrer la bibliothèque.
+enum NiveauRessource {
+  Debutant
+  Intermediaire
+  Avance
+
+  @@map("niveau_ressource")
+}
+
+// GUIC-24 — langue de la ressource (étendre si besoin).
+enum LangueRessource {
+  FR
+  Wolof
+
+  @@map("langue_ressource")
+}
+
 enum StatutInscription {
   inscrit
   liste_attente
@@ -535,12 +552,18 @@ model Ressource {
   url         String        @db.VarChar(500)
   estPublic   Boolean       @default(true) @map("est_public")
   vues        Int           @default(0)
+  // GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
+  niveau      NiveauRessource? @map("niveau")
+  langue      LangueRessource? @map("langue")
+  categorie   String?         @db.VarChar(100) @map("categorie")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   favoris RessourceFavorite[]
 
   @@index([type, theme])
+  @@index([niveau])
+  @@index([langue])
   @@map("ressources")
 }
 

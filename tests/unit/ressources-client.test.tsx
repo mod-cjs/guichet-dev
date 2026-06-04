@@ -16,11 +16,23 @@ function makeItem(overrides: Partial<RessourceListItem>): RessourceListItem {
     theme: 'Thème',
     url: 'https://exemple.org/x',
     vues: 0,
+    niveau: null,
+    langue: null,
+    categorie: null,
+    createdAt: '2026-05-01T00:00:00.000Z',
     ...overrides,
   }
 }
 
-beforeEach(() => pushMock.mockClear())
+beforeEach(() => {
+  pushMock.mockClear()
+  // GUIC-24 — le client charge maintenant /api/favoris/ressources/ids
+  // au montage. On stubbe `fetch` globalement pour ces tests unitaires.
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: [] }),
+  }) as unknown as typeof fetch
+})
 
 describe('<RessourcesClient />', () => {
   it('rend la liste initiale', () => {
