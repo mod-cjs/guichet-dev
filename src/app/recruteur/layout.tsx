@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { RecruteurSidebar } from '@/components/layout/RecruteurSidebar'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 export default async function RecruteurLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -8,6 +9,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
 
   return (
     <>
+      <SkipLink />
       {/* Barre mobile — contexte visuel + espace pour le bouton hamburger */}
       <div
         className="md:hidden sticky top-0 h-12 bg-white border-b border-gj-line flex items-center

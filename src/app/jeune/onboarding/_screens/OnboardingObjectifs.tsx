@@ -88,7 +88,7 @@ export function OnboardingObjectifs({ prenom }: Props) {
   }
 
   const count = selected.length
-  const greeting = prenom ? `Salama ${prenom}` : 'Salama'
+  const greeting = prenom ? `Salam ${prenom}` : 'Salam'
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-surface)' }}>
@@ -115,7 +115,7 @@ export function OnboardingObjectifs({ prenom }: Props) {
         </div>
 
         <div>
-          <h1 className="font-black text-color-text-primary" style={{ fontSize: 22, lineHeight: 1.2 }}>
+          <h1 className="font-black text-color-text-primary text-fs-500" style={{ lineHeight: 1.2 }}>
             Qu&apos;est-ce que tu cherches&nbsp;?
           </h1>
           <p className="text-fs-100 text-gj-grey mt-1" style={{ lineHeight: 1.5 }}>
