@@ -25,10 +25,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
+import { del } from '@vercel/blob'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { logger, hashId } from '@/lib/logger'
 import { ALLOWED_CV_MIME, MAX_CV_BYTES, RATE_LIMIT_UPLOAD } from '@/lib/constants/candidature'
+import { assertPdfMagicBytes } from '@/lib/security/magic-bytes'
 import type { ApiResponse } from '@/types/api'
 
 /** TTL minimum imposé côté Blob — limite l'exposition d'un orphelin à 24h. */
@@ -77,6 +79,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         }
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // GUIC-241 — Magic-bytes : `application/pdf` annoncé client n'est jamais
+        // une preuve. Un fichier texte renommé `cv.pdf` passerait sinon le filtre
+        // MIME et serait stocké tel quel → vecteur XSS futur (signed URL recruteur).
+        // On télécharge les 5 premiers octets via HTTP Range et on supprime le
+        // blob si l'en-tête %PDF- est absent.
+        const blobUrl = typeof blob === 'object' && blob !== null && 'url' in blob
+          ? (blob as { url?: string }).url
+          : undefined
+        if (blobUrl) {
+          try {
+            const headResp = await fetch(blobUrl, { headers: { Range: 'bytes=0-7' } })
+            const buf      = new Uint8Array(await headResp.arrayBuffer())
+            assertPdfMagicBytes(buf)
+          } catch (err) {
+            await del(blobUrl).catch(() => {})
+            logger.warn('[upload/cv] magic-bytes mismatch — blob supprimé', {
+              cjsUidHash: tokenPayload,
+              err: err instanceof Error ? err.message : String(err),
+            })
+            // Vercel Blob ne propage pas cette exception au client — c'est ok,
+            // POST /api/candidatures rejettera ensuite la cvUrl orpheline (404).
+            throw new Error('INVALID_FILE_CONTENT')
+          }
+        }
         // Pas de DB write ici : l'URL est persistée via POST /api/candidatures.
         // Log uniquement la taille et un hash du cjs_uid — pas l'URL (PII).
         logger.info('[upload/cv] terminé', {
