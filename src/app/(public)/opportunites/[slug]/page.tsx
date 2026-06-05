@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
+import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
+import { opportunitesListUrl } from '@/lib/routes'
 
 // GUIC-21 — Détail d'opportunité en accès direct (SSR, indispensable au SEO).
 
@@ -44,13 +46,13 @@ export default async function OpportuniteDetailPage({
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
       <Link
-        href="/opportunites"
+        href={opportunitesListUrl}
         className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
       >
         ← Toutes les opportunités
       </Link>
       <div className="mt-space-3">
-        <Suspense fallback={null}>
+        <Suspense fallback={<OpportuniteDetailSkeleton />}>
           <OpportuniteDetail detail={detail} viewer={viewer} />
         </Suspense>
       </div>

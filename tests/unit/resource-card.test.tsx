@@ -11,6 +11,10 @@ function makeItem(overrides: Partial<RessourceListItem> = {}): RessourceListItem
     theme: 'Entrepreneuriat',
     url: 'https://example.org/guide.pdf',
     vues: 0,
+    niveau: null,
+    langue: null,
+    categorie: null,
+    createdAt: '2026-05-01T00:00:00.000Z',
     ...overrides,
   }
 }

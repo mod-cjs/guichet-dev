@@ -13,6 +13,16 @@ interface Props {
   prenom?: string
 }
 
+/** Mapping objectif → label affichable (sub texte recommandations). */
+const OBJECTIF_LABELS: Record<string, string> = {
+  emploi:      'Emploi',
+  projet:      'Création de projet',
+  formation:   'Formation',
+  agriculture: 'Agriculture',
+  engagement:  'Engagement citoyen',
+  bourse:      'Bourse',
+}
+
 interface MockOpportunite {
   id:       string
   tag:      string
@@ -157,10 +167,9 @@ export function OnboardingRecommandations({ prenom }: Props) {
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-4 overflow-y-auto">
         {/* Bulle Yaye gradient */}
         <div
-          className="relative overflow-hidden"
+          className="relative overflow-hidden text-white"
           style={{
             background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))',
-            color: '#fff',
             borderRadius: 14,
             padding: 16,
           }}
@@ -170,7 +179,9 @@ export function OnboardingRecommandations({ prenom }: Props) {
             <div className="flex-1">
               <div className="text-fs-300 font-black">{headline}</div>
               <div className="text-fs-100" style={{ opacity: 0.8, marginTop: 2 }}>
-                Basé sur tes objectifs · {draft.objectifs.length > 0 ? draft.objectifs.join(' · ') : 'profil minimal'}
+                Basé sur tes objectifs · {draft.objectifs.length > 0
+                  ? draft.objectifs.map(o => OBJECTIF_LABELS[o] ?? o).join(' · ')
+                  : 'profil minimal'}
               </div>
             </div>
           </div>
@@ -237,7 +248,7 @@ export function OnboardingRecommandations({ prenom }: Props) {
 
       <FooterCTA
         primary={{ label: 'Aller au tableau de bord', onClick: () => finaliser('/jeune/tableau-de-bord') }}
-        secondary={{ label: 'Plus tard', onClick: () => finaliser('/jeune/tableau-de-bord') }}
+        secondary={{ label: '← Retour au profil', onClick: () => { window.history.back() } }}
         loading={loading}
       />
     </div>

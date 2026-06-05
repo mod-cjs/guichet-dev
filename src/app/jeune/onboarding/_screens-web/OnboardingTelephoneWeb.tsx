@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Input } from '@/components/ui/Input'
+import { SnFlag } from '@/components/ui/SnFlag'
+import { OnboardingNavWeb } from './OnboardingNavWeb'
 
 interface Props {
   telephone?: string
@@ -48,16 +50,16 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
       className="flex flex-col"
       style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}
     >
+      <OnboardingNavWeb step={1} total={4} />
       <div
         className="grid flex-1 overflow-hidden"
         style={{ gridTemplateColumns: '1fr 1fr' }}
       >
         {/* Pane gauche — hero teal */}
         <section
-          className="relative overflow-hidden flex flex-col justify-center"
+          className="relative overflow-hidden flex flex-col justify-center text-white"
           style={{
             background: 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
-            color: '#fff',
             padding: 60,
           }}
         >
@@ -131,7 +133,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
             maxWidth: 640,
           }}
         >
-          <h2 className="font-black text-color-text-primary" style={{ fontSize: 28, lineHeight: 1.15 }}>
+          <h2 className="font-black text-color-text-primary text-fs-700" style={{ lineHeight: 1.15 }}>
             Ton numéro sénégalais
           </h2>
           <p className="text-gj-grey" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
@@ -152,7 +154,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
                   fontSize: 15,
                 }}
               >
-                <span aria-hidden style={{ fontSize: 14 }}>SN</span>
+                <SnFlag size={16} />
                 <span>+221</span>
               </div>
               <div className="flex-1">

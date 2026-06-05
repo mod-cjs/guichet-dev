@@ -189,6 +189,23 @@ enum TypeRessource {
   @@map("type_ressource")
 }
 
+// GUIC-24 — niveau de difficulté pour filtrer la bibliothèque.
+enum NiveauRessource {
+  Debutant
+  Intermediaire
+  Avance
+
+  @@map("niveau_ressource")
+}
+
+// GUIC-24 — langue de la ressource (étendre si besoin).
+enum LangueRessource {
+  FR
+  Wolof
+
+  @@map("langue_ressource")
+}
+
 enum StatutInscription {
   inscrit
   liste_attente
@@ -257,6 +274,9 @@ model ProfilJeune {
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int      @default(0) @map("completion_score")
   profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
+  // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
+  cvUrl             String?  @map("cv_url") @db.VarChar(500)
+  cvUploadedAt      DateTime? @map("cv_uploaded_at")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -409,6 +429,10 @@ model Candidature {
   lettreMotivation     String?           @map("lettre_motivation") @db.Text
   cvUrl                String?           @map("cv_url") @db.VarChar(500)
   notificationsConsent Boolean           @default(false) @map("notifications_consent")
+  // Traçabilité du consentement CGU (GUIC-218 / audit CDP).
+  consentAt            DateTime?         @map("consent_at")
+  cguVersion           String?           @map("cgu_version") @db.VarChar(20)
+  consentIp            String?           @map("consent_ip") @db.VarChar(45)
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
@@ -417,6 +441,7 @@ model Candidature {
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
+  @@index([opportuniteId])
   @@map("candidatures")
 }
 
@@ -530,12 +555,18 @@ model Ressource {
   url         String        @db.VarChar(500)
   estPublic   Boolean       @default(true) @map("est_public")
   vues        Int           @default(0)
+  // GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
+  niveau      NiveauRessource? @map("niveau")
+  langue      LangueRessource? @map("langue")
+  categorie   String?         @db.VarChar(100) @map("categorie")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   favoris RessourceFavorite[]
 
   @@index([type, theme])
+  @@index([niveau])
+  @@index([langue])
   @@map("ressources")
 }
 

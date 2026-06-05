@@ -1,4 +1,5 @@
 import type { TypeOpportunite } from '@prisma/client'
+import { Icon, type IconName } from '@/components/ui'
 
 /**
  * Chip non-interactif (label) qui colorise un type d'opportunité selon la
@@ -52,6 +53,8 @@ export interface OpportuniteTypeChipProps {
   prefix?: string
   /** Suffixe libre (ex. compte à rebours `J-3`). */
   suffix?: string
+  /** Icône optionnelle rendue à gauche dans la même pill (urgence). */
+  leadingIcon?: IconName
   className?: string
 }
 
@@ -64,6 +67,7 @@ export function OpportuniteTypeChip({
   tone,
   prefix,
   suffix,
+  leadingIcon,
   className = '',
 }: OpportuniteTypeChipProps) {
   const t = tone ?? TYPE_TONE[type] ?? 'grey'
@@ -72,15 +76,14 @@ export function OpportuniteTypeChip({
       data-type={type}
       data-tone={t}
       className={[
-        'inline-flex items-center px-space-2 py-[2px] rounded-gj-pill',
+        'inline-flex items-center gap-1 px-space-2 py-[2px] rounded-gj-pill',
         'text-fs-100 font-black uppercase tracking-[0.4px] leading-none whitespace-nowrap',
         TONE_CLASSES[t],
         className,
       ].join(' ')}
     >
-      {prefix ? `${prefix} ` : null}
-      {typeLabel(type)}
-      {suffix ? ` · ${suffix}` : null}
+      {leadingIcon ? <Icon name={leadingIcon} size={12} aria-hidden /> : null}
+      {`${prefix ? `${prefix} ` : ''}${typeLabel(type)}${suffix ? ` · ${suffix}` : ''}`}
     </span>
   )
 }

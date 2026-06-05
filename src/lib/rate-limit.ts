@@ -5,9 +5,16 @@ interface RateLimitOptions {
   windowMs: number
   max: number
   keyPrefix?: string
+  /**
+   * Si `true`, la clé Redis n'inclut PAS l'IP — la clé `keyPrefix` doit alors
+   * déjà inclure le `cjsUid` (endpoint authentifié). Évite que plusieurs
+   * jeunes derrière le même NAT/portail captif s'éjectent mutuellement.
+   * Cf GUIC-218 (audit CDP / Wave 6).
+   */
+  authenticated?: boolean
 }
 
-function extractIp(request: NextRequest): string {
+export function extractIp(request: NextRequest): string {
   // x-real-ip est injecté par Nginx/OVH et ne peut pas être forgé par le client
   const realIp = request.headers.get('x-real-ip')
   if (realIp) return realIp.trim()
@@ -26,8 +33,10 @@ export async function rateLimit(
   request: NextRequest,
   options: RateLimitOptions
 ): Promise<NextResponse | null> {
-  const ip  = extractIp(request)
-  const key = `rl:${options.keyPrefix ?? 'default'}:${ip}`
+  const prefix = options.keyPrefix ?? 'default'
+  const key = options.authenticated
+    ? `rl:${prefix}`
+    : `rl:${prefix}:${extractIp(request)}`
   const windowSec = Math.ceil(options.windowMs / 1000)
 
   // INCR + EXPIRE atomique pour éviter la race condition

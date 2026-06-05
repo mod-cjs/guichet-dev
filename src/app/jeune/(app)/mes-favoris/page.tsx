@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { MesFavoris } from '@/components/jeune/MesFavoris'
 
 export const metadata: Metadata = { title: 'Mes favoris' }
@@ -11,6 +12,12 @@ export default function MesFavorisPage() {
         <p className="text-fs-300 text-color-text-secondary mt-space-1">
           Les opportunités que vous avez sauvegardées
         </p>
+        <Link
+          href="/jeune/mes-favoris/ressources"
+          className="inline-flex items-center gap-1 text-fs-200 font-black text-gj-teal-deep hover:underline mt-space-2"
+        >
+          Voir mes ressources favorites →
+        </Link>
       </div>
       <MesFavoris />
     </div>

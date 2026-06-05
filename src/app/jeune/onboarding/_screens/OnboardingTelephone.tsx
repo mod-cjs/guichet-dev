@@ -7,6 +7,7 @@ import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Input } from '@/components/ui/Input'
 import { FooterCTA } from '@/components/ui/FooterCTA'
 import { StepBar } from '@/components/ui/StepBar'
+import { SnFlag } from '@/components/ui/SnFlag'
 
 interface Props {
   telephone?: string
@@ -46,7 +47,7 @@ export function OnboardingTelephone({ telephone }: Props) {
 
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-5">
         <div>
-          <h1 className="font-black text-color-text-primary" style={{ fontSize: 22, lineHeight: 1.2 }}>
+          <h1 className="font-black text-color-text-primary text-fs-500" style={{ lineHeight: 1.2 }}>
             Ton numéro de téléphone
           </h1>
           <p className="text-fs-200 text-gj-grey mt-1" style={{ lineHeight: 1.5 }}>
@@ -96,7 +97,7 @@ export function OnboardingTelephone({ telephone }: Props) {
                 fontSize: 15,
               }}
             >
-              <span aria-hidden style={{ fontSize: 14 }}>SN</span>
+              <SnFlag size={16} />
               <span>+221</span>
             </div>
             <div className="flex-1">
@@ -114,10 +115,9 @@ export function OnboardingTelephone({ telephone }: Props) {
 
         {/* WhatsApp fallback note */}
         <div
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 text-white"
           style={{
             background: 'var(--gj-whatsapp)',
-            color: '#fff',
             borderRadius: 10,
             padding: '12px 14px',
           }}
@@ -134,7 +134,7 @@ export function OnboardingTelephone({ telephone }: Props) {
 
       <FooterCTA
         primary={{
-          label: 'Continuer',
+          label: 'Vérifier',
           // SSO porte l'OTP — on redirige vers le flow login.
           // L'utilisateur est déjà authentifié (sinon middleware aurait redirigé),
           // donc on saute directement à l'écran objectifs.

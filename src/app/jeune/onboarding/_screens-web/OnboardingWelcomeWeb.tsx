@@ -2,17 +2,18 @@
 
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats.shared'
 
 interface Props {
   prenom?: string
+  /** Stats CJS temps réel — GUIC-235. Fallback snapshot si non fourni. */
+  stats?: HomeStats
 }
-
-const STATS = [
-  { value: '22 695', label: 'Jeunes inscrits' },
-  { value: '1 240',  label: 'Opps actives'    },
-  { value: '14',     label: 'Régions'         },
-  { value: '9',      label: 'Centres CJS'     },
-] as const
 
 /**
  * Onboarding écran 1/5 — version WEB (≥1024px, GUIC-195 phase 3-1).
@@ -24,14 +25,19 @@ const STATS = [
  * Pas de logique métier : 2 liens vers `/jeune/onboarding/telephone`
  * et `/auth/connexion`.
  */
-export function OnboardingWelcomeWeb({ prenom }: Props) {
+export function OnboardingWelcomeWeb({ prenom, stats = FALLBACK_HOME_STATS }: Props) {
+  const STATS = [
+    { value: formatHomeStat(stats.jeunesInscrits),      label: 'Jeunes inscrits' },
+    { value: formatHomeStat(stats.opportunitesActives), label: 'Opps actives'    },
+    { value: formatHomeStat(stats.regionsCouvertes),    label: 'Régions'         },
+    { value: formatHomeStat(stats.centresActifs),       label: 'Centres CJS'     },
+  ] as const
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-col text-white"
       style={{
         minHeight: 'calc(100dvh - 3rem)',
         background: 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
-        color: '#fff',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -74,7 +80,7 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
           >
             Ton avenir,<br />commence ici.
           </h1>
-          <p style={{ fontSize: 17, lineHeight: 1.55, marginTop: 18, opacity: 0.9, maxWidth: 540 }}>
+          <p className="text-fs-400" style={{ lineHeight: 1.55, marginTop: 18, opacity: 0.9, maxWidth: 540 }}>
             Emploi · stage · bourse · projet · formation. Toutes les opportunités pour les
             {' '}<b>16–35 ans au Sénégal</b>, en un seul endroit. Yaye t&apos;accompagne — en français ou en Wolof.
           </p>
@@ -238,35 +244,10 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
               transform: 'translateY(-30px)',
             }}
           >
-            <div
-              aria-hidden
-              className="inline-flex items-center justify-center font-black flex-shrink-0"
-              style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #19A757, #0A807F)',
-                color: '#fff',
-                fontFamily: 'Georgia, serif',
-                fontSize: 18,
-              }}
-            >
-              Y
-            </div>
+            <YayeAvatar size={48} withBadge />
             <div className="flex-1" style={{ color: '#fff' }}>
               <div className="font-black" style={{ fontSize: 13 }}>
-                <span style={{ fontFamily: 'Georgia, serif' }}>Yaye</span>
-                <span
-                  style={{
-                    background: 'var(--gj-yellow)',
-                    color: 'var(--gj-teal-deep)',
-                    fontSize: 9,
-                    fontWeight: 900,
-                    padding: '1px 5px',
-                    borderRadius: 999,
-                    marginLeft: 6,
-                  }}
-                >
-                  IA
-                </span>
+                Yaye
               </div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, lineHeight: 1.45 }}>
                 « Dis-moi ce que tu cherches — je m&apos;occupe du reste. »
