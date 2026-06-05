@@ -82,7 +82,7 @@ export function EvenementsClient({ initialItems, total }: EvenementsClientProps)
 
       {shown.length === 0 ? (
         <EmptyState
-          emoji="📅"
+          icon="calendar"
           title="Aucun événement trouvé"
           description={
             total === 0

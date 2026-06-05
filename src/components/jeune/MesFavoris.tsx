@@ -1,11 +1,13 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { EmptyState, SkeletonCard } from '@/components/ui'
 import { OppCard } from '@/components/opportunites/OppCard'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
 /** Liste des opportunités sauvegardées par le jeune connecté (GUIC-20). */
 export function MesFavoris() {
+  const router = useRouter()
   const [items, setItems] = useState<OpportuniteListItem[] | null>(null)
   const [error, setError] = useState(false)
 
@@ -54,9 +56,7 @@ export function MesFavoris() {
         title="Aucune opportunité sauvegardée"
         description="Touchez le cœur sur une opportunité pour la retrouver ici."
         actionLabel="Voir les opportunités"
-        onAction={() => {
-          window.location.href = '/opportunites'
-        }}
+        onAction={() => router.push('/opportunites')}
       />
     )
   }

@@ -244,7 +244,7 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
                 width: 40, height: 40, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #19A757, #0A807F)',
                 color: '#fff',
-                fontFamily: 'Georgia, serif',
+                fontFamily: 'var(--gj-font-yaye-wordmark)',
                 fontSize: 18,
               }}
             >
@@ -252,7 +252,7 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
             </div>
             <div className="flex-1" style={{ color: '#fff' }}>
               <div className="font-black" style={{ fontSize: 13 }}>
-                <span style={{ fontFamily: 'Georgia, serif' }}>Yaye</span>
+                <span style={{ fontFamily: 'var(--gj-font-yaye-wordmark)' }}>Yaye</span>
                 <span
                   style={{
                     background: 'var(--gj-yellow)',

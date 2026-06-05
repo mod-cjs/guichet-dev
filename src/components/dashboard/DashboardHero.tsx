@@ -15,8 +15,8 @@ function message(score: number): string {
 
 function ringStroke(score: number): string {
   if (score >= 80) return 'var(--gj-surface)'
-  if (score >= 50) return '#F9C400'
-  return '#FFB4A6'
+  if (score >= 50) return 'var(--gj-yellow)'
+  return 'var(--gj-red-soft)'
 }
 
 function ctaLabel(score: number): string {

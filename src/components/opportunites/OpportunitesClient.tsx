@@ -192,8 +192,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
 
       {/* Rangée horizontale de chips types — mobile uniquement (design v2 M1). */}
       <div
-        className="lg:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
-          snap-x snap-mandatory scrollbar-none"
+        className="lg:hidden mb-space-3 flex flex-wrap gap-space-1"
         role="tablist"
         aria-label="Filtrer par type d'opportunité"
       >
@@ -209,7 +208,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
                 pushFilters({ ...filters, type: active ? undefined : t })
               }
               className={[
-                'snap-start shrink-0 inline-flex items-center px-space-3 py-[7px] rounded-gj-pill',
+                'inline-flex items-center px-space-3 py-[7px] rounded-gj-pill',
                 'text-fs-200 leading-none whitespace-nowrap border-[1.5px]',
                 'min-h-[var(--tap-min)] md:min-h-[36px]',
                 'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',

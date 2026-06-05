@@ -399,7 +399,7 @@ function SuccessScreen({
 
       <div>
         <h2 className="text-fs-500 font-black text-color-text-primary">
-          Candidature envoyée 🎉
+          Candidature envoyée <span aria-hidden="true">🎉</span>
         </h2>
         <p className="text-fs-300 text-color-text-muted mt-space-1">
           <b className="text-color-text-primary">{opportuniteTitre}</b> vient de
