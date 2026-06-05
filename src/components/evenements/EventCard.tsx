@@ -5,8 +5,17 @@ import type { EvenementListItem, TypeEvenementValue } from '@/lib/loaders/evenem
 
 interface EventCardProps {
   item: EvenementListItem
-  /** Callback CTA (par défaut : redirige vers /auth pour s'inscrire). */
+  /**
+   * Callback CTA. Selon l'état (user connecté ou non, déjà inscrit ou non),
+   * le parent décide quoi faire (POST/DELETE inscription, ou redirect /auth).
+   */
   onInscrire?: (id: string) => void
+  /** True si l'utilisateur est authentifié. Si false → bouton "Se connecter pour s'inscrire". */
+  isAuthenticated?: boolean
+  /** True si l'utilisateur est déjà inscrit à cet événement (auth requis). */
+  isInscrit?: boolean
+  /** État de chargement (pendant l'appel API d'inscription/désinscription). */
+  isPending?: boolean
 }
 
 const MONTH_SHORT = new Intl.DateTimeFormat('fr-FR', { month: 'short' })
@@ -21,14 +30,36 @@ const TYPE_ACCENT: Record<TypeEvenementValue, { bg: string; text: string; badge:
   Conference: { bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',     badge: 'red' },
 }
 
-/** Carte événement (M5 — refonte v2). */
-export function EventCard({ item, onInscrire }: EventCardProps) {
+/** Carte événement (M5 — refonte v2 / GUIC-23 inscription). */
+export function EventCard({
+  item,
+  onInscrire,
+  isAuthenticated = false,
+  isInscrit = false,
+  isPending = false,
+}: EventCardProps) {
   const date = new Date(item.dateDebut)
   const jour = date.getDate()
   const mois = MONTH_SHORT.format(date).replace('.', '').toUpperCase()
   const heure = TIME_FMT.format(date)
   const accent = TYPE_ACCENT[item.type]
   const inscriptionsOuvertes = item.statut === 'a_venir'
+
+  // Libellé + intent du bouton selon l'état utilisateur.
+  let ctaLabel: string
+  let ctaAria: string
+  let ctaVariant: 'primary' | 'ghost' | 'secondary' = 'primary'
+  if (!isAuthenticated) {
+    ctaLabel = "Se connecter pour s'inscrire"
+    ctaAria = `Se connecter pour s'inscrire à ${item.titre}`
+  } else if (isInscrit) {
+    ctaLabel = 'Se désinscrire'
+    ctaAria = `Se désinscrire de ${item.titre}`
+    ctaVariant = 'ghost'
+  } else {
+    ctaLabel = "S'inscrire"
+    ctaAria = `S'inscrire à ${item.titre}`
+  }
 
   return (
     <Card variant="opportunite" className="flex gap-space-3">
@@ -64,17 +95,24 @@ export function EventCard({ item, onInscrire }: EventCardProps) {
           {item.estGratuit && (
             <span className="text-gj-teal-deep font-bold">Gratuit</span>
           )}
+          {isAuthenticated && isInscrit && (
+            <span className="inline-flex items-center gap-1 text-gj-teal-deep font-bold">
+              <Icon name="check" size={14} />
+              Inscrit
+            </span>
+          )}
         </div>
 
         {inscriptionsOuvertes && (
           <div className="mt-space-2">
             <Button
               size="sm"
-              variant="primary"
+              variant={ctaVariant}
+              disabled={isPending}
               onClick={() => onInscrire?.(item.id)}
-              aria-label={`S'inscrire à ${item.titre}`}
+              aria-label={ctaAria}
             >
-              S&apos;inscrire
+              {ctaLabel}
             </Button>
           </div>
         )}

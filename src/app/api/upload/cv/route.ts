@@ -1,40 +1,63 @@
 /**
- * GUIC-189 / GUIC-218 — Upload CV via Vercel Blob (handleUpload pattern).
+ * POST /api/upload/cv — proxy serveur d'upload CV vers Vercel Blob (GUIC-225).
  *
- * Le client appelle `upload(file, { handleUploadUrl: '/api/upload/cv' })` du SDK
- * `@vercel/blob/client`. Vercel Blob requête ici deux fois :
- *   1. `onBeforeGenerateToken` — on authentifie le user SSO + on contraint MIME/taille
- *   2. `onUploadCompleted` — callback informatif (no-op : on persiste l'URL via POST /api/candidatures)
+ * Pourquoi un proxy serveur (option B, audit GUIC-189) :
+ *   - Le client (`CandidatureModal.defaultUploader`) envoie un `multipart/form-data`.
+ *   - L'implémentation précédente utilisait `handleUpload()` de `@vercel/blob/client`,
+ *     qui attend un body JSON `HandleUploadBody` et appelle `request.json()` —
+ *     d'où un 400 systématique sur FormData.
+ *   - Solution : parser le FormData côté serveur et appeler `put()` directement
+ *     (`@vercel/blob`, côté serveur). Plus simple, contrôle complet, pas de
+ *     besoin d'élargir la CSP côté client.
  *
- * Sécurité (GUIC-218) :
- *   - Auth SSO obligatoire (cookie httpOnly)
- *   - MIME forcé : application/pdf
- *   - Taille max : 5 MiB
- *   - Rate-limit Redis : 5 upload/min/cjs_uid — `authenticated: true` (pas d'IP
- *     dans la clé, évite que plusieurs jeunes derrière le même NAT s'éjectent)
- *   - Pathname namespacé par cjs_uid + addRandomSuffix → un user ne peut écraser
- *     le CV d'un autre, ni deviner l'URL d'un CV existant
- *   - cacheControlMaxAge=24h : limite l'exposition d'un blob orphelin si le
- *     POST /api/candidatures n'arrive jamais
- *   - Logs sans PII : `cjsUid` est haché, l'URL complète n'est jamais loguée
- *
- * TODO (hors scope cette PR — créer ticket de suite) :
- *   - Cleanup périodique des blobs orphelins : `DELETE FROM blob WHERE pathname
- *     NOT IN (SELECT cv_url FROM candidatures WHERE cv_url IS NOT NULL)`. Vercel
- *     Blob n'expose pas de TTL natif, il faut un cron applicatif.
+ * Garde-fous métier :
+ *   - Auth SSO obligatoire (cookie `cjs_session`).
+ *   - Rate limit Redis par `cjs_uid` (cf. `RATE_LIMIT_UPLOAD`).
+ *   - MIME whitelist `ALLOWED_CV_MIME` (PDF uniquement aujourd'hui).
+ *   - Taille max `MAX_CV_BYTES` (5 MiB).
+ *   - Nom de fichier sanitizé (regex `[^a-zA-Z0-9._-]` → `_`), pathname
+ *     préfixé `cv/<cjsUid>/<safeName>` et `addRandomSuffix: true` pour
+ *     éviter les collisions et le squat de chemin.
+ *   - `cacheControlMaxAge` de 24h : limite l'exposition d'éventuels blobs
+ *     orphelins (candidature jamais soumise) côté CDN sans pour autant
+ *     casser la lecture pendant le parcours utilisateur.
  */
+
+import { put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
-import { logger, hashId } from '@/lib/logger'
-import { ALLOWED_CV_MIME, MAX_CV_BYTES, RATE_LIMIT_UPLOAD } from '@/lib/constants/candidature'
+import { logger } from '@/lib/logger'
+import {
+  ALLOWED_CV_MIME,
+  MAX_CV_BYTES,
+  RATE_LIMIT_UPLOAD,
+} from '@/lib/constants/candidature'
 import type { ApiResponse } from '@/types/api'
 
-/** TTL minimum imposé côté Blob — limite l'exposition d'un orphelin à 24h. */
+/** Réponse renvoyée au client en cas de succès (cf. `UploadedFileMeta`). */
+interface UploadedFileMeta {
+  url: string
+  name: string
+  sizeKb: number
+}
+
+/** TTL CDN court (24h) pour limiter l'exposition des blobs orphelins. */
 const BLOB_CACHE_MAX_AGE_SEC = 60 * 60 * 24
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
+/** Empreinte SHA-256 tronquée d'un identifiant pour les logs (anti-PII). */
+async function hashId(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest).slice(0, 8))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+export async function POST(
+  request: NextRequest,
+): Promise<NextResponse<ApiResponse<UploadedFileMeta>>> {
+  // 1. Auth — cookie SSO requis.
   const session = await getSession(request)
   if (!session) {
     return NextResponse.json(
@@ -43,58 +66,87 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     )
   }
 
+  // 2. Rate limit Redis par cjs_uid.
   const limited = await rateLimit(request, {
     windowMs: RATE_LIMIT_UPLOAD.windowMs,
     max: RATE_LIMIT_UPLOAD.max,
     keyPrefix: `upload-cv:${session.cjsUid}`,
-    authenticated: true,
   })
-  if (limited) return limited as NextResponse<ApiResponse>
+  if (limited) return limited as NextResponse<ApiResponse<UploadedFileMeta>>
 
-  const body = (await request.json().catch(() => null)) as HandleUploadBody | null
-  if (!body) {
+  // 3. Parse FormData (et non JSON — c'est précisément la cause du bug d'origine).
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch {
     return NextResponse.json(
-      { error: { code: 'VALIDATION_ERROR', message: 'Corps invalide' } },
+      { error: { code: 'VALIDATION_ERROR', message: 'FormData attendu' } },
       { status: 400 },
     )
   }
 
+  const file = formData.get('file')
+  if (!(file instanceof File)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION_ERROR', message: 'Champ "file" manquant' } },
+      { status: 400 },
+    )
+  }
+
+  // 4. Validation MIME + taille.
+  if (!(ALLOWED_CV_MIME as readonly string[]).includes(file.type)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'INVALID_MIME',
+          message: `Format invalide (${ALLOWED_CV_MIME.join(', ')} requis)`,
+        },
+      },
+      { status: 400 },
+    )
+  }
+  if (file.size > MAX_CV_BYTES) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: `Fichier trop volumineux (max ${MAX_CV_BYTES / 1024 / 1024} MB)`,
+        },
+      },
+      { status: 400 },
+    )
+  }
+
+  // 5. Sanitize filename + namespacing cjsUid.
+  const safeName = (file.name || 'cv.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const pathname = `cv/${session.cjsUid}/${safeName}`
+
+  // 6. Upload serveur → Vercel Blob.
   try {
-    const json = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        // Garde-fou supplémentaire : pathname doit terminer en .pdf
-        if (!pathname.toLowerCase().endsWith('.pdf')) {
-          throw new Error('Seuls les fichiers PDF sont acceptés')
-        }
-        return {
-          allowedContentTypes: [...ALLOWED_CV_MIME],
-          maximumSizeInBytes: MAX_CV_BYTES,
-          addRandomSuffix: true,
-          cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
-          tokenPayload: JSON.stringify({ cjsUidHash: hashId(session.cjsUid) }),
-        }
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        // Pas de DB write ici : l'URL est persistée via POST /api/candidatures.
-        // Log uniquement la taille et un hash du cjs_uid — pas l'URL (PII).
-        logger.info('[upload/cv] terminé', {
-          cjsUidHash: tokenPayload,
-          sizeBytes: typeof blob === 'object' && blob !== null && 'size' in blob ? (blob as { size?: number }).size : undefined,
-        })
-      },
+    const blob = await put(pathname, file, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType: file.type,
+      cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
     })
-    return NextResponse.json(json as never)
+    const sizeKb = Math.round(file.size / 1024)
+    logger.info('[upload/cv] terminé', {
+      cjsUidHash: await hashId(session.cjsUid),
+      sizeBytes: file.size,
+    })
+    return NextResponse.json(
+      { data: { url: blob.url, name: safeName, sizeKb } },
+      { status: 200 },
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Upload impossible'
     logger.warn('[upload/cv] refusé', {
-      cjsUidHash: hashId(session.cjsUid),
+      cjsUidHash: await hashId(session.cjsUid),
       err: message,
     })
     return NextResponse.json(
       { error: { code: 'UPLOAD_FAILED', message } },
-      { status: 400 },
+      { status: 502 },
     )
   }
 }
