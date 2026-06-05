@@ -1,6 +1,7 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 
@@ -13,6 +14,8 @@ export interface BenefSidebarItem {
   badge?: string | number
   /** Badge muted (compteur indicatif) vs vif (alerte). */
   badgeMuted?: boolean
+  /** Lien externe (ouvre dans un nouvel onglet, rendu avec <a> au lieu de <Link>). */
+  external?: boolean
 }
 
 export interface BenefSidebarSection {
@@ -42,26 +45,65 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
     title: 'Opportunités',
     items: [
       { id: 'opportunites', href: '/opportunites', icon: 'target', label: 'Toutes les opportunités' },
-      { id: 'favoris', href: '/jeune/favoris', icon: 'bookmark', label: 'Mes favoris' },
+      { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes favoris' },
     ],
   },
   {
     title: 'Mon parcours',
     items: [
-      { id: 'candidatures', href: '/jeune/candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'candidatures', href: '/jeune/mes-candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },
   {
+    title: 'Plateformes partenaires',
+    items: [
+      {
+        id: 'yeah',
+        href: 'https://yeah.consortiumjeunessesenegal.org',
+        icon: 'sparkle',
+        label: 'YEAH',
+        external: true,
+      },
+      {
+        id: 'elearning',
+        href: 'https://elearning.guichetjeunesse.sn',
+        icon: 'learning',
+        label: 'E-learning',
+        external: true,
+      },
+    ],
+  },
+  {
     title: 'Mon compte',
     items: [
       { id: 'profil', href: '/jeune/mon-profil', icon: 'profile', label: 'Mon profil' },
-      { id: 'parametres', href: '/jeune/parametres', icon: 'settings', label: 'Paramètres' },
     ],
   },
 ]
+
+/**
+ * Détermine l'id de l'item actif à partir du pathname courant.
+ * - Match exact en priorité
+ * - Sinon match préfixe sur href (hors `/`)
+ */
+function resolveActiveId(
+  pathname: string,
+  sections: BenefSidebarSection[],
+): string | undefined {
+  const items = sections.flatMap(s => s.items)
+  // Match exact
+  const exact = items.find(it => it.href === pathname)
+  if (exact) return exact.id
+  // Match préfixe — privilégier le href le plus long
+  const candidates = items
+    .filter(it => it.href !== '/' && pathname.startsWith(it.href + '/'))
+    .sort((a, b) => b.href.length - a.href.length)
+  return candidates[0]?.id
+}
 
 /**
  * BenefSidebar — sidebar gauche web bénéficiaire (≥1024px).
@@ -83,6 +125,10 @@ export function BenefSidebar({
   userInitials,
   yayeHref = '/jeune/yaye',
 }: BenefSidebarProps) {
+  // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
+  const pathname = usePathname() ?? '/'
+  const activeId = active ?? resolveActiveId(pathname, sections)
+
   return (
     <aside
       role="navigation"
@@ -211,27 +257,22 @@ export function BenefSidebar({
             </div>
           ) : null}
           {section.items.map(item => {
-            const on = item.id === active
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-current={on ? 'page' : undefined}
-                className="no-underline"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '9px 10px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  color: on ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
-                  fontWeight: on ? 800 : 600,
-                  minHeight: 38,
-                  background: on ? 'var(--gj-teal-soft)' : 'transparent',
-                  width: '100%',
-                }}
-              >
+            const on = item.id === activeId
+            const itemStyle = {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '9px 10px',
+              borderRadius: 8,
+              fontSize: 13,
+              color: on ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
+              fontWeight: on ? 800 : 600,
+              minHeight: 38,
+              background: on ? 'var(--gj-teal-soft)' : 'transparent',
+              width: '100%',
+            } as const
+            const inner = (
+              <>
                 <Icon name={item.icon} size={18} />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.badge ? (
@@ -249,6 +290,39 @@ export function BenefSidebar({
                     {item.badge}
                   </span>
                 ) : null}
+                {item.external ? (
+                  <Icon
+                    name="external"
+                    size={12}
+                    style={{ color: 'var(--gj-grey)', marginLeft: item.badge ? 4 : 'auto' }}
+                  />
+                ) : null}
+              </>
+            )
+            if (item.external) {
+              return (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${item.label} (ouvre dans un nouvel onglet)`}
+                  className="no-underline"
+                  style={itemStyle}
+                >
+                  {inner}
+                </a>
+              )
+            }
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-current={on ? 'page' : undefined}
+                className="no-underline"
+                style={itemStyle}
+              >
+                {inner}
               </Link>
             )
           })}
@@ -277,7 +351,7 @@ export function BenefSidebar({
           <span style={{ flex: 1, minWidth: 0, lineHeight: 1.15 }}>
             <span
               style={{
-                fontFamily: 'Georgia, serif',
+                fontFamily: 'var(--gj-yaye-font)',
                 fontWeight: 900,
                 fontSize: 14,
                 color: 'var(--gj-surface)',

@@ -1,5 +1,6 @@
 'use client'
 import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Icon } from '../Icon'
 
 interface SheetProps {
   isOpen: boolean
@@ -65,11 +66,14 @@ export function Sheet({
     [onClose],
   )
 
+  // Effet "ouverture" — dépend UNIQUEMENT de `isOpen` pour éviter que le focus
+  // ne soit reposé sur le premier focusable à chaque re-render du parent
+  // (bug curseur sur textarea — GUIC-221 #6). Le keydown listener est isolé
+  // dans son propre effet pour pouvoir suivre la dernière `handleKeyDown`.
   useEffect(() => {
     if (!isOpen) return
     returnFocusRef.current = (document.activeElement as HTMLElement) ?? null
     document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeyDown)
     const id = requestAnimationFrame(() => {
       setShown(true)
       // Move focus inside the dialog (first focusable, else the panel itself)
@@ -79,7 +83,6 @@ export function Sheet({
     const restore = returnFocusRef.current
     return () => {
       document.body.style.overflow = ''
-      document.removeEventListener('keydown', handleKeyDown)
       cancelAnimationFrame(id)
       setShown(false)
       setDragY(0)
@@ -88,6 +91,13 @@ export function Sheet({
         try { restore.focus() } catch { /* noop */ }
       }
     }
+  }, [isOpen])
+
+  // Keydown listener — re-attaché si `handleKeyDown` change, sans toucher au focus.
+  useEffect(() => {
+    if (!isOpen) return
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, handleKeyDown])
 
   if (!isOpen) return null
@@ -160,7 +170,7 @@ export function Sheet({
               className="min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center
                 text-gj-grey hover:text-gj-ink rounded-gj-pill"
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
         )}
