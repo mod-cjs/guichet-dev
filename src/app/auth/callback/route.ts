@@ -4,7 +4,7 @@ import { encodeSession, setSessionCookie } from '@/lib/auth'
 import { saveTokens } from '@/lib/token-store'
 import { clearRevocation } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
-import { logger } from '@/lib/logger'
+import { logger, hashId } from '@/lib/logger'
 import type { CJSSession } from '@/types/user'
 
 export async function GET(request: NextRequest) {
@@ -24,11 +24,12 @@ export async function GET(request: NextRequest) {
     tokens = await exchangeCode(code, pkceVerifier)
     const claims = await getUserInfo(tokens.access_token)
 
+    // GUIC-240 : sub (cjsUid) jamais en clair dans les logs (CDP loi 2008-12)
     logger.info('sso-claims-debug', {
-      sub:          claims.sub,
-      cjs_roles_raw: claims.cjs_roles,
+      subHash:        hashId(claims.sub),
+      cjs_roles_raw:  claims.cjs_roles,
       cjs_roles_type: typeof claims.cjs_roles,
-      cjs_status:   claims.cjs_status,
+      cjs_status:     claims.cjs_status,
     })
 
     const roles = Array.isArray(claims.cjs_roles)

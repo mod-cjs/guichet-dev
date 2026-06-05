@@ -66,14 +66,42 @@ export async function sendTemplateMessage(
   }
 }
 
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { logger } from '@/lib/logger'
 
+/**
+ * Vérifie la signature HMAC-SHA256 d'un webhook Meta WhatsApp.
+ *
+ * Sécurité (GUIC-240) :
+ * - Utilise `WHATSAPP_APP_SECRET` (Meta App Secret dédié au HMAC webhook),
+ *   PAS `WHATSAPP_TOKEN` (bearer token pour l'API outbound — exposable côté
+ *   logs Meta et beaucoup plus permissif).
+ * - Comparaison `timingSafeEqual` (anti timing-attack) avec check longueur strict.
+ * - Retourne `false` sans throw si la signature est absente, mal formée, ou si
+ *   `WHATSAPP_APP_SECRET` n'est pas configuré (fail-closed).
+ *
+ * Meta envoie le header au format `sha256=<hex>` (`x-hub-signature-256`).
+ */
 export function verifyWebhookSignature(
   payload: string,
-  signature: string
+  signature: string | null | undefined
 ): boolean {
-  const expected = 'sha256=' + createHmac('sha256', process.env.WHATSAPP_TOKEN ?? '')
-    .update(payload)
-    .digest('hex')
-  return signature === expected
+  if (!signature) return false
+
+  const appSecret = process.env.WHATSAPP_APP_SECRET
+  if (!appSecret) {
+    logger.error('[whatsapp] WHATSAPP_APP_SECRET non défini — webhook refusé')
+    return false
+  }
+
+  const provided = signature.startsWith('sha256=') ? signature.slice(7) : signature
+  const expected = createHmac('sha256', appSecret).update(payload).digest('hex')
+
+  if (provided.length !== expected.length) return false
+
+  try {
+    return timingSafeEqual(Buffer.from(provided, 'hex'), Buffer.from(expected, 'hex'))
+  } catch {
+    return false
+  }
 }

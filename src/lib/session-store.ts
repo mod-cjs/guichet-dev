@@ -1,5 +1,5 @@
 import { redis } from '@/lib/redis'
-import { logger } from '@/lib/logger'
+import { logger, hashId } from '@/lib/logger'
 
 const PREFIX   = 'guichet:session:revoked:'
 const key      = (cjsUid: string) => `${PREFIX}${cjsUid}`
@@ -17,7 +17,7 @@ export async function revokeSession(cjsUid: string): Promise<void> {
   try {
     await redis.set(key(cjsUid), REVOKED, 'EX', TTL_7D)
   } catch (err) {
-    logger.warn('session-store: révocation échouée', { cjsUid, error: String(err) })
+    logger.warn('session-store: révocation échouée', { cjsUidHash: hashId(cjsUid), error: String(err) })
   }
 }
 
@@ -33,7 +33,7 @@ export async function clearRevocation(cjsUid: string): Promise<void> {
   try {
     await redis.del(key(cjsUid))
   } catch (err) {
-    logger.warn('session-store: clear revocation échouée', { cjsUid, error: String(err) })
+    logger.warn('session-store: clear revocation échouée', { cjsUidHash: hashId(cjsUid), error: String(err) })
   }
 }
 
@@ -43,7 +43,7 @@ export async function isSessionActive(cjsUid: string): Promise<boolean> {
     const val = await redis.get(key(cjsUid))
     return val !== REVOKED
   } catch (err) {
-    logger.warn('session-store: vérification échouée — fail-open', { cjsUid, error: String(err) })
+    logger.warn('session-store: vérification échouée — fail-open', { cjsUidHash: hashId(cjsUid), error: String(err) })
     return true
   }
 }
