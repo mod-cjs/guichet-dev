@@ -1,133 +1,222 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { loadDashboardCounts } from '@/lib/dashboard-loader'
 import { prisma } from '@/lib/prisma'
 import {
-  DashboardHero,
-  DashboardKPIs,
-  DashboardTracker,
+  WebDashHero,
+  WebDashKPIs,
+  WebDashTracker,
+  WebDashEvents,
+  WebDashCenters,
+  WebDashProfileNudge,
+  WebDashYayePanel,
   OpportunitesRecoCarousel,
-  YayeNudgeCard,
-  MOCK_KPIS,
-  MOCK_RECO_OPPS,
-  MOCK_EVENTS,
-  MOCK_CENTRES,
+  type KPIItem,
+  type TrackerItem,
+  type DashEventItem,
+  type DashCenterItem,
+  type OppRecoCard,
 } from '@/components/dashboard'
-import { Icon } from '@/components/ui'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
 
-/**
- * Tableau de bord bénéficiaire — version mobile-first (Phase 2B/1, GUIC-187).
- *
- * Sections (haut → bas) :
- *   1. Hero gradient teal (salutation + badge programme + avatar)
- *   2. KPIs row (4 mini cards — mock)
- *   3. Tracker barème (complétude profil + CTA)
- *   4. Opportunités recommandées (carousel horizontal — mock)
- *   5. Événements à venir (3 mock — stub en attendant EventCard)
- *   6. Centres proches (2-3 mock — stub en attendant CentreListItem)
- *   7. Yaye nudge card
- *
- * Les données KPI/reco/events/centres sont en mock pour cette phase ; les
- * loaders API stats seront branchés dans une phase ultérieure.
- */
+// =========================================================================
+// Mock data (sera remplacé par des loaders API dans une PR de suite).
+// =========================================================================
+
+const mockRecoOpps: OppRecoCard[] = [
+  {
+    id:    'reco-1',
+    tag:   'J-3 · Urgent',
+    tone:  'urgent',
+    title: 'Bourse agricole — maraîchage',
+    org:   "jusqu'à 600 000 FCFA · Tambacounda",
+    meta:  [
+      { icon: 'pin',   label: 'Tambacounda' },
+      { icon: 'users', label: '18–35 ans'   },
+    ],
+    match:    '92% match',
+    ctaLabel: 'Candidater',
+    href:     '/opportunites/reco-1',
+  },
+  {
+    id:    'reco-2',
+    tag:   'Stage · J-9',
+    tone:  'info',
+    title: 'Stage Data Science · 6 mois',
+    org:   'Sonatel · Dakar Plateau',
+    meta:  [
+      { icon: 'pin',     label: 'Dakar'     },
+      { icon: 'funding', label: '350k/mois' },
+    ],
+    match:    '87% match',
+    ctaLabel: 'Candidater',
+    href:     '/opportunites/reco-2',
+  },
+  {
+    id:    'reco-3',
+    tag:   'Alternance · J-12',
+    tone:  'partner',
+    title: 'Marketing digital · 12 mois',
+    org:   'Senegal Airlines · Diass',
+    meta:  [
+      { icon: 'pin',        label: 'Diass'      },
+      { icon: 'employment', label: 'Alternance' },
+    ],
+    match: '76% match',
+    href:  '/opportunites/reco-3',
+  },
+  {
+    id:    'reco-4',
+    tag:   'Concours · J-21',
+    tone:  'partner',
+    title: 'Concours Jeunes Entrepreneurs 2026',
+    org:   'National · 2.5M FCFA + coaching',
+    meta:  [{ icon: 'users', label: '16–30 ans' }],
+    ctaLabel: 'Voir critères',
+    href:     '/opportunites/reco-4',
+  },
+]
+
+const mockTracker: TrackerItem[] = [
+  {
+    id:          'trk-1',
+    title:       'Bourse agricole — Micro-initiative maraîchère',
+    subtitle:    'Déposée le 14 mai · J-3 avant clôture',
+    icon:        'agriculture',
+    tone:        'red',
+    currentStep: 2,
+    stepLabel:   'Revue conseiller CJS',
+    cta:         { label: 'Compléter dossier', href: '/jeune/mes-candidatures/trk-1' },
+  },
+  {
+    id:          'trk-2',
+    title:       'Stage Data Science · Sonatel',
+    subtitle:    'Entretien planifié — 26 mai · 10h',
+    icon:        'employment',
+    tone:        'teal',
+    currentStep: 3,
+    stepLabel:   'Entretien',
+    cta:         { label: 'Préparer →', href: '/jeune/mes-candidatures/trk-2', variant: 'ghost' },
+  },
+  {
+    id:          'trk-3',
+    title:       'Bourse mobilité — UCAD Master 2',
+    subtitle:    'Acceptée · démarrage 1er juin',
+    icon:        'check-circle',
+    tone:        'green',
+    currentStep: 4,
+    stepLabel:   'Confirmation',
+    highlight:   'Bravo — confirme avant le 1er juin',
+    cta:         { label: 'Détails', href: '/jeune/mes-candidatures/trk-3', variant: 'ghost' },
+  },
+]
+
+const mockEvents: DashEventItem[] = [
+  { id: 'ev-1', day: 22, month: 'Mai',  title: 'Atelier CV — CJS Tamba',     subtitle: '14h–17h · 5 places restantes', href: '/agenda/ev-1' },
+  { id: 'ev-2', day: 28, month: 'Mai',  title: 'Forum emploi Diamniadio',   subtitle: '9h–18h · 40 recruteurs',       href: '/agenda/ev-2' },
+  { id: 'ev-3', day:  2, month: 'Juin', title: 'Démarrage Bootcamp Data',   subtitle: 'CJS Dakar · 8 semaines',       href: '/agenda/ev-3' },
+]
+
+const mockCenters: DashCenterItem[] = [
+  { id: 'c-1', name: 'CJS Tambacounda', address: 'Av. Léopold Sédar Senghor · wifi gratuit', distance: '2.4 km', href: '/centres/c-1' },
+  { id: 'c-2', name: 'CJS Kédougou',    address: 'Quartier Lawol · réservation salle',       distance: '189 km', href: '/centres/c-2' },
+  { id: 'c-3', name: 'CJS Kaolack',     address: 'Médina Baye · scan badge',                 distance: '220 km', href: '/centres/c-3' },
+]
+
 export default async function TableauDeBordPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
 
-  const profil = await prisma.profilJeune.findUnique({
-    where:  { cjsUid: session.cjsUid },
-    select: { completionScore: true },
-  })
+  const [counts, profil] = await Promise.all([
+    loadDashboardCounts(session.cjsUid),
+    prisma.profilJeune.findUnique({
+      where:  { cjsUid: session.cjsUid },
+      select: { completionScore: true },
+    }),
+  ])
+
   const completionScore = profil?.completionScore ?? 0
+
+  const kpis: KPIItem[] = [
+    {
+      value: counts.candidatures,
+      label: 'Candidatures en cours',
+      icon:  'document',
+      tone:  'teal',
+    },
+    {
+      // TODO : brancher le compteur réel "opps recommandées" (suite GUIC-196).
+      value: mockRecoOpps.length,
+      label: 'Opps recommandées',
+      hint:  '90%+ match',
+      hintTone: 'positive',
+      icon:  'sparkle',
+      tone:  'yellow',
+    },
+    {
+      value: counts.favoris,
+      label: 'Sauvegardées',
+      icon:  'bookmark',
+      tone:  'blue',
+    },
+    {
+      value: `${completionScore} %`,
+      label: 'Profil complété',
+      hint:  completionScore >= 80 ? 'Niveau pro' : 'Ajoute ton CV',
+      hintTone: completionScore >= 80 ? 'positive' : 'warning',
+      icon:  'profile',
+      tone:  'red',
+    },
+  ]
 
   return (
     <div className="flex flex-col gap-space-5">
-      {/* 1. Hero */}
-      <DashboardHero
+      <WebDashHero
         prenom={session.prenom ?? ''}
-        nom={session.nom ?? ''}
-        programme="Programme YEAH"
+        candidaturesEnCours={counts.candidatures}
+        oppsRecommandees={mockRecoOpps.length}
+        joursAvantCloture={3}
       />
 
-      {/* 2. KPIs */}
-      <DashboardKPIs items={MOCK_KPIS} />
+      <WebDashKPIs items={kpis} />
 
-      {/* 3. Tracker complétude profil */}
-      <DashboardTracker score={completionScore} />
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-space-5">
+        {/* Colonne principale (desktop ≥ lg) */}
+        <div className="flex flex-col gap-space-5 min-w-0">
+          <OpportunitesRecoCarousel items={mockRecoOpps} />
 
-      {/* 4. Opportunités recommandées */}
-      <OpportunitesRecoCarousel
-        opps={MOCK_RECO_OPPS}
-        title="À ne pas rater"
-        lede="Sélection pour ton profil · clôture imminente"
-      />
-
-      {/* 5. Événements à venir — stub mock (EventCard pas encore mergé) */}
-      <section aria-label="Événements à venir">
-        <header className="flex items-baseline justify-between mb-space-3">
-          <h2 className="text-fs-400 font-black text-gj-ink">Événements à venir</h2>
-          <Link
-            href="/agenda"
-            className="text-fs-200 font-black text-gj-teal-deep hover:underline"
-          >
-            Voir tous →
-          </Link>
-        </header>
-        <ul className="bg-white border-[1.5px] border-gj-line rounded-gj-lg divide-y divide-gj-line">
-          {MOCK_EVENTS.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-center gap-space-3 p-space-3"
-            >
-              <div className="flex-shrink-0 w-12 text-center rounded-gj-md bg-gj-teal-soft text-gj-teal-deep py-space-1">
-                <div className="text-fs-400 font-black leading-none">{e.jour}</div>
-                <div className="text-[10px] font-black uppercase tracking-wider mt-1">{e.mois}</div>
+          <section aria-labelledby="tracker-heading">
+            <header className="flex items-baseline justify-between mb-space-3">
+              <div>
+                <h2 id="tracker-heading" className="text-fs-500 font-black">
+                  Mes candidatures en cours
+                </h2>
+                <p className="text-fs-200 text-color-text-secondary mt-space-1">
+                  {counts.candidatures > 0
+                    ? `${counts.candidatures} dossier${counts.candidatures > 1 ? 's' : ''} actif${counts.candidatures > 1 ? 's' : ''}`
+                    : 'Aucun dossier actif pour le moment.'}
+                </p>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-fs-300 font-extrabold leading-snug">{e.titre}</div>
-                <div className="text-fs-100 text-gj-grey mt-1">{e.sous}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* 6. Centres proches — stub mock (CentreListItem pas encore mergé) */}
-      <section aria-label="Centres CJS proches">
-        <header className="flex items-baseline justify-between mb-space-3">
-          <h2 className="text-fs-400 font-black text-gj-ink">Centres près de toi</h2>
-          <Link
-            href="/centres"
-            className="text-fs-200 font-black text-gj-teal-deep hover:underline"
-          >
-            Carte →
-          </Link>
-        </header>
-        <ul className="bg-white border-[1.5px] border-gj-line rounded-gj-lg divide-y divide-gj-line">
-          {MOCK_CENTRES.slice(0, 3).map((c) => (
-            <li key={c.id} className="flex items-center gap-space-3 p-space-3">
-              <span
-                className="w-8 h-8 rounded-gj-md bg-gj-yellow-soft text-gj-yellow-ink inline-flex items-center justify-center flex-shrink-0"
-                aria-hidden
+              <a
+                href="/jeune/mes-candidatures"
+                className="text-fs-200 font-black text-gj-teal-deep hover:underline"
               >
-                <Icon name="pin" size={16} />
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="text-fs-300 font-extrabold leading-snug">{c.nom}</div>
-                <div className="text-fs-100 text-gj-grey mt-1 truncate">{c.adresse}</div>
-              </div>
-              <span className="text-fs-100 font-black text-gj-teal-deep whitespace-nowrap">
-                {c.distance}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+                Voir toutes →
+              </a>
+            </header>
+            <WebDashTracker items={mockTracker} />
+          </section>
+        </div>
 
-      {/* 7. Yaye nudge */}
-      <YayeNudgeCard nbConseils={3} />
+        {/* Colonne aside (desktop ≥ lg) */}
+        <aside className="flex flex-col gap-space-4 min-w-0">
+          <WebDashCenters items={mockCenters} />
+          <WebDashEvents items={mockEvents} />
+          <WebDashProfileNudge completionScore={completionScore} />
+          <WebDashYayePanel />
+        </aside>
+      </div>
     </div>
   )
 }
