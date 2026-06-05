@@ -52,6 +52,7 @@ import { seedOpportuniteTypes } from './opportunite-types'
 import { seedRessources } from './ressources'
 import { seedSkills } from './skills'
 import { seedTags } from './tags'
+import { seedNotifications } from './notifications'
 
 async function main() {
   // Tables de référence M3 v2 (GUIC-182 / 178a) — ordre indépendant, sans FK croisées
@@ -70,6 +71,12 @@ async function main() {
   // Ressources M6 (GUIC-239)
   const nbRessources = await seedRessources(prisma)
   console.log(`Seed Guichet Jeunesse — ${nbRessources} ressources insérées (GUIC-239).`)
+
+  // Notifications démo (GUIC-247) — idempotent, premier user actif.
+  const nbNotifs = await seedNotifications(prisma)
+  if (nbNotifs > 0) {
+    console.log(`Seed M11 notifications — ${nbNotifs} notifications insérées (GUIC-247).`)
+  }
 }
 
 main()
