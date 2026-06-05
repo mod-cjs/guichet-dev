@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 /**
  * Layout des pages publiques. Le Header marketing et le Footer sont rendus :
@@ -17,14 +18,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-space-2 focus:left-space-2
-          focus:z-[900] focus:bg-gj-teal focus:text-white focus:px-space-3 focus:py-space-2
-          focus:rounded-gj-md focus:text-fs-300 focus:font-bold focus:no-underline"
-      >
-        Aller au contenu principal
-      </a>
+      <SkipLink />
       <div className={shellClass}>
         <Header />
       </div>

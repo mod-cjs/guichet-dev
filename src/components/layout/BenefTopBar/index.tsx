@@ -1,11 +1,16 @@
 'use client'
+import { useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
+import { UserMenu } from '@/components/layout/UserMenu'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
   searchQuery?: string
   /** Callback recherche (controlled). */
   onSearchChange?: (value: string) => void
+  /** Callback submit — si absent, navigue vers /opportunites?q=<query>. */
+  onSearchSubmit?: (value: string) => void
   /** Placeholder du champ recherche. */
   searchPlaceholder?: string
   /** Nombre de notifications non lues. */
@@ -14,10 +19,15 @@ export interface BenefTopBarProps {
   bookmarkCount?: number
   /** Initiales utilisateur (affichées en bout de barre). */
   userInitials?: string
+  /** Prénom utilisateur (passé au UserMenu). */
+  userPrenom?: string
+  /** Nom utilisateur (passé au UserMenu). */
+  userNom?: string
   /** Callbacks pour chaque action. */
   onBookmarkClick?: () => void
   onBellClick?: () => void
   onInfoClick?: () => void
+  /** @deprecated — l'avatar ouvre désormais un `UserMenu`. */
   onUserClick?: () => void
 }
 
@@ -35,15 +45,35 @@ export interface BenefTopBarProps {
 export function BenefTopBar({
   searchQuery,
   onSearchChange,
+  onSearchSubmit,
   searchPlaceholder = 'Rechercher une opportunité, un centre, un atelier…',
   unread = 0,
   bookmarkCount = 0,
   userInitials,
+  userPrenom = '',
+  userNom = '',
   onBookmarkClick,
   onBellClick,
   onInfoClick,
-  onUserClick,
 }: BenefTopBarProps) {
+  const router = useRouter()
+  const isControlled = typeof searchQuery === 'string'
+  const [internalQuery, setInternalQuery] = useState('')
+  const value = isControlled ? searchQuery : internalQuery
+  const handleChange = (v: string) => {
+    if (!isControlled) setInternalQuery(v)
+    onSearchChange?.(v)
+  }
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const q = (value ?? '').trim()
+    if (onSearchSubmit) {
+      onSearchSubmit(q)
+      return
+    }
+    if (q.length === 0) return
+    router.push(`/opportunites?q=${encodeURIComponent(q)}`)
+  }
   return (
     <header
       role="banner"
@@ -56,11 +86,13 @@ export function BenefTopBar({
         gap: 14,
         minHeight: 64,
         flexShrink: 0,
-        zIndex: 5,
+        zIndex: 'var(--gj-z-nav)',
       }}
     >
       {/* Search */}
-      <div
+      <form
+        role="search"
+        onSubmit={handleSubmit}
         style={{
           flex: 1,
           maxWidth: 520,
@@ -77,8 +109,9 @@ export function BenefTopBar({
         <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
         <input
           type="search"
-          value={searchQuery ?? ''}
-          onChange={e => onSearchChange?.(e.target.value)}
+          name="q"
+          value={value ?? ''}
+          onChange={e => handleChange(e.target.value)}
           placeholder={searchPlaceholder}
           aria-label="Rechercher"
           style={{
@@ -105,7 +138,9 @@ export function BenefTopBar({
         >
           ⌘ K
         </kbd>
-      </div>
+        {/* Submit invisible pour soumettre via Enter (a11y form natif). */}
+        <button type="submit" aria-label="Lancer la recherche" style={{ display: 'none' }} />
+      </form>
 
       <span style={{ flex: 1 }} />
 
@@ -144,30 +179,9 @@ export function BenefTopBar({
         <Icon name="info" size={18} />
       </button>
 
-      {/* User */}
+      {/* User — menu déroulant (profil + déconnexion) */}
       {userInitials ? (
-        <button
-          type="button"
-          onClick={onUserClick}
-          aria-label="Profil"
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
-            color: 'var(--gj-surface)',
-            fontWeight: 800,
-            fontSize: 13,
-            border: 0,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {userInitials}
-        </button>
+        <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} />
       ) : null}
     </header>
   )

@@ -28,4 +28,18 @@ describe('<CentresMap />', () => {
     render(<CentresMap centres={MOCK_CENTRES} />)
     expect(screen.getByLabelText(/Carte indicative/i)).toBeInTheDocument()
   })
+
+  it('variant=desktop applique une hauteur plus grande', () => {
+    const { getByLabelText } = render(
+      <CentresMap centres={MOCK_CENTRES} variant="desktop" />,
+    )
+    const root = getByLabelText(/Carte indicative/i) as HTMLElement
+    expect(root.style.height).toBe('560px')
+  })
+
+  it('variant mobile (par défaut) conserve hauteur 180px', () => {
+    const { getByLabelText } = render(<CentresMap centres={MOCK_CENTRES} />)
+    const root = getByLabelText(/Carte indicative/i) as HTMLElement
+    expect(root.style.height).toBe('180px')
+  })
 })
