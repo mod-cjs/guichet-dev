@@ -7,6 +7,7 @@ jest.mock('@/lib/redis', () => ({
 
 jest.mock('@/lib/logger', () => ({
   logger: { warn: jest.fn(), info: jest.fn() },
+  hashId: jest.fn((s: string) => 'hash-' + String(s).slice(0, 4)),
 }))
 
 const mockRedis = redis as jest.Mocked<typeof redis>

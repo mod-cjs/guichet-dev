@@ -15,6 +15,13 @@ interface Props {
   ssoProfilUrl: string | null
 }
 
+/**
+ * <ProfilClient /> — page profil jeune (GUIC-20 / GUIC-191).
+ *
+ * Layout v2 :
+ * - mobile : empilement vertical, MyCard en haut + sections en dessous
+ * - desktop : grid `lg:grid-cols-[320px_1fr]` — aside MyCard + header sticky, sections à droite
+ */
 export function ProfilClient({ initial, ssoProfilUrl }: Props) {
   const [score, setScore] = useState(initial.profil?.completionScore ?? 0)
 
@@ -54,7 +61,8 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
           </div>
         </aside>
 
-        <div className="flex flex-col gap-space-5 min-w-0">
+        {/* Sections éditables */}
+        <div className="flex flex-col gap-space-4 min-w-0">
           <SectionIdentite
             data={initial}
             ssoProfilUrl={ssoProfilUrl}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Icon } from '@/components/ui/Icon'
 
 export const metadata: Metadata = { title: 'Mes formations' }
 
@@ -11,8 +12,9 @@ export default function Page() {
           Certifications Moodle et parcours de formation
         </p>
       </div>
-      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        🚧 Certifications Moodle — Sprint 4 (M10)
+      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300 inline-flex items-center gap-space-2">
+        <Icon name="alert" size={18} />
+        <span>Certifications Moodle — Sprint 4 (M10)</span>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import { render } from '@testing-library/react'
  */
 
 const getSessionMock = jest.fn()
-const redirectMock = jest.fn(() => {
+const redirectMock = jest.fn((..._args: unknown[]) => {
   throw new Error('NEXT_REDIRECT')
 })
 

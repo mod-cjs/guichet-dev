@@ -1,16 +1,45 @@
 'use client'
 import Link from 'next/link'
-import { Card, Tag } from '@/components/ui'
+import { Card, Icon, Tag } from '@/components/ui'
+import type { IconName } from '@/components/ui'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
 import type { CandidatureMock } from './types'
 
 export interface CandidatureCardProps {
   item: CandidatureMock
+  /** Override de l'icône métier ; sinon déduit du `type` (cf. iconMetierFor). */
+  iconMetier?: IconName
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
-function topPillStyle(item: CandidatureMock): { className: string; label: string } {
+/**
+ * Mapping entre `CandidatureMock.type` et nom d'icône du sprite global.
+ *
+ * Exporté pour les tests / Storybook. Fallback `target` (icône neutre).
+ */
+export function iconMetierFor(type: CandidatureMock['type']): IconName {
+  switch (type) {
+    case 'Stage':
+    case 'Emploi':
+      return 'employment'
+    case 'Bourse':
+      return 'funding'
+    case 'Concours':
+      return 'trending'
+    case 'Formation':
+      return 'learning'
+    default:
+      return 'target'
+  }
+}
+
+interface PillStyle {
+  className: string
+  label: string
+}
+
+function topPillStyle(item: CandidatureMock): PillStyle {
   if (item.currentStep === 'Decision' && item.decision === 'Acceptee') {
     return { className: 'bg-gj-green-soft text-gj-green-ink', label: 'Acceptée' }
   }
@@ -32,15 +61,87 @@ function topPillStyle(item: CandidatureMock): { className: string; label: string
   }
 }
 
+/** Teinte du tile (carré 48 px) entourant l'icône métier — alignée sur la pill. */
+function tileTone(item: CandidatureMock): string {
+  if (item.currentStep === 'Decision' && item.decision === 'Acceptee') {
+    return 'bg-gj-green-soft text-gj-green-ink'
+  }
+  if (item.currentStep === 'Decision' && item.decision === 'Refusee') {
+    return 'bg-gj-red-soft text-gj-red-ink'
+  }
+  switch (item.currentStep) {
+    case 'Brouillon':
+      return 'bg-gj-yellow-soft text-gj-yellow-ink'
+    case 'EnRevue':
+    case 'Entretien':
+      return 'bg-gj-blue-soft text-gj-blue'
+    case 'Envoyee':
+    default:
+      return 'bg-gj-teal-soft text-gj-teal-deep'
+  }
+}
+
+interface ContextualBlock {
+  tone: string
+  icon: IconName
+  message: string
+  cta?: { label: string; href: string }
+}
+
 /**
- * Carte candidature mobile (GUIC-190).
- *
- * Header : titre opportunité + badge type · pill statut.
- * Body   : organisation · date envoi · stepper 5 étapes.
- * Footer : CTA "Voir détail" → /jeune/mes-candidatures/[id] (route, page OOS).
+ * Bloc contextuel par état (GUIC-252) — null pour les états silencieux
+ * comme `Envoyee` / `EnRevue` (pas d'action requise).
  */
-export function CandidatureCard({ item }: CandidatureCardProps) {
+function contextualBlockFor(item: CandidatureMock): ContextualBlock | null {
+  if (item.currentStep === 'Brouillon') {
+    return {
+      tone: 'bg-gj-yellow-soft text-gj-yellow-ink',
+      icon: 'document',
+      message: 'Documents manquants — complète ton dossier',
+      cta: { label: 'Reprendre →', href: `/jeune/mes-candidatures/${item.id}` },
+    }
+  }
+  if (item.currentStep === 'Entretien') {
+    return {
+      tone: 'bg-gj-blue-soft text-gj-blue',
+      icon: 'calendar',
+      message: 'Entretien planifié — prépare-toi avec Yaye',
+      cta: { label: 'Préparer →', href: `/jeune/mes-candidatures/${item.id}` },
+    }
+  }
+  if (item.currentStep === 'Decision' && item.decision === 'Acceptee') {
+    return {
+      tone: 'bg-gj-green-soft text-gj-green-ink',
+      icon: 'sparkle',
+      message: 'Bravo ! Candidature retenue',
+      cta: { label: 'Voir les prochaines étapes →', href: `/jeune/mes-candidatures/${item.id}` },
+    }
+  }
+  if (item.currentStep === 'Decision' && item.decision === 'Refusee') {
+    return {
+      tone: 'bg-gj-red-soft text-gj-red-ink',
+      icon: 'info',
+      message: 'Candidature non retenue — continue à postuler',
+      cta: { label: 'Voir des opportunités similaires →', href: '/opportunites' },
+    }
+  }
+  return null
+}
+
+/**
+ * Carte candidature mobile (GUIC-190 + GUIC-252).
+ *
+ * GUIC-252 ajoute :
+ *  - tile carré 48 px avec icône métier (à gauche du header)
+ *  - bloc contextuel coloré par état (brouillon, entretien, décision)
+ *  - CTA conditionnel (Reprendre / Préparer / Voir suite / Voir similaires)
+ *  - les états silencieux (Envoyée, EnRevue) gardent un simple lien « Voir le détail ».
+ */
+export function CandidatureCard({ item, iconMetier }: CandidatureCardProps) {
   const pill = topPillStyle(item)
+  const tile = tileTone(item)
+  const icon = iconMetier ?? iconMetierFor(item.type)
+  const block = contextualBlockFor(item)
 
   return (
     <Card
@@ -48,7 +149,16 @@ export function CandidatureCard({ item }: CandidatureCardProps) {
       className="flex flex-col gap-space-2"
       aria-labelledby={`candidature-title-${item.id}`}
     >
-      <div className="flex items-start justify-between gap-space-3">
+      <div className="flex items-start gap-space-3">
+        <div
+          className={[
+            'w-12 h-12 rounded-gj-md flex items-center justify-center shrink-0',
+            tile,
+          ].join(' ')}
+          data-testid="candidature-tile"
+        >
+          <Icon name={icon} size={24} />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-space-2 flex-wrap">
             <Tag>{item.type}</Tag>
@@ -82,13 +192,37 @@ export function CandidatureCard({ item }: CandidatureCardProps) {
 
       <CandidaturePipelineStepper currentStep={item.currentStep} decision={item.decision} />
 
-      <div className="flex justify-end pt-space-1">
-        <Link
-          href={`/jeune/mes-candidatures/${item.id}`}
-          className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+      {block ? (
+        <div
+          role="status"
+          data-testid="candidature-contextual-block"
+          className={[
+            'flex items-center gap-space-2 rounded-gj-md px-space-3 py-space-2',
+            block.tone,
+          ].join(' ')}
         >
-          Voir le détail →
-        </Link>
+          <Icon name={block.icon} size={18} />
+          <span className="flex-1 text-fs-200 font-bold leading-snug">{block.message}</span>
+        </div>
+      ) : null}
+
+      <div className="flex justify-end pt-space-1">
+        {block?.cta ? (
+          <Link
+            href={block.cta.href}
+            className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+            data-testid="candidature-contextual-cta"
+          >
+            {block.cta.label}
+          </Link>
+        ) : (
+          <Link
+            href={`/jeune/mes-candidatures/${item.id}`}
+            className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+          >
+            Voir le détail →
+          </Link>
+        )}
       </div>
     </Card>
   )

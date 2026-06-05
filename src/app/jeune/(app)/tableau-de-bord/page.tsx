@@ -1,80 +1,121 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { loadDashboardCounts, loadRecentActivity, ACTIVITY_LIMIT_DEFAULT } from '@/lib/dashboard-loader'
+import { loadDashboardCounts } from '@/lib/dashboard-loader'
+import { loadDashboardData } from '@/lib/loaders/dashboard'
 import { prisma } from '@/lib/prisma'
-import { DashboardHero, DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
-import { Icon } from '@/components/ui/Icon'
-import { MyCJSCard } from '@/components/ui/MyCJSCard'
+import {
+  WebDashHero,
+  WebDashKPIs,
+  WebDashTracker,
+  WebDashEvents,
+  WebDashCenters,
+  WebDashProfileNudge,
+  WebDashYayePanel,
+  OpportunitesRecoCarousel,
+  type KPIItem,
+} from '@/components/dashboard'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
+// CDP : page personnelle, jamais cachée par le CDN. Force le rendu dynamique.
+export const dynamic = 'force-dynamic'
 
 export default async function TableauDeBordPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
 
-  const [counts, activity, profil] = await Promise.all([
+  const [counts, profil, dashboard] = await Promise.all([
     loadDashboardCounts(session.cjsUid),
-    loadRecentActivity(session.cjsUid, ACTIVITY_LIMIT_DEFAULT),
     prisma.profilJeune.findUnique({
       where:  { cjsUid: session.cjsUid },
       select: { completionScore: true },
     }),
+    loadDashboardData(session.cjsUid),
   ])
 
   const completionScore = profil?.completionScore ?? 0
+  const { recoOpps, events, centres, tracker } = dashboard
+
+  // J-N affiché dans le hero : on prend la deadline la plus urgente parmi les
+  // recos (premier tag de la forme « ... · J-N »).
+  const firstJTag = recoOpps[0]?.tag.match(/J-(\d+)/)
+  const joursAvantCloture = firstJTag ? Number(firstJTag[1]) : null
+
+  const kpis: KPIItem[] = [
+    {
+      value: counts.candidatures,
+      label: 'Candidatures en cours',
+      icon:  'document',
+      tone:  'teal',
+    },
+    {
+      value: recoOpps.length,
+      label: 'Opps recommandées',
+      hint:  recoOpps.length > 0 ? 'Pour ton profil' : 'Complète ton profil',
+      hintTone: recoOpps.length > 0 ? 'positive' : 'warning',
+      icon:  'sparkle',
+      tone:  'yellow',
+    },
+    {
+      value: counts.favoris,
+      label: 'Sauvegardées',
+      icon:  'bookmark',
+      tone:  'blue',
+    },
+    {
+      value: `${completionScore} %`,
+      label: 'Profil complété',
+      hint:  completionScore >= 80 ? 'Niveau pro' : 'Ajoute ton CV',
+      hintTone: completionScore >= 80 ? 'positive' : 'warning',
+      icon:  'profile',
+      tone:  'red',
+    },
+  ]
 
   return (
     <div className="flex flex-col gap-space-5">
-      <DashboardHero
+      <WebDashHero
         prenom={session.prenom ?? ''}
-        nom={session.nom ?? ''}
-        completionScore={completionScore}
+        candidaturesEnCours={counts.candidatures}
+        oppsRecommandees={recoOpps.length}
+        joursAvantCloture={joursAvantCloture ?? 0}
       />
 
-      {/* Layout desktop conforme design v2 (web-dashboard.jsx#WebDashboard l.614-689) :
-          colonne principale 2fr (KPIs + CTAs) + aside 1fr (ActivityFeed sticky).
-          Mobile : empilement vertical. */}
-      <div className="lg:grid lg:grid-cols-[2fr_1fr] lg:gap-space-5 flex flex-col gap-space-5">
-        {/* Colonne principale (2fr) */}
-        <div className="flex flex-col gap-space-5">
-          <DashboardCompteurs counts={counts} />
+      <WebDashKPIs items={kpis} />
 
-          {/* CTA cachés en mobile (redondants avec la BottomNav qui couvre déjà
-              profil, opportunités et événements). Visibles à partir de md où il
-              n'y a pas de BottomNav. */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-space-3">
-            <DashboardCTACard
-              href="/jeune/mon-profil"
-              title="Compléter mon profil"
-              description="Diplômes, expériences, compétences"
-              icon={<Icon name="learning" />}
-            />
-            <DashboardCTACard
-              href="/opportunites"
-              title="Voir les opportunités"
-              description="Stages, emplois, formations, bourses"
-              icon={<Icon name="document" />}
-            />
-            <DashboardCTACard
-              href="/agenda"
-              title="Voir les événements"
-              description="Forums, ateliers, webinaires"
-              icon={<Icon name="calendar" />}
-            />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-space-5">
+        {/* Colonne principale (desktop ≥ lg) */}
+        <div className="flex flex-col gap-space-5 min-w-0">
+          <OpportunitesRecoCarousel items={recoOpps} />
+
+          <section aria-labelledby="tracker-heading">
+            <header className="flex items-baseline justify-between mb-space-3">
+              <div>
+                <h2 id="tracker-heading" className="text-fs-500 font-black">
+                  Mes candidatures en cours
+                </h2>
+                <p className="text-fs-200 text-color-text-secondary mt-space-1">
+                  {counts.candidatures > 0
+                    ? `${counts.candidatures} dossier${counts.candidatures > 1 ? 's' : ''} actif${counts.candidatures > 1 ? 's' : ''}`
+                    : 'Aucun dossier actif pour le moment.'}
+                </p>
+              </div>
+              <a
+                href="/jeune/mes-candidatures"
+                className="text-fs-200 font-black text-gj-teal-deep hover:underline"
+              >
+                Voir toutes →
+              </a>
+            </header>
+            <WebDashTracker items={tracker} />
+          </section>
         </div>
 
-        {/* Aside (1fr) — carte CJS + flux d'activités sticky desktop */}
-        <aside>
-          <div className="lg:sticky lg:top-[80px] flex flex-col gap-space-4">
-            <MyCJSCard
-              cjsUid={session.cjsUid}
-              prenom={session.prenom ?? ''}
-              nom={session.nom ?? ''}
-              variant="compact"
-            />
-            <ActivityFeed items={activity} />
-          </div>
+        {/* Colonne aside (desktop ≥ lg) */}
+        <aside className="flex flex-col gap-space-4 min-w-0">
+          <WebDashCenters items={centres} />
+          <WebDashEvents items={events} />
+          <WebDashProfileNudge completionScore={completionScore} />
+          <WebDashYayePanel />
         </aside>
       </div>
     </div>
