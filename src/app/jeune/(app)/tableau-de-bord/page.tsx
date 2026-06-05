@@ -4,6 +4,7 @@ import { loadDashboardCounts, loadRecentActivity, ACTIVITY_LIMIT_DEFAULT } from 
 import { prisma } from '@/lib/prisma'
 import { DashboardHero, DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
 import { Icon } from '@/components/ui/Icon'
+import { MyCJSCard } from '@/components/ui/MyCJSCard'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
 
@@ -63,9 +64,15 @@ export default async function TableauDeBordPage() {
           </div>
         </div>
 
-        {/* Aside (1fr) — flux d'activités sticky desktop */}
+        {/* Aside (1fr) — carte CJS + flux d'activités sticky desktop */}
         <aside>
-          <div className="lg:sticky lg:top-[80px]">
+          <div className="lg:sticky lg:top-[80px] flex flex-col gap-space-4">
+            <MyCJSCard
+              cjsUid={session.cjsUid}
+              prenom={session.prenom ?? ''}
+              nom={session.nom ?? ''}
+              variant="compact"
+            />
             <ActivityFeed items={activity} />
           </div>
         </aside>
