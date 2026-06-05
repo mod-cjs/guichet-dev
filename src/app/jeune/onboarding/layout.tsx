@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 /**
  * Layout dédié `/jeune/onboarding/*` — funnel obligatoire (5 écrans).
@@ -16,6 +17,7 @@ import { Icon } from '@/components/ui/Icon'
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <SkipLink />
       <header
         className="sticky top-0 bg-gj-surface border-b border-gj-line"
         style={{ zIndex: 'var(--gj-z-nav)', paddingTop: 'var(--safe-top)' }}
