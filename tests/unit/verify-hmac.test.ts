@@ -75,4 +75,60 @@ describe('verifyHmacSignature', () => {
     const tampered = JSON.stringify({ amount: 999 })
     expect(verifyHmacSignature(API_KEY, ts, sig, tampered)).toBe(false)
   })
+
+  // --- GUIC-242 — sécurité stricte (pas de padding, hex strict) ---
+
+  describe('GUIC-242 — durcissement HMAC', () => {
+    it('rejette une signature non-hex (Buffer.from drop silencieux)', () => {
+      const ts = now()
+      // 64 caractères mais contient des non-hex (z) — sans HEX_RE, Buffer.from drop silencieusement
+      const fake = 'z'.repeat(64)
+      expect(verifyHmacSignature(API_KEY, ts, fake, '{}')).toBe(false)
+    })
+
+    it('rejette une signature trop courte (aucun padding ajouté)', () => {
+      const ts = now()
+      // Avant le fix : padEnd(expected.length, "0") étendait la signature jusqu'à 64 chars
+      expect(verifyHmacSignature(API_KEY, ts, 'ab', '{}')).toBe(false)
+    })
+
+    it('rejette une signature trop courte d un seul caractère hex', () => {
+      const ts   = now()
+      const body = JSON.stringify({ event: 'x' })
+      const sig  = sign(API_KEY, ts, body)
+      expect(verifyHmacSignature(API_KEY, ts, sig.slice(0, -1), body)).toBe(false)
+    })
+
+    it('rejette une signature trop longue', () => {
+      const ts   = now()
+      const body = JSON.stringify({ event: 'x' })
+      const sig  = sign(API_KEY, ts, body)
+      expect(verifyHmacSignature(API_KEY, ts, sig + 'ab', body)).toBe(false)
+    })
+
+    it('rejette une signature mêlant hex et non-hex à la bonne longueur', () => {
+      const ts = now()
+      // 63 hex + 1 non-hex (g)
+      const mixed = 'a'.repeat(63) + 'g'
+      expect(verifyHmacSignature(API_KEY, ts, mixed, '{}')).toBe(false)
+    })
+
+    it('rejette une signature de bonne longueur mais valeur fausse', () => {
+      const ts = now()
+      expect(verifyHmacSignature(API_KEY, ts, '0'.repeat(64), '{}')).toBe(false)
+    })
+
+    it('rejette un timestamp non numérique', () => {
+      const body = '{}'
+      const sig  = sign(API_KEY, 'NaN', body)
+      expect(verifyHmacSignature(API_KEY, 'NaN', sig, body)).toBe(false)
+    })
+
+    it('accepte une signature valide (regression — fix ne casse pas le chemin nominal)', () => {
+      const ts   = now()
+      const body = JSON.stringify({ event: 'machine.sync' })
+      const sig  = sign(API_KEY, ts, body)
+      expect(verifyHmacSignature(API_KEY, ts, sig, body)).toBe(true)
+    })
+  })
 })

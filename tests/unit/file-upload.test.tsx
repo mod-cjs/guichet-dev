@@ -83,6 +83,58 @@ describe('<FileUpload />', () => {
     expect(upload).not.toHaveBeenCalled()
   })
 
+  describe('mode="defer" (GUIC-229)', () => {
+    it('valide MIME et émet le File via onSelect, SANS appeler upload', async () => {
+      const upload = jest.fn()
+      const onSelect = jest.fn()
+      const { container } = render(
+        <FileUpload mode="defer" upload={upload} onSelect={onSelect} />,
+      )
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement
+      await act(async () => {
+        pickFile(input, makePdf('mon-cv.pdf'))
+      })
+      await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1))
+      const deferred = onSelect.mock.calls[0][0]
+      expect(deferred.safeName).toBe('mon-cv.pdf')
+      expect(deferred.file).toBeInstanceOf(File)
+      expect(deferred.sizeKb).toBeGreaterThanOrEqual(0)
+      // Aucun appel réseau — c'est l'invariant central du fix.
+      expect(upload).not.toHaveBeenCalled()
+      // Le fichier sélectionné est annoncé à l'utilisateur.
+      expect(screen.getByText(/CV chargé : mon-cv\.pdf/i)).toBeInTheDocument()
+    })
+
+    it('rejette MIME non supporté sans déclencher onSelect', async () => {
+      const onSelect = jest.fn()
+      const { container } = render(<FileUpload mode="defer" onSelect={onSelect} />)
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement
+      const bad = new File(['x'], 'pic.png', { type: 'image/png' })
+      await act(async () => {
+        pickFile(input, bad)
+      })
+      const alert = await screen.findByRole('alert')
+      expect(alert.textContent).toMatch(/format non support/i)
+      expect(onSelect).not.toHaveBeenCalled()
+    })
+
+    it('3 changements de fichier en défilé → 0 appel upload(), 3 onSelect()', async () => {
+      const upload = jest.fn()
+      const onSelect = jest.fn()
+      const { container } = render(
+        <FileUpload mode="defer" upload={upload} onSelect={onSelect} />,
+      )
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement
+      for (const name of ['a.pdf', 'b.pdf', 'c.pdf']) {
+        await act(async () => {
+          pickFile(input, makePdf(name))
+        })
+      }
+      expect(upload).not.toHaveBeenCalled()
+      expect(onSelect).toHaveBeenCalledTimes(3)
+    })
+  })
+
   it('expose role="progressbar" pendant l\'upload', async () => {
     let resolveUpload: (v: { url: string; name: string; sizeKb: number }) => void = () => {}
     const upload = jest.fn(
