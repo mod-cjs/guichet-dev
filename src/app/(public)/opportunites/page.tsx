@@ -14,13 +14,18 @@ export default async function OpportunitesPage() {
 
   return (
     <div className="container-page py-space-6">
-      <header className="mb-space-5">
+      {/* En-tête mobile uniquement — le H1 desktop est porté par
+          OpportunitesListHeader (GUIC-249 — titre dynamique avec compte). */}
+      <header className="mb-space-5 lg:hidden">
         <h1 className="text-fs-800 font-black text-color-text-primary">Opportunités</h1>
         <p className="text-fs-300 text-color-text-secondary mt-space-1">
           Emplois, stages, formations et bourses pour les jeunes du Sénégal
         </p>
       </header>
 
+      {/* `OpportunitesClient` lit `useSearchParams()` côté client — la pagination
+          desktop est pilotée par `?page=N`. La page server n'a pas besoin de
+          forwarder le param explicitement (lu directement par le client). */}
       <Suspense fallback={null}>
         <OpportunitesClient initialRegion={session?.region ?? null} />
       </Suspense>
