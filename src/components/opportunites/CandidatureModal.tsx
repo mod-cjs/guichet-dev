@@ -116,6 +116,18 @@ function refCandidature(id: string): string {
   return `CAND-${short}`
 }
 
+/** Libellés FR des champs profil manquants (GUIC-232). */
+const PROFIL_FIELD_LABELS: Record<string, string> = {
+  prenom: 'prénom',
+  nom: 'nom',
+  email: 'email',
+  telephone: 'téléphone',
+  region: 'région',
+  niveauEtude: 'niveau d’études',
+  situationEmploi: 'situation actuelle',
+  domainesInteret: 'domaines d’intérêt',
+}
+
 export function CandidatureModal({
   opportuniteId,
   opportuniteTitre,
@@ -141,6 +153,8 @@ export function CandidatureModal({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
+  // GUIC-232 — état complétude profil (null = en cours de chargement).
+  const [profilMissing, setProfilMissing] = useState<string[] | null>(null)
   // CV depuis profil (GUIC-223 / GUIC-224) — null = pas encore chargé, {cvUrl:null} = profil sans CV.
   const [profileCv, setProfileCv] = useState<ProfilCvData | null>(null)
   // Mode CV : 'profile' = réutilise le CV du profil, 'upload' = upload manuel.
@@ -162,7 +176,36 @@ export function CandidatureModal({
       setError(null)
       setSubmitted(null)
       setSending(false)
+      setProfilMissing(null)
       setCvMode('upload')
+    }
+  }, [isOpen])
+
+  // GUIC-232 — vérifie la complétude du profil à l'ouverture du modal.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/profil/completude', { credentials: 'same-origin' })
+        if (!res.ok) {
+          if (!cancelled) setProfilMissing([])
+          return
+        }
+        const body = (await res.json()) as {
+          data?: { complet?: boolean; missing?: string[] }
+        }
+        if (!cancelled) {
+          setProfilMissing(body.data?.missing ?? [])
+        }
+      } catch {
+        // En cas d'erreur réseau, on n'empêche pas l'utilisateur d'essayer ;
+        // le backend re-validera et renverra 403 si besoin.
+        if (!cancelled) setProfilMissing([])
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [isOpen])
 
@@ -191,15 +234,17 @@ export function CandidatureModal({
   const lettreOk = lettre.trim().length > 0
   const hasCv = cvFile !== null || cvUploaded !== null
   const cvOk = !requiresFileUpload || hasCv
-  const canSubmit = lettreOk && cvOk && consent && !sending
+  const profilIncomplet = (profilMissing?.length ?? 0) > 0
+  const canSubmit = lettreOk && cvOk && consent && !sending && !profilIncomplet
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
+    if (profilIncomplet) return 'Complétez votre profil pour candidater.'
     if (!lettreOk) return 'Rédigez votre lettre de motivation.'
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
-  }, [sending, lettreOk, cvOk, consent])
+  }, [sending, lettreOk, cvOk, consent, profilIncomplet])
 
   const handleClose = useCallback(() => {
     if (submitted) {
@@ -263,7 +308,19 @@ export function CandidatureModal({
         onSuccess()
         return
       }
-      if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
+      if (res.status === 403) {
+        // GUIC-232 — profil incomplet : recharge la liste des champs manquants.
+        const body = (await res.json().catch(() => null)) as
+          | { error?: { code?: string; missing?: string[] } }
+          | null
+        if (body?.error?.code === 'PROFILE_INCOMPLETE') {
+          setProfilMissing(body.error.missing ?? [])
+          setError('Complétez votre profil pour pouvoir candidater.')
+        } else {
+          setError('Accès refusé.')
+        }
+      }
+      else if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
       else if (res.status === 422) setError("Cette opportunité n'accepte plus de candidatures.")
       else if (res.status === 401) setError('Votre session a expiré, reconnectez-vous.')
       else setError('Une erreur est survenue. Réessayez.')
@@ -316,6 +373,29 @@ export function CandidatureModal({
           className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3"
         >
           {error}
+        </div>
+      )}
+
+      {/* GUIC-232 — Bandeau profil incomplet */}
+      {profilIncomplet && (
+        <div
+          role="alert"
+          data-testid="profil-incomplet-banner"
+          className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3"
+        >
+          <p className="font-bold">Complète ton profil pour pouvoir candidater.</p>
+          <p className="mt-space-1">
+            Champs manquants :{' '}
+            {(profilMissing ?? [])
+              .map((f) => PROFIL_FIELD_LABELS[f] ?? f)
+              .join(', ')}
+          </p>
+          <Link
+            href="/jeune/mon-profil"
+            className="inline-block mt-space-2 font-bold underline"
+          >
+            Compléter mon profil →
+          </Link>
         </div>
       )}
 

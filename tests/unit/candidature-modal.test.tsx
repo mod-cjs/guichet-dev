@@ -28,6 +28,14 @@ function installFetch(inner: jest.Mock): jest.Mock {
         json: async () => ({ data: { cvUrl: null, name: '', uploadedAt: null } }),
       } as unknown as Response
     }
+    // GUIC-232 — par défaut profil complet (les tests dédiés overrident).
+    if (url.startsWith('/api/profil/completude')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { complet: true, missing: [] } }),
+      } as unknown as Response
+    }
     return inner(input, init)
   }) as unknown as typeof fetch
   return inner
@@ -99,25 +107,40 @@ async function uploadCv(container: HTMLElement) {
   await waitFor(() => expect(screen.getByText(/chargé : cv\.pdf/i)).toBeInTheDocument())
 }
 
+/**
+ * Helper : enveloppe une `fetch` mock pour que tout appel à
+ * `/api/profil/completude` retourne un profil complet par défaut. Les autres
+ * URLs sont déléguées à la fonction passée. Ainsi les tests existants n'ont
+ * pas à mocker explicitement la complétude (GUIC-232).
+ */
+function withCompletudeOk(
+  inner: (url: string, init?: RequestInit) => Promise<Response>,
+  missing: string[] = [],
+): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString()
+    if (url.includes('/api/profil/completude')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { complet: missing.length === 0, missing } }),
+      } as unknown as Response
+    }
+    return inner(url, init)
+  }) as unknown as typeof fetch
+}
+
 describe('<CandidatureModal /> — refonte v2', () => {
   const originalFetch = global.fetch
   const originalConfirm = window.confirm
 
   beforeEach(() => {
     pushMock.mockReset()
-    // Par défaut : /api/profil/cv retourne {cvUrl:null} → flux FileUpload existant.
-    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input.toString()
-      if (url.startsWith('/api/profil/cv')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ data: { cvUrl: null, name: '', uploadedAt: null } }),
-        } as unknown as Response
-      }
-      // Réponse neutre — chaque test surcharge global.fetch s'il a besoin.
-      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
-    }) as unknown as typeof fetch
+    // Par défaut : /api/profil/cv → {cvUrl:null} (flux FileUpload), /api/profil/completude
+    // → profil complet (cf installFetch), autres routes neutres 500. Les tests overrident.
+    installFetch(
+      jest.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response),
+    )
   })
 
   afterEach(() => {
@@ -525,11 +548,11 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('upload réussi + soumission 201 envoie cvUrl dans le payload', async () => {
-    const fetchMock = jest.fn(async () => ({
+    const innerMock = jest.fn(async (_url: string, _init?: RequestInit) => ({
       status: 201, ok: true,
       json: async () => ({ data: { id: '11111111-2222-3333-4444-555555555555' } }),
     }) as unknown as Response)
-    installFetch(fetchMock)
+    installFetch(innerMock)
     const { container } = renderModal()
     await uploadCv(container)
     await typeLettre()
@@ -537,11 +560,26 @@ describe('<CandidatureModal /> — refonte v2', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
     })
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
-    const callBody = JSON.parse(
-      (fetchMock as unknown as jest.Mock).mock.calls[0][1].body as string,
-    )
+    await waitFor(() => expect(innerMock).toHaveBeenCalled())
+    const callBody = JSON.parse(innerMock.mock.calls[0][1]!.body as string)
     expect(callBody.cvUrl).toMatch(/^https:\/\/blob\.example\//)
     expect(callBody.notificationsConsent).toBe(true)
+  })
+
+  it('GUIC-232 — profil incomplet : bandeau + bouton désactivé', async () => {
+    global.fetch = withCompletudeOk(
+      async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response,
+      ['region', 'niveauEtude', 'domainesInteret'],
+    )
+    renderModal()
+    expect(await screen.findByTestId('profil-incomplet-banner')).toBeInTheDocument()
+    expect(screen.getByText(/région/)).toBeInTheDocument()
+    expect(screen.getByText(/Compléter mon profil/i)).toBeInTheDocument()
+    // Même après lettre + CGU, le bouton reste désactivé.
+    await typeLettre()
+    await checkConsent()
+    expect(
+      screen.getByRole('button', { name: /Envoyer ma candidature/i }),
+    ).toBeDisabled()
   })
 })
