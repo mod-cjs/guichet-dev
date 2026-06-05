@@ -33,7 +33,7 @@ describe('Onboarding — switch responsive (mobile + web côte-à-côte)', () =>
     expect(webRoot.textContent).toMatch(/Créer mon compte gratuit/)
   })
 
-  test('le wrapper mobile contient le CTA "Commencer"', () => {
+  test('le wrapper mobile contient le CTA "Créer mon compte"', () => {
     const { container } = render(
       <>
         <div className="gj-onboarding-mobile"><OnboardingWelcome /></div>
@@ -41,7 +41,7 @@ describe('Onboarding — switch responsive (mobile + web côte-à-côte)', () =>
       </>,
     )
     const mobileRoot = container.querySelector('.gj-onboarding-mobile')!
-    expect(mobileRoot.textContent).toMatch(/Commencer/)
+    expect(mobileRoot.textContent).toMatch(/Créer mon compte/)
   })
 
   test('un lien Auth/connexion existe dans les 2 variantes', () => {

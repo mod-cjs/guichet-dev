@@ -17,7 +17,7 @@ describe('<OnboardingWelcome /> — écran 1/5', () => {
 
   it('CTA primaire pointe vers /jeune/onboarding/telephone', () => {
     render(<OnboardingWelcome />)
-    const cta = screen.getByRole('link', { name: /commencer/i })
+    const cta = screen.getByRole('link', { name: /créer mon compte/i })
     expect(cta).toHaveAttribute('href', '/jeune/onboarding/telephone')
   })
 
