@@ -4,6 +4,8 @@
  * Tests unitaires de la routine cleanupCvOrphans (GUIC-231).
  */
 
+export {} // fichier traité comme module (évite la collision de scope global avec d'autres tests)
+
 const mockList = jest.fn()
 const mockDel = jest.fn()
 jest.mock('@vercel/blob', () => ({

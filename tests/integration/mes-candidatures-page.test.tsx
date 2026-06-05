@@ -13,6 +13,7 @@ jest.mock('@/lib/loaders/mes-candidatures', () => ({
 }))
 jest.mock('next/navigation', () => ({
   redirect: (path: string) => mockRedirect(path),
+  useRouter: () => ({ push: jest.fn() }),
 }))
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -333,9 +333,14 @@ describe('<CandidatureModal /> — refonte v2', () => {
       fireEvent.click(btn)
     })
     await waitFor(() => expect(props.onSuccess).toHaveBeenCalled())
-    expect(
-      await screen.findByRole('heading', { name: /Candidature envoyée 🎉/i, level: 2 }),
-    ).toBeInTheDocument()
+    // Le titre de la modale et le heading de l'écran succès portent tous deux le
+    // libellé « Candidature envoyée » ; l'emoji (aria-hidden) n'est plus dans le nom
+    // accessible — on cible le heading succès via son contenu textuel.
+    const headings = await screen.findAllByRole('heading', {
+      name: /Candidature envoyée/i,
+      level: 2,
+    })
+    expect(headings.some((h) => h.textContent?.includes('🎉'))).toBe(true)
     expect(screen.getByTestId('candidature-ref').textContent).toMatch(/^CAND-[A-F0-9]{8}$/)
   })
 

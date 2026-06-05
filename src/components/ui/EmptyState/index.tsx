@@ -3,7 +3,7 @@ import { Icon, type IconName } from '../Icon'
 interface EmptyStateProps {
   /** Icône du sprite SVG (préféré au design v2). */
   icon?: IconName
-  /** Fallback emoji legacy — gardé pour rétro-compatibilité. */
+  /** @deprecated Préférer `icon`. Fallback emoji legacy — gardé pour rétro-compatibilité. */
   emoji?: string
   title: string
   description?: string
@@ -19,7 +19,7 @@ export function EmptyState({ icon, emoji, title, description, actionLabel, onAct
           <Icon name={icon} size={32} />
         </div>
       ) : (
-        <div className="text-[48px] mb-space-2 leading-none">{emoji ?? '🌱'}</div>
+        <div className="text-[48px] mb-space-2 leading-none" aria-hidden="true">{emoji ?? '🌱'}</div>
       )}
       <h3 className="text-fs-500 font-bold text-color-text-primary mb-[6px]">{title}</h3>
       {description && (

@@ -58,7 +58,7 @@ export default function DesignPreviewPage() {
               <Link
                 href={`/design-v2/${encodeURIComponent(lot.file)}`}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-fs-200 font-black text-gj-teal-deep hover:underline mt-space-3"
               >
                 Ouvrir la maquette ↗

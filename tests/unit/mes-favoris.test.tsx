@@ -7,6 +7,10 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { MesFavoris } from '@/components/jeune/MesFavoris'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}))
+
 const ITEMS: OpportuniteListItem[] = [
   {
     id: 'a',

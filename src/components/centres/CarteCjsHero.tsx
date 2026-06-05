@@ -156,7 +156,7 @@ export function CarteCjsHero({
         className="flex items-center gap-2 pt-space-2 text-fs-200 relative"
         style={{ borderTop: '1px solid rgba(255,255,255,.14)', color: 'rgba(255,255,255,.7)' }}
       >
-        <span className="w-2 h-2 rounded-full" style={{ background: '#7BE5B5' }} />
+        <span className="w-2 h-2 rounded-full" style={{ background: 'var(--gj-status-live)' }} />
         <span>QR placeholder · TODO Phase 4 signature HMAC</span>
       </footer>
     </article>

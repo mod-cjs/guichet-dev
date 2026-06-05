@@ -38,7 +38,7 @@ export function YayeMatchCard({
           inline-flex items-center justify-center"
         style={{
           background: 'linear-gradient(135deg, var(--gj-green), var(--gj-teal-deep))',
-          fontFamily: 'Georgia, serif',
+          fontFamily: 'var(--gj-font-yaye-wordmark)',
           fontSize: 17,
         }}
       >
@@ -47,7 +47,7 @@ export function YayeMatchCard({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-space-1 text-fs-200 font-extrabold text-gj-teal-deep">
-          <span style={{ fontFamily: 'Georgia, serif' }}>Yaye :</span>
+          <span style={{ fontFamily: 'var(--gj-font-yaye-wordmark)' }}>Yaye :</span>
           <span
             data-testid="yaye-match-score"
             className="bg-gj-green-soft text-gj-green-ink text-fs-100 font-black

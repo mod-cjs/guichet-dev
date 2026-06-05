@@ -320,7 +320,7 @@ export function RessourcesClient({
 
       {accumulated.length === 0 ? (
         <EmptyState
-          emoji="📚"
+          icon="document"
           title="Aucune ressource trouvée"
           description={
             total === 0 && !hasActiveFilters

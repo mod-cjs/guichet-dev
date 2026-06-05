@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { TypeOpportunite } from '@prisma/client'
 import { EmptyState, SkeletonCard } from '@/components/ui'
 import { OppCard } from '@/components/opportunites/OppCard'
@@ -27,6 +28,7 @@ const TYPE_CHIPS: TypeOpportunite[] = [
 ]
 
 export function MesFavoris() {
+  const router = useRouter()
   const [items, setItems] = useState<OpportuniteListItem[] | null>(null)
   const [error, setError] = useState(false)
   const [activeType, setActiveType] = useState<TypeOpportunite | null>(null)
@@ -83,9 +85,7 @@ export function MesFavoris() {
         title="Aucun favori"
         description="Touchez l'icône favori sur une opportunité pour la retrouver ici."
         actionLabel="Voir les opportunités"
-        onAction={() => {
-          window.location.href = '/opportunites'
-        }}
+        onAction={() => router.push('/opportunites')}
       />
     )
   }

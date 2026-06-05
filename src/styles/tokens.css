@@ -32,6 +32,16 @@
   --gj-red-soft:    #FEE9E7;   /* AA-safe fond léger */
   --gj-red-ink:     #8A1810;   /* texte sur red-soft */
 
+  /* Status — live indicator (LED vert clair, pulse "Ouvert" sur centres) */
+  --gj-status-live:  #7BE5B5;
+
+  /* Backgrounds soft — surfaces tertiaires */
+  --gj-bg-teal-soft: #F5FAF8;   /* fond très clair teinte teal, ex. Yaye stories */
+
+  /* Wordmark Yaye — police serif signature, séparée de --gj-yaye-font
+     pour autoriser un swap futur (Playfair, Cormorant, etc.) */
+  --gj-font-yaye-wordmark: Georgia, serif;
+
   /* Statuts */
   --gj-blue:        #1A4ED8;
   --gj-blue-deep:   #0E2A7A;   /* gradient stop / pressed */
