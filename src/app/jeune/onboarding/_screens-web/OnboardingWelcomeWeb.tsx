@@ -27,11 +27,10 @@ const STATS = [
 export function OnboardingWelcomeWeb({ prenom }: Props) {
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-col text-white"
       style={{
         minHeight: 'calc(100dvh - 3rem)',
         background: 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
-        color: '#fff',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -74,7 +73,7 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
           >
             Ton avenir,<br />commence ici.
           </h1>
-          <p style={{ fontSize: 17, lineHeight: 1.55, marginTop: 18, opacity: 0.9, maxWidth: 540 }}>
+          <p className="text-fs-400" style={{ lineHeight: 1.55, marginTop: 18, opacity: 0.9, maxWidth: 540 }}>
             Emploi · stage · bourse · projet · formation. Toutes les opportunités pour les
             {' '}<b>16–35 ans au Sénégal</b>, en un seul endroit. Yaye t&apos;accompagne — en français ou en Wolof.
           </p>
