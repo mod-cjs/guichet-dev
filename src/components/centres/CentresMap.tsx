@@ -6,6 +6,13 @@ export interface CentresMapProps {
   /** Identifiant du centre mis en évidence (rouge avec label). Par défaut le primary. */
   highlightId?: string
   onRecenter?: () => void
+  /**
+   * Variant de présentation.
+   * - `mobile` (par défaut) : hauteur 180px, pins compacts (utilisée jusqu'à `lg`).
+   * - `desktop` : hauteur 560px, pins agrandis, label highlight plus grand
+   *   (utilisée dans le layout 2-col `/centres` ≥ lg).
+   */
+  variant?: 'mobile' | 'desktop'
 }
 
 /**
@@ -15,8 +22,12 @@ export interface CentresMapProps {
  * Les positions sont calculées en pourcentage à partir de l'index dans la liste
  * pour rester déterministes (pas de géo réelle ici).
  */
-export function CentresMap({ centres, highlightId, onRecenter }: CentresMapProps) {
+export function CentresMap({ centres, highlightId, onRecenter, variant = 'mobile' }: CentresMapProps) {
   const highlight = highlightId ?? centres.find((c) => c.isPrimary)?.id
+  const isDesktop = variant === 'desktop'
+  const height = isDesktop ? 560 : 180
+  const pinHighlight = isDesktop ? 52 : 36
+  const pinDefault = isDesktop ? 38 : 26
 
   // Distribution déterministe — 4 emplacements maxi visibles sur le mock.
   const positions: Array<{ x: string; y: string }> = [
@@ -32,7 +43,7 @@ export function CentresMap({ centres, highlightId, onRecenter }: CentresMapProps
       aria-label="Carte indicative des centres CJS (visuel statique MVP)"
       className="relative overflow-hidden rounded-gj-lg"
       style={{
-        height: 180,
+        height,
         border: '1.5px solid var(--gj-line)',
         background:
           'linear-gradient(135deg, #E5F0EC 0%, #D6E5E0 50%, #C5DDD8 100%)',
@@ -97,7 +108,7 @@ export function CentresMap({ centres, highlightId, onRecenter }: CentresMapProps
       {centres.slice(0, positions.length).map((c, i) => {
         const pos = positions[i]
         const isHighlight = c.id === highlight
-        const size = isHighlight ? 36 : 26
+        const size = isHighlight ? pinHighlight : pinDefault
         return (
           <div
             key={c.id}
@@ -132,13 +143,15 @@ export function CentresMap({ centres, highlightId, onRecenter }: CentresMapProps
           c.distanceKm < 10 ? `${c.distanceKm.toFixed(1)} km` : `${Math.round(c.distanceKm)} km`
         return (
           <div
-            className="absolute bg-white rounded-gj-md text-fs-200 font-bold text-color-text-primary whitespace-nowrap"
+            className={`absolute bg-white rounded-gj-md font-bold text-color-text-primary whitespace-nowrap ${
+              isDesktop ? 'text-fs-300' : 'text-fs-200'
+            }`}
             style={{
               left: '70%',
               top: '30%',
               transform: 'translate(-50%, -160%)',
               border: '1.5px solid var(--gj-line)',
-              padding: '5px 10px',
+              padding: isDesktop ? '8px 14px' : '5px 10px',
               boxShadow: '0 4px 12px rgba(0,0,0,.1)',
             }}
           >
