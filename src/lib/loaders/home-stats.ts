@@ -1,7 +1,11 @@
 import { prisma } from '@/lib/prisma'
+import { type HomeStats, FALLBACK_HOME_STATS } from './home-stats.shared'
 
 /**
- * Stats temps réel affichées sur l'écran Welcome (onboarding 1/5) — GUIC-235.
+ * Loader Prisma des stats temps réel (écran Welcome onboarding 1/5) — GUIC-235.
+ * SERVER ONLY (importe Prisma). Les utilitaires purs (type `HomeStats`,
+ * `FALLBACK_HOME_STATS`, `formatHomeStat`) vivent dans `home-stats.shared.ts`
+ * pour être importables côté client. On les ré-exporte ici pour compat.
  *
  * - `jeunesInscrits`  : `Utilisateur.count()` filtré sur statut actif, hors soft-delete.
  * - `opportunitesActives` : `Opportunite.count()` publiees, deadline future (ou nulle), hors soft-delete.
@@ -12,20 +16,7 @@ import { prisma } from '@/lib/prisma'
  *
  * Le calcul est cacheable côté page via `revalidate = 600`.
  */
-export interface HomeStats {
-  jeunesInscrits: number
-  opportunitesActives: number
-  regionsCouvertes: number
-  centresActifs: number
-}
-
-/** Valeurs de repli affichées si la base est indisponible (snapshot CJS 2026-05). */
-export const FALLBACK_HOME_STATS: HomeStats = {
-  jeunesInscrits: 22_695,
-  opportunitesActives: 1_240,
-  regionsCouvertes: 14,
-  centresActifs: 9,
-}
+export { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat } from './home-stats.shared'
 
 export async function loadHomeStats(): Promise<HomeStats> {
   const now = new Date()
@@ -66,11 +57,4 @@ export async function loadHomeStatsSafe(): Promise<HomeStats> {
   } catch {
     return FALLBACK_HOME_STATS
   }
-}
-
-const NF_FR = new Intl.NumberFormat('fr-FR')
-
-/** Formate `22695` → `"22 695"` (espace insécable U+202F via Intl fr-FR). */
-export function formatHomeStat(value: number): string {
-  return NF_FR.format(value)
 }

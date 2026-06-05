@@ -6,7 +6,7 @@ import {
   FALLBACK_HOME_STATS,
   formatHomeStat,
   type HomeStats,
-} from '@/lib/loaders/home-stats'
+} from '@/lib/loaders/home-stats.shared'
 
 interface Props {
   prenom?: string
