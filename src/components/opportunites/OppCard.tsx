@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { OpportuniteTypeChip } from './OpportuniteTypeChip'
 import { regionLabel } from '@/lib/regions'
+import { formatDeadline, formatDeadlineFull } from '@/lib/format-date'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
 /**
@@ -19,7 +20,6 @@ import type { OpportuniteListItem } from '@/types/opportunite'
  */
 
 const DAY = 86_400_000
-const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 
 interface DeadlineInfo {
   label: string
@@ -34,7 +34,8 @@ export function buildDeadlineInfo(iso: string | null, now: number = Date.now()):
   if (days < 0) return { label: 'Clôturée', urgent: false }
   if (days === 0) return { label: "Aujourd'hui", urgent: true }
   if (days <= 7) return { label: `J-${days}`, urgent: true }
-  return { label: dateFmt.format(d), urgent: false }
+  // Smart format : "12 juin" (année courante) ou "12 juin 2027".
+  return { label: formatDeadline(iso, new Date(now)), urgent: false }
 }
 
 export interface OppCardProps {
@@ -115,6 +116,7 @@ export function OppCard({ item, isFavori, onToggleFavori, matchScore = null }: O
         )}
         {dl && (
           <span
+            title={item.deadline ? formatDeadlineFull(item.deadline) : undefined}
             className={`inline-flex items-center gap-1 ${
               dl.urgent ? 'text-gj-red font-black' : ''
             }`}

@@ -7,6 +7,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
+import { MyCardCjs }          from './MyCardCjs'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -14,6 +15,13 @@ interface Props {
   ssoProfilUrl: string | null
 }
 
+/**
+ * <ProfilClient /> — page profil jeune (GUIC-20 / GUIC-191).
+ *
+ * Layout v2 :
+ * - mobile : empilement vertical, MyCard en haut + sections en dessous
+ * - desktop : grid `lg:grid-cols-[320px_1fr]` — aside MyCard + header sticky, sections à droite
+ */
 export function ProfilClient({ initial, ssoProfilUrl }: Props) {
   const [score, setScore] = useState(initial.profil?.completionScore ?? 0)
 
@@ -30,21 +38,26 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         </p>
       </div>
 
-      {/* Layout desktop conforme design v2 : aside gauche 300px sticky (identité +
-          complétude) + colonne droite (sections éditables). Mobile : empilement. */}
-      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-space-5 flex flex-col gap-space-5">
-        <aside>
-          <div className="lg:sticky lg:top-[80px]">
-            <ProfilHeader
-              nom={initial.nom}
-              prenom={initial.prenom}
-              email={initial.email}
-              completionScore={score}
-            />
-          </div>
+      {/* Layout desktop : aside gauche sticky (MyCard QR + identité + complétude)
+          + colonne droite (sections éditables). Mobile : empilement. */}
+      <div className="grid gap-space-5 lg:grid-cols-[320px_1fr] lg:items-start">
+        {/* Aside : MyCard + header — sticky desktop */}
+        <aside className="flex flex-col gap-space-4 lg:sticky lg:top-space-4">
+          <MyCardCjs
+            cjsUid={initial.cjsUid}
+            nom={initial.nom}
+            prenom={initial.prenom}
+          />
+          <ProfilHeader
+            nom={initial.nom}
+            prenom={initial.prenom}
+            email={initial.email}
+            completionScore={score}
+          />
         </aside>
 
-        <div className="flex flex-col gap-space-5 min-w-0">
+        {/* Sections éditables */}
+        <div className="flex flex-col gap-space-4 min-w-0">
           <SectionIdentite
             data={initial}
             ssoProfilUrl={ssoProfilUrl}
