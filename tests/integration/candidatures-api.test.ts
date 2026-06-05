@@ -24,8 +24,14 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
-jest.mock('@/lib/rate-limit', () => ({ rateLimit: jest.fn().mockResolvedValue(null) }))
-jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
+jest.mock('@/lib/rate-limit', () => ({
+  rateLimit: jest.fn().mockResolvedValue(null),
+  extractIp: jest.fn().mockReturnValue('192.0.2.1'),
+}))
+jest.mock('@/lib/logger', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  hashId: jest.fn().mockReturnValue('abcd1234'),
+}))
 
 const mockNotify = jest.fn()
 jest.mock('@/lib/notifications', () => ({
@@ -43,6 +49,7 @@ const route = require('@/app/api/candidatures/route')
 
 const SESSION = { cjsUid: 'uid-1', prenom: 'Awa', telephone: '+221770000000' }
 const OPP_ID = '11111111-1111-4111-8111-111111111111'
+const LETTRE_OK = 'Motivée et passionnée. '.repeat(20) // > 300 chars
 const OPP = {
   id: OPP_ID,
   slug: 'stage-agri',
@@ -71,7 +78,7 @@ beforeEach(() => {
 describe('POST /api/candidatures', () => {
   it('renvoie 401 si non authentifié', async () => {
     mockGetSession.mockResolvedValue(null)
-    expect((await route.POST(postReq({ opportuniteId: OPP_ID }))).status).toBe(401)
+    expect((await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))).status).toBe(401)
   })
 
   it('renvoie 400 si le body est invalide', async () => {
@@ -81,32 +88,37 @@ describe('POST /api/candidatures', () => {
 
   it('renvoie 404 si l’opportunité n’existe pas', async () => {
     mockOppFindUnique.mockResolvedValue(null)
-    expect((await route.POST(postReq({ opportuniteId: OPP_ID }))).status).toBe(404)
+    expect((await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))).status).toBe(404)
   })
 
   it('renvoie 422 si l’opportunité n’est pas publiée', async () => {
     mockOppFindUnique.mockResolvedValue({ ...OPP, statut: 'brouillon' })
-    expect((await route.POST(postReq({ opportuniteId: OPP_ID }))).status).toBe(422)
+    expect((await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))).status).toBe(422)
   })
 
   it('renvoie 422 si l’opportunité est expirée', async () => {
     mockOppFindUnique.mockResolvedValue({ ...OPP, deadline: new Date(Date.now() - 86_400_000) })
-    expect((await route.POST(postReq({ opportuniteId: OPP_ID }))).status).toBe(422)
+    expect((await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))).status).toBe(422)
   })
 
   it('renvoie 201, crée la candidature et déclenche les notifications', async () => {
     const res = await route.POST(
-      postReq({ opportuniteId: OPP_ID, lettreMotivation: 'Motivée', notificationsConsent: true }),
+      postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK, notificationsConsent: true }),
     )
     expect(res.status).toBe(201)
     expect(mockCandCreate).toHaveBeenCalled()
+    // GUIC-218 : persistance des traces de consentement
+    const createArg = mockCandCreate.mock.calls[0][0]
+    expect(createArg.data.consentAt).toBeInstanceOf(Date)
+    expect(createArg.data.cguVersion).toBe('v1.0')
+    expect(createArg.data.consentIp).toBe('192.0.2.1')
     expect(mockNotify).toHaveBeenCalledTimes(1)
     expect(mockNotify.mock.calls[0][1]).toBe(true) // consentement transmis
   })
 
   it('renvoie 409 si l’utilisateur a déjà candidaté', async () => {
     mockCandCreate.mockRejectedValue({ code: 'P2002' })
-    const res = await route.POST(postReq({ opportuniteId: OPP_ID }))
+    const res = await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))
     expect(res.status).toBe(409)
     expect((await res.json()).error.code).toBe('ALREADY_APPLIED')
   })

@@ -55,6 +55,30 @@ describe('<Sheet />', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
+  it("ne re-pose pas le focus initial à chaque re-render du parent (GUIC-221 #6)", () => {
+    function Typing() {
+      const [val, setVal] = useState('')
+      return (
+        <Sheet isOpen onClose={() => {}} title="Saisie">
+          <textarea
+            data-testid="ta"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+          />
+        </Sheet>
+      )
+    }
+    render(<Typing />)
+    const ta = screen.getByTestId('ta') as HTMLTextAreaElement
+    ta.focus()
+    expect(document.activeElement).toBe(ta)
+    // Simule la frappe utilisateur : doit conserver le focus sur la textarea
+    fireEvent.change(ta, { target: { value: 'a' } })
+    expect(document.activeElement).toBe(ta)
+    fireEvent.change(ta, { target: { value: 'ab' } })
+    expect(document.activeElement).toBe(ta)
+  })
+
   it('piège le focus : Tab depuis le dernier élément revient au premier', () => {
     render(<Harness />)
     const action2 = screen.getByTestId('action-2')

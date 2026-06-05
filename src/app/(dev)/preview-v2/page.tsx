@@ -8,8 +8,13 @@ export const dynamic = 'force-dynamic'
 
 const LOTS = [
   { file: 'Lot 1 - Onboarding + Ecrans cles (1).html', label: 'Lot 1 — Onboarding mobile + écrans clés' },
+  { file: 'Lot 1 - Onboarding + Ecrans cles.html', label: 'Lot 1 (révisé 2026-06-04) — Onboarding mobile + écrans clés' },
   { file: 'Lot 2 - Onboarding Web + Dashboard Beneficiaire.html', label: 'Lot 2 — Onboarding web + Dashboard bénéficiaire' },
   { file: 'Lot 3 - Opportunites.html', label: 'Lot 3 — Opportunités' },
+  { file: 'Lot 4 - Profil Beneficiaire.html', label: 'Lot 4 — Profil bénéficiaire' },
+  { file: 'Lot 5 - Evenements.html', label: 'Lot 5 — Événements' },
+  { file: 'Lot 6 - Ressources.html', label: 'Lot 6 — Ressources' },
+  { file: 'Lot 7 - Centres CJS.html', label: 'Lot 7 — Centres CJS' },
 ]
 
 const JSX_FILES = [
@@ -21,6 +26,17 @@ const JSX_FILES = [
   { file: 'lot3-opps-mobile.jsx', label: 'lot3-opps-mobile — Liste + filtres + détail + candidature' },
   { file: 'lot3-opps-web.jsx', label: 'lot3-opps-web — Liste + slide-over + modal apply' },
   { file: 'mobile-centres.jsx', label: 'mobile-centres — Carte + liste + ateliers' },
+  { file: 'centres-mobile.jsx', label: 'centres-mobile — Centres CJS (Lot 7 mobile)' },
+  { file: 'centres-web.jsx', label: 'centres-web — Centres CJS (Lot 7 web)' },
+  { file: 'centres-data.jsx', label: 'centres-data — Données démo centres' },
+  { file: 'events-mobile.jsx', label: 'events-mobile — Événements (Lot 5 mobile)' },
+  { file: 'events-web.jsx', label: 'events-web — Événements (Lot 5 web)' },
+  { file: 'events-data.jsx', label: 'events-data — Données démo événements' },
+  { file: 'resources-mobile.jsx', label: 'resources-mobile — Ressources (Lot 6 mobile)' },
+  { file: 'resources-web.jsx', label: 'resources-web — Ressources (Lot 6 web)' },
+  { file: 'resources-data.jsx', label: 'resources-data — Données démo ressources' },
+  { file: 'profil-mobile.jsx', label: 'profil-mobile — Profil bénéficiaire (Lot 4 mobile)' },
+  { file: 'profil-web.jsx', label: 'profil-web — Profil bénéficiaire (Lot 4 web)' },
   { file: 'screens.jsx', label: 'screens — Pipeline candidatures + Yaye + notifications' },
   { file: 'cjs-card.jsx', label: 'cjs-card — Carte membre QR' },
   { file: 'phone.jsx', label: 'phone — PhoneFrame + StatusBar + TopBar + BottomNav + Yaye FAB' },

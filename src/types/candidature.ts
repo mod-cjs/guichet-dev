@@ -22,3 +22,19 @@ export interface CandidatureListItem {
   statut: StatutCandidature
   soumiseA: string // ISO 8601
 }
+
+/**
+ * Métadonnées d'un CV uploadé (Vercel Blob / S3) partagées entre la
+ * réponse d'upload, le formulaire candidature et l'appel API.
+ *
+ * GUIC-217 (Wave 6) — source unique de vérité pour les sous-PRs
+ * GUIC-218/219/220.
+ */
+export interface CvBlobMeta {
+  /** URL publique (ou présignée) du CV stocké. */
+  url: string
+  /** Nom de fichier sanitizé (`a-z0-9._-`, espaces remplacés). */
+  name: string
+  /** Taille en kilo-octets, arrondie à l'entier. */
+  sizeKb: number
+}

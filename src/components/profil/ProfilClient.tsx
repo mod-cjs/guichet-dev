@@ -38,6 +38,8 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         </p>
       </div>
 
+      {/* Layout desktop : aside gauche sticky (MyCard QR + identité + complétude)
+          + colonne droite (sections éditables). Mobile : empilement. */}
       <div className="grid gap-space-5 lg:grid-cols-[320px_1fr] lg:items-start">
         {/* Aside : MyCard + header — sticky desktop */}
         <aside className="flex flex-col gap-space-4 lg:sticky lg:top-space-4">
