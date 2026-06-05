@@ -16,12 +16,18 @@ export interface OpportuniteListItem {
   deadline: string | null // ISO 8601
 }
 
-/** Filtres normalisés consommés par le loader. */
+/**
+ * Filtres normalisés consommés par le loader.
+ *
+ * GUIC-256 : `type` / `domaine` / `region` acceptent un tableau (multi-select)
+ * OU une valeur unique (rétro-compat). Le loader normalise toujours en tableau
+ * pour la requête `IN (...)`.
+ */
 export interface OpportuniteFiltres {
   q?: string
-  domaine?: Domaine
-  type?: TypeOpportunite
-  region?: Region
+  domaine?: Domaine | Domaine[]
+  type?: TypeOpportunite | TypeOpportunite[]
+  region?: Region | Region[]
   page: number
   sortBy: OpportuniteSortBy
 }

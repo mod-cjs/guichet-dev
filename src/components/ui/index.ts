@@ -12,15 +12,25 @@ export { EmptyState } from './EmptyState'
 export { FieldLabel } from './FieldLabel'
 export type { FieldLabelProps } from './FieldLabel'
 export { FileUpload } from './FileUpload'
-export type { FileUploadProps, FileUploader, UploadedFileMeta } from './FileUpload'
+export type {
+  FileUploadProps,
+  FileUploader,
+  UploadedFileMeta,
+  DeferredFile,
+  FileUploadMode,
+} from './FileUpload'
 export { Icon, ICON_NAMES } from './Icon'
 export type { IconName, IconProps } from './Icon'
 export { Input }      from './Input'
 export { Modal }      from './Modal'
+export { MyCJSCard }  from './MyCJSCard'
+export type { MyCJSCardProps } from './MyCJSCard'
 export { Select }     from './Select'
 export { Sheet }      from './Sheet'
 export { SkipLink }   from './SkipLink'
 export type { SkipLinkProps } from './SkipLink'
+export { SnFlag }     from './SnFlag'
+export type { SnFlagProps } from './SnFlag'
 export { Skeleton, SkeletonCard } from './Skeleton'
 export { StepBar }    from './StepBar'
 export type { StepBarProps } from './StepBar'
@@ -44,3 +54,5 @@ export type {
 } from './Yaye/YayeActionCard'
 export { QuickReplies } from './Yaye/QuickReplies'
 export type { QuickRepliesProps, QuickReply } from './Yaye/QuickReplies'
+export { YayeSidePanel } from './Yaye/YayeSidePanel'
+export type { YayeSidePanelProps, YayeSidePanelMessage } from './Yaye/YayeSidePanel'

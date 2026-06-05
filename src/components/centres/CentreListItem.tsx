@@ -21,6 +21,7 @@ export function CentreListItem({ centre, onPrendreRdv, onItineraire }: CentreLis
     return (
       <article
         aria-label={`${centre.nom} (mon centre)`}
+        aria-current="page"
         className="bg-white rounded-gj-lg p-space-3 flex flex-col gap-space-2"
         style={{ border: '1.5px solid var(--gj-teal)' }}
       >

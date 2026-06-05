@@ -1,58 +1,91 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { WelcomeHeroMobile } from '@/components/home/WelcomeHeroMobile'
+import { WelcomeHeroWeb } from '@/components/home/WelcomeHeroWeb'
+import { Icon } from '@/components/ui/Icon'
+import { getSession } from '@/lib/auth'
 
 export const metadata: Metadata = { title: 'Accueil' }
 
 const SECTIONS = [
-  { href: '/opportunites', label: 'Opportunités',  desc: 'Emplois, stages, formations, bourses' },
-  { href: '/agenda',       label: 'Agenda',        desc: 'Agenda et activités du réseau CJS' },
-  { href: '/ressources',   label: 'Ressources',    desc: 'Bibliothèque pédagogique' },
-  { href: '/centres',      label: 'Centres CJS',   desc: '9 centres à travers le Sénégal' },
-]
+  { href: '/opportunites', icon: 'target',      label: 'Opportunités', desc: 'Emplois, stages, formations, bourses' },
+  { href: '/agenda',       icon: 'calendar',    label: 'Agenda',       desc: 'Agenda et activités du réseau CJS' },
+  { href: '/ressources',   icon: 'document',    label: 'Ressources',   desc: 'Bibliothèque pédagogique' },
+  { href: '/centres',      icon: 'pin',         label: 'Centres CJS',  desc: '9 centres à travers le Sénégal' },
+] as const
 
-export default function Accueil() {
+export default async function Accueil() {
+  const session = await getSession()
+  if (session) {
+    redirect(session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding/telephone')
+  }
+
   return (
     <>
-      {/* Hero */}
-      <section className="bg-gj-teal text-white">
-        <div className="container-page py-space-8">
-          <h1 className="text-fs-900 font-black leading-tight mb-space-3">
-            Le Guichet<br />Jeunesse Sénégal
-          </h1>
-          <p className="text-fs-500 text-white/80 mb-space-5 max-w-[540px]">
-            Opportunités, formations et ressources pour les jeunes du Sénégal.
-          </p>
-          <div className="flex flex-wrap gap-space-3">
-            <Link href="/opportunites"
-              className="bg-gj-yellow text-gj-ink font-bold px-space-5 py-space-3
-                rounded-gj-md hover:opacity-90 transition-opacity no-underline text-fs-400">
-              Voir les opportunités
-            </Link>
-            <Link href="/auth/connexion"
-              className="bg-white/15 text-white border border-white/30 font-bold
-                px-space-5 py-space-3 rounded-gj-md hover:bg-white/25 transition-colors
-                no-underline text-fs-400">
-              Créer mon profil
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* HERO responsive — mobile (< 1024px) vs web (≥ 1024px) */}
+      <div className="lg:hidden">
+        <WelcomeHeroMobile />
+      </div>
+      <div className="hidden lg:block">
+        <WelcomeHeroWeb />
+      </div>
 
-      {/* Sections */}
-      <section className="container-page py-space-7">
-        <h2 className="text-fs-700 font-black text-color-text-primary mb-space-5">
-          Nos services
-        </h2>
+      {/* SECTIONS services — container max-w-7xl centré, padding cohérent */}
+      <section
+        className="mx-auto"
+        style={{ maxWidth: 1280, padding: '64px 24px' }}
+      >
+        <div className="mb-space-6">
+          <h2
+            className="font-black"
+            style={{ fontSize: 28, color: 'var(--gj-teal-deep)', letterSpacing: '-0.3px' }}
+          >
+            Tout pour ton parcours
+          </h2>
+          <p
+            style={{ fontSize: 15, color: 'var(--gj-grey)', marginTop: 8, maxWidth: 540 }}
+          >
+            Le Guichet rassemble les opportunités, l&apos;agenda, les ressources et les centres CJS
+            dans une seule app.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-4">
           {SECTIONS.map(s => (
-            <Link key={s.href} href={s.href}
-              className="block bg-white border border-color-border-default rounded-gj-xl
-                p-space-4 hover:border-gj-teal hover:shadow-gj-sm transition-all no-underline group">
-              <h3 className="text-fs-400 font-bold text-color-text-primary mb-space-1
-                group-hover:text-color-action-primary transition-colors">
+            <Link
+              key={s.href}
+              href={s.href}
+              className="flex flex-col no-underline group transition-all"
+              style={{
+                background: '#fff',
+                border: '1.5px solid var(--gj-line)',
+                borderRadius: 16,
+                padding: 24,
+                minHeight: 180,
+              }}
+            >
+              <div
+                className="inline-flex items-center justify-center flex-shrink-0 mb-space-3"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: 'var(--gj-teal-soft, rgba(10,128,127,.1))',
+                  color: 'var(--gj-teal-deep)',
+                }}
+              >
+                <Icon name={s.icon} size={24} aria-hidden />
+              </div>
+              <h3
+                className="font-black"
+                style={{ fontSize: 17, color: 'var(--gj-ink)', marginBottom: 4 }}
+              >
                 {s.label}
               </h3>
-              <p className="text-fs-200 text-color-text-muted">{s.desc}</p>
+              <p style={{ fontSize: 13.5, color: 'var(--gj-grey)', lineHeight: 1.45 }}>
+                {s.desc}
+              </p>
             </Link>
           ))}
         </div>

@@ -49,6 +49,7 @@ import { prisma } from '../../src/lib/prisma'
 import { seedOpportunites } from './opportunites'
 import { seedProgrammes } from './programmes'
 import { seedOpportuniteTypes } from './opportunite-types'
+import { seedRessources } from './ressources'
 import { seedSkills } from './skills'
 import { seedTags } from './tags'
 import { seedNotifications } from './notifications'
@@ -66,6 +67,10 @@ async function main() {
   // Opportunités legacy (sera repris par 178d via OpportuniteService)
   const count = await seedOpportunites(prisma)
   console.log(`Seed Guichet Jeunesse — ${count} opportunités insérées (GUIC-20).`)
+
+  // Ressources M6 (GUIC-239)
+  const nbRessources = await seedRessources(prisma)
+  console.log(`Seed Guichet Jeunesse — ${nbRessources} ressources insérées (GUIC-239).`)
 
   // Notifications démo (GUIC-247) — idempotent, premier user actif.
   const nbNotifs = await seedNotifications(prisma)

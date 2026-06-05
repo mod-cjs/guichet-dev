@@ -6,23 +6,36 @@ import {
   CentresMap,
   CentreListItem,
   AtelierCarousel,
-  MOCK_CENTRES,
+  // TODO(GUIC-235) — modèles Prisma RDV/Atelier inexistants, mocks conservés.
   MOCK_RDV,
   MOCK_ATELIERS,
 } from '@/components/centres'
+import { listCentres } from '@/lib/loaders/centres'
+import { EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Centres CJS' }
 
 export default async function Page() {
   const session = await getSession()
   const userName = session ? `${session.prenom} ${session.nom}`.trim() : null
-  const centres = MOCK_CENTRES
-  const primary = centres.find((c) => c.isPrimary) ?? centres[0]
-  const ateliers = MOCK_ATELIERS.filter((a) => a.centreId === primary.id)
+  const centres = await listCentres()
   const memberId = session
     ? `GJS · ${(session.prenom?.[0] ?? '?').toUpperCase()}${(session.nom?.[0] ?? '?').toUpperCase()} · ${session.cjsUid.slice(0, 6)}`
     : undefined
 
+  if (centres.length === 0) {
+    return (
+      <div className="bg-gj-bg min-h-[100dvh] flex items-center justify-center p-space-4">
+        <EmptyState
+          title="Aucun centre disponible"
+          description="Les centres CJS seront bientôt accessibles ici."
+        />
+      </div>
+    )
+  }
+
+  const primary = centres.find((c) => c.isPrimary) ?? centres[0]
+  const ateliers = MOCK_ATELIERS.filter((a) => a.centreId === primary.id)
   const orderedCentres = [primary, ...centres.filter((c) => c.id !== primary.id)]
 
   return (
@@ -30,7 +43,7 @@ export default async function Page() {
       {/* MOBILE (< lg) — layout vertical historique */}
       <div className="lg:hidden mx-auto max-w-screen-sm">
         <div className="pt-space-3 px-space-3">
-          <CarteCjsHero userName={userName} memberId={memberId} centre={primary.nom} />
+          <CarteCjsHero userName={userName} memberId={memberId} cjsUid={session?.cjsUid} centre={primary.nom} />
         </div>
 
         <div className="mt-space-3 px-space-3">
@@ -78,7 +91,7 @@ export default async function Page() {
 
         {/* Colonne droite sticky : carte CJS + RDV + ateliers */}
         <aside className="flex flex-col gap-space-3 lg:sticky lg:top-space-4 lg:self-start">
-          <CarteCjsHero userName={userName} memberId={memberId} centre={primary.nom} />
+          <CarteCjsHero userName={userName} memberId={memberId} cjsUid={session?.cjsUid} centre={primary.nom} />
           <RdvCard rdv={MOCK_RDV} />
           <section>
             <h2 className="text-fs-100 font-black text-gj-grey uppercase tracking-wide pb-space-2">
