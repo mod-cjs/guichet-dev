@@ -10,6 +10,11 @@ jest.mock('@/lib/dashboard-loader', () => ({
   loadDashboardCounts: (...args: unknown[]) => mockLoadDashboardCounts(...args),
 }))
 
+const mockLoadDashboardData = jest.fn()
+jest.mock('@/lib/loaders/dashboard', () => ({
+  loadDashboardData: (...args: unknown[]) => mockLoadDashboardData(...args),
+}))
+
 const mockProfilFindUnique = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
@@ -33,7 +38,7 @@ async function renderPage() {
   return render(ui)
 }
 
-describe('Tableau de bord — page intégration (v2)', () => {
+describe('Tableau de bord — page intégration (v2, données réelles)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetSession.mockResolvedValue({
@@ -50,6 +55,38 @@ describe('Tableau de bord — page intégration (v2)', () => {
       diplomes:       1,
     })
     mockProfilFindUnique.mockResolvedValue({ completionScore: 72 })
+    mockLoadDashboardData.mockResolvedValue({
+      recoOpps: [
+        {
+          id:    'opp-1',
+          tag:   'Bourse · J-3',
+          tone:  'urgent',
+          title: 'Bourse agricole',
+          org:   'ANIDA · Tambacounda',
+          meta:  [],
+          href:  '/opportunites/bourse-agricole',
+          ctaLabel: 'Voir détails',
+        },
+      ],
+      events: [
+        { id: 'ev-1', day: 22, month: 'Mai', title: 'Atelier CV', subtitle: 'CJS Tamba', href: '/agenda/ev-1' },
+      ],
+      centres: [
+        { id: 'c-1', name: 'CJS Dakar', address: 'Plateau', distance: 'Dakar', href: '/centres/c-1' },
+      ],
+      tracker: [
+        {
+          id: 'cand-1',
+          title: 'Stage Data',
+          subtitle: 'Déposée le 14 mai',
+          icon: 'document',
+          tone: 'yellow',
+          currentStep: 1,
+          stepLabel: 'Revue conseiller',
+          cta: { label: 'Détails', href: '/jeune/mes-candidatures/cand-1', variant: 'ghost' },
+        },
+      ],
+    })
   })
 
   it('redirige vers /auth/connexion si pas de session', async () => {
@@ -58,16 +95,22 @@ describe('Tableau de bord — page intégration (v2)', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/auth/connexion')
   })
 
+  it('appelle loadDashboardData avec le cjsUid de session', async () => {
+    await renderPage()
+    expect(mockLoadDashboardData).toHaveBeenCalledWith('uid-1')
+  })
+
   it('rend le hero v2 avec le prénom de la session', async () => {
     await renderPage()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Awa/i)
   })
 
-  it('rend les 4 KPI v2', async () => {
+  it('rend les 4 KPI v2 avec compteurs réels (favoris=12)', async () => {
     await renderPage()
     expect(screen.getByRole('region', { name: /Indicateurs clés/i })).toBeInTheDocument()
     expect(screen.getAllByText(/Candidatures en cours/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/Opps recommandées/i)).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByText(/Sauvegardées/i)).toBeInTheDocument()
     expect(screen.getByText(/Profil complété/i)).toBeInTheDocument()
   })
@@ -77,17 +120,22 @@ describe('Tableau de bord — page intégration (v2)', () => {
     expect(screen.getByText('72 %')).toBeInTheDocument()
   })
 
-  it('rend le tracker, les centres, les events, le nudge profil et le panel Yaye', async () => {
+  it('rend les vraies données (reco opp + event + centre + candidature)', async () => {
     await renderPage()
-    expect(screen.getByRole('heading', { name: /Mes candidatures en cours/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Centres CJS près de toi/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Événements à venir/i })).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: /Complétude du profil/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Ouvrir le chat Yaye/i })).toBeInTheDocument()
+    expect(screen.getByText(/Bourse agricole/i)).toBeInTheDocument()
+    expect(screen.getByText(/Atelier CV/i)).toBeInTheDocument()
+    expect(screen.getByText('CJS Dakar')).toBeInTheDocument()
+    expect(screen.getByText('Stage Data')).toBeInTheDocument()
   })
 
-  it('rend le carousel de recommandations', async () => {
+  it('rend les empty-states quand les loaders renvoient des listes vides', async () => {
+    mockLoadDashboardData.mockResolvedValueOnce({
+      recoOpps: [], events: [], centres: [], tracker: [],
+    })
     await renderPage()
-    expect(screen.getByRole('region', { name: /À ne pas rater/i })).toBeInTheDocument()
+    expect(screen.getByText(/Aucune opportunité à recommander/i)).toBeInTheDocument()
+    expect(screen.getByText(/Aucune candidature en cours/i)).toBeInTheDocument()
+    expect(screen.getByText(/Aucun événement/i)).toBeInTheDocument()
+    expect(screen.getByText(/Aucun centre/i)).toBeInTheDocument()
   })
 })

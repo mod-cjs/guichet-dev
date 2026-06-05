@@ -22,7 +22,7 @@ export function WebDashHero({
 }: Props) {
   return (
     <section
-      className="relative overflow-hidden rounded-gj-lg p-space-5 md:p-space-6
+      className="relative overflow-hidden rounded-gj-lg p-space-4 md:p-space-6
         bg-gradient-to-br from-gj-teal-deep to-gj-ink-teal text-white
         grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-space-5 items-center"
     >
@@ -31,11 +31,11 @@ export function WebDashHero({
         className="absolute -right-12 -top-12 w-72 h-72 rounded-full
           bg-gj-yellow/20 blur-3xl pointer-events-none"
       />
-      <div className="relative">
-        <h1 className="text-fs-700 font-black leading-tight mb-space-2">
+      <div className="relative min-w-0">
+        <h1 className="text-fs-500 md:text-fs-700 font-black leading-tight mb-space-2 break-words">
           Bonjour <span className="text-gj-yellow">{prenom || 'à toi'}</span>
         </h1>
-        <p className="text-fs-300 opacity-95 leading-relaxed max-w-xl">
+        <p className="text-fs-200 md:text-fs-300 opacity-95 leading-relaxed max-w-xl">
           {candidaturesEnCours > 0 ? (
             <>
               Tu as{' '}

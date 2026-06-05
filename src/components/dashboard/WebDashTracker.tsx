@@ -57,7 +57,8 @@ export function WebDashTracker({ items }: Props) {
         return (
           <div
             key={it.id}
-            className={`grid grid-cols-[44px_1fr_auto] gap-space-3 items-center
+            className={`grid grid-cols-[44px_1fr] sm:grid-cols-[44px_1fr_auto]
+              gap-space-3 items-center
               p-space-4 ${i < items.length - 1 ? 'border-b border-gj-line' : ''}`}
           >
             <span
@@ -67,7 +68,7 @@ export function WebDashTracker({ items }: Props) {
             >
               <Icon name={it.icon} size={20} />
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 col-start-2">
               <div className="text-fs-300 font-black leading-tight">{it.title}</div>
               <div className="text-fs-200 text-color-text-secondary mt-space-1">
                 {it.subtitle}
@@ -113,7 +114,9 @@ export function WebDashTracker({ items }: Props) {
             {it.cta && (
               <Link
                 href={it.cta.href}
-                className={`px-space-3 py-space-2 rounded-gj-md font-black text-fs-200
+                className={`col-span-2 sm:col-span-1 sm:col-start-3
+                  inline-flex items-center justify-center
+                  px-space-3 py-space-2 rounded-gj-md font-black text-fs-200
                   ${
                     it.cta.variant === 'ghost'
                       ? 'bg-gj-surface border border-gj-line text-gj-teal-deep hover:bg-gj-teal-soft'
