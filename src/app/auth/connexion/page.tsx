@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Connexion' }
@@ -24,12 +25,16 @@ export default async function ConnexionPage({ searchParams }: Props) {
       <div className="bg-white border border-color-border-default rounded-gj-2xl shadow-gj-md
         w-full max-w-[400px] p-space-6 text-center">
 
-        {/* Logo */}
-        <div className="w-12 h-12 bg-gj-teal rounded-gj-lg flex items-center justify-center mx-auto mb-space-4">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="7" r="4" fill="#F9C400"/>
-            <path d="M4 21c0-5 3.6-8 8-8s8 3 8 8" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+        {/* Logo — image unifiée cf. AppTopbar/BenefSidebar */}
+        <div className="flex items-center justify-center mb-space-4">
+          <Image
+            src="/logo-guichet.png"
+            alt="Guichet Jeunesse"
+            width={160}
+            height={40}
+            priority
+            style={{ height: 40, width: 'auto' }}
+          />
         </div>
 
         <h1 className="text-fs-700 font-black text-color-text-primary mb-space-1">

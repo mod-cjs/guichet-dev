@@ -53,7 +53,7 @@ function Pastille({
         ${
           active
             ? 'bg-gj-teal border-gj-teal text-white'
-            : 'bg-white border-gj-line text-gj-grey hover:border-gj-teal'
+            : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-teal'
         }`}
     >
       {children}

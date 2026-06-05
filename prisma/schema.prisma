@@ -257,6 +257,9 @@ model ProfilJeune {
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int      @default(0) @map("completion_score")
   profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
+  // CV stocké (GUIC-223) — réutilisable depuis CandidatureModal
+  cvUrl             String?  @map("cv_url") @db.VarChar(500)
+  cvUploadedAt      DateTime? @map("cv_uploaded_at")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -409,6 +412,10 @@ model Candidature {
   lettreMotivation     String?           @map("lettre_motivation") @db.Text
   cvUrl                String?           @map("cv_url") @db.VarChar(500)
   notificationsConsent Boolean           @default(false) @map("notifications_consent")
+  // Traçabilité du consentement CGU (GUIC-218 / audit CDP).
+  consentAt            DateTime?         @map("consent_at")
+  cguVersion           String?           @map("cgu_version") @db.VarChar(20)
+  consentIp            String?           @map("consent_ip") @db.VarChar(45)
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
@@ -417,6 +424,7 @@ model Candidature {
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
+  @@index([opportuniteId])
   @@map("candidatures")
 }
 

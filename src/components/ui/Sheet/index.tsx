@@ -1,5 +1,6 @@
 'use client'
 import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Icon } from '../Icon'
 
 interface SheetProps {
   isOpen: boolean
@@ -169,7 +170,7 @@ export function Sheet({
               className="min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center
                 text-gj-grey hover:text-gj-ink rounded-gj-pill"
             >
-              ✕
+              <Icon name="close" />
             </button>
           </div>
         )}

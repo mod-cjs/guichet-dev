@@ -81,7 +81,7 @@ export function CandidaturesClient({ items }: CandidaturesClientProps) {
         )
       ) : (
         <ul
-          className="flex flex-col gap-space-2"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-space-3"
           data-testid="candidatures-list"
           aria-label="Liste des candidatures"
         >

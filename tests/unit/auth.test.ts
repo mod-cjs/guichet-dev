@@ -140,13 +140,13 @@ describe('setSessionCookie', () => {
     Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, writable: true })
   })
 
-  it('pose le cookie cjs_session avec httpOnly et sameSite=lax', () => {
+  it('pose le cookie cjs_session avec httpOnly et sameSite=strict (GUIC-218)', () => {
     const response = new NextResponse()
     setSessionCookie(response, 'jwt-value', 3600)
     const cookie = response.cookies.get('cjs_session')
     expect(cookie?.value).toBe('jwt-value')
     expect(cookie?.httpOnly).toBe(true)
-    expect(cookie?.sameSite).toBe('lax')
+    expect(cookie?.sameSite).toBe('strict')
     expect(cookie?.maxAge).toBe(3600)
   })
 
