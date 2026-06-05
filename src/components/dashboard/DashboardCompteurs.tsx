@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Card } from '@/components/ui'
-import { IconCandidature, IconEvenement, IconFavori, IconCertificat, IconExperience, IconDiplome } from './icons'
+import { Icon } from '@/components/ui/Icon'
 import type { DashboardCounts } from '@/types/profil'
 import type { ReactNode } from 'react'
 
@@ -51,14 +51,14 @@ function Group({ title, stats }: { title: string; stats: Stat[] }) {
 
 export function DashboardCompteurs({ counts }: Props) {
   const parcours: Stat[] = [
-    { label: 'Diplômes',     value: counts.diplomes,     icon: <IconDiplome />,     tone: 'teal' },
-    { label: 'Expériences',  value: counts.experiences,  icon: <IconExperience />,  tone: 'teal' },
-    { label: 'Certificats',  value: counts.certificats,  icon: <IconCertificat />,  tone: 'teal' },
-    { label: 'Candidatures', value: counts.candidatures, icon: <IconCandidature />, tone: 'teal', href: '/jeune/mes-candidatures' },
+    { label: 'Diplômes',     value: counts.diplomes,     icon: <Icon name="learning" />,     tone: 'teal' },
+    { label: 'Expériences',  value: counts.experiences,  icon: <Icon name="employment" />,   tone: 'teal' },
+    { label: 'Certificats',  value: counts.certificats,  icon: <Icon name="check-circle" />, tone: 'teal' },
+    { label: 'Candidatures', value: counts.candidatures, icon: <Icon name="document" />,     tone: 'teal', href: '/jeune/mes-candidatures' },
   ]
   const interactions: Stat[] = [
-    { label: 'Événements', value: counts.eventsInscrits, icon: <IconEvenement />, tone: 'yellow' },
-    { label: 'Favoris',    value: counts.favoris,        icon: <IconFavori />,    tone: 'yellow', href: '/jeune/mes-favoris' },
+    { label: 'Événements', value: counts.eventsInscrits, icon: <Icon name="calendar" />, tone: 'yellow' },
+    { label: 'Favoris',    value: counts.favoris,        icon: <Icon name="heart" />,    tone: 'yellow', href: '/jeune/mes-favoris' },
   ]
 
   return (

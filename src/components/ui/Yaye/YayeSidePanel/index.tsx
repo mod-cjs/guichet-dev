@@ -1,193 +1,171 @@
 'use client'
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
 import { QuickReplies, type QuickReply } from '@/components/ui/Yaye/QuickReplies'
 
-export interface YayeMessage {
+export interface YayeSidePanelMessage {
   id: string
   from: 'bot' | 'user'
-  text: string
+  text: ReactNode
 }
 
 export interface YayeSidePanelProps {
-  /** Ouverture contrôlée du drawer. */
-  isOpen: boolean
-  /** Callback fermeture (Esc, clic backdrop, bouton ✕). */
+  /** Visibilité du panel (controlled). */
+  open: boolean
+  /** Callback fermeture (Esc / backdrop / bouton croix). */
   onClose: () => void
-  /** Liste de messages affichés. Si non fourni, mock conversation par défaut. */
-  messages?: YayeMessage[]
-  /** Réponses rapides proposées sous la conversation. */
+  /** Messages de conversation. Si absent, un mock par défaut est utilisé. */
+  messages?: YayeSidePanelMessage[]
+  /** Réponses rapides affichées sous le dernier message bot. */
   quickReplies?: QuickReply[]
-  /** Callback sélection d'une réponse rapide. */
+  /** Callback sur sélection d'une quick reply. */
   onQuickReply?: (value: string) => void
-  /** Callback envoi message (placeholder input). */
-  onSend?: (text: string) => void
+  /** Etiquette de section (date/horaire) affichée en haut. */
+  dateLabel?: string
 }
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-const DEFAULT_MESSAGES: YayeMessage[] = [
-  { id: 'm1', from: 'bot', text: "Salama Awa. J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet." },
-  { id: 'm2', from: 'user', text: 'Trouve-moi un stage en agro, près de chez moi, payé.' },
-  { id: 'm3', from: 'bot', text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?" },
+const DEFAULT_MESSAGES: YayeSidePanelMessage[] = [
+  {
+    id: 'm1',
+    from: 'bot',
+    text: "Salama Awa. J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet.",
+  },
+  {
+    id: 'm2',
+    from: 'user',
+    text: 'Trouve-moi un stage en agro, près de chez moi, payé.',
+  },
+  {
+    id: 'm3',
+    from: 'bot',
+    text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
+  },
 ]
 
 const DEFAULT_REPLIES: QuickReply[] = [
   { label: 'Voir les 2 offres', value: 'voir-offres' },
   { label: 'Élargis à Kédougou aussi', value: 'elargir-kedougou' },
-  { label: 'Postule pour moi', value: 'postule-pour-moi' },
+  { label: 'Postule pour moi', value: 'postule' },
 ]
 
 /**
- * YayeSidePanel — drawer latéral droit 400px (desktop) ouvert depuis BenefTopBar.
+ * YayeSidePanel — drawer 400px ancré à droite, ouvert via prop `open`.
  *
  * Conforme `design-guichet-v2/web-dashboard.jsx#WebDashYayePanel` :
- * - Header teal-deep + avatar Yaye + badge IA + statut en ligne
- * - Body scrollable bg `#F5FAF8` avec bulles + quick replies
- * - Footer input chat (attach + zone texte + envoi)
- * - Esc + clic backdrop ferment
- * - role="dialog" aria-modal="true"
- * - Focus trap Tab/Shift+Tab, restitution focus à la fermeture
+ * - Header teal-deep avec avatar Y, badge IA, indicateur "en ligne"
+ * - Body scrollable, fond `--gj-bg-soft`, messages alignés
+ * - Footer composer (attache + champ + bouton envoi rond teal)
+ * - Backdrop semi-transparent fermant au clic
+ * - Esc ferme · focus trap basique (focus initial sur le bouton fermer)
+ * - role="dialog" + aria-modal="true" + aria-label="Conversation avec Yaye"
  *
- * Mobile (< md) : bottom-sheet hauteur 88vh.
+ * Non routé : ouvert depuis BenefTopBar (état lifted côté parent client).
+ * Mock data conversation par défaut ; pas d'appel LLM réel ici.
  */
 export function YayeSidePanel({
-  isOpen,
+  open,
   onClose,
   messages = DEFAULT_MESSAGES,
   quickReplies = DEFAULT_REPLIES,
   onQuickReply,
-  onSend,
+  dateLabel = "Aujourd'hui · 9:41",
 }: YayeSidePanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
-  const returnFocusRef = useRef<HTMLElement | null>(null)
-  const [draft, setDraft] = useState('')
-  const titleId = useId()
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-        return
-      }
-      if (e.key !== 'Tab' || !panelRef.current) return
-      const focusables = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE),
-      ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1)
-      if (focusables.length === 0) return
-      const first = focusables[0]
-      const last = focusables[focusables.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    },
-    [onClose],
-  )
-
+  // Esc → close
   useEffect(() => {
-    if (!isOpen) return
-    returnFocusRef.current = (document.activeElement as HTMLElement) ?? null
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeyDown)
-    const id = requestAnimationFrame(() => {
-      const firstFocusable = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)
-      firstFocusable?.focus()
-    })
-    const restore = returnFocusRef.current
-    return () => {
-      document.body.style.overflow = ''
-      document.removeEventListener('keydown', handleKeyDown)
-      cancelAnimationFrame(id)
-      if (restore && document.body.contains(restore)) {
-        try {
-          restore.focus()
-        } catch {
-          /* noop */
-        }
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
       }
     }
-  }, [isOpen, handleKeyDown])
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
 
-  if (!isOpen) return null
+  // Focus initial sur le bouton fermer à l'ouverture
+  useEffect(() => {
+    if (open) {
+      closeBtnRef.current?.focus()
+    }
+  }, [open])
 
-  const submit = () => {
-    const text = draft.trim()
-    if (!text) return
-    onSend?.(text)
-    setDraft('')
-  }
+  if (!open) return null
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: 'var(--gj-z-overlay)' }}>
-      <div
-        className="absolute inset-0"
-        style={{ background: 'var(--gj-overlay)' }}
+    <div
+      data-testid="yaye-side-panel-root"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        display: 'flex',
+        justifyContent: 'flex-end',
+      }}
+    >
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Fermer la conversation Yaye"
         onClick={onClose}
-        aria-hidden
+        data-testid="yaye-side-panel-backdrop"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(15, 30, 28, .35)',
+          border: 0,
+          padding: 0,
+          margin: 0,
+          cursor: 'pointer',
+        }}
       />
-      <div
+
+      <style>{`@keyframes yaye-slide-in{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
+
+      <aside
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 md:inset-y-0 md:left-auto md:right-0 md:w-[400px]
-          bg-white shadow-gj-lg flex flex-col rounded-t-gj-2xl md:rounded-none
-          max-h-[88vh] md:max-h-full"
+        aria-label="Conversation avec Yaye"
+        style={{
+          position: 'relative',
+          width: 400,
+          maxWidth: '100vw',
+          background: 'var(--gj-surface)',
+          borderLeft: '1.5px solid var(--gj-line)',
+          boxShadow: '-10px 0 40px rgba(0,0,0,.18)',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'yaye-slide-in .25s ease',
+        }}
       >
-        {/* Header teal-deep */}
-        <div
-          className="flex items-center gap-space-2 relative flex-shrink-0"
+        {/* Header */}
+        <header
           style={{
             background: 'var(--gj-teal-deep)',
             color: 'var(--gj-surface)',
             padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            position: 'relative',
+            flexShrink: 0,
           }}
         >
-          <YayeAvatar size={32} />
-          <div style={{ flex: 1, lineHeight: 1.15 }}>
-            <div>
-              <span
-                id={titleId}
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: 17,
-                  fontWeight: 900,
-                  background: 'linear-gradient(135deg, #fff, var(--gj-yellow))',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent',
-                }}
-              >
-                Yaye
-              </span>
-              <span
-                style={{
-                  background: 'var(--gj-yellow)',
-                  color: 'var(--gj-teal-deep)',
-                  fontSize: 9,
-                  fontWeight: 900,
-                  padding: '2px 6px',
-                  borderRadius: 999,
-                  marginLeft: 6,
-                  letterSpacing: '.4px',
-                }}
-              >
-                IA
-              </span>
-            </div>
+          <YayeAvatar size={32} withBadge />
+          <div style={{ flex: 1, lineHeight: 1.2 }}>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>Yaye</div>
             <div
               style={{
                 fontSize: 11,
                 opacity: 0.9,
-                marginTop: 1,
+                marginTop: 2,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,
@@ -195,15 +173,21 @@ export function YayeSidePanel({
             >
               <span
                 aria-hidden
-                style={{ width: 6, height: 6, borderRadius: '50%', background: '#7BE5B5' }}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--gj-green, #7BE5B5)',
+                }}
               />
               en ligne · agit sur ton compte
             </div>
           </div>
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={onClose}
-            aria-label="Fermer le panneau Yaye"
+            aria-label="Fermer"
             style={{
               width: 32,
               height: 32,
@@ -214,9 +198,10 @@ export function YayeSidePanel({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              borderRadius: 8,
             }}
           >
-            <Icon name="close" size={16} />
+            <Icon name="close" size={20} />
           </button>
           <div
             aria-hidden
@@ -230,12 +215,19 @@ export function YayeSidePanel({
                 'linear-gradient(90deg, var(--gj-yellow) 0%, var(--gj-yellow) 25%, transparent 25%)',
             }}
           />
-        </div>
+        </header>
 
-        {/* Body conversation */}
+        {/* Body */}
         <div
-          className="flex-1 overflow-y-auto flex flex-col gap-space-2"
-          style={{ background: '#F5FAF8', padding: '14px 14px 8px' }}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '14px 14px 8px',
+            background: 'var(--gj-bg)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
         >
           <div
             style={{
@@ -252,7 +244,7 @@ export function YayeSidePanel({
               marginBottom: 4,
             }}
           >
-            Aujourd&apos;hui · 9:41
+            {dateLabel}
           </div>
           {messages.map((m) => (
             <YayeBubble key={m.id} from={m.from}>
@@ -260,7 +252,7 @@ export function YayeSidePanel({
             </YayeBubble>
           ))}
           {quickReplies.length > 0 && (
-            <div className="mt-space-2">
+            <div style={{ marginTop: 8 }}>
               <QuickReplies
                 replies={quickReplies}
                 onSelect={(v) => onQuickReply?.(v)}
@@ -269,13 +261,17 @@ export function YayeSidePanel({
           )}
         </div>
 
-        {/* Footer input */}
+        {/* Composer (mock, no real submit) */}
         <form
-          className="flex items-center gap-space-2 flex-shrink-0 border-t border-gj-line bg-white"
-          style={{ padding: 12 }}
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
+          onSubmit={(e) => e.preventDefault()}
+          style={{
+            padding: 12,
+            background: 'var(--gj-surface)',
+            borderTop: '1px solid var(--gj-line)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            flexShrink: 0,
           }}
         >
           <button
@@ -288,18 +284,16 @@ export function YayeSidePanel({
               background: 'transparent',
               color: 'var(--gj-grey)',
               cursor: 'pointer',
+              borderRadius: 8,
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              flexShrink: 0,
             }}
           >
             <Icon name="attach" size={18} />
           </button>
           <input
             type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
             placeholder="Demande à Yaye…"
             aria-label="Message à Yaye"
             style={{
@@ -310,14 +304,13 @@ export function YayeSidePanel({
               background: 'var(--gj-bg)',
               borderRadius: 999,
               color: 'var(--gj-ink)',
+              outline: 0,
               fontFamily: 'inherit',
-              outline: 'none',
             }}
           />
           <button
             type="submit"
             aria-label="Envoyer"
-            disabled={!draft.trim()}
             style={{
               background: 'var(--gj-teal-deep)',
               color: 'var(--gj-surface)',
@@ -325,8 +318,7 @@ export function YayeSidePanel({
               borderRadius: '50%',
               width: 40,
               height: 40,
-              cursor: draft.trim() ? 'pointer' : 'not-allowed',
-              opacity: draft.trim() ? 1 : 0.5,
+              cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -336,7 +328,7 @@ export function YayeSidePanel({
             <Icon name="arrow-up" size={16} />
           </button>
         </form>
-      </div>
+      </aside>
     </div>
   )
 }

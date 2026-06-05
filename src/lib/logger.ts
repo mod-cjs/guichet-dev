@@ -1,4 +1,16 @@
+import { createHash } from 'crypto'
+
 type LogLevel = 'info' | 'warn' | 'error' | 'debug'
+
+/**
+ * Hash court (8 hex chars) d'un identifiant pour logs sans PII.
+ * Utilisé pour tracer un `cjsUid` sans l'exposer en clair dans les logs.
+ * Cf CLAUDE.md / GUIC-218 (audit CDP).
+ */
+export function hashId(id: string): string {
+  return createHash('sha256').update(id).digest('hex').slice(0, 8)
+}
+
 
 function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
   const entry = {

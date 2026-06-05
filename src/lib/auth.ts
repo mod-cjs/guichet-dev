@@ -119,10 +119,14 @@ export async function hasRole(role: string): Promise<boolean> {
 // ── Écriture / suppression du cookie ─────────────────────────────────────
 
 export function setSessionCookie(response: NextResponse, encoded: string, maxAge: number): void {
+  // SameSite=Strict (GUIC-218 / CDP) — le cookie de session n'est jamais
+  // utilisé par un flow cross-site : le callback SSO pose le cookie via
+  // une redirection top-level (request initiée depuis notre origine), et
+  // toutes les requêtes API sont same-origin.
   response.cookies.set(SESSION_COOKIE, encoded, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge,
     path:     '/',
   })

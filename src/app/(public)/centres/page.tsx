@@ -23,11 +23,11 @@ export default async function Page() {
     ? `GJS · ${(session.prenom?.[0] ?? '?').toUpperCase()}${(session.nom?.[0] ?? '?').toUpperCase()} · ${session.cjsUid.slice(0, 6)}`
     : undefined
 
-  const nearby = [primary, ...centres.filter((c) => c.id !== primary.id).slice(0, 2)]
+  const orderedCentres = [primary, ...centres.filter((c) => c.id !== primary.id)]
 
   return (
     <div className="bg-gj-bg min-h-[100dvh] pb-space-6">
-      {/* Mobile : layout single-col existant ────────────────────────────── */}
+      {/* MOBILE (< lg) — layout vertical historique */}
       <div className="lg:hidden mx-auto max-w-screen-sm">
         <div className="pt-space-3 px-space-3">
           <CarteCjsHero userName={userName} memberId={memberId} centre={primary.nom} />
@@ -45,7 +45,7 @@ export default async function Page() {
           Près de toi
         </h2>
         <div className="flex flex-col gap-space-2 px-space-3">
-          {nearby.map((c) => (
+          {orderedCentres.slice(0, 3).map((c) => (
             <CentreListItem key={c.id} centre={c} />
           ))}
         </div>
@@ -58,32 +58,34 @@ export default async function Page() {
         </div>
       </div>
 
-      {/* Desktop ≥1024px : grid 2-col (1fr_400px) ─────────────────────── */}
-      <div className="hidden lg:grid mx-auto max-w-screen-xl gap-space-4 px-space-4 pt-space-4
-                      lg:grid-cols-[1fr_400px]">
-        {/* Colonne gauche : Map + liste centres en grid 2-col interne */}
-        <section className="flex flex-col gap-space-4">
-          <CentresMap centres={centres} highlightId={primary.id} />
+      {/* DESKTOP (≥ lg) — layout 2 colonnes */}
+      <div className="hidden lg:grid mx-auto max-w-screen-xl gap-space-4 px-space-4 pt-space-4 lg:grid-cols-[1fr_400px]">
+        {/* Colonne gauche : carte élargie + grille de centres */}
+        <div className="flex flex-col gap-space-4 min-w-0">
+          <CentresMap centres={centres} highlightId={primary.id} variant="desktop" />
 
-          <h2 className="text-fs-100 font-black text-gj-grey uppercase tracking-wide">
-            Près de toi
-          </h2>
-          <div className="grid grid-cols-2 gap-space-3">
-            {nearby.map((c) => (
-              <CentreListItem key={c.id} centre={c} />
-            ))}
-          </div>
+          <section>
+            <h2 className="text-fs-100 font-black text-gj-grey uppercase tracking-wide pb-space-2">
+              Près de toi
+            </h2>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-space-3">
+              {orderedCentres.map((c) => (
+                <CentreListItem key={c.id} centre={c} />
+              ))}
+            </div>
+          </section>
+        </div>
 
-          <h2 className="text-fs-100 font-black text-gj-grey uppercase tracking-wide pt-space-2">
-            Ateliers à mon centre
-          </h2>
-          <AtelierCarousel ateliers={ateliers} />
-        </section>
-
-        {/* Colonne droite 400px sticky : carte + RDV */}
-        <aside className="flex flex-col gap-space-3 lg:sticky lg:top-space-4 self-start">
+        {/* Colonne droite sticky : carte CJS + RDV + ateliers */}
+        <aside className="flex flex-col gap-space-3 lg:sticky lg:top-space-4 lg:self-start">
           <CarteCjsHero userName={userName} memberId={memberId} centre={primary.nom} />
           <RdvCard rdv={MOCK_RDV} />
+          <section>
+            <h2 className="text-fs-100 font-black text-gj-grey uppercase tracking-wide pb-space-2">
+              Ateliers à mon centre
+            </h2>
+            <AtelierCarousel ateliers={ateliers} />
+          </section>
         </aside>
       </div>
     </div>
