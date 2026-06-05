@@ -5,6 +5,9 @@
  * Refonte v2 : on supprime le stepper en 4 étapes pour un single-sheet scroll
  * aligné sur `design-guichet-v2/lot3-opps-mobile.jsx#MobileApplySheet` (L.408-538).
  *
+ * Présentation responsive (GUIC-197) : bottom-sheet mobile (< md), modal centrée
+ * desktop (≥ md) — cf. design v2 WebApplyModal.
+ *
  * Le formulaire affiche :
  *  - un bandeau « Pré-rempli depuis ton profil »
  *  - une carte profil (avatar gradient + identité)
@@ -20,7 +23,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
+import { Sheet, Modal, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader } from '@/components/ui'
 import {
   LETTRE_MAX_CHARS,
@@ -247,30 +250,42 @@ export function CandidatureModal({
     }
   }
 
+  // Choix présentation : bottom-sheet mobile (< md), modal centrée desktop (≥ md).
+  // GUIC-197 — design v2 WebApplyModal : modal centrée 680px sur desktop.
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  const title = `Postuler — ${opportuniteTitre}`
+
+  // Écran succès — présenté dans le même conteneur responsive (modal desktop / sheet mobile).
   if (submitted) {
-    return (
-      <Sheet
-        isOpen={isOpen}
-        onClose={handleClose}
-        title="Candidature envoyée"
-        variant="side"
-      >
-        <SuccessScreen
-          refId={refCandidature(submitted.id)}
-          opportuniteTitre={opportuniteTitre}
-          telephone={viewer.telephone}
-        />
+    const success = (
+      <SuccessScreen
+        refId={refCandidature(submitted.id)}
+        opportuniteTitre={opportuniteTitre}
+        telephone={viewer.telephone}
+      />
+    )
+    return isDesktop ? (
+      <Modal isOpen={isOpen} onClose={handleClose} title="Candidature envoyée" size="lg">
+        {success}
+      </Modal>
+    ) : (
+      <Sheet isOpen={isOpen} onClose={handleClose} title="Candidature envoyée" variant="bottom">
+        {success}
       </Sheet>
     )
   }
 
-  return (
-    <Sheet
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={`Postuler — ${opportuniteTitre}`}
-      variant="side"
-    >
+  const body = (
+    <>
       {error && (
         <div
           role="alert"
@@ -489,6 +504,20 @@ export function CandidatureModal({
           Tu seras notifié par WhatsApp dès qu&apos;on a une réponse.
         </p>
       </div>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <Modal isOpen={isOpen} onClose={handleClose} title={title} size="lg">
+        {body}
+      </Modal>
+    )
+  }
+
+  return (
+    <Sheet isOpen={isOpen} onClose={handleClose} title={title} variant="bottom">
+      {body}
     </Sheet>
   )
 }
