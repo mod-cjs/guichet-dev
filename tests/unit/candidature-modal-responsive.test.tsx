@@ -6,6 +6,11 @@ import { CandidatureModal } from '@/components/opportunites/CandidatureModal'
  * modal centrée (desktop ≥ 768px) selon `window.matchMedia('(min-width:768px)')`.
  */
 
+// Le formulaire (refonte Wave 6/8) consomme `useRouter()` — mock requis.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+}))
+
 function mockMatchMedia(matches: boolean) {
   const listeners: Array<(e: MediaQueryListEvent) => void> = []
   const mql: Partial<MediaQueryList> = {
@@ -39,9 +44,18 @@ const baseProps = {
 }
 
 describe('<CandidatureModal /> — responsive (GUIC-197)', () => {
+  const originalFetch = global.fetch
   beforeEach(() => {
     baseProps.onClose = jest.fn()
     baseProps.onSuccess = jest.fn()
+    // Le formulaire interroge `/api/profil/cv` à l'ouverture (réintégration CV-profil).
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({ data: { cvUrl: null, name: '', uploadedAt: null } }),
+    })) as unknown as typeof fetch
+  })
+  afterEach(() => {
+    global.fetch = originalFetch
   })
 
   it('affiche le titre et le bouton "Envoyer ma candidature" en desktop (modal centrée)', () => {

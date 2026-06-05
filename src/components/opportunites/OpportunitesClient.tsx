@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { TypeOpportunite } from '@prisma/client'
-import { Button, EmptyState, SkeletonCard } from '@/components/ui'
+import { Button, EmptyState, Input, SkeletonCard } from '@/components/ui'
 import { OppCard } from './OppCard'
 import { typeLabel } from './OpportuniteTypeChip'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
@@ -191,15 +191,13 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
         <label htmlFor="opp-search" className="sr-only">
           Rechercher une opportunité
         </label>
-        <input
+        <Input
           id="opp-search"
           type="search"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Rechercher un emploi, un stage, une bourse…"
-          className="w-full px-space-4 rounded-gj-md border-[1.5px] border-gj-line bg-white
-            text-[16px] min-h-[var(--tap-input)] focus:outline-none focus:border-gj-teal-deep
-            focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+          prefixIcon="search"
         />
         <p className="text-fs-200 text-color-text-secondary mt-space-1" aria-live="polite">
           {status === 'loading' ? 'Recherche…' : `${total} opportunité${total > 1 ? 's' : ''}`}
@@ -225,7 +223,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
 
       {/* Rangée horizontale de chips types — mobile uniquement (design v2 M1). */}
       <div
-        className="md:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
+        className="lg:hidden -mx-space-3 mb-space-3 px-space-3 flex gap-space-1 overflow-x-auto
           snap-x snap-mandatory scrollbar-none"
         role="tablist"
         aria-label="Filtrer par type d'opportunité"
@@ -243,7 +241,8 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
               }
               className={[
                 'snap-start shrink-0 inline-flex items-center px-space-3 py-[7px] rounded-gj-pill',
-                'text-fs-200 leading-none whitespace-nowrap border-[1.5px] min-h-[36px]',
+                'text-fs-200 leading-none whitespace-nowrap border-[1.5px]',
+                'min-h-[var(--tap-min)] md:min-h-[36px]',
                 'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
                 active
                   ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep font-black'
@@ -257,12 +256,14 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       </div>
 
       {/* Bouton filtres avancés — mobile */}
-      <div className="md:hidden mb-space-3">
+      <div className="lg:hidden mb-space-3">
         <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
           Filtres avancés{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
+      {/* Layout desktop (lot3-opps-web.jsx#WebOppList, GUIC-197) :
+          sidebar filtres (md 260px / lg 280px) à gauche + liste 1-col à droite. Mobile : sheet. */}
       <div className="flex gap-space-5">
         {/* Panneau filtres — desktop (md : 260px, lg : 280px — GUIC-197) */}
         <aside className="hidden md:block w-[260px] lg:w-[280px] flex-shrink-0">

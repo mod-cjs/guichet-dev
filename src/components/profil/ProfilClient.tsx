@@ -30,37 +30,47 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         </p>
       </div>
 
-      <ProfilHeader
-        nom={initial.nom}
-        prenom={initial.prenom}
-        email={initial.email}
-        completionScore={score}
-      />
+      {/* Layout desktop conforme design v2 : aside gauche 300px sticky (identité +
+          complétude) + colonne droite (sections éditables). Mobile : empilement. */}
+      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-space-5 flex flex-col gap-space-5">
+        <aside>
+          <div className="lg:sticky lg:top-[80px]">
+            <ProfilHeader
+              nom={initial.nom}
+              prenom={initial.prenom}
+              email={initial.email}
+              completionScore={score}
+            />
+          </div>
+        </aside>
 
-      <SectionIdentite
-        data={initial}
-        ssoProfilUrl={ssoProfilUrl}
-        onSaved={handleSaved}
-      />
+        <div className="flex flex-col gap-space-5 min-w-0">
+          <SectionIdentite
+            data={initial}
+            ssoProfilUrl={ssoProfilUrl}
+            onSaved={handleSaved}
+          />
 
-      <SectionProfil
-        data={initial.profil}
-        onSaved={handleSaved}
-      />
+          <SectionProfil
+            data={initial.profil}
+            onSaved={handleSaved}
+          />
 
-      <SectionExperiences
-        experiences={initial.experiences}
-        onScoreChange={setScore}
-      />
+          <SectionExperiences
+            experiences={initial.experiences}
+            onScoreChange={setScore}
+          />
 
-      <SectionDiplomes
-        diplomes={initial.diplomes}
-        onScoreChange={setScore}
-      />
+          <SectionDiplomes
+            diplomes={initial.diplomes}
+            onScoreChange={setScore}
+          />
 
-      <SectionCertificats
-        certificats={initial.certificats}
-      />
+          <SectionCertificats
+            certificats={initial.certificats}
+          />
+        </div>
+      </div>
     </div>
   )
 }

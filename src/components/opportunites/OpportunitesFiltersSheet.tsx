@@ -97,7 +97,8 @@ function PillToggle({
       aria-pressed={selected}
       className={[
         'inline-flex items-center px-space-3 py-[8px] rounded-gj-pill',
-        'text-fs-200 leading-none border-[1.5px] transition-colors min-h-[36px]',
+        'text-fs-200 leading-none border-[1.5px] transition-colors',
+        'min-h-[var(--tap-min)] md:min-h-[36px]',
         'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
         selected
           ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep font-black'
@@ -218,7 +219,7 @@ export function OpportunitesFiltersSheet({
       {/* Barre d'action collante */}
       <div
         className="sticky bottom-0 -mx-space-4 mt-space-4 px-space-4 pt-space-3 pb-space-2
-          bg-white border-t border-gj-line flex gap-space-2"
+          bg-gj-surface border-t border-gj-line flex gap-space-2"
       >
         <Button variant="ghost" size="lg" onClick={reset} className="shrink-0">
           Réinitialiser
