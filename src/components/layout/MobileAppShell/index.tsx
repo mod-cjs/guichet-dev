@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
+import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { MobileShellGate } from './MobileShellGate'
 
 /**
@@ -11,9 +12,11 @@ import { MobileShellGate } from './MobileShellGate'
 export async function MobileTopShell() {
   const session = await getSession()
   if (!session) return null
+  // GUIC-247 — badge cloche : non-lues lues côté serveur (best-effort).
+  const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
   return (
     <MobileShellGate>
-      <AppTopbar session={session} />
+      <AppTopbar session={session} unread={unread} />
     </MobileShellGate>
   )
 }
