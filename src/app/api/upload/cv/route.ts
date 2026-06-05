@@ -33,6 +33,7 @@ import {
   MAX_CV_BYTES,
   RATE_LIMIT_UPLOAD,
 } from '@/lib/constants/candidature'
+import { assertPdfMagicBytes } from '@/lib/security/magic-bytes'
 import type { ApiResponse } from '@/types/api'
 
 /** Réponse renvoyée au client en cas de succès (cf. `UploadedFileMeta`). */
@@ -113,6 +114,21 @@ export async function POST(
           message: `Fichier trop volumineux (max ${MAX_CV_BYTES / 1024 / 1024} MB)`,
         },
       },
+      { status: 400 },
+    )
+  }
+
+  // 4b. GUIC-241 — Magic-bytes : le MIME `application/pdf` annoncé par le client
+  // n'est jamais une preuve. Un fichier texte renommé `cv.pdf` passerait sinon le
+  // filtre MIME → vecteur XSS futur (signed URL recruteur). On lit les premiers
+  // octets du fichier et on rejette AVANT l'upload si l'en-tête %PDF- est absent
+  // (pas de blob orphelin à nettoyer, contrairement à une validation post-put).
+  try {
+    const head = new Uint8Array(await file.slice(0, 8).arrayBuffer())
+    assertPdfMagicBytes(head)
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'INVALID_FILE_CONTENT', message: "Le fichier n'est pas un PDF valide" } },
       { status: 400 },
     )
   }
