@@ -4,6 +4,7 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { useObjectifsStep } from '../_logic/use-onboarding-step'
 import type { ObjectifId } from '@/lib/onboarding-draft'
+import { OnboardingNavWeb } from './OnboardingNavWeb'
 
 interface Props {
   prenom?: string
@@ -39,10 +40,11 @@ function tileColor(accent: 'teal' | 'yellow' | 'blue' | 'green'): string {
  */
 export function OnboardingObjectifsWeb({ prenom }: Props) {
   const { selected, count, toggle, next, skip } = useObjectifsStep()
-  const greeting = prenom ? `Salama ${prenom} — c'est Yaye.` : "Salama Awa — c'est Yaye."
+  const greeting = prenom ? `Salam ${prenom} — c'est Yaye.` : "Salam — c'est Yaye."
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
+      <OnboardingNavWeb step={2} total={4} />
       <div
         className="flex-1 flex flex-col items-center"
         style={{ padding: '48px 24px 40px', overflowY: 'auto' }}
@@ -78,7 +80,7 @@ export function OnboardingObjectifsWeb({ prenom }: Props) {
           </div>
 
           <div>
-            <h2 className="font-black text-color-text-primary" style={{ fontSize: 28, lineHeight: 1.15, letterSpacing: '-.4px' }}>
+            <h2 className="font-black text-color-text-primary text-fs-700" style={{ lineHeight: 1.15, letterSpacing: '-.4px' }}>
               C&apos;est quoi ton objectif&nbsp;?
             </h2>
             <p className="text-gj-grey" style={{ fontSize: 13.5, marginTop: 6 }}>

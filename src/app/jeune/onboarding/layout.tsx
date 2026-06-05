@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { SkipLink } from '@/components/ui/SkipLink'
 
 /**
  * Layout dédié `/jeune/onboarding/*` — funnel obligatoire (5 écrans).
@@ -16,24 +17,25 @@ import { Icon } from '@/components/ui/Icon'
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <SkipLink />
       <header
         className="sticky top-0 bg-gj-surface border-b border-gj-line"
         style={{ zIndex: 'var(--gj-z-nav)', paddingTop: 'var(--safe-top)' }}
       >
         <div className="flex items-center justify-between gap-space-3 px-space-3 h-12">
-          <div className="flex items-center gap-[6px] flex-shrink-0">
+          <Link href="/" className="flex items-center gap-[6px] flex-shrink-0 no-underline">
             <div className="w-8 h-8 bg-gj-teal rounded-[7px] flex items-center justify-center flex-shrink-0">
               <Icon name="profile" size={16} aria-hidden style={{ color: 'var(--gj-yellow)' }} />
             </div>
             <span className="text-fs-300 font-black text-gj-teal-deep leading-none">
               Guichet<b className="text-gj-yellow-ink">Jeunesse</b>
             </span>
-          </div>
+          </Link>
           <Link
             href="/api/auth/logout"
             className="text-fs-200 text-gj-grey hover:text-gj-red no-underline whitespace-nowrap"
           >
-            Se déconnecter
+            Quitter
           </Link>
         </div>
       </header>

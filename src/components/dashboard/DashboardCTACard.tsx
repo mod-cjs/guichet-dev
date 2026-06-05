@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { IconChevron } from './icons'
+import { Icon } from '@/components/ui/Icon'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -22,7 +22,7 @@ export function DashboardCTACard({ href, title, description, icon }: Props) {
         <p className="font-bold text-fs-300 text-color-text-primary">{title}</p>
         <p className="text-fs-200 text-color-text-secondary mt-space-1">{description}</p>
       </div>
-      <div className="text-gj-grey flex-shrink-0 mt-[2px]"><IconChevron /></div>
+      <div className="text-gj-grey flex-shrink-0 mt-[2px]"><Icon name="chevron-right" /></div>
     </Link>
   )
 }

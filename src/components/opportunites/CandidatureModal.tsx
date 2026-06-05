@@ -5,6 +5,9 @@
  * Refonte v2 : on supprime le stepper en 4 étapes pour un single-sheet scroll
  * aligné sur `design-guichet-v2/lot3-opps-mobile.jsx#MobileApplySheet` (L.408-538).
  *
+ * Présentation responsive (GUIC-197) : bottom-sheet mobile (< md), modal centrée
+ * desktop (≥ md) — cf. design v2 WebApplyModal.
+ *
  * Le formulaire affiche :
  *  - un bandeau « Pré-rempli depuis ton profil »
  *  - une carte profil (avatar gradient + identité)
@@ -19,12 +22,42 @@
  */
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Sheet, Button, Icon, FileUpload } from '@/components/ui'
+import { useRouter } from 'next/navigation'
+import { Sheet, Modal, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader } from '@/components/ui'
 import {
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
+
+/**
+ * Métadonnées du CV stocké sur le profil jeune (GUIC-223 / GUIC-224).
+ * Renvoyé par `GET /api/profil/cv`.
+ */
+interface ProfilCvData {
+  cvUrl: string | null
+  name: string
+  uploadedAt: string | null
+}
+
+const dateFmtCv = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
+/** Déduit un nom de fichier lisible à partir d'une URL. */
+function deduceCvName(url: string, fallback?: string): string {
+  if (fallback && fallback.trim().length > 0) return fallback
+  try {
+    const u = new URL(url, 'https://placeholder.local')
+    const last = u.pathname.split('/').filter(Boolean).pop()
+    if (last) return decodeURIComponent(last)
+  } catch {
+    /* noop */
+  }
+  return 'mon-cv.pdf'
+}
 
 export interface ViewerInfo {
   prenom: string
@@ -45,6 +78,11 @@ interface CandidatureModalProps {
   onSuccess: () => void
   /** Nom de l'organisation, intégré au texte de consentement. */
   organisationName?: string
+  /**
+   * Slug de l'opportunité — utilisé pour deep-linker Yaye
+   * (`/jeune/yaye?from=postuler&opp=<slug>`).
+   */
+  opportuniteSlug?: string
   /** Si vrai, le CV est obligatoire (sinon facultatif — design v2). */
   requiresFileUpload?: boolean
   /**
@@ -86,15 +124,21 @@ export function CandidatureModal({
   onClose,
   onSuccess,
   organisationName,
+  opportuniteSlug,
   requiresFileUpload = false,
   uploader = defaultUploader,
 }: CandidatureModalProps) {
+  const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
   const [cv, setCv] = useState<UploadedFileMeta | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
+  // CV depuis profil (GUIC-223 / GUIC-224) — null = pas encore chargé, {cvUrl:null} = profil sans CV.
+  const [profileCv, setProfileCv] = useState<ProfilCvData | null>(null)
+  // Mode CV : 'profile' = réutilise le CV du profil, 'upload' = upload manuel.
+  const [cvMode, setCvMode] = useState<'profile' | 'upload'>('upload')
 
   const lettreId = useId()
   const helperId = useId()
@@ -111,6 +155,29 @@ export function CandidatureModal({
       setError(null)
       setSubmitted(null)
       setSending(false)
+      setCvMode('upload')
+    }
+  }, [isOpen])
+
+  // GUIC-224 — Récupère le CV stocké sur le profil pour proposer sa réutilisation.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    fetch('/api/profil/cv')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (cancelled) return
+        const data = (body?.data ?? null) as ProfilCvData | null
+        setProfileCv(data)
+        // Si un CV est dispo, on bascule par défaut sur le mode 'profile' —
+        // l'utilisateur peut toujours charger un autre via "Charger un nouveau CV".
+        if (data?.cvUrl) setCvMode('profile')
+      })
+      .catch(() => {
+        if (!cancelled) setProfileCv({ cvUrl: null, name: '', uploadedAt: null })
+      })
+    return () => {
+      cancelled = true
     }
   }, [isOpen])
 
@@ -183,30 +250,42 @@ export function CandidatureModal({
     }
   }
 
+  // Choix présentation : bottom-sheet mobile (< md), modal centrée desktop (≥ md).
+  // GUIC-197 — design v2 WebApplyModal : modal centrée 680px sur desktop.
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  const title = `Postuler — ${opportuniteTitre}`
+
+  // Écran succès — présenté dans le même conteneur responsive (modal desktop / sheet mobile).
   if (submitted) {
-    return (
-      <Sheet
-        isOpen={isOpen}
-        onClose={handleClose}
-        title="Candidature envoyée"
-        variant="side"
-      >
-        <SuccessScreen
-          refId={refCandidature(submitted.id)}
-          opportuniteTitre={opportuniteTitre}
-          telephone={viewer.telephone}
-        />
+    const success = (
+      <SuccessScreen
+        refId={refCandidature(submitted.id)}
+        opportuniteTitre={opportuniteTitre}
+        telephone={viewer.telephone}
+      />
+    )
+    return isDesktop ? (
+      <Modal isOpen={isOpen} onClose={handleClose} title="Candidature envoyée" size="lg">
+        {success}
+      </Modal>
+    ) : (
+      <Sheet isOpen={isOpen} onClose={handleClose} title="Candidature envoyée" variant="bottom">
+        {success}
       </Sheet>
     )
   }
 
-  return (
-    <Sheet
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={`Postuler — ${opportuniteTitre}`}
-      variant="side"
-    >
+  const body = (
+    <>
       {error && (
         <div
           role="alert"
@@ -253,7 +332,8 @@ export function CandidatureModal({
           </div>
         </div>
         <Link
-          href="/jeune/profil"
+          href="/jeune/mon-profil"
+          data-testid="edit-profile-link"
           className="inline-block mt-space-2 text-fs-200 font-bold text-gj-teal-deep hover:underline"
         >
           Modifier dans mon profil →
@@ -283,17 +363,18 @@ export function CandidatureModal({
       <div className="flex justify-between gap-space-2 mt-space-1 text-fs-100">
         <button
           type="button"
+          data-testid="yaye-help-button"
           onClick={() => {
-            // Mock — l'intégration LLM réelle viendra via le module Yaye.
-            setLettre((prev) =>
-              prev.length > 0
-                ? prev
-                : "Cette opportunité m'intéresse car elle correspond à mon parcours et à mes envies. Je souhaite contribuer à...",
-            )
+            // GUIC-224 — Deep-link vers Yaye avec le contexte de l'opportunité.
+            // Yaye prendra le relais pour assister la rédaction de la lettre.
+            const qs = opportuniteSlug
+              ? `?from=postuler&opp=${encodeURIComponent(opportuniteSlug)}`
+              : '?from=postuler'
+            router.push(`/jeune/yaye${qs}`)
           }}
           className="inline-flex items-center gap-space-1 text-gj-teal-deep font-bold hover:underline"
         >
-          <Icon name="sparkle" size={14} /> Yaye m'aide
+          <Icon name="sparkle" size={14} /> Yaye m&apos;aide
         </button>
         <span
           id={counterId}
@@ -307,13 +388,77 @@ export function CandidatureModal({
         Quelques lignes sur ta motivation augmentent tes chances.
       </p>
 
-      {/* CV */}
-      <div className="mt-space-4">
-        <FileUpload
-          label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
-          upload={uploader}
-          onChange={setCv}
-        />
+      {/* CV — GUIC-224 : carte « Utiliser mon CV de profil » si dispo, sinon FileUpload */}
+      <div
+        className="mt-space-4"
+        aria-live="polite"
+        data-testid="cv-section"
+      >
+        {profileCv?.cvUrl && cvMode === 'profile' ? (
+          <div
+            data-testid="profile-cv-card"
+            className="rounded-gj-md border border-gj-line bg-white p-space-3"
+          >
+            <p className="text-fs-300 font-bold text-color-text-primary">
+              CV{requiresFileUpload ? '' : ' (facultatif)'}
+            </p>
+            <div className="mt-space-2 flex items-start gap-space-2">
+              <Icon name="document" size={20} />
+              <div className="flex-1 min-w-0">
+                <p className="text-fs-200 font-bold text-color-text-primary truncate">
+                  {deduceCvName(profileCv.cvUrl, profileCv.name)}
+                </p>
+                <p className="text-fs-100 text-color-text-muted">
+                  {profileCv.uploadedAt
+                    ? `Ajouté le ${dateFmtCv.format(new Date(profileCv.uploadedAt))}`
+                    : 'Stocké sur ton profil'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-space-3 flex flex-wrap gap-space-2">
+              <Button
+                variant="primary"
+                size="sm"
+                data-testid="use-profile-cv-button"
+                onClick={() => {
+                  if (!profileCv.cvUrl) return
+                  setCv({
+                    url: profileCv.cvUrl,
+                    name: deduceCvName(profileCv.cvUrl, profileCv.name),
+                    sizeKb: 0,
+                  })
+                }}
+              >
+                Utiliser ce CV
+              </Button>
+              <button
+                type="button"
+                data-testid="upload-new-cv-button"
+                onClick={() => {
+                  setCv(null)
+                  setCvMode('upload')
+                }}
+                className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+              >
+                Charger un nouveau CV
+              </button>
+            </div>
+            {cv?.url === profileCv.cvUrl && (
+              <p
+                className="mt-space-2 text-fs-100 text-gj-green-ink inline-flex items-center gap-space-1"
+                data-testid="profile-cv-selected"
+              >
+                <Icon name="check-circle" size={14} /> CV de profil sélectionné
+              </p>
+            )}
+          </div>
+        ) : (
+          <FileUpload
+            label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
+            upload={uploader}
+            onChange={setCv}
+          />
+        )}
       </div>
 
       {/* Consentement CGU unique */}
@@ -331,7 +476,7 @@ export function CandidatureModal({
         <span>
           J&apos;accepte que {organisationName ?? "l'organisation"} reçoive mon
           profil CJS et me contacte.{' '}
-          <Link href="/cgu" className="text-gj-teal-deep font-bold hover:underline">
+          <Link href="/legal/cgu" className="text-gj-teal-deep font-bold hover:underline">
             en savoir plus
           </Link>
         </span>
@@ -359,6 +504,20 @@ export function CandidatureModal({
           Tu seras notifié par WhatsApp dès qu&apos;on a une réponse.
         </p>
       </div>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <Modal isOpen={isOpen} onClose={handleClose} title={title} size="lg">
+        {body}
+      </Modal>
+    )
+  }
+
+  return (
+    <Sheet isOpen={isOpen} onClose={handleClose} title={title} variant="bottom">
+      {body}
     </Sheet>
   )
 }
