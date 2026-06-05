@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui'
-import { IconCandidature, IconEvenement, IconFavori, IconCertificat, IconExperience, IconDiplome } from './icons'
+import { Icon } from '@/components/ui/Icon'
 import { timeAgo } from '@/lib/time-ago'
 import type { ActivityItem } from '@/types/profil'
 import type { ReactNode } from 'react'
@@ -8,12 +8,12 @@ interface Props { items: ActivityItem[] }
 
 function describe(item: ActivityItem): { icon: ReactNode; text: string } {
   switch (item.type) {
-    case 'candidature':           return { icon: <IconCandidature />, text: `Candidature envoyée à « ${item.opportuniteTitre} »` }
-    case 'inscription_evenement': return { icon: <IconEvenement />,   text: `Inscription à « ${item.evenementTitre} »` }
-    case 'favori_ressource':      return { icon: <IconFavori />,      text: `Ressource ajoutée aux favoris : ${item.ressourceTitre}` }
-    case 'experience_ajoutee':    return { icon: <IconExperience />,  text: `Expérience ajoutée : ${item.poste} chez ${item.organisation}` }
-    case 'diplome_ajoute':        return { icon: <IconDiplome />,     text: `Diplôme ajouté : ${item.intitule} (${item.anneeObtention})` }
-    case 'certificat_recu':       return { icon: <IconCertificat />,  text: `Certificat reçu : ${item.intitule}` }
+    case 'candidature':           return { icon: <Icon name="document" />,     text: `Candidature envoyée à « ${item.opportuniteTitre} »` }
+    case 'inscription_evenement': return { icon: <Icon name="calendar" />,     text: `Inscription à « ${item.evenementTitre} »` }
+    case 'favori_ressource':      return { icon: <Icon name="heart" />,        text: `Ressource ajoutée aux favoris : ${item.ressourceTitre}` }
+    case 'experience_ajoutee':    return { icon: <Icon name="employment" />,   text: `Expérience ajoutée : ${item.poste} chez ${item.organisation}` }
+    case 'diplome_ajoute':        return { icon: <Icon name="learning" />,     text: `Diplôme ajouté : ${item.intitule} (${item.anneeObtention})` }
+    case 'certificat_recu':       return { icon: <Icon name="check-circle" />, text: `Certificat reçu : ${item.intitule}` }
   }
 }
 

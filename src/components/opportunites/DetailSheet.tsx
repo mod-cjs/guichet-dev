@@ -12,7 +12,7 @@ export function DetailSheet({ detail, viewer }: { detail: Detail; viewer: Viewer
   return (
     <Sheet isOpen onClose={() => router.back()} variant="side">
       <Suspense fallback={null}>
-        <OpportuniteDetail detail={detail} viewer={viewer} />
+        <OpportuniteDetail detail={detail} viewer={viewer} onClose={() => router.back()} />
       </Suspense>
     </Sheet>
   )

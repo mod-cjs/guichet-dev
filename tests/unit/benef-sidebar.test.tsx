@@ -1,7 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 
+let mockPathname = '/'
+jest.mock('next/navigation', () => ({
+  usePathname: () => mockPathname,
+}))
+
 describe('<BenefSidebar />', () => {
+  beforeEach(() => {
+    mockPathname = '/'
+  })
+
   it('a role="navigation" et aria-label', () => {
     render(<BenefSidebar />)
     const nav = screen.getByRole('navigation', { name: /Navigation principale/i })
@@ -49,5 +58,35 @@ describe('<BenefSidebar />', () => {
     const elearning = screen.getByRole('link', { name: /E-learning \(ouvre dans un nouvel onglet\)/i })
     expect(elearning).toHaveAttribute('target', '_blank')
     expect(elearning).toHaveAttribute('href', 'https://elearning.guichetjeunesse.sn')
+  })
+
+  it('résout l\'item actif depuis le pathname (mes-candidatures)', () => {
+    mockPathname = '/jeune/mes-candidatures'
+    render(<BenefSidebar />)
+    const active = screen.getByRole('link', { current: 'page' })
+    expect(active).toHaveTextContent('Mes candidatures')
+  })
+
+  it('résout l\'item actif depuis le pathname (mes-favoris)', () => {
+    mockPathname = '/jeune/mes-favoris'
+    render(<BenefSidebar />)
+    const active = screen.getByRole('link', { current: 'page' })
+    expect(active).toHaveTextContent('Mes favoris')
+  })
+
+  it('inclut un item "Mes formations" → /jeune/mes-formations', () => {
+    render(<BenefSidebar />)
+    const link = screen.getByRole('link', { name: /Mes formations/i })
+    expect(link).toHaveAttribute('href', '/jeune/mes-formations')
+  })
+
+  it('ne référence plus /jeune/parametres ni /jeune/favoris ni /jeune/candidatures', () => {
+    const { container } = render(<BenefSidebar />)
+    const hrefs = Array.from(container.querySelectorAll('a')).map(a => a.getAttribute('href'))
+    expect(hrefs).not.toContain('/jeune/parametres')
+    expect(hrefs).not.toContain('/jeune/favoris')
+    expect(hrefs).not.toContain('/jeune/candidatures')
+    expect(hrefs).toContain('/jeune/mes-favoris')
+    expect(hrefs).toContain('/jeune/mes-candidatures')
   })
 })

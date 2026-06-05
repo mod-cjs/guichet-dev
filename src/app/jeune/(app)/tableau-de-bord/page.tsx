@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { loadDashboardCounts, loadRecentActivity, ACTIVITY_LIMIT_DEFAULT } from '@/lib/dashboard-loader'
 import { prisma } from '@/lib/prisma'
 import { DashboardHero, DashboardCompteurs, ActivityFeed, DashboardCTACard } from '@/components/dashboard'
-import { IconCandidature, IconEvenement, IconDiplome } from '@/components/dashboard/icons'
+import { Icon } from '@/components/ui/Icon'
 
 export const metadata = { title: 'Tableau de bord — Guichet Jeunesse' }
 
@@ -30,8 +30,11 @@ export default async function TableauDeBordPage() {
         completionScore={completionScore}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-space-5">
-        {/* Colonne principale : compteurs + CTA (2fr) */}
+      {/* Layout desktop conforme design v2 (web-dashboard.jsx#WebDashboard l.614-689) :
+          colonne principale 2fr (KPIs + CTAs) + aside 1fr (ActivityFeed sticky).
+          Mobile : empilement vertical. */}
+      <div className="lg:grid lg:grid-cols-[2fr_1fr] lg:gap-space-5 flex flex-col gap-space-5">
+        {/* Colonne principale (2fr) */}
         <div className="flex flex-col gap-space-5">
           <DashboardCompteurs counts={counts} />
 
@@ -43,24 +46,24 @@ export default async function TableauDeBordPage() {
               href="/jeune/mon-profil"
               title="Compléter mon profil"
               description="Diplômes, expériences, compétences"
-              icon={<IconDiplome />}
+              icon={<Icon name="learning" />}
             />
             <DashboardCTACard
               href="/opportunites"
               title="Voir les opportunités"
               description="Stages, emplois, formations, bourses"
-              icon={<IconCandidature />}
+              icon={<Icon name="document" />}
             />
             <DashboardCTACard
               href="/agenda"
               title="Voir les événements"
               description="Forums, ateliers, webinaires"
-              icon={<IconEvenement />}
+              icon={<Icon name="calendar" />}
             />
           </div>
         </div>
 
-        {/* Colonne secondaire : flux d'activités sticky desktop (1fr) */}
+        {/* Aside (1fr) — flux d'activités sticky desktop */}
         <aside>
           <div className="lg:sticky lg:top-[80px]">
             <ActivityFeed items={activity} />
