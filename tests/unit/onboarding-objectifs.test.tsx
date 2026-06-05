@@ -106,6 +106,6 @@ describe('<OnboardingObjectifs /> — écran 3/5', () => {
 
   it('greeting Yaye inclut le prénom si fourni', () => {
     render(<OnboardingObjectifs prenom="Awa" />)
-    expect(screen.getByText(/salama awa/i)).toBeInTheDocument()
+    expect(screen.getByText(/salam awa/i)).toBeInTheDocument()
   })
 })

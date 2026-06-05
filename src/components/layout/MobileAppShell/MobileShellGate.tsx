@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 // - /admin /recruteur : ont leur propre sidebar
 // - /jeune/onboarding : funnel obligatoire, ne pas permettre de sortir
 // - /auth : pages de connexion / callback
-const EXCLUDED_PREFIXES = ['/admin', '/recruteur', '/jeune/onboarding', '/auth']
+const EXCLUDED_PREFIXES = ['/admin', '/recruteur', '/jeune/onboarding', '/jeune/yaye', '/auth']
 
 function isExcluded(path: string): boolean {
   return EXCLUDED_PREFIXES.some(p => path === p || path.startsWith(p + '/'))

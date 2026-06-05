@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Icon } from '@/components/ui/Icon'
 
 const PUBLIC_LINKS = [
   { href: '/',             label: 'Accueil',      match: (p: string) => p === '/' },
@@ -9,6 +10,11 @@ const PUBLIC_LINKS = [
   { href: '/agenda',       label: 'Agenda',       match: (p: string) => p.startsWith('/agenda') },
   { href: '/ressources',   label: 'Ressources',   match: (p: string) => p.startsWith('/ressources') },
   { href: '/centres',      label: 'Centres CJS',  match: (p: string) => p.startsWith('/centres') },
+]
+
+const EXTERNAL_LINKS = [
+  { href: 'https://yeah.consortiumjeunessesenegal.org', label: 'YEAH' },
+  { href: 'https://elearning.guichetjeunesse.sn',       label: 'E-learning' },
 ]
 
 const AUTH_LINKS = [
@@ -43,6 +49,23 @@ export function HeaderNav({ isAuthenticated }: Props) {
           </Link>
         )
       })}
+
+      {EXTERNAL_LINKS.map(link => (
+        <a
+          key={link.href}
+          href={link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${link.label} (ouvre dans un nouvel onglet)`}
+          className="px-[8px] text-[11px] no-underline whitespace-nowrap flex-shrink-0 transition-colors
+            border-b-[3px] text-gj-grey hover:text-gj-teal hover:bg-gj-teal-soft border-transparent
+            inline-flex items-center gap-1"
+          style={{ paddingTop: 13, paddingBottom: 13 }}
+        >
+          {link.label}
+          <Icon name="external" size={10} />
+        </a>
+      ))}
 
       {isAuthenticated && (
         <>
