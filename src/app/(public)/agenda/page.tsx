@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { listEvenements } from '@/lib/loaders/evenements'
 import { EvenementsClient } from '@/components/evenements'
+import { getSession } from '@/lib/auth'
 
 export const metadata: Metadata = {
   title: 'Événements',
@@ -8,11 +9,14 @@ export const metadata: Metadata = {
     'Formations, ateliers, forums et webinaires du réseau CJS au Sénégal — agenda public.',
 }
 
-// Force le rendu dynamique : la liste évolue dans le temps.
+// Force le rendu dynamique : la liste évolue dans le temps et l'auth conditionne l'UI.
 export const dynamic = 'force-dynamic'
 
 export default async function AgendaPage() {
-  const { items, total } = await listEvenements()
+  const [{ items, total }, session] = await Promise.all([
+    listEvenements(),
+    getSession(),
+  ])
 
   return (
     <div className="container-page py-space-6">
@@ -23,7 +27,7 @@ export default async function AgendaPage() {
         </p>
       </header>
 
-      <EvenementsClient initialItems={items} total={total} />
+      <EvenementsClient initialItems={items} total={total} isAuthenticated={!!session} />
     </div>
   )
 }

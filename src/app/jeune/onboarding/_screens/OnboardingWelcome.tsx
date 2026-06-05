@@ -2,17 +2,21 @@
 
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats.shared'
 
 interface Props {
   /** Prénom affiché en eyebrow s'il est connu (sinon "Le guichet unique du CJS"). */
   prenom?: string
+  /**
+   * Stats CJS injectées par le Server Component parent (GUIC-235).
+   * Fallback sur le snapshot 2026-05 pour Storybook / contexts sans DB.
+   */
+  stats?: HomeStats
 }
-
-const STATS = [
-  { value: '22 695', label: 'Jeunes inscrits' },
-  { value: '1 240',  label: 'Opps actives'    },
-  { value: '14',     label: 'Régions'         },
-] as const
 
 /**
  * Onboarding écran 1/5 — Welcome.
@@ -24,7 +28,12 @@ const STATS = [
  *
  * Conforme `design-guichet-v2/onboarding.jsx#Onboard1Welcome`.
  */
-export function OnboardingWelcome({ prenom }: Props) {
+export function OnboardingWelcome({ prenom, stats = FALLBACK_HOME_STATS }: Props) {
+  const STATS = [
+    { value: formatHomeStat(stats.jeunesInscrits),      label: 'Jeunes inscrits' },
+    { value: formatHomeStat(stats.opportunitesActives), label: 'Opps actives'    },
+    { value: formatHomeStat(stats.regionsCouvertes),    label: 'Régions'         },
+  ] as const
   return (
     <div
       className="flex flex-col"

@@ -5,7 +5,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import type { ApiResponse } from '@/types/api'
 
 /**
- * GUIC-223 — CV depuis profil.
+ * GUIC-223 / GUIC-224 — CV depuis profil.
  * Retourne le CV courant du jeune authentifié pour réutilisation dans
  * CandidatureModal ("Utiliser mon CV de profil").
  */

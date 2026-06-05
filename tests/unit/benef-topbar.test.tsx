@@ -1,11 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
+const pushMock = jest.fn()
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
 }))
 
 describe('<BenefTopBar />', () => {
+  beforeEach(() => {
+    pushMock.mockClear()
+  })
+
   it('rend search + 3 actions + UserMenu', () => {
     render(<BenefTopBar userInitials="AD" userPrenom="Awa" userNom="Diop" />)
     expect(screen.getByRole('searchbox', { name: /Rechercher/i })).toBeInTheDocument()
@@ -39,6 +44,28 @@ describe('<BenefTopBar />', () => {
     expect(screen.getByText('99+')).toBeInTheDocument()
   })
 
+  it('expose un bouton Yaye qui ouvre le side panel', () => {
+    render(<BenefTopBar userInitials="AD" />)
+    const trigger = screen.getByRole('button', {
+      name: /Ouvrir la conversation avec Yaye/i,
+    })
+    expect(trigger).toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: /Conversation avec Yaye/i })).toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('notifie onYayeOpenChange en mode controlled', () => {
+    const onChange = jest.fn()
+    render(<BenefTopBar userInitials="AD" yayeOpen={false} onYayeOpenChange={onChange} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Ouvrir la conversation avec Yaye/i }),
+    )
+    expect(onChange).toHaveBeenCalledWith(true)
+  })
+
   it('appelle les click handlers', () => {
     const onBookmark = jest.fn()
     const onBell = jest.fn()
@@ -66,5 +93,30 @@ describe('<BenefTopBar />', () => {
     fireEvent.click(screen.getByRole('button', { name: /Menu utilisateur/i }))
     expect(screen.getByRole('menuitem', { name: /Mon profil/i })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /déconnecter/i })).toBeInTheDocument()
+  })
+
+  it('navigue vers /opportunites?q= au submit du formulaire', () => {
+    render(<BenefTopBar />)
+    const input = screen.getByRole('searchbox')
+    fireEvent.change(input, { target: { value: 'data science' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(pushMock).toHaveBeenCalledWith('/opportunites?q=data%20science')
+  })
+
+  it('ignore la soumission si query vide', () => {
+    render(<BenefTopBar />)
+    const input = screen.getByRole('searchbox')
+    fireEvent.submit(input.closest('form')!)
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('appelle onSearchSubmit si fourni au lieu de naviguer', () => {
+    const onSubmit = jest.fn()
+    render(<BenefTopBar onSearchSubmit={onSubmit} />)
+    const input = screen.getByRole('searchbox')
+    fireEvent.change(input, { target: { value: 'stage' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(onSubmit).toHaveBeenCalledWith('stage')
+    expect(pushMock).not.toHaveBeenCalled()
   })
 })
