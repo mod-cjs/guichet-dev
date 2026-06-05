@@ -23,7 +23,7 @@ interface Props {
  *
  * Hero gradient `gj-teal-deep → ink-teal`, glow jaune en haut à droite,
  * stats CJS hardcodées, photo testimonial placeholder, CTA primaire jaune
- * "Commencer" → `/jeune/onboarding/telephone`, CTA ghost "J'ai déjà un compte"
+ * "Créer mon compte" → `/jeune/onboarding/telephone`, CTA ghost "J'ai déjà un compte"
  * → `/auth/connexion`.
  *
  * Conforme `design-guichet-v2/onboarding.jsx#Onboard1Welcome`.
@@ -151,7 +151,7 @@ export function OnboardingWelcome({ prenom, stats = FALLBACK_HOME_STATS }: Props
             padding: '0 18px',
           }}
         >
-          <span>Commencer</span>
+          <span>Créer mon compte</span>
           <Icon name="arrow-right" size={16} aria-hidden />
         </Link>
         <Link
