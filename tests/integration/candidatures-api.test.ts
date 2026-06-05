@@ -38,6 +38,13 @@ jest.mock('@/lib/notifications', () => ({
   notifyCandidatureConfirmee: (...a: unknown[]) => mockNotify(...a),
 }))
 
+// GUIC-232 — par défaut : profil complet (les tests qui veulent vérifier
+// l'erreur 403 PROFILE_INCOMPLETE override ce mock).
+const mockCheckCompletude = jest.fn().mockResolvedValue({ complet: true, missing: [] })
+jest.mock('@/lib/profil-completude', () => ({
+  checkProfilCompletude: (...a: unknown[]) => mockCheckCompletude(...a),
+}))
+
 // `after` exécuté inline pour observer le dispatch des notifications.
 jest.mock('next/server', () => {
   const actual = jest.requireActual('next/server')
@@ -73,6 +80,7 @@ beforeEach(() => {
   mockGetSession.mockResolvedValue(SESSION)
   mockOppFindUnique.mockResolvedValue(OPP)
   mockCandCreate.mockResolvedValue({ id: 'c1', cjsUid: 'uid-1', opportuniteId: OPP_ID })
+  mockCheckCompletude.mockResolvedValue({ complet: true, missing: [] })
 })
 
 describe('POST /api/candidatures', () => {
@@ -114,6 +122,33 @@ describe('POST /api/candidatures', () => {
     expect(createArg.data.consentIp).toBe('192.0.2.1')
     expect(mockNotify).toHaveBeenCalledTimes(1)
     expect(mockNotify.mock.calls[0][1]).toBe(true) // consentement transmis
+  })
+
+  it('GUIC-232 — renvoie 403 PROFILE_INCOMPLETE si le profil est incomplet', async () => {
+    mockCheckCompletude.mockResolvedValue({
+      complet: false,
+      missing: ['region', 'niveauEtude', 'domainesInteret'],
+    })
+    const res = await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: LETTRE_OK }))
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error.code).toBe('PROFILE_INCOMPLETE')
+    expect(body.error.missing).toEqual(['region', 'niveauEtude', 'domainesInteret'])
+    // L'opportunité ne doit pas être interrogée et la candidature jamais créée.
+    expect(mockOppFindUnique).not.toHaveBeenCalled()
+    expect(mockCandCreate).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-232 — accepte une lettre jusqu’à 4000 caractères', async () => {
+    const longLettre = 'a'.repeat(4000)
+    const res = await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: longLettre }))
+    expect(res.status).toBe(201)
+  })
+
+  it('GUIC-232 — refuse une lettre > 4000 caractères', async () => {
+    const tooLong = 'a'.repeat(4001)
+    const res = await route.POST(postReq({ opportuniteId: OPP_ID, lettreMotivation: tooLong }))
+    expect(res.status).toBe(400)
   })
 
   it('renvoie 409 si l’utilisateur a déjà candidaté', async () => {

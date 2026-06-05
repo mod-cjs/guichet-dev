@@ -35,7 +35,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
             href="/api/auth/logout"
             className="text-fs-200 text-gj-grey hover:text-gj-red no-underline whitespace-nowrap"
           >
-            Se déconnecter
+            Quitter
           </Link>
         </div>
       </header>

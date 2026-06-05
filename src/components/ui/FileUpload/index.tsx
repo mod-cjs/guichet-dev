@@ -26,13 +26,40 @@ export interface UploadedFileMeta {
  */
 export type FileUploader = (safeName: string, file: File) => Promise<UploadedFileMeta>
 
+/**
+ * Fichier sélectionné mais pas encore uploadé — émis en mode `defer`
+ * (GUIC-229). Le parent décide quand déclencher l'upload réel pour
+ * éviter les blobs orphelins si l'utilisateur change d'avis.
+ */
+export interface DeferredFile {
+  file: File
+  safeName: string
+  sizeKb: number
+}
+
+/**
+ * Mode de fonctionnement du composant.
+ *  - `upload` : comportement historique — l'upload est déclenché
+ *    immédiatement à la sélection (compat Wave 6 / GUIC-217).
+ *  - `defer` : on valide MIME + taille puis on émet un `DeferredFile`
+ *    via `onSelect`. Aucun appel réseau. Le parent uploade au submit.
+ */
+export type FileUploadMode = 'upload' | 'defer'
+
 export interface FileUploadProps {
   /** Libellé visuel (par défaut « CV »). */
   label?: string
-  /** Implémentation d'upload (réseau). */
-  upload: FileUploader
-  /** Notifie le parent quand un fichier est uploadé / supprimé. */
+  /**
+   * Mode `upload` (défaut, rétrocompatible) ou `defer` (GUIC-229).
+   * En `defer`, la prop `upload` est ignorée et `onSelect` est utilisée.
+   */
+  mode?: FileUploadMode
+  /** Implémentation d'upload (réseau) — requise en mode `upload`. */
+  upload?: FileUploader
+  /** Notifie le parent quand un fichier est uploadé / supprimé (mode `upload`). */
   onChange?: (meta: UploadedFileMeta | null) => void
+  /** Notifie le parent quand un fichier est sélectionné / retiré (mode `defer`). */
+  onSelect?: (deferred: DeferredFile | null) => void
   /** Types MIME acceptés (défaut PDF uniquement). */
   accept?: readonly string[]
   /** Taille max en octets (défaut `MAX_CV_BYTES`). */
@@ -47,17 +74,22 @@ function sanitizeFilename(name: string): string {
 }
 
 /**
- * Primitive `FileUpload` — CV / pièce jointe (GUIC-189 / Wave 6 / GUIC-217).
+ * Primitive `FileUpload` — CV / pièce jointe (GUIC-189 / Wave 6 / GUIC-217
+ * + GUIC-229 mode `defer`).
  *
  * - A11y : `role="progressbar"` pendant l'upload, `aria-live="polite"`
  *   sur le résumé, `role="alert"` sur l'erreur.
  * - Sécurité : sanitization du nom de fichier avant appel `upload()`.
  * - Mobile : bouton « Changer » respecte `--tap-min` (44px).
+ * - GUIC-229 : mode `defer` — pas d'upload réseau tant que le parent
+ *   ne le demande pas, ce qui évite les blobs orphelins (cf. finding C3).
  */
 export function FileUpload({
   label = 'CV',
+  mode = 'upload',
   upload,
   onChange,
+  onSelect,
   accept = ALLOWED_CV_MIME,
   maxBytes = MAX_CV_BYTES,
   disabled = false,
@@ -66,6 +98,7 @@ export function FileUpload({
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<UploadedFileMeta | null>(null)
+  const [deferred, setDeferred] = useState<DeferredFile | null>(null)
   const inputId = useId()
 
   const openPicker = useCallback(() => {
@@ -93,6 +126,22 @@ export function FileUpload({
       }
 
       const safeName = sanitizeFilename(file.name)
+
+      // Mode `defer` (GUIC-229) — on n'uploade rien, on remonte juste
+      // le File au parent. Zéro blob créé tant que le parent ne décide pas.
+      if (mode === 'defer') {
+        const sizeKb = Math.round(file.size / 1024)
+        const next: DeferredFile = { file, safeName, sizeKb }
+        setDeferred(next)
+        onSelect?.(next)
+        return
+      }
+
+      // Mode `upload` (historique) — POST immédiat.
+      if (!upload) {
+        setError('Configuration invalide : `upload` manquant en mode upload.')
+        return
+      }
       setProgress(0)
       try {
         // Fake-progress ramp pour feedback utilisateur ; l'upload réel
@@ -109,14 +158,21 @@ export function FileUpload({
         setProgress(null)
       }
     },
-    [accept, maxBytes, onChange, upload],
+    [accept, maxBytes, mode, onChange, onSelect, upload],
   )
 
   const reset = useCallback(() => {
     setMeta(null)
+    setDeferred(null)
     setError(null)
     onChange?.(null)
-  }, [onChange])
+    onSelect?.(null)
+  }, [onChange, onSelect])
+
+  // Vue « fichier prêt » — couvre les deux modes.
+  const ready = mode === 'defer' ? deferred : meta
+  const readyName = ready ? ('file' in ready ? ready.safeName : ready.name) : null
+  const readyKb = ready?.sizeKb ?? null
 
   return (
     <div className="flex flex-col gap-space-2">
@@ -133,7 +189,7 @@ export function FileUpload({
         disabled={disabled}
       />
 
-      {!meta && progress === null && (
+      {!ready && progress === null && (
         <button
           type="button"
           onClick={openPicker}
@@ -164,16 +220,16 @@ export function FileUpload({
       )}
 
       <div aria-live="polite" className="contents">
-        {meta && progress === null && (
+        {ready && progress === null && (
           <div className="flex items-center justify-between gap-space-2 rounded-gj-md
             border border-gj-line px-space-3 py-space-2 bg-gj-bg">
             <div className="flex items-center gap-space-2 min-w-0">
               <Icon name="document" />
               <span className="truncate text-fs-200 text-color-text-primary">
-                {label} chargé : {meta.name}
+                {label} chargé : {readyName}
               </span>
               <span className="text-fs-100 text-gj-grey shrink-0">
-                ({meta.sizeKb} Ko)
+                ({readyKb} Ko)
               </span>
             </div>
             <button

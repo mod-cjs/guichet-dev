@@ -68,7 +68,7 @@ beforeEach(() => {
 describe('OnboardingObjectifsWeb', () => {
   test('rend la Yaye bar et les 5 objectifs', async () => {
     render(<OnboardingObjectifsWeb prenom="Awa" />)
-    expect(screen.getByText(/Salama Awa/)).toBeInTheDocument()
+    expect(screen.getByText(/Salam Awa/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Trouver un emploi/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Lancer mon projet/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Me former/i })).toBeInTheDocument()

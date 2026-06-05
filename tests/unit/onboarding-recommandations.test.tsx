@@ -46,11 +46,12 @@ describe('<OnboardingRecommandations /> — écran 5/5', () => {
     expect(JSON.parse(call[1].body).step).toBe(3)
   })
 
-  it('CTA secondaire "Plus tard" finalise aussi et redirige', async () => {
+  it('CTA secondaire "← Retour au profil" appelle window.history.back', () => {
+    const backSpy = jest.spyOn(window.history, 'back').mockImplementation(() => {})
     render(<OnboardingRecommandations />)
-    fireEvent.click(screen.getByRole('button', { name: /plus tard/i }))
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/jeune/tableau-de-bord')
-    })
+    fireEvent.click(screen.getByRole('button', { name: /retour au profil/i }))
+    expect(backSpy).toHaveBeenCalledTimes(1)
+    expect(pushMock).not.toHaveBeenCalled()
+    backSpy.mockRestore()
   })
 })

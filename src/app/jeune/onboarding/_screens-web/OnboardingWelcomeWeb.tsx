@@ -2,17 +2,18 @@
 
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats.shared'
 
 interface Props {
   prenom?: string
+  /** Stats CJS temps réel — GUIC-235. Fallback snapshot si non fourni. */
+  stats?: HomeStats
 }
-
-const STATS = [
-  { value: '22 695', label: 'Jeunes inscrits' },
-  { value: '1 240',  label: 'Opps actives'    },
-  { value: '14',     label: 'Régions'         },
-  { value: '9',      label: 'Centres CJS'     },
-] as const
 
 /**
  * Onboarding écran 1/5 — version WEB (≥1024px, GUIC-195 phase 3-1).
@@ -24,7 +25,13 @@ const STATS = [
  * Pas de logique métier : 2 liens vers `/jeune/onboarding/telephone`
  * et `/auth/connexion`.
  */
-export function OnboardingWelcomeWeb({ prenom }: Props) {
+export function OnboardingWelcomeWeb({ prenom, stats = FALLBACK_HOME_STATS }: Props) {
+  const STATS = [
+    { value: formatHomeStat(stats.jeunesInscrits),      label: 'Jeunes inscrits' },
+    { value: formatHomeStat(stats.opportunitesActives), label: 'Opps actives'    },
+    { value: formatHomeStat(stats.regionsCouvertes),    label: 'Régions'         },
+    { value: formatHomeStat(stats.centresActifs),       label: 'Centres CJS'     },
+  ] as const
   return (
     <div
       className="flex flex-col text-white"
@@ -237,35 +244,10 @@ export function OnboardingWelcomeWeb({ prenom }: Props) {
               transform: 'translateY(-30px)',
             }}
           >
-            <div
-              aria-hidden
-              className="inline-flex items-center justify-center font-black flex-shrink-0"
-              style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #19A757, #0A807F)',
-                color: '#fff',
-                fontFamily: 'var(--gj-font-yaye-wordmark)',
-                fontSize: 18,
-              }}
-            >
-              Y
-            </div>
+            <YayeAvatar size={48} withBadge />
             <div className="flex-1" style={{ color: '#fff' }}>
               <div className="font-black" style={{ fontSize: 13 }}>
-                <span style={{ fontFamily: 'var(--gj-font-yaye-wordmark)' }}>Yaye</span>
-                <span
-                  style={{
-                    background: 'var(--gj-yellow)',
-                    color: 'var(--gj-teal-deep)',
-                    fontSize: 9,
-                    fontWeight: 900,
-                    padding: '1px 5px',
-                    borderRadius: 999,
-                    marginLeft: 6,
-                  }}
-                >
-                  IA
-                </span>
+                Yaye
               </div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, lineHeight: 1.45 }}>
                 « Dis-moi ce que tu cherches — je m&apos;occupe du reste. »

@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Chip } from '@/components/ui/Chip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import { useProfilStep, type ProfilInitial } from '../_logic/use-onboarding-step'
+import { OnboardingNavWeb } from './OnboardingNavWeb'
 
 interface Props {
   initial: ProfilInitial
@@ -22,9 +24,15 @@ interface Props {
  */
 export function OnboardingProfilWeb({ initial }: Props) {
   const f = useProfilStep(initial)
+  // Niveau d'études — state local seulement : le draft API (GUIC-181) ne
+  // porte pas encore ce champ, mais l'input n'est plus orphelin. Le champ
+  // sera persisté côté backend dans une future itération (step 3 du schéma
+  // `stepProfilSchema` l'accepte déjà via `niveauEtude`).
+  const [niveauEtudes, setNiveauEtudes] = useState('')
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
+      <OnboardingNavWeb step={3} total={4} />
       <div
         className="flex-1 flex flex-col items-center"
         style={{ padding: '48px 24px 40px', overflowY: 'auto' }}
@@ -155,7 +163,12 @@ export function OnboardingProfilWeb({ initial }: Props) {
                 Niveau d&apos;études
                 <span className="text-gj-grey-2" style={{ fontSize: 10, marginLeft: 4 }}>FACULTATIF</span>
               </FieldLabel>
-              <Input id="web-niveau" placeholder="ex. Bac +2, Licence, Master…" />
+              <Input
+                id="web-niveau"
+                placeholder="ex. Bac +2, Licence, Master…"
+                value={niveauEtudes}
+                onChange={e => setNiveauEtudes(e.target.value)}
+              />
             </div>
           </div>
 
