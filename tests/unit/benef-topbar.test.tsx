@@ -44,6 +44,28 @@ describe('<BenefTopBar />', () => {
     expect(screen.getByText('99+')).toBeInTheDocument()
   })
 
+  it('expose un bouton Yaye qui ouvre le side panel', () => {
+    render(<BenefTopBar userInitials="AD" />)
+    const trigger = screen.getByRole('button', {
+      name: /Ouvrir la conversation avec Yaye/i,
+    })
+    expect(trigger).toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: /Conversation avec Yaye/i })).toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('notifie onYayeOpenChange en mode controlled', () => {
+    const onChange = jest.fn()
+    render(<BenefTopBar userInitials="AD" yayeOpen={false} onYayeOpenChange={onChange} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Ouvrir la conversation avec Yaye/i }),
+    )
+    expect(onChange).toHaveBeenCalledWith(true)
+  })
+
   it('appelle les click handlers', () => {
     const onBookmark = jest.fn()
     const onBell = jest.fn()
