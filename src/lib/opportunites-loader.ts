@@ -62,13 +62,22 @@ export function toListItem(row: RawRow): OpportuniteListItem {
   }
 }
 
+/**
+ * Normalise un filtre `X | X[] | undefined` en `X[]` trié (clé cache stable)
+ * ou `[]` si absent. GUIC-256 multi-select.
+ */
+function asArray<T extends string>(v: T | T[] | undefined): T[] {
+  if (v === undefined) return []
+  return (Array.isArray(v) ? v : [v]).slice().sort()
+}
+
 function cacheKey(f: OpportuniteFiltres): string {
   return [
     'opp:list',
     (f.q ?? '').trim().toLowerCase(),
-    f.domaine ?? '',
-    f.type ?? '',
-    f.region ?? '',
+    asArray(f.domaine).join(','),
+    asArray(f.type).join(','),
+    asArray(f.region).join(','),
     f.sortBy,
     f.page,
   ].join('|')
@@ -119,9 +128,16 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
     Prisma.sql`deleted_at IS NULL`,
     Prisma.sql`(deadline IS NULL OR deadline >= NOW())`,
   ]
-  if (f.domaine) conditions.push(Prisma.sql`domaine = ${f.domaine}`)
-  if (f.type) conditions.push(Prisma.sql`type = ${f.type}`)
-  if (f.region) conditions.push(Prisma.sql`region = ${f.region}`)
+  // GUIC-256 : multi-select via IN (...) si tableau, égalité si single.
+  const domaines = asArray(f.domaine)
+  if (domaines.length === 1) conditions.push(Prisma.sql`domaine = ${domaines[0]}`)
+  else if (domaines.length > 1) conditions.push(Prisma.sql`domaine IN (${Prisma.join(domaines)})`)
+  const types = asArray(f.type)
+  if (types.length === 1) conditions.push(Prisma.sql`type = ${types[0]}`)
+  else if (types.length > 1) conditions.push(Prisma.sql`type IN (${Prisma.join(types)})`)
+  const regions = asArray(f.region)
+  if (regions.length === 1) conditions.push(Prisma.sql`region = ${regions[0]}`)
+  else if (regions.length > 1) conditions.push(Prisma.sql`region IN (${Prisma.join(regions)})`)
 
   const q = (f.q ?? '').trim()
   if (q) {
