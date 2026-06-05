@@ -88,7 +88,7 @@ export function OnboardingObjectifs({ prenom }: Props) {
   }
 
   const count = selected.length
-  const greeting = prenom ? `Salama ${prenom}` : 'Salama'
+  const greeting = prenom ? `Salam ${prenom}` : 'Salam'
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-surface)' }}>

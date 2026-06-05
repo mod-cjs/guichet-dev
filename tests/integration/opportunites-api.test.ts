@@ -73,12 +73,13 @@ describe('GET /api/opportunites', () => {
     })
   })
 
-  it('rejette une valeur d’enum invalide avec 400 VALIDATION_ERROR', async () => {
+  it('ignore silencieusement une valeur d’enum invalide (GUIC-256 — graceful degrade)', async () => {
     const res = await route.GET(req('?domaine=Xyz'))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error.code).toBe('VALIDATION_ERROR')
-    expect(mockListOpportunites).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    // Multi-select : la valeur invalide est filtrée → domaine non transmis au loader.
+    expect(mockListOpportunites).toHaveBeenCalled()
+    const filtres = mockListOpportunites.mock.calls[0][0]
+    expect(filtres.domaine).toBeUndefined()
   })
 
   it('rejette une page invalide (0 ou non numérique) avec 400', async () => {

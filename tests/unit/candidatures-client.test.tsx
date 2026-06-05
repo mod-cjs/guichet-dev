@@ -5,6 +5,10 @@ import {
   type CandidatureMock,
 } from '@/components/candidatures'
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}))
+
 describe('<CandidaturesClient />', () => {
   it('rend le compteur de dossiers et la liste complète par défaut', () => {
     render(<CandidaturesClient items={CANDIDATURES_MOCK} />)

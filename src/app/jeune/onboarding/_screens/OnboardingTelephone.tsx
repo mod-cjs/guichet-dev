@@ -7,6 +7,7 @@ import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Input } from '@/components/ui/Input'
 import { FooterCTA } from '@/components/ui/FooterCTA'
 import { StepBar } from '@/components/ui/StepBar'
+import { SnFlag } from '@/components/ui/SnFlag'
 
 interface Props {
   telephone?: string
@@ -96,7 +97,7 @@ export function OnboardingTelephone({ telephone }: Props) {
                 fontSize: 15,
               }}
             >
-              <span aria-hidden style={{ fontSize: 14 }}>SN</span>
+              <SnFlag size={16} />
               <span>+221</span>
             </div>
             <div className="flex-1">
@@ -133,7 +134,7 @@ export function OnboardingTelephone({ telephone }: Props) {
 
       <FooterCTA
         primary={{
-          label: 'Continuer',
+          label: 'Vérifier',
           // SSO porte l'OTP — on redirige vers le flow login.
           // L'utilisateur est déjà authentifié (sinon middleware aurait redirigé),
           // donc on saute directement à l'écran objectifs.

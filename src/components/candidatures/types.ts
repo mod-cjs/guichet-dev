@@ -24,7 +24,7 @@ export interface CandidatureMock {
   opportuniteSlug: string
   opportuniteTitre: string
   organisation: string
-  type: 'Stage' | 'Bourse' | 'Concours' | 'Emploi' | 'Formation'
+  type: 'Stage' | 'Bourse' | 'Concours' | 'Emploi' | 'Formation' | 'Volontariat' | 'Appel à projets'
   /** Étape courante dans le pipeline. */
   currentStep: PipelineStep
   /** Décision finale, uniquement si `currentStep === 'Decision'`. */

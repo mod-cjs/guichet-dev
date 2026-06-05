@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/Header'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 import { SkipLink } from '@/components/ui/SkipLink'
+import { countUnreadNotifications } from '@/lib/loaders/notifications'
 
 /**
  * Layout des pages app jeune.
@@ -33,6 +34,8 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
     (session.nom?.[0] ?? '').toUpperCase()
   const userName = `${session.prenom ?? ''} ${session.nom ?? ''}`.trim()
   const userMeta = session.region ?? undefined
+  // GUIC-247 — badge cloche desktop : non-lues côté serveur (best-effort).
+  const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
 
   return (
     <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
@@ -50,7 +53,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
       {/* Colonne droite (desktop) / flow normal (mobile/tablet) */}
       <div className="flex flex-col min-w-0">
         {/* Top bar desktop (≥lg) — composant déjà `hidden lg:flex` en interne */}
-        <BenefTopBar userInitials={userInitials || undefined} />
+        <BenefTopBar userInitials={userInitials || undefined} unread={unread} />
 
         {/* Header marketing : visible uniquement en tablet [md, lg)
             (mobile <md → shell mobile global ; desktop ≥lg → BenefTopBar ci-dessus) */}

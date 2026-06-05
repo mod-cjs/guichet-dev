@@ -189,6 +189,23 @@ enum TypeRessource {
   @@map("type_ressource")
 }
 
+// GUIC-24 — niveau de difficulté pour filtrer la bibliothèque.
+enum NiveauRessource {
+  Debutant
+  Intermediaire
+  Avance
+
+  @@map("niveau_ressource")
+}
+
+// GUIC-24 — langue de la ressource (étendre si besoin).
+enum LangueRessource {
+  FR
+  Wolof
+
+  @@map("langue_ressource")
+}
+
 enum StatutInscription {
   inscrit
   liste_attente
@@ -204,6 +221,17 @@ enum RoleAgent {
   admin_centre
 
   @@map("role_agent")
+}
+
+/// Types de notifications (M11 — GUIC-247).
+enum TypeNotification {
+  Deadline
+  Candidature
+  Message
+  Yaye
+  System
+
+  @@map("type_notification")
 }
 
 // ─────────────────────────────────────────────
@@ -236,6 +264,7 @@ model Utilisateur {
   opportunitesFavorites OpportuniteFavorite[]
   conversations         ConversationWhatsApp[]
   recommandations       RecommandationIA[]
+  notifications         Notification[]
 
   @@index([email])
   @@index([telephone])
@@ -257,7 +286,7 @@ model ProfilJeune {
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int      @default(0) @map("completion_score")
   profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
-  // CV stocké (GUIC-223) — réutilisable depuis CandidatureModal
+  // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
   cvUrl             String?  @map("cv_url") @db.VarChar(500)
   cvUploadedAt      DateTime? @map("cv_uploaded_at")
   createdAt         DateTime @default(now()) @map("created_at")
@@ -538,12 +567,18 @@ model Ressource {
   url         String        @db.VarChar(500)
   estPublic   Boolean       @default(true) @map("est_public")
   vues        Int           @default(0)
+  // GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
+  niveau      NiveauRessource? @map("niveau")
+  langue      LangueRessource? @map("langue")
+  categorie   String?         @db.VarChar(100) @map("categorie")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
   favoris RessourceFavorite[]
 
   @@index([type, theme])
+  @@index([niveau])
+  @@index([langue])
   @@map("ressources")
 }
 
@@ -613,6 +648,32 @@ model MessageWhatsApp {
 
   @@index([conversationId])
   @@map("messages_whatsapp")
+}
+
+// ─────────────────────────────────────────────
+// M11 — NOTIFICATIONS UTILISATEUR (GUIC-247)
+// Notifications persistées, affichées dans /jeune/notifications.
+// Distinct du dispatcher multi-canal (WhatsApp/SMS) — ici c'est le centre
+// de notifications applicatif (in-app).
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.VarChar(36)
+  cjsUid    String           @map("cjs_uid") @db.VarChar(36)
+  type      TypeNotification
+  titre     String           @db.VarChar(255)
+  contenu   String           @db.Text
+  iconName  String?          @map("icon_name") @db.VarChar(32)
+  lien      String?          @db.VarChar(500)
+  metaPill  String?          @map("meta_pill") @db.VarChar(64)
+  luA       DateTime?        @map("lu_a")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([cjsUid, luA])
+  @@map("notifications")
 }
 
 // ─────────────────────────────────────────────

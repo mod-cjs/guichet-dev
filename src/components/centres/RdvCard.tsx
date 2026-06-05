@@ -15,6 +15,7 @@ export interface RdvCardProps {
 export function RdvCard({ rdv, onItineraire, onReporter }: RdvCardProps) {
   return (
     <article
+      data-testid="rdv-card"
       aria-label={`Prochain rendez-vous : ${rdv.titre}`}
       className="rounded-gj-lg p-space-3 flex items-center gap-space-3"
       style={{
