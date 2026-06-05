@@ -28,6 +28,19 @@ export function Footer() {
           </p>
         </div>
       </div>
+      <div className="border-t border-white/10">
+        <div className="container-page py-space-3 flex flex-wrap gap-x-space-4 gap-y-space-2 justify-center text-fs-100 text-white/60">
+          <Link href="/legal/cgu" className="hover:text-white no-underline transition-colors">
+            CGU
+          </Link>
+          <Link href="/legal/confidentialite" className="hover:text-white no-underline transition-colors">
+            Confidentialité
+          </Link>
+          <Link href="/legal/mentions-legales" className="hover:text-white no-underline transition-colors">
+            Mentions légales
+          </Link>
+        </div>
+      </div>
       <div className="border-t border-white/10 py-space-3">
         <p className="text-center text-white/30 text-fs-100">
           © {new Date().getFullYear()} Consortium Jeunesse Sénégal — Tous droits réservés

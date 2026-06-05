@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Input } from '@/components/ui/Input'
+import { SnFlag } from '@/components/ui/SnFlag'
+import { OnboardingNavWeb } from './OnboardingNavWeb'
 
 interface Props {
   telephone?: string
@@ -48,6 +50,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
       className="flex flex-col"
       style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}
     >
+      <OnboardingNavWeb step={1} total={4} />
       <div
         className="grid flex-1 overflow-hidden"
         style={{ gridTemplateColumns: '1fr 1fr' }}
@@ -151,7 +154,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
                   fontSize: 15,
                 }}
               >
-                <span aria-hidden style={{ fontSize: 14 }}>SN</span>
+                <SnFlag size={16} />
                 <span>+221</span>
               </div>
               <div className="flex-1">

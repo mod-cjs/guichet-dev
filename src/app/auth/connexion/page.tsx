@@ -84,7 +84,7 @@ export default async function ConnexionPage({ searchParams }: Props) {
 
         <p className="text-fs-100 text-color-text-muted mt-space-4">
           En vous connectant, vous acceptez les{' '}
-          <Link href="/mentions-legales" className="underline hover:text-color-text-primary">
+          <Link href="/legal/mentions-legales" className="underline hover:text-color-text-primary">
             conditions d&apos;utilisation
           </Link>.
         </p>

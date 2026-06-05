@@ -1,12 +1,18 @@
 'use client'
+import { useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import { UserMenu } from '@/components/layout/UserMenu'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
   searchQuery?: string
   /** Callback recherche (controlled). */
   onSearchChange?: (value: string) => void
+  /** Callback submit — si absent, navigue vers /opportunites?q=<query>. */
+  onSearchSubmit?: (value: string) => void
   /** Placeholder du champ recherche. */
   searchPlaceholder?: string
   /** Nombre de notifications non lues. */
@@ -25,6 +31,10 @@ export interface BenefTopBarProps {
   onInfoClick?: () => void
   /** @deprecated — l'avatar ouvre désormais un `UserMenu`. */
   onUserClick?: () => void
+  /** Etat (controlled) du side panel Yaye. Si omis, l'état est géré en interne. */
+  yayeOpen?: boolean
+  /** Callback ouverture/fermeture Yaye (controlled). */
+  onYayeOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -41,6 +51,7 @@ export interface BenefTopBarProps {
 export function BenefTopBar({
   searchQuery,
   onSearchChange,
+  onSearchSubmit,
   searchPlaceholder = 'Rechercher une opportunité, un centre, un atelier…',
   unread = 0,
   bookmarkCount = 0,
@@ -50,8 +61,39 @@ export function BenefTopBar({
   onBookmarkClick,
   onBellClick,
   onInfoClick,
+  onUserClick,
+  yayeOpen: yayeOpenProp,
+  onYayeOpenChange,
 }: BenefTopBarProps) {
+  const router = useRouter()
+  const isControlled = typeof searchQuery === 'string'
+  const [internalQuery, setInternalQuery] = useState('')
+  const value = isControlled ? searchQuery : internalQuery
+  const handleChange = (v: string) => {
+    if (!isControlled) setInternalQuery(v)
+    onSearchChange?.(v)
+  }
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const q = (value ?? '').trim()
+    if (onSearchSubmit) {
+      onSearchSubmit(q)
+      return
+    }
+    if (q.length === 0) return
+    router.push(`/opportunites?q=${encodeURIComponent(q)}`)
+  }
+  const [yayeOpenInternal, setYayeOpenInternal] = useState(false)
+  const isYayeControlled = yayeOpenProp !== undefined
+  const yayeOpen = isYayeControlled ? yayeOpenProp : yayeOpenInternal
+  const setYayeOpen = (next: boolean) => {
+    if (!isYayeControlled) setYayeOpenInternal(next)
+    onYayeOpenChange?.(next)
+  }
+
+
   return (
+    <>
     <header
       role="banner"
       className="hidden lg:flex sticky top-0"
@@ -67,7 +109,9 @@ export function BenefTopBar({
       }}
     >
       {/* Search */}
-      <div
+      <form
+        role="search"
+        onSubmit={handleSubmit}
         style={{
           flex: 1,
           maxWidth: 520,
@@ -84,8 +128,9 @@ export function BenefTopBar({
         <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
         <input
           type="search"
-          value={searchQuery ?? ''}
-          onChange={e => onSearchChange?.(e.target.value)}
+          name="q"
+          value={value ?? ''}
+          onChange={e => handleChange(e.target.value)}
           placeholder={searchPlaceholder}
           aria-label="Rechercher"
           style={{
@@ -112,7 +157,9 @@ export function BenefTopBar({
         >
           ⌘ K
         </kbd>
-      </div>
+        {/* Submit invisible pour soumettre via Enter (a11y form natif). */}
+        <button type="submit" aria-label="Lancer la recherche" style={{ display: 'none' }} />
+      </form>
 
       <span style={{ flex: 1 }} />
 
@@ -151,11 +198,32 @@ export function BenefTopBar({
         <Icon name="info" size={18} />
       </button>
 
+      {/* Yaye trigger */}
+      <button
+        type="button"
+        onClick={() => setYayeOpen(!yayeOpen)}
+        aria-label="Ouvrir la conversation avec Yaye"
+        aria-haspopup="dialog"
+        aria-expanded={yayeOpen}
+        style={{
+          ...iconBtn,
+          background: 'transparent',
+          border: 0,
+          padding: 0,
+          width: 42,
+          height: 42,
+        }}
+      >
+        <YayeAvatar size={32} withBadge />
+      </button>
+
       {/* User — menu déroulant (profil + déconnexion) */}
       {userInitials ? (
         <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} />
       ) : null}
     </header>
+    <YayeSidePanel open={yayeOpen} onClose={() => setYayeOpen(false)} />
+    </>
   )
 }
 

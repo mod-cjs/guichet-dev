@@ -5,6 +5,7 @@ import { saveTokens } from '@/lib/token-store'
 import { clearRevocation } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger, hashId } from '@/lib/logger'
+import { safeReturnTo } from '@/lib/security/safe-return-to'
 import type { CJSSession } from '@/types/user'
 
 export async function GET(request: NextRequest) {
@@ -150,13 +151,5 @@ function roleRedirect(session: CJSSession): string {
   return '/auth/connexion?error=no_role'
 }
 
-function safeReturnTo(url: string | undefined): string | null {
-  if (!url) return null
-  try {
-    const parsed = new URL(url, 'http://localhost')
-    if (parsed.origin !== 'http://localhost') return null
-    return parsed.pathname + parsed.search
-  } catch {
-    return null
-  }
-}
+// GUIC-241 — `safeReturnTo` extrait dans `@/lib/security/safe-return-to` pour
+// permettre un test unitaire isolé (pas d'import de next/server, prisma, etc.).

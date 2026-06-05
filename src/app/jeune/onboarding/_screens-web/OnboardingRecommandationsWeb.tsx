@@ -4,6 +4,7 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { useRecommandationsStep } from '../_logic/use-onboarding-step'
 import { regionLabel } from '@/lib/regions'
+import { OnboardingNavWeb } from './OnboardingNavWeb'
 
 interface Props {
   prenom?: string
@@ -66,6 +67,7 @@ export function OnboardingRecommandationsWeb({ prenom }: Props) {
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
+      <OnboardingNavWeb step={4} total={4} showLogin={false} />
       <div
         className="flex-1 flex flex-col items-center"
         style={{ padding: '40px 24px', overflowY: 'auto' }}
