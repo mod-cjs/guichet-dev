@@ -7,7 +7,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
-import { MyCardCjs }          from './MyCardCjs'
+import { MyCJSCard }          from '@/components/ui/MyCJSCard'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -38,22 +38,27 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         </p>
       </div>
 
-      {/* Layout desktop : aside gauche sticky (MyCard QR + identité + complétude)
-          + colonne droite (sections éditables). Mobile : empilement. */}
-      <div className="grid gap-space-5 lg:grid-cols-[320px_1fr] lg:items-start">
-        {/* Aside : MyCard + header — sticky desktop */}
-        <aside className="flex flex-col gap-space-4 lg:sticky lg:top-space-4">
-          <MyCardCjs
-            cjsUid={initial.cjsUid}
-            nom={initial.nom}
-            prenom={initial.prenom}
-          />
-          <ProfilHeader
-            nom={initial.nom}
-            prenom={initial.prenom}
-            email={initial.email}
-            completionScore={score}
-          />
+      {/* Layout desktop conforme design v2 : aside gauche 300px sticky (identité +
+          complétude) + colonne droite (sections éditables). Mobile : empilement. */}
+      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-space-5 flex flex-col gap-space-5">
+        <aside>
+          <div className="lg:sticky lg:top-[80px] flex flex-col gap-space-4">
+            <ProfilHeader
+              nom={initial.nom}
+              prenom={initial.prenom}
+              email={initial.email}
+              completionScore={score}
+            />
+            {/* Carte CJS — branchement GUIC-248. Centre rattachement non disponible
+                aujourd'hui dans ProfilComplet (TODO : exposer via relation Centre
+                quand le module M4 sera branché). */}
+            <MyCJSCard
+              cjsUid={initial.cjsUid}
+              prenom={initial.prenom}
+              nom={initial.nom}
+              variant="compact"
+            />
+          </div>
         </aside>
 
         {/* Sections éditables */}
