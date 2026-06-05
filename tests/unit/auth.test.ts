@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  hashId: jest.fn((s: string) => 'hash-' + String(s).slice(0, 4)),
 }))
 
 import { encodeSession, getSession, setSessionCookie, clearSessionCookie } from '@/lib/auth'

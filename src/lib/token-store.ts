@@ -1,5 +1,5 @@
 import { redis } from '@/lib/redis'
-import { logger } from '@/lib/logger'
+import { logger, hashId } from '@/lib/logger'
 
 /**
  * Store Redis pour les tokens SSO (access + refresh).
@@ -26,7 +26,7 @@ export async function saveTokens(cjsUid: string, tokens: StoredTokens, ttlSecond
   try {
     await redis.set(key(cjsUid), JSON.stringify(tokens), 'EX', Math.max(60, ttlSeconds))
   } catch (err) {
-    logger.warn('token-store: save échec', { cjsUid, error: String(err) })
+    logger.warn('token-store: save échec', { cjsUidHash: hashId(cjsUid), error: String(err) })
     throw err
   }
 }
@@ -37,7 +37,7 @@ export async function getTokens(cjsUid: string): Promise<StoredTokens | null> {
     if (!raw) return null
     return JSON.parse(raw) as StoredTokens
   } catch (err) {
-    logger.warn('token-store: get échec', { cjsUid, error: String(err) })
+    logger.warn('token-store: get échec', { cjsUidHash: hashId(cjsUid), error: String(err) })
     return null
   }
 }
@@ -46,6 +46,6 @@ export async function clearTokens(cjsUid: string): Promise<void> {
   try {
     await redis.del(key(cjsUid))
   } catch (err) {
-    logger.warn('token-store: clear échec', { cjsUid, error: String(err) })
+    logger.warn('token-store: clear échec', { cjsUidHash: hashId(cjsUid), error: String(err) })
   }
 }

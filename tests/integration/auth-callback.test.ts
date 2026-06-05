@@ -54,6 +54,7 @@ jest.mock('@/lib/session-store', () => ({
 
 jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  hashId: jest.fn((s: string) => 'hash-' + String(s).slice(0, 4)),
 }))
 
 // Import après mocks

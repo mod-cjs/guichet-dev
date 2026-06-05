@@ -187,8 +187,11 @@ export async function POST(request: NextRequest) {
 
   const { event, cjs_uid, timestamp: payloadTs } = parsed
 
+  // GUIC-240 : cjs_uid jamais en clair dans les logs (CDP loi 2008-12)
+  const cjsUidHash = hashId(cjs_uid)
+
   if (await isAlreadyProcessed(event, cjs_uid, payloadTs)) {
-    logger.info('webhook-sso: doublon ignoré', { event, cjsUidHash: hashId(cjs_uid) })
+    logger.info('webhook-sso: doublon ignoré', { event, cjsUidHash })
     return NextResponse.json<ApiResponse>({ data: { status: 'duplicate' } })
   }
 
@@ -197,10 +200,10 @@ export async function POST(request: NextRequest) {
     else if (event === 'user.updated')     await handleUpdated(parsed)
     else if (event === 'user.anonymized')  await handleAnonymized(parsed)
 
-    logger.info('webhook-sso: traité', { event, cjsUidHash: hashId(cjs_uid) })
+    logger.info('webhook-sso: traité', { event, cjsUidHash })
     return NextResponse.json<ApiResponse>({ data: { status: 'ok' } })
   } catch (err) {
-    logger.error('webhook-sso: erreur traitement', { event, cjsUidHash: hashId(cjs_uid), error: String(err) })
+    logger.error('webhook-sso: erreur traitement', { event, cjsUidHash, error: String(err) })
     // 500 → le SSO retentera (3 essais avec backoff)
     return NextResponse.json<ApiResponse>(
       { error: { code: 'INTERNAL_ERROR', message: 'Erreur traitement' } },
