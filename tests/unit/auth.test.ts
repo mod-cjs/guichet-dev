@@ -141,13 +141,15 @@ describe('setSessionCookie', () => {
     Object.defineProperty(process.env, 'NODE_ENV', { value: originalEnv, writable: true })
   })
 
-  it('pose le cookie cjs_session avec httpOnly et sameSite=strict (GUIC-218)', () => {
+  it('pose le cookie cjs_session avec httpOnly et sameSite=lax (GUIC-259, ex Strict GUIC-218)', () => {
+    // GUIC-259 : sameSite changé strict → lax pour corriger la boucle de login
+    // post-SSO (le redirect 302 cross-site initiator rejetait le cookie strict).
     const response = new NextResponse()
     setSessionCookie(response, 'jwt-value', 3600)
     const cookie = response.cookies.get('cjs_session')
     expect(cookie?.value).toBe('jwt-value')
     expect(cookie?.httpOnly).toBe(true)
-    expect(cookie?.sameSite).toBe('strict')
+    expect(cookie?.sameSite).toBe('lax')
     expect(cookie?.maxAge).toBe(3600)
   })
 
