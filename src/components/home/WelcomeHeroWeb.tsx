@@ -1,14 +1,6 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
-<<<<<<<< HEAD:src/components/home/WelcomeHeroWeb.tsx
-========
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
-import {
-  FALLBACK_HOME_STATS,
-  formatHomeStat,
-  type HomeStats,
-} from '@/lib/loaders/home-stats.shared'
->>>>>>>> origin/dev:src/app/jeune/onboarding/_screens-web/OnboardingWelcomeWeb.tsx
 
 const STATS = [
   { value: '22 695', label: 'Jeunes inscrits' },
@@ -246,52 +238,10 @@ export function WelcomeHeroWeb() {
               transform: 'translateY(-30px)',
             }}
           >
-<<<<<<<< HEAD:src/components/home/WelcomeHeroWeb.tsx
-            <div
-              className="inline-flex items-center justify-center flex-shrink-0 font-black text-white"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #19A757, #0A807F)',
-                fontFamily: 'Georgia, serif',
-                fontSize: 18,
-              }}
-              aria-hidden
-            >
-              Y
-            </div>
-            <div className="flex-1 text-white">
-              <div style={{ fontSize: 13, fontWeight: 800 }}>
-                <span
-                  style={{
-                    background: 'linear-gradient(135deg, #fff, var(--gj-yellow))',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
-                    fontFamily: 'Georgia, serif',
-                  }}
-                >
-                  Yaye
-                </span>
-                <span
-                  className="font-black"
-                  style={{
-                    background: 'var(--gj-yellow)',
-                    color: 'var(--gj-teal-deep)',
-                    fontSize: 9,
-                    padding: '1px 5px',
-                    borderRadius: 999,
-                    marginLeft: 6,
-                  }}
-                >
-                  IA
-                </span>
-========
             <YayeAvatar size={48} withBadge />
             <div className="flex-1" style={{ color: '#fff' }}>
               <div className="font-black" style={{ fontSize: 13 }}>
                 Yaye
->>>>>>>> origin/dev:src/app/jeune/onboarding/_screens-web/OnboardingWelcomeWeb.tsx
               </div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, lineHeight: 1.45 }}>
                 « Dis-moi ce que tu cherches — je m&apos;occupe du reste. »
