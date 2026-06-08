@@ -1,7 +1,14 @@
 #!/bin/sh
-# Validation rapide avant chaque commit : lint + TypeScript
-# Exécution : ~5–10 s  |  Bloque si erreurs
+# Validation rapide avant chaque commit
+# Étapes :
+#  1. GUIC-346 : check TDD + marqueurs de conflit (rapide, ~1s)
+#  2. lint
+#  3. TypeScript
+# Bloque si erreurs.
 set -e
+
+echo "⏳ pre-commit : check TDD + marqueurs conflit (GUIC-346)…"
+npx tsx src/lib/githooks/cli-pre-commit.ts
 
 echo "⏳ pre-commit : lint…"
 npm run lint --silent
