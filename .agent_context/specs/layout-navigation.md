@@ -2,6 +2,7 @@
 
 **Décision initiale :** 2026-05-05 (GUIC-15)
 **Révision majeure :** 2026-05-19 (GUIC-166) — shell mobile global pour user connecté
+**Révision majeure :** 2026-06-08 (GUIC-349) — option A : sur pages publiques, user connecté desktop voit `BenefSidebar + BenefTopBar` (pas le Header marketing). Mobile : MobileAppShell inchangé. Anonyme : Header + Footer marketing inchangé.
 **Statut :** VALIDÉE — à respecter dans tous les modules
 
 ---
@@ -13,7 +14,8 @@
 
 ```
 Anonyme         → Header marketing + Footer (toutes routes publiques)
-Authentifié     → AppTopbar + BottomNav mobile  /  Header marketing desktop
+Authentifié     → AppTopbar + BottomNav mobile  /  BenefSidebar + BenefTopBar desktop (≥lg)
+                   (pages publiques ET /jeune/* — GUIC-349)
 Admin/Recruteur → Sidebar dédiée (mobile drawer + desktop fixe)
 Onboarding      → Mini-topbar verrouillé (logo + déconnexion uniquement)
 ```
