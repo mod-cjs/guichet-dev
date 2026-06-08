@@ -124,6 +124,10 @@ export interface OpportuniteDetailDTO {
   slug: string
   titre: string
   description: string
+  // GUIC-257 : sections structurées (additives, null si non remplies — fallback `description`).
+  profilRecherche: string | null
+  mission: string | null
+  conditions: string | null
   type: TypeOpportunite           // enum legacy — préservé pour compat
   domaine: Domaine
   region: Region | null
@@ -233,6 +237,9 @@ export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDT
     slug: row.slug,
     titre: row.titre,
     description: row.description,
+    profilRecherche: row.profilRecherche ?? null,
+    mission: row.mission ?? null,
+    conditions: row.conditions ?? null,
     type: row.type,
     domaine: row.domaine,
     region: row.region ?? null,
