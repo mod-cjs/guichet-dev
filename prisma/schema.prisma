@@ -378,6 +378,12 @@ model Opportunite {
   titre       String @db.VarChar(255)
   description String @db.LongText
 
+  // Sections structurées (GUIC-257) — affichage avec h2 + paragraphes.
+  // Nullable : rétro-compatible, fallback sur description plate si absentes.
+  profilRecherche String? @map("profil_recherche") @db.Text
+  mission         String? @db.Text
+  conditions      String? @db.Text
+
   // Champs legacy — conservés jusqu'en 178d (drop après backfill)
   type         TypeOpportunite
   organisation String          @db.VarChar(200)

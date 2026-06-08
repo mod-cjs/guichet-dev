@@ -310,6 +310,47 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           </p>
         </section>
 
+        {/* GUIC-257 — sections structurées optionnelles (null si non remplies en BDD). */}
+        {detail.profilRecherche && (
+          <section aria-labelledby="opp-profil-recherche-heading">
+            <h2
+              id="opp-profil-recherche-heading"
+              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            >
+              Profil recherché
+            </h2>
+            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
+              {detail.profilRecherche}
+            </p>
+          </section>
+        )}
+        {detail.mission && (
+          <section aria-labelledby="opp-mission-heading">
+            <h2
+              id="opp-mission-heading"
+              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            >
+              Mission
+            </h2>
+            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
+              {detail.mission}
+            </p>
+          </section>
+        )}
+        {detail.conditions && (
+          <section aria-labelledby="opp-conditions-heading">
+            <h2
+              id="opp-conditions-heading"
+              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            >
+              Conditions
+            </h2>
+            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
+              {detail.conditions}
+            </p>
+          </section>
+        )}
+
         {competencesRequises.length > 0 && (
           <section aria-labelledby="opp-skills-heading">
             <h2
