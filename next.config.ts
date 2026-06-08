@@ -70,9 +70,13 @@ const nextConfig: NextConfig = {
       // Doivent venir AVANT le pattern global pour que leurs valeurs gagnent.
       { source: '/preview-v2',          headers: devPreviewHeaders },
       { source: '/api/dev/:path*',      headers: devPreviewHeaders },
+      // GUIC-258 : maquettes design statiques sous public/design-v2/ utilisent
+      // React + Babel via unpkg CDN + transpilation runtime (eval). CSP strict
+      // bloque → page blanche. CSP permissif requis pour cette route publique.
+      { source: '/design-v2/:path*',    headers: devPreviewHeaders },
       // Toutes les autres routes : CSP strict, frame-ancestors 'none', X-Frame DENY.
       // Exclusion explicite des routes dev via negative lookahead path-to-regexp.
-      { source: '/:path((?!preview-v2$|api/dev/).*)', headers: strictHeaders },
+      { source: '/:path((?!preview-v2$|api/dev/|design-v2/).*)', headers: strictHeaders },
     ]
   },
   async redirects() {
