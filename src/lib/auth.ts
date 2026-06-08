@@ -119,14 +119,21 @@ export async function hasRole(role: string): Promise<boolean> {
 // ── Écriture / suppression du cookie ─────────────────────────────────────
 
 export function setSessionCookie(response: NextResponse, encoded: string, maxAge: number): void {
-  // SameSite=Strict (GUIC-218 / CDP) — le cookie de session n'est jamais
-  // utilisé par un flow cross-site : le callback SSO pose le cookie via
-  // une redirection top-level (request initiée depuis notre origine), et
-  // toutes les requêtes API sont same-origin.
+  // SameSite=Lax (GUIC-259) — corrige la régression post-SSO sur Vercel prod.
+  //
+  // Avec sameSite='strict', le cookie posé par /auth/callback était rejeté
+  // par le navigateur sur le redirect 302 vers /jeune/tableau-de-bord car la
+  // navigation a démarré depuis SSO (cross-site initiator). Conséquence :
+  // middleware reçoit une requête sans cookie session → redirect /auth/connexion
+  // → boucle de login (logs Vercel 2026-06-08).
+  //
+  // SameSite=Lax bloque toujours le CSRF cross-site sur les méthodes non-safe
+  // (POST/PUT/DELETE). Pour les actions sensibles, httpOnly + Secure + CSRF
+  // origin check restent la défense. Conforme CDP loi 2008-12.
   response.cookies.set(SESSION_COOKIE, encoded, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge,
     path:     '/',
   })
