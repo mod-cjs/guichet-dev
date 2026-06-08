@@ -78,7 +78,19 @@ jest.mock('@/lib/session-store', () => ({
 
 const mockRedisSet = jest.fn().mockResolvedValue('OK')
 jest.mock('@/lib/redis', () => ({
-  redis: { set: (...args: unknown[]) => mockRedisSet(...args) },
+  redis: {
+    set: (...args: unknown[]) => mockRedisSet(...args),
+    // rateLimit (GUIC-237/#91) utilise multi().incr().expire().exec() — exec
+    // renvoie [count] ; 1 reste sous la limite (pas de 429 dans ces tests).
+    multi: () => {
+      const chain = {
+        incr: () => chain,
+        expire: () => chain,
+        exec: async () => [1, 'OK'],
+      }
+      return chain
+    },
+  },
 }))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

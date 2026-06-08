@@ -2,9 +2,9 @@
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
+import { UserMenu } from '@/components/layout/UserMenu'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
-import { UserMenu } from '@/components/layout/UserMenu'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
@@ -61,19 +61,10 @@ export function BenefTopBar({
   onBookmarkClick,
   onBellClick,
   onInfoClick,
+  onUserClick,
   yayeOpen: yayeOpenProp,
   onYayeOpenChange,
 }: BenefTopBarProps) {
-  // Yaye side panel state (Wave 6 GUIC-215)
-  const [yayeOpenInternal, setYayeOpenInternal] = useState(false)
-  const isYayeControlled = yayeOpenProp !== undefined
-  const yayeOpen = isYayeControlled ? yayeOpenProp : yayeOpenInternal
-  const setYayeOpen = (next: boolean) => {
-    if (!isYayeControlled) setYayeOpenInternal(next)
-    onYayeOpenChange?.(next)
-  }
-
-  // Search form state (Wave 7 GUIC-222)
   const router = useRouter()
   const isControlled = typeof searchQuery === 'string'
   const [internalQuery, setInternalQuery] = useState('')
@@ -92,6 +83,14 @@ export function BenefTopBar({
     if (q.length === 0) return
     router.push(`/opportunites?q=${encodeURIComponent(q)}`)
   }
+  const [yayeOpenInternal, setYayeOpenInternal] = useState(false)
+  const isYayeControlled = yayeOpenProp !== undefined
+  const yayeOpen = isYayeControlled ? yayeOpenProp : yayeOpenInternal
+  const setYayeOpen = (next: boolean) => {
+    if (!isYayeControlled) setYayeOpenInternal(next)
+    onYayeOpenChange?.(next)
+  }
+
 
   return (
     <>

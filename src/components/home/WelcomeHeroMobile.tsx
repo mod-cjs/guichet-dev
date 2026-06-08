@@ -10,6 +10,7 @@ const STATS = [
 /**
  * Hero d'accueil mobile — affiché < 1024px (la variante desktop a son propre layout split).
  * Container max-w-[480px] centré pour ne pas s'étirer sur tablette portrait.
+ * Landing publique : stats CJS en snapshot (pas d'appel DB sur `/`).
  */
 export function WelcomeHeroMobile() {
   return (

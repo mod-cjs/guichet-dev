@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logger, hashId } from '@/lib/logger'
+import { rateLimit } from '@/lib/rate-limit'
 import { StatutCompte, type Region } from '@prisma/client'
 import type { ApiResponse } from '@/types/api'
 
@@ -35,13 +36,30 @@ function verifySignature(timestamp: string, signature: string, body: string): bo
 
 const IDEMPOTENCY_TTL = 7 * 24 * 3600
 
+/**
+ * Idempotence anti-replay via Redis SET NX.
+ *
+ * Fail-CLOSED (GUIC-243) : si Redis est indisponible, on REFUSE le webhook
+ * (on retourne `true` comme s'il avait déjà été traité). C'est volontairement
+ * conservateur : un replay d'un webhook critique (`user.anonymized`) peut
+ * causer une ré-anonymisation accidentelle et irréversible (RGPD/CDP).
+ *
+ * En cas de Redis-down prolongé, les webhooks seront refusés et le SSO devra
+ * les re-tenter (3 essais avec backoff côté Passport) — comportement
+ * acceptable pour des events audit/CDP non temps-réel.
+ */
 async function isAlreadyProcessed(event: string, cjsUid: string, ts: string): Promise<boolean> {
   const key = `guichet:webhook:sso:${event}:${cjsUid}:${ts}`
   try {
     const set = await redis.set(key, '1', 'EX', IDEMPOTENCY_TTL, 'NX')
     return set === null // null = clé existait déjà → doublon
-  } catch {
-    return false // fail-open : traiter en cas d'indisponibilité Redis
+  } catch (err) {
+    logger.error('webhook-sso: Redis down → fail-closed (refus webhook)', {
+      event,
+      cjsUidHash: hashId(cjsUid),
+      err: err instanceof Error ? err.message : String(err),
+    })
+    return true // fail-CLOSED : traiter comme un doublon → on n'exécute pas le handler
   }
 }
 
@@ -135,6 +153,15 @@ async function handleAnonymized(p: Payload): Promise<void> {
 // ── Handler principal ─────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Rate-limit (GUIC-243) : SSO légitime ne dépasse jamais 100 req/min.
+  // Protège contre une brute HMAC théorique ou un flood depuis une IP compromise.
+  const limited = await rateLimit(request, {
+    windowMs:  60_000,
+    max:       100,
+    keyPrefix: 'webhook-sso',
+  })
+  if (limited) return limited as NextResponse<ApiResponse>
+
   const timestamp = request.headers.get('x-cjs-timestamp') ?? ''
   const signature = request.headers.get('x-cjs-signature') ?? ''
   const body      = await request.text()

@@ -4,14 +4,10 @@ import { getSession } from '@/lib/auth'
 /**
  * `/jeune/onboarding` — entrée du funnel post-SSO.
  *
- * Décision GUIC-199 : on n'affiche plus l'écran "Welcome" ici (il vit
- * désormais sur `/` comme page d'accueil publique). Un user qui arrive sur
- * cette route a déjà une session valide ; on le pousse direct sur l'étape
- * de saisie du téléphone, ou sur son dashboard si l'onboarding est terminé.
- *
- * Note : la PR #84 (GUIC-235 stats homepage) introduit `loadHomeStats()` —
- * les stats sont consommées par WelcomeHero* sur la home publique `/`,
- * plus depuis cette route (Welcome retiré ici).
+ * Décision PO 2026-06-04 (GUIC-199) : Welcome vit désormais sur `/` (landing
+ * page responsive publique). Un user qui arrive sur cette route a déjà une
+ * session valide ; on le pousse direct sur l'étape de saisie du téléphone,
+ * ou sur son dashboard si l'onboarding est terminé.
  */
 export default async function OnboardingEntryPage() {
   const session = await getSession()

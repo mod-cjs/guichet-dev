@@ -1,11 +1,11 @@
-import 'server-only'
 import { prisma } from '@/lib/prisma'
-import { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat } from '@/lib/types/home-stats'
-
-export { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat }
+import { type HomeStats, FALLBACK_HOME_STATS } from './home-stats.shared'
 
 /**
- * Stats temps réel affichées sur la home publique — GUIC-235.
+ * Loader Prisma des stats temps réel (écran Welcome onboarding 1/5) — GUIC-235.
+ * SERVER ONLY (importe Prisma). Les utilitaires purs (type `HomeStats`,
+ * `FALLBACK_HOME_STATS`, `formatHomeStat`) vivent dans `home-stats.shared.ts`
+ * pour être importables côté client. On les ré-exporte ici pour compat.
  *
  * - `jeunesInscrits`  : `Utilisateur.count()` filtré sur statut actif, hors soft-delete.
  * - `opportunitesActives` : `Opportunite.count()` publiees, deadline future (ou nulle), hors soft-delete.
@@ -15,10 +15,8 @@ export { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat }
  * - `centresActifs`   : `Centre.count({ where: { estActif: true } })`.
  *
  * Le calcul est cacheable côté page via `revalidate = 600`.
- * Marquage `server-only` : le loader ne doit JAMAIS être bundle côté client
- * (Prisma + mariadb driver). Les composants client utilisent les types via
- * `@/lib/types/home-stats`.
  */
+export { type HomeStats, FALLBACK_HOME_STATS, formatHomeStat } from './home-stats.shared'
 
 export async function loadHomeStats(): Promise<HomeStats> {
   const now = new Date()
@@ -60,6 +58,3 @@ export async function loadHomeStatsSafe(): Promise<HomeStats> {
     return FALLBACK_HOME_STATS
   }
 }
-
-// formatHomeStat est désormais ré-exporté depuis @/lib/types/home-stats
-// (déplacé pour permettre l'usage côté client sans bundler Prisma).

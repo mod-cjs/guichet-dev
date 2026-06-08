@@ -5,6 +5,8 @@
  * étape pipeline UI + filtre cjsUid + tri.
  */
 
+export {} // fichier traité comme module (évite la collision de scope global avec d'autres tests)
+
 const mockFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: { candidature: { findMany: (...a: unknown[]) => mockFindMany(...a) } },

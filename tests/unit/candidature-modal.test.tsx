@@ -8,6 +8,39 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CandidatureModal, type ViewerInfo } from '@/components/opportunites/CandidatureModal'
 import { LETTRE_MAX_CHARS, MAX_CV_BYTES } from '@/lib/constants/candidature'
 
+const pushMock = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock, refresh: jest.fn() }),
+}))
+
+/**
+ * Helper : installe un fetch mock qui répond {cvUrl:null} sur `/api/profil/cv`
+ * (les tests existants attendent FileUpload) et délègue le reste à `inner`.
+ * Retourne le mock interne (utile pour `expect(inner).toHaveBeenCalled()`).
+ */
+function installFetch(inner: jest.Mock): jest.Mock {
+  global.fetch = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString()
+    if (url.startsWith('/api/profil/cv')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { cvUrl: null, name: '', uploadedAt: null } }),
+      } as unknown as Response
+    }
+    // GUIC-232 — par défaut profil complet (les tests dédiés overrident).
+    if (url.startsWith('/api/profil/completude')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { complet: true, missing: [] } }),
+      } as unknown as Response
+    }
+    return inner(input, init)
+  }) as unknown as typeof fetch
+  return inner
+}
+
 const VIEWER: ViewerInfo = {
   prenom: 'Awa',
   nom: 'Diop',
@@ -69,6 +102,8 @@ async function uploadCv(container: HTMLElement) {
   await act(async () => {
     pickFile(input, makePdf('cv.pdf'))
   })
+  // GUIC-229 — mode `defer` : on affiche le fichier sélectionné, mais
+  // aucun upload réseau n'a encore eu lieu (il aura lieu au submit).
   await waitFor(() => expect(screen.getByText(/chargé : cv\.pdf/i)).toBeInTheDocument())
 }
 
@@ -100,13 +135,12 @@ describe('<CandidatureModal /> — refonte v2', () => {
   const originalConfirm = window.confirm
 
   beforeEach(() => {
-    // Par défaut : profil complet, autres routes échouent (les tests qui
-    // soumettent override `global.fetch`).
-    global.fetch = withCompletudeOk(async () => ({
-      ok: false,
-      status: 500,
-      json: async () => ({}),
-    }) as unknown as Response)
+    pushMock.mockReset()
+    // Par défaut : /api/profil/cv → {cvUrl:null} (flux FileUpload), /api/profil/completude
+    // → profil complet (cf installFetch), autres routes neutres 500. Les tests overrident.
+    installFetch(
+      jest.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response),
+    )
   })
 
   afterEach(() => {
@@ -194,7 +228,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
     )
   })
 
-  it('upload échec réseau → message d’erreur dans la zone CV', async () => {
+  it('upload échec réseau au submit → message d’erreur (mode defer GUIC-229)', async () => {
     const uploader = jest.fn(async () => {
       throw new Error('Network down')
     })
@@ -203,9 +237,82 @@ describe('<CandidatureModal /> — refonte v2', () => {
     await act(async () => {
       pickFile(input, makePdf('cv.pdf'))
     })
+    // En mode defer, la sélection ne déclenche AUCUN upload.
+    expect(uploader).not.toHaveBeenCalled()
+    await typeLettre()
+    await checkConsent()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
+    })
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/Network down/i),
     )
+    // L'uploader a été appelé une seule fois (et a échoué).
+    expect(uploader).toHaveBeenCalledTimes(1)
+  })
+
+  it('GUIC-229 — 3 changements de fichier avant submit → 0 upload réseau', async () => {
+    const uploader = fakeUploader()
+    const { container } = renderModal({ uploader })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    await act(async () => {
+      pickFile(input, makePdf('first.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('second.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('third.pdf'))
+    })
+    // Trois sélections, zéro blob créé : c'est précisément le bug fixé.
+    expect(uploader).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-229 — fermeture sans submit ne déclenche aucun upload', async () => {
+    const uploader = fakeUploader()
+    window.confirm = jest.fn().mockReturnValue(true) as unknown as typeof window.confirm
+    const onClose = jest.fn()
+    const { container } = renderModal({ uploader, onClose })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    await act(async () => {
+      pickFile(input, makePdf('cv.pdf'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Fermer/i }))
+    })
+    expect(onClose).toHaveBeenCalled()
+    expect(uploader).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-229 — submit upload une seule fois puis POST /api/candidatures', async () => {
+    const uploader = fakeUploader()
+    const fetchMock = jest.fn(async () => ({
+      status: 201,
+      ok: true,
+      json: async () => ({ data: { id: '11111111-2222-3333-4444-555555555555' } }),
+    })) as unknown as typeof fetch
+    global.fetch = fetchMock
+    const { container } = renderModal({ uploader })
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    // Trois changements avant le submit
+    await act(async () => {
+      pickFile(input, makePdf('first.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('second.pdf'))
+    })
+    await act(async () => {
+      pickFile(input, makePdf('third.pdf'))
+    })
+    await typeLettre()
+    await checkConsent()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    // 1 seul upload pour les 3 sélections — le fichier final.
+    expect(uploader).toHaveBeenCalledTimes(1)
+    expect(uploader.mock.calls[0][0]).toBe('third.pdf')
   })
 
   it('submission 201 → écran succès rendu + onSuccess() appelé', async () => {
@@ -216,7 +323,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
         json: async () => ({ data: { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' } }),
       }) as unknown as Response,
     )
-    global.fetch = withCompletudeOk(fetchMock as unknown as (u: string) => Promise<Response>)
+    installFetch(fetchMock)
     const { props } = renderModal()
     await typeLettre()
     await checkConsent()
@@ -226,14 +333,19 @@ describe('<CandidatureModal /> — refonte v2', () => {
       fireEvent.click(btn)
     })
     await waitFor(() => expect(props.onSuccess).toHaveBeenCalled())
-    expect(
-      await screen.findByRole('heading', { name: /Candidature envoyée 🎉/i, level: 2 }),
-    ).toBeInTheDocument()
+    // Le titre de la modale et le heading de l'écran succès portent tous deux le
+    // libellé « Candidature envoyée » ; l'emoji (aria-hidden) n'est plus dans le nom
+    // accessible — on cible le heading succès via son contenu textuel.
+    const headings = await screen.findAllByRole('heading', {
+      name: /Candidature envoyée/i,
+      level: 2,
+    })
+    expect(headings.some((h) => h.textContent?.includes('🎉'))).toBe(true)
     expect(screen.getByTestId('candidature-ref').textContent).toMatch(/^CAND-[A-F0-9]{8}$/)
   })
 
   it('submission 500 → message d’erreur générique', async () => {
-    global.fetch = withCompletudeOk(async () => ({ status: 500, ok: false, json: async () => ({}) }) as unknown as Response)
+    installFetch(jest.fn(async () => ({ status: 500, ok: false, json: async () => ({}) }) as unknown as Response))
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -246,7 +358,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('422 deadline expirée → message dédié', async () => {
-    global.fetch = withCompletudeOk(async () => ({ status: 422, ok: false, json: async () => ({}) }) as unknown as Response)
+    installFetch(jest.fn(async () => ({ status: 422, ok: false, json: async () => ({}) }) as unknown as Response))
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -259,7 +371,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('401 session expirée → message dédié', async () => {
-    global.fetch = withCompletudeOk(async () => ({ status: 401, ok: false, json: async () => ({}) }) as unknown as Response)
+    installFetch(jest.fn(async () => ({ status: 401, ok: false, json: async () => ({}) }) as unknown as Response))
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -272,9 +384,11 @@ describe('<CandidatureModal /> — refonte v2', () => {
   })
 
   it('network error catch → message générique de connexion', async () => {
-    global.fetch = withCompletudeOk(async () => {
-      throw new TypeError('Failed to fetch')
-    })
+    installFetch(
+      jest.fn(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
     renderModal()
     await typeLettre()
     await checkConsent()
@@ -299,23 +413,151 @@ describe('<CandidatureModal /> — refonte v2', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('Yaye m\'aide pré-remplit la lettre vide (mock)', async () => {
-    renderModal()
-    const btn = screen.getByRole('button', { name: /Yaye m'aide/i })
+  it('Yaye m\'aide → router.push vers /jeune/yaye avec slug opportunité', async () => {
+    renderModal({ opportuniteSlug: 'stage-data-sonatel' })
+    const btn = screen.getByTestId('yaye-help-button')
     await act(async () => {
       fireEvent.click(btn)
     })
-    const ta = screen.getByLabelText(/Lettre de motivation/i) as HTMLTextAreaElement
-    expect(ta.value.length).toBeGreaterThan(0)
+    expect(pushMock).toHaveBeenCalledWith(
+      '/jeune/yaye?from=postuler&opp=stage-data-sonatel',
+    )
+  })
+
+  it('Yaye m\'aide → fallback sans slug si la prop n\'est pas fournie', async () => {
+    renderModal()
+    const btn = screen.getByTestId('yaye-help-button')
+    await act(async () => {
+      fireEvent.click(btn)
+    })
+    expect(pushMock).toHaveBeenCalledWith('/jeune/yaye?from=postuler')
+  })
+
+  it('lien "Modifier dans mon profil" pointe vers /jeune/mon-profil', () => {
+    renderModal()
+    const link = screen.getByTestId('edit-profile-link') as HTMLAnchorElement
+    expect(link.getAttribute('href')).toBe('/jeune/mon-profil')
+  })
+
+  it('CV profil absent → FileUpload direct (pas de carte "Utiliser ce CV")', async () => {
+    const { container } = renderModal()
+    // Attend la résolution du fetch /api/profil/cv (réponse {cvUrl:null}).
+    await waitFor(() => {
+      expect(container.querySelector('input[type="file"]')).not.toBeNull()
+    })
+    expect(screen.queryByTestId('profile-cv-card')).not.toBeInTheDocument()
+  })
+
+  it('CV profil disponible → carte "Utiliser mon CV de profil" affichée', async () => {
+    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.startsWith('/api/profil/cv')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              cvUrl: 'https://blob.example/cv-awa-diop.pdf',
+              name: '',
+              uploadedAt: '2026-05-12T08:00:00.000Z',
+            },
+          }),
+        } as unknown as Response
+      }
+      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    }) as unknown as typeof fetch
+
+    renderModal()
+    expect(await screen.findByTestId('profile-cv-card')).toBeInTheDocument()
+    expect(screen.getByText(/cv-awa-diop\.pdf/i)).toBeInTheDocument()
+    expect(screen.getByText(/Ajouté le 12 mai 2026/i)).toBeInTheDocument()
+    // Le FileUpload n'est PAS rendu en mode 'profile'.
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+  })
+
+  it('bouton "Utiliser ce CV" → state cv set + soumission envoie cvUrl du profil', async () => {
+    let candidaturesPayload: unknown = null
+    global.fetch = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.startsWith('/api/profil/cv')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              cvUrl: 'https://blob.example/cv-profil.pdf',
+              name: '',
+              uploadedAt: '2026-05-12T08:00:00.000Z',
+            },
+          }),
+        } as unknown as Response
+      }
+      if (url.startsWith('/api/candidatures')) {
+        candidaturesPayload = init?.body ? JSON.parse(init.body as string) : null
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ data: { id: '99999999-aaaa-bbbb-cccc-dddddddddddd' } }),
+        } as unknown as Response
+      }
+      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    }) as unknown as typeof fetch
+
+    renderModal({ requiresFileUpload: true })
+    const useBtn = await screen.findByTestId('use-profile-cv-button')
+    await act(async () => {
+      fireEvent.click(useBtn)
+    })
+    expect(await screen.findByTestId('profile-cv-selected')).toBeInTheDocument()
+    await typeLettre()
+    await checkConsent()
+    const submitBtn = screen.getByRole('button', { name: /Envoyer ma candidature/i })
+    expect(submitBtn).not.toBeDisabled()
+    await act(async () => {
+      fireEvent.click(submitBtn)
+    })
+    await waitFor(() => expect(candidaturesPayload).not.toBeNull())
+    expect((candidaturesPayload as { cvUrl?: string }).cvUrl).toBe(
+      'https://blob.example/cv-profil.pdf',
+    )
+  })
+
+  it('"Charger un nouveau CV" → bascule sur FileUpload', async () => {
+    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.startsWith('/api/profil/cv')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: {
+              cvUrl: 'https://blob.example/cv-profil.pdf',
+              name: '',
+              uploadedAt: null,
+            },
+          }),
+        } as unknown as Response
+      }
+      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    }) as unknown as typeof fetch
+
+    renderModal()
+    const newBtn = await screen.findByTestId('upload-new-cv-button')
+    await act(async () => {
+      fireEvent.click(newBtn)
+    })
+    await waitFor(() => {
+      expect(document.querySelector('input[type="file"]')).not.toBeNull()
+    })
+    expect(screen.queryByTestId('profile-cv-card')).not.toBeInTheDocument()
   })
 
   it('upload réussi + soumission 201 envoie cvUrl dans le payload', async () => {
     const innerMock = jest.fn(async (_url: string, _init?: RequestInit) => ({
       status: 201, ok: true,
       json: async () => ({ data: { id: '11111111-2222-3333-4444-555555555555' } }),
-    } as unknown as Response))
-    const fetchMock = withCompletudeOk(innerMock)
-    global.fetch = fetchMock
+    }) as unknown as Response)
+    installFetch(innerMock)
     const { container } = renderModal()
     await uploadCv(container)
     await typeLettre()

@@ -223,6 +223,17 @@ enum RoleAgent {
   @@map("role_agent")
 }
 
+/// Types de notifications (M11 — GUIC-247).
+enum TypeNotification {
+  Deadline
+  Candidature
+  Message
+  Yaye
+  System
+
+  @@map("type_notification")
+}
+
 // ─────────────────────────────────────────────
 // M1 — SOCLE : UTILISATEURS & PROFILS
 // ─────────────────────────────────────────────
@@ -253,6 +264,7 @@ model Utilisateur {
   opportunitesFavorites OpportuniteFavorite[]
   conversations         ConversationWhatsApp[]
   recommandations       RecommandationIA[]
+  notifications         Notification[]
 
   @@index([email])
   @@index([telephone])
@@ -636,6 +648,32 @@ model MessageWhatsApp {
 
   @@index([conversationId])
   @@map("messages_whatsapp")
+}
+
+// ─────────────────────────────────────────────
+// M11 — NOTIFICATIONS UTILISATEUR (GUIC-247)
+// Notifications persistées, affichées dans /jeune/notifications.
+// Distinct du dispatcher multi-canal (WhatsApp/SMS) — ici c'est le centre
+// de notifications applicatif (in-app).
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.VarChar(36)
+  cjsUid    String           @map("cjs_uid") @db.VarChar(36)
+  type      TypeNotification
+  titre     String           @db.VarChar(255)
+  contenu   String           @db.Text
+  iconName  String?          @map("icon_name") @db.VarChar(32)
+  lien      String?          @db.VarChar(500)
+  metaPill  String?          @map("meta_pill") @db.VarChar(64)
+  luA       DateTime?        @map("lu_a")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([cjsUid, luA])
+  @@map("notifications")
 }
 
 // ─────────────────────────────────────────────

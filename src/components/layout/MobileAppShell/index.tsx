@@ -1,22 +1,22 @@
 import { getSession } from '@/lib/auth'
+import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
+import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { MobileShellGate } from './MobileShellGate'
-import { MobileTopShellClient } from './MobileTopShellClient'
 
 /**
  * Top bar mobile du shell global pour user connecté.
  * À rendre AVANT {children} dans le root layout pour que `sticky top-0` fonctionne
  * (l'élément doit être en haut du flow DOM).
- *
- * Délègue à `MobileTopShellClient` pour câbler le clic cloche → drawer
- * notifications et le clic Yaye → /jeune/yaye (GUIC-194).
  */
 export async function MobileTopShell() {
   const session = await getSession()
   if (!session) return null
+  // GUIC-247 — badge cloche : non-lues lues côté serveur (best-effort).
+  const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
   return (
     <MobileShellGate>
-      <MobileTopShellClient session={session} />
+      <AppTopbar session={session} unread={unread} />
     </MobileShellGate>
   )
 }

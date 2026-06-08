@@ -20,7 +20,7 @@ export const WithTimestamp: Story = { args: { timestamp: '9:41' } }
 
 export const Conversation: Story = {
   render: () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#F5FAF8', padding: 16, borderRadius: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--gj-bg-teal-soft)', padding: 16, borderRadius: 14 }}>
       <YayeBubble from="bot" timestamp="9:41">
         Salama Awa. J&apos;ai 3 opportunités à 90%+ match pour toi à Tambacounda.
       </YayeBubble>

@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { EmptyState } from '@/components/ui'
 import { CandidatureCard } from './CandidatureCard'
 import { CandidaturesFilterChips } from './CandidaturesFilterChips'
@@ -34,6 +35,7 @@ function computeCounts(items: CandidatureMock[]): Record<CandidatureFilter, numb
  * - liste filtrée OR empty state
  */
 export function CandidaturesClient({ items }: CandidaturesClientProps) {
+  const router = useRouter()
   const [filter, setFilter] = useState<CandidatureFilter>('all')
 
   const counts = useMemo(() => computeCounts(items), [items])
@@ -60,9 +62,7 @@ export function CandidaturesClient({ items }: CandidaturesClientProps) {
             title="Pas encore de candidature"
             description="Explorez les opportunités et postulez à celles qui vous correspondent."
             actionLabel="Voir les opportunités"
-            onAction={() => {
-              window.location.href = '/opportunites'
-            }}
+            onAction={() => router.push('/opportunites')}
           />
         ) : (
           <div

@@ -1,5 +1,14 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+<<<<<<<< HEAD:src/components/home/WelcomeHeroWeb.tsx
+========
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import {
+  FALLBACK_HOME_STATS,
+  formatHomeStat,
+  type HomeStats,
+} from '@/lib/loaders/home-stats.shared'
+>>>>>>>> origin/dev:src/app/jeune/onboarding/_screens-web/OnboardingWelcomeWeb.tsx
 
 const STATS = [
   { value: '22 695', label: 'Jeunes inscrits' },
@@ -237,6 +246,7 @@ export function WelcomeHeroWeb() {
               transform: 'translateY(-30px)',
             }}
           >
+<<<<<<<< HEAD:src/components/home/WelcomeHeroWeb.tsx
             <div
               className="inline-flex items-center justify-center flex-shrink-0 font-black text-white"
               style={{
@@ -276,6 +286,12 @@ export function WelcomeHeroWeb() {
                 >
                   IA
                 </span>
+========
+            <YayeAvatar size={48} withBadge />
+            <div className="flex-1" style={{ color: '#fff' }}>
+              <div className="font-black" style={{ fontSize: 13 }}>
+                Yaye
+>>>>>>>> origin/dev:src/app/jeune/onboarding/_screens-web/OnboardingWelcomeWeb.tsx
               </div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, lineHeight: 1.45 }}>
                 « Dis-moi ce que tu cherches — je m&apos;occupe du reste. »

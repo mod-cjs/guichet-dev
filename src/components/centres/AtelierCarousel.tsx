@@ -27,6 +27,7 @@ const TONE_DATE_INK: Record<AtelierTone, string> = {
 export function AtelierCarousel({ ateliers, onInscrire }: AtelierCarouselProps) {
   return (
     <div
+      data-testid="atelier-carousel"
       role="list"
       aria-label="Ateliers à venir à mon centre"
       className="flex gap-space-2 overflow-x-auto snap-x snap-mandatory pb-1 -mx-space-3 px-space-3"

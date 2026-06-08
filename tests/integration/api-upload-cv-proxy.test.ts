@@ -50,7 +50,10 @@ function buildReq(formData: FormData | null): NextRequest {
 }
 
 function pdfFile(name: string, sizeBytes = 1024): File {
-  return new File([new Uint8Array(sizeBytes)], name, { type: 'application/pdf' })
+  // En-tête %PDF- requis par la validation magic-bytes (GUIC-241).
+  const header = new TextEncoder().encode('%PDF-1.7')
+  const body = new Uint8Array(Math.max(0, sizeBytes - header.length))
+  return new File([header, body], name, { type: 'application/pdf' })
 }
 
 beforeEach(() => {
