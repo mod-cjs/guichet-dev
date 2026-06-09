@@ -8,22 +8,26 @@
 -- ─────────────────────────────────────────────
 -- 1. Extension du modèle `centres` existant
 -- ─────────────────────────────────────────────
+-- IMPORTANT : `services JSON NOT NULL` sans DEFAULT échoue sur table non vide.
+-- Pattern 3 étapes : ADD NULL → BACKFILL → MODIFY NOT NULL.
 
 ALTER TABLE `centres`
-  ADD COLUMN `slug` VARCHAR(120) NULL,
-  ADD COLUMN `description` TEXT NULL,
-  ADD COLUMN `image_url` VARCHAR(500) NULL,
-  ADD COLUMN `email` VARCHAR(255) NULL,
-  ADD COLUMN `ville` VARCHAR(120) NULL,
-  ADD COLUMN `services` JSON NOT NULL,
+  ADD COLUMN `slug`              VARCHAR(120) NULL,
+  ADD COLUMN `description`       TEXT NULL,
+  ADD COLUMN `image_url`         VARCHAR(500) NULL,
+  ADD COLUMN `email`             VARCHAR(255) NULL,
+  ADD COLUMN `ville`             VARCHAR(120) NULL,
+  ADD COLUMN `services`          JSON NULL,
   ADD COLUMN `conseillers_count` INT NOT NULL DEFAULT 0;
 
--- Default JSON pour services : tableau vide (compat MySQL JSON DEFAULT)
+-- Backfill : tableau vide JSON pour toutes les lignes existantes.
 UPDATE `centres` SET `services` = JSON_ARRAY() WHERE `services` IS NULL;
 
--- Unique sur slug (nullable, accepte plusieurs NULL en MySQL)
+-- Promotion NOT NULL une fois toutes les lignes peuplées.
+ALTER TABLE `centres` MODIFY COLUMN `services` JSON NOT NULL;
+
+-- Unique sur slug (nullable, plusieurs NULL acceptés en MySQL/MariaDB).
 CREATE UNIQUE INDEX `centres_slug_key` ON `centres`(`slug`);
-CREATE INDEX `centres_slug_idx` ON `centres`(`slug`);
 
 -- ─────────────────────────────────────────────
 -- 2. Extension du modèle `profils_jeunes` existant
