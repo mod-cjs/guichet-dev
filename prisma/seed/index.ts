@@ -53,6 +53,7 @@ import { seedRessources } from './ressources'
 import { seedSkills } from './skills'
 import { seedTags } from './tags'
 import { seedNotifications } from './notifications'
+import { seedLot7 } from './lot7-centres'
 
 async function main() {
   // Tables de référence M3 v2 (GUIC-182 / 178a) — ordre indépendant, sans FK croisées
@@ -77,6 +78,10 @@ async function main() {
   if (nbNotifs > 0) {
     console.log(`Seed M11 notifications — ${nbNotifs} notifications insérées (GUIC-247).`)
   }
+
+  // Lot 7 Centres CJS (GUIC-351 / EPIC GUIC-350) — enrichit les 9 centres existants
+  // avec horaires + ressources + staff démo (idempotent).
+  await seedLot7(prisma)
 }
 
 main()
