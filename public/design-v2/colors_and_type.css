@@ -1,0 +1,91 @@
+/* =========================================================
+   Guichet Jeunesse — Colors & Type (shorthand layer)
+   Loads on top of tokens.css. Use this for designs that
+   want plain semantic names (fg1, h1, body, code) without
+   memorising the --gj-* / --color-* tokens.
+   ----------------------------------------------------------
+   Always also load tokens.css — this file ALIASES it, it
+   does not redefine the palette. See tokens.css for the
+   authoritative source of every value.
+   ========================================================= */
+
+:root {
+  /* ---- Color shorthands ---- */
+  --bg:         var(--gj-bg);            /* page background */
+  --surface:    var(--gj-surface);       /* card / panel */
+  --surface-2:  #FAFCFB;                 /* gentle alt surface */
+  --fg1:        var(--gj-ink);           /* primary text */
+  --fg2:        var(--gj-grey);          /* secondary text */
+  --fg3:        var(--gj-grey-2);        /* muted / captions */
+  --fg-inv:     #FFFFFF;                 /* on dark / teal-deep */
+  --line:       var(--gj-line);          /* hairline borders */
+  --line-strong:var(--gj-line-strong);
+  --link:       var(--gj-teal-deep);
+  --focus:      var(--focus-ring-color);
+
+  /* Brand accents (Senegal flag mediated through neutral) */
+  --brand:      var(--gj-teal);          /* teal — primary brand */
+  --brand-deep: var(--gj-teal-deep);     /* hero / band background */
+  --brand-soft: var(--gj-teal-soft);     /* tint */
+  --accent:     var(--gj-yellow);        /* yellow — today / secondary */
+  --accent-soft:var(--gj-yellow-soft);
+  --danger:     var(--gj-red);
+  --info:       var(--gj-blue);
+  --success:    var(--gj-green);
+  --bot:        var(--gj-indigo);        /* chatbot ONLY */
+
+  /* ---- Type ramp (semantic aliases of --fs-*) ---- */
+  --display:    var(--fs-900);   /* 36 — hero only */
+  --h1:         var(--fs-800);   /* 28 — page title */
+  --h2:         var(--fs-700);   /* 24 — section title / KPI */
+  --h3:         var(--fs-600);   /* 20 — card title */
+  --h4:         var(--fs-500);   /* 18 — sub-section */
+  --body:       var(--fs-400);   /* 16 — body (default) */
+  --body-sm:    var(--fs-300);   /* 14 — support text */
+  --caption:    var(--fs-200);   /* 13 — captions / meta */
+  --micro:      var(--fs-100);   /* 11 — eyebrow / tag (floor) */
+
+  /* Weights */
+  --w-regular:  400;
+  --w-semibold: 600;
+  --w-bold:     700;
+  --w-black:    800;
+
+  /* Line-heights */
+  --lh-tight:   1.2;
+  --lh-body:    1.5;
+  --lh-loose:   1.65;
+
+  /* Mono (code, tokens, metadata) */
+  --mono:       ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+}
+
+/* =========================================================
+   Element defaults — opt-in. Add class="gj-type" to any
+   container to get the canonical type rhythm.
+   ========================================================= */
+
+.gj-type, .gj-type * {
+  font-family: var(--gj-font-sans);
+  color: var(--fg1);
+}
+
+.gj-type h1 { font-size: var(--h1); font-weight: var(--w-black); line-height: var(--lh-tight); }
+.gj-type h2 { font-size: var(--h2); font-weight: var(--w-black); line-height: var(--lh-tight); }
+.gj-type h3 { font-size: var(--h3); font-weight: var(--w-bold);  line-height: var(--lh-tight); }
+.gj-type h4 { font-size: var(--h4); font-weight: var(--w-bold);  line-height: var(--lh-tight); }
+.gj-type p,
+.gj-type li { font-size: var(--body); font-weight: var(--w-regular); line-height: var(--lh-body); color: var(--fg1); }
+.gj-type small,
+.gj-type .caption { font-size: var(--caption); color: var(--fg2); }
+.gj-type .micro  { font-size: var(--micro);   color: var(--fg2); letter-spacing: .4px; text-transform: uppercase; font-weight: var(--w-bold); }
+
+.gj-type code,
+.gj-type kbd,
+.gj-type .mono { font-family: var(--mono); font-size: .92em; }
+
+.gj-type a {
+  color: var(--link);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
