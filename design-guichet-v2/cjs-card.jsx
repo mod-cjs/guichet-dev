@@ -174,4 +174,43 @@ const MyCJSCard = ({ compact = false, dark = true }) => {
   );
 };
 
-Object.assign(window, { QRGlyph, MyCJSCard });
+// GUIC-352 — verso de la carte CJS (utilisé par Lot 7 centres-web.jsx et centres-mobile.jsx).
+const MyCJSCardBack = ({ maxWidth = 480 }) => {
+  const wrap = {
+    maxWidth, width: "100%", borderRadius: 18, overflow: "hidden",
+    background: "linear-gradient(180deg, var(--gj-ink) 0%, #1a2a26 100%)",
+    color: "#fff", padding: 22, fontFamily: "var(--gj-font-sans)",
+    boxShadow: "0 12px 32px rgba(0,0,0,.28)",
+  };
+  const label = { fontSize: 10, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--gj-yellow)", fontWeight: 800, marginBottom: 4 };
+  const value = { fontSize: 14, fontWeight: 800, marginBottom: 14 };
+  const bars = Array.from({ length: 42 }, (_, i) => {
+    const h = 32 + ((i * 7) % 22);
+    const w = i % 3 === 0 ? 3 : i % 5 === 0 ? 2 : 1;
+    return <span key={i} style={{ display: "inline-block", width: w, height: h, background: "#fff", marginRight: 2 }} />;
+  });
+  return (
+    <div style={wrap}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".5px" }}>VERSO · CARTE CJS</span>
+        <span style={{ fontSize: 10, opacity: .7 }}>2026</span>
+      </div>
+      <div style={label}>Matricule</div>
+      <div style={{ ...value, fontFamily: "ui-monospace, Menlo, monospace", letterSpacing: ".8px" }}>GJS · AD · 23045</div>
+      <div style={label}>Conditions</div>
+      <div style={{ fontSize: 11, lineHeight: 1.55, opacity: .85, marginBottom: 18 }}>
+        Carte nominative · non transmissible. À présenter à l'accueil du centre.
+        Toute perte doit être signalée sous 48 h via Yaye ou ton conseiller·ère.
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 14, padding: "12px 14px", background: "rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 12 }}>
+        {bars}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: .7 }}>
+        <span>Émise le 03/2025</span>
+        <span>guichetjeunesse.sn</span>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { QRGlyph, MyCJSCard, MyCJSCardBack });
