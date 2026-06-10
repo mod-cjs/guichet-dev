@@ -89,8 +89,8 @@ export function SenegalMap({
         <title id={titleId}>Carte des centres CJS au Sénégal</title>
         <path
           d={SENEGAL_PATH}
-          fill="var(--gj-teal-soft, #E5F0EC)"
-          stroke="var(--gj-teal-deep, #0A2A24)"
+          fill="var(--gj-teal-soft)"
+          stroke="var(--gj-teal-deep)"
           strokeWidth={1}
           strokeLinejoin="round"
         />
@@ -131,7 +131,7 @@ export function SenegalMap({
                   cx={p.x}
                   cy={p.y}
                   r={6}
-                  fill="var(--gj-red, #D7263D)"
+                  fill="var(--gj-red)"
                   opacity={0.55}
                 />
               )}
@@ -139,7 +139,7 @@ export function SenegalMap({
                 cx={p.x}
                 cy={p.y}
                 r={4}
-                fill={active ? 'var(--gj-red, #D7263D)' : 'var(--gj-teal-deep, #0A2A24)'}
+                fill={active ? 'var(--gj-red)' : 'var(--gj-teal-deep)'}
                 stroke="#fff"
                 strokeWidth={1.2}
               />
@@ -150,7 +150,7 @@ export function SenegalMap({
                   textAnchor="middle"
                   fontSize={9}
                   fontWeight={700}
-                  fill="var(--gj-ink, #0E1A1F)"
+                  fill="var(--gj-ink)"
                   style={{ pointerEvents: 'none' }}
                 >
                   {p.label}

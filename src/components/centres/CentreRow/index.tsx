@@ -1,5 +1,6 @@
 'use client'
 
+import { Icon } from '@/components/ui/Icon'
 import { CentreOpenDot } from '../CentreOpenDot'
 
 export interface CentreRowHoraire {
@@ -83,23 +84,24 @@ export function CentreRow({
       onKeyDown={handleKey}
       className={`relative flex flex-col gap-2 p-4 rounded-gj-lg cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       style={{
-        background: 'var(--gj-surface, #fff)',
+        background: 'var(--gj-surface)',
         border: `1px solid ${
-          isMine ? 'var(--gj-teal-deep, #0A2A24)' : 'var(--gj-line, #DDE3E1)'
+          isMine ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
         }`,
-        boxShadow: isMine ? '0 0 0 1px var(--gj-teal-deep, #0A2A24) inset' : undefined,
+        boxShadow: isMine ? '0 0 0 1px var(--gj-teal-deep) inset' : undefined,
       }}
     >
+      {/* TODO(GUIC-XXX) distance km — voir backlog géoloc */}
       <header className="flex items-start justify-between gap-2">
-        <h3 className="text-fs-300 font-black m-0" style={{ color: 'var(--gj-ink, #0E1A1F)' }}>
+        <h3 className="text-fs-300 font-black m-0" style={{ color: 'var(--gj-ink)' }}>
           {centre.nom}
         </h3>
         {isMine && (
           <span
             className="text-fs-100 font-bold px-2 py-0.5 rounded-gj-sm"
             style={{
-              background: 'var(--gj-teal-deep, #0A2A24)',
-              color: '#fff',
+              background: 'var(--gj-teal-soft)',
+              color: 'var(--gj-teal-deep)',
             }}
           >
             Mon centre
@@ -107,24 +109,13 @@ export function CentreRow({
         )}
       </header>
 
-      <div className="flex items-center gap-3 text-fs-200" style={{ color: 'var(--gj-grey, #65706B)' }}>
+      <div className="flex items-center gap-3 text-fs-200" style={{ color: 'var(--gj-grey)' }}>
         <span className="inline-flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M12 22s7-7.58 7-13a7 7 0 1 0-14 0c0 5.42 7 13 7 13Z"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="2" />
-          </svg>
+          <Icon name="pin" size={14} />
           {centre.ville ?? centre.region} · {centre.region}
         </span>
         <span className="inline-flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-            <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <Icon name="clock" size={14} />
           <CentreOpenDot open={isOpen} />
           <span>{isOpen ? 'Ouvert' : 'Fermé'} · {horaireToday}</span>
         </span>
@@ -137,8 +128,8 @@ export function CentreRow({
               key={s}
               className="text-fs-100 px-2 py-0.5 rounded-gj-sm"
               style={{
-                background: 'var(--gj-teal-soft, #E5F0EC)',
-                color: 'var(--gj-teal-deep, #0A2A24)',
+                background: 'var(--gj-teal-soft)',
+                color: 'var(--gj-teal-deep)',
               }}
             >
               {s}
@@ -147,7 +138,7 @@ export function CentreRow({
           {extraServices > 0 && (
             <li
               className="text-fs-100 px-2 py-0.5 rounded-gj-sm"
-              style={{ color: 'var(--gj-grey, #65706B)' }}
+              style={{ color: 'var(--gj-grey)' }}
             >
               +{extraServices}
             </li>
@@ -155,7 +146,7 @@ export function CentreRow({
         </ul>
       )}
 
-      <footer className="text-fs-100" style={{ color: 'var(--gj-grey, #65706B)' }}>
+      <footer className="text-fs-100" style={{ color: 'var(--gj-grey)' }}>
         {centre.conseillersCount}{' '}
         {centre.conseillersCount > 1 ? 'conseillers disponibles' : 'conseiller disponible'}
       </footer>

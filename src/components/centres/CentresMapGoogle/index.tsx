@@ -148,9 +148,9 @@ export function CentresMapGoogle({
           role="alert"
           className="rounded-gj-lg p-space-3 text-fs-200"
           style={{
-            background: 'var(--gj-bg, #F5F7F6)',
-            border: '1px solid var(--gj-line, #DDE3E1)',
-            color: 'var(--gj-ink, #0E1A1F)',
+            background: 'var(--gj-bg)',
+            border: '1px solid var(--gj-line)',
+            color: 'var(--gj-ink)',
           }}
         >
           {error}

@@ -93,14 +93,14 @@ export function QRBadge({
         <span
           aria-live="polite"
           className="text-fs-200 font-bold"
-          style={{ color: urgent ? 'var(--gj-red, #D7263D)' : 'var(--gj-ink, #0E1A1F)' }}
+          style={{ color: urgent ? 'var(--gj-red)' : 'var(--gj-ink)' }}
         >
           Expire dans {formatRemaining(remainingMs)}
         </span>
       )}
 
       {expired && (
-        <span aria-live="polite" className="text-fs-200" style={{ color: 'var(--gj-red, #D7263D)' }}>
+        <span aria-live="polite" className="text-fs-200" style={{ color: 'var(--gj-red)' }}>
           Code expiré
         </span>
       )}
@@ -111,7 +111,7 @@ export function QRBadge({
           onClick={onRefreshClick}
           className="px-3 py-1 rounded-gj-pill text-fs-200 font-bold"
           style={{
-            background: 'var(--gj-teal-deep, #0A2A24)',
+            background: 'var(--gj-teal-deep)',
             color: '#fff',
             border: 'none',
             cursor: 'pointer',
