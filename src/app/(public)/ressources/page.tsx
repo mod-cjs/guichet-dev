@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import {
   listRessources,
   type RessourceFiltres,
@@ -73,13 +74,19 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
         </p>
       </header>
 
-      <RessourcesClient
-        initialItems={items}
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        initialFilters={filtres}
-      />
+      {/* GUIC-264 — RessourcesClient utilise useSearchParams/useRouter/usePathname
+          qui doivent être encapsulés dans un Suspense boundary (Next 16 strict).
+          Sans ça : crash hydration prod "useSearchParams() should be wrapped in
+          a suspense boundary". */}
+      <Suspense fallback={null}>
+        <RessourcesClient
+          initialItems={items}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          initialFilters={filtres}
+        />
+      </Suspense>
     </div>
   )
 }
