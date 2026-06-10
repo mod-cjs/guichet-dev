@@ -9,8 +9,13 @@ ADRs : `.agent_context/adr/ADR-00X-*.md` (rédigés juste avant chaque wave)
 |------|------------|--------|----|---------|----|
 | EPIC | GUIC-350 | 🟡 EN REVIEW | — | — | Parent |
 | **W0 — Foundations** | **GUIC-351** | 🟡 **EN REVIEW** | **#116** | **⏳ ATTENDU** | Schema Prisma + analytics + icons |
+<<<<<<< Updated upstream
 | W1 — Primitives | GUIC-352 | ⚪ Attente W0 PO | — | — | SenegalMap, MyCJSCard, QRBadge |
 | W2 — Vue all + onboarding | GUIC-353 | ⚪ Attente W1 | — | — | Carte + annuaire |
+=======
+| W1 — Primitives | GUIC-352 | 🟡 **EN REVIEW** | **#117** | ⏳ ATTENDU | Composants + Storybook |
+| W2 — Vue all + onboarding | GUIC-353 | 🟡 EN COURS | — | — | Carte + annuaire + onboarding centre principal |
+>>>>>>> Stashed changes
 | W3 — Vue detail | GUIC-354 | ⚪ Attente W1 | — | — | Hero + sections |
 | W4 — Resources + reserve | GUIC-355 | ⚪ Attente W3 | — | — | Transaction critique |
 | W5 — Mes réservations | GUIC-356 | ⚪ Attente W4 | — | — | Statuts + actions |
