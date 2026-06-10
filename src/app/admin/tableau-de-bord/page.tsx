@@ -20,7 +20,7 @@ export default function Page() {
         ))}
       </div>
       <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        🚧 Dashboard administrateur complet — Sprint 3 (M8)
+        Dashboard administrateur complet — Sprint 3 (M8)
       </div>
     </div>
   )
