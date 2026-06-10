@@ -44,6 +44,7 @@
     "storybook:public": "storybook build --output-dir public/storybook --quiet"
   },
   "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.6",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/adapter-planetscale": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -57,6 +58,7 @@
     "next-auth": "^5.0.0-beta.25",
     "postcss": "^8.4.47",
     "prisma": "^7.8.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^3.4.14",
@@ -70,6 +72,7 @@
     "@testing-library/react": "^16.0.0",
     "@types/jest": "^29.5.13",
     "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "dotenv": "^16.6.1",

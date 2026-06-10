@@ -8,6 +8,24 @@ export { CentresMap } from './CentresMap'
 export type { CentresMapProps } from './CentresMap'
 export { AtelierCarousel } from './AtelierCarousel'
 export type { AtelierCarouselProps } from './AtelierCarousel'
+export { CentreOpenDot } from './CentreOpenDot'
+export type { CentreOpenDotProps } from './CentreOpenDot'
+export { SenegalMap } from './SenegalMap'
+export type { SenegalMapProps, SenegalMapPin } from './SenegalMap'
+export { CentresMapGoogle } from './CentresMapGoogle'
+export type {
+  CentresMapGoogleProps,
+  CentresMapGoogleCentre,
+  CentresMapGoogleListItem,
+} from './CentresMapGoogle'
+export { QRBadge } from './QRBadge'
+export type { QRBadgeProps } from './QRBadge'
+export { MyCJSCard, MyCJSCardBack } from './MyCJSCard'
+export type {
+  MyCJSCardProps,
+  MyCJSCardUser,
+  MyCJSCardBackProps,
+} from './MyCJSCard'
 export {
   MOCK_CENTRES,
   MOCK_RDV,
