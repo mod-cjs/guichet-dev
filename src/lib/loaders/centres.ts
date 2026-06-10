@@ -77,6 +77,7 @@ export async function listCentres(): Promise<CentreListItem[]> {
 // Wave 2 — Vue `all` enrichie (GUIC-353)
 // ─────────────────────────────────────────────────────────────────
 
+// Helper: ordre des jours (référence type, pas runtime)
 const JOURS_ORDER = [
   'Lundi',
   'Mardi',

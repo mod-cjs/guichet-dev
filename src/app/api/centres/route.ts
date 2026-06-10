@@ -25,7 +25,7 @@ export async function GET(
     max: 60,
     keyPrefix: 'centres-list',
   })
-  if (rl) return rl
+  if (rl) return rl as NextResponse<ApiResponse<{ centres: CentreWithStatus[] }>>
 
   const { searchParams } = new URL(request.url)
   const region = searchParams.get('region') ?? undefined
