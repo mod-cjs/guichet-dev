@@ -265,6 +265,9 @@ model Utilisateur {
   conversations         ConversationWhatsApp[]
   recommandations       RecommandationIA[]
   notifications         Notification[]
+  // Lot 7 — Centres CJS (GUIC-350)
+  reservations          Reservation[]
+  checkIns              CheckIn[]
 
   @@index([email])
   @@index([telephone])
@@ -274,29 +277,35 @@ model Utilisateur {
 
 // Profil enrichi — rempli par le jeune après inscription
 model ProfilJeune {
-  id                String   @id @default(uuid()) @db.VarChar(36)
-  cjsUid            String   @unique @map("cjs_uid") @db.VarChar(36)
-  photoUrl          String?  @map("photo_url") @db.VarChar(500)
-  biographie        String?  @db.Text
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  cjsUid            String    @unique @map("cjs_uid") @db.VarChar(36)
+  photoUrl          String?   @map("photo_url") @db.VarChar(500)
+  biographie        String?   @db.Text
   // JSON arrays stockés en texte — ex: ["JavaScript","Python"] ou ["Agriculture","Numérique"]
   competences       Json?
-  domainesInteret   Json?    @map("domaines_interet")
-  niveauEtude       String?  @map("niveau_etude") @db.VarChar(50)
-  situationEmploi   String?  @map("situation_emploi") @db.VarChar(50)
+  domainesInteret   Json?     @map("domaines_interet")
+  niveauEtude       String?   @map("niveau_etude") @db.VarChar(50)
+  situationEmploi   String?   @map("situation_emploi") @db.VarChar(50)
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
-  completionScore   Int      @default(0) @map("completion_score")
-  profileVisibility String   @default("public") @map("profile_visibility") @db.VarChar(20)
+  completionScore   Int       @default(0) @map("completion_score")
+  profileVisibility String    @default("public") @map("profile_visibility") @db.VarChar(20)
   // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
-  cvUrl             String?  @map("cv_url") @db.VarChar(500)
+  cvUrl             String?   @map("cv_url") @db.VarChar(500)
   cvUploadedAt      DateTime? @map("cv_uploaded_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  utilisateur Utilisateur        @relation(fields: [cjsUid], references: [cjsUid])
-  experiences Experience[]
-  diplomes    Diplome[]
-  certificats CertificatMoodle[]
+  // Lot 7 — Centre de rattachement principal (GUIC-350, ADR centre principal hybride)
+  // Renseigné à l'onboarding via auto-suggest par région SSO, modifiable ensuite.
+  centrePrincipalId String? @map("centre_principal_id") @db.VarChar(36)
 
+  utilisateur     Utilisateur        @relation(fields: [cjsUid], references: [cjsUid])
+  experiences     Experience[]
+  diplomes        Diplome[]
+  certificats     CertificatMoodle[]
+  centrePrincipal Centre?            @relation("ProfilCentrePrincipal", fields: [centrePrincipalId], references: [id])
+
+  @@index([centrePrincipalId])
   @@map("profils_jeunes")
 }
 
@@ -495,10 +504,27 @@ model Centre {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  evenements Evenement[]
-  agents     AgentCentre[]
+  // Lot 7 — Centres CJS (GUIC-350)
+  slug             String? @unique @db.VarChar(120)
+  description      String? @db.Text
+  imageUrl         String? @map("image_url") @db.VarChar(500)
+  email            String? @db.VarChar(255)
+  ville            String? @db.VarChar(120)
+  // JSON string[] de valeurs CentreService (cf enum) — Json pour flexibilité
+  services         Json    @default("[]")
+  conseillersCount Int     @default(0) @map("conseillers_count")
+
+  evenements       Evenement[]
+  agents           AgentCentre[]
+  horaires         CentreHoraire[]
+  ressources       RessourceCentre[]
+  reservations     Reservation[]
+  checkIns         CheckIn[]
+  events           CentreEvent[]
+  profilsRattaches ProfilJeune[]     @relation("ProfilCentrePrincipal")
 
   @@index([region])
+  @@index([slug])
   @@map("centres")
 }
 
@@ -564,21 +590,21 @@ model InscriptionEvenement {
 // ─────────────────────────────────────────────
 
 model Ressource {
-  id          String        @id @default(uuid()) @db.VarChar(36)
-  drupalNid   Int?          @unique @map("drupal_nid")
-  titre       String        @db.VarChar(255)
-  description String        @db.Text
+  id          String           @id @default(uuid()) @db.VarChar(36)
+  drupalNid   Int?             @unique @map("drupal_nid")
+  titre       String           @db.VarChar(255)
+  description String           @db.Text
   type        TypeRessource
-  theme       String        @db.VarChar(100)
-  url         String        @db.VarChar(500)
-  estPublic   Boolean       @default(true) @map("est_public")
-  vues        Int           @default(0)
+  theme       String           @db.VarChar(100)
+  url         String           @db.VarChar(500)
+  estPublic   Boolean          @default(true) @map("est_public")
+  vues        Int              @default(0)
   // GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
   niveau      NiveauRessource? @map("niveau")
   langue      LangueRessource? @map("langue")
-  categorie   String?         @db.VarChar(100) @map("categorie")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  categorie   String?          @map("categorie") @db.VarChar(100)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
 
   favoris RessourceFavorite[]
 
@@ -996,4 +1022,173 @@ model OpportuniteVolontariat {
   opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
 
   @@map("opportunites_volontariat")
+}
+
+// ─────────────────────────────────────────────
+// M4 — LOT 7 CENTRES CJS (GUIC-350)
+// Spec : .agent_context/specs/M4-centres-lot7.md
+// ADR-001 : réutilisation AgentCentre + RoleAgent (pas de CentreStaff)
+// ─────────────────────────────────────────────
+
+/// Services disponibles dans un centre CJS (stockés en Json string[] sur Centre.services).
+enum CentreService {
+  WiFi
+  Bibliotheque
+  Coworking
+  Ateliers
+  Conseiller
+  Salle_reunion
+  Postes_info
+  Imprimante
+  Cafe
+  Espace_detente
+
+  @@map("centre_service")
+}
+
+enum Jour {
+  Lundi
+  Mardi
+  Mercredi
+  Jeudi
+  Vendredi
+  Samedi
+  Dimanche
+
+  @@map("jour")
+}
+
+enum TypeRessourceCentre {
+  Salle
+  Vehicule
+  Poste_info
+  Equipement
+  Atelier_recurrent
+
+  @@map("type_ressource_centre")
+}
+
+enum StatutReservation {
+  EnAttente // workflow approval — désactivé MVP
+  Acceptee // auto-validée MVP
+  Refusee
+  AnnuleeParJeune
+  Passee // batch quotidien : date passée + statut != Annulee/Refusee
+  NonHonoree // batch : date passée + pas de CheckIn associé
+
+  @@map("statut_reservation")
+}
+
+enum CheckInVia {
+  QrCard // QR de la MyCJSCard scanné
+  Manuel // staff a entré manuellement
+
+  @@map("check_in_via")
+}
+
+/// Horaires d'ouverture par centre × jour (configurable, fallback standard si vide).
+model CentreHoraire {
+  centreId String  @map("centre_id") @db.VarChar(36)
+  jour     Jour
+  ouvert   Boolean @default(true)
+  ouvreA   String? @map("ouvre_a") @db.VarChar(5) // "08:00"
+  fermeA   String? @map("ferme_a") @db.VarChar(5) // "18:00"
+
+  centre Centre @relation(fields: [centreId], references: [id], onDelete: Cascade)
+
+  @@id([centreId, jour])
+  @@map("centre_horaires")
+}
+
+/// Ressources réservables par un jeune dans un centre (salles, véhicules, postes info...).
+model RessourceCentre {
+  id                 String              @id @default(uuid()) @db.VarChar(36)
+  centreId           String              @map("centre_id") @db.VarChar(36)
+  type               TypeRessourceCentre
+  nom                String              @db.VarChar(120)
+  description        String?             @db.Text
+  imageUrl           String?             @map("image_url") @db.VarChar(500)
+  // Capacité variable : 1 = ressource unique, >1 = multiple (ex. salle 20 places, 5 postes info)
+  capacite           Int                 @default(1)
+  capaciteUnit       String?             @map("capacite_unit") @db.VarChar(30) // "personnes", "postes"
+  dureeMinCreneauMin Int                 @default(60) @map("duree_min_creneau_min")
+  requiresJustif     Boolean             @default(false) @map("requires_justif")
+  estActive          Boolean             @default(true) @map("est_active")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  centre       Centre        @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@index([centreId, type, estActive])
+  @@map("ressources_centre")
+}
+
+/// Réservation d'une ressource par un jeune.
+/// MVP : auto-validée (statut=Acceptee) à la création.
+/// Sprint+1 : workflow approval activable (StatutReservation.EnAttente).
+model Reservation {
+  id                 String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid             String            @map("cjs_uid") @db.VarChar(36)
+  centreId           String            @map("centre_id") @db.VarChar(36)
+  ressourceId        String            @map("ressource_id") @db.VarChar(36)
+  dateReservee       DateTime          @map("date_reservee") // jour calendrier
+  creneauDebut       String            @map("creneau_debut") @db.VarChar(5)
+  creneauFin         String            @map("creneau_fin") @db.VarChar(5)
+  nombrePersonnes    Int               @default(1) @map("nombre_personnes")
+  motif              String            @db.Text
+  justifFileUrl      String?           @map("justif_file_url") @db.VarChar(500)
+  statut             StatutReservation @default(Acceptee)
+  raisonRefusOuAnnul String?           @map("raison_refus_ou_annul") @db.Text
+  noShow             Boolean           @default(false) @map("no_show")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  decisionA          DateTime?         @map("decision_a")
+  annuleeA           DateTime?         @map("annulee_a")
+
+  utilisateur Utilisateur     @relation(fields: [cjsUid], references: [cjsUid])
+  centre      Centre          @relation(fields: [centreId], references: [id])
+  ressource   RessourceCentre @relation(fields: [ressourceId], references: [id])
+
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([centreId, statut, dateReservee])
+  @@index([ressourceId, dateReservee, statut])
+  @@index([statut, dateReservee])
+  @@map("reservations")
+}
+
+/// Check-in physique d'un jeune dans un centre (KPI fréquentation principal).
+model CheckIn {
+  id            String     @id @default(uuid()) @db.VarChar(36)
+  cjsUid        String     @map("cjs_uid") @db.VarChar(36)
+  centreId      String     @map("centre_id") @db.VarChar(36)
+  reservationId String?    @map("reservation_id") @db.VarChar(36)
+  via           CheckInVia
+  scannerId     String?    @map("scanner_id") @db.VarChar(36) // cjsUid du staff scanneur
+  effectueA     DateTime   @default(now()) @map("effectue_a")
+  dwellMinutes  Int?       @map("dwell_minutes")
+  meta          Json?
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  centre      Centre      @relation(fields: [centreId], references: [id])
+
+  @@index([centreId, effectueA])
+  @@index([cjsUid, effectueA])
+  @@map("check_ins")
+}
+
+/// Table KPI événementiel INSERT-only — retention 6 mois (purge auto).
+/// Source : helper src/lib/analytics/centre-events.ts (fail-soft, log warning si insertion échoue).
+model CentreEvent {
+  id       BigInt   @id @default(autoincrement())
+  centreId String?  @map("centre_id") @db.VarChar(36)
+  cjsUid   String?  @map("cjs_uid") @db.VarChar(36)
+  type     String   @db.VarChar(60)
+  metadata Json?
+  ts       DateTime @default(now())
+
+  centre Centre? @relation(fields: [centreId], references: [id])
+
+  @@index([type, ts])
+  @@index([centreId, type, ts])
+  @@map("centre_events")
 }

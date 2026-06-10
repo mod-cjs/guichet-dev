@@ -365,4 +365,22 @@
   <circle cx="12" cy="19" r="1" fill="currentColor"></circle>
 </symbol>
 
+<!-- Lot 7 Centres CJS (GUIC-351) — icons ressources réservables + UX -->
+<symbol id="i-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"></circle>
+  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+</symbol>
+
+<symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1L2 12v4h3"></path>
+  <circle cx="6.5" cy="16.5" r="2.5"></circle>
+  <circle cx="16.5" cy="16.5" r="2.5"></circle>
+</symbol>
+
+<symbol id="i-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+  <line x1="8" y1="21" x2="16" y2="21"></line>
+  <line x1="12" y1="17" x2="12" y2="21"></line>
+</symbol>
+
 </svg>
