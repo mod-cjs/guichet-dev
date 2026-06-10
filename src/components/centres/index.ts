@@ -20,6 +20,16 @@ export type {
 } from './CentresMapGoogle'
 export { QRBadge } from './QRBadge'
 export type { QRBadgeProps } from './QRBadge'
+export { CentreRow } from './CentreRow'
+export type { CentreRowProps, CentreRowCentre, CentreRowHoraire } from './CentreRow'
+export { CentreCardMobile } from './CentreCardMobile'
+export type {
+  CentreCardMobileProps,
+  CentreCardMobileCentre,
+  CentreCardMobileHoraire,
+} from './CentreCardMobile'
+export { CentreRegionFilter } from './CentreRegionFilter'
+export type { CentreRegionFilterProps } from './CentreRegionFilter'
 export { MyCJSCard, MyCJSCardBack } from './MyCJSCard'
 export type {
   MyCJSCardProps,
