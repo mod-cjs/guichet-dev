@@ -11,6 +11,7 @@ import {
   type CentreRowCentre,
 } from '@/components/centres'
 import { EmptyState } from '@/components/ui'
+import { Icon } from '@/components/ui/Icon'
 
 export interface CentresAllCentre extends CentreRowCentre {
   latitude: number
@@ -51,10 +52,11 @@ function track(type: string, metadata: Record<string, unknown>) {
  * Vue `all` des centres CJS (Lot 7 W2).
  *
  * Layout adaptatif :
- *  - Desktop ≥ lg : grid 2 cols (carte gauche sticky + annuaire droite).
- *  - Mobile < lg  : empilement vertical (mini SenegalMap-like + chips + cards).
+ *  - Desktop ≥ lg : grid 2 cols (carte gauche sticky + annuaire droite + hero MyCJSCard).
+ *  - Mobile < lg  : empilement vertical (map → mini MyCJSCard → duo CTAs → chips → cards).
  *
- * Filtres : région (chips). Empty-state si filtres trop restrictifs.
+ * Filtres : région (chips wrap, pas de scroll horizontal). Empty-state si filtres
+ * trop restrictifs.
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 2.
  */
@@ -88,11 +90,29 @@ export function CentresAllClient({
   }
 
   const handleCentreClick = (slug: string, id: string) => {
-    track('centre_map_pin_clicked', { centreId: id })
+    track('centre_viewed', { centreId: id })
     router.push(`/centres/${slug}`)
   }
 
-  const subtitle = `${centres.length} centres dans tout le Sénégal · trouve le plus proche de toi`
+  const handlePinClick = (id: string) => {
+    track('centre_map_pin_clicked', { centreId: id })
+    const c = centres.find((x) => x.id === id)
+    if (c) {
+      track('centre_viewed', { centreId: id })
+      router.push(`/centres/${c.slug}`)
+    }
+  }
+
+  const handleCardOpen = () => {
+    track('cjs_card_opened', { source: 'centres_index' })
+  }
+
+  // Premier centre pour le lien Ressources mobile (fallback /centres si vide)
+  const firstSlug = centres[0]?.slug
+
+  const subtitle = `${centres.length} centres dans tout le Sénégal · trouve le plus proche de toi.`
+
+  const showLegend = userIsConnected && Boolean(user?.centrePrincipal)
 
   return (
     <main role="main" className="bg-gj-bg min-h-[100dvh] pb-space-6">
@@ -101,13 +121,13 @@ export function CentresAllClient({
         <div>
           <h1
             className="text-fs-500 font-black m-0"
-            style={{ color: 'var(--gj-ink, #0E1A1F)' }}
+            style={{ color: 'var(--gj-ink)' }}
           >
             Centres CJS
           </h1>
           <p
             className="text-fs-200 mt-1"
-            style={{ color: 'var(--gj-grey, #65706B)' }}
+            style={{ color: 'var(--gj-grey)' }}
           >
             {subtitle}
           </p>
@@ -117,24 +137,26 @@ export function CentresAllClient({
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
             <a
               href="/jeune/mes-reservations"
-              className="inline-flex items-center justify-center px-4 py-2 rounded-gj-md text-fs-200 font-bold"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
-                border: '1px solid var(--gj-teal-deep, #0A2A24)',
-                color: 'var(--gj-teal-deep, #0A2A24)',
+                border: '1px solid var(--gj-teal-deep)',
+                color: 'var(--gj-teal-deep)',
                 minHeight: 44,
               }}
             >
+              <Icon name="calendar" size={16} />
               Mes réservations
             </a>
             <a
               href="/jeune/ma-carte"
-              className="inline-flex items-center justify-center px-4 py-2 rounded-gj-md text-fs-200 font-bold"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
-                background: 'var(--gj-teal-deep, #0A2A24)',
+                background: 'var(--gj-teal-deep)',
                 color: '#fff',
                 minHeight: 44,
               }}
             >
+              <Icon name="pin" size={16} />
               Ma carte CJS
             </a>
           </div>
@@ -143,8 +165,57 @@ export function CentresAllClient({
 
       {/* ──────────────── MOBILE (<lg) ──────────────── */}
       <div className="lg:hidden mx-auto max-w-screen-sm px-space-3 mt-space-3 flex flex-col gap-space-3">
+        {/* 1. Map en premier (conforme centres-mobile.jsx) */}
+        <CentresMapGoogle
+          centres={centres.map((c) => ({
+            id: c.id,
+            nom: c.nom,
+            latitude: c.latitude,
+            longitude: c.longitude,
+          }))}
+          activeId={userCentrePrincipalId ?? undefined}
+          onPinClick={handlePinClick}
+          height={230}
+          centresForList={centres.map((c) => ({
+            id: c.id,
+            nom: c.nom,
+            region: c.region,
+            slug: c.slug,
+          }))}
+        />
+
+        {showLegend && (
+          <div
+            className="flex gap-space-3 text-fs-100 mt-space-2"
+            style={{ color: 'var(--gj-grey)' }}
+            aria-label="Légende de la carte"
+          >
+            <span className="inline-flex items-center gap-1">
+              <span
+                className="inline-block rounded-full"
+                style={{ width: 8, height: 8, background: 'var(--gj-red)' }}
+                aria-hidden="true"
+              />
+              Mon centre
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span
+                className="inline-block rounded-full"
+                style={{ width: 8, height: 8, background: 'var(--gj-teal-deep)' }}
+                aria-hidden="true"
+              />
+              Autres centres
+            </span>
+          </div>
+        )}
+
+        {/* 2. MyCJSCard mini cliquable */}
         {userIsConnected && user && (
-          <a href="/jeune/ma-carte" aria-label="Ouvrir ma carte CJS">
+          <a
+            href="/jeune/ma-carte"
+            aria-label="Ouvrir ma carte CJS"
+            onClick={handleCardOpen}
+          >
             <MyCJSCard
               compact
               user={{
@@ -159,32 +230,73 @@ export function CentresAllClient({
           </a>
         )}
 
-        <CentresMapGoogle
-          centres={centres.map((c) => ({
-            id: c.id,
-            nom: c.nom,
-            latitude: c.latitude,
-            longitude: c.longitude,
-          }))}
-          activeId={userCentrePrincipalId ?? undefined}
-          onPinClick={(id) => {
-            const c = centres.find((x) => x.id === id)
-            if (c) handleCentreClick(c.slug, c.id)
-          }}
-          height={230}
-          centresForList={centres.map((c) => ({
-            id: c.id,
-            nom: c.nom,
-            region: c.region,
-            slug: c.slug,
-          }))}
-        />
+        {/* 3. Duo CTAs mobile */}
+        <div className="grid grid-cols-2 gap-space-2 mt-space-3">
+          {userIsConnected ? (
+            <>
+              <a
+                href="/jeune/mes-reservations"
+                className="inline-flex items-center justify-center gap-2 rounded-gj-md text-fs-200 font-bold"
+                style={{
+                  border: '1px solid var(--gj-teal-deep)',
+                  color: 'var(--gj-teal-deep)',
+                  background: 'var(--gj-surface)',
+                  minHeight: 44,
+                }}
+              >
+                <Icon name="calendar" size={16} />
+                Mes réservations
+              </a>
+              <a
+                href={firstSlug ? `/centres/${firstSlug}/ressources` : '/centres'}
+                className="inline-flex items-center justify-center gap-2 rounded-gj-md text-fs-200 font-bold"
+                style={{
+                  border: '1px solid var(--gj-teal-deep)',
+                  color: 'var(--gj-teal-deep)',
+                  background: 'var(--gj-surface)',
+                  minHeight: 44,
+                }}
+              >
+                <Icon name="document" size={16} />
+                Ressources
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href={firstSlug ? `/centres/${firstSlug}/ressources` : '/centres'}
+                className="inline-flex items-center justify-center gap-2 rounded-gj-md text-fs-200 font-bold"
+                style={{
+                  border: '1px solid var(--gj-teal-deep)',
+                  color: 'var(--gj-teal-deep)',
+                  background: 'var(--gj-surface)',
+                  minHeight: 44,
+                }}
+              >
+                <Icon name="document" size={16} />
+                Ressources
+              </a>
+              <a
+                href="/auth/connexion"
+                className="inline-flex items-center justify-center gap-2 rounded-gj-md text-fs-200 font-bold"
+                style={{
+                  border: '1px solid var(--gj-teal-deep)',
+                  color: 'var(--gj-teal-deep)',
+                  background: 'var(--gj-surface)',
+                  minHeight: 44,
+                }}
+              >
+                <Icon name="user" size={16} />
+                Connectez-vous
+              </a>
+            </>
+          )}
+        </div>
 
         <CentreRegionFilter
           regions={regionsList}
           value={region}
           onChange={handleRegionChange}
-          className="overflow-x-visible"
         />
 
         {filtered.length === 0 ? (
@@ -229,11 +341,8 @@ export function CentresAllClient({
               longitude: c.longitude,
             }))}
             activeId={userCentrePrincipalId ?? undefined}
-            onPinClick={(id) => {
-              const c = centres.find((x) => x.id === id)
-              if (c) handleCentreClick(c.slug, c.id)
-            }}
-            height={520}
+            onPinClick={handlePinClick}
+            height={460}
             centresForList={centres.map((c) => ({
               id: c.id,
               nom: c.nom,
@@ -241,9 +350,69 @@ export function CentresAllClient({
               slug: c.slug,
             }))}
           />
+          {showLegend && (
+            <div
+              className="flex gap-space-3 text-fs-100 mt-space-2"
+              style={{ color: 'var(--gj-grey)' }}
+              aria-label="Légende de la carte"
+            >
+              <span className="inline-flex items-center gap-1">
+                <span
+                  className="inline-block rounded-full"
+                  style={{ width: 8, height: 8, background: 'var(--gj-red)' }}
+                  aria-hidden="true"
+                />
+                Mon centre
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span
+                  className="inline-block rounded-full"
+                  style={{ width: 8, height: 8, background: 'var(--gj-teal-deep)' }}
+                  aria-hidden="true"
+                />
+                Autres centres
+              </span>
+            </div>
+          )}
         </div>
 
         <aside className="flex flex-col gap-space-3 min-w-0">
+          {/* Hero MyCJSCard avec badge "Ouvrir ma carte" */}
+          {userIsConnected && user && (
+            <a
+              href="/jeune/ma-carte"
+              aria-label="Ouvrir ma carte CJS"
+              className="relative block"
+              onClick={handleCardOpen}
+            >
+              <MyCJSCard
+                user={{
+                  prenom: user.prenom,
+                  nom: user.nom,
+                  matricule: user.matricule,
+                  membreDepuis: user.membreDepuis,
+                  centrePrincipal: user.centrePrincipal ?? undefined,
+                  photoUrl: user.photoUrl ?? undefined,
+                }}
+              />
+              <span
+                className="absolute inline-flex items-center gap-1"
+                style={{
+                  right: 8,
+                  bottom: 8,
+                  padding: '6px 10px',
+                  background: 'var(--gj-teal-deep)',
+                  color: 'var(--gj-yellow)',
+                  fontWeight: 800,
+                  fontSize: 11,
+                  borderRadius: 999,
+                }}
+              >
+                Ouvrir ma carte <Icon name="arrow-right" size={12} />
+              </span>
+            </a>
+          )}
+
           <CentreRegionFilter
             regions={regionsList}
             value={region}

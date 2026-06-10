@@ -45,8 +45,7 @@ export function CentreRegionFilter({
       ref={listRef}
       role="radiogroup"
       aria-label="Filtrer les centres par région"
-      className={`flex flex-nowrap gap-2 ${className}`.trim()}
-      style={{ overflowX: 'visible' }}
+      className={`flex flex-wrap gap-2 ${className}`.trim()}
     >
       {all.map((r, idx) => {
         const isAll = r === 'all'
@@ -60,15 +59,15 @@ export function CentreRegionFilter({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(r)}
             onKeyDown={(e) => handleKey(e, idx)}
-            className="text-fs-200 font-medium px-3 py-1.5 rounded-full whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors"
+            className="text-fs-200 font-medium px-3 py-2 rounded-full whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors"
             style={{
-              minHeight: 36,
+              minHeight: 44,
               background: selected
-                ? 'var(--gj-teal-deep, #0A2A24)'
-                : 'var(--gj-surface, #fff)',
-              color: selected ? '#fff' : 'var(--gj-ink, #0E1A1F)',
+                ? 'var(--gj-teal-deep)'
+                : 'var(--gj-surface)',
+              color: selected ? '#fff' : 'var(--gj-ink)',
               border: `1px solid ${
-                selected ? 'var(--gj-teal-deep, #0A2A24)' : 'var(--gj-line, #DDE3E1)'
+                selected ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
               }`,
             }}
           >

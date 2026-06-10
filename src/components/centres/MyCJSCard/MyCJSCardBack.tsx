@@ -44,13 +44,13 @@ export function MyCJSCardBack({
       style={{
         maxWidth,
         padding: 22,
-        background: 'var(--gj-ink, #0E1A1F)',
+        background: 'var(--gj-ink)',
         borderRadius: 18,
       }}
     >
       <header
         className="text-fs-100 font-black uppercase tracking-wide"
-        style={{ color: 'var(--gj-yellow, #F9C400)', letterSpacing: '0.15em' }}
+        style={{ color: 'var(--gj-yellow)', letterSpacing: '0.15em' }}
       >
         VERSO · CARTE CJS
       </header>
@@ -95,7 +95,7 @@ export function MyCJSCardBack({
               display: 'inline-block',
               width: 3,
               height: h,
-              background: i % 3 === 0 ? 'var(--gj-yellow, #F9C400)' : '#fff',
+              background: i % 3 === 0 ? 'var(--gj-yellow)' : '#fff',
               opacity: i % 5 === 0 ? 0.6 : 1,
             }}
           />
