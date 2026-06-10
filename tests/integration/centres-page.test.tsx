@@ -21,6 +21,13 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
+// useRouter (App Router) requis pour CentresAllClient
+jest.mock('next/navigation', () => ({
+  useRouter:       () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), refresh: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname:     () => '/centres',
+}))
+
 jest.mock('@/components/centres', () => {
   const actual = jest.requireActual('@/components/centres')
   return {
