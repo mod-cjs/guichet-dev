@@ -191,7 +191,6 @@ export async function getCentresWithStatusAndHoraires(
   // Sélection souple — selon état du schema (W0 mergé ou pas), on essaye d'inclure
   // les nouvelles relations/colonnes. La typage `any` est volontairement local au
   // findMany pour ne pas bloquer le build tant que W0 n'est pas appliqué.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const findArgs: any = {
     where,
     orderBy: [{ region: 'asc' }, { nom: 'asc' }],
@@ -344,7 +343,6 @@ export async function getCentreBySlug(
 ): Promise<CentreDetail | null> {
   // Sélection souple : W0 ajoute slug + description + imageUrl + services +
   // conseillersCount + horaires + ressources. Si W0 pas mergé, fallback.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const findArgs: any = {
     where: { slug, estActif: true },
     include: {
@@ -367,7 +365,6 @@ export async function getCentreBySlug(
     // Fallback si include échoue (schéma pré-W0)
     row = (await prisma.centre.findFirst({
       where: { estActif: true },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)) as Record<string, unknown> | null
     if (row && slugifyCentre(String(row.nom)) !== slug) row = null
   }
@@ -445,6 +442,81 @@ export async function getCentreBySlug(
       fermeA: h.fermeA ?? null,
     })),
     ressources,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Wave 4 — Ressources réservables (GUIC-358 / GUIC-359)
+// ─────────────────────────────────────────────────────────────────
+
+export interface RessourceDetail {
+  id: string
+  centreId: string
+  type: string
+  nom: string
+  description: string | null
+  imageUrl: string | null
+  capacite: number
+  capaciteUnit: string | null
+  dureeMinCreneauMin: number
+  requiresJustif: boolean
+  estActive: boolean
+}
+
+/**
+ * Liste les ressources d'un centre (toutes — actives et inactives) triées
+ * par type puis nom. Pour le filtrage UI, on inclut aussi les inactives
+ * mais le client les masque par défaut.
+ *
+ * Wave 4. Spec : M4-centres-lot7.md §5 Wave 4.
+ */
+export async function getRessourcesByCentre(
+  centreId: string,
+): Promise<RessourceDetail[]> {
+  const rows = (await prisma.ressourceCentre.findMany({
+    where: { centreId, estActive: true },
+    orderBy: [{ type: 'asc' }, { nom: 'asc' }],
+  } as any)) as Array<Record<string, unknown>>
+
+  return rows.map((r) => ({
+    id: String(r.id),
+    centreId: String(r.centreId),
+    type: String(r.type),
+    nom: String(r.nom),
+    description: (r.description as string | null) ?? null,
+    imageUrl: (r.imageUrl as string | null) ?? null,
+    capacite: Number(r.capacite ?? 1),
+    capaciteUnit: (r.capaciteUnit as string | null) ?? null,
+    dureeMinCreneauMin: Number(r.dureeMinCreneauMin ?? 60),
+    requiresJustif: Boolean(r.requiresJustif ?? false),
+    estActive: Boolean(r.estActive ?? true),
+  }))
+}
+
+/**
+ * Charge une ressource par son `id`. Retourne `null` si introuvable.
+ * Wave 4.
+ */
+export async function getRessourceById(
+  id: string,
+): Promise<RessourceDetail | null> {
+  const r = (await prisma.ressourceCentre.findUnique({ where: { id } } as any)) as Record<
+    string,
+    unknown
+  > | null
+  if (!r) return null
+  return {
+    id: String(r.id),
+    centreId: String(r.centreId),
+    type: String(r.type),
+    nom: String(r.nom),
+    description: (r.description as string | null) ?? null,
+    imageUrl: (r.imageUrl as string | null) ?? null,
+    capacite: Number(r.capacite ?? 1),
+    capaciteUnit: (r.capaciteUnit as string | null) ?? null,
+    dureeMinCreneauMin: Number(r.dureeMinCreneauMin ?? 60),
+    requiresJustif: Boolean(r.requiresJustif ?? false),
+    estActive: Boolean(r.estActive ?? true),
   }
 }
 
