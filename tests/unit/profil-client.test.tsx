@@ -29,7 +29,6 @@ const PROFIL: ProfilComplet = {
     competences:       [],
     completionScore:   42,
     profileVisibility: 'prive',
-    cvUrl:             null,
   },
   experiences: [],
   diplomes:    [],

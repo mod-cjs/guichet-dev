@@ -47,7 +47,6 @@ export interface ProfilComplet {
     competences:       string[]
     completionScore:   number
     profileVisibility: string
-    cvUrl:             string | null
   } | null
   experiences: ExperienceItem[]
   diplomes:    DiplomeItem[]
