@@ -25,7 +25,7 @@ export function WebDashEvents({ items }: Props) {
       <div className="flex justify-between items-baseline">
         <h3 className="text-fs-300 font-black">Événements à venir</h3>
         <Link
-          href="/jeune/agenda"
+          href="/agenda"
           className="text-fs-200 text-gj-teal-deep font-black hover:underline"
         >
           Voir tous →

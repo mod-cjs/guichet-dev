@@ -6,8 +6,11 @@ import {
 } from '@/lib/constants/candidature'
 
 // Hostname whitelist : URL Vercel Blob (GUIC-218 / CDP).
-// Format : https://<store>.public.blob.vercel-storage.com/<pathname>
-const VERCEL_BLOB_URL_RE = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//
+// 3 formats observés :
+//   - Public   : https://<store>.public.blob.vercel-storage.com/<pathname>
+//   - Privé    : https://<store>.private.blob.vercel-storage.com/<pathname>  ← notre cas (CDP)
+//   - Bare     : https://<store>.blob.vercel-storage.com/<pathname>
+const VERCEL_BLOB_URL_RE = /^https:\/\/[a-z0-9-]+(?:\.(?:public|private))?\.blob\.vercel-storage\.com\//
 
 // Anti-XSS basique sur la lettre de motivation : pas de balise <script>,
 // pas d'URL `javascript:`, pas d'attribut événementiel `on…=`.

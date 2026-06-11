@@ -48,16 +48,12 @@ describe('<BottomNav /> (ui v2)', () => {
     expect(screen.getByRole('navigation', { name: /navigation/i })).toBeInTheDocument()
   })
 
-  it('est masquée à partir de md (≥ 768px) — md:hidden', () => {
+  // GUIC-201 — la classe gj-bottom-nav est nécessaire pour que le sélecteur
+  // global `body:has(.gj-bottom-nav)` (globals.css) applique le padding-bottom
+  // qui empêche le dernier item de contenu d'être masqué par la nav fixed.
+  it('porte la classe gj-bottom-nav (sélecteur globals.css)', () => {
     render(<BottomNav />)
-    const nav = screen.getByRole('navigation', { name: /navigation/i })
-    expect(nav.className).toContain('md:hidden')
-  })
-
-  it('porte la classe .gj-bottom-nav (sélecteur CSS body:has)', () => {
-    render(<BottomNav />)
-    const nav = screen.getByRole('navigation', { name: /navigation/i })
-    expect(nav.classList.contains('gj-bottom-nav')).toBe(true)
+    expect(screen.getByRole('navigation')).toHaveClass('gj-bottom-nav')
   })
 
   it('ne contient plus l\'item Profil (déplacé dans AppTopbar mobile)', () => {
@@ -69,5 +65,11 @@ describe('<BottomNav /> (ui v2)', () => {
     render(<BottomNav />)
     const centres = screen.getByRole('link', { name: /centres/i })
     expect(centres).toHaveAttribute('href', '/centres')
+  })
+
+  it('est masquée à partir de md (≥ 768px) — md:hidden (GUIC-216)', () => {
+    render(<BottomNav />)
+    const nav = screen.getByRole('navigation', { name: /navigation/i })
+    expect(nav.className).toContain('md:hidden')
   })
 })

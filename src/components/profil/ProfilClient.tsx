@@ -7,7 +7,8 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
-import { MyCJSCard }          from '@/components/centres/MyCJSCard'
+import { SectionCv }          from './SectionCv'
+import { MyCJSCard }          from '@/components/ui/MyCJSCard'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -51,20 +52,14 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               completionScore={score}
               photoUrl={photoUrl}
             />
-            {/* Carte CJS — version Lot 7 (GUIC-368). QR fallback démo généré
-                automatiquement depuis `cjsUid` tant que la Wave 6 (GUIC-357 —
-                JWT signé HMAC) n'est pas livrée. Centre de rattachement non
-                disponible aujourd'hui dans ProfilComplet (TODO : exposer via
-                relation Centre quand M4 sera branché côté profil). */}
+            {/* Carte CJS — branchement GUIC-248. Centre rattachement non disponible
+                aujourd'hui dans ProfilComplet (TODO : exposer via relation Centre
+                quand le module M4 sera branché). */}
             <MyCJSCard
-              compact
               cjsUid={initial.cjsUid}
-              user={{
-                prenom: initial.prenom,
-                nom: initial.nom,
-                matricule: `GJS · ${(initial.prenom?.[0] ?? '?').toUpperCase()}${(initial.nom?.[0] ?? '?').toUpperCase()} · ${initial.cjsUid.slice(0, 6).toUpperCase()}`,
-                membreDepuis: '—',
-              }}
+              prenom={initial.prenom}
+              nom={initial.nom}
+              variant="compact"
             />
           </div>
         </aside>

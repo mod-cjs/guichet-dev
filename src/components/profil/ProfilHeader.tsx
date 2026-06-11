@@ -17,9 +17,9 @@ export function ProfilHeader({ nom, prenom, email, completionScore, photoUrl }: 
       <div className="flex items-center gap-space-4">
         <Avatar nom={nom} prenom={prenom} src={photoUrl ?? undefined} size="lg" />
         <div className="min-w-0">
-          <h1 className="text-fs-600 font-black text-color-text-primary truncate">
+          <p className="text-fs-500 font-black text-color-text-primary truncate">
             {prenom} {nom}
-          </h1>
+          </p>
           {email && (
             <p className="text-fs-300 text-color-text-secondary truncate">{email}</p>
           )}

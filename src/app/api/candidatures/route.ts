@@ -82,11 +82,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   const body = await request.json().catch(() => null)
   const parsed = CandidatureBodySchema.safeParse(body)
   if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    const field = first?.path?.join('.') ?? 'inconnu'
+    const detail = first?.message ?? 'Données invalides'
+    // Log détaillé côté serveur — visible dans Vercel Logs pour debug
+    logger.warn('[candidatures POST] validation échouée', {
+      field,
+      detail,
+      issues: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    })
     return NextResponse.json(
       {
         error: {
           code: 'VALIDATION_ERROR',
-          message: parsed.error.issues[0]?.message ?? 'Données invalides',
+          message: `${field} : ${detail}`,
         },
       },
       { status: 400 },
