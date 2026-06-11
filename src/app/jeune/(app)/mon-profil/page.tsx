@@ -10,9 +10,11 @@ export default async function MonProfilPage() {
   const data = await loadProfilComplet(session.cjsUid)
   if (!data) redirect('/auth/connexion')
 
-  const ssoProfilUrl = process.env.SSO_BASE_URL
-    ? `${process.env.SSO_BASE_URL}/profil`
-    : null
+  // GUIC-379 — l'URL SSO d'édition profil est variabilisée pour s'adapter aux
+  // environnements (preview/staging/prod). Le chemin canonique côté SSO est
+  // `/profile/edit` (Laravel Passport).
+  const ssoBase = process.env.SSO_BASE_URL || 'https://auth.consortiumjeunessesenegal.org'
+  const ssoProfilUrl = `${ssoBase.replace(/\/$/, '')}/profile/edit`
 
   return <ProfilClient initial={data} ssoProfilUrl={ssoProfilUrl} />
 }

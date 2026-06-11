@@ -39,8 +39,10 @@ const cvUrlSchema = z
 
 /**
  * Snapshot des champs saisis dans le formulaire de candidature (GUIC-361).
- * Persistés dans `Candidature.formulaireData` (Json) pour figer ce qui a été
- * transmis au recruteur, indépendamment du profil ultérieur.
+ * GUIC-380 — schema conservé pour rétrocompat (clients anciens qui envoient
+ * encore ces champs). L'API NE PERSISTE PLUS `formulaireData` : la source de
+ * vérité est le profil (lookup recruteur via `cjsUid`). À retirer dans une
+ * future PR avec migration `DROP COLUMN formulaire_data`.
  */
 const formulaireDataSchema = z
   .object({

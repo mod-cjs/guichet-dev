@@ -158,11 +158,7 @@ export function CandidatureModal({
   const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
-  // GUIC-361 — Champs additionnels pré-remplis depuis le profil (éditables).
-  const [email, setEmail] = useState(viewer.email ?? '')
-  const [telephone, setTelephone] = useState(viewer.telephone ?? '')
-  const [niveauEtude, setNiveauEtude] = useState(viewer.niveauEtude ?? '')
-  const [situationEmploi, setSituationEmploi] = useState(viewer.situationEmploi ?? '')
+  // GUIC-380 — états email/téléphone/niveau/situation retirés (single-source profil).
   // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
   // soumise, on garde le `File` côté client (zéro blob créé). À la
   // soumission, on uploade le fichier puis on POST la candidature avec
@@ -173,8 +169,7 @@ export function CandidatureModal({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<{ id: string } | null>(null)
-  // GUIC-232 — état complétude profil (null = en cours de chargement).
-  const [profilMissing, setProfilMissing] = useState<string[] | null>(null)
+  // GUIC-380 — état profilMissing retiré (le 403 du POST route vers la page intermédiaire).
   // CV depuis profil (GUIC-223 / GUIC-224) — null = pas encore chargé, {cvUrl:null} = profil sans CV.
   const [profileCv, setProfileCv] = useState<ProfilCvData | null>(null)
   // Mode CV : 'profile' = réutilise le CV du profil, 'upload' = upload manuel.
@@ -184,11 +179,6 @@ export function CandidatureModal({
   const helperId = useId()
   const counterId = useId()
   const cguId = useId()
-  // GUIC-361 — ids pour champs auto-fill additionnels.
-  const emailId = useId()
-  const telId = useId()
-  const niveauId = useId()
-  const situationId = useId()
 
   // Reset complet à la (re)fermeture pour éviter de réafficher l'écran succès
   // à la prochaine ouverture.
@@ -201,43 +191,13 @@ export function CandidatureModal({
       setError(null)
       setSubmitted(null)
       setSending(false)
-      setProfilMissing(null)
       setCvMode('upload')
-      // GUIC-361 — réinitialise les champs auto-fill sur les valeurs profil.
-      setEmail(viewer.email ?? '')
-      setTelephone(viewer.telephone ?? '')
-      setNiveauEtude(viewer.niveauEtude ?? '')
-      setSituationEmploi(viewer.situationEmploi ?? '')
     }
   }, [isOpen])
 
-  // GUIC-232 — vérifie la complétude du profil à l'ouverture du modal.
-  useEffect(() => {
-    if (!isOpen) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch('/api/profil/completude', { credentials: 'same-origin' })
-        if (!res.ok) {
-          if (!cancelled) setProfilMissing([])
-          return
-        }
-        const body = (await res.json()) as {
-          data?: { complet?: boolean; missing?: string[] }
-        }
-        if (!cancelled) {
-          setProfilMissing(body.data?.missing ?? [])
-        }
-      } catch {
-        // En cas d'erreur réseau, on n'empêche pas l'utilisateur d'essayer ;
-        // le backend re-validera et renverra 403 si besoin.
-        if (!cancelled) setProfilMissing([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [isOpen])
+  // GUIC-380 — le check complétude au mount est retiré. Si le profil est
+  // incomplet, le POST /api/candidatures retournera 403 et on routera vers
+  // la page intermédiaire dédiée (/jeune/candidature/profil-incomplet).
 
   // GUIC-224 — Récupère le CV stocké sur le profil pour proposer sa réutilisation.
   useEffect(() => {
@@ -264,17 +224,15 @@ export function CandidatureModal({
   const lettreOk = lettre.trim().length > 0
   const hasCv = cvFile !== null || cvUploaded !== null
   const cvOk = !requiresFileUpload || hasCv
-  const profilIncomplet = (profilMissing?.length ?? 0) > 0
-  const canSubmit = lettreOk && cvOk && consent && !sending && !profilIncomplet
+  const canSubmit = lettreOk && cvOk && consent && !sending
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
-    if (profilIncomplet) return 'Complétez votre profil pour candidater.'
     if (!lettreOk) return 'Rédigez votre lettre de motivation.'
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
-  }, [sending, lettreOk, cvOk, consent, profilIncomplet])
+  }, [sending, lettreOk, cvOk, consent])
 
   const handleClose = useCallback(() => {
     if (submitted) {
@@ -318,6 +276,8 @@ export function CandidatureModal({
         }
       }
 
+      // GUIC-380 — Single source of truth = profil. La candidature ne
+      // contient QUE ses données propres (CV, lettre, consentement).
       const res = await fetch('/api/candidatures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,19 +285,7 @@ export function CandidatureModal({
           opportuniteId,
           lettreMotivation: lettre.trim() || undefined,
           notificationsConsent: consent,
-          // Champs ajoutés par GUIC-218 — l'API actuelle ignore les
-          // propriétés inconnues, donc rétrocompatible.
           cvUrl: cvMeta?.url,
-          // GUIC-361 — snapshot des infos profil au moment de la candidature
-          // (envoyées en formulaireData ; le backend stocke ce qu'il sait gérer).
-          formulaireData: {
-            email: email.trim() || null,
-            telephone: telephone.trim() || null,
-            niveauEtude: niveauEtude.trim() || null,
-            situationEmploi: situationEmploi.trim() || null,
-            competences: viewer.competences ?? [],
-            domainesInteret: viewer.domainesInteret ?? [],
-          },
         }),
       })
       if (res.status === 201) {
@@ -349,13 +297,19 @@ export function CandidatureModal({
         return
       }
       if (res.status === 403) {
-        // GUIC-232 — profil incomplet : recharge la liste des champs manquants.
+        // GUIC-380 — Profil incomplet : redirige vers la page intermédiaire
+        // qui affiche la checklist + CTA profil. La modale se ferme.
         const body = (await res.json().catch(() => null)) as
           | { error?: { code?: string; missing?: string[] } }
           | null
         if (body?.error?.code === 'PROFILE_INCOMPLETE') {
-          setProfilMissing(body.error.missing ?? [])
-          setError('Complétez votre profil pour pouvoir candidater.')
+          const missing = body.error.missing ?? []
+          const params = new URLSearchParams()
+          params.set('opp', opportuniteId)
+          if (missing.length > 0) params.set('missing', missing.join(','))
+          onClose()
+          router.push(`/jeune/candidature/profil-incomplet?${params.toString()}`)
+          return
         } else {
           setError('Accès refusé.')
         }
@@ -416,26 +370,10 @@ export function CandidatureModal({
         </div>
       )}
 
-      {/* GUIC-232 — Bandeau profil incomplet */}
-      {profilIncomplet && (
-        <div
-          role="alert"
-          data-testid="profil-incomplet-banner"
-          className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-3 text-fs-200 mb-space-3"
-        >
-          <p className="font-bold">Complète ton profil pour pouvoir candidater.</p>
-          <p className="mt-space-1">
-            Champs manquants :{' '}
-            {(profilMissing ?? [])
-              .map((f) => PROFIL_FIELD_LABELS[f] ?? f)
-              .join(', ')}
-          </p>
-          <Link
-            href="/jeune/mon-profil"
-            className="inline-block mt-space-2 font-bold underline"
-          >
-            Compléter mon profil →
-          </Link>
+      {/* GUIC-380 — Bandeau "profil incomplet" retiré : le 403 du POST route
+          désormais vers la page intermédiaire /jeune/candidature/profil-incomplet. */}
+      {false && (
+        <div className="hidden"><span />
         </div>
       )}
 
@@ -445,7 +383,7 @@ export function CandidatureModal({
           bg-gj-green-soft text-gj-green-ink px-space-3 py-space-2 text-fs-200 font-bold mb-space-3"
       >
         <Icon name="check-circle" size={18} />
-        <span>Pré-rempli depuis ton profil. Vérifie et ajuste.</span>
+        <span>Tu candidates avec les infos de ton profil.</span>
       </div>
 
       {/* Carte profil */}
@@ -484,75 +422,8 @@ export function CandidatureModal({
         </Link>
       </div>
 
-      {/* GUIC-361 — Coordonnées + parcours pré-remplis depuis le profil. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-space-3 mb-space-4">
-        <div>
-          <label htmlFor={emailId} className="text-fs-200 font-bold text-color-text-primary">
-            Email
-          </label>
-          <input
-            id={emailId}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            data-testid="candidature-email"
-            placeholder="prenom.nom@exemple.sn"
-            autoComplete="email"
-            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
-              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
-          />
-        </div>
-        <div>
-          <label htmlFor={telId} className="text-fs-200 font-bold text-color-text-primary">
-            Téléphone
-          </label>
-          <input
-            id={telId}
-            type="tel"
-            value={telephone}
-            onChange={(e) => setTelephone(e.target.value)}
-            data-testid="candidature-telephone"
-            placeholder="+221 77 123 45 67"
-            autoComplete="tel"
-            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
-              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
-          />
-        </div>
-        <div>
-          <label htmlFor={niveauId} className="text-fs-200 font-bold text-color-text-primary">
-            Niveau d&apos;études
-          </label>
-          <input
-            id={niveauId}
-            type="text"
-            value={niveauEtude}
-            onChange={(e) => setNiveauEtude(e.target.value)}
-            data-testid="candidature-niveau-etude"
-            placeholder="Bac+3, Licence, Master…"
-            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
-              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
-          />
-        </div>
-        <div>
-          <label htmlFor={situationId} className="text-fs-200 font-bold text-color-text-primary">
-            Situation actuelle
-          </label>
-          <input
-            id={situationId}
-            type="text"
-            value={situationEmploi}
-            onChange={(e) => setSituationEmploi(e.target.value)}
-            data-testid="candidature-situation"
-            placeholder="Étudiant, en recherche, en emploi…"
-            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
-              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
-          />
-        </div>
-      </div>
+      {/* GUIC-380 — bloc Coordonnées + parcours retiré. La source de vérité est le profil
+          (lookup recruteur via cjsUid). Si profil incomplet → page intermédiaire dédiée. */}
 
       {/* GUIC-361 — Compétences depuis le profil (lecture seule, lien d'édition). */}
       {(viewer.competences?.length ?? 0) > 0 && (

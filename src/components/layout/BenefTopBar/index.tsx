@@ -3,6 +3,24 @@ import { useState, type FormEvent } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 
+/**
+ * GUIC-375 — Recherche contextuelle : on redirige vers la liste correspondant
+ * à la page consultée (`/ressources?q=`, `/agenda?q=`, `/centres?q=`), avec
+ * fallback `/opportunites?q=` sinon. Évite de toujours sortir le jeune du
+ * contexte (ex. il cherche un mot dans `/ressources` → reste sur ressources).
+ */
+function resolveSearchTarget(pathname: string | null, q: string): string {
+  const encoded = encodeURIComponent(q)
+  if (!pathname) return `/opportunites?q=${encoded}`
+  if (pathname.startsWith('/ressources') || pathname.startsWith('/jeune/ressources'))
+    return `/ressources?q=${encoded}`
+  if (pathname.startsWith('/agenda') || pathname.startsWith('/jeune/agenda'))
+    return `/agenda?q=${encoded}`
+  if (pathname.startsWith('/centres') || pathname.startsWith('/jeune/centres'))
+    return `/centres?q=${encoded}`
+  return `/opportunites?q=${encoded}`
+}
+
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
   searchQuery?: string
@@ -82,7 +100,12 @@ export function BenefTopBar({
   const router = useRouter()
   const pathname = usePathname()
   const isControlled = typeof searchQuery === 'string'
-  const [internalQuery, setInternalQuery] = useState('')
+  // GUIC-378 : la searchbar lit ?q= de l'URL pour rester remplie après navigation.
+  const [internalQuery, setInternalQuery] = useState(() => searchParams?.get('q') ?? '')
+  // Re-sync si le param URL change (navigation côté client).
+  useEffect(() => {
+    if (!isControlled) setInternalQuery(searchParams?.get('q') ?? '')
+  }, [searchParams, isControlled])
   const value = isControlled ? searchQuery : internalQuery
   const handleChange = (v: string) => {
     if (!isControlled) setInternalQuery(v)
@@ -96,7 +119,7 @@ export function BenefTopBar({
       return
     }
     if (q.length === 0) return
-    router.push(`/opportunites?q=${encodeURIComponent(q)}`)
+    router.push(resolveSearchTarget(pathname, q))
   }
 
   return (

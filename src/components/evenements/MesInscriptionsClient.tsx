@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Card, Chip, Button, Icon, EmptyState, Toast, Badge } from '@/components/ui'
+import { appDomain } from '@/lib/app-url'
 import type { MesInscriptionItem, TypeEvenementValue } from '@/lib/loaders/evenements'
 
 interface Props {
@@ -188,7 +189,7 @@ function buildIcs(item: MesInscriptionItem): string {
     'VERSION:2.0',
     'PRODID:-//CJS//Guichet Jeunesse//FR',
     'BEGIN:VEVENT',
-    `UID:${ev.id}@guichet.cjs.sn`,
+    `UID:${ev.id}@${appDomain()}`,
     `DTSTAMP:${now}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

@@ -32,10 +32,12 @@ export interface YayeBubbleProps {
 export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
   const { isOpen, open, close } = useYayePanel()
 
+  // GUIC-378 : quand le drawer est ouvert, on masque la bubble FAB pour qu'elle
+  // ne chevauche pas le bouton "Envoyer" et la zone de saisie du SidePanel.
   if (typeof bottom === 'number') {
     return (
       <>
-        <YayeFab bottom={bottom} right={right} onClick={open} />
+        {!isOpen && <YayeFab bottom={bottom} right={right} onClick={open} />}
         <YayeSidePanel open={isOpen} onClose={close} />
       </>
     )
@@ -43,14 +45,18 @@ export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
 
   return (
     <>
-      {/* Mobile (<lg) : au-dessus de la BottomNav (72px + 8px de respiration). */}
-      <span className="lg:hidden">
-        <YayeFab bottom={80} right={right} onClick={open} />
-      </span>
-      {/* Desktop (≥lg) : pas de BottomNav, décalage standard. */}
-      <span className="hidden lg:inline">
-        <YayeFab bottom={24} right={right} onClick={open} />
-      </span>
+      {!isOpen && (
+        <>
+          {/* Mobile (<lg) : au-dessus de la BottomNav (72px + 8px de respiration). */}
+          <span className="lg:hidden">
+            <YayeFab bottom={80} right={right} onClick={open} />
+          </span>
+          {/* Desktop (≥lg) : pas de BottomNav, décalage standard. */}
+          <span className="hidden lg:inline">
+            <YayeFab bottom={24} right={right} onClick={open} />
+          </span>
+        </>
+      )}
       <YayeSidePanel open={isOpen} onClose={close} />
     </>
   )
