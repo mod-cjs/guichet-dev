@@ -65,6 +65,11 @@ export async function GET(
   const headers = new Headers({
     'Content-Type': contentType,
     'Cache-Control': 'public, max-age=3600',
+    // GUIC-375 — Override explicite des headers anti-iframe globaux du
+    // `next.config.ts` pour cette route : on DOIT pouvoir embed le PDF dans
+    // notre propre PdfViewer. SAMEORIGIN + frame-ancestors 'self' = OK.
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Content-Security-Policy': "frame-ancestors 'self'",
   })
   const contentLength = upstream.headers.get('content-length')
   if (contentLength) headers.set('Content-Length', contentLength)

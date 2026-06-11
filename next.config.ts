@@ -28,7 +28,10 @@ const CSP = [
   `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} ${GOOGLE_MAPS_IMG}`,
   `font-src 'self' ${GOOGLE_MAPS_FONT}`,
   `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
-  "frame-ancestors 'none'",
+  // GUIC-375 — `'self'` permet d'embed nos propres routes (proxy PDF) dans
+  // une `<iframe>` côté client. `'none'` bloquait même les embeds same-origin
+  // (ex. `<iframe src="/api/ressources/[id]/proxy">` pour PdfViewer).
+  "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
 ].join('; ')
@@ -60,7 +63,9 @@ const nextConfig: NextConfig = {
     ].join('; ')
 
     const strictHeaders = [
-      { key: 'X-Frame-Options',              value: 'DENY' },
+      // GUIC-375 — SAMEORIGIN (au lieu de DENY) pour autoriser PdfViewer à
+      // embed `/api/ressources/[id]/proxy` dans une iframe same-origin.
+      { key: 'X-Frame-Options',              value: 'SAMEORIGIN' },
       { key: 'X-Content-Type-Options',        value: 'nosniff' },
       { key: 'Referrer-Policy',               value: 'strict-origin-when-cross-origin' },
       { key: 'X-XSS-Protection',              value: '1; mode=block' },

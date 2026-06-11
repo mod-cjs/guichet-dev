@@ -1,7 +1,25 @@
 'use client'
 import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
+
+/**
+ * GUIC-375 — Recherche contextuelle : on redirige vers la liste correspondant
+ * à la page consultée (`/ressources?q=`, `/agenda?q=`, `/centres?q=`), avec
+ * fallback `/opportunites?q=` sinon. Évite de toujours sortir le jeune du
+ * contexte (ex. il cherche un mot dans `/ressources` → reste sur ressources).
+ */
+function resolveSearchTarget(pathname: string | null, q: string): string {
+  const encoded = encodeURIComponent(q)
+  if (!pathname) return `/opportunites?q=${encoded}`
+  if (pathname.startsWith('/ressources') || pathname.startsWith('/jeune/ressources'))
+    return `/ressources?q=${encoded}`
+  if (pathname.startsWith('/agenda') || pathname.startsWith('/jeune/agenda'))
+    return `/agenda?q=${encoded}`
+  if (pathname.startsWith('/centres') || pathname.startsWith('/jeune/centres'))
+    return `/centres?q=${encoded}`
+  return `/opportunites?q=${encoded}`
+}
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
@@ -80,6 +98,7 @@ export function BenefTopBar({
   void onYayeOpenChange
 
   const router = useRouter()
+  const pathname = usePathname()
   const isControlled = typeof searchQuery === 'string'
   const [internalQuery, setInternalQuery] = useState('')
   const value = isControlled ? searchQuery : internalQuery
@@ -95,7 +114,7 @@ export function BenefTopBar({
       return
     }
     if (q.length === 0) return
-    router.push(`/opportunites?q=${encodeURIComponent(q)}`)
+    router.push(resolveSearchTarget(pathname, q))
   }
 
   return (
@@ -128,7 +147,7 @@ export function BenefTopBar({
           border: '1.5px solid var(--gj-line)',
           borderRadius: 10,
           padding: '0 14px',
-          minHeight: 42,
+          minHeight: 44,
         }}
       >
         <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
