@@ -1,6 +1,6 @@
 'use client'
-import { useState, type FormEvent } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 
 /**
@@ -99,8 +99,14 @@ export function BenefTopBar({
 
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const isControlled = typeof searchQuery === 'string'
-  const [internalQuery, setInternalQuery] = useState('')
+  // GUIC-378 : la searchbar lit ?q= de l'URL pour rester remplie après navigation.
+  const [internalQuery, setInternalQuery] = useState(() => searchParams?.get('q') ?? '')
+  // Re-sync si le param URL change (navigation côté client).
+  useEffect(() => {
+    if (!isControlled) setInternalQuery(searchParams?.get('q') ?? '')
+  }, [searchParams, isControlled])
   const value = isControlled ? searchQuery : internalQuery
   const handleChange = (v: string) => {
     if (!isControlled) setInternalQuery(v)
