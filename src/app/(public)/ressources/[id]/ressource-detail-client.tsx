@@ -26,6 +26,12 @@ export function RessourceDetailClient({ ressource }: Props) {
   const isVideo = ressource.type === 'Video'
   const videoEmbed = isVideo ? parseVideoEmbedUrl(ressource.url) : null
 
+  // GUIC-374 — Les serveurs externes (ex. ADEPME) envoient `X-Frame-Options`
+  // qui bloquent l'embed dans une iframe. On passe par notre proxy serveur
+  // qui re-sert le PDF depuis notre domaine, sans header bloquant.
+  const pdfProxyUrl = `/api/ressources/${ressource.id}/proxy`
+  const pdfDownloadUrl = `/api/ressources/${ressource.id}/proxy?download=1`
+
   return (
     <div className="mt-space-3 flex flex-col gap-space-5">
       <header className="flex flex-col gap-space-2">
@@ -93,7 +99,7 @@ export function RessourceDetailClient({ ressource }: Props) {
               variant="secondary"
               onClick={() => {
                 const a = document.createElement('a')
-                a.href = ressource.url
+                a.href = pdfDownloadUrl
                 a.download = `${ressource.titre}.pdf`
                 a.rel = 'noopener noreferrer'
                 document.body.appendChild(a)
@@ -107,7 +113,7 @@ export function RessourceDetailClient({ ressource }: Props) {
             </Button>
           </div>
           <PdfViewer
-            url={ressource.url}
+            url={pdfProxyUrl}
             title={ressource.titre}
             isOpen={pdfOpen}
             onClose={() => setPdfOpen(false)}
