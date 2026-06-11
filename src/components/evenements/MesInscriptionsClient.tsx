@@ -188,7 +188,7 @@ function buildIcs(item: MesInscriptionItem): string {
     'VERSION:2.0',
     'PRODID:-//CJS//Guichet Jeunesse//FR',
     'BEGIN:VEVENT',
-    `UID:${ev.id}@guichet.cjs.sn`,
+    `UID:${ev.id}@${appDomain()}`,
     `DTSTAMP:${now}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

@@ -131,7 +131,7 @@ export function MyCJSCard({
       ? user.matricule.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
       : '')
   const effectiveQrUrl =
-    qrUrl || (fallbackSeed ? `https://guichetjeunesse.sn/cjs-card/${fallbackSeed}` : undefined)
+    qrUrl || (fallbackSeed ? `${appUrl()}/cjs-card/${fallbackSeed}` : undefined)
 
   return (
     <article

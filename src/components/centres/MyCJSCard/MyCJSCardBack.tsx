@@ -1,3 +1,5 @@
+import { appDomain } from '@/lib/app-url'
+
 export interface MyCJSCardBackProps {
   matricule: string
   /** Date d'émission lisible (ex: "03/2025"). */
@@ -111,7 +113,7 @@ export function MyCJSCardBack({
         }}
       >
         <span>Émise le {emiseLe}</span>
-        <span>guichetjeunesse.sn</span>
+        <span>{appDomain()}</span>
       </footer>
     </article>
   )
