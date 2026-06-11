@@ -140,7 +140,7 @@ export async function uploadToBlob(opts: UploadToBlobOptions): Promise<PutBlobRe
   const sub = opts.subKey ? `${opts.subKey}/` : ''
   const pathname = `${opts.prefix}/${opts.cjsUid}/${sub}${safeName}`
   return put(pathname, opts.file, {
-    access: 'public',
+    access: 'private',
     addRandomSuffix: true,
     contentType: opts.file.type,
     cacheControlMaxAge: opts.cacheControlMaxAge ?? DEFAULT_BLOB_CACHE_MAX_AGE_SEC,

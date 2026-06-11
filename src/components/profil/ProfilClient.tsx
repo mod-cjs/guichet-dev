@@ -7,6 +7,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
+import { SectionCv }          from './SectionCv'
 import { MyCJSCard }          from '@/components/ui/MyCJSCard'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -90,6 +91,15 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
 
           <SectionCertificats
             certificats={initial.certificats}
+          />
+
+          <SectionCv
+            initialCvUrl={initial.profil?.cvUrl ?? null}
+            initialUploadedAt={
+              initial.profil?.cvUploadedAt
+                ? new Date(initial.profil.cvUploadedAt as unknown as string).toISOString()
+                : null
+            }
           />
         </div>
       </div>

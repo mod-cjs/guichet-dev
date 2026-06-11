@@ -158,6 +158,7 @@ export function SectionDiplomes({ diplomes: initial, onScoreChange }: Props) {
                       <ProfilFileUploadButton
                         url={`/api/profil/diplomes/${dip.id}/upload`}
                         currentUrl={dip.fichierUrl}
+                        proxyUrl={dip.fichierUrl ? `/api/profil/diplomes/${dip.id}/file` : null}
                         emptyLabel="Joindre le scan"
                         replaceLabel="Remplacer le scan"
                         onUploaded={fichierUrl =>

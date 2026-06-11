@@ -12,11 +12,15 @@ interface Props {
 export function SectionCertificats({ certificats }: Props) {
   const [items, setItems] = useState<CertificatItem[]>(certificats)
 
-  if (items.length === 0) return null
-
   return (
     <Card>
-      <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-4">Certificats Moodle</h2>
+      <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-4">Certificats</h2>
+      {items.length === 0 && (
+        <p className="text-fs-200 text-color-text-secondary py-space-3">
+          Aucun certificat pour le moment. Tes certifications Moodle apparaîtront
+          ici automatiquement, et tu peux joindre un scan à chacune.
+        </p>
+      )}
       <div className="flex flex-col divide-y divide-gj-line">
         {items.map(c => (
           <div key={c.id} className="py-space-3 first:pt-0 last:pb-0 flex flex-col gap-space-2">
@@ -41,6 +45,7 @@ export function SectionCertificats({ certificats }: Props) {
             <ProfilFileUploadButton
               url={`/api/profil/certificats/${c.id}/upload`}
               currentUrl={c.fichierUrl}
+              proxyUrl={c.fichierUrl ? `/api/profil/certificats/${c.id}/file` : null}
               emptyLabel="Joindre le certificat"
               replaceLabel="Remplacer le certificat"
               onUploaded={fichierUrl =>

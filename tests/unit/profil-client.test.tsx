@@ -20,6 +20,8 @@ const PROFIL: ProfilComplet = {
   profil: {
     id:                'p1',
     photoUrl:          null,
+    cvUrl:             null,
+    cvUploadedAt:      null,
     biographie:        null,
     niveauEtude:       null,
     situationEmploi:   null,
