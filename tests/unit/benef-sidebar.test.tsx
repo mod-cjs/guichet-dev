@@ -22,7 +22,11 @@ describe('<BenefSidebar />', () => {
     expect(screen.getByText('Accueil')).toBeInTheDocument()
     expect(screen.getByText(/Toutes les opportunités/i)).toBeInTheDocument()
     expect(screen.getByText('Mes candidatures')).toBeInTheDocument()
-    expect(screen.getByText('Mon profil')).toBeInTheDocument()
+  })
+
+  it('n\'affiche plus d\'item "Mon profil" dans le menu (carte profil unique — GUIC-376)', () => {
+    render(<BenefSidebar />)
+    expect(screen.queryByText('Mon profil')).not.toBeInTheDocument()
   })
 
   it('marque l\'item actif via aria-current', () => {
