@@ -14,7 +14,7 @@ const CSP = [
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin}`,
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com`,
   "font-src 'self'",
   `connect-src 'self' ${ssoOrigin}`,
   "frame-ancestors 'none'",
@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
       { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },
+      // GUIC-360 — photos de profil servies depuis Vercel Blob.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
   },
   async headers() {

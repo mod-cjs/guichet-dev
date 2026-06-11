@@ -19,6 +19,7 @@ const PROFIL: ProfilComplet = {
   dateNaissance: '2000-01-01',
   profil: {
     id:                'p1',
+    photoUrl:          null,
     biographie:        null,
     niveauEtude:       null,
     situationEmploi:   null,
@@ -54,7 +55,7 @@ describe('<ProfilClient />', () => {
     const withCert: ProfilComplet = {
       ...PROFIL,
       certificats: [
-        { id: 'c1', formation: 'Cours JS', obtenuLe: '2025-01-15', urlCertificat: null },
+        { id: 'c1', formation: 'Cours JS', obtenuLe: '2025-01-15', urlCertificat: null, fichierUrl: null },
       ],
     }
     render(<ProfilClient initial={withCert} ssoProfilUrl={null} />)
