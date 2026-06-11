@@ -318,6 +318,31 @@ export function CandidatureModal({
         }
       }
 
+      // GUIC-379 — Mise à jour implicite du profil pour les champs gérés par
+      // le Guichet (niveau d'études, situation emploi). Email + téléphone
+      // sont gérés côté SSO — on ne les patche pas ici (l'utilisateur peut
+      // les corriger via « Modifier sur mon compte CJS »). Best-effort :
+      // un échec ici ne bloque pas la candidature (formulaireData reste
+      // un snapshot CDP-compliant).
+      const trimmedNiveau = niveauEtude.trim()
+      const trimmedSituation = situationEmploi.trim()
+      const niveauChanged = trimmedNiveau && trimmedNiveau !== (viewer.niveauEtude ?? '')
+      const situationChanged = trimmedSituation && trimmedSituation !== (viewer.situationEmploi ?? '')
+      if (niveauChanged || situationChanged) {
+        const patch: Record<string, string> = {}
+        if (niveauChanged) patch.niveauEtude = trimmedNiveau
+        if (situationChanged) patch.situationEmploi = trimmedSituation
+        try {
+          await fetch('/api/profil', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+          })
+        } catch {
+          // Best-effort, on ne bloque pas la candidature.
+        }
+      }
+
       const res = await fetch('/api/candidatures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
