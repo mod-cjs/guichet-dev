@@ -67,9 +67,10 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
                 aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 data-testid="ressource-favori-btn"
                 className={`relative z-[1] inline-flex items-center justify-center
-                  w-[32px] h-[32px] rounded-full border-[1.5px] transition-colors
+                  w-[32px] h-[32px] rounded-full border-[1.5px]
+                  transition-all duration-150 ease-out active:scale-90
                   ${isFavori
-                    ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink'
+                    ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink scale-105'
                     : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
               >
                 <Icon name="bookmark" size={14} />

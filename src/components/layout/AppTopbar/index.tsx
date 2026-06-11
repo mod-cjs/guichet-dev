@@ -165,6 +165,20 @@ export function AppTopbar({
             </Link>
           )}
 
+          {/* Favoris (cœur) — accès rapide depuis le mobile (GUIC-367) */}
+          <Link
+            href="/jeune/mes-favoris"
+            aria-label="Mes favoris"
+            className="relative inline-flex items-center justify-center no-underline"
+            style={{
+              minWidth: 'var(--tap-min)',
+              minHeight: 'var(--tap-min)',
+              color: 'var(--gj-ink)',
+            }}
+          >
+            <Icon name="heart" size={20} />
+          </Link>
+
           {/* Bell notifications */}
           {onBellClick ? (
             <button
