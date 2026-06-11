@@ -263,6 +263,7 @@ export function AppTopbar({
               initials={initials}
               prenom={session.prenom ?? ''}
               nom={session.nom ?? ''}
+              cjsUid={session.cjsUid}
             />
           ) : initials ? (
             <button

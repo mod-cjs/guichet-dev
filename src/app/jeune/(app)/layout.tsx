@@ -47,13 +47,14 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           userName={userName || undefined}
           userMeta={userMeta}
           userInitials={userInitials || undefined}
+          cjsUid={session.cjsUid}
         />
       </div>
 
       {/* Colonne droite (desktop) / flow normal (mobile/tablet) */}
       <div className="flex flex-col min-w-0">
         {/* Top bar desktop (≥lg) — composant déjà `hidden lg:flex` en interne */}
-        <BenefTopBar userInitials={userInitials || undefined} unread={unread} />
+        <BenefTopBar userInitials={userInitials || undefined} unread={unread} cjsUid={session.cjsUid} />
 
         {/* Header marketing : visible uniquement en tablet [md, lg)
             (mobile <md → shell mobile global ; desktop ≥lg → BenefTopBar ci-dessus) */}
