@@ -8,7 +8,7 @@ import type { ApiResponse } from '@/types/api'
 import type { DiplomeResponse, DeleteDiplomeResponse } from '@/types/profil'
 
 const SELECT_FIELDS = {
-  id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true,
+  id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true, fichierUrl: true,
 } as const
 
 async function ownsDiplome(cjsUid: string, id: string): Promise<boolean> {

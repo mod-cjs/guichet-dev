@@ -1,8 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import Image from 'next/image'
 import { Card, Button, Input, Select } from '@/components/ui'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
+
+const ALLOWED_PHOTO_MIME_CLIENT = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_PHOTO_BYTES_CLIENT    = 5 * 1024 * 1024
+
+/** Magic-bytes côté client (défense en profondeur, le serveur revalide). */
+function clientHasValidMagic(mime: string, head: Uint8Array): boolean {
+  if (mime === 'image/jpeg') return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff
+  if (mime === 'image/png')  return head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47
+  if (mime === 'image/webp') {
+    return head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46
+      && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50
+  }
+  return false
+}
 
 const REGIONS = [
   'Dakar','Thies','Diourbel','Fatick','Kaolack','Kaffrine',
@@ -11,14 +26,56 @@ const REGIONS = [
 
 interface Props {
   data:         Pick<ProfilComplet, 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
+  photoUrl?:    string | null
   ssoProfilUrl: string | null
   onSaved:      (data: PutProfilResponse) => void
+  onPhotoSaved?: (photoUrl: string) => void
 }
 
-export function SectionIdentite({ data, ssoProfilUrl, onSaved }: Props) {
+export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhotoSaved }: Props) {
   const [editing, setEditing] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+
+  const [photo,        setPhoto]        = useState<string | null>(photoUrl ?? null)
+  const [photoLoading, setPhotoLoading] = useState(false)
+  const [photoError,   setPhotoError]   = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
+
+  const initiales = `${(data.prenom?.[0] ?? '').toUpperCase()}${(data.nom?.[0] ?? '').toUpperCase()}`
+
+  async function uploadPhoto(file: File) {
+    setPhotoError(null)
+
+    if (!ALLOWED_PHOTO_MIME_CLIENT.includes(file.type)) {
+      setPhotoError('Format invalide (JPEG, PNG ou WebP requis).')
+      return
+    }
+    if (file.size > MAX_PHOTO_BYTES_CLIENT) {
+      setPhotoError('Image trop volumineuse (5 MB max).')
+      return
+    }
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+    if (!clientHasValidMagic(file.type, head)) {
+      setPhotoError("Le contenu du fichier ne correspond pas au format déclaré.")
+      return
+    }
+
+    setPhotoLoading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/profil/photo', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error?.message ?? 'Upload impossible')
+      setPhoto(json.data.photoUrl)
+      onPhotoSaved?.(json.data.photoUrl)
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : 'Erreur inconnue')
+    } finally {
+      setPhotoLoading(false)
+    }
+  }
 
   const [displayed, setDisplayed] = useState({
     region:        data.region,
@@ -77,6 +134,47 @@ export function SectionIdentite({ data, ssoProfilUrl, onSaved }: Props) {
         {!editing && (
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Modifier</Button>
         )}
+      </div>
+
+      {/* Photo de profil — GUIC-360 */}
+      <div className="flex items-center gap-space-4 mb-space-4">
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoLoading}
+          className="relative w-[96px] h-[96px] rounded-full bg-gj-teal overflow-hidden flex items-center justify-center flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gj-teal-deep disabled:opacity-60"
+          aria-label="Modifier la photo de profil"
+        >
+          {photo ? (
+            <Image src={photo} alt="" width={96} height={96} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-fs-500 font-bold text-white">{initiales || '?'}</span>
+          )}
+        </button>
+        <div className="flex flex-col gap-space-2 min-w-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => photoInputRef.current?.click()}
+            loading={photoLoading}
+            className="min-h-[44px]"
+          >
+            {photo ? 'Changer la photo' : 'Ajouter une photo'}
+          </Button>
+          <p className="text-fs-200 text-color-text-secondary">JPEG, PNG ou WebP · 5 MB max</p>
+          {photoError && <p className="text-fs-200 text-gj-red">{photoError}</p>}
+        </div>
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={e => {
+            const f = e.target.files?.[0]
+            if (f) void uploadPhoto(f)
+            e.target.value = ''
+          }}
+        />
       </div>
 
       {!editing ? (

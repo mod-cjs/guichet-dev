@@ -41,18 +41,18 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       region: true, commune: true, genre: true, dateNaissance: true,
       profil: {
         select: {
-          id: true, biographie: true, niveauEtude: true, situationEmploi: true,
+          id: true, photoUrl: true, biographie: true, niveauEtude: true, situationEmploi: true,
           domainesInteret: true, competences: true, completionScore: true, profileVisibility: true,
           experiences: {
             select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
             orderBy: { dateDebut: 'desc' },
           },
           diplomes: {
-            select: { id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true },
+            select: { id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true, fichierUrl: true },
             orderBy: { anneeObtention: 'desc' },
           },
           certificats: {
-            select: { id: true, formation: true, obtenuLe: true, urlCertificat: true },
+            select: { id: true, formation: true, obtenuLe: true, urlCertificat: true, fichierUrl: true },
             orderBy: { obtenuLe: 'desc' },
           },
         },
@@ -75,6 +75,7 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
     dateNaissance: u.dateNaissance?.toISOString().slice(0, 10) ?? null,
     profil: p ? {
       id:                p.id,
+      photoUrl:          p.photoUrl,
       biographie:        p.biographie,
       niveauEtude:       p.niveauEtude,
       situationEmploi:   p.situationEmploi,
@@ -98,12 +99,14 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       anneeObtention: d.anneeObtention,
       niveau:         d.niveau,
       mention:        d.mention,
+      fichierUrl:     d.fichierUrl,
     })),
     certificats: (p?.certificats ?? []).map(c => ({
       id:            c.id,
       formation:     c.formation,
       obtenuLe:      c.obtenuLe.toISOString().slice(0, 10),
       urlCertificat: c.urlCertificat,
+      fichierUrl:    c.fichierUrl,
     })),
   }
 }

@@ -52,6 +52,31 @@ export type {
   RessourceCardTeaserProps,
   RessourceTeaserType,
 } from './RessourceCardTeaser'
+export { RessourceCard } from './RessourceCard'
+export type { RessourceCardProps, RessourceCardType } from './RessourceCard'
+export { RessourceTypeFilter } from './RessourceTypeFilter'
+export type {
+  RessourceTypeFilterProps,
+  RessourceTypeValue,
+} from './RessourceTypeFilter'
+export { PeopleStepper } from './PeopleStepper'
+export type { PeopleStepperProps } from './PeopleStepper'
+export { ReservationSlotPicker } from './ReservationSlotPicker'
+export type {
+  ReservationSlotPickerProps,
+  ReservationSlot,
+} from './ReservationSlotPicker'
+export { JustificatifUpload } from './JustificatifUpload'
+export type { JustificatifUploadProps } from './JustificatifUpload'
+export { ReservationRecap } from './ReservationRecap'
+export type { ReservationRecapProps } from './ReservationRecap'
+export { ReservationForm } from './ReservationForm'
+export type {
+  ReservationFormProps,
+  ReservationFormData,
+  ReservationFormCentre,
+  ReservationFormRessource,
+} from './ReservationForm'
 export {
   MOCK_CENTRES,
   MOCK_RDV,
