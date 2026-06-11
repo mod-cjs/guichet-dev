@@ -5,6 +5,7 @@ import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { YayeBubble } from '@/components/yaye/YayeBubble'
+import { YayeProvider } from '@/components/yaye/YayeProvider'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 
 /**
@@ -39,6 +40,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
 
   return (
+    <YayeProvider>
     <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
       <SkipLink />
       {/* Sidebar desktop (≥lg) — composant déjà `hidden lg:flex` en interne.
@@ -71,8 +73,11 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           {children}
         </main>
       </div>
-      {/* GUIC-373 — Yaye bubble universel pour l'app jeune. */}
+      {/* GUIC-373 — Yaye bubble universel pour l'app jeune.
+          GUIC-376 — l'état d'ouverture est partagé avec le CTA sidebar
+          via `YayeProvider`. */}
       <YayeBubble />
     </div>
+    </YayeProvider>
   )
 }
