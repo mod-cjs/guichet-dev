@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { QRBadge } from '../QRBadge'
 import { MyCJSCardBack } from './MyCJSCardBack'
 
@@ -40,8 +41,8 @@ function Initials({ prenom, nom, size = 64 }: { prenom: string; nom: string; siz
         width: size,
         height: size,
         borderRadius: '50%',
-        background: 'var(--gj-yellow, #F9C400)',
-        color: 'var(--gj-ink, #0E1A1F)',
+        background: 'var(--gj-yellow)',
+        color: 'var(--gj-ink)',
         fontSize: Math.round(size * 0.4),
         flexShrink: 0,
       }}
@@ -104,16 +105,17 @@ export function MyCJSCard({
         padding: 22,
         borderRadius: 18,
         background:
-          'linear-gradient(180deg, var(--gj-teal-deep, #0A2A24) 0%, var(--gj-teal, #007A5C) 100%)',
+          'linear-gradient(180deg, var(--gj-teal-deep) 0%, var(--gj-teal) 100%)',
       }}
     >
       <div className="flex items-start gap-3">
         {user.photoUrl ? (
-          <img
+          <Image
             src={user.photoUrl}
             alt={`Photo de ${user.prenom} ${user.nom}`}
             width={photoSize}
             height={photoSize}
+            unoptimized
             style={{
               width: photoSize,
               height: photoSize,
@@ -135,7 +137,7 @@ export function MyCJSCard({
             className="text-fs-200 font-bold"
             style={{
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              color: 'var(--gj-yellow, #F9C400)',
+              color: 'var(--gj-yellow)',
               letterSpacing: '0.05em',
             }}
           >

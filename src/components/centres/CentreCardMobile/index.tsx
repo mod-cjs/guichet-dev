@@ -1,5 +1,6 @@
 'use client'
 
+import { Icon } from '@/components/ui/Icon'
 import { CentreOpenDot } from '../CentreOpenDot'
 
 export interface CentreCardMobileHoraire {
@@ -71,38 +72,31 @@ export function CentreCardMobile({
       className={`w-full flex items-start gap-3 p-3 rounded-gj-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       style={{
         minHeight: 44,
-        background: 'var(--gj-surface, #fff)',
+        background: 'var(--gj-surface)',
         border: `1px solid ${
-          isMine ? 'var(--gj-teal-deep, #0A2A24)' : 'var(--gj-line, #DDE3E1)'
+          isMine ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
         }`,
       }}
     >
+      {/* TODO(GUIC-XXX) distance km — voir backlog géoloc */}
       <span
         aria-hidden="true"
         className="flex items-center justify-center rounded-full flex-shrink-0"
         style={{
           width: 36,
           height: 36,
-          background: 'var(--gj-teal-soft, #E5F0EC)',
-          color: 'var(--gj-teal-deep, #0A2A24)',
+          background: 'var(--gj-teal-soft)',
+          color: 'var(--gj-teal-deep)',
         }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 22s7-7.58 7-13a7 7 0 1 0-14 0c0 5.42 7 13 7 13Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-          <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="2" />
-        </svg>
+        <Icon name="pin" size={18} />
       </span>
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <h3
             className="text-fs-300 font-bold m-0 truncate"
-            style={{ color: 'var(--gj-ink, #0E1A1F)' }}
+            style={{ color: 'var(--gj-ink)' }}
           >
             {centre.nom}
           </h3>
@@ -110,8 +104,8 @@ export function CentreCardMobile({
             <span
               className="text-fs-100 font-bold px-1.5 py-0.5 rounded-gj-sm flex-shrink-0"
               style={{
-                background: 'var(--gj-teal-deep, #0A2A24)',
-                color: '#fff',
+                background: 'var(--gj-teal-soft)',
+                color: 'var(--gj-teal-deep)',
               }}
             >
               Mien
@@ -120,11 +114,11 @@ export function CentreCardMobile({
         </div>
         <div
           className="text-fs-100"
-          style={{ color: 'var(--gj-grey, #65706B)' }}
+          style={{ color: 'var(--gj-grey)' }}
         >
           {centre.ville ?? centre.region}
         </div>
-        <div className="flex items-center gap-1.5 text-fs-100" style={{ color: 'var(--gj-grey, #65706B)' }}>
+        <div className="flex items-center gap-1.5 text-fs-100" style={{ color: 'var(--gj-grey)' }}>
           <CentreOpenDot open={isOpen} />
           <span>{isOpen ? 'Ouvert' : 'Fermé'} · {formatHoraireToday(centre.horaires)}</span>
         </div>
