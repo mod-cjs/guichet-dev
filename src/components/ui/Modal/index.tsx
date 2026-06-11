@@ -46,13 +46,20 @@ export function Modal({
   const [shown, setShown] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
   const titleId = useId()
+
+  // Stocke la dernière référence d'onClose sans déclencher l'effet d'ouverture
+  // (sinon chaque keystroke parent → nouveau onClose → effet relancé → focus reset)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panelRef.current) return
@@ -69,7 +76,7 @@ export function Modal({
         first.focus()
       }
     },
-    [onClose],
+    [],
   )
 
   useEffect(() => {
@@ -104,7 +111,7 @@ export function Modal({
         className={`absolute inset-0 transition-opacity duration-[var(--motion-base)] ease-[var(--motion-ease)]
           ${shown ? 'opacity-100' : 'opacity-0'}`}
         style={{ background: 'var(--gj-overlay)' }}
-        onClick={onClose}
+        onClick={() => onCloseRef.current()}
         aria-hidden
       />
       <div
