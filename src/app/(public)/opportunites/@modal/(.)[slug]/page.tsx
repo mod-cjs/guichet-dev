@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
+import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { DetailSheet } from '@/components/opportunites/DetailSheet'
 
 /** Route interceptée — détail ouvert en slide-over par-dessus la liste. */
@@ -18,14 +19,8 @@ export default async function InterceptedOpportuniteDetail({
   await incrementVue(slug, ip)
 
   const session = await getSession()
-  const viewer = session
-    ? {
-        prenom: session.prenom,
-        nom: session.nom,
-        email: session.email,
-        telephone: session.telephone,
-      }
-    : null
+  // GUIC-361 — Auto-fill complet : agrège claims SSO + ProfilJeune.
+  const viewer = await getViewerInfoForCandidature(session)
 
   return <DetailSheet detail={detail} viewer={viewer} />
 }

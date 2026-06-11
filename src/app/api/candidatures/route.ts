@@ -157,6 +157,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         opportuniteId: opportunite.id,
         lettreMotivation: parsed.data.lettreMotivation,
         cvUrl: parsed.data.cvUrl ?? null,
+        // GUIC-361 — snapshot des infos profil au moment de la candidature.
+        formulaireData: parsed.data.formulaireData ?? undefined,
         notificationsConsent: parsed.data.notificationsConsent,
         consentAt: new Date(),
         cguVersion: CGU_VERSION,
