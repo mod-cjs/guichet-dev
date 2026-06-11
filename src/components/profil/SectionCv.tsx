@@ -87,7 +87,13 @@ export function SectionCv({ initialCvUrl }: Props) {
 
           {cvUrl && (
             <a
-              href={cvUrl}
+              // GUIC-370 — le Blob est privé (access:'private'), donc l'URL
+              // directe renvoie 403. On passe par le proxy authentifié qui
+              // injecte le token côté serveur. Le param `ts` est conservé pour
+              // cache-bust après remplacement.
+              href={`/api/profil/cv/file?ts=${encodeURIComponent(
+                (cvUrl.match(/[?&]ts=([^&]+)/)?.[1]) ?? Date.now().toString()
+              )}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-fs-200 font-bold text-gj-teal-deep underline underline-offset-2"
