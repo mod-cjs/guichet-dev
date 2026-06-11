@@ -179,3 +179,99 @@ export async function getRessourceFavoriIds(cjsUid: string): Promise<string[]> {
   })
   return rows.map((r) => r.ressourceId)
 }
+
+/** Détail complet d'une ressource — GUIC-363. */
+export interface RessourceDetail extends RessourceListItem {
+  updatedAt: string
+}
+
+const DETAIL_SELECT = {
+  ...CARD_SELECT,
+  updatedAt: true,
+} satisfies Prisma.RessourceSelect
+
+/**
+ * Récupère une ressource publique par son identifiant.
+ * GUIC-363 — Le modèle `Ressource` n'a pas de champ `slug` ; on adresse par
+ * `id` (UUID). Si un futur champ slug est ajouté, cette fonction sera étendue.
+ */
+export async function getRessourceById(id: string): Promise<RessourceDetail | null> {
+  if (!id || typeof id !== 'string') return null
+  const r = await prisma.ressource.findFirst({
+    where: { id, estPublic: true },
+    select: DETAIL_SELECT,
+  })
+  if (!r) return null
+  return {
+    id: r.id,
+    titre: r.titre,
+    description: r.description,
+    type: r.type as TypeRessourceValue,
+    theme: r.theme,
+    url: r.url,
+    vues: r.vues,
+    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
+    langue: (r.langue ?? null) as LangueRessourceValue | null,
+    categorie: r.categorie ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }
+}
+
+/**
+ * Ressources liées : même thème (priorité) ou même catégorie, hors ressource
+ * courante, max `take` items (défaut 3). GUIC-363.
+ */
+export async function getRessourcesRelated(
+  ressourceId: string,
+  take: number = 3,
+): Promise<RessourceListItem[]> {
+  const current = await prisma.ressource.findUnique({
+    where: { id: ressourceId },
+    select: { theme: true, categorie: true },
+  })
+  if (!current) return []
+
+  const orClauses: Prisma.RessourceWhereInput[] = [{ theme: current.theme }]
+  if (current.categorie) orClauses.push({ categorie: current.categorie })
+
+  const rows = await prisma.ressource.findMany({
+    where: {
+      estPublic: true,
+      id: { not: ressourceId },
+      OR: orClauses,
+    },
+    select: CARD_SELECT,
+    orderBy: { createdAt: 'desc' },
+    take,
+  })
+
+  return rows.map((r) => ({
+    id: r.id,
+    titre: r.titre,
+    description: r.description,
+    type: r.type as TypeRessourceValue,
+    theme: r.theme,
+    url: r.url,
+    vues: r.vues,
+    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
+    langue: (r.langue ?? null) as LangueRessourceValue | null,
+    categorie: r.categorie ?? null,
+    createdAt: r.createdAt.toISOString(),
+  }))
+}
+
+/**
+ * Incrément du compteur de vues d'une ressource (best-effort, jamais bloquant).
+ * GUIC-363.
+ */
+export async function incrementRessourceVues(ressourceId: string): Promise<void> {
+  try {
+    await prisma.ressource.update({
+      where: { id: ressourceId },
+      data: { vues: { increment: 1 } },
+    })
+  } catch {
+    // best-effort : ne jamais casser la page détail si l'update échoue.
+  }
+}
