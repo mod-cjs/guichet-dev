@@ -36,6 +36,22 @@ export type {
   MyCJSCardUser,
   MyCJSCardBackProps,
 } from './MyCJSCard'
+export { CentreDetailHero } from './CentreDetailHero'
+export type { CentreDetailHeroProps } from './CentreDetailHero'
+export { CentreHoursTable } from './CentreHoursTable'
+export type {
+  CentreHoursTableProps,
+  CentreHoursTableHoraire,
+} from './CentreHoursTable'
+export { CentreServicesGrid, formatServiceLabel } from './CentreServicesGrid'
+export type { CentreServicesGridProps } from './CentreServicesGrid'
+export { CentreContactCard } from './CentreContactCard'
+export type { CentreContactCardProps } from './CentreContactCard'
+export { RessourceCardTeaser } from './RessourceCardTeaser'
+export type {
+  RessourceCardTeaserProps,
+  RessourceTeaserType,
+} from './RessourceCardTeaser'
 export {
   MOCK_CENTRES,
   MOCK_RDV,
