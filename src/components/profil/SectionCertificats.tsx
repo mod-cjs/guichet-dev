@@ -17,9 +17,19 @@ interface FormData {
 
 const emptyForm: FormData = { formation: '', organisme: '', obtenuLe: new Date().toISOString().slice(0, 10) }
 
+/**
+ * Un certificat est éditable s'il a été créé manuellement (préfixe `manual:`
+ * sur `moodleCertId`). Côté client, on détecte ça via l'absence d'URL Moodle.
+ * Les imports Moodle ont systématiquement `urlCertificat` renseigné.
+ */
+function isManual(c: CertificatItem): boolean {
+  return !c.urlCertificat
+}
+
 export function SectionCertificats({ certificats }: Props) {
   const [items, setItems]   = useState<CertificatItem[]>(certificats)
-  const [modal, setModal]   = useState(false)
+  const [modal, setModal]   = useState<'add' | 'edit' | null>(null)
+  const [editing, setEditing] = useState<CertificatItem | null>(null)
   const [form,  setForm]    = useState<FormData>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState<string | null>(null)
@@ -30,8 +40,25 @@ export function SectionCertificats({ certificats }: Props) {
 
   function openAdd() {
     setForm(emptyForm)
+    setEditing(null)
     setError(null)
-    setModal(true)
+    setModal('add')
+  }
+
+  function openEdit(c: CertificatItem) {
+    setForm({
+      formation: c.formation,
+      organisme: '',
+      obtenuLe:  c.obtenuLe,
+    })
+    setEditing(c)
+    setError(null)
+    setModal('edit')
+  }
+
+  function closeModal() {
+    setModal(null)
+    setEditing(null)
   }
 
   function set(field: keyof FormData, value: string) {
@@ -41,9 +68,12 @@ export function SectionCertificats({ certificats }: Props) {
   async function save() {
     setSaving(true)
     setError(null)
+    const isEdit = modal === 'edit' && editing
+    const url    = isEdit ? `/api/profil/certificats/${editing.id}` : '/api/profil/certificats'
+    const method = isEdit ? 'PUT' : 'POST'
     try {
-      const res = await fetch('/api/profil/certificats', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           formation: form.formation,
@@ -53,9 +83,13 @@ export function SectionCertificats({ certificats }: Props) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Erreur')
-      const created = json.data as CertificatItem
-      setItems(prev => [created, ...prev].sort((a, b) => (a.obtenuLe < b.obtenuLe ? 1 : -1)))
-      setModal(false)
+      const saved = json.data as CertificatItem
+      setItems(prev =>
+        isEdit
+          ? prev.map(x => x.id === saved.id ? saved : x)
+          : [saved, ...prev].sort((a, b) => (a.obtenuLe < b.obtenuLe ? 1 : -1))
+      )
+      closeModal()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue')
     } finally {
@@ -115,6 +149,11 @@ export function SectionCertificats({ certificats }: Props) {
                         Voir Moodle
                       </a>
                     )}
+                    {isManual(c) && (
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>
+                        Éditer
+                      </Button>
+                    )}
                     <Button
                       variant="danger"
                       size="sm"
@@ -127,6 +166,7 @@ export function SectionCertificats({ certificats }: Props) {
                 <ProfilFileUploadButton
                   url={`/api/profil/certificats/${c.id}/upload`}
                   currentUrl={c.fichierUrl}
+                  proxyUrl={c.fichierUrl ? `/api/profil/certificats/${c.id}/file` : null}
                   emptyLabel="Joindre le certificat"
                   replaceLabel="Remplacer le certificat"
                   onUploaded={fichierUrl =>
@@ -139,11 +179,11 @@ export function SectionCertificats({ certificats }: Props) {
         )}
       </Card>
 
-      {/* Modal ajout manuel */}
+      {/* Modal ajout / édition manuel */}
       <Modal
-        isOpen={modal}
-        onClose={() => setModal(false)}
-        title="Ajouter une certification"
+        isOpen={modal !== null}
+        onClose={closeModal}
+        title={modal === 'edit' ? 'Modifier la certification' : 'Ajouter une certification'}
       >
         <div className="flex flex-col gap-space-4">
           <Input
@@ -160,13 +200,32 @@ export function SectionCertificats({ certificats }: Props) {
             id="obtenuLe" label="Date d'obtention" type="date" required
             value={form.obtenuLe} onChange={e => set('obtenuLe', e.target.value)}
           />
-          <p className="text-fs-200 text-color-text-secondary italic">
-            Tu pourras joindre un scan du certificat après l&apos;avoir enregistré.
-          </p>
+          {modal === 'edit' && editing ? (
+            <div className="flex flex-col gap-space-2">
+              <span className="text-fs-200 font-bold text-color-text-primary">
+                Justificatif (scan)
+              </span>
+              <ProfilFileUploadButton
+                url={`/api/profil/certificats/${editing.id}/upload`}
+                currentUrl={editing.fichierUrl}
+                proxyUrl={editing.fichierUrl ? `/api/profil/certificats/${editing.id}/file` : null}
+                emptyLabel="Joindre le certificat"
+                replaceLabel="Remplacer le certificat"
+                onUploaded={fichierUrl => {
+                  setItems(prev => prev.map(x => x.id === editing.id ? { ...x, fichierUrl } : x))
+                  setEditing({ ...editing, fichierUrl })
+                }}
+              />
+            </div>
+          ) : (
+            <p className="text-fs-200 text-color-text-secondary italic">
+              Tu pourras joindre un scan du certificat après l&apos;avoir enregistré.
+            </p>
+          )}
           {error && <p className="text-fs-200 text-gj-red">{error}</p>}
           <div className="flex gap-space-3">
             <Button onClick={save} loading={saving}>Enregistrer</Button>
-            <Button variant="ghost" onClick={() => setModal(false)}>Annuler</Button>
+            <Button variant="ghost" onClick={closeModal}>Annuler</Button>
           </div>
         </div>
       </Modal>
