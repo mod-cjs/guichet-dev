@@ -245,6 +245,209 @@ export async function getCentresWithStatusAndHoraires(
   })
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Wave 3 — Vue `detail` (GUIC-357)
+// ─────────────────────────────────────────────────────────────────
+
+const ALL_JOURS: JourSemaine[] = [
+  'Lundi',
+  'Mardi',
+  'Mercredi',
+  'Jeudi',
+  'Vendredi',
+  'Samedi',
+  'Dimanche',
+]
+
+export interface CentreDetailRessource {
+  id: string
+  type: string
+  nom: string
+  capacite: number
+  capaciteUnit: string | null
+  estActive: boolean
+}
+
+/**
+ * Centre + horaires + ressources teaser (4 max) pour la page détail.
+ *
+ * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 3.
+ */
+export interface CentreDetail {
+  id: string
+  slug: string
+  nom: string
+  region: string
+  ville: string | null
+  adresse: string
+  telephone: string
+  email: string | null
+  description: string | null
+  imageUrl: string | null
+  latitude: number
+  longitude: number
+  services: string[]
+  conseillersCount: number
+  isOpen: boolean
+  openingHoursText: string | null
+  horaires: Array<{
+    jour: string
+    ouvert: boolean
+    ouvreA: string | null
+    fermeA: string | null
+  }>
+  ressources: CentreDetailRessource[]
+}
+
+/**
+ * Texte d'ouverture du jour : "08:00 - 18:00" si ouvert, sinon
+ * "Ouvre à HH:MM" pour le prochain jour ouvert, sinon `null`.
+ */
+function computeOpeningHoursText(
+  horaires: CentreHoraire[],
+  now: Date,
+): string | null {
+  const todayIdx = now.getDay() // 0=dimanche
+  const todayJour = DAY_BY_JS_INDEX[todayIdx]
+  const today = horaires.find((h) => h.jour === todayJour)
+  if (today && today.ouvert && today.ouvreA && today.fermeA) {
+    const h = String(now.getHours()).padStart(2, '0')
+    const m = String(now.getMinutes()).padStart(2, '0')
+    const hhmm = `${h}:${m}`
+    if (compareHHMM(hhmm, today.ouvreA) < 0) {
+      return `Ouvre à ${today.ouvreA}`
+    }
+    if (compareHHMM(hhmm, today.fermeA) < 0) {
+      return `${today.ouvreA} - ${today.fermeA}`
+    }
+  }
+  // Cherche prochain jour ouvert
+  for (let i = 1; i <= 7; i++) {
+    const j = DAY_BY_JS_INDEX[(todayIdx + i) % 7]
+    const row = horaires.find((h) => h.jour === j)
+    if (row && row.ouvert && row.ouvreA) {
+      return `Ouvre ${j.toLowerCase()} à ${row.ouvreA}`
+    }
+  }
+  return null
+}
+
+/**
+ * Charge un centre par son `slug`, incluant horaires (triés Lun→Dim) +
+ * 4 ressources actives (teaser).
+ *
+ * Retourne `null` si introuvable ou désactivé.
+ */
+export async function getCentreBySlug(
+  slug: string,
+  now: Date = new Date(),
+): Promise<CentreDetail | null> {
+  // Sélection souple : W0 ajoute slug + description + imageUrl + services +
+  // conseillersCount + horaires + ressources. Si W0 pas mergé, fallback.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const findArgs: any = {
+    where: { slug, estActif: true },
+    include: {
+      horaires: true,
+      ressources: {
+        where: { estActive: true },
+        take: 4,
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  }
+
+  let row: Record<string, unknown> | null
+  try {
+    row = (await prisma.centre.findFirst(findArgs)) as Record<
+      string,
+      unknown
+    > | null
+  } catch {
+    // Fallback si include échoue (schéma pré-W0)
+    row = (await prisma.centre.findFirst({
+      where: { estActif: true },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)) as Record<string, unknown> | null
+    if (row && slugifyCentre(String(row.nom)) !== slug) row = null
+  }
+
+  if (!row) return null
+
+  const rawHoraires = (row.horaires as CentreHoraire[] | undefined) ?? []
+  // Normalise + remplit les jours manquants
+  const horairesByJour = new Map<string, CentreHoraire>()
+  for (const h of rawHoraires) horairesByJour.set(String(h.jour), h)
+  const horaires = ALL_JOURS.map((j) => {
+    const found = horairesByJour.get(j)
+    return {
+      jour: j,
+      ouvert: found?.ouvert ?? false,
+      ouvreA: found?.ouvreA ?? null,
+      fermeA: found?.fermeA ?? null,
+    }
+  })
+
+  // Fallback : si W0 pas appliqué et 0 horaire en base, on simule Lun-Ven
+  const hasAnyHoraire = rawHoraires.length > 0
+  const effectiveHoraires: CentreHoraire[] = hasAnyHoraire
+    ? horaires
+    : ALL_JOURS.map((j) =>
+        j === 'Samedi' || j === 'Dimanche'
+          ? { jour: j, ouvert: false, ouvreA: null, fermeA: null }
+          : { jour: j, ouvert: true, ouvreA: '08:00', fermeA: '17:00' },
+      )
+
+  const services = Array.isArray(row.services)
+    ? (row.services as string[])
+    : []
+
+  const ressources = ((row.ressources as Array<Record<string, unknown>>) ?? []).map(
+    (r) => ({
+      id: String(r.id),
+      type: String(r.type),
+      nom: String(r.nom),
+      capacite: Number(r.capacite ?? 1),
+      capaciteUnit: (r.capaciteUnit as string | null) ?? null,
+      estActive: Boolean(r.estActive ?? true),
+    }),
+  )
+
+  const slugFinal =
+    typeof row.slug === 'string' && row.slug.length > 0
+      ? (row.slug as string)
+      : slugifyCentre(String(row.nom))
+
+  return {
+    id: String(row.id),
+    slug: slugFinal,
+    nom: String(row.nom),
+    region: String(row.region),
+    ville:
+      typeof row.ville === 'string'
+        ? (row.ville as string)
+        : String(row.region).replace(/_/g, '-'),
+    adresse: String(row.adresse),
+    telephone: String(row.telephone ?? ''),
+    email: (row.email as string | null) ?? null,
+    description: (row.description as string | null) ?? null,
+    imageUrl: (row.imageUrl as string | null) ?? null,
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    services,
+    conseillersCount: Number(row.conseillersCount ?? 0),
+    isOpen: computeIsOpen(effectiveHoraires, now),
+    openingHoursText: computeOpeningHoursText(effectiveHoraires, now),
+    horaires: effectiveHoraires.map((h) => ({
+      jour: String(h.jour),
+      ouvert: h.ouvert,
+      ouvreA: h.ouvreA ?? null,
+      fermeA: h.fermeA ?? null,
+    })),
+    ressources,
+  }
+}
+
 /** Compte total (paginated API). */
 export async function countCentres(filters?: ListCentresFilters): Promise<number> {
   const where: Record<string, unknown> = { estActif: true }
