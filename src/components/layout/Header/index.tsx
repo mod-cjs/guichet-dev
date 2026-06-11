@@ -36,27 +36,7 @@ export async function Header() {
         {/* Côté droit */}
         <div className="ml-auto flex items-center gap-[4px] pl-[5px] flex-shrink-0 py-[10px]">
 
-          {/* Liens externes — large desktop uniquement (≥ lg) pour désurcharger les écrans moyens */}
-          <a
-            href="https://elearning.guichetjeunesse.sn"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-line
-              rounded-[5px] text-[10px] text-gj-grey bg-gj-bg whitespace-nowrap no-underline
-              hover:border-gj-teal transition-colors"
-          >
-            e-learning ↗
-          </a>
-          <a
-            href="https://yeah.consortiumjeunessesenegal.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden lg:inline-flex px-[8px] py-[3px] border-[1.5px] border-gj-yellow
-              rounded-[5px] text-[10px] text-gj-yellow-ink bg-gj-yellow-soft whitespace-nowrap
-              font-bold no-underline hover:opacity-90 transition-opacity"
-          >
-            YEAH ↗
-          </a>
+          {/* GUIC-372 — retiré liens externes YEAH + e-learning (incorrects). */}
 
           {/* CTA — toujours visible */}
           {session ? (
