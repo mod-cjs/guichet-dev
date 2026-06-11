@@ -32,12 +32,12 @@ describe('<CentreRow />', () => {
     expect(screen.queryByText(/Mon centre/i)).not.toBeInTheDocument()
   })
 
-  it('limite les chips services à 3 + affiche le +N', () => {
+  it('limite les chips services à 2 + affiche le +N', () => {
     render(<CentreRow centre={baseCentre} isOpen />)
     expect(screen.getByText('Conseil 1-à-1')).toBeInTheDocument()
     expect(screen.getByText('Ateliers')).toBeInTheDocument()
-    expect(screen.getByText('Wifi')).toBeInTheDocument()
-    expect(screen.getByText('+1')).toBeInTheDocument()
+    expect(screen.getByText('+2')).toBeInTheDocument()
+    expect(screen.queryByText('Wifi')).not.toBeInTheDocument()
     expect(screen.queryByText('Salle réunion')).not.toBeInTheDocument()
   })
 
