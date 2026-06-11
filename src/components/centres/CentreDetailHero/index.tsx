@@ -2,16 +2,24 @@
 
 import { Icon } from '@/components/ui/Icon'
 import { CentreOpenDot } from '../CentreOpenDot'
-import { SenegalMap, type SenegalMapPin } from '../SenegalMap'
+import {
+  CentresMapGoogle,
+  type CentresMapGoogleCentre,
+  type CentresMapGoogleListItem,
+} from '../CentresMapGoogle'
 
 export interface CentreDetailHeroProps {
   centre: {
+    id: string
+    slug: string
     nom: string
     region: string
     ville?: string | null
     adresse: string
     description?: string | null
     conseillersCount: number
+    latitude: number
+    longitude: number
   }
   isOpen: boolean
   /** Texte ouverture/prochaine ouverture (ex. "08:00 - 18:00"). */
@@ -20,18 +28,16 @@ export interface CentreDetailHeroProps {
   isMine?: boolean
   onItineraryClick?: () => void
   onAppointmentClick?: () => void
-  /** Afficher la mini-SenegalMap (desktop only par défaut). */
-  showMiniMap?: boolean
-  /** Pins pour la mini-map (centre + voisins éventuels). */
-  pins?: SenegalMapPin[]
   className?: string
 }
 
 /**
  * <CentreDetailHero> — bandeau teal-gradient en tête de la page `/centres/[slug]`.
  *
- * Source design : `public/design-v2/centres-web.jsx:135-204` (desktop).
- * Mobile : on cache la mini-map (`showMiniMap=false`) et on compacte.
+ * Rendu unique responsive : mini-carte Google Maps zoomée sur le centre +
+ * pin rouge pulsé, masquée sur mobile via classes Tailwind (gain place).
+ *
+ * Source design : `public/design-v2/centres-web.jsx:135-204` (desktop hero).
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 3.
  */
@@ -42,8 +48,6 @@ export function CentreDetailHero({
   isMine = false,
   onItineraryClick,
   onAppointmentClick,
-  showMiniMap = false,
-  pins = [],
   className = '',
 }: CentreDetailHeroProps) {
   const villeOrRegion = centre.ville || centre.region
@@ -54,6 +58,24 @@ export function CentreDetailHero({
     : isOpen
       ? 'Ouvert'
       : 'Fermé'
+
+  // Mini-carte Google Maps focalisée sur le centre courant (vue détail).
+  const mapCentres: CentresMapGoogleCentre[] = [
+    {
+      id: centre.id,
+      nom: centre.nom,
+      latitude: centre.latitude,
+      longitude: centre.longitude,
+    },
+  ]
+  const mapList: CentresMapGoogleListItem[] = [
+    {
+      id: centre.id,
+      nom: centre.nom,
+      region: centre.region,
+      slug: centre.slug,
+    },
+  ]
 
   return (
     <section
@@ -114,11 +136,7 @@ export function CentreDetailHero({
         </h1>
         <p
           className="m-0"
-          style={{
-            fontSize: 14,
-            opacity: 0.9,
-            marginTop: 6,
-          }}
+          style={{ fontSize: 14, opacity: 0.9, marginTop: 6 }}
         >
           {centre.adresse}
         </p>
@@ -188,10 +206,7 @@ export function CentreDetailHero({
         </div>
 
         {/* CTAs */}
-        <div
-          className="flex flex-wrap"
-          style={{ gap: 10, marginTop: 18 }}
-        >
+        <div className="flex flex-wrap" style={{ gap: 10, marginTop: 18 }}>
           <button
             type="button"
             onClick={onAppointmentClick}
@@ -237,15 +252,29 @@ export function CentreDetailHero({
         </div>
       </div>
 
-      {showMiniMap && (
-        <div
-          data-testid="hero-minimap"
-          style={{ position: 'relative', width: 150, flexShrink: 0 }}
-          aria-hidden="true"
-        >
-          <SenegalMap pins={pins} height={150} showLabels={false} />
-        </div>
-      )}
+      {/* Mini-carte Google Maps : centrée sur le centre courant, zoom rue,
+          pin rouge pulsé. Masquée sur mobile (gain place) via Tailwind. */}
+      <div
+        data-testid="hero-minimap"
+        className="hidden lg:block"
+        style={{
+          position: 'relative',
+          width: 220,
+          flexShrink: 0,
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}
+      >
+        <CentresMapGoogle
+          centres={mapCentres}
+          centresForList={mapList}
+          activeId={centre.id}
+          zoom={14}
+          height={180}
+          disableUI
+          pulseActiveMarker
+        />
+      </div>
     </section>
   )
 }

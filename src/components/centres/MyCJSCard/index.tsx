@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { Icon } from '@/components/ui/Icon'
 import { QRBadge } from '../QRBadge'
 import { MyCJSCardBack } from './MyCJSCardBack'
 
@@ -25,12 +26,24 @@ export interface MyCJSCardProps {
   variant?: 'recto' | 'verso'
   /** Largeur max en px. Défaut : 480. */
   maxWidth?: number
-  /** Mode compact : pas de QR, identité seulement. */
+  /** Mode compact : QR plus petit, pas de footer. */
   compact?: boolean
+  /** Recto sombre (gradient teal-deep → ink-teal) par défaut, ou clair sur fond surface. */
+  dark?: boolean
   className?: string
 }
 
-function Initials({ prenom, nom, size = 64 }: { prenom: string; nom: string; size?: number }) {
+function Initials({
+  prenom,
+  nom,
+  size = 48,
+  dark = true,
+}: {
+  prenom: string
+  nom: string
+  size?: number
+  dark?: boolean
+}) {
   const initials = `${prenom?.[0] ?? '?'}${nom?.[0] ?? '?'}`.toUpperCase()
   return (
     <div
@@ -41,10 +54,11 @@ function Initials({ prenom, nom, size = 64 }: { prenom: string; nom: string; siz
         width: size,
         height: size,
         borderRadius: '50%',
-        background: 'var(--gj-yellow)',
-        color: 'var(--gj-ink)',
+        background: dark ? 'rgba(0,0,0,.25)' : 'var(--gj-yellow)',
+        color: dark ? 'var(--gj-yellow)' : 'var(--gj-ink)',
         fontSize: Math.round(size * 0.4),
         flexShrink: 0,
+        border: dark ? '1.5px solid rgba(255,255,255,.18)' : 'none',
       }}
     >
       {initials}
@@ -64,14 +78,19 @@ function QrSkeleton({ size = 120 }: { size?: number }) {
 }
 
 /**
- * <MyCJSCard> — carte CJS du jeune (Lot 7 Wave 1).
+ * <MyCJSCard> — carte CJS du jeune (Lot 7 Wave 1, refonte fidèle au design source).
  *
- * Recto par défaut (gradient teal-deep → teal). Verso délégué à
- * `<MyCJSCardBack>`. Le QR est généré par `<QRBadge>` (lib `qrcode`).
+ * Recto sombre par défaut : gradient diagonal `var(--gj-teal-deep) → var(--gj-ink-teal)`,
+ * glow radial jaune en haut-droite, brand label "GUICHET JEUNESSE CJS" en jaune,
+ * matricule monospace en jaune, layout inline (avatar + identité + QR).
  *
- * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 1.
+ * Source design : `public/design-v2/cjs-card.jsx` lignes 79-175 (MyCJSCard recto).
+ *
+ * Verso délégué à `<MyCJSCardBack>`. Le QR est généré par `<QRBadge>` (lib `qrcode`).
  * Distinct de `src/components/ui/MyCJSCard` (placeholder visuel Phase 2B —
  * pas de QR signé). Ici on intègre le QR signé HMAC + photo OIDC.
+ *
+ * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 1.
  */
 export function MyCJSCard({
   user,
@@ -79,6 +98,7 @@ export function MyCJSCard({
   variant = 'recto',
   maxWidth = 480,
   compact = false,
+  dark = true,
   className = '',
 }: MyCJSCardProps) {
   if (variant === 'verso') {
@@ -92,84 +112,202 @@ export function MyCJSCard({
     )
   }
 
-  const photoSize = compact ? 48 : 64
-  const qrSize = 120
+  const avatarSize = compact ? 40 : 48
+  const qrSize = compact ? 110 : 140
 
   return (
     <article
       aria-label="Carte CJS"
       data-variant="recto"
-      className={`relative overflow-hidden text-white flex flex-col gap-3 ${className}`.trim()}
+      className={`relative overflow-hidden flex flex-col gap-3 ${className}`.trim()}
       style={{
         maxWidth,
-        padding: 22,
-        borderRadius: 18,
-        background:
-          'linear-gradient(180deg, var(--gj-teal-deep) 0%, var(--gj-teal) 100%)',
+        width: '100%',
+        padding: compact ? 14 : 18,
+        borderRadius: 14,
+        background: dark
+          ? 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)'
+          : 'var(--gj-surface)',
+        color: dark ? '#fff' : 'var(--gj-ink)',
+        border: dark ? '0' : '1.5px solid var(--gj-line)',
       }}
     >
-      <div className="flex items-start gap-3">
+      {/* Glow radial jaune décoratif (haut-droite) */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          right: -50,
+          top: -60,
+          width: 220,
+          height: 220,
+          background:
+            'radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Header : brand label + badge "Membre actif" */}
+      <div
+        className="relative flex items-center justify-between"
+        style={{ zIndex: 1 }}
+      >
+        <div
+          className="inline-flex items-center gap-2"
+          style={{
+            fontSize: 10.5,
+            fontWeight: 800,
+            color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+            letterSpacing: '.5px',
+            textTransform: 'uppercase',
+          }}
+        >
+          <Icon name="pin" size={12} aria-hidden="true" />
+          Guichet Jeunesse CJS
+        </div>
+        <span
+          style={{
+            background: dark ? 'rgba(0,0,0,.25)' : 'var(--gj-bg)',
+            padding: '3px 8px',
+            borderRadius: 999,
+            fontSize: 9.5,
+            fontWeight: 800,
+            letterSpacing: '.4px',
+            color: dark ? 'var(--gj-yellow)' : 'var(--gj-grey)',
+            textTransform: 'uppercase',
+          }}
+        >
+          Membre actif
+        </span>
+      </div>
+
+      {/* Body : avatar + identité + QR (layout inline horizontal) */}
+      <div
+        className="relative flex items-center gap-3"
+        style={{ zIndex: 1 }}
+      >
         {user.photoUrl ? (
           <Image
             src={user.photoUrl}
             alt={`Photo de ${user.prenom} ${user.nom}`}
-            width={photoSize}
-            height={photoSize}
+            width={avatarSize}
+            height={avatarSize}
             unoptimized
             style={{
-              width: photoSize,
-              height: photoSize,
+              width: avatarSize,
+              height: avatarSize,
               borderRadius: '50%',
               objectFit: 'cover',
               flexShrink: 0,
-              border: '2px solid rgba(255,255,255,.4)',
+              border: dark
+                ? '1.5px solid rgba(255,255,255,.25)'
+                : '1.5px solid var(--gj-line)',
             }}
           />
         ) : (
-          <Initials prenom={user.prenom} nom={user.nom} size={photoSize} />
+          <Initials
+            prenom={user.prenom}
+            nom={user.nom}
+            size={avatarSize}
+            dark={dark}
+          />
         )}
 
         <div className="flex-1 min-w-0 flex flex-col gap-1">
-          <h2 className="text-fs-400 font-black leading-tight m-0">
+          <h2
+            className="m-0"
+            style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}
+          >
             {user.prenom} {user.nom}
           </h2>
           <div
-            className="text-fs-200 font-bold"
             style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              color: 'var(--gj-yellow)',
-              letterSpacing: '0.05em',
+              fontFamily:
+                'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '.5px',
+              color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
             }}
           >
             {user.matricule}
           </div>
+          {!compact && user.centrePrincipal && (
+            <div
+              className="flex flex-wrap gap-2"
+              style={{
+                fontSize: 11,
+                color: dark ? 'rgba(255,255,255,.78)' : 'var(--gj-grey)',
+              }}
+            >
+              <span className="inline-flex items-center gap-1">
+                <Icon
+                  name="pin"
+                  size={12}
+                  style={{
+                    color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+                  }}
+                  aria-hidden="true"
+                />
+                {user.centrePrincipal.nom}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Icon
+                  name="calendar"
+                  size={12}
+                  style={{
+                    color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+                  }}
+                  aria-hidden="true"
+                />
+                Membre depuis {user.membreDepuis}
+              </span>
+            </div>
+          )}
         </div>
 
         {!compact && (
           <div
-            className="flex-shrink-0 p-2 rounded-gj-sm"
-            style={{ background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,.18)' }}
+            className="flex-shrink-0"
+            style={{
+              background: '#fff',
+              padding: 8,
+              borderRadius: 10,
+              boxShadow: '0 4px 12px rgba(0,0,0,.18)',
+            }}
           >
-            {qrUrl ? <QRBadge url={qrUrl} size={qrSize} /> : <QrSkeleton size={qrSize} />}
+            {qrUrl ? (
+              <QRBadge url={qrUrl} size={qrSize} />
+            ) : (
+              <QrSkeleton size={qrSize} />
+            )}
           </div>
         )}
       </div>
 
       {!compact && (
         <footer
-          className="flex items-center justify-between text-fs-100"
+          className="relative flex items-center gap-2"
           style={{
+            zIndex: 1,
             paddingTop: 10,
-            borderTop: '1px solid rgba(255,255,255,.18)',
-            color: 'rgba(255,255,255,.78)',
+            borderTop: `1px solid ${
+              dark ? 'rgba(255,255,255,.14)' : 'var(--gj-line)'
+            }`,
+            fontSize: 11,
+            color: dark ? 'rgba(255,255,255,.7)' : 'var(--gj-grey)',
           }}
         >
-          <span>
-            {user.centrePrincipal
-              ? `${user.centrePrincipal.nom} — ${user.centrePrincipal.region}`
-              : 'Aucun centre principal'}
-          </span>
-          <span>Membre depuis {user.membreDepuis}</span>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: 'var(--gj-green)',
+            }}
+          />
+          <span>Présente ce code à l’accueil de n’importe quel centre CJS.</span>
         </footer>
       )}
     </article>

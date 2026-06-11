@@ -91,17 +91,6 @@ export function CentreDetailClient({
 
   const itineraryHref = buildItineraryHref(centre)
 
-  const pins = [
-    {
-      id: centre.id,
-      // Mini-map indicative : on positionne au centre du viewBox
-      x: 135,
-      y: 100,
-      label: centre.nom,
-      active: true,
-    },
-  ]
-
   return (
     <div className="bg-gj-bg min-h-[100dvh] pb-[calc(80px+env(safe-area-inset-bottom,0px))] lg:pb-space-6">
       <div className="mx-auto max-w-screen-xl px-space-4 pt-space-4">
@@ -122,20 +111,26 @@ export function CentreDetailClient({
           Tous les centres
         </Link>
 
+        {/* Hero unique responsive : la mini-carte Google Maps est rendue
+            par <CentreDetailHero> et masquée mobile en interne (hidden lg:block).
+            La mini-SenegalMap SVG du W3 initial a été remplacée par une vraie
+            mini-Google Maps avec pin rouge pulsé sur le centre courant. */}
         <CentreDetailHero
           centre={{
+            id: centre.id,
+            slug: centre.slug,
             nom: centre.nom,
             region: centre.region,
             ville: centre.ville,
             adresse: centre.adresse,
             description: centre.description,
             conseillersCount: centre.conseillersCount,
+            latitude: centre.latitude,
+            longitude: centre.longitude,
           }}
           isOpen={centre.isOpen}
           openingHoursText={centre.openingHoursText}
           isMine={isMine}
-          showMiniMap={false}
-          pins={pins}
           onItineraryClick={() => {
             handleItineraryClick()
             if (typeof window !== 'undefined') {
@@ -148,39 +143,7 @@ export function CentreDetailClient({
               window.location.href = `/centres/${centre.slug}/ressources`
             }
           }}
-          className="lg:hidden"
         />
-
-        {/* Desktop hero variant (avec mini-map) */}
-        <div className="hidden lg:block">
-          <CentreDetailHero
-            centre={{
-              nom: centre.nom,
-              region: centre.region,
-              ville: centre.ville,
-              adresse: centre.adresse,
-              description: centre.description,
-              conseillersCount: centre.conseillersCount,
-            }}
-            isOpen={centre.isOpen}
-            openingHoursText={centre.openingHoursText}
-            isMine={isMine}
-            showMiniMap
-            pins={pins}
-            onItineraryClick={() => {
-              handleItineraryClick()
-              if (typeof window !== 'undefined') {
-                window.open(itineraryHref, '_blank', 'noopener,noreferrer')
-              }
-            }}
-            onAppointmentClick={() => {
-              handleAppointmentClick()
-              if (typeof window !== 'undefined') {
-                window.location.href = `/centres/${centre.slug}/ressources`
-              }
-            }}
-          />
-        </div>
 
         {/* ──────── DESKTOP grid 2 cols ──────── */}
         <div

@@ -23,7 +23,13 @@ export default meta
 
 type Story = StoryObj<typeof MyCJSCard>
 
-export const Recto: Story = {}
+export const RectoDark: Story = {
+  args: { dark: true },
+}
+
+export const RectoLight: Story = {
+  args: { dark: false },
+}
 
 export const RectoAvecPhoto: Story = {
   args: {
@@ -37,6 +43,10 @@ export const RectoSansQR: Story = {
 
 export const Compact: Story = {
   args: { compact: true },
+}
+
+export const CompactLight: Story = {
+  args: { compact: true, dark: false },
 }
 
 export const Verso: Story = {
