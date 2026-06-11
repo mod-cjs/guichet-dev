@@ -62,7 +62,9 @@ const nextConfig: NextConfig = {
     ].join('; ')
 
     const strictHeaders = [
-      { key: 'X-Frame-Options',              value: 'DENY' },
+      // GUIC-375 — SAMEORIGIN (au lieu de DENY) pour autoriser PdfViewer à
+      // embed `/api/ressources/[id]/proxy` dans une iframe same-origin.
+      { key: 'X-Frame-Options',              value: 'SAMEORIGIN' },
       { key: 'X-Content-Type-Options',        value: 'nosniff' },
       { key: 'Referrer-Policy',               value: 'strict-origin-when-cross-origin' },
       { key: 'X-XSS-Protection',              value: '1; mode=block' },
