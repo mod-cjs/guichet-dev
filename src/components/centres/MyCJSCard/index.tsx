@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { Icon } from '@/components/ui/Icon'
+import { appUrl } from '@/lib/app-url'
 import { QRBadge } from '../QRBadge'
 import { MyCJSCardBack } from './MyCJSCardBack'
 

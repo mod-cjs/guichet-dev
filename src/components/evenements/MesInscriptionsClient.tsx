@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Card, Chip, Button, Icon, EmptyState, Toast, Badge } from '@/components/ui'
+import { appDomain } from '@/lib/app-url'
 import type { MesInscriptionItem, TypeEvenementValue } from '@/lib/loaders/evenements'
 
 interface Props {
