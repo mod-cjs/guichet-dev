@@ -8,15 +8,26 @@ const appOrigin = process.env.NEXTAUTH_URL  ?? 'https://guichet.cjs.sn'
 const ssoHostname = new URL(ssoOrigin).hostname
 const appHostname = new URL(appOrigin).hostname
 
+// Google Maps JavaScript API — chargée par `@googlemaps/js-api-loader` côté
+// browser sur la page `/centres`. Le loader injecte un <script> depuis
+// `maps.googleapis.com`, qui télécharge ensuite des modules supplémentaires
+// (`*.googleapis.com`, `*.gstatic.com`) et des tuiles bitmap. CSP strict =
+// page blanche + erreur "Carte indisponible". GUIC-368.
+const GOOGLE_MAPS_SCRIPT  = 'https://maps.googleapis.com https://maps.gstatic.com'
+const GOOGLE_MAPS_CONNECT = 'https://maps.googleapis.com https://maps.gstatic.com'
+const GOOGLE_MAPS_IMG     = 'https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.ggpht.com'
+const GOOGLE_MAPS_STYLE   = 'https://fonts.googleapis.com'
+const GOOGLE_MAPS_FONT    = 'https://fonts.gstatic.com'
+
 const CSP = [
   "default-src 'self'",
   isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com`,
-  "font-src 'self'",
-  `connect-src 'self' ${ssoOrigin}`,
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${GOOGLE_MAPS_SCRIPT}`
+    : `script-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_SCRIPT}`,
+  `style-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_STYLE}`,
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} ${GOOGLE_MAPS_IMG}`,
+  `font-src 'self' ${GOOGLE_MAPS_FONT}`,
+  `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -30,8 +41,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
       { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },
-      // GUIC-360 — photos de profil servies depuis Vercel Blob.
-      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
   },
   async headers() {

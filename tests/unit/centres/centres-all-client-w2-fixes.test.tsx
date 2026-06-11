@@ -48,6 +48,7 @@ const baseCentre: CentresAllCentre = {
 }
 
 const user = {
+  cjsUid: 'cjs-uid-demo-aissa-diop',
   prenom: 'Aïssa',
   nom: 'Diop',
   matricule: 'GJS · AD · ABC123',
