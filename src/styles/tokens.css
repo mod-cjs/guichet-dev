@@ -204,6 +204,12 @@
   --gj-shadow-lg:  0 8px 32px rgba(0,0,0,.15);
   --gj-shadow-bottom-nav: 0 -1px 0 rgba(0,0,0,.06), 0 -4px 16px rgba(0,0,0,.04);
 
+  /* Hauteur effective de la BottomNav mobile (refonte v2).
+     Référencée par globals.css `body:has(.gj-bottom-nav)` pour réserver
+     l'espace bas — sans cette valeur, le calc() est invalide et le contenu
+     se retrouve caché derrière la nav (GUIC-367). */
+  --gj-bottom-nav-h: 72px;
+
   /* =========================================================
      8 · BORDURES
      ========================================================= */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Input, Chip, EmptyState, Icon, Button } from '@/components/ui'
+import { Input, Chip, EmptyState, Icon, Button, Toast } from '@/components/ui'
 import { ResourceCard } from './ResourceCard'
 import {
   RessourcesFiltersSheet,
@@ -181,12 +181,23 @@ export function RessourcesClient({
   }
 
   // ── Favoris ────────────────────────────────────────────────────────────
+  // GUIC-367 — toast feedback (ajout / retrait / erreur).
+  const [favToast, setFavToast] = useState<
+    { message: string; variant: 'success' | 'danger' } | null
+  >(null)
+
   const handleToggleFavori = async (id: string) => {
+    const wasFavori = favoriIds.has(id)
     setFavoriIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
+    })
+    // Feedback optimiste immédiat.
+    setFavToast({
+      message: wasFavori ? 'Retiré des favoris' : 'Ajouté aux favoris',
+      variant: 'success',
     })
     try {
       const res = await fetch(`/api/ressources/${id}/favori`, {
@@ -211,6 +222,7 @@ export function RessourcesClient({
         else next.add(id)
         return next
       })
+      setFavToast({ message: 'Action impossible, réessayez', variant: 'danger' })
     }
   }
 
@@ -367,6 +379,15 @@ export function RessourcesClient({
         totalCount={total}
         onApply={onApplyAdvanced}
       />
+
+      {favToast && (
+        <Toast
+          message={favToast.message}
+          variant={favToast.variant}
+          bottomOffset={72}
+          onClose={() => setFavToast(null)}
+        />
+      )}
     </div>
   )
 }

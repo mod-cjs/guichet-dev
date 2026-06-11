@@ -35,9 +35,12 @@ export default async function OpportuniteDetailPage({
   const detail = await getOpportuniteDetail(slug)
   if (!detail) notFound()
 
+  // GUIC-367 — fire-and-forget : ne pas bloquer la 1ʳᵉ peinture
+  // sur l'écriture Redis + Prisma du compteur de vues. La fonction
+  // avale déjà toutes ses erreurs.
   const h = await headers()
   const ip = h.get('x-real-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'no-ip'
-  await incrementVue(slug, ip)
+  void incrementVue(slug, ip)
 
   const session = await getSession()
   // GUIC-361 — Auto-fill complet du formulaire de candidature : on agrège la
