@@ -22,12 +22,12 @@ const GOOGLE_MAPS_FONT    = 'https://fonts.gstatic.com'
 const CSP = [
   "default-src 'self'",
   isDev
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${GOOGLE_MAPS_SCRIPT}`
-    : `script-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_SCRIPT}`,
-  `style-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_STYLE}`,
-  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} ${GOOGLE_MAPS_IMG}`,
-  `font-src 'self' ${GOOGLE_MAPS_FONT}`,
-  `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com`,
+  "font-src 'self'",
+  `connect-src 'self' ${ssoOrigin}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -41,6 +41,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
       { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },
+      // GUIC-360 — photos de profil servies depuis Vercel Blob.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
   },
   async headers() {
@@ -60,7 +62,9 @@ const nextConfig: NextConfig = {
     ].join('; ')
 
     const strictHeaders = [
-      { key: 'X-Frame-Options',              value: 'DENY' },
+      // GUIC-375 — SAMEORIGIN (au lieu de DENY) pour autoriser PdfViewer à
+      // embed `/api/ressources/[id]/proxy` dans une iframe same-origin.
+      { key: 'X-Frame-Options',              value: 'SAMEORIGIN' },
       { key: 'X-Content-Type-Options',        value: 'nosniff' },
       { key: 'Referrer-Policy',               value: 'strict-origin-when-cross-origin' },
       { key: 'X-XSS-Protection',              value: '1; mode=block' },

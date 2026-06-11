@@ -1,6 +1,6 @@
 'use client'
 import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 
 export interface BenefTopBarProps {
@@ -80,6 +80,7 @@ export function BenefTopBar({
   void onYayeOpenChange
 
   const router = useRouter()
+  const pathname = usePathname()
   const isControlled = typeof searchQuery === 'string'
   const [internalQuery, setInternalQuery] = useState('')
   const value = isControlled ? searchQuery : internalQuery
@@ -128,7 +129,7 @@ export function BenefTopBar({
           border: '1.5px solid var(--gj-line)',
           borderRadius: 10,
           padding: '0 14px',
-          minHeight: 42,
+          minHeight: 44,
         }}
       >
         <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
