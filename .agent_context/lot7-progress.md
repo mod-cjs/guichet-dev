@@ -12,7 +12,7 @@ ADRs : `.agent_context/adr/ADR-00X-*.md` (rédigés juste avant chaque wave)
 | W1 — Primitives | GUIC-352 | 🟡 EN REVIEW | #117 | ⏳ ATTENDU | Composants + Storybook |
 | **W2 — Vue all + onboarding** | **GUIC-353** | 🟡 **EN COURS** | — | — | Carte + annuaire + onboarding centre principal |
 | W3 — Vue detail | GUIC-354 | 🟡 EN REVIEW | #120 | ⏳ ATTENDU | Hero + sections |
-| W4 — Resources + reserve | GUIC-355 | ⚪ Attente W3 | — | — | Transaction critique |
+| W4 — Resources + reserve | GUIC-355 | 🟡 EN REVIEW | #122 | ⏳ ATTENDU | Transaction critique |
 | W5 — Mes réservations | GUIC-356 | ⚪ Attente W4 | — | — | Statuts + actions |
 | W6 — Card + check-in + admin | GUIC-357 | ⚪ Attente W5 | — | — | Final + E2E + KPI dashboard |
 
