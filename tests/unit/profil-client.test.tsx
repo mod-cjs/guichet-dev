@@ -29,6 +29,7 @@ const PROFIL: ProfilComplet = {
     competences:       [],
     completionScore:   42,
     profileVisibility: 'prive',
+    cvUrl:             null,
   },
   experiences: [],
   diplomes:    [],
@@ -50,10 +51,12 @@ describe('<ProfilClient />', () => {
     expect(screen.getByRole('heading', { level: 2, name: /^Profil$/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: /Expériences/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: /Diplômes/i })).toBeInTheDocument()
-    // SectionCertificats ne rend rien quand la liste est vide — testé séparément.
+    // GUIC-365 : SectionCertificats est toujours rendue (créa manuelle possible),
+    // même quand la liste est vide.
+    expect(screen.getByRole('heading', { level: 2, name: /Certifications/i })).toBeInTheDocument()
   })
 
-  it('rend la section Certificats Moodle quand la liste contient des items', () => {
+  it('rend la section Certificats quand la liste contient des items', () => {
     const withCert: ProfilComplet = {
       ...PROFIL,
       certificats: [
@@ -61,7 +64,7 @@ describe('<ProfilClient />', () => {
       ],
     }
     render(<ProfilClient initial={withCert} ssoProfilUrl={null} />)
-    expect(screen.getByRole('heading', { level: 2, name: /Certificats/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: /Certifications/i })).toBeInTheDocument()
   })
 
   it('affiche le score de complétion fourni dans le profil', () => {

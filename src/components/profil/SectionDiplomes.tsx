@@ -203,6 +203,32 @@ export function SectionDiplomes({ diplomes: initial, onScoreChange }: Props) {
             value={form.mention} onChange={e => set('mention', e.target.value)}
             placeholder="Aucune"
             options={MENTION_OPTIONS.map(o => ({ value: o.value, label: o.label }))} />
+
+          {/* GUIC-365 — upload du scan : possible uniquement sur diplôme existant.
+              En création, on indique le parcours en deux temps ; en édition,
+              le bouton d'upload est affiché juste en-dessous. */}
+          {modal === 'edit' && editing ? (
+            <div className="flex flex-col gap-space-2">
+              <span className="text-fs-200 font-bold text-color-text-primary">
+                Justificatif (scan)
+              </span>
+              <ProfilFileUploadButton
+                url={`/api/profil/diplomes/${editing.id}/upload`}
+                currentUrl={editing.fichierUrl}
+                emptyLabel="Joindre le scan"
+                replaceLabel="Remplacer le scan"
+                onUploaded={fichierUrl => {
+                  setItems(prev => prev.map(d => d.id === editing.id ? { ...d, fichierUrl } : d))
+                  setEditing({ ...editing, fichierUrl })
+                }}
+              />
+            </div>
+          ) : (
+            <p className="text-fs-200 text-color-text-secondary italic">
+              Tu pourras joindre un scan du diplôme après l&apos;avoir enregistré.
+            </p>
+          )}
+
           {error && <p className="text-fs-200 text-gj-red">{error}</p>}
           <div className="flex gap-space-3">
             <Button onClick={save} loading={saving}>Enregistrer</Button>
