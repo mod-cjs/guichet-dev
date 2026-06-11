@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Card, Button, Input, Select, Modal, Badge } from '@/components/ui'
+import { ProfilFileUploadButton } from './ProfilFileUploadButton'
 import { MENTION_OPTIONS, NIVEAU_ETUDE_OPTIONS, niveauLabel, mentionLabel } from '@/lib/profil-constants'
 import type { DiplomeItem, DiplomeResponse, DeleteDiplomeResponse } from '@/types/profil'
 
@@ -144,7 +145,7 @@ export function SectionDiplomes({ diplomes: initial, onScoreChange }: Props) {
             {items.map(dip => (
               <div key={dip.id} className="py-space-3 first:pt-0 last:pb-0">
                 <div className="flex justify-between items-start gap-space-2">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-space-2 flex-wrap">
                       <p className="font-bold text-fs-300 text-color-text-primary truncate">{dip.intitule}</p>
                       {dip.mention && <Badge variant="teal">{mentionLabel(dip.mention)}</Badge>}
@@ -153,6 +154,17 @@ export function SectionDiplomes({ diplomes: initial, onScoreChange }: Props) {
                     <p className="text-fs-200 text-color-text-secondary mt-space-1">
                       {niveauLabel(dip.niveau)} · {dip.anneeObtention}
                     </p>
+                    <div className="mt-space-2">
+                      <ProfilFileUploadButton
+                        url={`/api/profil/diplomes/${dip.id}/upload`}
+                        currentUrl={dip.fichierUrl}
+                        emptyLabel="Joindre le scan"
+                        replaceLabel="Remplacer le scan"
+                        onUploaded={fichierUrl =>
+                          setItems(prev => prev.map(d => d.id === dip.id ? { ...d, fichierUrl } : d))
+                        }
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-space-2 flex-shrink-0">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(dip)}>Éditer</Button>

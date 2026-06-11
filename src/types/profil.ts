@@ -12,6 +12,7 @@ export interface CertificatItem {
   formation:     string
   obtenuLe:      string
   urlCertificat: string | null
+  fichierUrl:    string | null
 }
 
 export interface DiplomeItem {
@@ -21,6 +22,7 @@ export interface DiplomeItem {
   anneeObtention: number
   niveau:         string
   mention:        string | null
+  fichierUrl:     string | null
 }
 
 export interface ProfilComplet {
@@ -35,6 +37,7 @@ export interface ProfilComplet {
   dateNaissance:   string | null
   profil: {
     id:                string
+    photoUrl:          string | null
     biographie:        string | null
     niveauEtude:       string | null
     situationEmploi:   string | null

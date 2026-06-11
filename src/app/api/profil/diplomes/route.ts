@@ -8,7 +8,7 @@ import type { ApiResponse } from '@/types/api'
 import type { DiplomeItem, DiplomeResponse } from '@/types/profil'
 
 const SELECT_FIELDS = {
-  id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true,
+  id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true, fichierUrl: true,
 } as const
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<DiplomeItem[]>>> {
