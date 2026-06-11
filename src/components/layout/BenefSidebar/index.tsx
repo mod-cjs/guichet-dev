@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import * as nav from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
@@ -37,6 +38,12 @@ export interface BenefSidebarProps {
   cjsUid?: string | null
   /** Lien CTA Yaye (défaut /jeune/yaye). */
   yayeHref?: string
+  /** GUIC-373 — nombre de notifications non lues (affiche un badge sur l'icône cloche). */
+  unread?: number
+  /** GUIC-373 — handler bouton notifications. Si absent : navigue vers `/jeune/notifications`. */
+  onBellClick?: () => void
+  /** GUIC-373 — handler bouton déconnexion. Si absent : `router.push('/auth/deconnexion')`. */
+  onLogoutClick?: () => void
 }
 
 const DEFAULT_SECTIONS: BenefSidebarSection[] = [
@@ -129,12 +136,32 @@ export function BenefSidebar({
   userInitials,
   cjsUid,
   yayeHref = '/jeune/yaye',
+  unread = 0,
+  onBellClick,
+  onLogoutClick,
 }: BenefSidebarProps) {
   // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
   const pathname = usePathname() ?? '/'
+  // `useRouter` peut être indisponible dans certains tests qui ne mockent
+  // que `usePathname` (cf. tests/unit/benef-sidebar.test.tsx). On guard.
+  const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
   const activeId = active ?? resolveActiveId(pathname, sections)
   const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const handleBell = () => {
+    if (onBellClick) onBellClick()
+    else if (router) router.push('/jeune/notifications')
+    else window.location.assign('/jeune/notifications')
+  }
+  const handleLogout = () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    if (onLogoutClick) onLogoutClick()
+    else if (router) router.push('/auth/deconnexion')
+    else window.location.assign('/auth/deconnexion')
+  }
 
   return (
     <aside
@@ -349,12 +376,99 @@ export function BenefSidebar({
         </div>
       ))}
 
+      {/* GUIC-373 — Actions desktop (notifications + déconnexion) déplacées
+          de la topbar vers la sidebar pour libérer le haut. */}
+      <div
+        style={{
+          marginTop: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          paddingTop: 12,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleBell}
+          aria-label={
+            unread > 0 ? `Notifications (${unread} non lues)` : 'Notifications'
+          }
+          className="no-underline"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '9px 10px',
+            borderRadius: 8,
+            fontSize: 13,
+            color: 'var(--gj-grey)',
+            fontWeight: 600,
+            minHeight: 'var(--tap-min)',
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'left',
+            position: 'relative',
+          }}
+        >
+          <Icon name="bell" size={18} />
+          <span style={{ flex: 1 }}>Notifications</span>
+          {unread > 0 ? (
+            <span
+              style={{
+                marginLeft: 'auto',
+                background: 'var(--gj-red)',
+                color: 'var(--gj-surface)',
+                fontSize: 9.5,
+                fontWeight: 800,
+                padding: '2px 7px',
+                borderRadius: 10,
+                minWidth: 18,
+                textAlign: 'center',
+              }}
+            >
+              {unread > 99 ? '99+' : unread}
+            </span>
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          aria-label="Se déconnecter"
+          className="no-underline"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '9px 10px',
+            borderRadius: 8,
+            fontSize: 13,
+            color: 'var(--gj-red)',
+            fontWeight: 600,
+            minHeight: 'var(--tap-min)',
+            background: 'transparent',
+            border: 0,
+            cursor: loggingOut ? 'wait' : 'pointer',
+            width: '100%',
+            textAlign: 'left',
+            marginBottom: 8,
+          }}
+        >
+          <Icon name="logout" size={18} />
+          <span style={{ flex: 1 }}>
+            {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
+          </span>
+        </button>
+      </div>
+
       {/* Yaye footer CTA */}
       <Link
         href={yayeHref}
         className="no-underline"
         style={{
-          marginTop: 'auto',
           padding: '12px 10px',
           background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-ink)))',
           borderRadius: 12,

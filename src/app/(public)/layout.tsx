@@ -4,6 +4,7 @@ import { Footer } from '@/components/layout/Footer'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 import { SkipLink } from '@/components/ui/SkipLink'
+import { YayeBubble } from '@/components/yaye/YayeBubble'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 
 /**
@@ -36,6 +37,8 @@ export default async function PublicLayout({ children }: { children: React.React
         <Header />
         <main id="main" className="min-h-screen">{children}</main>
         <Footer />
+        {/* GUIC-373 — Yaye bubble universel sur les pages publiques. */}
+        <YayeBubble />
       </>
     )
   }
@@ -59,6 +62,7 @@ export default async function PublicLayout({ children }: { children: React.React
           userMeta={userMeta}
           userInitials={userInitials || undefined}
           cjsUid={session.cjsUid}
+          unread={unread}
         />
       </div>
 
@@ -66,7 +70,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <div className="flex flex-col min-w-0">
         {/* Top bar desktop (≥lg) — composant `hidden lg:flex` en interne.
             Mobile (<lg) : MobileTopShell global prend le relais (cf. app/layout.tsx). */}
-        <BenefTopBar userInitials={userInitials || undefined} unread={unread} cjsUid={session.cjsUid} />
+        <BenefTopBar />
 
         <main
           id="main"
@@ -75,6 +79,8 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
       </div>
+      {/* GUIC-373 — Yaye bubble universel (user connecté sur pages publiques). */}
+      <YayeBubble />
     </div>
   )
 }

@@ -44,6 +44,7 @@ export const ICON_NAMES = [
   'image',
   'info',
   'learning',
+  'logout',
   'mail',
   'menu',
   'mic',
