@@ -127,7 +127,7 @@ export async function POST(
 
   try {
     const blob = await put(pathname, file, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
       contentType: file.type,
       cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
