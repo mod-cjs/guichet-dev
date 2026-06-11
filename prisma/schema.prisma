@@ -455,6 +455,11 @@ model Candidature {
   statut               StatutCandidature @default(En_attente)
   lettreMotivation     String?           @map("lettre_motivation") @db.Text
   cvUrl                String?           @map("cv_url") @db.VarChar(500)
+  // GUIC-361 — snapshot des données saisies au moment de la candidature
+  // (email, téléphone, niveau d'études, situation, compétences…). Permet de
+  // figer ce qui a été transmis au recruteur, indépendamment des évolutions
+  // ultérieures du profil.
+  formulaireData       Json?             @map("formulaire_data")
   notificationsConsent Boolean           @default(false) @map("notifications_consent")
   // Traçabilité du consentement CGU (GUIC-218 / audit CDP).
   consentAt            DateTime?         @map("consent_at")
