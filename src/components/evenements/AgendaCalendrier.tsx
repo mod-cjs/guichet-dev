@@ -94,7 +94,8 @@ function buildGrid(mois: Date, events: EvenementListItem[]): CellInfo[] {
 
 /**
  * Calendrier mensuel — grille 7 colonnes, navigation mois ◀ ▶, pastilles
- * colorées par type, click jour → bottom-sheet listant les events du jour.
+ * colorées par type, click jour → panel latéral (desktop) / bottom-sheet (mobile)
+ * listant les events du jour.
  *
  * A11y :
  * - `role="grid"` + cells `role="gridcell"`
@@ -295,7 +296,7 @@ export function AgendaCalendrier({ events, mois, onMoisChange, onInscrire }: Age
         isOpen={openDay !== null}
         onClose={() => setOpenDay(null)}
         title={openDay ? FULL_DATE_FMT.format(openDay) : ''}
-        variant="bottom"
+        variant="side"
       >
         {dayEvents.length === 0 ? (
           <p className="text-fs-300 text-color-text-secondary py-space-3">

@@ -46,6 +46,7 @@ export default async function TableauDeBordPage() {
       label: 'Candidatures en cours',
       icon:  'document',
       tone:  'teal',
+      href:  '/jeune/mes-candidatures',
     },
     {
       value: recoOpps.length,
@@ -54,12 +55,14 @@ export default async function TableauDeBordPage() {
       hintTone: recoOpps.length > 0 ? 'positive' : 'warning',
       icon:  'sparkle',
       tone:  'yellow',
+      href:  '/opportunites',
     },
     {
       value: counts.favoris,
       label: 'Sauvegardées',
       icon:  'bookmark',
       tone:  'blue',
+      href:  '/jeune/mes-favoris',
     },
     {
       value: `${completionScore} %`,
@@ -68,6 +71,7 @@ export default async function TableauDeBordPage() {
       hintTone: completionScore >= 80 ? 'positive' : 'warning',
       icon:  'profile',
       tone:  'red',
+      href:  '/jeune/mon-profil',
     },
   ]
 
