@@ -84,6 +84,10 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
             onSaved={handleSaved}
           />
 
+          <SectionCv
+            initialCvUrl={initial.profil?.cvUrl ?? null}
+          />
+
           <SectionExperiences
             experiences={initial.experiences}
             onScoreChange={setScore}

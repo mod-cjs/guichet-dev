@@ -68,8 +68,12 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
       const res = await fetch('/api/profil/photo', { method: 'POST', body: fd })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Upload impossible')
-      setPhoto(json.data.photoUrl)
-      onPhotoSaved?.(json.data.photoUrl)
+      // Cache-bust : on suffixe l'URL d'un `?ts=` pour forcer le navigateur (et
+      // next/image) à recharger l'image immédiatement après upload (GUIC-365).
+      const url    = json.data.photoUrl as string
+      const busted = `${url}${url.includes('?') ? '&' : '?'}ts=${Date.now()}`
+      setPhoto(busted)
+      onPhotoSaved?.(busted)
     } catch (e) {
       setPhotoError(e instanceof Error ? e.message : 'Erreur inconnue')
     } finally {
