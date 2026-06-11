@@ -7,6 +7,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
+import { SectionCv }          from './SectionCv'
 import { MyCJSCard }          from '@/components/ui/MyCJSCard'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -76,6 +77,10 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
           <SectionProfil
             data={initial.profil}
             onSaved={handleSaved}
+          />
+
+          <SectionCv
+            initialCvUrl={initial.profil?.cvUrl ?? null}
           />
 
           <SectionExperiences
