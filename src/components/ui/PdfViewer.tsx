@@ -28,13 +28,41 @@ export interface PdfViewerProps {
 function PdfFrame({ url, title, height = 600, className = '' }: {
   url: string; title: string; height?: number; className?: string
 }) {
+  // GUIC-375 — Fallback toujours visible sous l'iframe : si le navigateur
+  // refuse d'afficher le PDF (CSP, plugin manquant, source bloquée…), le
+  // jeune dispose d'un lien direct pour télécharger ou ouvrir le fichier.
+  const downloadUrl = url.includes('?') ? `${url}&download=1` : `${url}?download=1`
   return (
-    <iframe
-      src={url}
-      title={title}
-      className={`w-full rounded-gj-md border border-gj-line bg-gj-surface ${className}`}
-      style={{ height }}
-    />
+    <div className={`flex flex-col gap-space-2 ${className}`}>
+      <iframe
+        src={url}
+        title={title}
+        className="w-full rounded-gj-md border border-gj-line bg-gj-surface"
+        style={{ height }}
+      >
+        Votre navigateur ne supporte pas l&apos;affichage des PDF.
+      </iframe>
+      <p className="text-fs-200 text-color-text-muted">
+        Le PDF ne s&apos;affiche pas&nbsp;?{' '}
+        <a
+          href={downloadUrl}
+          rel="noopener noreferrer"
+          className="font-bold text-gj-teal-deep hover:underline"
+        >
+          Télécharger le fichier
+        </a>{' '}
+        ou{' '}
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-bold text-gj-teal-deep hover:underline"
+        >
+          ouvrir dans un nouvel onglet
+        </a>
+        .
+      </p>
+    </div>
   )
 }
 
