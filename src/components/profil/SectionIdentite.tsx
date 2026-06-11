@@ -146,7 +146,14 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
           aria-label="Modifier la photo de profil"
         >
           {photo ? (
-            <Image src={photo} alt="" width={96} height={96} className="w-full h-full object-cover" />
+            <Image
+              src={`/api/profil/photo/file?cb=${encodeURIComponent(photo)}`}
+              alt=""
+              width={96}
+              height={96}
+              className="w-full h-full object-cover"
+              unoptimized
+            />
           ) : (
             <span className="text-fs-500 font-bold text-white">{initiales || '?'}</span>
           )}

@@ -38,6 +38,8 @@ export interface ProfilComplet {
   profil: {
     id:                string
     photoUrl:          string | null
+    cvUrl:             string | null
+    cvUploadedAt:      string | Date | null
     biographie:        string | null
     niveauEtude:       string | null
     situationEmploi:   string | null
