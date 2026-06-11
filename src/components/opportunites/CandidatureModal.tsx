@@ -67,6 +67,21 @@ export interface ViewerInfo {
   age?: number | null
   /** Région optionnelle (rendu si fourni). */
   region?: string | null
+  // GUIC-361 — Champs additionnels pour auto-fill complet du formulaire.
+  /** Email — pré-rempli, éditable (read-only par défaut). */
+  email?: string | null
+  /** Niveau d'études (claim ProfilJeune.niveauEtude). */
+  niveauEtude?: string | null
+  /** Situation emploi actuelle (claim ProfilJeune.situationEmploi). */
+  situationEmploi?: string | null
+  /** Biographie — sert de placeholder enrichi pour la lettre de motivation. */
+  biographie?: string | null
+  /** Compétences listées dans le profil — affichées en tags. */
+  competences?: string[]
+  /** Domaines d'intérêt — affichés en tags. */
+  domainesInteret?: string[]
+  /** URL photo de profil (avatar). */
+  photoUrl?: string | null
 }
 
 interface CandidatureModalProps {
@@ -143,6 +158,11 @@ export function CandidatureModal({
   const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
+  // GUIC-361 — Champs additionnels pré-remplis depuis le profil (éditables).
+  const [email, setEmail] = useState(viewer.email ?? '')
+  const [telephone, setTelephone] = useState(viewer.telephone ?? '')
+  const [niveauEtude, setNiveauEtude] = useState(viewer.niveauEtude ?? '')
+  const [situationEmploi, setSituationEmploi] = useState(viewer.situationEmploi ?? '')
   // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
   // soumise, on garde le `File` côté client (zéro blob créé). À la
   // soumission, on uploade le fichier puis on POST la candidature avec
@@ -164,6 +184,11 @@ export function CandidatureModal({
   const helperId = useId()
   const counterId = useId()
   const cguId = useId()
+  // GUIC-361 — ids pour champs auto-fill additionnels.
+  const emailId = useId()
+  const telId = useId()
+  const niveauId = useId()
+  const situationId = useId()
 
   // Reset complet à la (re)fermeture pour éviter de réafficher l'écran succès
   // à la prochaine ouverture.
@@ -178,6 +203,11 @@ export function CandidatureModal({
       setSending(false)
       setProfilMissing(null)
       setCvMode('upload')
+      // GUIC-361 — réinitialise les champs auto-fill sur les valeurs profil.
+      setEmail(viewer.email ?? '')
+      setTelephone(viewer.telephone ?? '')
+      setNiveauEtude(viewer.niveauEtude ?? '')
+      setSituationEmploi(viewer.situationEmploi ?? '')
     }
   }, [isOpen])
 
@@ -298,6 +328,16 @@ export function CandidatureModal({
           // Champs ajoutés par GUIC-218 — l'API actuelle ignore les
           // propriétés inconnues, donc rétrocompatible.
           cvUrl: cvMeta?.url,
+          // GUIC-361 — snapshot des infos profil au moment de la candidature
+          // (envoyées en formulaireData ; le backend stocke ce qu'il sait gérer).
+          formulaireData: {
+            email: email.trim() || null,
+            telephone: telephone.trim() || null,
+            niveauEtude: niveauEtude.trim() || null,
+            situationEmploi: situationEmploi.trim() || null,
+            competences: viewer.competences ?? [],
+            domainesInteret: viewer.domainesInteret ?? [],
+          },
         }),
       })
       if (res.status === 201) {
@@ -444,6 +484,100 @@ export function CandidatureModal({
         </Link>
       </div>
 
+      {/* GUIC-361 — Coordonnées + parcours pré-remplis depuis le profil. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-space-3 mb-space-4">
+        <div>
+          <label htmlFor={emailId} className="text-fs-200 font-bold text-color-text-primary">
+            Email
+          </label>
+          <input
+            id={emailId}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            data-testid="candidature-email"
+            placeholder="prenom.nom@exemple.sn"
+            autoComplete="email"
+            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
+              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
+              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+          />
+        </div>
+        <div>
+          <label htmlFor={telId} className="text-fs-200 font-bold text-color-text-primary">
+            Téléphone
+          </label>
+          <input
+            id={telId}
+            type="tel"
+            value={telephone}
+            onChange={(e) => setTelephone(e.target.value)}
+            data-testid="candidature-telephone"
+            placeholder="+221 77 123 45 67"
+            autoComplete="tel"
+            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
+              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
+              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+          />
+        </div>
+        <div>
+          <label htmlFor={niveauId} className="text-fs-200 font-bold text-color-text-primary">
+            Niveau d&apos;études
+          </label>
+          <input
+            id={niveauId}
+            type="text"
+            value={niveauEtude}
+            onChange={(e) => setNiveauEtude(e.target.value)}
+            data-testid="candidature-niveau-etude"
+            placeholder="Bac+3, Licence, Master…"
+            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
+              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
+              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+          />
+        </div>
+        <div>
+          <label htmlFor={situationId} className="text-fs-200 font-bold text-color-text-primary">
+            Situation actuelle
+          </label>
+          <input
+            id={situationId}
+            type="text"
+            value={situationEmploi}
+            onChange={(e) => setSituationEmploi(e.target.value)}
+            data-testid="candidature-situation"
+            placeholder="Étudiant, en recherche, en emploi…"
+            className="mt-space-1 w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
+              text-[16px] min-h-[44px] focus:outline-none focus:border-gj-teal-deep
+              focus:ring-[3px] focus:ring-[rgba(0,178,135,.18)]"
+          />
+        </div>
+      </div>
+
+      {/* GUIC-361 — Compétences depuis le profil (lecture seule, lien d'édition). */}
+      {(viewer.competences?.length ?? 0) > 0 && (
+        <div className="mb-space-4" data-testid="competences-section">
+          <p className="text-fs-200 font-bold text-color-text-primary mb-space-1">
+            Tes compétences
+          </p>
+          <p className="text-fs-100 text-color-text-muted mb-space-2">
+            Issues de ton profil — elles seront transmises au recruteur.
+          </p>
+          <div className="flex flex-wrap gap-space-1">
+            {(viewer.competences ?? []).map((c) => (
+              <span
+                key={c}
+                data-testid="competence-chip"
+                className="inline-flex items-center text-fs-100 font-bold
+                  bg-gj-teal-soft text-gj-teal-deep px-space-2 py-1 rounded-full"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Lettre de motivation */}
       <label
         htmlFor={lettreId}
@@ -563,16 +697,38 @@ export function CandidatureModal({
             )}
           </div>
         ) : (
-          <FileUpload
-            label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
-            mode="defer"
-            onSelect={(deferred) => {
-              setCvFile(deferred)
-              // Tout changement de fichier invalide l'upload précédent (retry) ;
-              // le blob déjà poussé expire (cacheControlMaxAge) et le cron GUIC-231 nettoie.
-              setCvUploaded(null)
-            }}
-          />
+          <>
+            {/* GUIC-361 — Si pas de CV au profil, suggérer de l'ajouter une fois pour toutes. */}
+            {profileCv !== null && !profileCv.cvUrl && (
+              <div
+                data-testid="no-profile-cv-hint"
+                className="mb-space-2 rounded-gj-md bg-gj-yellow-soft text-color-text-primary
+                  px-space-3 py-space-2 text-fs-100 flex items-start gap-space-2"
+              >
+                <Icon name="info" size={16} aria-hidden />
+                <span>
+                  Aucun CV trouvé sur ton profil.{' '}
+                  <Link
+                    href="/jeune/mon-profil"
+                    className="font-bold text-gj-teal-deep hover:underline"
+                  >
+                    Ajoute-le à ton profil
+                  </Link>{' '}
+                  pour qu&apos;il soit pré-rempli automatiquement la prochaine fois.
+                </span>
+              </div>
+            )}
+            <FileUpload
+              label={`CV${requiresFileUpload ? '' : ' (facultatif)'}`}
+              mode="defer"
+              onSelect={(deferred) => {
+                setCvFile(deferred)
+                // Tout changement de fichier invalide l'upload précédent (retry) ;
+                // le blob déjà poussé expire (cacheControlMaxAge) et le cron GUIC-231 nettoie.
+                setCvUploaded(null)
+              }}
+            />
+          </>
         )}
       </div>
 
