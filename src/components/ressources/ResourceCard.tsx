@@ -26,15 +26,15 @@ const TYPE_META: Record<
 /** Carte ressource (M6 — refonte v2, GUIC-24 favoris). */
 export function ResourceCard({ item, isFavori = false, onToggleFavori }: ResourceCardProps) {
   const meta = TYPE_META[item.type]
-  const isExternal = /^https?:\/\//.test(item.url)
   const showFavori = typeof onToggleFavori === 'function'
+  // GUIC-366 — on route vers la page détail (viewer PDF / embed vidéo) plutôt
+  // que vers l'URL externe directement.
+  const detailHref = `/ressources/${item.id}`
 
   return (
     <Card variant="opportunite" className="relative flex gap-space-3">
       <a
-        href={item.url}
-        target={isExternal ? '_blank' : undefined}
-        rel={isExternal ? 'noopener noreferrer' : undefined}
+        href={detailHref}
         aria-label={`${meta.cta} : ${item.titre}`}
         className="absolute inset-0 rounded-gj-lg"
       />
