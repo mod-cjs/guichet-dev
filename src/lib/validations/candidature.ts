@@ -34,12 +34,29 @@ const cvUrlSchema = z
     message: 'URL Vercel Blob invalide',
   })
 
-/** Body de `POST /api/candidatures` (GUIC-21 / GUIC-218). */
+/**
+ * Snapshot des champs saisis dans le formulaire de candidature (GUIC-361).
+ * Persistés dans `Candidature.formulaireData` (Json) pour figer ce qui a été
+ * transmis au recruteur, indépendamment du profil ultérieur.
+ */
+const formulaireDataSchema = z
+  .object({
+    email: z.string().email().max(255).nullable().optional(),
+    telephone: z.string().max(30).nullable().optional(),
+    niveauEtude: z.string().max(50).nullable().optional(),
+    situationEmploi: z.string().max(50).nullable().optional(),
+    competences: z.array(z.string().max(80)).max(20).optional(),
+    domainesInteret: z.array(z.string().max(80)).max(20).optional(),
+  })
+  .optional()
+
+/** Body de `POST /api/candidatures` (GUIC-21 / GUIC-218 / GUIC-361). */
 export const CandidatureBodySchema = z.object({
   opportuniteId: z.string().uuid(),
   lettreMotivation: lettreSchema,
   cvUrl: cvUrlSchema.optional(),
   notificationsConsent: z.boolean().default(false),
+  formulaireData: formulaireDataSchema,
 })
 
 export type CandidatureBody = z.infer<typeof CandidatureBodySchema>

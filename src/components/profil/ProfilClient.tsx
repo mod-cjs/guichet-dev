@@ -23,7 +23,8 @@ interface Props {
  * - desktop : grid `lg:grid-cols-[320px_1fr]` — aside MyCard + header sticky, sections à droite
  */
 export function ProfilClient({ initial, ssoProfilUrl }: Props) {
-  const [score, setScore] = useState(initial.profil?.completionScore ?? 0)
+  const [score, setScore]       = useState(initial.profil?.completionScore ?? 0)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initial.profil?.photoUrl ?? null)
 
   function handleSaved(data: PutProfilResponse) {
     setScore(data.completionScore)
@@ -48,6 +49,7 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               prenom={initial.prenom}
               email={initial.email}
               completionScore={score}
+              photoUrl={photoUrl}
             />
             {/* Carte CJS — version Lot 7 (GUIC-368). QR fallback démo généré
                 automatiquement depuis `cjsUid` tant que la Wave 6 (GUIC-357 —
@@ -71,8 +73,10 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         <div className="flex flex-col gap-space-4 min-w-0">
           <SectionIdentite
             data={initial}
+            photoUrl={photoUrl}
             ssoProfilUrl={ssoProfilUrl}
             onSaved={handleSaved}
+            onPhotoSaved={setPhotoUrl}
           />
 
           <SectionProfil

@@ -90,6 +90,7 @@ const DIPLOME_DB = {
   anneeObtention: 2024,
   niveau:         'licence',
   mention:        'bien',
+  fichierUrl:     null,
 }
 
 function jsonReq(url: string, method: string, body?: unknown): NextRequest {
