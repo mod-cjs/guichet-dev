@@ -29,13 +29,6 @@ interface Props {
   url:           string
   /** URL actuelle du fichier déjà uploadé (affiche un lien « Voir »). */
   currentUrl?:   string | null
-  /**
-   * URL **proxy authentifiée** vers le Blob privé (ex :
-   * `/api/profil/diplomes/abc/file`). Si fournie, le lien « Voir » pointe
-   * vers ce proxy au lieu de l'URL Blob directe (privée non lisible sans token).
-   * GUIC-364.
-   */
-  proxyUrl?:     string | null
   /** Libellé du bouton quand aucun fichier n'est encore attaché. */
   emptyLabel?:   string
   /** Libellé du bouton quand un fichier existe déjà. */
@@ -46,7 +39,6 @@ interface Props {
 export function ProfilFileUploadButton({
   url,
   currentUrl,
-  proxyUrl,
   emptyLabel   = 'Joindre un fichier',
   replaceLabel = 'Remplacer',
   onUploaded,
@@ -99,7 +91,7 @@ export function ProfilFileUploadButton({
         </button>
         {currentUrl && (
           <a
-            href={proxyUrl ?? currentUrl}
+            href={currentUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-fs-200 font-bold text-gj-teal-deep underline underline-offset-2"
