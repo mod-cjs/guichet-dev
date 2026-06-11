@@ -58,6 +58,7 @@ export default async function PublicLayout({ children }: { children: React.React
           userName={userName || undefined}
           userMeta={userMeta}
           userInitials={userInitials || undefined}
+          cjsUid={session.cjsUid}
         />
       </div>
 
@@ -65,7 +66,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <div className="flex flex-col min-w-0">
         {/* Top bar desktop (≥lg) — composant `hidden lg:flex` en interne.
             Mobile (<lg) : MobileTopShell global prend le relais (cf. app/layout.tsx). */}
-        <BenefTopBar userInitials={userInitials || undefined} unread={unread} />
+        <BenefTopBar userInitials={userInitials || undefined} unread={unread} cjsUid={session.cjsUid} />
 
         <main
           id="main"

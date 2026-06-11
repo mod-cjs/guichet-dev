@@ -1,16 +1,22 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 
 interface Props {
   initials: string
   prenom:   string
   nom:      string
+  /** GUIC-369 — si fourni, charge la photo via proxy `/api/profil/photo/file`. */
+  cjsUid?:  string | null
 }
 
-export function UserMenu({ initials, prenom, nom }: Props) {
+export function UserMenu({ initials, prenom, nom, cjsUid }: Props) {
+  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
+  const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [open, setOpen]   = useState(false)
   const [busy, setBusy]   = useState(false)
   const ref               = useRef<HTMLDivElement>(null)
@@ -35,13 +41,25 @@ export function UserMenu({ initials, prenom, nom }: Props) {
       <button
         onClick={() => setOpen(v => !v)}
         className="flex items-center justify-center bg-gj-teal rounded-full text-white
-          text-[11px] font-bold flex-shrink-0 hover:bg-gj-teal-deep transition-colors"
+          text-[11px] font-bold flex-shrink-0 hover:bg-gj-teal-deep transition-colors overflow-hidden"
         style={{ width: 'var(--tap-min)', height: 'var(--tap-min)' }}
         aria-label={`Menu utilisateur — ${prenom} ${nom}`}
         aria-expanded={open}
         disabled={busy}
       >
-        {initials || '?'}
+        {photoUrl && photoOk ? (
+          <Image
+            src={photoUrl}
+            alt={`${prenom} ${nom}`}
+            width={44}
+            height={44}
+            unoptimized
+            className="w-full h-full object-cover"
+            onError={() => setPhotoOk(false)}
+          />
+        ) : (
+          initials || '?'
+        )}
       </button>
 
       {open && (
