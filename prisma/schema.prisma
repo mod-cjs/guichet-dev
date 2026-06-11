@@ -335,6 +335,8 @@ model Diplome {
   anneeObtention Int      @map("annee_obtention")
   niveau         String   @db.VarChar(50)
   mention        String?  @db.VarChar(50)
+  // GUIC-360 — scan justificatif (PDF/JPG/PNG) uploadé sur Vercel Blob.
+  fichierUrl     String?  @map("fichier_url") @db.VarChar(500)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -738,6 +740,9 @@ model CertificatMoodle {
   formation     String   @db.VarChar(255)
   obtenuLe      DateTime @map("obtenu_le")
   urlCertificat String?  @map("url_certificat") @db.VarChar(500)
+  // GUIC-360 — scan justificatif uploadé par le jeune (PDF/JPG/PNG), distinct
+  // de `urlCertificat` (lien officiel Moodle).
+  fichierUrl    String?  @map("fichier_url") @db.VarChar(500)
   createdAt     DateTime @default(now()) @map("created_at")
 
   profil ProfilJeune @relation(fields: [profilId], references: [id])
