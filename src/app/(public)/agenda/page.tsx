@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import { Icon } from '@/components/ui'
 import { listEvenements } from '@/lib/loaders/evenements'
-import { EvenementsClient } from '@/components/evenements'
+import { AgendaClient } from './agenda-client'
 import { getSession } from '@/lib/auth'
 
 export const metadata: Metadata = {
-  title: 'Événements',
+  title: 'Agenda — Événements',
   description:
     'Formations, ateliers, forums et webinaires du réseau CJS au Sénégal — agenda public.',
 }
@@ -20,14 +22,25 @@ export default async function AgendaPage() {
 
   return (
     <div className="container-page py-space-6">
-      <header className="mb-space-5">
-        <h1 className="text-fs-800 font-black text-color-text-primary">Agenda & Événements</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Formations, ateliers, forums et webinaires du réseau CJS
-        </p>
+      <header className="mb-space-5 flex flex-wrap items-end justify-between gap-space-3">
+        <div>
+          <h1 className="text-fs-800 font-black text-color-text-primary">Agenda &amp; événements</h1>
+          <p className="text-fs-300 text-color-text-secondary mt-space-1">
+            {total} à venir · ateliers, forums, formations et webinaires
+          </p>
+        </div>
+        {session && (
+          <Link
+            href="/jeune/mes-inscriptions"
+            className="inline-flex items-center gap-1 px-space-3 py-space-1 rounded-gj-md border border-gj-line bg-white text-fs-200 font-bold text-color-text-primary hover:bg-gj-teal-soft min-h-[var(--tap-min)]"
+          >
+            <Icon name="bookmark" size={14} />
+            Mes événements
+          </Link>
+        )}
       </header>
 
-      <EvenementsClient initialItems={items} total={total} isAuthenticated={!!session} />
+      <AgendaClient initialItems={items} total={total} isAuthenticated={!!session} />
     </div>
   )
 }
