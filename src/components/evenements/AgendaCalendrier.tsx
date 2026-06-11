@@ -13,6 +13,14 @@ interface AgendaCalendrierProps {
   onMoisChange: (mois: Date) => void
   /** Callback CTA inscription propagé aux EventCard ouvertes dans la bottom-sheet. */
   onInscrire?: (id: string) => void
+  /**
+   * GUIC-374 — état session/inscriptions propagé aux EventCard du panel jour.
+   * Sans ces props, EventCard affichait toujours « Se connecter pour s'inscrire »
+   * même quand l'utilisateur était connecté.
+   */
+  isAuthenticated?: boolean
+  inscriptions?: Set<string>
+  pendingId?: string | null
 }
 
 const MONTH_FMT = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
@@ -103,7 +111,15 @@ function buildGrid(mois: Date, events: EvenementListItem[]): CellInfo[] {
  * - Enter/Space ouvre la bottom-sheet du jour focalisé
  * - libellés courts (« L M M J V S D ») doublés via aria-label long
  */
-export function AgendaCalendrier({ events, mois, onMoisChange, onInscrire }: AgendaCalendrierProps) {
+export function AgendaCalendrier({
+  events,
+  mois,
+  onMoisChange,
+  onInscrire,
+  isAuthenticated = false,
+  inscriptions,
+  pendingId = null,
+}: AgendaCalendrierProps) {
   const today = useMemo(() => new Date(), [])
   const cells = useMemo(() => buildGrid(mois, events), [mois, events])
   const [openDay, setOpenDay] = useState<Date | null>(null)
@@ -306,7 +322,13 @@ export function AgendaCalendrier({ events, mois, onMoisChange, onInscrire }: Age
           <ul className="flex flex-col gap-space-3 list-none p-0 m-0">
             {dayEvents.map((ev) => (
               <li key={ev.id} className="flex flex-col gap-space-1">
-                <EventCard item={ev} onInscrire={onInscrire} />
+                <EventCard
+                  item={ev}
+                  onInscrire={onInscrire}
+                  isAuthenticated={isAuthenticated}
+                  isInscrit={inscriptions?.has(ev.id) ?? false}
+                  isPending={pendingId === ev.id}
+                />
                 <Badge variant="teal" className="self-start md:hidden">
                   {ev.type}
                 </Badge>

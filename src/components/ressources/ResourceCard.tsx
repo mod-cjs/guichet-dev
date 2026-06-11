@@ -27,15 +27,17 @@ const TYPE_META: Record<
 export function ResourceCard({ item, isFavori = false, onToggleFavori }: ResourceCardProps) {
   const meta = TYPE_META[item.type]
   const showFavori = typeof onToggleFavori === 'function'
-  // GUIC-366 — on route vers la page détail (viewer PDF / embed vidéo) plutôt
-  // que vers l'URL externe directement.
+  // GUIC-363 — l'overlay pointe désormais vers la page détail interne
+  // (workflow consultation : page détail → bouton "Consulter"). La fiche
+  // affiche le CTA cible final ("Télécharger", "Regarder"…) pour conserver
+  // la lecture visuelle.
   const detailHref = `/ressources/${item.id}`
 
   return (
     <Card variant="opportunite" className="relative flex gap-space-3">
       <a
         href={detailHref}
-        aria-label={`${meta.cta} : ${item.titre}`}
+        aria-label={`Voir la ressource : ${item.titre}`}
         className="absolute inset-0 rounded-gj-lg"
       />
 

@@ -230,6 +230,9 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
             mois={mois}
             onMoisChange={setMois}
             onInscrire={handleInscrire}
+            isAuthenticated={isAuthenticated}
+            inscriptions={inscriptions}
+            pendingId={pendingId}
           />
         ) : shown.length === 0 ? (
           <EmptyState
