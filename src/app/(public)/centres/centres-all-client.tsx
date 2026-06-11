@@ -25,6 +25,7 @@ export interface CentresAllClientProps {
   userIsConnected: boolean
   /** Pour MyCJSCard compact si user connecté. */
   user?: {
+    cjsUid: string
     prenom: string
     nom: string
     matricule: string
@@ -229,6 +230,7 @@ export function CentresAllClient({
           >
             <MyCJSCard
               compact
+              cjsUid={user.cjsUid}
               user={{
                 prenom: user.prenom,
                 nom: user.nom,
@@ -398,6 +400,7 @@ export function CentresAllClient({
               onClick={handleCardOpen}
             >
               <MyCJSCard
+                cjsUid={user.cjsUid}
                 user={{
                   prenom: user.prenom,
                   nom: user.nom,

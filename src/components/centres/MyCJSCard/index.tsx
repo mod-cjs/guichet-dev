@@ -20,8 +20,14 @@ export interface MyCJSCardUser {
 
 export interface MyCJSCardProps {
   user: MyCJSCardUser
-  /** URL à encoder dans le QR. Si absent : skeleton placeholder. */
+  /** URL à encoder dans le QR. Si absent : fallback démo basé sur `cjsUid`. */
   qrUrl?: string
+  /**
+   * Identifiant SSO (claim `sub`). Sert à construire un QR fallback démo si
+   * `qrUrl` n'est pas fourni — `https://guichetjeunesse.sn/cjs-card/<cjsUid>`.
+   * GUIC-368 : fix immédiat avant Wave 6 (GUIC-357 — JWT signé HMAC).
+   */
+  cjsUid?: string
   /** Recto (par défaut) ou verso (délégué à `<MyCJSCardBack>`). */
   variant?: 'recto' | 'verso'
   /** Largeur max en px. Défaut : 480. */
@@ -95,6 +101,7 @@ function QrSkeleton({ size = 120 }: { size?: number }) {
 export function MyCJSCard({
   user,
   qrUrl,
+  cjsUid,
   variant = 'recto',
   maxWidth = 480,
   compact = false,
@@ -114,6 +121,17 @@ export function MyCJSCard({
 
   const avatarSize = compact ? 40 : 48
   const qrSize = compact ? 110 : 140
+
+  // GUIC-368 — fallback démo : si pas de `qrUrl` signé (Wave 6 / GUIC-357),
+  // on génère un QR visuel pointant vers `/cjs-card/<cjsUid>` (ou un slug
+  // dérivé du matricule). Pas de JWT, juste un payload stable pour la démo.
+  const fallbackSeed =
+    cjsUid ||
+    (user.matricule
+      ? user.matricule.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+      : '')
+  const effectiveQrUrl =
+    qrUrl || (fallbackSeed ? `https://guichetjeunesse.sn/cjs-card/${fallbackSeed}` : undefined)
 
   return (
     <article
@@ -276,8 +294,8 @@ export function MyCJSCard({
               boxShadow: '0 4px 12px rgba(0,0,0,.18)',
             }}
           >
-            {qrUrl ? (
-              <QRBadge url={qrUrl} size={qrSize} />
+            {effectiveQrUrl ? (
+              <QRBadge url={effectiveQrUrl} size={qrSize} />
             ) : (
               <QrSkeleton size={qrSize} />
             )}

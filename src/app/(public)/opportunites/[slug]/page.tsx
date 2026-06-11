@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
+import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
 import { opportunitesListUrl } from '@/lib/routes'
@@ -42,9 +43,10 @@ export default async function OpportuniteDetailPage({
   void incrementVue(slug, ip)
 
   const session = await getSession()
-  const viewer = session
-    ? { prenom: session.prenom, nom: session.nom, telephone: session.telephone }
-    : null
+  // GUIC-361 — Auto-fill complet du formulaire de candidature : on agrège la
+  // session SSO + ProfilJeune pour pré-remplir email, niveau, situation,
+  // biographie, compétences, etc.
+  const viewer = await getViewerInfoForCandidature(session)
 
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">

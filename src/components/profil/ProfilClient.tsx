@@ -7,7 +7,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
-import { MyCJSCard }          from '@/components/ui/MyCJSCard'
+import { MyCJSCard }          from '@/components/centres/MyCJSCard'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -23,7 +23,8 @@ interface Props {
  * - desktop : grid `lg:grid-cols-[320px_1fr]` — aside MyCard + header sticky, sections à droite
  */
 export function ProfilClient({ initial, ssoProfilUrl }: Props) {
-  const [score, setScore] = useState(initial.profil?.completionScore ?? 0)
+  const [score, setScore]       = useState(initial.profil?.completionScore ?? 0)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(initial.profil?.photoUrl ?? null)
 
   function handleSaved(data: PutProfilResponse) {
     setScore(data.completionScore)
@@ -48,15 +49,22 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               prenom={initial.prenom}
               email={initial.email}
               completionScore={score}
+              photoUrl={photoUrl}
             />
-            {/* Carte CJS — branchement GUIC-248. Centre rattachement non disponible
-                aujourd'hui dans ProfilComplet (TODO : exposer via relation Centre
-                quand le module M4 sera branché). */}
+            {/* Carte CJS — version Lot 7 (GUIC-368). QR fallback démo généré
+                automatiquement depuis `cjsUid` tant que la Wave 6 (GUIC-357 —
+                JWT signé HMAC) n'est pas livrée. Centre de rattachement non
+                disponible aujourd'hui dans ProfilComplet (TODO : exposer via
+                relation Centre quand M4 sera branché côté profil). */}
             <MyCJSCard
+              compact
               cjsUid={initial.cjsUid}
-              prenom={initial.prenom}
-              nom={initial.nom}
-              variant="compact"
+              user={{
+                prenom: initial.prenom,
+                nom: initial.nom,
+                matricule: `GJS · ${(initial.prenom?.[0] ?? '?').toUpperCase()}${(initial.nom?.[0] ?? '?').toUpperCase()} · ${initial.cjsUid.slice(0, 6).toUpperCase()}`,
+                membreDepuis: '—',
+              }}
             />
           </div>
         </aside>
@@ -65,8 +73,10 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         <div className="flex flex-col gap-space-4 min-w-0">
           <SectionIdentite
             data={initial}
+            photoUrl={photoUrl}
             ssoProfilUrl={ssoProfilUrl}
             onSaved={handleSaved}
+            onPhotoSaved={setPhotoUrl}
           />
 
           <SectionProfil

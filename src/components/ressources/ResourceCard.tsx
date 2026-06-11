@@ -26,16 +26,18 @@ const TYPE_META: Record<
 /** Carte ressource (M6 — refonte v2, GUIC-24 favoris). */
 export function ResourceCard({ item, isFavori = false, onToggleFavori }: ResourceCardProps) {
   const meta = TYPE_META[item.type]
-  const isExternal = /^https?:\/\//.test(item.url)
   const showFavori = typeof onToggleFavori === 'function'
+  // GUIC-363 — l'overlay pointe désormais vers la page détail interne
+  // (workflow consultation : page détail → bouton "Consulter"). La fiche
+  // affiche le CTA cible final ("Télécharger", "Regarder"…) pour conserver
+  // la lecture visuelle.
+  const detailHref = `/ressources/${item.id}`
 
   return (
     <Card variant="opportunite" className="relative flex gap-space-3">
       <a
-        href={item.url}
-        target={isExternal ? '_blank' : undefined}
-        rel={isExternal ? 'noopener noreferrer' : undefined}
-        aria-label={`${meta.cta} : ${item.titre}`}
+        href={detailHref}
+        aria-label={`Voir la ressource : ${item.titre}`}
         className="absolute inset-0 rounded-gj-lg"
       />
 
