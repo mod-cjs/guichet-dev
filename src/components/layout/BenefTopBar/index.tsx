@@ -2,9 +2,6 @@
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
-import { UserMenu } from '@/components/layout/UserMenu'
-import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
-import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
 
 export interface BenefTopBarProps {
   /** Valeur (controlled) du champ recherche. */
@@ -68,6 +65,20 @@ export function BenefTopBar({
   yayeOpen: yayeOpenProp,
   onYayeOpenChange,
 }: BenefTopBarProps) {
+  // Props conservées pour rétrocompatibilité — silencer les unused.
+  void unread
+  void bookmarkCount
+  void userInitials
+  void userPrenom
+  void userNom
+  void cjsUid
+  void onBookmarkClick
+  void onBellClick
+  void onInfoClick
+  void onUserClick
+  void yayeOpenProp
+  void onYayeOpenChange
+
   const router = useRouter()
   const isControlled = typeof searchQuery === 'string'
   const [internalQuery, setInternalQuery] = useState('')
@@ -86,17 +97,8 @@ export function BenefTopBar({
     if (q.length === 0) return
     router.push(`/opportunites?q=${encodeURIComponent(q)}`)
   }
-  const [yayeOpenInternal, setYayeOpenInternal] = useState(false)
-  const isYayeControlled = yayeOpenProp !== undefined
-  const yayeOpen = isYayeControlled ? yayeOpenProp : yayeOpenInternal
-  const setYayeOpen = (next: boolean) => {
-    if (!isYayeControlled) setYayeOpenInternal(next)
-    onYayeOpenChange?.(next)
-  }
-
 
   return (
-    <>
     <header
       role="banner"
       className="hidden lg:flex sticky top-0"
@@ -111,7 +113,8 @@ export function BenefTopBar({
         zIndex: 'var(--gj-z-nav)',
       }}
     >
-      {/* Search */}
+      {/* Search — GUIC-373 : seule action conservée sur desktop. Avatar /
+          notifications / aide / Yaye ont migré dans la sidebar ou en FAB. */}
       <form
         role="search"
         onSubmit={handleSubmit}
@@ -165,102 +168,6 @@ export function BenefTopBar({
       </form>
 
       <span style={{ flex: 1 }} />
-
-      {/* Bookmark */}
-      <button
-        type="button"
-        onClick={onBookmarkClick}
-        aria-label={
-          bookmarkCount > 0
-            ? `Mes favoris (${bookmarkCount} sauvegardés)`
-            : 'Mes favoris'
-        }
-        style={iconBtn}
-      >
-        <Icon name="bookmark" size={18} />
-        {bookmarkCount > 0 ? (
-          <span style={countBadge('var(--gj-grey)')}>{bookmarkCount}</span>
-        ) : null}
-      </button>
-
-      {/* Bell */}
-      <button
-        type="button"
-        onClick={onBellClick}
-        aria-label={unread > 0 ? `Notifications (${unread} non lues)` : 'Notifications'}
-        style={iconBtn}
-      >
-        <Icon name="bell" size={18} />
-        {unread > 0 ? (
-          <span style={countBadge('var(--gj-red)')}>{unread > 99 ? '99+' : unread}</span>
-        ) : null}
-      </button>
-
-      {/* Info / Help */}
-      <button type="button" onClick={onInfoClick} aria-label="Aide" style={iconBtn}>
-        <Icon name="info" size={18} />
-      </button>
-
-      {/* Yaye trigger */}
-      <button
-        type="button"
-        onClick={() => setYayeOpen(!yayeOpen)}
-        aria-label="Ouvrir la conversation avec Yaye"
-        aria-haspopup="dialog"
-        aria-expanded={yayeOpen}
-        style={{
-          ...iconBtn,
-          background: 'transparent',
-          border: 0,
-          padding: 0,
-          width: 42,
-          height: 42,
-        }}
-      >
-        <YayeAvatar size={32} withBadge />
-      </button>
-
-      {/* User — menu déroulant (profil + déconnexion) */}
-      {userInitials ? (
-        <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} cjsUid={cjsUid} />
-      ) : null}
     </header>
-    <YayeSidePanel open={yayeOpen} onClose={() => setYayeOpen(false)} />
-    </>
   )
-}
-
-const iconBtn = {
-  width: 42,
-  height: 42,
-  display: 'inline-flex' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  background: 'var(--gj-surface)',
-  border: '1.5px solid var(--gj-line)',
-  borderRadius: 10,
-  color: 'var(--gj-grey)',
-  cursor: 'pointer',
-  position: 'relative' as const,
-  flexShrink: 0,
-}
-
-function countBadge(bg: string) {
-  return {
-    position: 'absolute' as const,
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    padding: '0 5px',
-    borderRadius: 999,
-    background: bg,
-    color: 'var(--gj-surface)',
-    fontSize: 10,
-    fontWeight: 800,
-    display: 'inline-flex' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    border: '2px solid var(--gj-surface)',
-  }
 }
