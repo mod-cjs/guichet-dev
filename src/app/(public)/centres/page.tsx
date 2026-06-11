@@ -65,7 +65,9 @@ export default async function CentresPage() {
       centrePrincipal: principal
         ? { nom: principal.nom, region: principal.region }
         : null,
-      photoUrl: profil?.photoUrl ?? null,
+      // GUIC-369 — `ProfilJeune.photoUrl` est un Blob Vercel privé, on passe
+      // par le proxy `/api/profil/photo/file` (gère le token côté serveur).
+      photoUrl: profil?.photoUrl ? `/api/profil/photo/file?cb=${encodeURIComponent(session.cjsUid)}` : null,
     }
   }
 
