@@ -44,4 +44,20 @@ describe('<CentreRegionFilter />', () => {
     fireEvent.keyDown(all, { key: 'ArrowRight' })
     expect(fn).toHaveBeenCalledWith('Dakar')
   })
+
+  it('affiche les compteurs `(N)` si counts fourni (pas pour "Toutes")', () => {
+    render(
+      <CentreRegionFilter
+        regions={REGIONS}
+        value="all"
+        onChange={() => {}}
+        counts={{ Dakar: 3, Thies: 1, Tambacounda: 2 }}
+      />,
+    )
+    // Le compteur est aria-hidden donc visible textuellement mais hors a11y tree
+    expect(screen.getByRole('radio', { name: 'Dakar' })).toHaveTextContent('(3)')
+    expect(screen.getByRole('radio', { name: 'Thies' })).toHaveTextContent('(1)')
+    // "Toutes" n'a pas de compteur
+    expect(screen.getByRole('radio', { name: 'Toutes' })).not.toHaveTextContent(/\(\d+\)/)
+  })
 })

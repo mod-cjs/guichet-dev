@@ -10,14 +10,16 @@ export default meta
 type Story = StoryObj<typeof CentreDetailHero>
 
 const baseCentre = {
+  id: 'centre-tamba',
+  slug: 'cjs-tambacounda',
   nom: 'CJS Tambacounda',
   region: 'Tambacounda',
   ville: 'Tambacounda',
   adresse: 'Quartier Plateau, Route nationale 1',
   conseillersCount: 3,
+  latitude: 13.7724,
+  longitude: -13.6671,
 }
-
-const pins = [{ id: 'c-tamba', x: 200, y: 130, label: 'Tambacounda', active: true }]
 
 export const MonCentre: Story = {
   args: {
@@ -25,8 +27,6 @@ export const MonCentre: Story = {
     isOpen: true,
     openingHoursText: '08:00 - 18:00',
     isMine: true,
-    showMiniMap: true,
-    pins,
   },
 }
 
@@ -36,8 +36,6 @@ export const CentreStandard: Story = {
     isOpen: true,
     openingHoursText: '08:00 - 18:00',
     isMine: false,
-    showMiniMap: true,
-    pins,
   },
 }
 
@@ -47,6 +45,5 @@ export const Ferme: Story = {
     isOpen: false,
     openingHoursText: 'Ouvre lundi à 08:00',
     isMine: false,
-    showMiniMap: false,
   },
 }

@@ -40,7 +40,13 @@ function formatHoraireToday(horaires?: CentreCardMobileHoraire[]): string {
 /**
  * <CentreCardMobile> — variante mobile compacte de l'annuaire centres.
  *
- * Tap-min 44px, pas de chips services (gain place), pin + nom + statut ouvert.
+ * Densité accrue :
+ *  - padding `10px 12px`
+ *  - meta single-line (ville · horaire)
+ *  - border-left 3px gj-yellow + pastille jaune discret au lieu de border full teal
+ *  - badge "Mien" en pastille gj-yellow / gj-teal-deep
+ *
+ * Tap-min 44px préservé.
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 2.
  */
@@ -69,43 +75,47 @@ export function CentreCardMobile({
       data-mine={isMine ? 'true' : 'false'}
       onClick={handleClick}
       onKeyDown={handleKey}
-      className={`w-full flex items-start gap-3 p-3 rounded-gj-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
+      className={`w-full flex items-start gap-3 rounded-gj-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       style={{
         minHeight: 44,
+        padding: '10px 12px',
         background: 'var(--gj-surface)',
-        border: `1px solid ${
-          isMine ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
-        }`,
+        border: '1px solid var(--gj-line)',
+        borderLeft: isMine ? '3px solid var(--gj-yellow)' : '1px solid var(--gj-line)',
       }}
     >
-      {/* TODO(GUIC-XXX) distance km — voir backlog géoloc */}
       <span
         aria-hidden="true"
         className="flex items-center justify-center rounded-full flex-shrink-0"
         style={{
-          width: 36,
-          height: 36,
+          width: 32,
+          height: 32,
           background: 'var(--gj-teal-soft)',
           color: 'var(--gj-teal-deep)',
         }}
       >
-        <Icon name="pin" size={18} />
+        <Icon name="pin" size={16} />
       </span>
 
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-        <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+        <div className="flex items-center gap-1.5">
           <h3
-            className="text-fs-300 font-bold m-0 truncate"
-            style={{ color: 'var(--gj-ink)' }}
+            className="m-0 truncate"
+            style={{ color: 'var(--gj-ink)', fontSize: 14, fontWeight: 700 }}
           >
             {centre.nom}
           </h3>
           {isMine && (
             <span
-              className="text-fs-100 font-bold px-1.5 py-0.5 rounded-gj-sm flex-shrink-0"
+              className="flex-shrink-0 font-black"
               style={{
-                background: 'var(--gj-teal-soft)',
+                fontSize: 9.5,
+                letterSpacing: '.3px',
+                textTransform: 'uppercase',
+                background: 'var(--gj-yellow)',
                 color: 'var(--gj-teal-deep)',
+                padding: '1px 6px',
+                borderRadius: 999,
               }}
             >
               Mien
@@ -113,12 +123,11 @@ export function CentreCardMobile({
           )}
         </div>
         <div
-          className="text-fs-100"
-          style={{ color: 'var(--gj-grey)' }}
+          className="inline-flex items-center gap-1.5 flex-wrap"
+          style={{ color: 'var(--gj-grey)', fontSize: 11.5 }}
         >
-          {centre.ville ?? centre.region}
-        </div>
-        <div className="flex items-center gap-1.5 text-fs-100" style={{ color: 'var(--gj-grey)' }}>
+          <span>{centre.ville ?? centre.region}</span>
+          <span aria-hidden="true">·</span>
           <CentreOpenDot open={isOpen} />
           <span>{isOpen ? 'Ouvert' : 'Fermé'} · {formatHoraireToday(centre.horaires)}</span>
         </div>

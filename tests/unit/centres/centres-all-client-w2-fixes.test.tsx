@@ -129,6 +129,23 @@ describe('<CentresAllClient /> — fixes W2', () => {
     expect(screen.getAllByLabelText(/Légende de la carte/i).length).toBeGreaterThan(0)
   })
 
+  it('CTAs header "Mes réservations" + "Ma carte CJS" sont masqués mobile (hidden lg:flex)', () => {
+    const { container } = render(
+      <CentresAllClient
+        centres={[baseCentre]}
+        userCentrePrincipalId="c1"
+        userIsConnected={true}
+        user={user}
+      />,
+    )
+    // Repère le wrapper du duo CTAs desktop : un seul élément a `Ma carte CJS`
+    const link = container.querySelector('a[href="/jeune/ma-carte"]')
+    expect(link).not.toBeNull()
+    const wrapper = link?.parentElement
+    expect(wrapper?.className).toMatch(/hidden/)
+    expect(wrapper?.className).toMatch(/lg:flex/)
+  })
+
   it('légende NON affichée si user sans centre principal', () => {
     render(
       <CentresAllClient

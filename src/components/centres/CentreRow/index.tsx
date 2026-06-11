@@ -32,7 +32,7 @@ export interface CentreRowProps {
   className?: string
 }
 
-const MAX_SERVICES = 3
+const MAX_SERVICES = 2
 
 function formatHoraireToday(horaires?: CentreRowHoraire[]): string {
   if (!horaires || horaires.length === 0) return 'Horaires non communiqués'
@@ -47,9 +47,12 @@ function formatHoraireToday(horaires?: CentreRowHoraire[]): string {
 /**
  * <CentreRow> — ligne d'annuaire centre (desktop vue `all`).
  *
- * Carte cliquable navigant vers `/centres/[slug]`. Border teal-deep si
- * `isMine` (centre principal du user). Affiche horaire du jour, services
- * (3 max + "+N"), nombre de conseillers.
+ * Carte cliquable navigant vers `/centres/[slug]`. Densité accrue :
+ *  - padding `12px 14px` (≈ design source)
+ *  - border-left 4px gj-yellow si `isMine` (au lieu de border full teal-deep)
+ *  - badge "MON CENTRE" jaune/teal-deep uppercase
+ *  - 2 services max + "+N" si plus
+ *  - meta single-line (ville · horaire · conseillers)
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 2.
  */
@@ -82,26 +85,32 @@ export function CentreRow({
       data-mine={isMine ? 'true' : 'false'}
       onClick={handleClick}
       onKeyDown={handleKey}
-      className={`relative flex flex-col gap-2 p-4 rounded-gj-lg cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
+      className={`relative flex flex-col gap-1.5 rounded-gj-lg cursor-pointer transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       style={{
         background: 'var(--gj-surface)',
-        border: `1px solid ${
-          isMine ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
-        }`,
-        boxShadow: isMine ? '0 0 0 1px var(--gj-teal-deep) inset' : undefined,
+        border: '1px solid var(--gj-line)',
+        borderLeft: isMine ? '4px solid var(--gj-yellow)' : '1px solid var(--gj-line)',
+        padding: '12px 14px',
       }}
     >
-      {/* TODO(GUIC-XXX) distance km — voir backlog géoloc */}
-      <header className="flex items-start justify-between gap-2">
-        <h3 className="text-fs-300 font-black m-0" style={{ color: 'var(--gj-ink)' }}>
+      <header className="flex items-center justify-between gap-2">
+        <h3
+          className="font-black m-0"
+          style={{ color: 'var(--gj-ink)', fontSize: 15, lineHeight: 1.25 }}
+        >
           {centre.nom}
         </h3>
         {isMine && (
           <span
-            className="text-fs-100 font-bold px-2 py-0.5 rounded-gj-sm"
+            className="font-black flex-shrink-0"
             style={{
-              background: 'var(--gj-teal-soft)',
+              fontSize: 10,
+              letterSpacing: '.5px',
+              textTransform: 'uppercase',
+              background: 'var(--gj-yellow)',
               color: 'var(--gj-teal-deep)',
+              padding: '2px 8px',
+              borderRadius: 999,
             }}
           >
             Mon centre
@@ -109,25 +118,35 @@ export function CentreRow({
         )}
       </header>
 
-      <div className="flex items-center gap-3 text-fs-200" style={{ color: 'var(--gj-grey)' }}>
+      <div
+        className="flex flex-wrap items-center gap-x-3 gap-y-1"
+        style={{ color: 'var(--gj-grey)', fontSize: 12 }}
+      >
         <span className="inline-flex items-center gap-1">
-          <Icon name="pin" size={14} />
-          {centre.ville ?? centre.region} · {centre.region}
+          <Icon name="pin" size={13} aria-hidden="true" />
+          {centre.ville ?? centre.region}
         </span>
         <span className="inline-flex items-center gap-1">
-          <Icon name="clock" size={14} />
           <CentreOpenDot open={isOpen} />
           <span>{isOpen ? 'Ouvert' : 'Fermé'} · {horaireToday}</span>
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <Icon name="users" size={13} aria-hidden="true" />
+          {centre.conseillersCount}{' '}
+          {centre.conseillersCount > 1 ? 'conseillers' : 'conseiller'}
         </span>
       </div>
 
       {shownServices.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Services">
+        <ul className="flex flex-wrap gap-1" aria-label="Services">
           {shownServices.map((s) => (
             <li
               key={s}
-              className="text-fs-100 px-2 py-0.5 rounded-gj-sm"
               style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 999,
                 background: 'var(--gj-teal-soft)',
                 color: 'var(--gj-teal-deep)',
               }}
@@ -137,19 +156,18 @@ export function CentreRow({
           ))}
           {extraServices > 0 && (
             <li
-              className="text-fs-100 px-2 py-0.5 rounded-gj-sm"
-              style={{ color: 'var(--gj-grey)' }}
+              style={{
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: '2px 8px',
+                color: 'var(--gj-grey)',
+              }}
             >
               +{extraServices}
             </li>
           )}
         </ul>
       )}
-
-      <footer className="text-fs-100" style={{ color: 'var(--gj-grey)' }}>
-        {centre.conseillersCount}{' '}
-        {centre.conseillersCount > 1 ? 'conseillers disponibles' : 'conseiller disponible'}
-      </footer>
     </article>
   )
 }

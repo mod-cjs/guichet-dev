@@ -79,6 +79,14 @@ export function CentresAllClient({
     return Array.from(set).sort()
   }, [centres])
 
+  const regionCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const c of centres) {
+      map[c.region] = (map[c.region] ?? 0) + 1
+    }
+    return map
+  }, [centres])
+
   const filtered = useMemo(() => {
     if (region === 'all') return centres
     return centres.filter((c) => c.region === region)
@@ -115,7 +123,10 @@ export function CentresAllClient({
   const showLegend = userIsConnected && Boolean(user?.centrePrincipal)
 
   return (
-    <main role="main" className="bg-gj-bg min-h-[100dvh] pb-space-6">
+    <main
+      role="main"
+      className="bg-gj-bg min-h-[100dvh] pb-[calc(80px+env(safe-area-inset-bottom,0px))] lg:pb-space-6"
+    >
       {/* ──────────────── HEADER ──────────────── */}
       <header className="mx-auto max-w-screen-xl px-space-4 pt-space-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -134,7 +145,7 @@ export function CentresAllClient({
         </div>
 
         {userIsConnected && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+          <div className="hidden lg:flex flex-col gap-2 sm:flex-row sm:gap-3">
             <a
               href="/jeune/mes-reservations"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
@@ -297,6 +308,7 @@ export function CentresAllClient({
           regions={regionsList}
           value={region}
           onChange={handleRegionChange}
+          counts={regionCounts}
         />
 
         {filtered.length === 0 ? (
