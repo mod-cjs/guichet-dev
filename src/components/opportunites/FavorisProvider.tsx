@@ -69,6 +69,12 @@ export function FavorisProvider({
         return next
       })
 
+      // GUIC-367 — feedback immédiat (toast succès optimiste).
+      setToast({
+        message: wasFavori ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        type: 'success',
+      })
+
       const request = wasFavori
         ? fetch(`/api/favoris/${id}`, { method: 'DELETE' })
         : fetch('/api/favoris', {
@@ -98,7 +104,14 @@ export function FavorisProvider({
   return (
     <FavorisContext.Provider value={{ has, toggle, isAuthenticated }}>
       {children}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          bottomOffset={72}
+          onClose={() => setToast(null)}
+        />
+      )}
     </FavorisContext.Provider>
   )
 }

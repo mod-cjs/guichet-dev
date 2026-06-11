@@ -69,7 +69,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
         <main
           id="main"
-          className="flex-1 min-h-screen pb-[calc(56px+env(safe-area-inset-bottom,0px))] lg:pb-0"
+          className="flex-1 min-h-screen pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0"
         >
           {children}
         </main>
