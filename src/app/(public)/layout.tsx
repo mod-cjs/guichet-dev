@@ -5,6 +5,7 @@ import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { YayeBubble } from '@/components/yaye/YayeBubble'
+import { YayeProvider } from '@/components/yaye/YayeProvider'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 
 /**
@@ -32,14 +33,15 @@ export default async function PublicLayout({ children }: { children: React.React
 
   if (!session) {
     return (
-      <>
+      <YayeProvider>
         <SkipLink />
         <Header />
         <main id="main" className="min-h-screen">{children}</main>
         <Footer />
-        {/* GUIC-373 — Yaye bubble universel sur les pages publiques. */}
+        {/* GUIC-373 — Yaye bubble universel sur les pages publiques.
+            GUIC-376 — état partagé via YayeProvider. */}
         <YayeBubble />
-      </>
+      </YayeProvider>
     )
   }
 
@@ -52,6 +54,7 @@ export default async function PublicLayout({ children }: { children: React.React
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
 
   return (
+    <YayeProvider>
     <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
       <SkipLink />
       {/* Sidebar desktop (≥lg) — composant `hidden lg:flex` en interne.
@@ -79,8 +82,10 @@ export default async function PublicLayout({ children }: { children: React.React
           {children}
         </main>
       </div>
-      {/* GUIC-373 — Yaye bubble universel (user connecté sur pages publiques). */}
+      {/* GUIC-373 — Yaye bubble universel (user connecté sur pages publiques).
+          GUIC-376 — état partagé avec le CTA sidebar via YayeProvider. */}
       <YayeBubble />
     </div>
+    </YayeProvider>
   )
 }
