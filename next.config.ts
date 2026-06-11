@@ -8,6 +8,17 @@ const appOrigin = process.env.NEXTAUTH_URL  ?? 'https://guichet.cjs.sn'
 const ssoHostname = new URL(ssoOrigin).hostname
 const appHostname = new URL(appOrigin).hostname
 
+// Google Maps JavaScript API — chargée par `@googlemaps/js-api-loader` côté
+// browser sur la page `/centres`. Le loader injecte un <script> depuis
+// `maps.googleapis.com`, qui télécharge ensuite des modules supplémentaires
+// (`*.googleapis.com`, `*.gstatic.com`) et des tuiles bitmap. CSP strict =
+// page blanche + erreur "Carte indisponible". GUIC-368.
+const GOOGLE_MAPS_SCRIPT  = 'https://maps.googleapis.com https://maps.gstatic.com'
+const GOOGLE_MAPS_CONNECT = 'https://maps.googleapis.com https://maps.gstatic.com'
+const GOOGLE_MAPS_IMG     = 'https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.ggpht.com'
+const GOOGLE_MAPS_STYLE   = 'https://fonts.googleapis.com'
+const GOOGLE_MAPS_FONT    = 'https://fonts.gstatic.com'
+
 const CSP = [
   "default-src 'self'",
   isDev

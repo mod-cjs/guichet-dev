@@ -52,6 +52,7 @@ export default async function CentresPage() {
 
     const initials = `${(session.prenom?.[0] ?? '?').toUpperCase()}${(session.nom?.[0] ?? '?').toUpperCase()}`
     userCard = {
+      cjsUid: session.cjsUid,
       prenom: session.prenom ?? '',
       nom: session.nom ?? '',
       matricule: `GJS · ${initials} · ${session.cjsUid.slice(0, 6).toUpperCase()}`,

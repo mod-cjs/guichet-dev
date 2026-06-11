@@ -26,16 +26,18 @@ const TYPE_META: Record<
 /** Carte ressource (M6 — refonte v2, GUIC-24 favoris). */
 export function ResourceCard({ item, isFavori = false, onToggleFavori }: ResourceCardProps) {
   const meta = TYPE_META[item.type]
-  const isExternal = /^https?:\/\//.test(item.url)
   const showFavori = typeof onToggleFavori === 'function'
+  // GUIC-363 — l'overlay pointe désormais vers la page détail interne
+  // (workflow consultation : page détail → bouton "Consulter"). La fiche
+  // affiche le CTA cible final ("Télécharger", "Regarder"…) pour conserver
+  // la lecture visuelle.
+  const detailHref = `/ressources/${item.id}`
 
   return (
     <Card variant="opportunite" className="relative flex gap-space-3">
       <a
-        href={item.url}
-        target={isExternal ? '_blank' : undefined}
-        rel={isExternal ? 'noopener noreferrer' : undefined}
-        aria-label={`${meta.cta} : ${item.titre}`}
+        href={detailHref}
+        aria-label={`Voir la ressource : ${item.titre}`}
         className="absolute inset-0 rounded-gj-lg"
       />
 
@@ -65,9 +67,10 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
                 aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 data-testid="ressource-favori-btn"
                 className={`relative z-[1] inline-flex items-center justify-center
-                  w-[32px] h-[32px] rounded-full border-[1.5px] transition-colors
+                  w-[32px] h-[32px] rounded-full border-[1.5px]
+                  transition-all duration-150 ease-out active:scale-90
                   ${isFavori
-                    ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink'
+                    ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink scale-105'
                     : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
               >
                 <Icon name="bookmark" size={14} />

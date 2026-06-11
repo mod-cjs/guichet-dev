@@ -61,7 +61,10 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           <Header />
         </div>
 
-        <main id="main" className="flex-1 min-h-screen container-page py-space-5">
+        <main
+          id="main"
+          className="flex-1 min-h-screen container-page py-space-5 pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-space-6"
+        >
           {children}
         </main>
       </div>
