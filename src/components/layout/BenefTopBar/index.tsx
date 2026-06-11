@@ -25,6 +25,8 @@ export interface BenefTopBarProps {
   userPrenom?: string
   /** Nom utilisateur (passé au UserMenu). */
   userNom?: string
+  /** GUIC-369 — propagé au UserMenu pour afficher la photo via proxy. */
+  cjsUid?: string | null
   /** Callbacks pour chaque action. */
   onBookmarkClick?: () => void
   onBellClick?: () => void
@@ -58,6 +60,7 @@ export function BenefTopBar({
   userInitials,
   userPrenom = '',
   userNom = '',
+  cjsUid,
   onBookmarkClick,
   onBellClick,
   onInfoClick,
@@ -219,7 +222,7 @@ export function BenefTopBar({
 
       {/* User — menu déroulant (profil + déconnexion) */}
       {userInitials ? (
-        <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} />
+        <UserMenu initials={userInitials} prenom={userPrenom} nom={userNom} cjsUid={cjsUid} />
       ) : null}
     </header>
     <YayeSidePanel open={yayeOpen} onClose={() => setYayeOpen(false)} />

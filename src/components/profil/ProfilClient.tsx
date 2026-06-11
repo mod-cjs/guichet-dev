@@ -8,7 +8,8 @@ import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
-import { MyCJSCard }          from '@/components/ui/MyCJSCard'
+import { MyCJSCard }          from '@/components/centres/MyCJSCard'
+import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -51,15 +52,23 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               email={initial.email}
               completionScore={score}
               photoUrl={photoUrl}
+              cjsUid={initial.cjsUid}
             />
-            {/* Carte CJS — branchement GUIC-248. Centre rattachement non disponible
-                aujourd'hui dans ProfilComplet (TODO : exposer via relation Centre
-                quand le module M4 sera branché). */}
+            {/* Carte CJS — GUIC-369 : on bascule sur la version "centres"
+                (gradient teal-deep + QR + matricule monospace) — identique à
+                celle affichée dans `/centres`. La précédente version
+                `@/components/ui/MyCJSCard` (placeholder Phase 2B) divergeait
+                visuellement. */}
             <MyCJSCard
               cjsUid={initial.cjsUid}
-              prenom={initial.prenom}
-              nom={initial.nom}
-              variant="compact"
+              compact
+              user={{
+                prenom: initial.prenom,
+                nom: initial.nom,
+                matricule: `GJS · ${(initial.prenom?.[0] ?? '?').toUpperCase()}${(initial.nom?.[0] ?? '?').toUpperCase()} · ${initial.cjsUid.slice(0, 6).toUpperCase()}`,
+                membreDepuis: '—',
+                photoUrl: getProfilePhotoUrl(initial.cjsUid),
+              }}
             />
           </div>
         </aside>

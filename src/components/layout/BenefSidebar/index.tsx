@@ -1,9 +1,11 @@
 'use client'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 
 export interface BenefSidebarItem {
   id: string
@@ -31,6 +33,8 @@ export interface BenefSidebarProps {
   userName?: string
   userMeta?: string
   userInitials?: string
+  /** GUIC-369 — affiche la photo de profil via proxy `/api/profil/photo/file`. */
+  cjsUid?: string | null
   /** Lien CTA Yaye (défaut /jeune/yaye). */
   yayeHref?: string
 }
@@ -123,11 +127,14 @@ export function BenefSidebar({
   userName,
   userMeta,
   userInitials,
+  cjsUid,
   yayeHref = '/jeune/yaye',
 }: BenefSidebarProps) {
   // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
   const pathname = usePathname() ?? '/'
   const activeId = active ?? resolveActiveId(pathname, sections)
+  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
+  const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
 
   return (
     <aside
@@ -206,9 +213,22 @@ export function BenefSidebar({
               fontWeight: 800,
               fontSize: 13,
               flexShrink: 0,
+              overflow: 'hidden',
             }}
           >
-            {userInitials ?? ''}
+            {photoUrl && photoOk ? (
+              <Image
+                src={photoUrl}
+                alt={userName ?? 'Photo de profil'}
+                width={36}
+                height={36}
+                unoptimized
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={() => setPhotoOk(false)}
+              />
+            ) : (
+              userInitials ?? ''
+            )}
           </span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span
