@@ -1,11 +1,14 @@
 /**
- * Brouillons de candidature — GUIC-382.
+ * Brouillons de candidature — GUIC-382 V2.
  *
- * MVP : persistance localStorage indexée par cjsUid + opportuniteId. Le draft
- * stocke (lettre, consent, hasCvFile) — le fichier CV en lui-même n'est pas
- * sérialisable, mais on garde un flag pour rappeler au jeune qu'il en avait
- * sélectionné un. V2 (post-démo) : table CandidatureDraft Prisma avec
- * auto-save serveur 30s + sync multi-device.
+ * - **Source de vérité** : table Prisma `CandidatureDraft` (sync multi-device).
+ *   API : `/api/candidatures/drafts/[opportuniteId]` (GET/PUT/DELETE).
+ * - **Fallback** : localStorage si le réseau est KO ou si l'utilisateur n'est
+ *   pas authentifié (cas rare — la modale n'ouvre que pour les jeunes connectés).
+ *
+ * À l'ouverture de la modale : on lit serveur d'abord, fallback localStorage.
+ * En cours de saisie : auto-save debounce 2 s côté serveur ET localStorage.
+ * À la soumission OK : DELETE serveur + clear localStorage.
  *
  * Helpers sûrs SSR (toutes les fonctions retournent un no-op si `window`
  * n'existe pas).

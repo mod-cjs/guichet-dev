@@ -259,6 +259,7 @@ model Utilisateur {
 
   profil                ProfilJeune?
   candidatures          Candidature[]
+  candidatureDrafts     CandidatureDraft[]
   inscriptions          InscriptionEvenement[]
   ressourcesFavoris     RessourceFavorite[]
   opportunitesFavorites OpportuniteFavorite[]
@@ -438,6 +439,7 @@ model Opportunite {
   skills       OpportuniteSkill[]
   tags         OpportuniteTag[]
   candidatures Candidature[]
+  drafts       CandidatureDraft[]
   favoris      OpportuniteFavorite[]
 
   @@index([statut, deletedAt])
@@ -477,6 +479,34 @@ model Candidature {
   @@index([statut])
   @@index([opportuniteId])
   @@map("candidatures")
+}
+
+/**
+ * Brouillon de candidature — GUIC-382 V2.
+ *
+ * Permet au jeune de quitter le formulaire en cours et de le reprendre depuis
+ * un autre appareil. Auto-sauvegarde côté serveur (debounce 2 s). Supprimé
+ * automatiquement à la soumission. TTL recommandé : 30 jours (cron cleanup).
+ *
+ * Un seul draft par (cjsUid, opportuniteId).
+ */
+model CandidatureDraft {
+  cjsUid           String   @map("cjs_uid") @db.VarChar(36)
+  opportuniteId    String   @map("opportunite_id") @db.VarChar(36)
+  lettre           String?  @db.Text
+  cvUrl            String?  @map("cv_url") @db.VarChar(500)
+  consent          Boolean  @default(false)
+  cvMode           String   @default("upload") @map("cv_mode") @db.VarChar(20)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+
+  @@id([cjsUid, opportuniteId])
+  @@index([cjsUid])
+  @@index([updatedAt])
+  @@map("candidature_drafts")
 }
 
 // Favori d'opportunité — aligné sur le pattern RessourceFavorite (clé composite, pas de uuid).

@@ -174,6 +174,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     throw err
   }
 
+  // GUIC-382 — purge le brouillon associé après création réussie de la
+  // candidature (best-effort, non-bloquant).
+  await prisma.candidatureDraft
+    .delete({
+      where: {
+        cjsUid_opportuniteId: {
+          cjsUid: session.cjsUid,
+          opportuniteId: opportunite.id,
+        },
+      },
+    })
+    .catch(() => null)
+
   // Confirmation multi-canal — post-réponse, n'impacte jamais le 201.
   const created = candidature
   after(async () => {
