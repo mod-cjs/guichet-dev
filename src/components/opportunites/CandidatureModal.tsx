@@ -27,11 +27,15 @@ import { Sheet, Modal, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader, DeferredFile } from '@/components/ui'
 import {
   clearCandidatureDraft,
+  deleteServerDraft,
+  fetchServerDraft,
   formatDraftAge,
   loadCandidatureDraft,
+  pushServerDraft,
   saveCandidatureDraft,
 } from './candidatureDraft'
 import {
+  LETTRE_MIN_CHARS,
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
@@ -204,23 +208,39 @@ export function CandidatureModal({
     }
   }, [isOpen])
 
-  // GUIC-382 — restaure le brouillon localStorage à l'ouverture (si présent
-  // et frais). On ne touche pas au fichier CV (non sérialisable) : on signale
-  // juste que le jeune en avait sélectionné un.
+  // GUIC-382 V2 — restaure le brouillon à l'ouverture : serveur d'abord
+  // (multi-device), fallback localStorage si réseau KO.
   useEffect(() => {
     if (!isOpen) return
-    const draft = loadCandidatureDraft(null, opportuniteId)
-    if (!draft) return
-    if (draft.lettre) setLettre(draft.lettre)
-    if (draft.consent) setConsent(draft.consent)
-    if (draft.cvMode) setCvMode(draft.cvMode)
-    setDraftRestored({ updatedAt: draft.updatedAt })
+    let cancelled = false
+    ;(async () => {
+      const server = await fetchServerDraft(opportuniteId)
+      if (cancelled) return
+      if (server) {
+        if (server.lettre) setLettre(server.lettre)
+        setConsent(server.consent)
+        setCvMode(server.cvMode)
+        setDraftRestored({ updatedAt: server.updatedAt })
+        return
+      }
+      // Fallback localStorage.
+      const local = loadCandidatureDraft(null, opportuniteId)
+      if (!local) return
+      if (local.lettre) setLettre(local.lettre)
+      if (local.consent) setConsent(local.consent)
+      if (local.cvMode) setCvMode(local.cvMode)
+      setDraftRestored({ updatedAt: local.updatedAt })
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [isOpen, opportuniteId])
 
-  // GUIC-382 — auto-save debounce (1 s) à chaque changement.
+  // GUIC-382 V2 — auto-save debounce (2 s) : serveur + localStorage en miroir.
   useEffect(() => {
     if (!isOpen || submitted) return
     const t = setTimeout(() => {
+      // Local : toujours synchrone (offline-first).
       saveCandidatureDraft({
         cjsUid: null,
         opportuniteId,
@@ -229,7 +249,14 @@ export function CandidatureModal({
         hadCvFile: cvFile !== null || cvUploaded !== null,
         cvMode,
       })
-    }, 1000)
+      // Serveur : best-effort.
+      void pushServerDraft(opportuniteId, {
+        lettre,
+        consent,
+        cvMode,
+        cvUrl: cvUploaded?.url ?? null,
+      })
+    }, 2000)
     return () => clearTimeout(t)
   }, [isOpen, submitted, opportuniteId, lettre, consent, cvFile, cvUploaded, cvMode])
 
@@ -259,18 +286,27 @@ export function CandidatureModal({
     }
   }, [isOpen])
 
-  const lettreOk = lettre.trim().length > 0
+  // GUIC-383 : la lettre doit faire au moins LETTRE_MIN_CHARS (300) pour
+  // matcher la validation Zod côté API. Avant : `> 0` → l'utilisateur pouvait
+  // submit avec 1 char et se mangeait un 400 silencieux.
+  const lettreLen = lettre.trim().length
+  const lettreOk = lettreLen >= LETTRE_MIN_CHARS
   const hasCv = cvFile !== null || cvUploaded !== null
   const cvOk = !requiresFileUpload || hasCv
   const canSubmit = lettreOk && cvOk && consent && !sending
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
-    if (!lettreOk) return 'Rédigez votre lettre de motivation.'
+    if (!lettreOk) {
+      const remaining = LETTRE_MIN_CHARS - lettreLen
+      return remaining > 0
+        ? `Écris encore ${remaining} caractère${remaining > 1 ? 's' : ''} (minimum ${LETTRE_MIN_CHARS}).`
+        : 'Rédigez votre lettre de motivation.'
+    }
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
-  }, [sending, lettreOk, cvOk, consent])
+  }, [sending, lettreOk, lettreLen, cvOk, consent])
 
   const handleClose = useCallback(() => {
     if (submitted) {
@@ -331,8 +367,10 @@ export function CandidatureModal({
           | { data?: { id?: string } }
           | null
         setSubmitted({ id: body?.data?.id ?? opportuniteId })
-        // GUIC-382 — candidature OK : on supprime le brouillon.
+        // GUIC-382 — candidature OK : on supprime le brouillon (local + serveur).
+        // Le serveur le purge aussi côté API (defense in depth).
         clearCandidatureDraft(null, opportuniteId)
+        void deleteServerDraft(opportuniteId)
         onSuccess()
         return
       }
@@ -357,6 +395,13 @@ export function CandidatureModal({
       else if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
       else if (res.status === 422) setError("Cette opportunité n'accepte plus de candidatures.")
       else if (res.status === 401) setError('Votre session a expiré, reconnectez-vous.')
+      else if (res.status === 400) {
+        // GUIC-383 — Affiche le détail de validation API (ex : lettre trop courte).
+        const body = (await res.json().catch(() => null)) as
+          | { error?: { code?: string; message?: string } }
+          | null
+        setError(body?.error?.message ?? 'Données invalides. Vérifie ta saisie.')
+      }
       else setError('Une erreur est survenue. Réessayez.')
     } catch {
       setError('Connexion impossible. Réessayez.')
@@ -479,6 +524,7 @@ export function CandidatureModal({
             type="button"
             onClick={() => {
               clearCandidatureDraft(null, opportuniteId)
+              void deleteServerDraft(opportuniteId)
               setLettre('')
               setConsent(false)
               setCvMode('upload')
@@ -559,13 +605,18 @@ export function CandidatureModal({
         <span
           id={counterId}
           aria-live="polite"
-          className="text-color-text-muted shrink-0"
+          className={`shrink-0 ${lettreOk ? 'text-color-text-muted' : 'text-gj-red'}`}
         >
           {lettre.length} / {LETTRE_MAX_CHARS}
+          {!lettreOk && (
+            <span className="ml-space-1">
+              (min. {LETTRE_MIN_CHARS})
+            </span>
+          )}
         </span>
       </div>
       <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
-        Quelques lignes sur ta motivation augmentent tes chances.
+        Minimum {LETTRE_MIN_CHARS} caractères. Quelques lignes sur ta motivation augmentent tes chances.
       </p>
 
       {/* CV — GUIC-224/229 : carte « Utiliser mon CV de profil » si dispo, sinon
