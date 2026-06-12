@@ -26,6 +26,12 @@ import { useRouter } from 'next/navigation'
 import { Sheet, Modal, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader, DeferredFile } from '@/components/ui'
 import {
+  clearCandidatureDraft,
+  formatDraftAge,
+  loadCandidatureDraft,
+  saveCandidatureDraft,
+} from './candidatureDraft'
+import {
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
@@ -158,6 +164,8 @@ export function CandidatureModal({
   const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
+  // GUIC-382 — état brouillon (lu au mount, sauvegardé en debounce).
+  const [draftRestored, setDraftRestored] = useState<{ updatedAt: number } | null>(null)
   // GUIC-380 — états email/téléphone/niveau/situation retirés (single-source profil).
   // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
   // soumise, on garde le `File` côté client (zéro blob créé). À la
@@ -192,8 +200,38 @@ export function CandidatureModal({
       setSubmitted(null)
       setSending(false)
       setCvMode('upload')
+      setDraftRestored(null)
     }
   }, [isOpen])
+
+  // GUIC-382 — restaure le brouillon localStorage à l'ouverture (si présent
+  // et frais). On ne touche pas au fichier CV (non sérialisable) : on signale
+  // juste que le jeune en avait sélectionné un.
+  useEffect(() => {
+    if (!isOpen) return
+    const draft = loadCandidatureDraft(null, opportuniteId)
+    if (!draft) return
+    if (draft.lettre) setLettre(draft.lettre)
+    if (draft.consent) setConsent(draft.consent)
+    if (draft.cvMode) setCvMode(draft.cvMode)
+    setDraftRestored({ updatedAt: draft.updatedAt })
+  }, [isOpen, opportuniteId])
+
+  // GUIC-382 — auto-save debounce (1 s) à chaque changement.
+  useEffect(() => {
+    if (!isOpen || submitted) return
+    const t = setTimeout(() => {
+      saveCandidatureDraft({
+        cjsUid: null,
+        opportuniteId,
+        lettre,
+        consent,
+        hadCvFile: cvFile !== null || cvUploaded !== null,
+        cvMode,
+      })
+    }, 1000)
+    return () => clearTimeout(t)
+  }, [isOpen, submitted, opportuniteId, lettre, consent, cvFile, cvUploaded, cvMode])
 
   // GUIC-380 — le check complétude au mount est retiré. Si le profil est
   // incomplet, le POST /api/candidatures retournera 403 et on routera vers
@@ -293,6 +331,8 @@ export function CandidatureModal({
           | { data?: { id?: string } }
           | null
         setSubmitted({ id: body?.data?.id ?? opportuniteId })
+        // GUIC-382 — candidature OK : on supprime le brouillon.
+        clearCandidatureDraft(null, opportuniteId)
         onSuccess()
         return
       }
@@ -421,6 +461,37 @@ export function CandidatureModal({
           Modifier dans mon profil →
         </Link>
       </div>
+
+      {/* GUIC-382 — Bandeau « brouillon restauré ». Apparaît à l'ouverture si
+          on a retrouvé un draft localStorage. Cliquer « Repartir de zéro »
+          purge le draft et reset les champs. */}
+      {draftRestored && (
+        <div
+          role="status"
+          data-testid="draft-restored-banner"
+          className="flex items-center justify-between gap-space-2 mb-space-3 rounded-gj-md border border-gj-yellow bg-gj-yellow-soft px-space-3 py-space-2 text-fs-200 text-gj-yellow-ink"
+        >
+          <span>
+            <span className="font-bold">Brouillon restauré</span> · sauvegardé{' '}
+            {formatDraftAge(draftRestored.updatedAt)}.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              clearCandidatureDraft(null, opportuniteId)
+              setLettre('')
+              setConsent(false)
+              setCvMode('upload')
+              setCvFile(null)
+              setCvUploaded(null)
+              setDraftRestored(null)
+            }}
+            className="text-fs-200 font-bold underline underline-offset-2 whitespace-nowrap"
+          >
+            Repartir de zéro
+          </button>
+        </div>
+      )}
 
       {/* GUIC-380 — bloc Coordonnées + parcours retiré. La source de vérité est le profil
           (lookup recruteur via cjsUid). Si profil incomplet → page intermédiaire dédiée. */}
