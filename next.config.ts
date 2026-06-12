@@ -22,16 +22,13 @@ const GOOGLE_MAPS_FONT    = 'https://fonts.gstatic.com'
 const CSP = [
   "default-src 'self'",
   isDev
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${GOOGLE_MAPS_SCRIPT}`
-    : `script-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_SCRIPT}`,
-  `style-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_STYLE}`,
-  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} ${GOOGLE_MAPS_IMG}`,
-  `font-src 'self' ${GOOGLE_MAPS_FONT}`,
-  `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
-  // GUIC-375 — `'self'` permet d'embed nos propres routes (proxy PDF) dans
-  // une `<iframe>` côté client. `'none'` bloquait même les embeds same-origin
-  // (ex. `<iframe src="/api/ressources/[id]/proxy">` pour PdfViewer).
-  "frame-ancestors 'self'",
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com`,
+  "font-src 'self'",
+  `connect-src 'self' ${ssoOrigin}`,
+  "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
 ].join('; ')
@@ -44,6 +41,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
       { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },
+      // GUIC-360 — photos de profil servies depuis Vercel Blob.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
     ],
   },
   async headers() {
