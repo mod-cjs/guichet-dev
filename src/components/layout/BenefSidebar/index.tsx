@@ -71,6 +71,13 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
+      // GUIC-384 — Wave 5 : accès "Mes réservations centres".
+      {
+        id: 'mes-reservations-centres',
+        href: '/jeune/mes-reservations-centres',
+        icon: 'bookmark',
+        label: 'Mes réservations centres',
+      },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },
