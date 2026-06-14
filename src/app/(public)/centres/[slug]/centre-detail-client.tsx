@@ -9,6 +9,9 @@ import {
   CentreServicesGrid,
   CentreContactCard,
   RessourceCardTeaser,
+  CentreDescriptionSection,
+  CentreEquipeSection,
+  CentreEvenementsSection,
 } from '@/components/centres'
 import type { CentreDetail } from '@/lib/loaders/centres'
 
@@ -151,6 +154,7 @@ export function CentreDetailClient({
           style={{ gridTemplateColumns: '1fr 320px', gap: 22 }}
         >
           <div className="flex flex-col" style={{ gap: 20 }}>
+            <CentreDescriptionSection description={centre.description} />
             <section aria-label="Ressources réservables">
               <div className="flex items-baseline justify-between" style={{ marginBottom: 12 }}>
                 <h2
@@ -204,6 +208,11 @@ export function CentreDetailClient({
                 </ul>
               )}
             </section>
+            <CentreEquipeSection agents={centre.agents} />
+            <CentreEvenementsSection
+              evenements={centre.evenementsAVenir}
+              centreSlug={centre.slug}
+            />
           </div>
           <aside
             className="flex flex-col"
@@ -224,6 +233,7 @@ export function CentreDetailClient({
         {/* ──────── MOBILE empilement ──────── */}
         <div className="lg:hidden flex flex-col mt-space-3" style={{ gap: 16 }}>
           <CentreServicesGrid services={centre.services} />
+          <CentreDescriptionSection description={centre.description} />
 
           <section aria-label="Ressources réservables">
             <div
@@ -282,12 +292,17 @@ export function CentreDetailClient({
             )}
           </section>
 
+          <CentreEquipeSection agents={centre.agents} />
           <CentreHoursTable horaires={centre.horaires} />
           <CentreContactCard
             telephone={centre.telephone}
             email={centre.email}
             onPhoneClick={handlePhoneClick}
             onEmailClick={handleEmailClick}
+          />
+          <CentreEvenementsSection
+            evenements={centre.evenementsAVenir}
+            centreSlug={centre.slug}
           />
         </div>
       </div>

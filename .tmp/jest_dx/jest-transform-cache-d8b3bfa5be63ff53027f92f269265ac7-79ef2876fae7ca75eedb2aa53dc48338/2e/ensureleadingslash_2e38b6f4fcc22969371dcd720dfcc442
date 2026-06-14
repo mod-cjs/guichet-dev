@@ -1,0 +1,19 @@
+efbccc9f386dfc785437d5522c622240
+/**
+ * For a given page path, this function ensures that there is a leading slash.
+ * If there is not a leading slash, one is added, otherwise it is noop.
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "ensureLeadingSlash", {
+    enumerable: true,
+    get: function() {
+        return ensureLeadingSlash;
+    }
+});
+function ensureLeadingSlash(path) {
+    return path.startsWith('/') ? path : `/${path}`;
+} //# sourceMappingURL=ensure-leading-slash.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3BhZ2UtcGF0aC9lbnN1cmUtbGVhZGluZy1zbGFzaC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEZvciBhIGdpdmVuIHBhZ2UgcGF0aCwgdGhpcyBmdW5jdGlvbiBlbnN1cmVzIHRoYXQgdGhlcmUgaXMgYSBsZWFkaW5nIHNsYXNoLlxuICogSWYgdGhlcmUgaXMgbm90IGEgbGVhZGluZyBzbGFzaCwgb25lIGlzIGFkZGVkLCBvdGhlcndpc2UgaXQgaXMgbm9vcC5cbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIGVuc3VyZUxlYWRpbmdTbGFzaChwYXRoOiBzdHJpbmcpIHtcbiAgcmV0dXJuIHBhdGguc3RhcnRzV2l0aCgnLycpID8gcGF0aCA6IGAvJHtwYXRofWBcbn1cbiJdLCJuYW1lcyI6WyJlbnN1cmVMZWFkaW5nU2xhc2giLCJwYXRoIiwic3RhcnRzV2l0aCJdLCJtYXBwaW5ncyI6IkFBQUE7OztDQUdDLEdBQUE7Ozs7K0JBQ2VBLHNCQUFBQTs7O2VBQUFBOzs7QUFBVCxTQUFTQSxtQkFBbUJDLElBQVk7SUFDN0MsT0FBT0EsS0FBS0MsVUFBVSxDQUFDLE9BQU9ELE9BQU8sQ0FBQyxDQUFDLEVBQUVBLE1BQU07QUFDakQiLCJpZ25vcmVMaXN0IjpbMF19

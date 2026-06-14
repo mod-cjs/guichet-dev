@@ -99,6 +99,20 @@ export type { ReservationsTabsProps, ReservationTab } from './ReservationsTabs'
 export { QRRetrievalModal } from './QRRetrievalModal'
 export type { QRRetrievalModalProps } from './QRRetrievalModal'
 
+// Wave 3 — Détail centre enrichi (GUIC-393)
+export { CentreDescriptionSection } from './CentreDescriptionSection'
+export type { CentreDescriptionSectionProps } from './CentreDescriptionSection'
+export { CentreEquipeSection } from './CentreEquipeSection'
+export type {
+  CentreEquipeSectionProps,
+  CentreEquipeAgent,
+} from './CentreEquipeSection'
+export { CentreEvenementsSection } from './CentreEvenementsSection'
+export type {
+  CentreEvenementsSectionProps,
+  CentreEvenementSummary,
+} from './CentreEvenementsSection'
+
 export {
   MOCK_CENTRES,
   MOCK_RDV,
