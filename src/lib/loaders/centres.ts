@@ -520,6 +520,91 @@ export async function getRessourceById(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Wave 5 — Mes réservations centres (GUIC-384)
+// ─────────────────────────────────────────────────────────────────
+
+export interface MesReservationCentre {
+  id: string
+  ressource: {
+    id: string
+    nom: string
+    type: string
+  }
+  centre: {
+    id: string
+    slug: string
+    nom: string
+    region: string
+  }
+  /** ISO string (jour calendaire). */
+  dateReservee: string
+  creneauDebut: string
+  creneauFin: string
+  nombrePersonnes: number
+  motif: string
+  statut: string
+  decisionA: string | null
+  fichierJustifUrl: string | null
+}
+
+/**
+ * Liste les réservations centres d'un utilisateur (tous statuts confondus),
+ * triées par `dateReservee` desc.
+ *
+ * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 5.
+ */
+export async function getMesReservationsCentres(
+  cjsUid: string,
+): Promise<MesReservationCentre[]> {
+  const rows = (await prisma.reservation.findMany({
+    where: { cjsUid },
+    orderBy: [{ dateReservee: 'desc' }, { createdAt: 'desc' }],
+    include: {
+      ressource: { select: { id: true, nom: true, type: true } },
+      centre: { select: { id: true, slug: true, nom: true, region: true } },
+    },
+  } as any)) as Array<Record<string, unknown>>
+
+  return rows.map((r) => {
+    const ressource = (r.ressource ?? {}) as Record<string, unknown>
+    const centre = (r.centre ?? {}) as Record<string, unknown>
+    const dateRes = r.dateReservee instanceof Date
+      ? r.dateReservee
+      : new Date(String(r.dateReservee))
+    const decisionA = r.decisionA instanceof Date
+      ? r.decisionA.toISOString()
+      : r.decisionA
+        ? new Date(String(r.decisionA)).toISOString()
+        : null
+    return {
+      id: String(r.id),
+      ressource: {
+        id: String(ressource.id ?? r.ressourceId),
+        nom: String(ressource.nom ?? ''),
+        type: String(ressource.type ?? ''),
+      },
+      centre: {
+        id: String(centre.id ?? r.centreId),
+        slug:
+          centre.slug && String(centre.slug).length > 0
+            ? String(centre.slug)
+            : slugifyCentre(String(centre.nom ?? '')),
+        nom: String(centre.nom ?? ''),
+        region: String(centre.region ?? ''),
+      },
+      dateReservee: dateRes.toISOString(),
+      creneauDebut: String(r.creneauDebut),
+      creneauFin: String(r.creneauFin),
+      nombrePersonnes: Number(r.nombrePersonnes ?? 1),
+      motif: String(r.motif ?? ''),
+      statut: String(r.statut),
+      decisionA,
+      fichierJustifUrl: (r.justifFileUrl as string | null) ?? null,
+    }
+  })
+}
+
 /** Compte total (paginated API). */
 export async function countCentres(filters?: ListCentresFilters): Promise<number> {
   const where: Record<string, unknown> = { estActif: true }

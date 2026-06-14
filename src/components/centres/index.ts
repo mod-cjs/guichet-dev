@@ -77,6 +77,24 @@ export type {
   ReservationFormCentre,
   ReservationFormRessource,
 } from './ReservationForm'
+
+// Wave 5 — Mes réservations centres (GUIC-384)
+export { ReservationCard } from './ReservationCard'
+export type {
+  ReservationCardProps,
+  ReservationCardData,
+  ReservationCardRessourceType,
+} from './ReservationCard'
+export { ReservationStatusBadge } from './ReservationStatusBadge'
+export type {
+  ReservationStatusBadgeProps,
+  ReservationStatutValue,
+} from './ReservationStatusBadge'
+export { ReservationsTabs } from './ReservationsTabs'
+export type { ReservationsTabsProps, ReservationTab } from './ReservationsTabs'
+export { QRRetrievalModal } from './QRRetrievalModal'
+export type { QRRetrievalModalProps } from './QRRetrievalModal'
+
 export {
   MOCK_CENTRES,
   MOCK_RDV,
