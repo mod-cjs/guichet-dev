@@ -1,0 +1,19 @@
+9172dbc945afb05b069b264c4c800aa5
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "RouterContext", {
+    enumerable: true,
+    get: function() {
+        return RouterContext;
+    }
+});
+const _interop_require_default = require("@swc/helpers/_/_interop_require_default");
+const _react = /*#__PURE__*/ _interop_require_default._(require("react"));
+const RouterContext = _react.default.createContext(null);
+if (process.env.NODE_ENV !== 'production') {
+    RouterContext.displayName = 'RouterContext';
+} //# sourceMappingURL=router-context.shared-runtime.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci1jb250ZXh0LnNoYXJlZC1ydW50aW1lLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCdcbmltcG9ydCB0eXBlIHsgTmV4dFJvdXRlciB9IGZyb20gJy4vcm91dGVyL3JvdXRlcidcblxuZXhwb3J0IGNvbnN0IFJvdXRlckNvbnRleHQgPSBSZWFjdC5jcmVhdGVDb250ZXh0PE5leHRSb3V0ZXIgfCBudWxsPihudWxsKVxuXG5pZiAocHJvY2Vzcy5lbnYuTk9ERV9FTlYgIT09ICdwcm9kdWN0aW9uJykge1xuICBSb3V0ZXJDb250ZXh0LmRpc3BsYXlOYW1lID0gJ1JvdXRlckNvbnRleHQnXG59XG4iXSwibmFtZXMiOlsiUm91dGVyQ29udGV4dCIsIlJlYWN0IiwiY3JlYXRlQ29udGV4dCIsInByb2Nlc3MiLCJlbnYiLCJOT0RFX0VOViIsImRpc3BsYXlOYW1lIl0sIm1hcHBpbmdzIjoiOzs7OytCQUdhQSxpQkFBQUE7OztlQUFBQTs7OztnRUFISztBQUdYLE1BQU1BLGdCQUFnQkMsT0FBQUEsT0FBSyxDQUFDQyxhQUFhLENBQW9CO0FBRXBFLElBQUlDLFFBQVFDLEdBQUcsQ0FBQ0MsUUFBUSxLQUFLLGNBQWM7SUFDekNMLGNBQWNNLFdBQVcsR0FBRztBQUM5QiIsImlnbm9yZUxpc3QiOlswXX0=

@@ -1,0 +1,22 @@
+800de55d1e22ad8b6fb861363016ffed
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "omit", {
+    enumerable: true,
+    get: function() {
+        return omit;
+    }
+});
+function omit(object, keys) {
+    const omitted = {};
+    Object.keys(object).forEach((key)=>{
+        if (!keys.includes(key)) {
+            omitted[key] = object[key];
+        }
+    });
+    return omitted;
+} //# sourceMappingURL=omit.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci91dGlscy9vbWl0LnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBmdW5jdGlvbiBvbWl0PFQgZXh0ZW5kcyB7IFtrZXk6IHN0cmluZ106IHVua25vd24gfSwgSyBleHRlbmRzIGtleW9mIFQ+KFxuICBvYmplY3Q6IFQsXG4gIGtleXM6IEtbXVxuKTogT21pdDxULCBLPiB7XG4gIGNvbnN0IG9taXR0ZWQ6IHsgW2tleTogc3RyaW5nXTogdW5rbm93biB9ID0ge31cbiAgT2JqZWN0LmtleXMob2JqZWN0KS5mb3JFYWNoKChrZXkpID0+IHtcbiAgICBpZiAoIWtleXMuaW5jbHVkZXMoa2V5IGFzIEspKSB7XG4gICAgICBvbWl0dGVkW2tleV0gPSBvYmplY3Rba2V5XVxuICAgIH1cbiAgfSlcbiAgcmV0dXJuIG9taXR0ZWQgYXMgT21pdDxULCBLPlxufVxuIl0sIm5hbWVzIjpbIm9taXQiLCJvYmplY3QiLCJrZXlzIiwib21pdHRlZCIsIk9iamVjdCIsImZvckVhY2giLCJrZXkiLCJpbmNsdWRlcyJdLCJtYXBwaW5ncyI6Ijs7OzsrQkFBZ0JBLFFBQUFBOzs7ZUFBQUE7OztBQUFULFNBQVNBLEtBQ2RDLE1BQVMsRUFDVEMsSUFBUztJQUVULE1BQU1DLFVBQXNDLENBQUM7SUFDN0NDLE9BQU9GLElBQUksQ0FBQ0QsUUFBUUksT0FBTyxDQUFDLENBQUNDO1FBQzNCLElBQUksQ0FBQ0osS0FBS0ssUUFBUSxDQUFDRCxNQUFXO1lBQzVCSCxPQUFPLENBQUNHLElBQUksR0FBR0wsTUFBTSxDQUFDSyxJQUFJO1FBQzVCO0lBQ0Y7SUFDQSxPQUFPSDtBQUNUIiwiaWdub3JlTGlzdCI6WzBdfQ==

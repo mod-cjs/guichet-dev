@@ -1,0 +1,19 @@
+0900dd09b2ef36f2ddf4ccbc29497f8b
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "InvariantError", {
+    enumerable: true,
+    get: function() {
+        return InvariantError;
+    }
+});
+class InvariantError extends Error {
+    constructor(message, options){
+        super(`Invariant: ${message.endsWith('.') ? message : message + '.'} This is a bug in Next.js.`, options);
+        this.name = 'InvariantError';
+    }
+} //# sourceMappingURL=invariant-error.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL2ludmFyaWFudC1lcnJvci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgY2xhc3MgSW52YXJpYW50RXJyb3IgZXh0ZW5kcyBFcnJvciB7XG4gIGNvbnN0cnVjdG9yKG1lc3NhZ2U6IHN0cmluZywgb3B0aW9ucz86IEVycm9yT3B0aW9ucykge1xuICAgIHN1cGVyKFxuICAgICAgYEludmFyaWFudDogJHttZXNzYWdlLmVuZHNXaXRoKCcuJykgPyBtZXNzYWdlIDogbWVzc2FnZSArICcuJ30gVGhpcyBpcyBhIGJ1ZyBpbiBOZXh0LmpzLmAsXG4gICAgICBvcHRpb25zXG4gICAgKVxuICAgIHRoaXMubmFtZSA9ICdJbnZhcmlhbnRFcnJvcidcbiAgfVxufVxuIl0sIm5hbWVzIjpbIkludmFyaWFudEVycm9yIiwiRXJyb3IiLCJjb25zdHJ1Y3RvciIsIm1lc3NhZ2UiLCJvcHRpb25zIiwiZW5kc1dpdGgiLCJuYW1lIl0sIm1hcHBpbmdzIjoiOzs7OytCQUFhQSxrQkFBQUE7OztlQUFBQTs7O0FBQU4sTUFBTUEsdUJBQXVCQztJQUNsQ0MsWUFBWUMsT0FBZSxFQUFFQyxPQUFzQixDQUFFO1FBQ25ELEtBQUssQ0FDSCxDQUFDLFdBQVcsRUFBRUQsUUFBUUUsUUFBUSxDQUFDLE9BQU9GLFVBQVVBLFVBQVUsSUFBSSwwQkFBMEIsQ0FBQyxFQUN6RkM7UUFFRixJQUFJLENBQUNFLElBQUksR0FBRztJQUNkO0FBQ0YiLCJpZ25vcmVMaXN0IjpbMF19

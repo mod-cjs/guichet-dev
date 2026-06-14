@@ -1,0 +1,27 @@
+3a4e909ef27fbe0401081b816abac4be
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "addLocale", {
+    enumerable: true,
+    get: function() {
+        return addLocale;
+    }
+});
+const _normalizetrailingslash = require("./normalize-trailing-slash");
+const addLocale = (path, ...args)=>{
+    if (process.env.__NEXT_I18N_SUPPORT) {
+        return (0, _normalizetrailingslash.normalizePathTrailingSlash)(require('../shared/lib/router/utils/add-locale').addLocale(path, ...args));
+    }
+    return path;
+};
+if ((typeof exports.default === 'function' || typeof exports.default === 'object' && exports.default !== null) && typeof exports.default.__esModule === 'undefined') {
+    Object.defineProperty(exports.default, '__esModule', {
+        value: true
+    });
+    Object.assign(exports.default, exports);
+    module.exports = exports.default;
+} //# sourceMappingURL=add-locale.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9jbGllbnQvYWRkLWxvY2FsZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgdHlwZSB7IGFkZExvY2FsZSBhcyBGbiB9IGZyb20gJy4uL3NoYXJlZC9saWIvcm91dGVyL3V0aWxzL2FkZC1sb2NhbGUnXG5pbXBvcnQgeyBub3JtYWxpemVQYXRoVHJhaWxpbmdTbGFzaCB9IGZyb20gJy4vbm9ybWFsaXplLXRyYWlsaW5nLXNsYXNoJ1xuXG5leHBvcnQgY29uc3QgYWRkTG9jYWxlOiB0eXBlb2YgRm4gPSAocGF0aCwgLi4uYXJncykgPT4ge1xuICBpZiAocHJvY2Vzcy5lbnYuX19ORVhUX0kxOE5fU1VQUE9SVCkge1xuICAgIHJldHVybiBub3JtYWxpemVQYXRoVHJhaWxpbmdTbGFzaChcbiAgICAgIChcbiAgICAgICAgcmVxdWlyZSgnLi4vc2hhcmVkL2xpYi9yb3V0ZXIvdXRpbHMvYWRkLWxvY2FsZScpIGFzIHR5cGVvZiBpbXBvcnQoJy4uL3NoYXJlZC9saWIvcm91dGVyL3V0aWxzL2FkZC1sb2NhbGUnKVxuICAgICAgKS5hZGRMb2NhbGUocGF0aCwgLi4uYXJncylcbiAgICApXG4gIH1cbiAgcmV0dXJuIHBhdGhcbn1cbiJdLCJuYW1lcyI6WyJhZGRMb2NhbGUiLCJwYXRoIiwiYXJncyIsInByb2Nlc3MiLCJlbnYiLCJfX05FWFRfSTE4Tl9TVVBQT1JUIiwibm9ybWFsaXplUGF0aFRyYWlsaW5nU2xhc2giLCJyZXF1aXJlIl0sIm1hcHBpbmdzIjoiOzs7OytCQUdhQSxhQUFBQTs7O2VBQUFBOzs7d0NBRjhCO0FBRXBDLE1BQU1BLFlBQXVCLENBQUNDLE1BQU0sR0FBR0M7SUFDNUMsSUFBSUMsUUFBUUMsR0FBRyxDQUFDQyxtQkFBbUIsRUFBRTtRQUNuQyxPQUFPQyxDQUFBQSxHQUFBQSx3QkFBQUEsMEJBQUFBLEFBQTBCLEVBRTdCQyxRQUFRLHlDQUNSUCxTQUFTLENBQUNDLFNBQVNDO0lBRXpCO0lBQ0EsT0FBT0Q7QUFDVCIsImlnbm9yZUxpc3QiOlswXX0=

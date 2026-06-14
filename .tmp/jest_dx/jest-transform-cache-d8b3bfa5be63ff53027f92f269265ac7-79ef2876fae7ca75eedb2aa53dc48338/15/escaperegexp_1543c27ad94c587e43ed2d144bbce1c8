@@ -1,0 +1,23 @@
+6ad2f2c1e8e9b5d7d89df4e8cabf8d3d
+// regexp is based on https://github.com/sindresorhus/escape-string-regexp
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "escapeStringRegexp", {
+    enumerable: true,
+    get: function() {
+        return escapeStringRegexp;
+    }
+});
+const reHasRegExp = /[|\\{}()[\]^$+*?.-]/;
+const reReplaceRegExp = /[|\\{}()[\]^$+*?.-]/g;
+function escapeStringRegexp(str) {
+    // see also: https://github.com/lodash/lodash/blob/2da024c3b4f9947a48517639de7560457cd4ec6c/escapeRegExp.js#L23
+    if (reHasRegExp.test(str)) {
+        return str.replace(reReplaceRegExp, '\\$&');
+    }
+    return str;
+} //# sourceMappingURL=escape-regexp.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL2VzY2FwZS1yZWdleHAudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8gcmVnZXhwIGlzIGJhc2VkIG9uIGh0dHBzOi8vZ2l0aHViLmNvbS9zaW5kcmVzb3JodXMvZXNjYXBlLXN0cmluZy1yZWdleHBcbmNvbnN0IHJlSGFzUmVnRXhwID0gL1t8XFxcXHt9KClbXFxdXiQrKj8uLV0vXG5jb25zdCByZVJlcGxhY2VSZWdFeHAgPSAvW3xcXFxce30oKVtcXF1eJCsqPy4tXS9nXG5cbmV4cG9ydCBmdW5jdGlvbiBlc2NhcGVTdHJpbmdSZWdleHAoc3RyOiBzdHJpbmcpIHtcbiAgLy8gc2VlIGFsc286IGh0dHBzOi8vZ2l0aHViLmNvbS9sb2Rhc2gvbG9kYXNoL2Jsb2IvMmRhMDI0YzNiNGY5OTQ3YTQ4NTE3NjM5ZGU3NTYwNDU3Y2Q0ZWM2Yy9lc2NhcGVSZWdFeHAuanMjTDIzXG4gIGlmIChyZUhhc1JlZ0V4cC50ZXN0KHN0cikpIHtcbiAgICByZXR1cm4gc3RyLnJlcGxhY2UocmVSZXBsYWNlUmVnRXhwLCAnXFxcXCQmJylcbiAgfVxuICByZXR1cm4gc3RyXG59XG4iXSwibmFtZXMiOlsiZXNjYXBlU3RyaW5nUmVnZXhwIiwicmVIYXNSZWdFeHAiLCJyZVJlcGxhY2VSZWdFeHAiLCJzdHIiLCJ0ZXN0IiwicmVwbGFjZSJdLCJtYXBwaW5ncyI6IkFBQUEsMEVBQTBFOzs7OzsrQkFJMURBLHNCQUFBQTs7O2VBQUFBOzs7QUFIaEIsTUFBTUMsY0FBYztBQUNwQixNQUFNQyxrQkFBa0I7QUFFakIsU0FBU0YsbUJBQW1CRyxHQUFXO0lBQzVDLCtHQUErRztJQUMvRyxJQUFJRixZQUFZRyxJQUFJLENBQUNELE1BQU07UUFDekIsT0FBT0EsSUFBSUUsT0FBTyxDQUFDSCxpQkFBaUI7SUFDdEM7SUFDQSxPQUFPQztBQUNUIiwiaWdub3JlTGlzdCI6WzBdfQ==

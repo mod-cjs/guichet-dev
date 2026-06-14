@@ -11,23 +11,21 @@ interface Props {
   reservations: MesReservationCentre[]
 }
 
-type TabKey = 'a-venir' | 'en-attente' | 'passees' | 'annulees' | 'toutes'
-
-function isUpcoming(r: MesReservationCentre, now: Date): boolean {
-  const d = new Date(r.dateReservee)
-  const [h, m] = r.creneauFin.split(':').map(Number)
-  d.setHours(h ?? 0, m ?? 0, 0, 0)
-  return d.getTime() > now.getTime()
-}
+type TabKey = 'toutes' | 'en-attente' | 'acceptees' | 'refusees' | 'passees'
 
 /**
  * Vue "Mes réservations centres" (page `/jeune/mes-reservations-centres`).
- * 5 tabs filtrables, annulation inline, modal QR de retrait.
- * GUIC-384 — Wave 5.
+ * 5 tabs filtrables alignés sur les statuts métier (GUIC-392 / Lot 7 W5) :
+ *   Toutes · En attente · Acceptées · Refusées · Passées.
+ * Le tab "Passées" regroupe Passee + NonHonoree + AnnuleeParJeune
+ * (= tout ce qui est terminé).
+ *
+ * Annulation inline, modal QR de retrait.
+ * GUIC-384 — Wave 5 (init) · GUIC-392 — refonte tabs.
  */
 export function MesReservationsCentresClient({ reservations: initial }: Props) {
   const [reservations, setReservations] = useState(initial)
-  const [tab, setTab] = useState<TabKey>('a-venir')
+  const [tab, setTab] = useState<TabKey>('toutes')
   const [qrFor, setQrFor] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'danger' } | null>(null)
   const pendingRef = useRef<string | null>(null)
@@ -52,46 +50,43 @@ export function MesReservationsCentresClient({ reservations: initial }: Props) {
   const now = useMemo(() => new Date(), [])
 
   const buckets = useMemo(() => {
-    const aVenir: MesReservationCentre[] = []
     const enAttente: MesReservationCentre[] = []
+    const acceptees: MesReservationCentre[] = []
+    const refusees: MesReservationCentre[] = []
     const passees: MesReservationCentre[] = []
-    const annulees: MesReservationCentre[] = []
     for (const r of reservations) {
-      const upcoming = isUpcoming(r, now)
       if (r.statut === 'EnAttente') enAttente.push(r)
-      if ((r.statut === 'Acceptee' || r.statut === 'EnAttente') && upcoming) {
-        aVenir.push(r)
-      }
-      if (r.statut === 'Passee') passees.push(r)
-      if (
-        r.statut === 'AnnuleeParJeune' ||
-        r.statut === 'Refusee' ||
-        r.statut === 'NonHonoree'
+      else if (r.statut === 'Acceptee') acceptees.push(r)
+      else if (r.statut === 'Refusee') refusees.push(r)
+      else if (
+        r.statut === 'Passee' ||
+        r.statut === 'NonHonoree' ||
+        r.statut === 'AnnuleeParJeune'
       ) {
-        annulees.push(r)
+        passees.push(r)
       }
     }
-    return { aVenir, enAttente, passees, annulees, toutes: reservations }
-  }, [reservations, now])
+    return { toutes: reservations, enAttente, acceptees, refusees, passees }
+  }, [reservations])
 
   const tabs: ReservationTab[] = [
-    { key: 'a-venir', label: 'À venir', count: buckets.aVenir.length },
-    { key: 'en-attente', label: 'En attente', count: buckets.enAttente.length },
-    { key: 'passees', label: 'Passées', count: buckets.passees.length },
-    { key: 'annulees', label: 'Annulées', count: buckets.annulees.length },
     { key: 'toutes', label: 'Toutes', count: buckets.toutes.length },
+    { key: 'en-attente', label: 'En attente', count: buckets.enAttente.length },
+    { key: 'acceptees', label: 'Acceptées', count: buckets.acceptees.length },
+    { key: 'refusees', label: 'Refusées', count: buckets.refusees.length },
+    { key: 'passees', label: 'Passées', count: buckets.passees.length },
   ]
 
   const visible: MesReservationCentre[] =
-    tab === 'a-venir'
-      ? buckets.aVenir
+    tab === 'toutes'
+      ? buckets.toutes
       : tab === 'en-attente'
         ? buckets.enAttente
-        : tab === 'passees'
-          ? buckets.passees
-          : tab === 'annulees'
-            ? buckets.annulees
-            : buckets.toutes
+        : tab === 'acceptees'
+          ? buckets.acceptees
+          : tab === 'refusees'
+            ? buckets.refusees
+            : buckets.passees
 
   const handleCancel = useCallback((reservationId: string) => {
     if (pendingRef.current) return
