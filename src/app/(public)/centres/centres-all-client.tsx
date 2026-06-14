@@ -17,6 +17,8 @@ export interface CentresAllCentre extends CentreRowCentre {
   latitude: number
   longitude: number
   isOpen: boolean
+  /** Adresse postale complète (depuis `Centre.adresse` Prisma). */
+  adresse?: string
 }
 
 export interface CentresAllClientProps {
@@ -329,7 +331,9 @@ export function CentresAllClient({
                     nom: c.nom,
                     region: c.region,
                     ville: c.ville,
+                    addr: c.adresse ?? c.addr,
                     horaires: c.horaires,
+                    // km: non calculé tant que pas de géoloc visiteur (cf. CentreRowCentre.km)
                   }}
                   isMine={userCentrePrincipalId === c.id}
                   isOpen={c.isOpen}
@@ -446,7 +450,7 @@ export function CentresAllClient({
               {filtered.map((c) => (
                 <li key={c.id}>
                   <CentreRow
-                    centre={c}
+                    centre={{ ...c, addr: c.adresse ?? c.addr }}
                     isMine={userCentrePrincipalId === c.id}
                     isOpen={c.isOpen}
                     onClick={() => handleCentreClick(c.slug, c.id)}
