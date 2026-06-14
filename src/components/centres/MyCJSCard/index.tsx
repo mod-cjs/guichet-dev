@@ -38,6 +38,9 @@ export interface MyCJSCardProps {
   /** Recto sombre (gradient teal-deep → ink-teal) par défaut, ou clair sur fond surface. */
   dark?: boolean
   className?: string
+  /** GUIC-386 (Wave 6.1) — JWT rotatif transmis au verso. */
+  qrToken?: string | null
+  qrExpiresAt?: Date | null
 }
 
 function Initials({
@@ -108,6 +111,8 @@ export function MyCJSCard({
   compact = false,
   dark = true,
   className = '',
+  qrToken = null,
+  qrExpiresAt = null,
 }: MyCJSCardProps) {
   if (variant === 'verso') {
     return (
@@ -116,6 +121,8 @@ export function MyCJSCard({
         emiseLe={user.membreDepuis}
         maxWidth={maxWidth}
         className={className}
+        qrToken={qrToken ?? null}
+        qrExpiresAt={qrExpiresAt ?? null}
       />
     )
   }

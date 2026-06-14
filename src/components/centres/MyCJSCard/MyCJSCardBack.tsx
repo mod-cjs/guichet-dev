@@ -1,4 +1,5 @@
-import { appDomain } from '@/lib/app-url'
+import { appDomain, appUrl } from '@/lib/app-url'
+import { QRBadge } from '../QRBadge'
 
 export interface MyCJSCardBackProps {
   matricule: string
@@ -6,6 +7,13 @@ export interface MyCJSCardBackProps {
   emiseLe?: string
   maxWidth?: number
   className?: string
+  /**
+   * GUIC-386 — JWT rotatif (Wave 6.1) à encoder dans le QR. Si absent,
+   * le verso affiche le faux barcode décoratif initial (mode Wave 1).
+   */
+  qrToken?: string | null
+  /** Expiration du token (utilisée pour le countdown). */
+  qrExpiresAt?: Date | null
 }
 
 /**
@@ -36,8 +44,11 @@ export function MyCJSCardBack({
   emiseLe = '03/2025',
   maxWidth = 480,
   className = '',
+  qrToken = null,
+  qrExpiresAt = null,
 }: MyCJSCardBackProps) {
   const heights = makeBarcodeHeights(40)
+  const qrUrl = qrToken ? `${appUrl()}/checkin/v1/${qrToken}` : null
 
   return (
     <article
@@ -84,25 +95,45 @@ export function MyCJSCardBack({
         </p>
       </section>
 
-      <div
-        aria-hidden="true"
-        data-testid="cjs-card-back-barcode"
-        className="flex items-end gap-[2px] mt-1"
-        style={{ height: 40 }}
-      >
-        {heights.map((h, i) => (
-          <span
-            key={i}
-            style={{
-              display: 'inline-block',
-              width: 3,
-              height: h,
-              background: i % 3 === 0 ? 'var(--gj-yellow)' : '#fff',
-              opacity: i % 5 === 0 ? 0.6 : 1,
-            }}
+      {qrUrl ? (
+        <div
+          data-testid="cjs-card-back-qr"
+          className="flex justify-center"
+          style={{
+            background: '#fff',
+            padding: 10,
+            borderRadius: 10,
+            margin: '4px auto 0',
+          }}
+        >
+          <QRBadge
+            url={qrUrl}
+            size={140}
+            expiresAt={qrExpiresAt ?? undefined}
+            showCountdown={Boolean(qrExpiresAt)}
           />
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div
+          aria-hidden="true"
+          data-testid="cjs-card-back-barcode"
+          className="flex items-end gap-[2px] mt-1"
+          style={{ height: 40 }}
+        >
+          {heights.map((h, i) => (
+            <span
+              key={i}
+              style={{
+                display: 'inline-block',
+                width: 3,
+                height: h,
+                background: i % 3 === 0 ? 'var(--gj-yellow)' : '#fff',
+                opacity: i % 5 === 0 ? 0.6 : 1,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <footer
         className="flex items-center justify-between text-fs-100"

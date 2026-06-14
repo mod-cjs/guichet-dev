@@ -36,6 +36,10 @@ export type {
   MyCJSCardUser,
   MyCJSCardBackProps,
 } from './MyCJSCard'
+export { CJSCardFlip } from './CJSCardFlip'
+export type { CJSCardFlipProps } from './CJSCardFlip'
+export { MesUsagesGrid } from './MesUsagesGrid'
+export type { MesUsagesGridProps } from './MesUsagesGrid'
 export { CentreDetailHero } from './CentreDetailHero'
 export type { CentreDetailHeroProps } from './CentreDetailHero'
 export { CentreHoursTable } from './CentreHoursTable'

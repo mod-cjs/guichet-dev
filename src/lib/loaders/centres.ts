@@ -605,6 +605,114 @@ export async function getMesReservationsCentres(
   })
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Wave 6.1 — Ma carte CJS : usages récents (GUIC-386)
+// ─────────────────────────────────────────────────────────────────
+
+export interface UsageCarteCJS {
+  type: 'reservation' | 'checkin'
+  id: string
+  centreNom: string
+  centreSlug: string
+  ressourceNom: string | null
+  /** ISO string. */
+  date: string
+  statut: string
+}
+
+/**
+ * Liste les 10 derniers usages "réussis" d'un jeune (réservations validées +
+ * check-ins) pour alimenter la grid "Tes derniers usages" de `/jeune/ma-carte`.
+ *
+ * Union :
+ *  - `Reservation` dont `statut in [Acceptee, Passee]`
+ *  - `CheckIn` (toutes lignes — un check-in vaut usage)
+ *
+ * Tri global par date desc, limité à `limit` éléments (défaut 10).
+ *
+ * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 6 / GUIC-386.
+ */
+export async function getMesUsages(
+  cjsUid: string,
+  limit = 10,
+): Promise<UsageCarteCJS[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prismaAny = prisma as any
+
+  const [reservations, checkIns] = await Promise.all([
+    prismaAny.reservation
+      .findMany({
+        where: { cjsUid, statut: { in: ['Acceptee', 'Passee'] } },
+        orderBy: { dateReservee: 'desc' },
+        take: limit,
+        include: {
+          ressource: { select: { nom: true } },
+          centre: { select: { nom: true, slug: true } },
+        },
+      })
+      .catch(() => [] as Array<Record<string, unknown>>),
+    prismaAny.checkIn
+      ? prismaAny.checkIn
+          .findMany({
+            where: { cjsUid },
+            orderBy: { effectueA: 'desc' },
+            take: limit,
+            include: { centre: { select: { nom: true, slug: true } } },
+          })
+          .catch(() => [] as Array<Record<string, unknown>>)
+      : Promise.resolve([] as Array<Record<string, unknown>>),
+  ])
+
+  const resUsages: UsageCarteCJS[] = (reservations as Array<Record<string, unknown>>).map(
+    (r) => {
+      const ressource = (r.ressource ?? {}) as Record<string, unknown>
+      const centre = (r.centre ?? {}) as Record<string, unknown>
+      const dateRes =
+        r.dateReservee instanceof Date
+          ? r.dateReservee
+          : new Date(String(r.dateReservee))
+      return {
+        type: 'reservation' as const,
+        id: String(r.id),
+        centreNom: String(centre.nom ?? ''),
+        centreSlug:
+          centre.slug && String(centre.slug).length > 0
+            ? String(centre.slug)
+            : slugifyCentre(String(centre.nom ?? '')),
+        ressourceNom: ressource.nom ? String(ressource.nom) : null,
+        date: dateRes.toISOString(),
+        statut: String(r.statut),
+      }
+    },
+  )
+
+  const ciUsages: UsageCarteCJS[] = (checkIns as Array<Record<string, unknown>>).map(
+    (c) => {
+      const centre = (c.centre ?? {}) as Record<string, unknown>
+      const dateRes =
+        c.effectueA instanceof Date
+          ? c.effectueA
+          : new Date(String(c.effectueA))
+      return {
+        type: 'checkin' as const,
+        id: String(c.id),
+        centreNom: String(centre.nom ?? ''),
+        centreSlug:
+          centre.slug && String(centre.slug).length > 0
+            ? String(centre.slug)
+            : slugifyCentre(String(centre.nom ?? '')),
+        ressourceNom: null,
+        date: dateRes.toISOString(),
+        statut: String(c.via ?? 'CheckIn'),
+      }
+    },
+  )
+
+  return [...resUsages, ...ciUsages]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, limit)
+}
+
 /** Compte total (paginated API). */
 export async function countCentres(filters?: ListCentresFilters): Promise<number> {
   const where: Record<string, unknown> = { estActif: true }
