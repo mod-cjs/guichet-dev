@@ -65,4 +65,25 @@ describe('<MyCJSCard />', () => {
     render(<MyCJSCard user={USER} />)
     expect(screen.getByLabelText('Carte CJS')).toBeInTheDocument()
   })
+
+  it('recto affiche le brand label court "Carte CJS" (GUIC-397)', () => {
+    render(<MyCJSCard user={USER} />)
+    // Le label apparaît dans le header de la carte. getAllByText car
+    // aria-label "Carte CJS" produit également une correspondance.
+    const matches = screen.getAllByText(/^Carte CJS$/i)
+    expect(matches.length).toBeGreaterThan(0)
+    // Pas de mention "Guichet Jeunesse CJS" en label (réservé au verso/marque).
+    expect(screen.queryByText(/Guichet Jeunesse CJS/i)).toBeNull()
+  })
+
+  it('recto footer : "QR valide · expire le …" avec placeholder si pas de date (GUIC-397)', () => {
+    render(<MyCJSCard user={USER} />)
+    expect(screen.getByText(/QR valide.*expire le 31\/12\/2026/)).toBeInTheDocument()
+  })
+
+  it('recto footer : formatte qrExpiresAt en français long si fourni (GUIC-397)', () => {
+    const expires = new Date('2026-12-31T23:59:00Z')
+    render(<MyCJSCard user={USER} qrExpiresAt={expires} />)
+    expect(screen.getByText(/QR valide.*expire le 31 décembre 2026/)).toBeInTheDocument()
+  })
 })

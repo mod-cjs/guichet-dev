@@ -57,7 +57,10 @@ export function MyCJSCardBack({
       style={{
         maxWidth,
         padding: 22,
-        background: 'var(--gj-ink)',
+        // GUIC-397 — gradient design source (`public/design-v2/cjs-card.jsx:181`).
+        // `#1a2a26` est une couleur dérivée de `--gj-ink` (vert profond) pour
+        // créer un fondu sombre subtil ; conservée en hex car non tokenisée.
+        background: 'linear-gradient(180deg, var(--gj-ink) 0%, #1a2a26 100%)',
         borderRadius: 18,
       }}
     >
@@ -89,7 +92,7 @@ export function MyCJSCardBack({
           Conditions
         </div>
         <p style={{ margin: 0 }}>
-          Cette carte est strictement personnelle. La présentation du QR à un
+          Carte nominative · non transmissible. La présentation du QR à un
           centre CJS vaut consentement au check-in. Toute utilisation
           frauduleuse entraîne la révocation immédiate de l&apos;adhésion.
         </p>
@@ -120,18 +123,23 @@ export function MyCJSCardBack({
           className="flex items-end gap-[2px] mt-1"
           style={{ height: 40 }}
         >
-          {heights.map((h, i) => (
-            <span
-              key={i}
-              style={{
-                display: 'inline-block',
-                width: 3,
-                height: h,
-                background: i % 3 === 0 ? 'var(--gj-yellow)' : 'var(--gj-surface)',
-                opacity: i % 5 === 0 ? 0.6 : 1,
-              }}
-            />
-          ))}
+          {heights.map((h, i) => {
+            // GUIC-397 — largeur variable conforme design source
+            // (`cjs-card.jsx:189`) : alternance 3 / 2 / 1 px.
+            // Couleur uniforme blanc (`--gj-surface`), pas d'alternance yellow.
+            const w = i % 3 === 0 ? 3 : i % 5 === 0 ? 2 : 1
+            return (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  width: w,
+                  height: h,
+                  background: 'var(--gj-surface)',
+                }}
+              />
+            )
+          })}
         </div>
       )}
 

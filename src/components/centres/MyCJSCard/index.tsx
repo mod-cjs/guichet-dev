@@ -130,6 +130,17 @@ export function MyCJSCard({
   const avatarSize = compact ? 40 : 48
   const qrSize = compact ? 110 : 140
 
+  // GUIC-397 — footer "QR valide · expire le …". Format design source :
+  // « 31 décembre 2026 ». Si `qrExpiresAt` (Wave 6.1) fourni, on l'affiche ;
+  // sinon placeholder design « 31/12/2026 ».
+  const expiresLabel = qrExpiresAt
+    ? qrExpiresAt.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
+    : '31/12/2026'
+
   // GUIC-368 — fallback démo : si pas de `qrUrl` signé (Wave 6 / GUIC-357),
   // on génère un QR visuel pointant vers `/cjs-card/<cjsUid>` (ou un slug
   // dérivé du matricule). Pas de JWT, juste un payload stable pour la démo.
@@ -189,7 +200,7 @@ export function MyCJSCard({
           }}
         >
           <Icon name="pin" size={12} aria-hidden="true" />
-          Guichet Jeunesse CJS
+          Carte CJS
         </div>
         <span
           style={{
@@ -333,7 +344,7 @@ export function MyCJSCard({
               background: 'var(--gj-green)',
             }}
           />
-          <span>Présente ce code à l’accueil de n’importe quel centre CJS.</span>
+          <span>QR valide · expire le {expiresLabel}</span>
         </footer>
       )}
     </article>
