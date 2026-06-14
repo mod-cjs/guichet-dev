@@ -45,6 +45,7 @@ export const CENTRE_EVENT_TYPES = [
 
   // KPI principal — fréquentation physique
   'centre_checkin',
+  'centre_checkin_completed',
   'centre_checkout',
   'centre_resource_picked_up',
   'centre_no_show',

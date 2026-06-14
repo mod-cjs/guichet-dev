@@ -1158,6 +1158,7 @@ model Reservation {
   utilisateur Utilisateur     @relation(fields: [cjsUid], references: [cjsUid])
   centre      Centre          @relation(fields: [centreId], references: [id])
   ressource   RessourceCentre @relation(fields: [ressourceId], references: [id])
+  checkIns    CheckIn[]
 
   @@index([cjsUid, createdAt(sort: Desc)])
   @@index([centreId, statut, dateReservee])
@@ -1168,18 +1169,21 @@ model Reservation {
 
 /// Check-in physique d'un jeune dans un centre (KPI fréquentation principal).
 model CheckIn {
-  id            String     @id @default(uuid()) @db.VarChar(36)
-  cjsUid        String     @map("cjs_uid") @db.VarChar(36)
-  centreId      String     @map("centre_id") @db.VarChar(36)
-  reservationId String?    @map("reservation_id") @db.VarChar(36)
-  via           CheckInVia
-  scannerId     String?    @map("scanner_id") @db.VarChar(36) // cjsUid du staff scanneur
-  effectueA     DateTime   @default(now()) @map("effectue_a")
-  dwellMinutes  Int?       @map("dwell_minutes")
-  meta          Json?
+  id              String     @id @default(uuid()) @db.VarChar(36)
+  cjsUid          String     @map("cjs_uid") @db.VarChar(36)
+  centreId        String     @map("centre_id") @db.VarChar(36)
+  reservationId   String?    @map("reservation_id") @db.VarChar(36)
+  via             CheckInVia
+  scannerId       String?    @map("scanner_id") @db.VarChar(36) // cjsUid du staff scanneur
+  conseillerEmail String?    @map("conseiller_email") @db.VarChar(255)
+  jwtNonce        String?    @unique @map("jwt_nonce") @db.VarChar(64)
+  effectueA       DateTime   @default(now()) @map("effectue_a")
+  dwellMinutes    Int?       @map("dwell_minutes")
+  meta            Json?
 
-  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
-  centre      Centre      @relation(fields: [centreId], references: [id])
+  utilisateur Utilisateur  @relation(fields: [cjsUid], references: [cjsUid])
+  centre      Centre       @relation(fields: [centreId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
 
   @@index([centreId, effectueA])
   @@index([cjsUid, effectueA])
