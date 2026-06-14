@@ -180,20 +180,42 @@ export function ReservationForm({
     }
     if (!slot) return
     const [creneauDebut, creneauFin] = slot.split('-')
-    const payload: ReservationFormData = {
-      ressourceId: ressource.id,
-      dateReservee: new Date(`${date}T12:00:00.000Z`).toISOString(),
-      creneauDebut,
-      creneauFin,
-      nombrePersonnes: people,
-      motif: motif.trim(),
-      // TODO Sprint+1 — upload du justif vers Vercel Blob puis stocker URL.
-      // Pour MVP on transmet le nom du fichier seulement.
-      justifFileUrl: file ? `local://${file.name}` : undefined,
-    }
 
     setSubmitting(true)
     try {
+      // GUIC-385 — upload réel du justif vers Vercel Blob privé avant POST
+      // (avant ce fix le client envoyait `local://...` qui cassait Zod URL → 400).
+      let justifFileUrl: string | undefined
+      if (file) {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('ressourceId', ressource.id)
+        const up = await fetch('/api/reservations/justif/upload', {
+          method: 'POST',
+          body: fd,
+        })
+        if (!up.ok) {
+          const detail = (await up.json().catch(() => null)) as
+            | { error?: { message?: string } }
+            | null
+          setError(detail?.error?.message ?? 'Échec de l’upload du justificatif.')
+          setSubmitting(false)
+          return
+        }
+        const upBody = (await up.json()) as { data: { url: string } }
+        justifFileUrl = upBody.data.url
+      }
+
+      const payload: ReservationFormData = {
+        ressourceId: ressource.id,
+        dateReservee: new Date(`${date}T12:00:00.000Z`).toISOString(),
+        creneauDebut,
+        creneauFin,
+        nombrePersonnes: people,
+        motif: motif.trim(),
+        justifFileUrl,
+      }
+
       track('centre_reservation_submitted')
       if (onSubmit) {
         const res = await onSubmit(payload)
