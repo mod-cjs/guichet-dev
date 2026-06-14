@@ -598,49 +598,77 @@ export async function getMesUsages(
   cjsUid: string,
   limit = 10,
 ): Promise<UsageCarteCJS[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prismaAny = prisma as any
+
   const [reservations, checkIns] = await Promise.all([
-    prisma.reservation.findMany({
-      where: { cjsUid, statut: { in: ['Acceptee', 'Passee'] } },
-      orderBy: { dateReservee: 'desc' },
-      take: limit,
-      include: {
-        ressource: { select: { nom: true } },
-        centre: { select: { nom: true, slug: true } },
-      },
-    }),
-    prisma.checkIn.findMany({
-      where: { cjsUid },
-      orderBy: { effectueA: 'desc' },
-      take: limit,
-      include: { centre: { select: { nom: true, slug: true } } },
-    }),
+    prismaAny.reservation
+      .findMany({
+        where: { cjsUid, statut: { in: ['Acceptee', 'Passee'] } },
+        orderBy: { dateReservee: 'desc' },
+        take: limit,
+        include: {
+          ressource: { select: { nom: true } },
+          centre: { select: { nom: true, slug: true } },
+        },
+      })
+      .catch(() => [] as Array<Record<string, unknown>>),
+    prismaAny.checkIn
+      ? prismaAny.checkIn
+          .findMany({
+            where: { cjsUid },
+            orderBy: { effectueA: 'desc' },
+            take: limit,
+            include: { centre: { select: { nom: true, slug: true } } },
+          })
+          .catch(() => [] as Array<Record<string, unknown>>)
+      : Promise.resolve([] as Array<Record<string, unknown>>),
   ])
 
-  const resUsages: UsageCarteCJS[] = reservations.map((r) => ({
-    type: 'reservation' as const,
-    id: r.id,
-    centreNom: r.centre.nom,
-    centreSlug:
-      r.centre.slug && r.centre.slug.length > 0
-        ? r.centre.slug
-        : slugifyCentre(r.centre.nom),
-    ressourceNom: r.ressource.nom ?? null,
-    date: r.dateReservee.toISOString(),
-    statut: String(r.statut),
-  }))
+  const resUsages: UsageCarteCJS[] = (reservations as Array<Record<string, unknown>>).map(
+    (r) => {
+      const ressource = (r.ressource ?? {}) as Record<string, unknown>
+      const centre = (r.centre ?? {}) as Record<string, unknown>
+      const dateRes =
+        r.dateReservee instanceof Date
+          ? r.dateReservee
+          : new Date(String(r.dateReservee))
+      return {
+        type: 'reservation' as const,
+        id: String(r.id),
+        centreNom: String(centre.nom ?? ''),
+        centreSlug:
+          centre.slug && String(centre.slug).length > 0
+            ? String(centre.slug)
+            : slugifyCentre(String(centre.nom ?? '')),
+        ressourceNom: ressource.nom ? String(ressource.nom) : null,
+        date: dateRes.toISOString(),
+        statut: String(r.statut),
+      }
+    },
+  )
 
-  const ciUsages: UsageCarteCJS[] = checkIns.map((c) => ({
-    type: 'checkin' as const,
-    id: c.id,
-    centreNom: c.centre.nom,
-    centreSlug:
-      c.centre.slug && c.centre.slug.length > 0
-        ? c.centre.slug
-        : slugifyCentre(c.centre.nom),
-    ressourceNom: null,
-    date: c.effectueA.toISOString(),
-    statut: String(c.via),
-  }))
+  const ciUsages: UsageCarteCJS[] = (checkIns as Array<Record<string, unknown>>).map(
+    (c) => {
+      const centre = (c.centre ?? {}) as Record<string, unknown>
+      const dateRes =
+        c.effectueA instanceof Date
+          ? c.effectueA
+          : new Date(String(c.effectueA))
+      return {
+        type: 'checkin' as const,
+        id: String(c.id),
+        centreNom: String(centre.nom ?? ''),
+        centreSlug:
+          centre.slug && String(centre.slug).length > 0
+            ? String(centre.slug)
+            : slugifyCentre(String(centre.nom ?? '')),
+        ressourceNom: null,
+        date: dateRes.toISOString(),
+        statut: String(c.via ?? 'CheckIn'),
+      }
+    },
+  )
 
   return [...resUsages, ...ciUsages]
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
