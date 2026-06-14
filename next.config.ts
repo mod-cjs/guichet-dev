@@ -19,15 +19,19 @@ const GOOGLE_MAPS_IMG     = 'https://maps.googleapis.com https://maps.gstatic.co
 const GOOGLE_MAPS_STYLE   = 'https://fonts.googleapis.com'
 const GOOGLE_MAPS_FONT    = 'https://fonts.gstatic.com'
 
+// GUIC-368 — CSP doit autoriser Google Maps (script/style/img/font/connect)
+// sinon /centres reste blanc avec "Carte indisponible". Les constantes
+// GOOGLE_MAPS_* DOIVENT être interpolées ici — merge --theirs antérieur
+// les a perdues une fois ; commentaire explicite pour éviter régression.
 const CSP = [
   "default-src 'self'",
   isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com`,
-  "font-src 'self'",
-  `connect-src 'self' ${ssoOrigin}`,
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${GOOGLE_MAPS_SCRIPT}`
+    : `script-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_SCRIPT}`,
+  `style-src 'self' 'unsafe-inline' ${GOOGLE_MAPS_STYLE}`,
+  `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com ${GOOGLE_MAPS_IMG}`,
+  `font-src 'self' ${GOOGLE_MAPS_FONT}`,
+  `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
