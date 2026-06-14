@@ -18,6 +18,8 @@ export type ReservationCardRessourceType =
 export interface ReservationCardData {
   id: string
   ressource: {
+    /** Optionnel : utilisé pour construire le lien "Réserver à nouveau". */
+    id?: string
     nom: string
     type: ReservationCardRessourceType
   }
@@ -111,6 +113,12 @@ export function ReservationCard({
   const showQRBtn = statut === 'Acceptee' && upcoming
   const showCancelBtn = (statut === 'Acceptee' || statut === 'EnAttente') && upcoming
   const showSeeRessourcesBtn = statut === 'Passee'
+  // GUIC-392 — CTAs par statut (design-v2 / MyResaContent)
+  const showProposeBtn = statut === 'Refusee'
+  const showRebookBtn = statut === 'Passee' || statut === 'NonHonoree'
+  const ressourceHref = ressource.id
+    ? `/centres/${centre.slug}/ressources/${ressource.id}/reserver`
+    : `/centres/${centre.slug}`
 
   return (
     <article
@@ -220,7 +228,7 @@ export function ReservationCard({
       ) : null}
 
       {/* Actions */}
-      {(showQRBtn || showCancelBtn || showSeeRessourcesBtn) && (
+      {(showQRBtn || showCancelBtn || showSeeRessourcesBtn || showProposeBtn || showRebookBtn) && (
         <div className="flex flex-wrap gap-space-2 pt-1">
           {showQRBtn && (
             <button
@@ -268,6 +276,36 @@ export function ReservationCard({
             >
               <Icon name="arrow-right" size={16} />
               <span>Voir les ressources de ce centre</span>
+            </Link>
+          )}
+          {showProposeBtn && (
+            <Link
+              href={`${ressourceHref}?from=refusee`}
+              className="inline-flex items-center gap-2 px-3 rounded-gj-pill font-bold text-fs-300 no-underline"
+              style={{
+                background: 'var(--gj-teal-deep)',
+                color: 'var(--gj-surface)',
+                border: 'none',
+                minHeight: 44,
+              }}
+            >
+              <Icon name="calendar" size={16} />
+              <span>Proposer un autre créneau</span>
+            </Link>
+          )}
+          {showRebookBtn && (
+            <Link
+              href={`${ressourceHref}?from=passee`}
+              className="inline-flex items-center gap-2 px-3 rounded-gj-pill font-bold text-fs-300 no-underline"
+              style={{
+                background: 'var(--gj-teal-deep)',
+                color: 'var(--gj-surface)',
+                border: 'none',
+                minHeight: 44,
+              }}
+            >
+              <Icon name="arrow-right" size={16} />
+              <span>Réserver à nouveau</span>
             </Link>
           )}
         </div>
