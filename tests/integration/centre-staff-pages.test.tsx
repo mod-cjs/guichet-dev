@@ -13,6 +13,7 @@ jest.mock('@/lib/auth/staff-session', () => ({
 const mockRedirect = jest.fn((url: string) => { throw new Error(`REDIRECT:${url}`) })
 jest.mock('next/navigation', () => ({
   redirect: (url: string) => mockRedirect(url),
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
 }))
 
 const mockResas = jest.fn()

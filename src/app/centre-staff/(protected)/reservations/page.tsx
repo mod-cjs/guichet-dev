@@ -1,9 +1,13 @@
 /**
- * GUIC-387 — Liste réservations du jour du centre staff (lecture seule MVP).
+ * GUIC-387 — Liste réservations du jour du centre staff.
+ * GUIC-395 — Ajout bouton "Annuler" (Lot 7 W6 MVP).
  */
 
 import { getStaffSession } from '@/lib/auth/staff-session'
 import { prisma } from '@/lib/prisma'
+import ReservationsListClient, {
+  type StaffReservationRow,
+} from './reservations-list-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +47,16 @@ export default async function StaffReservationsPage({
     take:    100,
   })
 
+  const rows: StaffReservationRow[] = reservations.map((r) => ({
+    id:           r.id,
+    creneauDebut: r.creneauDebut,
+    creneauFin:   r.creneauFin,
+    statut:       String(r.statut),
+    motif:        r.motif,
+    utilisateur:  r.utilisateur,
+    ressource:    { nom: r.ressource.nom, type: String(r.ressource.type) },
+  }))
+
   const isoDay = start.toISOString().slice(0, 10)
 
   return (
@@ -67,32 +81,7 @@ export default async function StaffReservationsPage({
         </form>
       </header>
 
-      {reservations.length === 0 ? (
-        <p className="text-fs-300 text-color-text-secondary">Aucune réservation pour cette date.</p>
-      ) : (
-        <ul className="flex flex-col gap-space-2" data-testid="staff-reservations-list">
-          {reservations.map((r) => (
-            <li key={r.id} className="rounded-gj-lg bg-white p-space-3 shadow-gj-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-space-2">
-              <div className="min-w-0">
-                <p className="text-fs-300 font-bold text-color-text-primary truncate">
-                  {r.utilisateur.prenom} {r.utilisateur.nom}
-                </p>
-                <p className="text-fs-200 text-color-text-secondary truncate">
-                  {r.ressource.nom} · {r.ressource.type}
-                </p>
-              </div>
-              <div className="flex items-center gap-space-3">
-                <span className="text-fs-300 text-color-text-secondary tabular-nums">
-                  {r.creneauDebut}–{r.creneauFin}
-                </span>
-                <span className="text-fs-200 px-space-2 py-space-1 rounded-gj-sm bg-gj-teal-soft text-gj-teal-deep font-bold">
-                  {r.statut}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ReservationsListClient centreId={session.centreId} reservations={rows} />
     </section>
   )
 }
