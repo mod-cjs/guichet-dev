@@ -38,6 +38,8 @@ export interface ProfilComplet {
   profil: {
     id:                string
     photoUrl:          string | null
+    cvUrl:             string | null
+    cvUploadedAt:      string | Date | null
     biographie:        string | null
     niveauEtude:       string | null
     situationEmploi:   string | null
@@ -45,7 +47,6 @@ export interface ProfilComplet {
     competences:       string[]
     completionScore:   number
     profileVisibility: string
-    cvUrl:             string | null
   } | null
   experiences: ExperienceItem[]
   diplomes:    DiplomeItem[]

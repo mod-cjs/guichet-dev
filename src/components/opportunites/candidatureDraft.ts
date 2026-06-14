@@ -109,6 +109,71 @@ export function clearCandidatureDraft(cjsUid: string | null, opportuniteId: stri
 }
 
 /**
+ * GUIC-382 V2 — récupère le brouillon depuis le serveur. Fallback localStorage
+ * en cas d'échec réseau. Retourne le payload normalisé ou null.
+ */
+export async function fetchServerDraft(
+  opportuniteId: string,
+): Promise<{ lettre: string; consent: boolean; cvMode: 'profile' | 'upload'; cvUrl: string | null; updatedAt: number } | null> {
+  try {
+    const res = await fetch(`/api/candidatures/drafts/${encodeURIComponent(opportuniteId)}`, {
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as {
+      data?: {
+        lettre: string | null
+        consent: boolean
+        cvMode: string
+        cvUrl: string | null
+        updatedAt: string
+      } | null
+    }
+    const d = body.data
+    if (!d) return null
+    return {
+      lettre: d.lettre ?? '',
+      consent: d.consent,
+      cvMode: (d.cvMode === 'profile' ? 'profile' : 'upload') as 'profile' | 'upload',
+      cvUrl: d.cvUrl,
+      updatedAt: new Date(d.updatedAt).getTime(),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** GUIC-382 V2 — PUT serveur (auto-save). Best-effort, n'empêche pas la saisie. */
+export async function pushServerDraft(
+  opportuniteId: string,
+  payload: { lettre: string; consent: boolean; cvMode: 'profile' | 'upload'; cvUrl?: string | null },
+): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/candidatures/drafts/${encodeURIComponent(opportuniteId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** GUIC-382 V2 — DELETE serveur (purge à la soumission ou « Repartir de zéro »). */
+export async function deleteServerDraft(opportuniteId: string): Promise<void> {
+  try {
+    await fetch(`/api/candidatures/drafts/${encodeURIComponent(opportuniteId)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    })
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
  * Format relatif de la date de mise à jour (ex : « il y a 2 minutes »).
  * Volontairement simple — pas de dépendance i18n.
  */
