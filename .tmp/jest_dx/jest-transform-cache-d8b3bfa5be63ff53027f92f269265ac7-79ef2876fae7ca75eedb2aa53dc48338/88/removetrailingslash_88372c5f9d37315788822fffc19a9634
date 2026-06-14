@@ -1,0 +1,22 @@
+c3679b7890c2b35d29bc8f04615566b9
+/**
+ * Removes the trailing slash for a given route or page path. Preserves the
+ * root page. Examples:
+ *   - `/foo/bar/` -> `/foo/bar`
+ *   - `/foo/bar` -> `/foo/bar`
+ *   - `/` -> `/`
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "removeTrailingSlash", {
+    enumerable: true,
+    get: function() {
+        return removeTrailingSlash;
+    }
+});
+function removeTrailingSlash(route) {
+    return route.replace(/\/$/, '') || '/';
+} //# sourceMappingURL=remove-trailing-slash.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci91dGlscy9yZW1vdmUtdHJhaWxpbmctc2xhc2gudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBSZW1vdmVzIHRoZSB0cmFpbGluZyBzbGFzaCBmb3IgYSBnaXZlbiByb3V0ZSBvciBwYWdlIHBhdGguIFByZXNlcnZlcyB0aGVcbiAqIHJvb3QgcGFnZS4gRXhhbXBsZXM6XG4gKiAgIC0gYC9mb28vYmFyL2AgLT4gYC9mb28vYmFyYFxuICogICAtIGAvZm9vL2JhcmAgLT4gYC9mb28vYmFyYFxuICogICAtIGAvYCAtPiBgL2BcbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHJlbW92ZVRyYWlsaW5nU2xhc2gocm91dGU6IHN0cmluZykge1xuICByZXR1cm4gcm91dGUucmVwbGFjZSgvXFwvJC8sICcnKSB8fCAnLydcbn1cbiJdLCJuYW1lcyI6WyJyZW1vdmVUcmFpbGluZ1NsYXNoIiwicm91dGUiLCJyZXBsYWNlIl0sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7O0NBTUMsR0FBQTs7OzsrQkFDZUEsdUJBQUFBOzs7ZUFBQUE7OztBQUFULFNBQVNBLG9CQUFvQkMsS0FBYTtJQUMvQyxPQUFPQSxNQUFNQyxPQUFPLENBQUMsT0FBTyxPQUFPO0FBQ3JDIiwiaWdub3JlTGlzdCI6WzBdfQ==

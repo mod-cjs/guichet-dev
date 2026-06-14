@@ -261,6 +261,41 @@ export interface CentreDetailRessource {
 }
 
 /**
+ * Conseiller d'un centre — Wave 3 (GUIC-393).
+ *
+ * `AgentCentre` ne stocke que `cjsUid` + `role` ; le nom/email/téléphone
+ * proviennent de la table `Utilisateur` (join applicatif via `cjsUid`).
+ * Les colonnes `photoUrl` / `domainesExpertise` n'existent pas (encore) en
+ * base — défauts vides en sortie.
+ */
+export interface CentreDetailAgent {
+  id: string
+  cjsUid: string
+  prenom: string | null
+  nom: string | null
+  email: string | null
+  telephone: string | null
+  role: string
+  photoUrl: string | null
+  domainesExpertise: string[]
+}
+
+/**
+ * Événement à venir d'un centre — Wave 3 (GUIC-393).
+ *
+ * `Evenement` n'a pas de colonne `slug` : on fournit `id` comme identifiant
+ * pour le lien `/agenda/[id]` (à raccorder côté M5 quand le slug arrivera).
+ */
+export interface CentreDetailEvenement {
+  id: string
+  titre: string
+  type: string
+  dateDebut: string
+  dateFin: string | null
+  lieu: string
+}
+
+/**
  * Centre + horaires + ressources teaser (4 max) pour la page détail.
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 3.
@@ -289,6 +324,8 @@ export interface CentreDetail {
     fermeA: string | null
   }>
   ressources: CentreDetailRessource[]
+  agents: CentreDetailAgent[]
+  evenementsAVenir: CentreDetailEvenement[]
 }
 
 /**
@@ -343,10 +380,39 @@ export async function getCentreBySlug(
         take: 4,
         orderBy: { createdAt: 'asc' },
       },
+      // Wave 3 enrichissement (GUIC-393) — équipe de conseillers + 5 prochains
+      // événements à venir au centre.
+      agents: {
+        orderBy: { createdAt: 'asc' },
+      },
+      evenements: {
+        where: { dateDebut: { gte: now }, statut: 'a_venir' },
+        orderBy: { dateDebut: 'asc' },
+        take: 5,
+      },
     },
   })
 
   if (!row) return null
+
+  // Résout les noms / coordonnées des agents via la table Utilisateur
+  // (relation logique sur `cjs_uid`, pas de FK Prisma). Une seule requête
+  // batched — pas de N+1.
+  const agentCjsUids = row.agents.map((a) => a.cjsUid)
+  const agentUsers =
+    agentCjsUids.length > 0
+      ? await prisma.utilisateur.findMany({
+          where: { cjsUid: { in: agentCjsUids } },
+          select: {
+            cjsUid: true,
+            prenom: true,
+            nom: true,
+            email: true,
+            telephone: true,
+          },
+        })
+      : []
+  const agentUserByUid = new Map(agentUsers.map((u) => [u.cjsUid, u]))
 
   const rawHoraires = row.horaires
   // Normalise + remplit les jours manquants
@@ -385,6 +451,30 @@ export async function getCentreBySlug(
     estActive: r.estActive,
   }))
 
+  const agents: CentreDetailAgent[] = row.agents.map((a) => {
+    const u = agentUserByUid.get(a.cjsUid)
+    return {
+      id: a.id,
+      cjsUid: a.cjsUid,
+      prenom: u?.prenom ?? null,
+      nom: u?.nom ?? null,
+      email: u?.email ?? null,
+      telephone: u?.telephone ?? null,
+      role: String(a.role),
+      photoUrl: null,
+      domainesExpertise: [],
+    }
+  })
+
+  const evenementsAVenir: CentreDetailEvenement[] = row.evenements.map((e) => ({
+    id: e.id,
+    titre: e.titre,
+    type: String(e.type),
+    dateDebut: e.dateDebut.toISOString(),
+    dateFin: e.dateFin ? e.dateFin.toISOString() : null,
+    lieu: e.lieu,
+  }))
+
   const slugFinal =
     typeof row.slug === 'string' && row.slug.length > 0
       ? row.slug
@@ -417,6 +507,8 @@ export async function getCentreBySlug(
       fermeA: h.fermeA ?? null,
     })),
     ressources,
+    agents,
+    evenementsAVenir,
   }
 }
 
