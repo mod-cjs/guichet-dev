@@ -196,6 +196,7 @@ export function CentresAllClient({
             longitude: c.longitude,
           }))}
           activeId={userCentrePrincipalId ?? undefined}
+          pulseActiveMarker={Boolean(userCentrePrincipalId)}
           onPinClick={handlePinClick}
           height={230}
           centresForList={centres.map((c) => ({
