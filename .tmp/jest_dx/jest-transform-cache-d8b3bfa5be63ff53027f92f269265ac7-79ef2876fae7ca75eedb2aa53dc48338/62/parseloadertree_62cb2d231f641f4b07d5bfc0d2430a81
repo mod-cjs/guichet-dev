@@ -1,0 +1,31 @@
+9239d4a46824db7d5864f066ae6adabb
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "parseLoaderTree", {
+    enumerable: true,
+    get: function() {
+        return parseLoaderTree;
+    }
+});
+const _segment = require("../../segment");
+function parseLoaderTree(tree) {
+    const [segment, parallelRoutes, modules, staticSiblings] = tree;
+    const { layout, template } = modules;
+    let { page } = modules;
+    // a __DEFAULT__ segment means that this route didn't match any of the
+    // segments in the route, so we should use the default page
+    page = segment === _segment.DEFAULT_SEGMENT_KEY ? modules.defaultPage : page;
+    const conventionPath = layout?.[1] || template?.[1] || page?.[1];
+    return {
+        page,
+        segment,
+        modules,
+        /* it can be either layout / template / page */ conventionPath,
+        parallelRoutes,
+        staticSiblings
+    };
+} //# sourceMappingURL=parse-loader-tree.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci91dGlscy9wYXJzZS1sb2FkZXItdHJlZS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBERUZBVUxUX1NFR01FTlRfS0VZIH0gZnJvbSAnLi4vLi4vc2VnbWVudCdcbmltcG9ydCB0eXBlIHsgTG9hZGVyVHJlZSB9IGZyb20gJy4uLy4uLy4uLy4uL3NlcnZlci9saWIvYXBwLWRpci1tb2R1bGUnXG5cbmV4cG9ydCBmdW5jdGlvbiBwYXJzZUxvYWRlclRyZWUodHJlZTogTG9hZGVyVHJlZSkge1xuICBjb25zdCBbc2VnbWVudCwgcGFyYWxsZWxSb3V0ZXMsIG1vZHVsZXMsIHN0YXRpY1NpYmxpbmdzXSA9IHRyZWVcbiAgY29uc3QgeyBsYXlvdXQsIHRlbXBsYXRlIH0gPSBtb2R1bGVzXG4gIGxldCB7IHBhZ2UgfSA9IG1vZHVsZXNcbiAgLy8gYSBfX0RFRkFVTFRfXyBzZWdtZW50IG1lYW5zIHRoYXQgdGhpcyByb3V0ZSBkaWRuJ3QgbWF0Y2ggYW55IG9mIHRoZVxuICAvLyBzZWdtZW50cyBpbiB0aGUgcm91dGUsIHNvIHdlIHNob3VsZCB1c2UgdGhlIGRlZmF1bHQgcGFnZVxuICBwYWdlID0gc2VnbWVudCA9PT0gREVGQVVMVF9TRUdNRU5UX0tFWSA/IG1vZHVsZXMuZGVmYXVsdFBhZ2UgOiBwYWdlXG5cbiAgY29uc3QgY29udmVudGlvblBhdGggPSBsYXlvdXQ/LlsxXSB8fCB0ZW1wbGF0ZT8uWzFdIHx8IHBhZ2U/LlsxXVxuXG4gIHJldHVybiB7XG4gICAgcGFnZSxcbiAgICBzZWdtZW50LFxuICAgIG1vZHVsZXMsXG4gICAgLyogaXQgY2FuIGJlIGVpdGhlciBsYXlvdXQgLyB0ZW1wbGF0ZSAvIHBhZ2UgKi9cbiAgICBjb252ZW50aW9uUGF0aCxcbiAgICBwYXJhbGxlbFJvdXRlcyxcbiAgICBzdGF0aWNTaWJsaW5ncyxcbiAgfVxufVxuIl0sIm5hbWVzIjpbInBhcnNlTG9hZGVyVHJlZSIsInRyZWUiLCJzZWdtZW50IiwicGFyYWxsZWxSb3V0ZXMiLCJtb2R1bGVzIiwic3RhdGljU2libGluZ3MiLCJsYXlvdXQiLCJ0ZW1wbGF0ZSIsInBhZ2UiLCJERUZBVUxUX1NFR01FTlRfS0VZIiwiZGVmYXVsdFBhZ2UiLCJjb252ZW50aW9uUGF0aCJdLCJtYXBwaW5ncyI6Ijs7OzsrQkFHZ0JBLG1CQUFBQTs7O2VBQUFBOzs7eUJBSG9CO0FBRzdCLFNBQVNBLGdCQUFnQkMsSUFBZ0I7SUFDOUMsTUFBTSxDQUFDQyxTQUFTQyxnQkFBZ0JDLFNBQVNDLGVBQWUsR0FBR0o7SUFDM0QsTUFBTSxFQUFFSyxNQUFNLEVBQUVDLFFBQVEsRUFBRSxHQUFHSDtJQUM3QixJQUFJLEVBQUVJLElBQUksRUFBRSxHQUFHSjtJQUNmLHNFQUFzRTtJQUN0RSwyREFBMkQ7SUFDM0RJLE9BQU9OLFlBQVlPLFNBQUFBLG1CQUFtQixHQUFHTCxRQUFRTSxXQUFXLEdBQUdGO0lBRS9ELE1BQU1HLGlCQUFpQkwsUUFBUSxDQUFDLEVBQUUsSUFBSUMsVUFBVSxDQUFDLEVBQUUsSUFBSUMsTUFBTSxDQUFDLEVBQUU7SUFFaEUsT0FBTztRQUNMQTtRQUNBTjtRQUNBRTtRQUNBLDZDQUE2QyxHQUM3Q087UUFDQVI7UUFDQUU7SUFDRjtBQUNGIiwiaWdub3JlTGlzdCI6WzBdfQ==

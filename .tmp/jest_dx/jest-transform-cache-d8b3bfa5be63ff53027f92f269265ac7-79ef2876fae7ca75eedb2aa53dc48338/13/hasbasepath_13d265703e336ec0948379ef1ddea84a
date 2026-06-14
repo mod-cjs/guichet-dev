@@ -1,0 +1,25 @@
+47a9d116e1f9d6c2c17511f26e36550b
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "hasBasePath", {
+    enumerable: true,
+    get: function() {
+        return hasBasePath;
+    }
+});
+const _pathhasprefix = require("../shared/lib/router/utils/path-has-prefix");
+const basePath = process.env.__NEXT_ROUTER_BASEPATH || '';
+function hasBasePath(path) {
+    return (0, _pathhasprefix.pathHasPrefix)(path, basePath);
+}
+if ((typeof exports.default === 'function' || typeof exports.default === 'object' && exports.default !== null) && typeof exports.default.__esModule === 'undefined') {
+    Object.defineProperty(exports.default, '__esModule', {
+        value: true
+    });
+    Object.assign(exports.default, exports);
+    module.exports = exports.default;
+} //# sourceMappingURL=has-base-path.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9jbGllbnQvaGFzLWJhc2UtcGF0aC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwYXRoSGFzUHJlZml4IH0gZnJvbSAnLi4vc2hhcmVkL2xpYi9yb3V0ZXIvdXRpbHMvcGF0aC1oYXMtcHJlZml4J1xuXG5jb25zdCBiYXNlUGF0aCA9IChwcm9jZXNzLmVudi5fX05FWFRfUk9VVEVSX0JBU0VQQVRIIGFzIHN0cmluZykgfHwgJydcblxuZXhwb3J0IGZ1bmN0aW9uIGhhc0Jhc2VQYXRoKHBhdGg6IHN0cmluZyk6IGJvb2xlYW4ge1xuICByZXR1cm4gcGF0aEhhc1ByZWZpeChwYXRoLCBiYXNlUGF0aClcbn1cbiJdLCJuYW1lcyI6WyJoYXNCYXNlUGF0aCIsImJhc2VQYXRoIiwicHJvY2VzcyIsImVudiIsIl9fTkVYVF9ST1VURVJfQkFTRVBBVEgiLCJwYXRoIiwicGF0aEhhc1ByZWZpeCJdLCJtYXBwaW5ncyI6Ijs7OzsrQkFJZ0JBLGVBQUFBOzs7ZUFBQUE7OzsrQkFKYztBQUU5QixNQUFNQyxXQUFZQyxRQUFRQyxHQUFHLENBQUNDLHNCQUFzQixJQUFlO0FBRTVELFNBQVNKLFlBQVlLLElBQVk7SUFDdEMsT0FBT0MsQ0FBQUEsR0FBQUEsZUFBQUEsYUFBQUEsQUFBYSxFQUFDRCxNQUFNSjtBQUM3QiIsImlnbm9yZUxpc3QiOlswXX0=
