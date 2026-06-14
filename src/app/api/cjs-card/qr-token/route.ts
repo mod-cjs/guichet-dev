@@ -4,6 +4,7 @@ import { SignJWT } from 'jose'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { getCJSCardSecret } from '@/lib/auth/cjs-card-secret'
 import type { ApiResponse } from '@/types/api'
 
 /**
@@ -30,22 +31,6 @@ import type { ApiResponse } from '@/types/api'
 const ALG = 'HS256'
 const TTL_SECONDS = 60 * 15 // 15 min
 const REFRESH_BEFORE_EXP_SECONDS = 60 // 1 min avant exp
-
-let _devSecret: string | null = null
-
-function getSecret(): Uint8Array {
-  const env = process.env.JWT_CJS_CARD_SECRET
-  if (env && env.length >= 32) {
-    return new TextEncoder().encode(env)
-  }
-  if (!_devSecret) {
-    _devSecret = crypto.randomBytes(32).toString('hex')
-    logger.warn(
-      '[cjs-card/qr-token] JWT_CJS_CARD_SECRET manquant — fallback dev généré au boot (non persistant). Configure la variable Vercel pour la prod.',
-    )
-  }
-  return new TextEncoder().encode(_devSecret)
-}
 
 export async function GET(request: NextRequest) {
   const session = await getSession(request)
@@ -77,7 +62,7 @@ export async function GET(request: NextRequest) {
       .setSubject(session.cjsUid)
       .setIssuedAt(nowSec)
       .setExpirationTime(expSec)
-      .sign(getSecret())
+      .sign(getCJSCardSecret())
   } catch (err) {
     logger.error('[cjs-card/qr-token] signature JWT échouée', {
       error: err instanceof Error ? err.message : String(err),

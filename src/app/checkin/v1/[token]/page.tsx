@@ -1,19 +1,25 @@
 /**
- * GUIC-387 — Page scanner staff `/checkin/v1/[token]`.
+ * GUIC-387 / GUIC-389 — Page scanner staff `/checkin/v1/[token]`.
  *
- * Page publique (pas d'auth SSO jeune). Le staff scanne le QR de la
- * MyCJSCard → atterrit ici → confirme le check-in via formulaire MVP.
+ * GUIC-389 :
+ *  - Auth staff OBLIGATOIRE (cookie). Redirige `/centre-staff/login?next=...`
+ *    si pas de session. Évite la fuite via referer/history du QR scanné.
+ *  - On ne charge plus la liste des 200 centres : on restreint au
+ *    centre du staff (`staff.centreId`) — réduit l'impression d'avoir
+ *    accès au catalogue complet.
  *
  * Server : vérifie JWT (signature + exp), charge utilisateur + réservations
  * du jour, rend `<CheckInClient />`.
  */
 
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import {
   CJSCardTokenError,
   verifyCJSCardToken,
 } from '@/lib/auth/verifyCJSCardToken'
+import { getStaffSession } from '@/lib/auth/staff-session'
 import { Icon } from '@/components/ui/Icon'
 import { CheckInClient, type CheckInJeune, type CheckInReservation, type CheckInCentreOption } from './checkin-client'
 
@@ -45,6 +51,15 @@ export default async function CheckInPage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
+
+  // GUIC-389 : auth staff obligatoire. Le token est dans l'URL, donc même
+  // un leak via referer/capture d'écran ne doit pas exposer les données
+  // du jeune à un non-staff.
+  const staff = await getStaffSession()
+  if (!staff) {
+    const next = encodeURIComponent(`/checkin/v1/${token}`)
+    redirect(`/centre-staff/login?next=${next}`)
+  }
 
   let payload
   try {
@@ -81,20 +96,20 @@ export default async function CheckInPage({
   const endOfDay = new Date(startOfDay)
   endOfDay.setHours(23, 59, 59, 999)
 
-  const [utilisateur, centres, reservations] = await Promise.all([
+  // GUIC-389 : on charge UNIQUEMENT le centre du staff (pas les 200).
+  const [utilisateur, centre, reservations] = await Promise.all([
     prisma.utilisateur.findUnique({
       where:  { cjsUid: payload.sub },
       select: { cjsUid: true, nom: true, prenom: true },
     }),
-    prisma.centre.findMany({
-      where:   { estActif: true },
-      select:  { id: true, nom: true, ville: true },
-      orderBy: { nom: 'asc' },
-      take:    200,
+    prisma.centre.findUnique({
+      where:  { id: staff.centreId },
+      select: { id: true, nom: true, ville: true },
     }),
     prisma.reservation.findMany({
       where: {
         cjsUid:       payload.sub,
+        centreId:     staff.centreId,
         dateReservee: { gte: startOfDay, lte: endOfDay },
         statut:       { in: ['Acceptee', 'EnAttente'] },
       },
@@ -136,10 +151,11 @@ export default async function CheckInPage({
     ressourceType: r.ressource?.type ?? '',
   }))
 
-  const centresOptions: CheckInCentreOption[] = centres.map((c) => ({
-    id:    c.id,
-    label: c.ville ? `${c.nom} — ${c.ville}` : c.nom,
-  }))
+  // GUIC-389 : un seul centre (celui du staff) — restreint la sélection
+  // côté UI ; la route API valide aussi côté serveur.
+  const centresOptions: CheckInCentreOption[] = centre
+    ? [{ id: centre.id, label: centre.ville ? `${centre.nom} — ${centre.ville}` : centre.nom }]
+    : []
 
   return (
     <Suspense>

@@ -1,5 +1,11 @@
 /**
  * GET /api/admin/analytics/centres/export — Lot 7 Wave 6.3 / GUIC-388.
+ * Hardening GUIC-389 :
+ *  - Rate-limit Redis 5/min/cjsUid (export coûteux + sensible).
+ *  - Cap `take: 10000` sur le findMany (évite DoS mémoire).
+ *  - CSV-injection guard : préfixe `'` si la valeur commence par
+ *    `=` `+` `-` `@` (RFC + OWASP CSV injection).
+ *  - Échappe `"` `;` `\n` `\r` dans les cellules.
  *
  * Streame un CSV des réservations sur la fenêtre temporelle filtrée.
  * Auth admin requise (cookie session SSO + role `admin`).
@@ -10,14 +16,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { rateLimit } from '@/lib/rate-limit'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
 import { logger } from '@/lib/logger'
 
 const HEADER = 'Date;Centre;Ressource;Statut;Personnes'
+const ROW_CAP = 10000
 
-function csvEscape(v: string): string {
-  // Sépérateur `;` → on n'autorise pas le `;` ni le `"` ni les \n dans la valeur.
-  const cleaned = v.replace(/[;\r\n]/g, ' ').replace(/"/g, "'")
+/**
+ * Neutralise les formules CSV potentielles (= + - @) ET les séparateurs
+ * `;` / `"` / sauts de ligne. Préfixe `'` est la mitigation OWASP
+ * recommandée pour CSV injection.
+ */
+export function escapeCsvCell(value: string): string {
+  if (!value) return ''
+  const cleaned = value
+    .replace(/[;\r\n]/g, ' ')
+    .replace(/"/g, "'")
+  // CSV injection : Excel/LibreOffice évalueraient les cellules commençant
+  // par = + - @ comme des formules. On préfixe `'` pour neutraliser.
+  if (/^[=+\-@]/.test(cleaned)) {
+    return `'${cleaned}`
+  }
   return cleaned
 }
 
@@ -35,6 +55,15 @@ export async function GET(req: NextRequest) {
       { status: 403 },
     )
   }
+
+  // GUIC-389 : rate-limit 5/min/cjsUid — export coûteux et sensible.
+  const limited = await rateLimit(req, {
+    windowMs: 60_000,
+    max: 5,
+    keyPrefix: `admin-analytics-export:${session.cjsUid}`,
+    authenticated: true,
+  })
+  if (limited) return limited
 
   const sp = req.nextUrl.searchParams
   const now = new Date()
@@ -61,6 +90,7 @@ export async function GET(req: NextRequest) {
       ressource: { select: { nom: true } },
     },
     orderBy: { dateReservee: 'asc' },
+    take: ROW_CAP,
   })
 
   const lines = [HEADER]
@@ -68,10 +98,10 @@ export async function GET(req: NextRequest) {
     lines.push(
       [
         r.dateReservee.toISOString().slice(0, 10),
-        csvEscape(r.centre?.nom ?? ''),
-        csvEscape(r.ressource?.nom ?? ''),
-        String(r.statut),
-        String(r.nombrePersonnes),
+        escapeCsvCell(r.centre?.nom ?? ''),
+        escapeCsvCell(r.ressource?.nom ?? ''),
+        escapeCsvCell(String(r.statut)),
+        escapeCsvCell(String(r.nombrePersonnes)),
       ].join(';'),
     )
   }

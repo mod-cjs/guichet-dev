@@ -19,13 +19,25 @@ jest.mock('@/lib/auth/verifyCJSCardToken', () => {
   }
 })
 
+// GUIC-389 : staff session mockée (sinon import jose ESM casse Jest)
+jest.mock('@/lib/auth/staff-session', () => ({
+  getStaffSession: jest.fn().mockResolvedValue({
+    email: 'agent@cjs.sn',
+    centreId: 'c-1',
+  }),
+}))
+
+jest.mock('next/navigation', () => ({
+  redirect: jest.fn((url: string) => { throw new Error(`__REDIRECT__:${url}`) }),
+}))
+
 const mockUser = jest.fn()
-const mockCentres = jest.fn()
+const mockCentre = jest.fn()
 const mockResas = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: { findUnique: (...a: unknown[]) => mockUser(...a) },
-    centre:      { findMany: (...a: unknown[]) => mockCentres(...a) },
+    centre:      { findUnique: (...a: unknown[]) => mockCentre(...a) },
     reservation: { findMany: (...a: unknown[]) => mockResas(...a) },
   },
 }))
@@ -36,7 +48,7 @@ import { CJSCardTokenError } from '@/lib/auth/verifyCJSCardToken'
 
 beforeEach(() => {
   jest.clearAllMocks()
-  mockCentres.mockResolvedValue([{ id: 'c-1', nom: 'CJS Dakar', ville: 'Dakar' }])
+  mockCentre.mockResolvedValue({ id: 'c-1', nom: 'CJS Dakar', ville: 'Dakar' })
   mockResas.mockResolvedValue([])
   mockUser.mockResolvedValue({ cjsUid: 'user-12345678', nom: 'Diop', prenom: 'Awa' })
   global.fetch = jest.fn()
@@ -65,7 +77,8 @@ describe('Page /checkin/v1/[token]', () => {
     // cjsUid masqué : on ne doit pas voir l'identifiant en clair
     expect(screen.queryByText('user-12345678')).not.toBeInTheDocument()
     expect(screen.getByText(/xxxxx-/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Email conseiller/i)).toBeInTheDocument()
+    // GUIC-389 : plus de champ email — auth via cookie
+    expect(screen.queryByLabelText(/Email conseiller/i)).not.toBeInTheDocument()
   })
 
   it('soumet le check-in standalone et affiche "Présent confirmé"', async () => {
@@ -76,9 +89,6 @@ describe('Page /checkin/v1/[token]', () => {
     })
     const ui = await Page({ params: Promise.resolve({ token: 'ok' }) })
     render(ui as React.ReactElement)
-    fireEvent.change(screen.getByLabelText(/Email conseiller/i), {
-      target: { value: 'agent@cjs.sn' },
-    })
     fireEvent.click(screen.getByRole('button', { name: /Confirmer présence sans réservation/i }))
     await waitFor(() => {
       expect(screen.getByText(/Présent confirmé/i)).toBeInTheDocument()

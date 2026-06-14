@@ -1,12 +1,23 @@
 /**
- * GUIC-387 — Vérif du JWT QR de la MyCJSCard côté scanner staff.
+ * GUIC-387 / GUIC-389 — Vérif du JWT QR de la MyCJSCard côté scanner staff.
  * ADR-002 : HS256 rotatif 15 min, secret `JWT_CJS_CARD_SECRET`.
  *
- * Renvoie le payload décodé ou `null` (signature/exp invalide, malformé).
- * Distingue `expired` du reste via {@link CJSCardTokenError}.
+ * Renvoie le payload décodé ou `null` (signature/exp invalide, malformé,
+ * kid inattendu, scope inattendu). Distingue `expired` du reste via
+ * {@link CJSCardTokenError}.
+ *
+ * GUIC-389 :
+ *  - Secret obtenu via `getCJSCardSecret()` (source unique partagée avec
+ *    l'émetteur — fini la divergence prod/dev).
+ *  - Vérifie `kid === 'cjs-checkin-v1'` (sinon → null).
+ *  - Vérifie `scope === 'checkin'` (sinon → null).
  */
 
 import { jwtVerify, errors as joseErrors } from 'jose'
+import { getCJSCardSecret } from './cjs-card-secret'
+
+export const EXPECTED_KID = 'cjs-checkin-v1'
+export const EXPECTED_SCOPE = 'checkin'
 
 export interface CJSCardPayload {
   sub: string
@@ -24,12 +35,6 @@ export class CJSCardTokenError extends Error {
   }
 }
 
-function getSecret(): Uint8Array {
-  const s = process.env.JWT_CJS_CARD_SECRET
-  if (!s) throw new Error('JWT_CJS_CARD_SECRET manquant')
-  return new TextEncoder().encode(s)
-}
-
 /**
  * Vérifie le JWT QR. Retourne le payload si valide, sinon `null`.
  * Le caller peut catch {@link CJSCardTokenError} pour distinguer `expired`.
@@ -41,9 +46,17 @@ export async function verifyCJSCardToken(
     return null
   }
   try {
-    const { payload } = await jwtVerify(token, getSecret(), {
+    const { payload, protectedHeader } = await jwtVerify(token, getCJSCardSecret(), {
       algorithms: ['HS256'],
     })
+    // GUIC-389 : verrouille kid + scope pour empêcher la confusion entre
+    // différents tokens signés avec le même secret.
+    if (protectedHeader.kid !== EXPECTED_KID) {
+      return null
+    }
+    if (payload.scope !== EXPECTED_SCOPE) {
+      return null
+    }
     if (
       typeof payload.sub !== 'string' ||
       typeof payload.nonce !== 'string' ||
