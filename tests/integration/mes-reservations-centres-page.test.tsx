@@ -111,7 +111,8 @@ describe('/jeune/mes-reservations-centres — page', () => {
     ])
     const ui = await Page()
     render(ui as React.ReactElement)
-    // Compteur de "Passées" = 3
-    expect(screen.getByRole('tab', { name: /Passées.*3/ })).toBeInTheDocument()
+    // Compteur de "Passées" = 3 (Passee + NonHonoree + AnnuleeParJeune)
+    const passeeTab = screen.getByRole('tab', { name: /Passées/ })
+    expect(passeeTab).toHaveTextContent('(3)')
   })
 })
