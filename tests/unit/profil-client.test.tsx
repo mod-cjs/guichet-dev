@@ -28,6 +28,7 @@ const PROFIL: ProfilComplet = {
     completionScore:   42,
     profileVisibility: 'prive',
     cvUrl:             null,
+    cvUploadedAt:      null,
   },
   experiences: [],
   diplomes:    [],
