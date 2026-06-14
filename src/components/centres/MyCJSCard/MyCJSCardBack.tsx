@@ -85,7 +85,7 @@ export function MyCJSCardBack({
         className="text-fs-100"
         style={{ color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }}
       >
-        <div className="font-bold mb-1" style={{ color: '#fff' }}>
+        <div className="font-bold mb-1" style={{ color: 'var(--gj-surface)' }}>
           Conditions
         </div>
         <p style={{ margin: 0 }}>
@@ -100,7 +100,7 @@ export function MyCJSCardBack({
           data-testid="cjs-card-back-qr"
           className="flex justify-center"
           style={{
-            background: '#fff',
+            background: 'var(--gj-surface)',
             padding: 10,
             borderRadius: 10,
             margin: '4px auto 0',
@@ -127,7 +127,7 @@ export function MyCJSCardBack({
                 display: 'inline-block',
                 width: 3,
                 height: h,
-                background: i % 3 === 0 ? 'var(--gj-yellow)' : '#fff',
+                background: i % 3 === 0 ? 'var(--gj-yellow)' : 'var(--gj-surface)',
                 opacity: i % 5 === 0 ? 0.6 : 1,
               }}
             />

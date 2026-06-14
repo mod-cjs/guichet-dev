@@ -74,7 +74,7 @@ export function CentreRegionFilter({
               background: selected
                 ? 'var(--gj-teal-deep)'
                 : 'var(--gj-surface)',
-              color: selected ? '#fff' : 'var(--gj-ink)',
+              color: selected ? 'var(--gj-surface)' : 'var(--gj-ink)',
               border: `1px solid ${
                 selected ? 'var(--gj-teal-deep)' : 'var(--gj-line)'
               }`,

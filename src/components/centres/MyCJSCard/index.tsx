@@ -154,7 +154,7 @@ export function MyCJSCard({
         background: dark
           ? 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)'
           : 'var(--gj-surface)',
-        color: dark ? '#fff' : 'var(--gj-ink)',
+        color: dark ? 'var(--gj-surface)' : 'var(--gj-ink)',
         border: dark ? '0' : '1.5px solid var(--gj-line)',
       }}
     >
@@ -296,7 +296,7 @@ export function MyCJSCard({
           <div
             className="flex-shrink-0"
             style={{
-              background: '#fff',
+              background: 'var(--gj-surface)',
               padding: 8,
               borderRadius: 10,
               boxShadow: '0 4px 12px rgba(0,0,0,.18)',

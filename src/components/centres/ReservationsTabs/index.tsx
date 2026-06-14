@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef, type KeyboardEvent } from 'react'
 
 export interface ReservationTab {
   key: string
@@ -24,6 +24,10 @@ export interface ReservationsTabsProps {
  * Vrai `role="tablist"` ARIA, `flex-wrap` (jamais `overflow-x-auto`),
  * compteur (N) intégré au label, tap-min 44px. Tokens `gj-*`.
  *
+ * GUIC-391 (Lot 7) : navigation clavier APG WAI tablist —
+ *   ArrowRight/Down → tab suivant (loop), ArrowLeft/Up → précédent (loop),
+ *   Home → premier, End → dernier. Roving tabindex (actif = 0, autres = -1).
+ *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 5.
  */
 export function ReservationsTabs({
@@ -33,11 +37,52 @@ export function ReservationsTabs({
   ariaLabel = 'Filtres réservations',
   className = '',
 }: ReservationsTabsProps) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+
   const handleClick = useCallback(
     (key: string) => () => {
       if (key !== value) onChange(key)
     },
     [onChange, value],
+  )
+
+  const focusAndSelect = useCallback(
+    (index: number) => {
+      const tab = tabs[index]
+      if (!tab) return
+      tabRefs.current[index]?.focus()
+      if (tab.key !== value) onChange(tab.key)
+    },
+    [onChange, tabs, value],
+  )
+
+  const handleKeyDown = useCallback(
+    (index: number) => (e: KeyboardEvent<HTMLButtonElement>) => {
+      const last = tabs.length - 1
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault()
+          focusAndSelect(index === last ? 0 : index + 1)
+          break
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault()
+          focusAndSelect(index === 0 ? last : index - 1)
+          break
+        case 'Home':
+          e.preventDefault()
+          focusAndSelect(0)
+          break
+        case 'End':
+          e.preventDefault()
+          focusAndSelect(last)
+          break
+        default:
+          break
+      }
+    },
+    [focusAndSelect, tabs.length],
   )
 
   return (
@@ -46,11 +91,14 @@ export function ReservationsTabs({
       aria-label={ariaLabel}
       className={`flex flex-wrap gap-space-2 ${className}`.trim()}
     >
-      {tabs.map((t) => {
+      {tabs.map((t, i) => {
         const selected = t.key === value
         return (
           <button
             key={t.key}
+            ref={(el) => {
+              tabRefs.current[i] = el
+            }}
             type="button"
             role="tab"
             aria-selected={selected}
@@ -58,6 +106,7 @@ export function ReservationsTabs({
             id={`reservations-tab-${t.key}`}
             tabIndex={selected ? 0 : -1}
             onClick={handleClick(t.key)}
+            onKeyDown={handleKeyDown(i)}
             className={[
               'inline-flex items-center gap-2 px-3 text-fs-300 font-semibold leading-none',
               'rounded-gj-pill border-[1.5px] transition-colors duration-200',
