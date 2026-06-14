@@ -4,9 +4,11 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { CJSCardFlip } from '@/components/centres/CJSCardFlip'
 import { MesUsagesGrid } from '@/components/centres/MesUsagesGrid'
+import { MaCarteBeneficesSection } from '@/components/centres/MaCarteBeneficesSection'
 import { Icon } from '@/components/ui/Icon'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { RessourceShareButton } from '@/components/ressources/RessourceShareButton'
 import type { UsageCarteCJS } from '@/lib/loaders/centres'
 import type { MyCJSCardUser } from '@/components/centres/MyCJSCard'
 
@@ -197,7 +199,8 @@ export function MaCarteClient({ user, cjsUid, usages }: Props) {
           Ma carte CJS
         </h1>
         <p className="m-0 text-fs-200 text-color-text-muted">
-          Présente ton QR à l’accueil d’un centre CJS pour valider ta présence.
+          Ton sésame pour accéder aux centres, pointer aux ateliers et retirer
+          tes ressources.
         </p>
 
         {/* Shadow d'élévation conservée en inline — pas de token shadow XL équivalent. */}
@@ -255,18 +258,40 @@ export function MaCarteClient({ user, cjsUid, usages }: Props) {
           </div>
         </Card>
 
-        {/* Section 3 — CTAs (placés sous la carte pour mobile-first) */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <CtaLink href="/jeune/mes-reservations-centres" variant="primary" icon="bookmark">
-            Mes réservations
-          </CtaLink>
-          <CtaLink href="/centres" variant="yellow" icon="plus">
-            Réserver une ressource
-          </CtaLink>
+        {/* Section 3 — CTAs principaux (design source `centres-web.jsx:438-441`) :
+            "Ajouter au portefeuille" (Wallet — Sprint+1, désactivé MVP) +
+            "Partager" (Web Share API + fallback clipboard). */}
+        <div className="flex flex-col sm:flex-row gap-2" data-testid="ma-carte-primary-ctas">
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            disabled
+            title="Bientôt disponible — ajout à Apple Wallet / Google Wallet en préparation."
+            aria-label="Ajouter au portefeuille (bientôt disponible)"
+            data-testid="ma-carte-wallet-btn"
+            className="flex-1 min-h-[var(--tap-min,44px)]"
+          >
+            <Icon name="download" size={16} />
+            Ajouter au portefeuille
+          </Button>
+          <RessourceShareButton
+            title="Ma carte CJS"
+            text="Découvre ma carte CJS — accès aux centres, ateliers et ressources."
+            url="/jeune/ma-carte"
+            variant="secondary"
+            label="Partager"
+            testId="ma-carte-share-btn"
+          />
         </div>
       </section>
 
-      {/* Section 2 — Usages récents */}
+      {/* Section 2 — Bénéfices (pédagogie d'abord) */}
+      <section className="flex flex-col gap-3">
+        <MaCarteBeneficesSection />
+      </section>
+
+      {/* Section 3 — Usages récents (personnalisation, vécu) */}
       <section aria-labelledby="usages-title" className="flex flex-col gap-3">
         <h2
           id="usages-title"
@@ -275,6 +300,30 @@ export function MaCarteClient({ user, cjsUid, usages }: Props) {
           Tes derniers usages
         </h2>
         <MesUsagesGrid usages={usages} />
+      </section>
+
+      {/* Section 4 — Actions secondaires (conservées pour le funnel
+          réservation : pertinentes mais retirées des CTAs principaux qui
+          suivent le design source). */}
+      <section
+        aria-labelledby="ma-carte-actions-secondaires-title"
+        className="flex flex-col gap-2"
+        data-testid="ma-carte-secondary-ctas"
+      >
+        <h2
+          id="ma-carte-actions-secondaires-title"
+          className="text-fs-300 font-black m-0 text-color-text-primary"
+        >
+          Aller plus loin
+        </h2>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <CtaLink href="/jeune/mes-reservations-centres" variant="primary" icon="bookmark">
+            Mes réservations
+          </CtaLink>
+          <CtaLink href="/centres" variant="yellow" icon="plus">
+            Réserver une ressource
+          </CtaLink>
+        </div>
       </section>
     </div>
   )
