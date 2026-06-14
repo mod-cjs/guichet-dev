@@ -71,6 +71,13 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
+      // GUIC-386 — Wave 6.1 : accès "Ma carte CJS".
+      {
+        id: 'ma-carte',
+        href: '/jeune/ma-carte',
+        icon: 'profile',
+        label: 'Ma carte CJS',
+      },
       // GUIC-384 — Wave 5 : accès "Mes réservations centres".
       {
         id: 'mes-reservations-centres',
