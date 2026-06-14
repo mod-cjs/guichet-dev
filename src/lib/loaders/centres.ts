@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -177,9 +178,9 @@ export async function getCentresWithStatusAndHoraires(
   filters?: ListCentresFilters,
   now: Date = new Date(),
 ): Promise<CentreWithStatus[]> {
-  const where: Record<string, unknown> = { estActif: true }
+  const where: Prisma.CentreWhereInput = { estActif: true }
   if (filters?.region && filters.region !== 'all') {
-    where.region = filters.region
+    where.region = filters.region as Prisma.CentreWhereInput['region']
   }
   if (filters?.search) {
     where.OR = [
@@ -188,30 +189,22 @@ export async function getCentresWithStatusAndHoraires(
     ]
   }
 
-  // Sélection souple — selon état du schema (W0 mergé ou pas), on essaye d'inclure
-  // les nouvelles relations/colonnes. La typage `any` est volontairement local au
-  // findMany pour ne pas bloquer le build tant que W0 n'est pas appliqué.
-  const findArgs: any = {
+  const rows = await prisma.centre.findMany({
     where,
     orderBy: [{ region: 'asc' }, { nom: 'asc' }],
     take: filters?.limit,
     skip: filters?.offset,
-  }
-
-  const rows = (await prisma.centre.findMany(findArgs)) as Array<
-    Record<string, unknown>
-  >
+    include: { horaires: true },
+  })
 
   return rows.map((r) => {
-    const horaires = ((r.horaires as CentreHoraire[] | undefined) ?? []).map(
-      (h) => ({
-        jour: h.jour,
-        ouvert: h.ouvert,
-        ouvreA: h.ouvreA ?? null,
-        fermeA: h.fermeA ?? null,
-      }),
-    )
-    // Fallback : si pas d'horaires (W0 pas mergé), suppose lun-ven 08:00–17:00
+    const horaires = r.horaires.map((h) => ({
+      jour: h.jour,
+      ouvert: h.ouvert,
+      ouvreA: h.ouvreA ?? null,
+      fermeA: h.fermeA ?? null,
+    }))
+    // Fallback : si pas d'horaires en base, suppose lun-ven 08:00–17:00
     const hList: CentreHoraire[] =
       horaires.length > 0
         ? horaires
@@ -223,21 +216,21 @@ export async function getCentresWithStatusAndHoraires(
       : DEFAULT_SERVICES
     const slug =
       typeof r.slug === 'string' && r.slug.length > 0
-        ? (r.slug as string)
-        : slugifyCentre(String(r.nom))
+        ? r.slug
+        : slugifyCentre(r.nom)
 
     return {
-      id: String(r.id),
+      id: r.id,
       slug,
-      nom: String(r.nom),
+      nom: r.nom,
       region: String(r.region),
       ville: String(r.region).replace(/_/g, '-'),
-      adresse: String(r.adresse),
-      latitude: Number(r.latitude),
-      longitude: Number(r.longitude),
+      adresse: r.adresse,
+      latitude: r.latitude,
+      longitude: r.longitude,
       services,
-      conseillersCount: Number(r.conseillersCount ?? 0),
-      estActif: Boolean(r.estActif),
+      conseillersCount: r.conseillersCount,
+      estActif: r.estActif,
       horaires: hList,
       isOpen: computeIsOpen(hList, now),
     }
@@ -341,9 +334,7 @@ export async function getCentreBySlug(
   slug: string,
   now: Date = new Date(),
 ): Promise<CentreDetail | null> {
-  // Sélection souple : W0 ajoute slug + description + imageUrl + services +
-  // conseillersCount + horaires + ressources. Si W0 pas mergé, fallback.
-  const findArgs: any = {
+  const row = await prisma.centre.findFirst({
     where: { slug, estActif: true },
     include: {
       horaires: true,
@@ -353,25 +344,11 @@ export async function getCentreBySlug(
         orderBy: { createdAt: 'asc' },
       },
     },
-  }
-
-  let row: Record<string, unknown> | null
-  try {
-    row = (await prisma.centre.findFirst(findArgs)) as Record<
-      string,
-      unknown
-    > | null
-  } catch {
-    // Fallback si include échoue (schéma pré-W0)
-    row = (await prisma.centre.findFirst({
-      where: { estActif: true },
-    } as any)) as Record<string, unknown> | null
-    if (row && slugifyCentre(String(row.nom)) !== slug) row = null
-  }
+  })
 
   if (!row) return null
 
-  const rawHoraires = (row.horaires as CentreHoraire[] | undefined) ?? []
+  const rawHoraires = row.horaires
   // Normalise + remplit les jours manquants
   const horairesByJour = new Map<string, CentreHoraire>()
   for (const h of rawHoraires) horairesByJour.set(String(h.jour), h)
@@ -385,7 +362,7 @@ export async function getCentreBySlug(
     }
   })
 
-  // Fallback : si W0 pas appliqué et 0 horaire en base, on simule Lun-Ven
+  // Fallback : si 0 horaire en base, on simule Lun-Ven
   const hasAnyHoraire = rawHoraires.length > 0
   const effectiveHoraires: CentreHoraire[] = hasAnyHoraire
     ? horaires
@@ -399,40 +376,38 @@ export async function getCentreBySlug(
     ? (row.services as string[])
     : []
 
-  const ressources = ((row.ressources as Array<Record<string, unknown>>) ?? []).map(
-    (r) => ({
-      id: String(r.id),
-      type: String(r.type),
-      nom: String(r.nom),
-      capacite: Number(r.capacite ?? 1),
-      capaciteUnit: (r.capaciteUnit as string | null) ?? null,
-      estActive: Boolean(r.estActive ?? true),
-    }),
-  )
+  const ressources = row.ressources.map((r) => ({
+    id: r.id,
+    type: String(r.type),
+    nom: r.nom,
+    capacite: r.capacite,
+    capaciteUnit: r.capaciteUnit ?? null,
+    estActive: r.estActive,
+  }))
 
   const slugFinal =
     typeof row.slug === 'string' && row.slug.length > 0
-      ? (row.slug as string)
-      : slugifyCentre(String(row.nom))
+      ? row.slug
+      : slugifyCentre(row.nom)
 
   return {
-    id: String(row.id),
+    id: row.id,
     slug: slugFinal,
-    nom: String(row.nom),
+    nom: row.nom,
     region: String(row.region),
     ville:
-      typeof row.ville === 'string'
-        ? (row.ville as string)
+      typeof row.ville === 'string' && row.ville.length > 0
+        ? row.ville
         : String(row.region).replace(/_/g, '-'),
-    adresse: String(row.adresse),
-    telephone: String(row.telephone ?? ''),
-    email: (row.email as string | null) ?? null,
-    description: (row.description as string | null) ?? null,
-    imageUrl: (row.imageUrl as string | null) ?? null,
-    latitude: Number(row.latitude),
-    longitude: Number(row.longitude),
+    adresse: row.adresse,
+    telephone: row.telephone,
+    email: row.email ?? null,
+    description: row.description ?? null,
+    imageUrl: row.imageUrl ?? null,
+    latitude: row.latitude,
+    longitude: row.longitude,
     services,
-    conseillersCount: Number(row.conseillersCount ?? 0),
+    conseillersCount: row.conseillersCount,
     isOpen: computeIsOpen(effectiveHoraires, now),
     openingHoursText: computeOpeningHoursText(effectiveHoraires, now),
     horaires: effectiveHoraires.map((h) => ({
@@ -473,23 +448,23 @@ export interface RessourceDetail {
 export async function getRessourcesByCentre(
   centreId: string,
 ): Promise<RessourceDetail[]> {
-  const rows = (await prisma.ressourceCentre.findMany({
+  const rows = await prisma.ressourceCentre.findMany({
     where: { centreId, estActive: true },
     orderBy: [{ type: 'asc' }, { nom: 'asc' }],
-  } as any)) as Array<Record<string, unknown>>
+  })
 
   return rows.map((r) => ({
-    id: String(r.id),
-    centreId: String(r.centreId),
+    id: r.id,
+    centreId: r.centreId,
     type: String(r.type),
-    nom: String(r.nom),
-    description: (r.description as string | null) ?? null,
-    imageUrl: (r.imageUrl as string | null) ?? null,
-    capacite: Number(r.capacite ?? 1),
-    capaciteUnit: (r.capaciteUnit as string | null) ?? null,
-    dureeMinCreneauMin: Number(r.dureeMinCreneauMin ?? 60),
-    requiresJustif: Boolean(r.requiresJustif ?? false),
-    estActive: Boolean(r.estActive ?? true),
+    nom: r.nom,
+    description: r.description ?? null,
+    imageUrl: r.imageUrl ?? null,
+    capacite: r.capacite,
+    capaciteUnit: r.capaciteUnit ?? null,
+    dureeMinCreneauMin: r.dureeMinCreneauMin,
+    requiresJustif: r.requiresJustif,
+    estActive: r.estActive,
   }))
 }
 
@@ -500,23 +475,20 @@ export async function getRessourcesByCentre(
 export async function getRessourceById(
   id: string,
 ): Promise<RessourceDetail | null> {
-  const r = (await prisma.ressourceCentre.findUnique({ where: { id } } as any)) as Record<
-    string,
-    unknown
-  > | null
+  const r = await prisma.ressourceCentre.findUnique({ where: { id } })
   if (!r) return null
   return {
-    id: String(r.id),
-    centreId: String(r.centreId),
+    id: r.id,
+    centreId: r.centreId,
     type: String(r.type),
-    nom: String(r.nom),
-    description: (r.description as string | null) ?? null,
-    imageUrl: (r.imageUrl as string | null) ?? null,
-    capacite: Number(r.capacite ?? 1),
-    capaciteUnit: (r.capaciteUnit as string | null) ?? null,
-    dureeMinCreneauMin: Number(r.dureeMinCreneauMin ?? 60),
-    requiresJustif: Boolean(r.requiresJustif ?? false),
-    estActive: Boolean(r.estActive ?? true),
+    nom: r.nom,
+    description: r.description ?? null,
+    imageUrl: r.imageUrl ?? null,
+    capacite: r.capacite,
+    capaciteUnit: r.capaciteUnit ?? null,
+    dureeMinCreneauMin: r.dureeMinCreneauMin,
+    requiresJustif: r.requiresJustif,
+    estActive: r.estActive,
   }
 }
 
@@ -557,50 +529,40 @@ export interface MesReservationCentre {
 export async function getMesReservationsCentres(
   cjsUid: string,
 ): Promise<MesReservationCentre[]> {
-  const rows = (await prisma.reservation.findMany({
+  const rows = await prisma.reservation.findMany({
     where: { cjsUid },
     orderBy: [{ dateReservee: 'desc' }, { createdAt: 'desc' }],
     include: {
       ressource: { select: { id: true, nom: true, type: true } },
       centre: { select: { id: true, slug: true, nom: true, region: true } },
     },
-  } as any)) as Array<Record<string, unknown>>
+  })
 
   return rows.map((r) => {
-    const ressource = (r.ressource ?? {}) as Record<string, unknown>
-    const centre = (r.centre ?? {}) as Record<string, unknown>
-    const dateRes = r.dateReservee instanceof Date
-      ? r.dateReservee
-      : new Date(String(r.dateReservee))
-    const decisionA = r.decisionA instanceof Date
-      ? r.decisionA.toISOString()
-      : r.decisionA
-        ? new Date(String(r.decisionA)).toISOString()
-        : null
     return {
-      id: String(r.id),
+      id: r.id,
       ressource: {
-        id: String(ressource.id ?? r.ressourceId),
-        nom: String(ressource.nom ?? ''),
-        type: String(ressource.type ?? ''),
+        id: r.ressource.id,
+        nom: r.ressource.nom,
+        type: String(r.ressource.type),
       },
       centre: {
-        id: String(centre.id ?? r.centreId),
+        id: r.centre.id,
         slug:
-          centre.slug && String(centre.slug).length > 0
-            ? String(centre.slug)
-            : slugifyCentre(String(centre.nom ?? '')),
-        nom: String(centre.nom ?? ''),
-        region: String(centre.region ?? ''),
+          r.centre.slug && r.centre.slug.length > 0
+            ? r.centre.slug
+            : slugifyCentre(r.centre.nom),
+        nom: r.centre.nom,
+        region: String(r.centre.region),
       },
-      dateReservee: dateRes.toISOString(),
-      creneauDebut: String(r.creneauDebut),
-      creneauFin: String(r.creneauFin),
-      nombrePersonnes: Number(r.nombrePersonnes ?? 1),
-      motif: String(r.motif ?? ''),
+      dateReservee: r.dateReservee.toISOString(),
+      creneauDebut: r.creneauDebut,
+      creneauFin: r.creneauFin,
+      nombrePersonnes: r.nombrePersonnes,
+      motif: r.motif,
       statut: String(r.statut),
-      decisionA,
-      fichierJustifUrl: (r.justifFileUrl as string | null) ?? null,
+      decisionA: r.decisionA ? r.decisionA.toISOString() : null,
+      fichierJustifUrl: r.justifFileUrl ?? null,
     }
   })
 }
@@ -636,77 +598,49 @@ export async function getMesUsages(
   cjsUid: string,
   limit = 10,
 ): Promise<UsageCarteCJS[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const prismaAny = prisma as any
-
   const [reservations, checkIns] = await Promise.all([
-    prismaAny.reservation
-      .findMany({
-        where: { cjsUid, statut: { in: ['Acceptee', 'Passee'] } },
-        orderBy: { dateReservee: 'desc' },
-        take: limit,
-        include: {
-          ressource: { select: { nom: true } },
-          centre: { select: { nom: true, slug: true } },
-        },
-      })
-      .catch(() => [] as Array<Record<string, unknown>>),
-    prismaAny.checkIn
-      ? prismaAny.checkIn
-          .findMany({
-            where: { cjsUid },
-            orderBy: { effectueA: 'desc' },
-            take: limit,
-            include: { centre: { select: { nom: true, slug: true } } },
-          })
-          .catch(() => [] as Array<Record<string, unknown>>)
-      : Promise.resolve([] as Array<Record<string, unknown>>),
+    prisma.reservation.findMany({
+      where: { cjsUid, statut: { in: ['Acceptee', 'Passee'] } },
+      orderBy: { dateReservee: 'desc' },
+      take: limit,
+      include: {
+        ressource: { select: { nom: true } },
+        centre: { select: { nom: true, slug: true } },
+      },
+    }),
+    prisma.checkIn.findMany({
+      where: { cjsUid },
+      orderBy: { effectueA: 'desc' },
+      take: limit,
+      include: { centre: { select: { nom: true, slug: true } } },
+    }),
   ])
 
-  const resUsages: UsageCarteCJS[] = (reservations as Array<Record<string, unknown>>).map(
-    (r) => {
-      const ressource = (r.ressource ?? {}) as Record<string, unknown>
-      const centre = (r.centre ?? {}) as Record<string, unknown>
-      const dateRes =
-        r.dateReservee instanceof Date
-          ? r.dateReservee
-          : new Date(String(r.dateReservee))
-      return {
-        type: 'reservation' as const,
-        id: String(r.id),
-        centreNom: String(centre.nom ?? ''),
-        centreSlug:
-          centre.slug && String(centre.slug).length > 0
-            ? String(centre.slug)
-            : slugifyCentre(String(centre.nom ?? '')),
-        ressourceNom: ressource.nom ? String(ressource.nom) : null,
-        date: dateRes.toISOString(),
-        statut: String(r.statut),
-      }
-    },
-  )
+  const resUsages: UsageCarteCJS[] = reservations.map((r) => ({
+    type: 'reservation' as const,
+    id: r.id,
+    centreNom: r.centre.nom,
+    centreSlug:
+      r.centre.slug && r.centre.slug.length > 0
+        ? r.centre.slug
+        : slugifyCentre(r.centre.nom),
+    ressourceNom: r.ressource.nom ?? null,
+    date: r.dateReservee.toISOString(),
+    statut: String(r.statut),
+  }))
 
-  const ciUsages: UsageCarteCJS[] = (checkIns as Array<Record<string, unknown>>).map(
-    (c) => {
-      const centre = (c.centre ?? {}) as Record<string, unknown>
-      const dateRes =
-        c.effectueA instanceof Date
-          ? c.effectueA
-          : new Date(String(c.effectueA))
-      return {
-        type: 'checkin' as const,
-        id: String(c.id),
-        centreNom: String(centre.nom ?? ''),
-        centreSlug:
-          centre.slug && String(centre.slug).length > 0
-            ? String(centre.slug)
-            : slugifyCentre(String(centre.nom ?? '')),
-        ressourceNom: null,
-        date: dateRes.toISOString(),
-        statut: String(c.via ?? 'CheckIn'),
-      }
-    },
-  )
+  const ciUsages: UsageCarteCJS[] = checkIns.map((c) => ({
+    type: 'checkin' as const,
+    id: c.id,
+    centreNom: c.centre.nom,
+    centreSlug:
+      c.centre.slug && c.centre.slug.length > 0
+        ? c.centre.slug
+        : slugifyCentre(c.centre.nom),
+    ressourceNom: null,
+    date: c.effectueA.toISOString(),
+    statut: String(c.via),
+  }))
 
   return [...resUsages, ...ciUsages]
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
@@ -715,8 +649,10 @@ export async function getMesUsages(
 
 /** Compte total (paginated API). */
 export async function countCentres(filters?: ListCentresFilters): Promise<number> {
-  const where: Record<string, unknown> = { estActif: true }
-  if (filters?.region && filters.region !== 'all') where.region = filters.region
+  const where: Prisma.CentreWhereInput = { estActif: true }
+  if (filters?.region && filters.region !== 'all') {
+    where.region = filters.region as Prisma.CentreWhereInput['region']
+  }
   if (filters?.search) {
     where.OR = [
       { nom: { contains: filters.search } },
