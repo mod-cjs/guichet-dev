@@ -78,14 +78,14 @@ export function QRBadge({
           alt="QR code de check-in carte CJS — code temporaire"
           width={size}
           height={size}
-          style={{ display: 'block', background: '#fff', borderRadius: 8 }}
+          style={{ display: 'block', background: 'var(--gj-surface)', borderRadius: 8 }}
         />
       ) : (
         <div
           aria-hidden="true"
           data-testid="qr-badge-skeleton"
           className="animate-pulse rounded-gj-sm"
-          style={{ width: size, height: size, background: '#E5F0EC' }}
+          style={{ width: size, height: size, background: 'var(--gj-teal-soft)' }}
         />
       )}
 
@@ -112,7 +112,7 @@ export function QRBadge({
           className="px-3 py-1 rounded-gj-pill text-fs-200 font-bold"
           style={{
             background: 'var(--gj-teal-deep)',
-            color: '#fff',
+            color: 'var(--gj-surface)',
             border: 'none',
             cursor: 'pointer',
           }}

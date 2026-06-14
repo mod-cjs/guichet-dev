@@ -42,6 +42,10 @@ export interface CentresMapGoogleProps {
 
 const DEFAULT_CENTER = { lat: 14.7, lng: -14.5 } // Centre approximatif du Sénégal
 
+// GUIC-391 : Google Maps JS API n'accepte que des hex litéraux (pas de CSS vars).
+// Source de vérité = `--gj-red` dans `src/styles/tokens.css`. Synchroniser si le token change.
+const GJ_RED_HEX = '#D92A1E'
+
 /**
  * <CentresMapGoogle> — wrapper Google Maps JS API pour les vues `all` et
  * landing mobile. ADR-004.
@@ -130,7 +134,8 @@ export function CentresMapGoogle({
             position: { lat: c.latitude, lng: c.longitude },
             map,
             title: c.nom,
-            label: activeId === c.id ? { text: '★', color: '#fff' } : undefined,
+            // Google Maps label color = hex litéral (var() non supporté par la lib JS).
+            label: activeId === c.id ? { text: '★', color: '#FFFFFF' } : undefined,
           })
           if (onPinClick) {
             marker.addListener('click', () => onPinClick(c.id))
@@ -146,10 +151,10 @@ export function CentresMapGoogle({
             map,
             center: { lat: activeCentre.latitude, lng: activeCentre.longitude },
             radius: 80,
-            strokeColor: '#D7263D',
+            strokeColor: GJ_RED_HEX,
             strokeOpacity: 0.55,
             strokeWeight: 2,
-            fillColor: '#D7263D',
+            fillColor: GJ_RED_HEX,
             fillOpacity: 0.2,
           })
           let scale = 0

@@ -45,8 +45,10 @@ export function CentresMap({ centres, highlightId, onRecenter, variant = 'mobile
       style={{
         height,
         border: '1.5px solid var(--gj-line)',
+        // Gradient décoratif "fond carte" — dégradé teal-soft → line.
+        // GUIC-391 : hex remplacés par tokens (var() supporté en CSS gradient).
         background:
-          'linear-gradient(135deg, #E5F0EC 0%, #D6E5E0 50%, #C5DDD8 100%)',
+          'linear-gradient(135deg, var(--gj-teal-soft) 0%, var(--gj-line) 100%)',
       }}
     >
       {/* Grid */}
@@ -128,7 +130,8 @@ export function CentresMap({ centres, highlightId, onRecenter, variant = 'mobile
                 d="M12 0C5.4 0 0 5 0 11c0 8 12 19 12 19s12-11 12-19c0-6-5.4-11-12-11z"
                 fill={isHighlight ? 'var(--gj-red)' : 'var(--gj-teal-deep)'}
               />
-              <circle cx="12" cy="11" r={isHighlight ? 5 : 4} fill="#fff" />
+              {/* GUIC-391 : fill SVG ne supporte pas var() — hex blanc litéral (= --gj-surface #FFFFFF). */}
+              <circle cx="12" cy="11" r={isHighlight ? 5 : 4} fill="#FFFFFF" />
               {isHighlight && <circle cx="12" cy="11" r="2.4" fill="var(--gj-red)" />}
             </svg>
           </div>
