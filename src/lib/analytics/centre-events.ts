@@ -41,6 +41,7 @@ export const CENTRE_EVENT_TYPES = [
   'centre_reservation_cancelled',
   'centre_reservation_accepted',
   'centre_reservation_refused',
+  'centre_my_reservations_viewed',
 
   // KPI principal — fréquentation physique
   'centre_checkin',
