@@ -10,6 +10,10 @@ jest.mock('@/lib/auth', () => ({
   getSession: (...a: unknown[]) => mockGetSession(...a),
 }))
 
+jest.mock('@/lib/rate-limit', () => ({
+  rateLimit: jest.fn().mockResolvedValue(null),
+}))
+
 jest.mock('@/lib/analytics/centre-events', () => ({
   trackCentreEvent: jest.fn().mockResolvedValue(undefined),
 }))

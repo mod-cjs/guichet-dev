@@ -33,7 +33,9 @@ jest.mock('@/lib/auth/verifyCJSCardToken', () => {
   }
 })
 
+const mockGetStaffSession = jest.fn()
 jest.mock('@/lib/auth/staff-session', () => ({
+  getStaffSession: (...a: unknown[]) => mockGetStaffSession(...a),
   isAllowedStaffEmail: (email: string) =>
     ['agent@cjs.sn'].includes(email.toLowerCase()),
 }))
@@ -81,6 +83,8 @@ beforeEach(() => {
   mockCentre.mockResolvedValue({ id: 'c-1' })
   mockUser.mockResolvedValue({ cjsUid: 'user-1', nom: 'Diop', prenom: 'Awa' })
   mockCheckInCreate.mockResolvedValue({ id: 'chk-1' })
+  // GUIC-389 : staff par défaut connecté
+  mockGetStaffSession.mockResolvedValue({ email: 'agent@cjs.sn', centreId: 'c-1' })
 })
 
 describe('POST /api/v1/checkin/[token]', () => {
@@ -116,7 +120,8 @@ describe('POST /api/v1/checkin/[token]', () => {
     })
   })
 
-  it('401 — conseiller non autorisé', async () => {
+  it('401 — pas de session staff (cookie absent)', async () => {
+    mockGetStaffSession.mockResolvedValueOnce(null)
     const res = await POST(
       req({ centreId: 'c-1', conseillerEmail: 'inconnu@x.com' }),
       ctx(),
@@ -159,6 +164,7 @@ describe('POST /api/v1/checkin/[token]', () => {
     expect(res.status).toBe(404)
     const json = await res.json()
     expect(json.error.code).toBe('RESERVATION_NOT_FOUND')
-    expect(mockRedisDel).toHaveBeenCalledWith('checkin:n-1')
+    // GUIC-389 : on ne libère plus le nonce — anti-replay strict.
+    expect(mockRedisDel).not.toHaveBeenCalled()
   })
 })

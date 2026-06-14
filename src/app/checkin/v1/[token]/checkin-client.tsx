@@ -1,17 +1,21 @@
 'use client'
 
 /**
- * GUIC-387 — `<CheckInClient />` formulaire staff MVP.
+ * GUIC-387 / GUIC-389 — `<CheckInClient />` formulaire staff MVP.
+ *
+ * GUIC-389 : on ne demande plus email + mot de passe au formulaire —
+ * l'auth se fait au préalable via cookie `centre_staff_session` posé
+ * par `/centre-staff/login`. Le serveur (`POST /api/v1/checkin/[token]`)
+ * utilise `staff.email` du cookie comme conseillerEmail.
  *
  * - En-tête + identité jeune masquée
- * - Liste des réservations du jour (du jeune)
- * - Sélection centre + email conseiller (whitelist côté serveur)
+ * - Liste des réservations du jour (du jeune, dans le centre du staff)
+ * - Sélection centre (en pratique 1 seul = celui du staff)
  * - POST `/api/v1/checkin/[token]`
  */
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Icon } from '@/components/ui/Icon'
 
 export interface CheckInJeune {
@@ -54,8 +58,6 @@ function initials(prenom: string, nom: string): string {
 
 export function CheckInClient({ token, jeune, reservations, centres }: Props) {
   const [centreId, setCentreId] = useState<string>(() => centres[0]?.id ?? '')
-  const [conseillerEmail, setConseillerEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [selectedResa, setSelectedResa] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
@@ -69,10 +71,6 @@ export function CheckInClient({ token, jeune, reservations, centres }: Props) {
       setStatus({ kind: 'error', message: 'Sélectionner un centre.' })
       return
     }
-    if (!conseillerEmail.trim()) {
-      setStatus({ kind: 'error', message: 'Email conseiller requis.' })
-      return
-    }
     setStatus({ kind: 'submitting' })
     try {
       const res = await fetch(`/api/v1/checkin/${encodeURIComponent(token)}`, {
@@ -80,7 +78,6 @@ export function CheckInClient({ token, jeune, reservations, centres }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           centreId,
-          conseillerEmail: conseillerEmail.trim().toLowerCase(),
           ...(reservationId ? { reservationId } : {}),
         }),
       })
@@ -130,7 +127,7 @@ export function CheckInClient({ token, jeune, reservations, centres }: Props) {
           </div>
         </div>
 
-        {/* Centre + conseiller */}
+        {/* Centre (en pratique 1 seul, celui du staff connecté) */}
         <div className="rounded-gj-lg bg-white p-space-4 shadow-gj-sm flex flex-col gap-space-3">
           <label className="flex flex-col gap-space-1">
             <span className="text-fs-300 font-bold text-color-text-primary">Centre</span>
@@ -145,24 +142,6 @@ export function CheckInClient({ token, jeune, reservations, centres }: Props) {
               ))}
             </select>
           </label>
-          <Input
-            id="conseillerEmail"
-            label="Email conseiller"
-            type="email"
-            autoComplete="email"
-            required
-            value={conseillerEmail}
-            onChange={(e) => setConseillerEmail(e.target.value)}
-          />
-          <Input
-            id="conseillerPassword"
-            label="Mot de passe (optionnel MVP)"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            hint="MVP : seul l'email est vérifié contre la whitelist."
-          />
         </div>
 
         {/* Réservations du jour */}

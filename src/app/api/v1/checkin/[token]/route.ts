@@ -1,17 +1,27 @@
 /**
- * GUIC-387 — POST /api/v1/checkin/[token]
+ * GUIC-387 / GUIC-389 — POST /api/v1/checkin/[token]
  *
  * Scanner staff : confirme la présence physique d'un jeune en validant le
  * JWT QR de sa MyCJSCard.
  *
  * Flow :
- *  1. Vérif JWT (signature + exp) via {@link verifyCJSCardToken}
- *  2. Anti-replay Redis : `SET NX checkin:<nonce>` TTL 24h
- *  3. Vérif centreId valide + conseillerEmail autorisé (whitelist MVP)
- *  4. Si `reservationId` → update statut → `Passee`, sinon présence standalone
- *  5. Crée la row `CheckIn(via='QrCard')` + event KPI `centre_checkin`
+ *  1. Auth staff via cookie (`getStaffSession`) — 401 si absent
+ *  2. Vérif JWT (signature + exp + kid + scope) via {@link verifyCJSCardToken}
+ *  3. Anti-replay Redis : `SET NX checkin:<nonce>` TTL 24h
+ *     (GUIC-389 : on NE supprime PLUS le nonce en cas d'échec aval —
+ *     ALREADY_USED reste acceptable car traduit une tentative anormale,
+ *     ferme la fenêtre de race entre deux requêtes parallèles).
+ *  4. centreId du body DOIT == staff.centreId (sinon 403 CENTRE_FORBIDDEN)
+ *  5. Si `reservationId` → update statut → `Passee`, sinon présence standalone
+ *  6. Crée la row `CheckIn(via='QrCard')` + event KPI `centre_checkin`
  *
- * Codes : 200 / 400 INVALID_INPUT / 401 invalid token|staff / 404 CENTRE/RESA
+ * Sécurité GUIC-389 :
+ *  - `conseillerEmail` est IGNORÉ du body ; seul `staff.email` (cookie) est
+ *    utilisé côté serveur — empêche l'usurpation par injection de body.
+ *  - centre restreint au centre du staff connecté.
+ *
+ * Codes : 200 / 400 INVALID_INPUT / 401 STAFF_UNAUTHORIZED|TOKEN_INVALID
+ *         / 403 CENTRE_FORBIDDEN / 404 CENTRE/RESA
  *         / 409 ALREADY_USED / 410 EXPIRED.
  *
  * Spec : ADR-002 + spec M4 §5 Wave 6.
@@ -27,7 +37,7 @@ import {
   CJSCardTokenError,
   verifyCJSCardToken,
 } from '@/lib/auth/verifyCJSCardToken'
-import { isAllowedStaffEmail } from '@/lib/auth/staff-session'
+import { getStaffSession } from '@/lib/auth/staff-session'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
 import type { ApiResponse } from '@/types/api'
 
@@ -36,7 +46,9 @@ const NONCE_TTL_SECONDS = 24 * 3600
 const BodySchema = z.object({
   centreId:         z.string().min(1).max(36),
   reservationId:    z.string().min(1).max(36).optional(),
-  conseillerEmail:  z.string().email().max(255),
+  // GUIC-389 : `conseillerEmail` du body est IGNORÉ. Toléré pour
+  // rétrocompat client mais ne sert plus de source d'autorité.
+  conseillerEmail:  z.string().email().max(255).optional(),
 })
 
 interface CheckInResponse {
@@ -49,10 +61,20 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ token: string }> },
 ) {
+  // 1. Auth staff obligatoire (cookie httpOnly).
+  const staff = await getStaffSession()
+  if (!staff) {
+    return NextResponse.json<ApiResponse>(
+      { error: { code: 'STAFF_UNAUTHORIZED', message: 'Session staff requise' } },
+      { status: 401 },
+    )
+  }
+
   const rl = await rateLimit(request, {
     windowMs:  60_000,
     max:       30,
-    keyPrefix: 'checkin-staff',
+    keyPrefix: `checkin-staff:${staff.email}`,
+    authenticated: true,
   })
   if (rl) return rl
 
@@ -106,16 +128,20 @@ export async function POST(
   }
 
   const { centreId, reservationId } = parsed.data
-  const conseillerEmail = parsed.data.conseillerEmail.trim().toLowerCase()
+  // GUIC-389 : la SEULE source d'autorité pour le conseiller est le cookie.
+  const conseillerEmail = staff.email.trim().toLowerCase()
 
-  if (!isAllowedStaffEmail(conseillerEmail)) {
+  // GUIC-389 : le staff ne peut check-in QUE sur son propre centre.
+  if (centreId !== staff.centreId) {
     return NextResponse.json<ApiResponse>(
-      { error: { code: 'STAFF_UNAUTHORIZED', message: 'Conseiller non autorisé' } },
-      { status: 401 },
+      { error: { code: 'CENTRE_FORBIDDEN', message: 'Vous ne pouvez confirmer une présence que dans votre centre' } },
+      { status: 403 },
     )
   }
 
   // Anti-replay Redis (SET NX). Si la clé existe déjà → token déjà consommé.
+  // GUIC-389 : pas de `redis.del` post-validation. Fermé la fenêtre de race
+  // où deux requêtes parallèles avec même token pouvaient passer.
   const nonceKey = `checkin:${payload.nonce}`
   try {
     const setRes = await redis.set(nonceKey, '1', 'EX', NONCE_TTL_SECONDS, 'NX')
@@ -145,15 +171,12 @@ export async function POST(
   ])
 
   if (!centre) {
-    // Libère le nonce pour permettre une retry sur le bon centre
-    try { await redis.del(nonceKey) } catch { /* ignore */ }
     return NextResponse.json<ApiResponse>(
       { error: { code: 'CENTRE_NOT_FOUND', message: 'Centre introuvable' } },
       { status: 404 },
     )
   }
   if (!utilisateur) {
-    try { await redis.del(nonceKey) } catch { /* ignore */ }
     return NextResponse.json<ApiResponse>(
       { error: { code: 'USER_NOT_FOUND', message: 'Jeune introuvable' } },
       { status: 404 },
@@ -168,7 +191,6 @@ export async function POST(
       select: { id: true, cjsUid: true, centreId: true, statut: true },
     })
     if (!resa || resa.cjsUid !== utilisateur.cjsUid || resa.centreId !== centreId) {
-      try { await redis.del(nonceKey) } catch { /* ignore */ }
       return NextResponse.json<ApiResponse>(
         { error: { code: 'RESERVATION_NOT_FOUND', message: 'Réservation introuvable pour ce jeune/centre' } },
         { status: 404 },
