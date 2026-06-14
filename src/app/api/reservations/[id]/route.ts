@@ -75,14 +75,13 @@ export async function PATCH(
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const reservation = (await (prisma as any).reservation.findUnique({
+    const reservation = await prisma.reservation.findUnique({
       where: { id },
       include: {
         ressource: { select: { type: true } },
         centre: { select: { slug: true } },
       },
-    })) as Record<string, unknown> | null
+    })
 
     if (!reservation) {
       return NextResponse.json(
@@ -91,15 +90,14 @@ export async function PATCH(
       )
     }
 
-    if (String(reservation.cjsUid) !== session.cjsUid) {
+    if (reservation.cjsUid !== session.cjsUid) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: 'Action non autorisée.' } },
         { status: 403 },
       )
     }
 
-    const statut = String(reservation.statut)
-    if (statut !== 'Acceptee' && statut !== 'EnAttente') {
+    if (reservation.statut !== 'Acceptee' && reservation.statut !== 'EnAttente') {
       return NextResponse.json(
         {
           error: {
@@ -112,11 +110,8 @@ export async function PATCH(
     }
 
     // Créneau déjà passé : combiner date + creneauFin
-    const dateRes = reservation.dateReservee instanceof Date
-      ? reservation.dateReservee
-      : new Date(String(reservation.dateReservee))
-    const [fh, fm] = String(reservation.creneauFin).split(':').map(Number)
-    const endDt = new Date(dateRes)
+    const [fh, fm] = reservation.creneauFin.split(':').map(Number)
+    const endDt = new Date(reservation.dateReservee)
     endDt.setHours(fh ?? 0, fm ?? 0, 0, 0)
     if (endDt.getTime() <= Date.now()) {
       return NextResponse.json(
@@ -131,27 +126,23 @@ export async function PATCH(
     }
 
     const now = new Date()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updated = (await (prisma as any).reservation.update({
+    const updated = await prisma.reservation.update({
       where: { id },
       data: {
         statut: 'AnnuleeParJeune',
         decisionA: now,
         annuleeA: now,
       },
-    })) as Record<string, unknown>
-
-    const ressource = (reservation.ressource ?? {}) as Record<string, unknown>
-    const centre = (reservation.centre ?? {}) as Record<string, unknown>
+    })
 
     void trackCentreEvent({
       type: 'centre_reservation_cancelled',
-      centreId: String(reservation.centreId),
+      centreId: reservation.centreId,
       cjsUid: session.cjsUid,
       metadata: {
         reservationId: id,
-        ressourceType: String(ressource.type ?? ''),
-        centreSlug: String(centre.slug ?? ''),
+        ressourceType: String(reservation.ressource?.type ?? ''),
+        centreSlug: reservation.centre?.slug ?? '',
       },
     })
 
@@ -159,7 +150,7 @@ export async function PATCH(
       {
         data: {
           reservation: {
-            id: String(updated.id),
+            id: updated.id,
             statut: String(updated.statut),
           },
         },

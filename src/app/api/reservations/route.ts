@@ -143,10 +143,9 @@ export async function POST(
     const reservation = await prisma.$transaction(
       async (tx) => {
         // 1. Charger ressource + centre
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ressource = (await (tx as any).ressourceCentre.findUnique({
+        const ressource = await tx.ressourceCentre.findUnique({
           where: { id: body.ressourceId },
-        })) as Record<string, unknown> | null
+        })
 
         if (!ressource || !ressource.estActive) {
           throw new ReservationDomainError(
@@ -154,16 +153,13 @@ export async function POST(
             ERROR_MESSAGES.RESOURCE_NOT_FOUND,
           )
         }
-        if (body.nombrePersonnes > Number(ressource.capacite ?? 1)) {
+        if (body.nombrePersonnes > ressource.capacite) {
           throw new ReservationDomainError(
             'CAPACITE_DEPASSEE',
             ERROR_MESSAGES.CAPACITE_DEPASSEE,
           )
         }
-        if (
-          Boolean(ressource.requiresJustif) &&
-          !body.justifFileUrl
-        ) {
+        if (ressource.requiresJustif && !body.justifFileUrl) {
           throw new ReservationDomainError(
             'JUSTIF_REQUIS',
             ERROR_MESSAGES.JUSTIF_REQUIS,
@@ -171,8 +167,7 @@ export async function POST(
         }
 
         // 2. Conflit créneau (Acceptee ou EnAttente)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const conflict = await (tx as any).reservation.findFirst({
+        const conflict = await tx.reservation.findFirst({
           where: {
             ressourceId: body.ressourceId,
             dateReservee: dateRes,
@@ -188,11 +183,10 @@ export async function POST(
         }
 
         // 3. Création — auto-validée MVP (option c, cf. spec §2)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const created = (await (tx as any).reservation.create({
+        const created = await tx.reservation.create({
           data: {
             cjsUid: session.cjsUid,
-            centreId: String(ressource.centreId),
+            centreId: ressource.centreId,
             ressourceId: body.ressourceId,
             dateReservee: dateRes,
             creneauDebut: body.creneauDebut,
@@ -203,17 +197,17 @@ export async function POST(
             statut: 'Acceptee',
             decisionA: new Date(),
           },
-        })) as Record<string, unknown>
+        })
 
         return {
-          id: String(created.id),
+          id: created.id,
           statut: String(created.statut),
-          centreId: String(created.centreId),
-          ressourceId: String(created.ressourceId),
-          ressourceNom: String(ressource.nom),
-          dateReservee: (created.dateReservee as Date).toISOString(),
-          creneauDebut: String(created.creneauDebut),
-          creneauFin: String(created.creneauFin),
+          centreId: created.centreId,
+          ressourceId: created.ressourceId,
+          ressourceNom: ressource.nom,
+          dateReservee: created.dateReservee.toISOString(),
+          creneauDebut: created.creneauDebut,
+          creneauFin: created.creneauFin,
         }
       },
       { isolationLevel: 'Serializable' },
