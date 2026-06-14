@@ -39,6 +39,7 @@ export const CENTRE_EVENT_TYPES = [
   'centre_reservation_submitted',
   'centre_reservation_validation_error',
   'centre_reservation_cancelled',
+  'centre_reservation_cancelled_by_staff',
   'centre_reservation_accepted',
   'centre_reservation_refused',
   'centre_my_reservations_viewed',
