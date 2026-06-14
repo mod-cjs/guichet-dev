@@ -133,7 +133,7 @@ export default async function EvenementDetailPage({ params }: PageProps) {
           </Card>
         </article>
 
-        <aside className="flex flex-col gap-space-3 lg:sticky lg:top-space-4">
+        <aside className="flex flex-col gap-space-3 lg:sticky lg:top-[var(--gj-sticky-offset)]">
           <Card variant="opportunite" className="flex flex-col gap-space-3">
             <div className="flex items-center justify-between">
               <span className="text-fs-500 font-black text-gj-green-ink">

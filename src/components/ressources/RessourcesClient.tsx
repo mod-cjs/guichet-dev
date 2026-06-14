@@ -344,7 +344,7 @@ export function RessourcesClient({
         />
       ) : (
         <>
-          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-3 list-none p-0 m-0">
+          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-space-3 list-none p-0 m-0">
             {accumulated.map((r) => (
               <li key={r.id}>
                 <ResourceCard

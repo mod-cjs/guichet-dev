@@ -46,7 +46,7 @@ export function EvenementFilters({
 }: Props) {
   return (
     <aside
-      className="bg-white border border-gj-line rounded-gj-lg p-space-4 flex flex-col gap-space-4 lg:sticky lg:top-space-4"
+      className="bg-white border border-gj-line rounded-gj-lg p-space-4 flex flex-col gap-space-4 lg:sticky lg:top-[var(--gj-sticky-offset)]"
       aria-label="Filtres événements"
     >
       <div className="flex items-center justify-between">

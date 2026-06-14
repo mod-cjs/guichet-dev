@@ -248,7 +248,7 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
           />
         ) : (
           <>
-            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-space-3 list-none p-0 m-0">
+            <ul className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-space-3 list-none p-0 m-0">
               {shown.map((ev) => (
                 <li key={ev.id}>
                   <EvenementCard
