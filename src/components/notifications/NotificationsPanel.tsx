@@ -213,7 +213,7 @@ export function NotificationsPanel({
         <div
           role="tablist"
           aria-label="Filtrer les notifications"
-          className="flex gap-space-1 border-b border-gj-line px-space-3 py-space-2 flex-shrink-0 overflow-x-auto"
+          className="flex flex-wrap gap-space-1 border-b border-gj-line px-space-3 py-space-2 flex-shrink-0"
         >
           {FILTERS.map((f) => {
             const active = filter === f.value

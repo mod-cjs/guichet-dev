@@ -94,8 +94,7 @@ export function MesFavoris() {
     <div className="flex flex-col gap-space-3">
       {/* Rangée horizontale de chips types — filtre rapide local. */}
       <div
-        className="-mx-space-3 px-space-3 flex gap-space-1 overflow-x-auto
-          snap-x snap-mandatory scrollbar-none"
+        className="-mx-space-3 px-space-3 flex flex-wrap gap-space-1"
         role="tablist"
         aria-label="Filtrer les favoris par type"
         data-testid="favoris-type-chips"

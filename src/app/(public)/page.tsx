@@ -58,7 +58,7 @@ export default async function Accueil() {
               href={s.href}
               className="flex flex-col no-underline group transition-all"
               style={{
-                background: '#fff',
+                background: 'var(--gj-surface)',
                 border: '1.5px solid var(--gj-line)',
                 borderRadius: 16,
                 padding: 24,
