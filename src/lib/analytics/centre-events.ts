@@ -56,6 +56,10 @@ export const CENTRE_EVENT_TYPES = [
 
   // RDV conseiller (coordination M5-agenda)
   'centre_appointment_started',
+
+  // Dashboard analytics admin (Wave 6.3 / GUIC-388)
+  'admin_analytics_centres_viewed',
+  'admin_analytics_centres_csv_exported',
 ] as const
 
 export type CentreEventType = (typeof CENTRE_EVENT_TYPES)[number]
