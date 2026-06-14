@@ -49,8 +49,22 @@ export const CompactLight: Story = {
   args: { compact: true, dark: false },
 }
 
+export const RectoAvecExpiration: Story = {
+  args: {
+    qrExpiresAt: new Date('2026-12-31T23:59:00Z'),
+  },
+}
+
 export const Verso: Story = {
   args: { variant: 'verso' },
+}
+
+export const VersoAvecQR: Story = {
+  args: {
+    variant: 'verso',
+    qrToken: 'demo-jwt-token',
+    qrExpiresAt: new Date('2026-12-31T23:59:00Z'),
+  },
 }
 
 export const RectoEtVerso: Story = {
