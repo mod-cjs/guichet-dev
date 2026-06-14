@@ -6,6 +6,8 @@
   "crons": [
     { "path": "/api/internal/notifications-dlq", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/cleanup-cv", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/cleanup-centre-events", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/cleanup-checkins", "schedule": "0 3 * * *" }
     { "path": "/api/cron/reservations-batch", "schedule": "0 4 * * *" }
   ]
 }
