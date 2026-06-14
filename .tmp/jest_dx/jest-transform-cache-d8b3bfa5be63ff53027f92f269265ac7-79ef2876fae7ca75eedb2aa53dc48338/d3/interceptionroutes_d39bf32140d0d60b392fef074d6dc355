@@ -1,0 +1,109 @@
+7326ba3f0b96edd76f4ac6ca95e7eeb3
+"use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    INTERCEPTION_ROUTE_MARKERS: null,
+    extractInterceptionRouteInformation: null,
+    isInterceptionRouteAppPath: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    INTERCEPTION_ROUTE_MARKERS: function() {
+        return INTERCEPTION_ROUTE_MARKERS;
+    },
+    extractInterceptionRouteInformation: function() {
+        return extractInterceptionRouteInformation;
+    },
+    isInterceptionRouteAppPath: function() {
+        return isInterceptionRouteAppPath;
+    }
+});
+const _apppaths = require("./app-paths");
+const INTERCEPTION_ROUTE_MARKERS = [
+    '(..)(..)',
+    '(.)',
+    '(..)',
+    '(...)'
+];
+function isInterceptionRouteAppPath(path) {
+    // TODO-APP: add more serious validation
+    return path.split('/').find((segment)=>INTERCEPTION_ROUTE_MARKERS.find((m)=>segment.startsWith(m))) !== undefined;
+}
+function extractInterceptionRouteInformation(path) {
+    let interceptingRoute;
+    let marker;
+    let interceptedRoute;
+    for (const segment of path.split('/')){
+        marker = INTERCEPTION_ROUTE_MARKERS.find((m)=>segment.startsWith(m));
+        if (marker) {
+            ;
+            [interceptingRoute, interceptedRoute] = path.split(marker, 2);
+            break;
+        }
+    }
+    if (!interceptingRoute || !marker || !interceptedRoute) {
+        throw Object.defineProperty(new Error(`Invalid interception route: ${path}. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>`), "__NEXT_ERROR_CODE", {
+            value: "E269",
+            enumerable: false,
+            configurable: true
+        });
+    }
+    interceptingRoute = (0, _apppaths.normalizeAppPath)(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
+    ;
+    switch(marker){
+        case '(.)':
+            // (.) indicates that we should match with sibling routes, so we just need to append the intercepted route to the intercepting route
+            if (interceptingRoute === '/') {
+                interceptedRoute = `/${interceptedRoute}`;
+            } else {
+                interceptedRoute = interceptingRoute + '/' + interceptedRoute;
+            }
+            break;
+        case '(..)':
+            // (..) indicates that we should match at one level up, so we need to remove the last segment of the intercepting route
+            if (interceptingRoute === '/') {
+                throw Object.defineProperty(new Error(`Invalid interception route: ${path}. Cannot use (..) marker at the root level, use (.) instead.`), "__NEXT_ERROR_CODE", {
+                    value: "E207",
+                    enumerable: false,
+                    configurable: true
+                });
+            }
+            interceptedRoute = interceptingRoute.split('/').slice(0, -1).concat(interceptedRoute).join('/');
+            break;
+        case '(...)':
+            // (...) will match the route segment in the root directory, so we need to use the root directory to prepend the intercepted route
+            interceptedRoute = '/' + interceptedRoute;
+            break;
+        case '(..)(..)':
+            // (..)(..) indicates that we should match at two levels up, so we need to remove the last two segments of the intercepting route
+            const splitInterceptingRoute = interceptingRoute.split('/');
+            if (splitInterceptingRoute.length <= 2) {
+                throw Object.defineProperty(new Error(`Invalid interception route: ${path}. Cannot use (..)(..) marker at the root level or one level up.`), "__NEXT_ERROR_CODE", {
+                    value: "E486",
+                    enumerable: false,
+                    configurable: true
+                });
+            }
+            interceptedRoute = splitInterceptingRoute.slice(0, -2).concat(interceptedRoute).join('/');
+            break;
+        default:
+            throw Object.defineProperty(new Error('Invariant: unexpected marker'), "__NEXT_ERROR_CODE", {
+                value: "E112",
+                enumerable: false,
+                configurable: true
+            });
+    }
+    return {
+        interceptingRoute,
+        interceptedRoute
+    };
+} //# sourceMappingURL=interception-routes.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci91dGlscy9pbnRlcmNlcHRpb24tcm91dGVzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IG5vcm1hbGl6ZUFwcFBhdGggfSBmcm9tICcuL2FwcC1wYXRocydcblxuLy8gb3JkZXIgbWF0dGVycyBoZXJlLCB0aGUgZmlyc3QgbWF0Y2ggd2lsbCBiZSB1c2VkXG5leHBvcnQgY29uc3QgSU5URVJDRVBUSU9OX1JPVVRFX01BUktFUlMgPSBbXG4gICcoLi4pKC4uKScsXG4gICcoLiknLFxuICAnKC4uKScsXG4gICcoLi4uKScsXG5dIGFzIGNvbnN0XG5cbmV4cG9ydCB0eXBlIEludGVyY2VwdGlvbk1hcmtlciA9ICh0eXBlb2YgSU5URVJDRVBUSU9OX1JPVVRFX01BUktFUlMpW251bWJlcl1cblxuZXhwb3J0IGZ1bmN0aW9uIGlzSW50ZXJjZXB0aW9uUm91dGVBcHBQYXRoKHBhdGg6IHN0cmluZyk6IGJvb2xlYW4ge1xuICAvLyBUT0RPLUFQUDogYWRkIG1vcmUgc2VyaW91cyB2YWxpZGF0aW9uXG4gIHJldHVybiAoXG4gICAgcGF0aFxuICAgICAgLnNwbGl0KCcvJylcbiAgICAgIC5maW5kKChzZWdtZW50KSA9PlxuICAgICAgICBJTlRFUkNFUFRJT05fUk9VVEVfTUFSS0VSUy5maW5kKChtKSA9PiBzZWdtZW50LnN0YXJ0c1dpdGgobSkpXG4gICAgICApICE9PSB1bmRlZmluZWRcbiAgKVxufVxuXG50eXBlIEludGVyY2VwdGlvblJvdXRlSW5mb3JtYXRpb24gPSB7XG4gIC8qKlxuICAgKiBUaGUgaW50ZXJjZXB0aW5nIHJvdXRlLiBUaGlzIGlzIHRoZSByb3V0ZSB0aGF0IGlzIGJlaW5nIGludGVyY2VwdGVkIG9yIHRoZVxuICAgKiByb3V0ZSB0aGF0IHRoZSB1c2VyIHdhcyBjb21pbmcgZnJvbS4gVGhpcyBpcyBtYXRjaGVkIGJ5IHRoZSBOZXh0LVVybFxuICAgKiBoZWFkZXIuXG4gICAqL1xuICBpbnRlcmNlcHRpbmdSb3V0ZTogc3RyaW5nXG5cbiAgLyoqXG4gICAqIFRoZSBpbnRlcmNlcHRlZCByb3V0ZS4gVGhpcyBpcyB0aGUgcm91dGUgdGhhdCBpcyBiZWluZyBpbnRlcmNlcHRlZCBvciB0aGVcbiAgICogcm91dGUgdGhhdCB0aGUgdXNlciBpcyBnb2luZyB0by4gVGhpcyBpcyBtYXRjaGVkIGJ5IHRoZSByZXF1ZXN0IHBhdGhuYW1lLlxuICAgKi9cbiAgaW50ZXJjZXB0ZWRSb3V0ZTogc3RyaW5nXG59XG5cbmV4cG9ydCBmdW5jdGlvbiBleHRyYWN0SW50ZXJjZXB0aW9uUm91dGVJbmZvcm1hdGlvbihcbiAgcGF0aDogc3RyaW5nXG4pOiBJbnRlcmNlcHRpb25Sb3V0ZUluZm9ybWF0aW9uIHtcbiAgbGV0IGludGVyY2VwdGluZ1JvdXRlOiBzdHJpbmcgfCB1bmRlZmluZWRcbiAgbGV0IG1hcmtlcjogKHR5cGVvZiBJTlRFUkNFUFRJT05fUk9VVEVfTUFSS0VSUylbbnVtYmVyXSB8IHVuZGVmaW5lZFxuICBsZXQgaW50ZXJjZXB0ZWRSb3V0ZTogc3RyaW5nIHwgdW5kZWZpbmVkXG5cbiAgZm9yIChjb25zdCBzZWdtZW50IG9mIHBhdGguc3BsaXQoJy8nKSkge1xuICAgIG1hcmtlciA9IElOVEVSQ0VQVElPTl9ST1VURV9NQVJLRVJTLmZpbmQoKG0pID0+IHNlZ21lbnQuc3RhcnRzV2l0aChtKSlcbiAgICBpZiAobWFya2VyKSB7XG4gICAgICA7W2ludGVyY2VwdGluZ1JvdXRlLCBpbnRlcmNlcHRlZFJvdXRlXSA9IHBhdGguc3BsaXQobWFya2VyLCAyKVxuICAgICAgYnJlYWtcbiAgICB9XG4gIH1cblxuICBpZiAoIWludGVyY2VwdGluZ1JvdXRlIHx8ICFtYXJrZXIgfHwgIWludGVyY2VwdGVkUm91dGUpIHtcbiAgICB0aHJvdyBuZXcgRXJyb3IoXG4gICAgICBgSW52YWxpZCBpbnRlcmNlcHRpb24gcm91dGU6ICR7cGF0aH0uIE11c3QgYmUgaW4gdGhlIGZvcm1hdCAvPGludGVyY2VwdGluZyByb3V0ZT4vKC4ufC4uLnwuLikoLi4pLzxpbnRlcmNlcHRlZCByb3V0ZT5gXG4gICAgKVxuICB9XG5cbiAgaW50ZXJjZXB0aW5nUm91dGUgPSBub3JtYWxpemVBcHBQYXRoKGludGVyY2VwdGluZ1JvdXRlKSAvLyBub3JtYWxpemUgdGhlIHBhdGgsIGUuZy4gLyhibG9nKS9mZWVkIC0+IC9mZWVkXG5cbiAgc3dpdGNoIChtYXJrZXIpIHtcbiAgICBjYXNlICcoLiknOlxuICAgICAgLy8gKC4pIGluZGljYXRlcyB0aGF0IHdlIHNob3VsZCBtYXRjaCB3aXRoIHNpYmxpbmcgcm91dGVzLCBzbyB3ZSBqdXN0IG5lZWQgdG8gYXBwZW5kIHRoZSBpbnRlcmNlcHRlZCByb3V0ZSB0byB0aGUgaW50ZXJjZXB0aW5nIHJvdXRlXG4gICAgICBpZiAoaW50ZXJjZXB0aW5nUm91dGUgPT09ICcvJykge1xuICAgICAgICBpbnRlcmNlcHRlZFJvdXRlID0gYC8ke2ludGVyY2VwdGVkUm91dGV9YFxuICAgICAgfSBlbHNlIHtcbiAgICAgICAgaW50ZXJjZXB0ZWRSb3V0ZSA9IGludGVyY2VwdGluZ1JvdXRlICsgJy8nICsgaW50ZXJjZXB0ZWRSb3V0ZVxuICAgICAgfVxuICAgICAgYnJlYWtcbiAgICBjYXNlICcoLi4pJzpcbiAgICAgIC8vICguLikgaW5kaWNhdGVzIHRoYXQgd2Ugc2hvdWxkIG1hdGNoIGF0IG9uZSBsZXZlbCB1cCwgc28gd2UgbmVlZCB0byByZW1vdmUgdGhlIGxhc3Qgc2VnbWVudCBvZiB0aGUgaW50ZXJjZXB0aW5nIHJvdXRlXG4gICAgICBpZiAoaW50ZXJjZXB0aW5nUm91dGUgPT09ICcvJykge1xuICAgICAgICB0aHJvdyBuZXcgRXJyb3IoXG4gICAgICAgICAgYEludmFsaWQgaW50ZXJjZXB0aW9uIHJvdXRlOiAke3BhdGh9LiBDYW5ub3QgdXNlICguLikgbWFya2VyIGF0IHRoZSByb290IGxldmVsLCB1c2UgKC4pIGluc3RlYWQuYFxuICAgICAgICApXG4gICAgICB9XG4gICAgICBpbnRlcmNlcHRlZFJvdXRlID0gaW50ZXJjZXB0aW5nUm91dGVcbiAgICAgICAgLnNwbGl0KCcvJylcbiAgICAgICAgLnNsaWNlKDAsIC0xKVxuICAgICAgICAuY29uY2F0KGludGVyY2VwdGVkUm91dGUpXG4gICAgICAgIC5qb2luKCcvJylcbiAgICAgIGJyZWFrXG4gICAgY2FzZSAnKC4uLiknOlxuICAgICAgLy8gKC4uLikgd2lsbCBtYXRjaCB0aGUgcm91dGUgc2VnbWVudCBpbiB0aGUgcm9vdCBkaXJlY3RvcnksIHNvIHdlIG5lZWQgdG8gdXNlIHRoZSByb290IGRpcmVjdG9yeSB0byBwcmVwZW5kIHRoZSBpbnRlcmNlcHRlZCByb3V0ZVxuICAgICAgaW50ZXJjZXB0ZWRSb3V0ZSA9ICcvJyArIGludGVyY2VwdGVkUm91dGVcbiAgICAgIGJyZWFrXG4gICAgY2FzZSAnKC4uKSguLiknOlxuICAgICAgLy8gKC4uKSguLikgaW5kaWNhdGVzIHRoYXQgd2Ugc2hvdWxkIG1hdGNoIGF0IHR3byBsZXZlbHMgdXAsIHNvIHdlIG5lZWQgdG8gcmVtb3ZlIHRoZSBsYXN0IHR3byBzZWdtZW50cyBvZiB0aGUgaW50ZXJjZXB0aW5nIHJvdXRlXG5cbiAgICAgIGNvbnN0IHNwbGl0SW50ZXJjZXB0aW5nUm91dGUgPSBpbnRlcmNlcHRpbmdSb3V0ZS5zcGxpdCgnLycpXG4gICAgICBpZiAoc3BsaXRJbnRlcmNlcHRpbmdSb3V0ZS5sZW5ndGggPD0gMikge1xuICAgICAgICB0aHJvdyBuZXcgRXJyb3IoXG4gICAgICAgICAgYEludmFsaWQgaW50ZXJjZXB0aW9uIHJvdXRlOiAke3BhdGh9LiBDYW5ub3QgdXNlICguLikoLi4pIG1hcmtlciBhdCB0aGUgcm9vdCBsZXZlbCBvciBvbmUgbGV2ZWwgdXAuYFxuICAgICAgICApXG4gICAgICB9XG5cbiAgICAgIGludGVyY2VwdGVkUm91dGUgPSBzcGxpdEludGVyY2VwdGluZ1JvdXRlXG4gICAgICAgIC5zbGljZSgwLCAtMilcbiAgICAgICAgLmNvbmNhdChpbnRlcmNlcHRlZFJvdXRlKVxuICAgICAgICAuam9pbignLycpXG4gICAgICBicmVha1xuICAgIGRlZmF1bHQ6XG4gICAgICB0aHJvdyBuZXcgRXJyb3IoJ0ludmFyaWFudDogdW5leHBlY3RlZCBtYXJrZXInKVxuICB9XG5cbiAgcmV0dXJuIHsgaW50ZXJjZXB0aW5nUm91dGUsIGludGVyY2VwdGVkUm91dGUgfVxufVxuIl0sIm5hbWVzIjpbIklOVEVSQ0VQVElPTl9ST1VURV9NQVJLRVJTIiwiZXh0cmFjdEludGVyY2VwdGlvblJvdXRlSW5mb3JtYXRpb24iLCJpc0ludGVyY2VwdGlvblJvdXRlQXBwUGF0aCIsInBhdGgiLCJzcGxpdCIsImZpbmQiLCJzZWdtZW50IiwibSIsInN0YXJ0c1dpdGgiLCJ1bmRlZmluZWQiLCJpbnRlcmNlcHRpbmdSb3V0ZSIsIm1hcmtlciIsImludGVyY2VwdGVkUm91dGUiLCJFcnJvciIsIm5vcm1hbGl6ZUFwcFBhdGgiLCJzbGljZSIsImNvbmNhdCIsImpvaW4iLCJzcGxpdEludGVyY2VwdGluZ1JvdXRlIiwibGVuZ3RoIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0lBR2FBLDBCQUEwQixFQUFBO2VBQTFCQTs7SUFtQ0dDLG1DQUFtQyxFQUFBO2VBQW5DQTs7SUExQkFDLDBCQUEwQixFQUFBO2VBQTFCQTs7OzBCQVppQjtBQUcxQixNQUFNRiw2QkFBNkI7SUFDeEM7SUFDQTtJQUNBO0lBQ0E7Q0FDRDtBQUlNLFNBQVNFLDJCQUEyQkMsSUFBWTtJQUNyRCx3Q0FBd0M7SUFDeEMsT0FDRUEsS0FDR0MsS0FBSyxDQUFDLEtBQ05DLElBQUksQ0FBQyxDQUFDQyxVQUNMTiwyQkFBMkJLLElBQUksQ0FBQyxDQUFDRSxJQUFNRCxRQUFRRSxVQUFVLENBQUNELFNBQ3RERTtBQUVaO0FBaUJPLFNBQVNSLG9DQUNkRSxJQUFZO0lBRVosSUFBSU87SUFDSixJQUFJQztJQUNKLElBQUlDO0lBRUosS0FBSyxNQUFNTixXQUFXSCxLQUFLQyxLQUFLLENBQUMsS0FBTTtRQUNyQ08sU0FBU1gsMkJBQTJCSyxJQUFJLENBQUMsQ0FBQ0UsSUFBTUQsUUFBUUUsVUFBVSxDQUFDRDtRQUNuRSxJQUFJSSxRQUFROztZQUNULENBQUNELG1CQUFtQkUsaUJBQWlCLEdBQUdULEtBQUtDLEtBQUssQ0FBQ08sUUFBUTtZQUM1RDtRQUNGO0lBQ0Y7SUFFQSxJQUFJLENBQUNELHFCQUFxQixDQUFDQyxVQUFVLENBQUNDLGtCQUFrQjtRQUN0RCxNQUFNLE9BQUEsY0FFTCxDQUZLLElBQUlDLE1BQ1IsQ0FBQyw0QkFBNEIsRUFBRVYsS0FBSyxpRkFBaUYsQ0FBQyxHQURsSCxxQkFBQTttQkFBQTt3QkFBQTswQkFBQTtRQUVOO0lBQ0Y7SUFFQU8sb0JBQW9CSSxDQUFBQSxHQUFBQSxVQUFBQSxnQkFBQUEsQUFBZ0IsRUFBQ0osbUJBQW1CLGlEQUFpRDs7SUFFekcsT0FBUUM7UUFDTixLQUFLO1lBQ0gsb0lBQW9JO1lBQ3BJLElBQUlELHNCQUFzQixLQUFLO2dCQUM3QkUsbUJBQW1CLENBQUMsQ0FBQyxFQUFFQSxrQkFBa0I7WUFDM0MsT0FBTztnQkFDTEEsbUJBQW1CRixvQkFBb0IsTUFBTUU7WUFDL0M7WUFDQTtRQUNGLEtBQUs7WUFDSCx1SEFBdUg7WUFDdkgsSUFBSUYsc0JBQXNCLEtBQUs7Z0JBQzdCLE1BQU0sT0FBQSxjQUVMLENBRkssSUFBSUcsTUFDUixDQUFDLDRCQUE0QixFQUFFVixLQUFLLDREQUE0RCxDQUFDLEdBRDdGLHFCQUFBOzJCQUFBO2dDQUFBO2tDQUFBO2dCQUVOO1lBQ0Y7WUFDQVMsbUJBQW1CRixrQkFDaEJOLEtBQUssQ0FBQyxLQUNOVyxLQUFLLENBQUMsR0FBRyxDQUFDLEdBQ1ZDLE1BQU0sQ0FBQ0osa0JBQ1BLLElBQUksQ0FBQztZQUNSO1FBQ0YsS0FBSztZQUNILGtJQUFrSTtZQUNsSUwsbUJBQW1CLE1BQU1BO1lBQ3pCO1FBQ0YsS0FBSztZQUNILGlJQUFpSTtZQUVqSSxNQUFNTSx5QkFBeUJSLGtCQUFrQk4sS0FBSyxDQUFDO1lBQ3ZELElBQUljLHVCQUF1QkMsTUFBTSxJQUFJLEdBQUc7Z0JBQ3RDLE1BQU0sT0FBQSxjQUVMLENBRkssSUFBSU4sTUFDUixDQUFDLDRCQUE0QixFQUFFVixLQUFLLCtEQUErRCxDQUFDLEdBRGhHLHFCQUFBOzJCQUFBO2dDQUFBO2tDQUFBO2dCQUVOO1lBQ0Y7WUFFQVMsbUJBQW1CTSx1QkFDaEJILEtBQUssQ0FBQyxHQUFHLENBQUMsR0FDVkMsTUFBTSxDQUFDSixrQkFDUEssSUFBSSxDQUFDO1lBQ1I7UUFDRjtZQUNFLE1BQU0sT0FBQSxjQUF5QyxDQUF6QyxJQUFJSixNQUFNLGlDQUFWLHFCQUFBO3VCQUFBOzRCQUFBOzhCQUFBO1lBQXdDO0lBQ2xEO0lBRUEsT0FBTztRQUFFSDtRQUFtQkU7SUFBaUI7QUFDL0MiLCJpZ25vcmVMaXN0IjpbMF19

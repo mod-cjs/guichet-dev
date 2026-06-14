@@ -1,0 +1,34 @@
+7b5353ac795e14d42b323d22048cb472
+/**
+ * Given a path this function will find the pathname, query and hash and return
+ * them. This is useful to parse full paths on the client side.
+ * @param path A path to parse e.g. /foo/bar?id=1#hash
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "parsePath", {
+    enumerable: true,
+    get: function() {
+        return parsePath;
+    }
+});
+function parsePath(path) {
+    const hashIndex = path.indexOf('#');
+    const queryIndex = path.indexOf('?');
+    const hasQuery = queryIndex > -1 && (hashIndex < 0 || queryIndex < hashIndex);
+    if (hasQuery || hashIndex > -1) {
+        return {
+            pathname: path.substring(0, hasQuery ? queryIndex : hashIndex),
+            query: hasQuery ? path.substring(queryIndex, hashIndex > -1 ? hashIndex : undefined) : '',
+            hash: hashIndex > -1 ? path.slice(hashIndex) : ''
+        };
+    }
+    return {
+        pathname: path,
+        query: '',
+        hash: ''
+    };
+} //# sourceMappingURL=parse-path.js.map
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9zaGFyZWQvbGliL3JvdXRlci91dGlscy9wYXJzZS1wYXRoLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogR2l2ZW4gYSBwYXRoIHRoaXMgZnVuY3Rpb24gd2lsbCBmaW5kIHRoZSBwYXRobmFtZSwgcXVlcnkgYW5kIGhhc2ggYW5kIHJldHVyblxuICogdGhlbS4gVGhpcyBpcyB1c2VmdWwgdG8gcGFyc2UgZnVsbCBwYXRocyBvbiB0aGUgY2xpZW50IHNpZGUuXG4gKiBAcGFyYW0gcGF0aCBBIHBhdGggdG8gcGFyc2UgZS5nLiAvZm9vL2Jhcj9pZD0xI2hhc2hcbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHBhcnNlUGF0aChwYXRoOiBzdHJpbmcpIHtcbiAgY29uc3QgaGFzaEluZGV4ID0gcGF0aC5pbmRleE9mKCcjJylcbiAgY29uc3QgcXVlcnlJbmRleCA9IHBhdGguaW5kZXhPZignPycpXG4gIGNvbnN0IGhhc1F1ZXJ5ID0gcXVlcnlJbmRleCA+IC0xICYmIChoYXNoSW5kZXggPCAwIHx8IHF1ZXJ5SW5kZXggPCBoYXNoSW5kZXgpXG5cbiAgaWYgKGhhc1F1ZXJ5IHx8IGhhc2hJbmRleCA+IC0xKSB7XG4gICAgcmV0dXJuIHtcbiAgICAgIHBhdGhuYW1lOiBwYXRoLnN1YnN0cmluZygwLCBoYXNRdWVyeSA/IHF1ZXJ5SW5kZXggOiBoYXNoSW5kZXgpLFxuICAgICAgcXVlcnk6IGhhc1F1ZXJ5XG4gICAgICAgID8gcGF0aC5zdWJzdHJpbmcocXVlcnlJbmRleCwgaGFzaEluZGV4ID4gLTEgPyBoYXNoSW5kZXggOiB1bmRlZmluZWQpXG4gICAgICAgIDogJycsXG4gICAgICBoYXNoOiBoYXNoSW5kZXggPiAtMSA/IHBhdGguc2xpY2UoaGFzaEluZGV4KSA6ICcnLFxuICAgIH1cbiAgfVxuXG4gIHJldHVybiB7IHBhdGhuYW1lOiBwYXRoLCBxdWVyeTogJycsIGhhc2g6ICcnIH1cbn1cbiJdLCJuYW1lcyI6WyJwYXJzZVBhdGgiLCJwYXRoIiwiaGFzaEluZGV4IiwiaW5kZXhPZiIsInF1ZXJ5SW5kZXgiLCJoYXNRdWVyeSIsInBhdGhuYW1lIiwic3Vic3RyaW5nIiwicXVlcnkiLCJ1bmRlZmluZWQiLCJoYXNoIiwic2xpY2UiXSwibWFwcGluZ3MiOiJBQUFBOzs7O0NBSUMsR0FBQTs7OzsrQkFDZUEsYUFBQUE7OztlQUFBQTs7O0FBQVQsU0FBU0EsVUFBVUMsSUFBWTtJQUNwQyxNQUFNQyxZQUFZRCxLQUFLRSxPQUFPLENBQUM7SUFDL0IsTUFBTUMsYUFBYUgsS0FBS0UsT0FBTyxDQUFDO0lBQ2hDLE1BQU1FLFdBQVdELGFBQWEsQ0FBQyxLQUFNRixDQUFBQSxZQUFZLEtBQUtFLGFBQWFGLFNBQUFBLENBQVE7SUFFM0UsSUFBSUcsWUFBWUgsWUFBWSxDQUFDLEdBQUc7UUFDOUIsT0FBTztZQUNMSSxVQUFVTCxLQUFLTSxTQUFTLENBQUMsR0FBR0YsV0FBV0QsYUFBYUY7WUFDcERNLE9BQU9ILFdBQ0hKLEtBQUtNLFNBQVMsQ0FBQ0gsWUFBWUYsWUFBWSxDQUFDLElBQUlBLFlBQVlPLGFBQ3hEO1lBQ0pDLE1BQU1SLFlBQVksQ0FBQyxJQUFJRCxLQUFLVSxLQUFLLENBQUNULGFBQWE7UUFDakQ7SUFDRjtJQUVBLE9BQU87UUFBRUksVUFBVUw7UUFBTU8sT0FBTztRQUFJRSxNQUFNO0lBQUc7QUFDL0MiLCJpZ25vcmVMaXN0IjpbMF19
