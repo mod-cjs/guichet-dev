@@ -24,14 +24,14 @@ describe('getCJSCardSecret', () => {
   })
 
   it('throw en production si JWT_CJS_CARD_SECRET absent', async () => {
-    process.env.NODE_ENV = 'production'
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true })
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCJSCardSecret } = require('@/lib/auth/cjs-card-secret')
     expect(() => getCJSCardSecret()).toThrow(/JWT_CJS_CARD_SECRET/i)
   })
 
   it('en dev sans env : warn console + renvoie un fallback déterministe', async () => {
-    process.env.NODE_ENV = 'development'
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCJSCardSecret } = require('@/lib/auth/cjs-card-secret')
@@ -46,7 +46,7 @@ describe('getCJSCardSecret', () => {
   })
 
   it('encode la valeur env en UTF-8 (Uint8Array)', async () => {
-    process.env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', configurable: true })
     process.env.JWT_CJS_CARD_SECRET =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -57,7 +57,7 @@ describe('getCJSCardSecret', () => {
   })
 
   it('retourne le secret env quand défini (même hors prod)', async () => {
-    process.env.NODE_ENV = 'development'
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true })
     process.env.JWT_CJS_CARD_SECRET = 'super-secret-dev-32-chars-min-1234567890'
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getCJSCardSecret } = require('@/lib/auth/cjs-card-secret')
