@@ -71,7 +71,7 @@ describe('/jeune/mes-reservations-centres — page', () => {
     expect(screen.getByRole('heading', { name: /Mes réservations centres/ })).toBeInTheDocument()
   })
 
-  it('affiche au moins une carte réservation Acceptee dans tab "À venir"', async () => {
+  it('affiche au moins une carte réservation Acceptee dans tab par défaut', async () => {
     ;(getSession as jest.Mock).mockResolvedValue({ cjsUid: 'user-1' })
     mockGetMes.mockResolvedValue([res()])
     const ui = await Page()
@@ -88,16 +88,30 @@ describe('/jeune/mes-reservations-centres — page', () => {
     expect(screen.getByText(/Découvrir les centres/)).toBeInTheDocument()
   })
 
-  it('rend un tablist 5 onglets (À venir / En attente / Passées / Annulées / Toutes)', async () => {
+  it('rend un tablist 5 onglets (Toutes / En attente / Acceptées / Refusées / Passées) — GUIC-392', async () => {
     ;(getSession as jest.Mock).mockResolvedValue({ cjsUid: 'user-1' })
     mockGetMes.mockResolvedValue([res(), res({ id: 'res-2', statut: 'Passee' })])
     const ui = await Page()
     render(ui as React.ReactElement)
     expect(screen.getByRole('tablist')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /À venir/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /En attente/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Passées/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Annulées/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Toutes/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /En attente/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Acceptées/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Refusées/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Passées/ })).toBeInTheDocument()
+  })
+
+  it('le tab "Passées" regroupe Passee + NonHonoree + AnnuleeParJeune — GUIC-392', async () => {
+    ;(getSession as jest.Mock).mockResolvedValue({ cjsUid: 'user-1' })
+    mockGetMes.mockResolvedValue([
+      res({ id: 'r-p', statut: 'Passee' }),
+      res({ id: 'r-nh', statut: 'NonHonoree' }),
+      res({ id: 'r-anj', statut: 'AnnuleeParJeune' }),
+      res({ id: 'r-ok', statut: 'Acceptee' }),
+    ])
+    const ui = await Page()
+    render(ui as React.ReactElement)
+    // Compteur de "Passées" = 3
+    expect(screen.getByRole('tab', { name: /Passées.*3/ })).toBeInTheDocument()
   })
 })
