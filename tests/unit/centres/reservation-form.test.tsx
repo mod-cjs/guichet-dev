@@ -58,6 +58,17 @@ describe('<ReservationForm />', () => {
     expect(screen.getByText(/Envoyer la demande/)).toBeInTheDocument()
   })
 
+  it('GUIC-399 — affiche le mini-recap ressource en tête du formulaire', () => {
+    render(<ReservationForm ressource={RESSOURCE} centre={CENTRE} cjsUid="uid" />)
+    const mini = screen.getByTestId('reservation-recap-mini')
+    expect(mini).toBeInTheDocument()
+    // Nom ressource + centre + capacité formatée + badge "Gratuit".
+    expect(mini).toHaveTextContent('Salle A')
+    expect(mini).toHaveTextContent('CJS Tambacounda')
+    expect(mini).toHaveTextContent('8 personnes')
+    expect(mini).toHaveTextContent('Gratuit')
+  })
+
   it('refuse submit sans date', async () => {
     render(<ReservationForm ressource={RESSOURCE} centre={CENTRE} cjsUid="uid" />)
     fireEvent.click(screen.getByText(/Envoyer la demande/))

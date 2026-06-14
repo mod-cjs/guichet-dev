@@ -11,6 +11,7 @@ import {
 } from '../ReservationSlotPicker'
 import { JustificatifUpload } from '../JustificatifUpload'
 import { ReservationRecap } from '../ReservationRecap'
+import { ReservationRecapMini } from '../ReservationRecapMini'
 import type { CentreHoraire } from '@/lib/loaders/centres'
 
 export interface ReservationFormRessource {
@@ -319,6 +320,14 @@ export function ReservationForm({
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <ReservationRecapMini
+                ressource={{
+                  nom: ressource.nom,
+                  type: ressource.type,
+                  capaciteLabel: `${ressource.capacite} ${ressource.capaciteUnit ?? (ressource.capacite > 1 ? 'personnes' : 'personne')}`,
+                }}
+                centre={{ nom: centre.nom }}
+              />
               <div
                 style={{
                   background: 'var(--gj-surface)',
