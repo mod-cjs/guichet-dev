@@ -65,24 +65,50 @@ global.fetch = jest.fn(async () => ({
 import MaCartePage from '@/app/jeune/(app)/ma-carte/page'
 
 describe('MaCartePage', () => {
-  it('rend les 3 sections : carte + usages + CTAs', async () => {
+  it('rend les sections principales : carte + bénéfices + usages + actions', async () => {
     const ui = await MaCartePage()
     render(ui)
     expect(screen.getByRole('heading', { level: 1, name: /Ma carte CJS/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Tes derniers usages/i })).toBeInTheDocument()
-    // CTAs
-    expect(screen.getByRole('link', { name: /Mes réservations/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Réserver une ressource/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /À quoi sert ta carte/i })).toBeInTheDocument()
+    // Section secondaire "Aller plus loin" conservée pour le funnel
+    expect(screen.getByRole('heading', { name: /Aller plus loin/i })).toBeInTheDocument()
   })
 
-  it('CTA "Mes réservations" pointe sur /jeune/mes-reservations-centres', async () => {
+  it('GUIC-398 — sous-titre = wording design source ("sésame")', async () => {
+    const ui = await MaCartePage()
+    render(ui)
+    expect(
+      screen.getByText(/Ton sésame pour accéder aux centres/i),
+    ).toBeInTheDocument()
+  })
+
+  it('GUIC-398 — CTAs principaux = "Ajouter au portefeuille" (disabled) + "Partager"', async () => {
+    const ui = await MaCartePage()
+    render(ui)
+    const wallet = screen.getByTestId('ma-carte-wallet-btn')
+    expect(wallet).toBeInTheDocument()
+    expect(wallet).toBeDisabled()
+    expect(screen.getByTestId('ma-carte-share-btn')).toBeInTheDocument()
+  })
+
+  it('GUIC-398 — 4 bénéfices canoniques affichés', async () => {
+    const ui = await MaCartePage()
+    render(ui)
+    expect(screen.getByText('Accès')).toBeInTheDocument()
+    expect(screen.getByText('Check-in')).toBeInTheDocument()
+    expect(screen.getByText('Retrait')).toBeInTheDocument()
+    expect(screen.getByText('Hors-ligne')).toBeInTheDocument()
+  })
+
+  it('actions secondaires conservées — "Mes réservations" pointe sur /jeune/mes-reservations-centres', async () => {
     const ui = await MaCartePage()
     render(ui)
     const link = screen.getByRole('link', { name: /Mes réservations/i })
     expect(link).toHaveAttribute('href', '/jeune/mes-reservations-centres')
   })
 
-  it('CTA "Réserver une ressource" pointe sur /centres', async () => {
+  it('actions secondaires conservées — "Réserver une ressource" pointe sur /centres', async () => {
     const ui = await MaCartePage()
     render(ui)
     const link = screen.getByRole('link', { name: /Réserver une ressource/i })

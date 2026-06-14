@@ -40,6 +40,11 @@ export { CJSCardFlip } from './CJSCardFlip'
 export type { CJSCardFlipProps } from './CJSCardFlip'
 export { MesUsagesGrid } from './MesUsagesGrid'
 export type { MesUsagesGridProps } from './MesUsagesGrid'
+export { MaCarteBeneficesSection } from './MaCarteBeneficesSection'
+export type {
+  MaCarteBeneficesSectionProps,
+  MaCarteBenefice,
+} from './MaCarteBeneficesSection'
 export { CentreDetailHero } from './CentreDetailHero'
 export type { CentreDetailHeroProps } from './CentreDetailHero'
 export { CentreHoursTable } from './CentreHoursTable'

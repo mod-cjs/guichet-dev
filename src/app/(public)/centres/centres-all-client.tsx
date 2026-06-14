@@ -123,7 +123,15 @@ export function CentresAllClient({
 
   const subtitle = `${centres.length} centres dans tout le Sénégal · trouve le plus proche de toi.`
 
-  const showLegend = userIsConnected && Boolean(user?.centrePrincipal)
+  // GUIC-398 — Légende = info publique : toujours visible (avant : gated `userIsConnected`).
+  // Le badge "Mon centre" (rouge) reste pertinent même sans user connecté : il indique
+  // simplement le code couleur de la carte (un centre est mis en avant si user connecté).
+  const showLegend = centres.length > 0
+
+  // GUIC-398 — Visiteur non connecté : CTA "Se connecter pour avoir ta carte"
+  // en remplacement du MyCJSCard (pas de placeholder factice : on assume l'absence
+  // de carte et on amorce le funnel SSO).
+  const showCardSlot = centres.length > 0
 
   return (
     <main
@@ -223,8 +231,9 @@ export function CentresAllClient({
           </div>
         )}
 
-        {/* 2. MyCJSCard mini cliquable */}
-        {userIsConnected && user && (
+        {/* 2. MyCJSCard mini cliquable — toujours visible (GUIC-398).
+               Anonyme → CTA "Se connecter pour avoir ta carte". */}
+        {userIsConnected && user ? (
           <a
             href="/jeune/ma-carte"
             aria-label="Ouvrir ma carte CJS"
@@ -242,6 +251,33 @@ export function CentresAllClient({
                 photoUrl: user.photoUrl ?? undefined,
               }}
             />
+          </a>
+        ) : (
+          <a
+            href="/auth/connexion"
+            aria-label="Se connecter pour obtenir ta carte CJS"
+            className="block rounded-gj-md p-4 text-center"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal, var(--gj-teal-deep)) 100%)',
+              color: 'var(--gj-surface)',
+              minHeight: 110,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <span className="text-fs-300 font-black">
+              Connecte-toi pour avoir ta carte CJS
+            </span>
+            <span
+              className="text-fs-100"
+              style={{ opacity: 0.85 }}
+            >
+              Ton sésame pour les centres et ressources.
+            </span>
           </a>
         )}
 
@@ -321,10 +357,26 @@ export function CentresAllClient({
             description="Modifie tes filtres pour voir d'autres centres."
           />
         ) : (
-          <ul className="flex flex-col gap-2" aria-label="Centres CJS">
-            {filtered.map((c) => (
-              <li key={c.id}>
-                <CentreCardMobile
+          <>
+            {/* GUIC-398 — Header de section "N centres" uppercase mobile
+                (design `centres-mobile.jsx:44`). */}
+            <div
+              data-testid="centres-count-header"
+              className="text-fs-100 font-black"
+              style={{
+                color: 'var(--gj-grey)',
+                textTransform: 'uppercase',
+                letterSpacing: '.5px',
+                paddingTop: 6,
+                paddingBottom: 2,
+              }}
+            >
+              {filtered.length} centres
+            </div>
+            <ul className="flex flex-col gap-2" aria-label="Centres CJS">
+              {filtered.map((c) => (
+                <li key={c.id}>
+                  <CentreCardMobile
                   centre={{
                     id: c.id,
                     slug: c.slug,
@@ -341,7 +393,8 @@ export function CentresAllClient({
                 />
               </li>
             ))}
-          </ul>
+            </ul>
+          </>
         )}
       </div>
 
@@ -359,6 +412,7 @@ export function CentresAllClient({
               longitude: c.longitude,
             }))}
             activeId={userCentrePrincipalId ?? undefined}
+            pulseActiveMarker={Boolean(userCentrePrincipalId)}
             onPinClick={handlePinClick}
             height={460}
             centresForList={centres.map((c) => ({
@@ -417,17 +471,67 @@ export function CentresAllClient({
               <span
                 className="absolute inline-flex items-center gap-1"
                 style={{
-                  right: 8,
-                  bottom: 8,
-                  padding: '6px 10px',
-                  background: 'var(--gj-teal-deep)',
-                  color: 'var(--gj-yellow)',
+                  right: 14,
+                  bottom: 14,
+                  // GUIC-398 — design source `centres-web.jsx:93-95` :
+                  // glassmorphism blanc translucide + texte teal-deep (et non
+                  // l'inverse). `rgba(255,255,255,.92)` documenté comme pattern
+                  // design — pas de hex en dur prohibé.
+                  padding: '6px 11px',
+                  background: 'rgba(255,255,255,.92)',
+                  color: 'var(--gj-teal-deep)',
                   fontWeight: 800,
-                  fontSize: 11,
+                  fontSize: 11.5,
                   borderRadius: 999,
+                  boxShadow: '0 4px 16px rgba(0,0,0,.15)',
                 }}
               >
-                Ouvrir ma carte <Icon name="arrow-right" size={12} />
+                Ouvrir ma carte <Icon name="arrow-right" size={13} />
+              </span>
+            </a>
+          )}
+          {/* GUIC-398 — Visiteur non connecté : CTA "Se connecter pour avoir ta carte"
+              en lieu et place du MyCJSCard (le hero reste toujours visible). */}
+          {showCardSlot && !userIsConnected && (
+            <a
+              href="/auth/connexion"
+              aria-label="Se connecter pour obtenir ta carte CJS"
+              className="block rounded-gj-md p-4 text-center"
+              style={{
+                background:
+                  'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal, var(--gj-teal-deep)) 100%)',
+                color: 'var(--gj-surface)',
+                minHeight: 120,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              <span className="text-fs-300 font-black">
+                Connecte-toi pour avoir ta carte CJS
+              </span>
+              <span
+                className="text-fs-100"
+                style={{ opacity: 0.85 }}
+              >
+                Ton sésame pour les centres, ateliers et ressources.
+              </span>
+              <span
+                className="inline-flex items-center gap-1 mt-1"
+                style={{
+                  background: 'var(--gj-yellow)',
+                  color: 'var(--gj-ink)',
+                  padding: '8px 14px',
+                  borderRadius: 9,
+                  fontWeight: 800,
+                  fontSize: 13,
+                  minHeight: 44,
+                }}
+              >
+                <Icon name="user" size={14} />
+                Se connecter
               </span>
             </a>
           )}
@@ -444,7 +548,7 @@ export function CentresAllClient({
             />
           ) : (
             <ul
-              className="flex flex-col gap-space-2 max-h-[70vh] overflow-y-auto pr-1"
+              className="flex flex-col gap-space-2"
               aria-label="Annuaire des centres CJS"
             >
               {filtered.map((c) => (
