@@ -17,8 +17,8 @@ type TabKey = 'toutes' | 'en-attente' | 'acceptees' | 'refusees' | 'passees'
  * Vue "Mes réservations centres" (page `/jeune/mes-reservations-centres`).
  * 5 tabs filtrables alignés sur les statuts métier (GUIC-392 / Lot 7 W5) :
  *   Toutes · En attente · Acceptées · Refusées · Passées.
- * Le tab "Passées" regroupe Passee + NonHonoree + AnnuleeParJeune
- * (= tout ce qui est terminé).
+ * Le tab "Passées" regroupe Passee + NonHonoree + AnnuleeParJeune + AnnuleeParCentre
+ * (= tout ce qui est terminé / annulé).
  *
  * Annulation inline, modal QR de retrait.
  * GUIC-384 — Wave 5 (init) · GUIC-392 — refonte tabs.
@@ -61,7 +61,8 @@ export function MesReservationsCentresClient({ reservations: initial }: Props) {
       else if (
         r.statut === 'Passee' ||
         r.statut === 'NonHonoree' ||
-        r.statut === 'AnnuleeParJeune'
+        r.statut === 'AnnuleeParJeune' ||
+        r.statut === 'AnnuleeParCentre'
       ) {
         passees.push(r)
       }

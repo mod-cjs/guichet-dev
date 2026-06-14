@@ -1113,6 +1113,7 @@ enum StatutReservation {
   Acceptee // auto-validée MVP
   Refusee
   AnnuleeParJeune
+  AnnuleeParCentre // GUIC-395 : annulation par le staff (raisonRefusOuAnnul = motif)
   Passee // batch quotidien : date passée + statut != Annulee/Refusee
   NonHonoree // batch : date passée + pas de CheckIn associé
 

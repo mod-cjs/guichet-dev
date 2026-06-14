@@ -2,12 +2,13 @@
  * <ReservationStatusBadge> — pastille statut réservation centre (W5).
  *
  * Mapping cf. `.agent_context/specs/M4-centres-lot7.md` §5 Wave 5 :
- * - Acceptee     → vert  "Confirmée"
- * - EnAttente    → jaune "En attente"
- * - Passee       → gris  "Passée"
- * - AnnuleeParJeune → gris foncé "Annulée"
- * - Refusee      → rouge "Refusée"
- * - NonHonoree   → rouge "Non honorée"
+ * - Acceptee         → vert  "Confirmée"
+ * - EnAttente        → jaune "En attente"
+ * - Passee           → gris  "Passée"
+ * - AnnuleeParJeune  → gris foncé "Annulée"
+ * - AnnuleeParCentre → gris foncé "Annulée par le centre" (GUIC-395)
+ * - Refusee          → rouge "Refusée"
+ * - NonHonoree       → rouge "Non honorée"
  *
  * Couleurs via tokens `gj-*`. Aucun hex en dur.
  */
@@ -16,6 +17,7 @@ export type ReservationStatutValue =
   | 'EnAttente'
   | 'Passee'
   | 'AnnuleeParJeune'
+  | 'AnnuleeParCentre'
   | 'Refusee'
   | 'NonHonoree'
 
@@ -35,6 +37,7 @@ const TONES: Record<string, Tone> = {
   EnAttente: { label: 'En attente', bg: 'var(--gj-yellow-soft, #FFF4D6)', color: 'var(--gj-ink)' },
   Passee: { label: 'Passée', bg: 'var(--gj-line)', color: 'var(--gj-grey)' },
   AnnuleeParJeune: { label: 'Annulée', bg: 'var(--gj-line)', color: 'var(--gj-ink)' },
+  AnnuleeParCentre: { label: 'Annulée par le centre', bg: 'var(--gj-line)', color: 'var(--gj-ink)' },
   Refusee: { label: 'Refusée', bg: 'var(--gj-red-soft, #FBE3E1)', color: 'var(--gj-red)' },
   NonHonoree: { label: 'Non honorée', bg: 'var(--gj-red-soft, #FBE3E1)', color: 'var(--gj-red)' },
 }
