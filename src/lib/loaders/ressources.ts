@@ -171,32 +171,6 @@ export async function listRessourcesFavoris(
   return { items, total, page: safePage, pageSize: PAGE_SIZE }
 }
 
-/**
- * Récupère une ressource publique par id (GUIC-366 — page détail).
- * Renvoie `null` si non trouvée ou non publique.
- */
-export async function getRessourceById(id: string): Promise<RessourceListItem | null> {
-  if (!id) return null
-  const row = await prisma.ressource.findFirst({
-    where: { id, estPublic: true },
-    select: CARD_SELECT,
-  })
-  if (!row) return null
-  return {
-    id: row.id,
-    titre: row.titre,
-    description: row.description,
-    type: row.type as TypeRessourceValue,
-    theme: row.theme,
-    url: row.url,
-    vues: row.vues,
-    niveau: row.niveau as NiveauRessourceValue | null,
-    langue: row.langue as LangueRessourceValue | null,
-    categorie: row.categorie,
-    createdAt: row.createdAt.toISOString(),
-  }
-}
-
 /** Set d'IDs favoris d'un utilisateur — pour synchroniser l'UI rapidement. */
 export async function getRessourceFavoriIds(cjsUid: string): Promise<string[]> {
   const rows = await prisma.ressourceFavorite.findMany({
