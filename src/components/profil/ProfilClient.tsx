@@ -45,7 +45,8 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
           complétude) + colonne droite (sections éditables). Mobile : empilement. */}
       <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-space-5 flex flex-col gap-space-5">
         <aside>
-          <div className="lg:sticky lg:top-[80px] flex flex-col gap-space-4">
+          {/* Sticky coordonné avec BenefTopBar (--gj-topbar-h = 64px) — GUIC-401. */}
+          <div className="lg:sticky lg:top-[var(--gj-sticky-offset)] flex flex-col gap-space-4">
             <ProfilHeader
               nom={initial.nom}
               prenom={initial.prenom}

@@ -39,7 +39,7 @@ export function WebDashKPIs({ items }: Props) {
   return (
     <section
       aria-label="Indicateurs clés"
-      className="grid grid-cols-2 lg:grid-cols-4 gap-space-3"
+      className="grid grid-cols-2 lg:grid-cols-4 gap-space-3 xl:gap-space-4"
     >
       {items.map((kpi) => {
         const numericValue =

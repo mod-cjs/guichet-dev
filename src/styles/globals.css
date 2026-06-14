@@ -45,6 +45,12 @@
   .container-narrow { max-width: var(--gj-container-narrow); margin-inline: auto; padding-inline: var(--space-4); }
   /* Lecture longue (articles, pages éditoriales) — largeur de lecture confortable */
   .container-prose  { max-width: 720px; margin-inline: auto; padding-inline: var(--space-4); }
+
+  /* Palier grand écran 2xl (≥1536px) — la page respire jusqu'à 1440px sans
+     s'étaler bord à bord. Padding latéral renforcé pour aérer le contenu. */
+  @media (min-width: 1536px) {
+    .container-page { max-width: var(--gj-container-max-xl); padding-inline: var(--space-5); }
+  }
 }
 
 /* Onboarding — switch mobile/web purement CSS au breakpoint `--bp-lg` (1024px).

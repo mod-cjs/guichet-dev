@@ -337,7 +337,8 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-space-5">
         {/* Panneau filtres — desktop */}
         <aside className="hidden lg:block">
-          <div className="sticky top-space-4">
+          {/* Sticky coordonné avec BenefTopBar (--gj-topbar-h = 64px) — GUIC-401. */}
+          <div className="sticky top-[var(--gj-sticky-offset)]">
             <FiltresPanel
               value={filters}
               onChange={(next) => pushFilters({ ...filters, ...next })}
@@ -397,7 +398,8 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           )}
 
           {items.length > 0 && (
-            <div className="grid grid-cols-1 gap-space-3">
+            /* Grand écran (≥1536px) : 2 colonnes — cards opps denses, max 2 cols. */
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-space-3">
               {items.map((item) => (
                 <OppCard
                   key={item.id}

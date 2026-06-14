@@ -126,10 +126,12 @@ export function YayeSidePanel({
         }}
       />
 
-      <style>{`@keyframes yaye-slide-in{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
+      <style>{`@keyframes yaye-slide-in{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}
+@media(min-width:1280px){.gj-yaye-side-panel{width:480px !important}}`}</style>
 
       <aside
         ref={panelRef}
+        className="gj-yaye-side-panel"
         role="dialog"
         aria-modal="true"
         aria-label="Conversation avec Yaye"

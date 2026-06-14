@@ -189,7 +189,7 @@ export function MaCarteClient({ user, cjsUid, usages }: Props) {
     : 0
 
   return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-8">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-8 xl:gap-10">
       {/* Section 1 — Carte + QR */}
       <section aria-labelledby="ma-carte-title" className="flex flex-col gap-3">
         <h1
