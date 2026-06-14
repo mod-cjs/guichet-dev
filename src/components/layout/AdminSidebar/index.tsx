@@ -39,6 +39,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Système',
     items: [
+      { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Analytics Centres' },
       { id: 'data-hub', href: '/admin/data-hub', icon: 'chart', label: 'Data Hub' },
     ],
   },
