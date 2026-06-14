@@ -26,6 +26,16 @@ import { useRouter } from 'next/navigation'
 import { Sheet, Modal, Button, Icon, FileUpload } from '@/components/ui'
 import type { UploadedFileMeta, FileUploader, DeferredFile } from '@/components/ui'
 import {
+  clearCandidatureDraft,
+  deleteServerDraft,
+  fetchServerDraft,
+  formatDraftAge,
+  loadCandidatureDraft,
+  pushServerDraft,
+  saveCandidatureDraft,
+} from './candidatureDraft'
+import {
+  LETTRE_MIN_CHARS,
   LETTRE_MAX_CHARS,
   MAX_CV_MB,
 } from '@/lib/constants/candidature'
@@ -158,6 +168,8 @@ export function CandidatureModal({
   const router = useRouter()
   const [lettre, setLettre] = useState('')
   const [consent, setConsent] = useState(false)
+  // GUIC-382 — état brouillon (lu au mount, sauvegardé en debounce).
+  const [draftRestored, setDraftRestored] = useState<{ updatedAt: number } | null>(null)
   // GUIC-380 — états email/téléphone/niveau/situation retirés (single-source profil).
   // GUIC-229 — CV en upload différé. Tant que la candidature n'est pas
   // soumise, on garde le `File` côté client (zéro blob créé). À la
@@ -192,8 +204,61 @@ export function CandidatureModal({
       setSubmitted(null)
       setSending(false)
       setCvMode('upload')
+      setDraftRestored(null)
     }
   }, [isOpen])
+
+  // GUIC-382 V2 — restaure le brouillon à l'ouverture : serveur d'abord
+  // (multi-device), fallback localStorage si réseau KO.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    ;(async () => {
+      const server = await fetchServerDraft(opportuniteId)
+      if (cancelled) return
+      if (server) {
+        if (server.lettre) setLettre(server.lettre)
+        setConsent(server.consent)
+        setCvMode(server.cvMode)
+        setDraftRestored({ updatedAt: server.updatedAt })
+        return
+      }
+      // Fallback localStorage.
+      const local = loadCandidatureDraft(null, opportuniteId)
+      if (!local) return
+      if (local.lettre) setLettre(local.lettre)
+      if (local.consent) setConsent(local.consent)
+      if (local.cvMode) setCvMode(local.cvMode)
+      setDraftRestored({ updatedAt: local.updatedAt })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, opportuniteId])
+
+  // GUIC-382 V2 — auto-save debounce (2 s) : serveur + localStorage en miroir.
+  useEffect(() => {
+    if (!isOpen || submitted) return
+    const t = setTimeout(() => {
+      // Local : toujours synchrone (offline-first).
+      saveCandidatureDraft({
+        cjsUid: null,
+        opportuniteId,
+        lettre,
+        consent,
+        hadCvFile: cvFile !== null || cvUploaded !== null,
+        cvMode,
+      })
+      // Serveur : best-effort.
+      void pushServerDraft(opportuniteId, {
+        lettre,
+        consent,
+        cvMode,
+        cvUrl: cvUploaded?.url ?? null,
+      })
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [isOpen, submitted, opportuniteId, lettre, consent, cvFile, cvUploaded, cvMode])
 
   // GUIC-380 — le check complétude au mount est retiré. Si le profil est
   // incomplet, le POST /api/candidatures retournera 403 et on routera vers
@@ -221,18 +286,27 @@ export function CandidatureModal({
     }
   }, [isOpen])
 
-  const lettreOk = lettre.trim().length > 0
+  // GUIC-383 : la lettre doit faire au moins LETTRE_MIN_CHARS (300) pour
+  // matcher la validation Zod côté API. Avant : `> 0` → l'utilisateur pouvait
+  // submit avec 1 char et se mangeait un 400 silencieux.
+  const lettreLen = lettre.trim().length
+  const lettreOk = lettreLen >= LETTRE_MIN_CHARS
   const hasCv = cvFile !== null || cvUploaded !== null
   const cvOk = !requiresFileUpload || hasCv
   const canSubmit = lettreOk && cvOk && consent && !sending
 
   const disabledReason = useMemo(() => {
     if (sending) return 'Envoi en cours…'
-    if (!lettreOk) return 'Rédigez votre lettre de motivation.'
+    if (!lettreOk) {
+      const remaining = LETTRE_MIN_CHARS - lettreLen
+      return remaining > 0
+        ? `Écris encore ${remaining} caractère${remaining > 1 ? 's' : ''} (minimum ${LETTRE_MIN_CHARS}).`
+        : 'Rédigez votre lettre de motivation.'
+    }
     if (!cvOk) return 'Ajoutez votre CV (PDF, max ' + MAX_CV_MB + ' Mo).'
     if (!consent) return 'Vous devez accepter la transmission du profil.'
     return undefined
-  }, [sending, lettreOk, cvOk, consent])
+  }, [sending, lettreOk, lettreLen, cvOk, consent])
 
   const handleClose = useCallback(() => {
     if (submitted) {
@@ -293,6 +367,10 @@ export function CandidatureModal({
           | { data?: { id?: string } }
           | null
         setSubmitted({ id: body?.data?.id ?? opportuniteId })
+        // GUIC-382 — candidature OK : on supprime le brouillon (local + serveur).
+        // Le serveur le purge aussi côté API (defense in depth).
+        clearCandidatureDraft(null, opportuniteId)
+        void deleteServerDraft(opportuniteId)
         onSuccess()
         return
       }
@@ -317,6 +395,13 @@ export function CandidatureModal({
       else if (res.status === 409) setError('Vous avez déjà postulé à cette opportunité.')
       else if (res.status === 422) setError("Cette opportunité n'accepte plus de candidatures.")
       else if (res.status === 401) setError('Votre session a expiré, reconnectez-vous.')
+      else if (res.status === 400) {
+        // GUIC-383 — Affiche le détail de validation API (ex : lettre trop courte).
+        const body = (await res.json().catch(() => null)) as
+          | { error?: { code?: string; message?: string } }
+          | null
+        setError(body?.error?.message ?? 'Données invalides. Vérifie ta saisie.')
+      }
       else setError('Une erreur est survenue. Réessayez.')
     } catch {
       setError('Connexion impossible. Réessayez.')
@@ -422,6 +507,38 @@ export function CandidatureModal({
         </Link>
       </div>
 
+      {/* GUIC-382 — Bandeau « brouillon restauré ». Apparaît à l'ouverture si
+          on a retrouvé un draft localStorage. Cliquer « Repartir de zéro »
+          purge le draft et reset les champs. */}
+      {draftRestored && (
+        <div
+          role="status"
+          data-testid="draft-restored-banner"
+          className="flex items-center justify-between gap-space-2 mb-space-3 rounded-gj-md border border-gj-yellow bg-gj-yellow-soft px-space-3 py-space-2 text-fs-200 text-gj-yellow-ink"
+        >
+          <span>
+            <span className="font-bold">Brouillon restauré</span> · sauvegardé{' '}
+            {formatDraftAge(draftRestored.updatedAt)}.
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              clearCandidatureDraft(null, opportuniteId)
+              void deleteServerDraft(opportuniteId)
+              setLettre('')
+              setConsent(false)
+              setCvMode('upload')
+              setCvFile(null)
+              setCvUploaded(null)
+              setDraftRestored(null)
+            }}
+            className="text-fs-200 font-bold underline underline-offset-2 whitespace-nowrap"
+          >
+            Repartir de zéro
+          </button>
+        </div>
+      )}
+
       {/* GUIC-380 — bloc Coordonnées + parcours retiré. La source de vérité est le profil
           (lookup recruteur via cjsUid). Si profil incomplet → page intermédiaire dédiée. */}
 
@@ -488,13 +605,18 @@ export function CandidatureModal({
         <span
           id={counterId}
           aria-live="polite"
-          className="text-color-text-muted shrink-0"
+          className={`shrink-0 ${lettreOk ? 'text-color-text-muted' : 'text-gj-red'}`}
         >
           {lettre.length} / {LETTRE_MAX_CHARS}
+          {!lettreOk && (
+            <span className="ml-space-1">
+              (min. {LETTRE_MIN_CHARS})
+            </span>
+          )}
         </span>
       </div>
       <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
-        Quelques lignes sur ta motivation augmentent tes chances.
+        Minimum {LETTRE_MIN_CHARS} caractères. Quelques lignes sur ta motivation augmentent tes chances.
       </p>
 
       {/* CV — GUIC-224/229 : carte « Utiliser mon CV de profil » si dispo, sinon
