@@ -56,6 +56,19 @@ describe('<ReservationCard /> — CTAs par statut (W5)', () => {
     ).toBeInTheDocument()
   })
 
+  it('Acceptee + à venir → CTA "Voir mon QR de retrait" (label complet design v2 — GUIC-399)', () => {
+    const futureIso = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
+    render(
+      <ReservationCard
+        reservation={build({ statut: 'Acceptee', dateReservee: futureIso })}
+        now={FIXED_NOW}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Voir mon QR de retrait' }),
+    ).toBeInTheDocument()
+  })
+
   it('AnnuleeParJeune → aucun CTA "Réserver" ni "Proposer"', () => {
     render(<ReservationCard reservation={build({ statut: 'AnnuleeParJeune' })} now={FIXED_NOW} />)
     expect(screen.queryByRole('link', { name: /Réserver à nouveau/i })).toBeNull()

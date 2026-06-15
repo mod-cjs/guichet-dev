@@ -243,7 +243,7 @@ export function ReservationCard({
               }}
             >
               <Icon name="bookmark" size={16} />
-              <span>QR de retrait</span>
+              <span>Voir mon QR de retrait</span>
             </button>
           )}
           {showCancelBtn && (

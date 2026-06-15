@@ -42,7 +42,10 @@ describe('<ReservationCard />', () => {
         now={FIXED_NOW}
       />,
     )
-    expect(screen.getByRole('button', { name: /QR de retrait/i })).toBeInTheDocument()
+    // GUIC-399 — label complet du design source ("Voir mon QR de retrait").
+    expect(
+      screen.getByRole('button', { name: /Voir mon QR de retrait/i }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Annuler la réservation/i })).toBeInTheDocument()
   })
 
@@ -56,7 +59,7 @@ describe('<ReservationCard />', () => {
     )
     expect(screen.getByText(/En attente de validation/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Annuler/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /QR de retrait/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Voir mon QR de retrait/i })).toBeNull()
   })
 
   it('Passee : CTA "Voir les ressources de ce centre" (pas d\'annulation)', () => {
@@ -87,7 +90,7 @@ describe('<ReservationCard />', () => {
     )
     expect(screen.getByText('Annulée')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Annuler/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /QR de retrait/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Voir mon QR de retrait/i })).toBeNull()
   })
 
   it('clic Annuler → confirm() + appelle onCancel(id)', () => {
