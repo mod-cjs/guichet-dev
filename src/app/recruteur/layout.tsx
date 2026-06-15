@@ -10,11 +10,16 @@ export default async function RecruteurLayout({ children }: { children: React.Re
   return (
     <>
       <SkipLink />
-      {/* Barre mobile — contexte visuel + espace pour le bouton hamburger */}
+      {/* Barre mobile — contexte visuel + espace pour le bouton hamburger.
+          GUIC-402 : hauteur calée sur --gj-topbar-h pour cohérence inter-rôles. */}
       <div
-        className="md:hidden sticky top-0 h-12 bg-white border-b border-gj-line flex items-center
+        className="md:hidden sticky top-0 bg-white border-b border-gj-line flex items-center
           px-space-3"
-        style={{ zIndex: 199, paddingTop: 'var(--safe-top)' }}
+        style={{
+          zIndex: 199,
+          paddingTop: 'var(--safe-top)',
+          minHeight: 'var(--gj-topbar-h)',
+        }}
       >
         <span className="text-color-text-primary font-bold text-fs-300 ml-10">Espace Recruteur</span>
       </div>
