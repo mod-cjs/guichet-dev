@@ -16,7 +16,11 @@ export interface CentreCardMobileCentre {
   nom: string
   region: string
   ville?: string
+  /** Adresse postale complète. Affichée sur une ligne dédiée sous le nom si présente. */
+  addr?: string
   horaires?: CentreCardMobileHoraire[]
+  /** Distance utilisateur en km. Non affichée si `undefined`. */
+  km?: number
 }
 
 export interface CentreCardMobileProps {
@@ -37,14 +41,21 @@ function formatHoraireToday(horaires?: CentreCardMobileHoraire[]): string {
   return 'Ouvert'
 }
 
+function formatKm(km?: number): string | null {
+  if (km === undefined || km === null) return null
+  if (Number.isNaN(km)) return null
+  return km >= 10 ? `${Math.round(km)} km` : `${km.toFixed(1)} km`
+}
+
 /**
  * <CentreCardMobile> — variante mobile compacte de l'annuaire centres.
  *
- * Densité accrue :
- *  - padding `10px 12px`
- *  - meta single-line (ville · horaire)
- *  - border-left 3px gj-yellow + pastille jaune discret au lieu de border full teal
- *  - badge "Mien" en pastille gj-yellow / gj-teal-deep
+ * Refonte fidèle au design source `public/design-v2/centres-mobile.jsx` (l.45-62) :
+ *  - Pin 42×42 (teal-soft si `mine`, gj-bg sinon)
+ *  - Header : nom · badge "Mien" (teal-soft) · spacer · km (teal-deep)
+ *  - Adresse complète sur ligne dédiée (si fournie)
+ *  - Meta : OpenDot · horaires
+ *  - Bordure 1.5px teal si `mine` sinon 1px line (pas de border-left jaune)
  *
  * Tap-min 44px préservé.
  *
@@ -57,6 +68,7 @@ export function CentreCardMobile({
   onClick,
   className = '',
 }: CentreCardMobileProps) {
+  const kmLabel = formatKm(centre.km)
   const handleClick = () => {
     if (onClick) onClick()
   }
@@ -78,30 +90,30 @@ export function CentreCardMobile({
       className={`w-full flex items-start gap-3 rounded-gj-lg cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${className}`.trim()}
       style={{
         minHeight: 44,
-        padding: '10px 12px',
+        padding: 13,
         background: 'var(--gj-surface)',
-        border: '1px solid var(--gj-line)',
-        borderLeft: isMine ? '3px solid var(--gj-yellow)' : '1px solid var(--gj-line)',
+        border: isMine ? '1.5px solid var(--gj-teal)' : '1px solid var(--gj-line)',
       }}
     >
       <span
         aria-hidden="true"
-        className="flex items-center justify-center rounded-full flex-shrink-0"
+        className="flex items-center justify-center flex-shrink-0"
         style={{
-          width: 32,
-          height: 32,
-          background: 'var(--gj-teal-soft)',
-          color: 'var(--gj-teal-deep)',
+          width: 42,
+          height: 42,
+          borderRadius: 10,
+          background: isMine ? 'var(--gj-teal-soft)' : 'var(--gj-bg)',
+          color: isMine ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
         }}
       >
-        <Icon name="pin" size={16} />
+        <Icon name="pin" size={20} />
       </span>
 
       <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
         <div className="flex items-center gap-1.5">
           <h3
             className="m-0 truncate"
-            style={{ color: 'var(--gj-ink)', fontSize: 14, fontWeight: 700 }}
+            style={{ color: 'var(--gj-ink)', fontSize: 14, fontWeight: 800 }}
           >
             {centre.nom}
           </h3>
@@ -109,27 +121,54 @@ export function CentreCardMobile({
             <span
               className="flex-shrink-0 font-black"
               style={{
-                fontSize: 9.5,
+                fontSize: 9,
                 letterSpacing: '.3px',
                 textTransform: 'uppercase',
-                background: 'var(--gj-yellow)',
+                background: 'var(--gj-teal-soft)',
                 color: 'var(--gj-teal-deep)',
-                padding: '1px 6px',
+                padding: '1px 7px',
                 borderRadius: 999,
               }}
             >
               Mien
             </span>
           )}
+          <span style={{ flex: 1 }} />
+          {kmLabel && (
+            <span
+              className="flex-shrink-0 font-black"
+              style={{
+                fontSize: 11,
+                color: 'var(--gj-teal-deep)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {kmLabel}
+            </span>
+          )}
         </div>
+
+        {centre.addr && (
+          <div style={{ color: 'var(--gj-grey)', fontSize: 11.5, marginTop: 2 }}>
+            {centre.addr}
+          </div>
+        )}
+
         <div
-          className="inline-flex items-center gap-1.5 flex-wrap"
-          style={{ color: 'var(--gj-grey)', fontSize: 11.5 }}
+          className="inline-flex items-center flex-wrap"
+          style={{ gap: 12, marginTop: 6, color: 'var(--gj-grey)', fontSize: 11 }}
         >
-          <span>{centre.ville ?? centre.region}</span>
-          <span aria-hidden="true">·</span>
-          <CentreOpenDot open={isOpen} />
-          <span>{isOpen ? 'Ouvert' : 'Fermé'} · {formatHoraireToday(centre.horaires)}</span>
+          <span
+            className="inline-flex items-center"
+            style={{
+              gap: 5,
+              fontWeight: 700,
+              color: isOpen ? 'var(--gj-green-ink)' : 'var(--gj-grey)',
+            }}
+          >
+            <CentreOpenDot open={isOpen} />
+            {isOpen ? 'Ouvert' : 'Fermé'} · {formatHoraireToday(centre.horaires)}
+          </span>
         </div>
       </div>
     </article>

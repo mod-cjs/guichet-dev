@@ -8,7 +8,8 @@ const baseCentre: CentreRowCentre = {
   nom: 'CJS Tambacounda',
   region: 'Tambacounda',
   ville: 'Tambacounda',
-  services: ['Conseil 1-à-1', 'Ateliers', 'Wifi', 'Salle réunion'],
+  addr: '12 av. Léopold Sédar Senghor',
+  services: ['Conseil 1-à-1', 'Ateliers', 'Wifi', 'Salle réunion', 'Imprimante', 'Casiers'],
   conseillersCount: 3,
   estActif: true,
 }
@@ -22,9 +23,23 @@ describe('<CentreRow />', () => {
     ).toBeInTheDocument()
   })
 
+  it('rend un pin SVG (icône) à gauche', () => {
+    const { container } = render(<CentreRow centre={baseCentre} isOpen />)
+    // Sprite SVG via <Icon name="pin" /> → svg + use href="#pin"
+    const useEls = container.querySelectorAll('use')
+    const hrefs = Array.from(useEls).map((u) =>
+      u.getAttribute('href') || u.getAttribute('xlink:href'),
+    )
+    expect(hrefs.some((h) => h && h.includes('pin'))).toBe(true)
+  })
+
   it('affiche le badge "Mon centre" si isMine=true', () => {
     render(<CentreRow centre={baseCentre} isMine isOpen />)
-    expect(screen.getByText(/Mon centre/i)).toBeInTheDocument()
+    const badge = screen.getByText(/Mon centre/i)
+    expect(badge).toBeInTheDocument()
+    // Marqueur sémantique sur l'article racine
+    const root = screen.getByRole('button', { name: /Voir le centre/i })
+    expect(root.getAttribute('data-mine')).toBe('true')
   })
 
   it('n\'affiche PAS le badge "Mon centre" si isMine=false', () => {
@@ -32,13 +47,44 @@ describe('<CentreRow />', () => {
     expect(screen.queryByText(/Mon centre/i)).not.toBeInTheDocument()
   })
 
-  it('limite les chips services à 2 + affiche le +N', () => {
+  it('affiche 5 services + le "+N" si plus', () => {
     render(<CentreRow centre={baseCentre} isOpen />)
     expect(screen.getByText('Conseil 1-à-1')).toBeInTheDocument()
     expect(screen.getByText('Ateliers')).toBeInTheDocument()
-    expect(screen.getByText('+2')).toBeInTheDocument()
-    expect(screen.queryByText('Wifi')).not.toBeInTheDocument()
-    expect(screen.queryByText('Salle réunion')).not.toBeInTheDocument()
+    expect(screen.getByText('Wifi')).toBeInTheDocument()
+    expect(screen.getByText('Salle réunion')).toBeInTheDocument()
+    expect(screen.getByText('Imprimante')).toBeInTheDocument()
+    // 6e service masqué + "+1"
+    expect(screen.queryByText('Casiers')).not.toBeInTheDocument()
+    expect(screen.getByText('+1')).toBeInTheDocument()
+  })
+
+  it('affiche addr · region en sous-ligne si addr fourni', () => {
+    render(<CentreRow centre={baseCentre} isOpen />)
+    expect(
+      screen.getByText(/12 av\. Léopold Sédar Senghor · Tambacounda/i),
+    ).toBeInTheDocument()
+  })
+
+  it('retombe sur ville/region si addr absent', () => {
+    const sansAddr: CentreRowCentre = { ...baseCentre, addr: undefined }
+    render(<CentreRow centre={sansAddr} isOpen />)
+    expect(screen.getByText('Tambacounda')).toBeInTheDocument()
+  })
+
+  it('affiche le km si fourni', () => {
+    render(<CentreRow centre={{ ...baseCentre, km: 1.2 }} isOpen />)
+    expect(screen.getByText('1.2 km')).toBeInTheDocument()
+  })
+
+  it('arrondit le km à l\'entier au-delà de 10', () => {
+    render(<CentreRow centre={{ ...baseCentre, km: 12.4 }} isOpen />)
+    expect(screen.getByText('12 km')).toBeInTheDocument()
+  })
+
+  it('n\'affiche pas de span km si km undefined', () => {
+    render(<CentreRow centre={baseCentre} isOpen />)
+    expect(screen.queryByText(/\bkm\b/)).not.toBeInTheDocument()
   })
 
   it('appelle onClick quand on clique', () => {
