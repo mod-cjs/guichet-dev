@@ -117,7 +117,7 @@ const ProfileHeader = ({ onEdit }) => {
   const wrap = {
     background: "linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)",
     color: "#fff", borderRadius: 16, padding: "22px 26px",
-    position: "relative", overflow: "hidden",
+    position: "relative", overflow: "hidden", flexShrink: 0,
     display: "flex", alignItems: "center", gap: 22,
   };
   const glow = { position: "absolute", right: -60, top: -70, width: 260, height: 260, background: "radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)", pointerEvents: "none" };
@@ -157,24 +157,13 @@ const ProfileHeader = ({ onEdit }) => {
           <span style={metaPill}><svg className="gj-icon" style={{ width: 13, height: 13, color: "var(--gj-yellow)" }}><use href="#i-learning" /></svg>Licence 2 Gestion</span>
           <span style={metaPill}><svg className="gj-icon" style={{ width: 13, height: 13, color: "var(--gj-yellow)" }}><use href="#i-calendar" /></svg>Membre depuis 03/2025</span>
         </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button onClick={onEdit} style={{
-            background: "var(--gj-yellow)", color: "var(--gj-ink)", border: 0,
-            padding: "10px 16px", borderRadius: 8, fontWeight: 800, fontSize: 13,
-            cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6,
-          }}><svg className="gj-icon" style={{ width: 14, height: 14 }}><use href="#i-settings" /></svg>Modifier mon profil</button>
-          <button style={{
-            background: "rgba(255,255,255,.12)", color: "#fff", border: "1.5px solid rgba(255,255,255,.25)",
-            padding: "10px 16px", borderRadius: 8, fontWeight: 800, fontSize: 13,
-            cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6,
-          }}><svg className="gj-icon" style={{ width: 14, height: 14 }}><use href="#i-share" /></svg>Partager aux recruteurs</button>
-        </div>
       </div>
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <CompletionRing pct={72} />
-        <div style={{ fontSize: 11, fontWeight: 700, opacity: .88, textAlign: "center", maxWidth: 130, lineHeight: 1.35 }}>
-          Ajoute ton CV pour atteindre <b style={{ color: "var(--gj-yellow)" }}>90%</b>
-        </div>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 9, flexShrink: 0, alignItems: "stretch" }}>
+        <button onClick={onEdit} style={{
+          background: "var(--gj-yellow)", color: "var(--gj-ink)", border: 0,
+          padding: "10px 16px", borderRadius: 8, fontWeight: 800, fontSize: 13,
+          cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap",
+        }}><svg className="gj-icon" style={{ width: 14, height: 14 }}><use href="#i-settings" /></svg>Modifier mon profil</button>
       </div>
     </section>
   );
@@ -336,6 +325,117 @@ const InclusionCard = () => {
             <Toggle on={r.on} />
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------
+// Page dédiée — Inclusion & accessibilité (onglet sidebar "incl")
+// ---------------------------------------------------------------------
+const InclusionPage = () => {
+  const [lang, setLang] = React.useState("fr");
+  const T = {
+    fr: { title: "Inclusion & accessibilité", sub: "Adapte l'application à tes besoins. Tes préférences sont enregistrées et appliquées partout.", langTitle: "Langue de l'application", langSub: "Choisis la langue de l'interface et des contenus audio." },
+    wo: { title: "Boole ak yokkute", sub: "Defaral app bi ci sa soxla. Sa tànneef yi dañu leen di denc te jëfandikoo fépp.", langTitle: "Làkku app bi", langSub: "Tànnal làkk wu nga bëgg ci interface bi ak audio yi." },
+    ff: { title: "Naatnaagu e jokkondiral", sub: "Hawrindir jaaynde nden e haaju maa. Suɓagol maa ina maraa kala nokku.", langTitle: "Ɗemngal jaaynde nden", langSub: "Suɓo ɗemngal ngal njiɗɗaa wonande interface e audio." },
+  };
+  const t = T[lang] || T.fr;
+  const langs = [
+    { code: "fr", label: "Français", sub: "Langue officielle" },
+    { code: "wo", label: "Wolof", sub: "Wolof" },
+    { code: "ff", label: "Pulaar / Peul", sub: "Pulaar" },
+    { code: "srr", label: "Sérère", sub: "Sereer" },
+    { code: "dyu", label: "Diola", sub: "Joola" },
+    { code: "mnk", label: "Mandingue", sub: "Mandinka" },
+  ];
+  const sizes = [["S", "Petit", 13], ["M", "Normal", 15], ["L", "Grand", 18], ["XL", "Très grand", 22]];
+  const groups = [
+    { title: "Vision", rows: [
+      { icon: "i-eye", label: "Contraste élevé", sub: "Renforce le contraste des textes et bordures", on: false },
+      { icon: "i-light", label: "Réduire les animations", sub: "Limite les mouvements à l'écran", on: false },
+      { icon: "i-resources", label: "Espacement du texte", sub: "Interlignes et lettres plus aérés", on: false },
+    ]},
+    { title: "Lecture & compréhension", rows: [
+      { icon: "i-light", label: "Mode FALC", sub: "Facile à lire et à comprendre — phrases simplifiées", on: false },
+      { icon: "i-play", label: "Lecture audio en Wolof", sub: "Écouter les contenus à voix haute", on: true },
+      { icon: "i-play", label: "Lecture audio en Français", sub: "Écouter les contenus à voix haute", on: false },
+    ]},
+    { title: "Navigation", rows: [
+      { icon: "i-target", label: "Navigation clavier renforcée", sub: "Met en évidence l'élément sélectionné", on: true },
+      { icon: "i-search", label: "Guide de lecture", sub: "Une règle suit le curseur pour garder la ligne", on: false },
+    ]},
+  ];
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* hero */}
+      <section style={{ background: "linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)", color: "#fff", borderRadius: 16, padding: "22px 26px", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+        <span style={{ position: "absolute", right: -50, top: -60, width: 220, height: 220, background: "radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: "rgba(255,255,255,.14)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><svg className="gj-icon" style={{ width: 26, height: 26, color: "var(--gj-yellow)" }}><use href="#i-eye" /></svg></span>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.15 }}>{t.title}</h1>
+            <div style={{ fontSize: 13, opacity: .9, marginTop: 4, lineHeight: 1.45, maxWidth: 480 }}>{t.sub}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* langue de l'application */}
+      <div style={{ ...profCard }}>
+        {profCardHead(t.langTitle)}
+        <div style={{ fontSize: 12.5, color: "var(--gj-grey)", marginTop: -4, marginBottom: 4 }}>{t.langSub}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          {langs.map((l) => {
+            const on = l.code === lang;
+            return (
+            <button key={l.code} onClick={() => setLang(l.code)} style={{ display: "flex", alignItems: "center", gap: 11, minHeight: 56, padding: "0 14px", borderRadius: 11, cursor: "pointer", fontFamily: "inherit", textAlign: "left", background: on ? "var(--gj-teal-soft)" : "#fff", border: on ? "1.5px solid var(--gj-teal-deep)" : "1.5px solid var(--gj-line)" }}>
+              <span style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: on ? "var(--gj-teal-deep)" : "var(--gj-bg)", color: on ? "#fff" : "var(--gj-grey)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, textTransform: "uppercase" }}>{l.code.slice(0, 2)}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 13.5, fontWeight: 800, color: "var(--gj-ink)" }}>{l.label}</span>
+                <span style={{ display: "block", fontSize: 11, color: "var(--gj-grey)", marginTop: 1 }}>{l.sub}</span>
+              </span>
+              {on && <svg className="gj-icon" style={{ width: 18, height: 18, color: "var(--gj-teal-deep)", flexShrink: 0 }}><use href="#i-check-circle" /></svg>}
+            </button>
+          ); })}
+        </div>
+      </div>
+
+      {/* taille du texte */}
+      <div style={{ ...profCard }}>
+        {profCardHead("Taille du texte")}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {sizes.map(([k, lbl, fs], i) => (
+            <button key={k} style={{ minHeight: 72, borderRadius: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, background: i === 1 ? "var(--gj-teal-soft)" : "#fff", border: i === 1 ? "1.5px solid var(--gj-teal-deep)" : "1.5px solid var(--gj-line)", color: i === 1 ? "var(--gj-teal-deep)" : "var(--gj-grey)" }}>
+              <span style={{ fontWeight: 900, fontSize: fs }}>Aa</span>
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{lbl}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* groupes de réglages */}
+      {groups.map((g, gi) => (
+        <div key={gi} style={{ ...profCard }}>
+          {profCardHead(g.title)}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {g.rows.map((r, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 0", borderTop: i === 0 ? 0 : "1px solid var(--gj-line)" }}>
+                <span style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: "var(--gj-teal-soft)", color: "var(--gj-teal-deep)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><svg className="gj-icon" style={{ width: 19, height: 19 }}><use href={"#" + r.icon} /></svg></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--gj-ink)" }}>{r.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--gj-grey)", marginTop: 1 }}>{r.sub}</div>
+                </div>
+                <Toggle on={r.on} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* rappel barre flottante */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--gj-teal-soft)", borderRadius: 12, padding: "14px 16px" }}>
+        <svg className="gj-icon" style={{ width: 20, height: 20, color: "var(--gj-teal-deep)", flexShrink: 0 }}><use href="#i-info" /></svg>
+        <div style={{ fontSize: 12.5, color: "var(--gj-teal-deep)", fontWeight: 600, lineHeight: 1.45 }}>Ces réglages sont aussi accessibles partout grâce au <b>bouton d'accessibilité</b> flottant, en bas à gauche de l'écran.</div>
       </div>
     </div>
   );
@@ -577,17 +677,20 @@ const EditForm = ({ onCancel }) => {
 // ---------------------------------------------------------------------
 const WebProfile = ({ editing = false }) => {
   const [edit, setEdit] = React.useState(editing);
+  const [tab, setTab] = React.useState(editing === "incl" ? "incl" : "profile");
   const root = { display: "grid", gridTemplateColumns: "260px 1fr", height: "100%", background: "var(--gj-bg)", overflow: "hidden" };
   const main = { display: "flex", flexDirection: "column", overflow: "hidden" };
   const page = { padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", flex: 1 };
-  const twoCol = { display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20, alignItems: "start" };
+  const twoCol = { display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20, alignItems: "start", flexShrink: 0 };
   return (
     <div style={root}>
-      <BenefSidebar active="profile" onNavChange={(id) => { if (id === "profile") setEdit(false); }} />
+      <BenefSidebar active={tab === "incl" ? "incl" : "profile"} onNavChange={(id) => { if (id === "incl") { setTab("incl"); setEdit(false); } else if (id === "profile") { setTab("profile"); setEdit(false); } }} />
       <div style={main}>
         <BenefTopBar />
         <div style={page}>
-          {edit ? (
+          {tab === "incl" ? (
+            <InclusionPage />
+          ) : edit ? (
             <EditForm onCancel={() => setEdit(false)} />
           ) : (
             <React.Fragment>
@@ -602,7 +705,6 @@ const WebProfile = ({ editing = false }) => {
                 <aside style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <CompletionChecklist />
                   <DocumentsCard />
-                  <InclusionCard />
                 </aside>
               </div>
             </React.Fragment>

@@ -61,6 +61,8 @@
     '<symbol id="i-vest" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l4 3 4-3 4 4-3 3v9H7v-9L4 8z"/><path d="M11 11h2v6h-2z"/></symbol>' +
     '<symbol id="i-ruler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9-9 9z"/><path d="M7 12l1 1"/><path d="M10 9l1.5 1.5"/><path d="M13 6l1 1"/><path d="M14 14l1 1"/><path d="M11 17l1.5-1.5"/></symbol>' +
     '<symbol id="i-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></symbol>' +
+    '<symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l1.8-4.5A2 2 0 0 1 6.7 7h10.6a2 2 0 0 1 1.9 1.3L21 13"/><path d="M3 13h18v4a1 1 0 0 1-1 1h-1.2a2 2 0 0 1-3.9 0H9.1a2 2 0 0 1-3.9 0H4a1 1 0 0 1-1-1z"/><circle cx="7.3" cy="17.5" r="1.2"/><circle cx="16.7" cy="17.5" r="1.2"/></symbol>' +
+    '<symbol id="i-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6"/><path d="M12 16v4"/></symbol>' +
     '</svg>';
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', inject);

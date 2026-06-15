@@ -181,6 +181,18 @@ const EvListContent = ({ onOpen, onCalendar, onMine }) => (
 // DETAIL VIEW
 // ---------------------------------------------------------------------
 const EvCheckinCard = ({ ev }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, fontWeight: 800, color: "var(--gj-teal-deep)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+      <svg className="gj-icon" style={{ width: 14, height: 14 }}><use href="#i-target" /></svg>Check-in sur place
+    </div>
+    <MyCJSCard maxWidth={360} />
+    <div style={{ fontSize: 11.5, color: "var(--gj-grey)", lineHeight: 1.45 }}>
+      Présente cette carte (ton QR CJS) à l'accueil pour valider ta présence.
+    </div>
+  </div>
+);
+
+const EvCheckinCardOld = ({ ev }) => (
   <div style={{ background: "linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))", color: "#fff", borderRadius: 14, padding: 16, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", gap: 12 }}>
     <span style={{ position: "absolute", right: -40, top: -50, width: 180, height: 180, background: "radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)", pointerEvents: "none" }} />
     <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative", fontSize: 10.5, fontWeight: 800, color: "var(--gj-yellow)", textTransform: "uppercase", letterSpacing: ".5px" }}>

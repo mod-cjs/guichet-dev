@@ -193,20 +193,13 @@ const MobileEvConfirm = ({ nav = () => {} }) => {
             <div style={{ fontSize: 13, color: "var(--gj-grey)", lineHeight: 1.5, maxWidth: 280 }}>Ta place pour <b style={{ color: "var(--gj-ink)" }}>{ev.title}</b> est réservée. Rappel envoyé 24 h avant.</div>
           </div>
 
-          {/* QR check-in */}
-          <div style={{ background: "linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))", color: "#fff", borderRadius: 14, padding: 16, marginTop: 16, position: "relative", overflow: "hidden" }}>
-            <span style={{ position: "absolute", right: -40, top: -50, width: 170, height: 170, background: "radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)" }} />
-            <div style={{ position: "relative", fontSize: 10.5, fontWeight: 800, color: "var(--gj-yellow)", textTransform: "uppercase", letterSpacing: ".5px", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+          {/* QR check-in — carte CJS blanche */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--gj-teal-deep)", textTransform: "uppercase", letterSpacing: ".5px", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
               <svg className="gj-icon" style={{ width: 14, height: 14 }}><use href="#i-target" /></svg>Ton billet · check-in sur place
             </div>
-            <div style={{ position: "relative", display: "flex", gap: 13, alignItems: "center" }}>
-              <div style={{ background: "#fff", padding: 7, borderRadius: 10, flexShrink: 0 }}><QRGlyph size={92} /></div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 900 }}>Awa Diop</div>
-                <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, fontWeight: 700, color: "var(--gj-yellow)", marginTop: 2 }}>GJS · AD · 23045</div>
-                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,.78)", marginTop: 7, lineHeight: 1.4 }}>Présente ce QR (ta carte CJS) à l'accueil pour pointer.</div>
-              </div>
-            </div>
+            <MyCJSCard />
+            <div style={{ fontSize: 11, color: "var(--gj-grey)", marginTop: 8, lineHeight: 1.4 }}>Présente cette carte (ton QR CJS) à l'accueil pour pointer.</div>
           </div>
 
           <button style={{ width: "100%", marginTop: 14, background: "#fff", color: "var(--gj-teal-deep)", border: "1.5px solid var(--gj-line)", minHeight: 48, borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
