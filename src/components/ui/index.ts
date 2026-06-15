@@ -46,6 +46,8 @@ export { StepBar }    from './StepBar'
 export type { StepBarProps } from './StepBar'
 export { FooterCTA }  from './FooterCTA'
 export type { FooterCTAProps, FooterCTAButton } from './FooterCTA'
+export { Tabs }       from './Tabs'
+export type { TabsProps, TabItem } from './Tabs'
 export { Tag }        from './Tag'
 export { Toast }      from './Toast'
 
