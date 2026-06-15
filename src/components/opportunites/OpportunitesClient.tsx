@@ -8,19 +8,10 @@ import { typeLabel } from './OpportuniteTypeChip'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
 import { OpportunitesFiltersSheet } from './OpportunitesFiltersSheet'
 import { OpportunitesListHeader, type ActiveChip } from './OpportunitesListHeader'
+import { OpportunitesTabs } from './OpportunitesTabs'
 import { useFavoris } from './FavorisProvider'
 import { regionLabel } from '@/lib/regions'
 import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite'
-
-/** Types disponibles dans la rangée horizontale de chips (mobile). */
-const TYPE_CHIPS: TypeOpportunite[] = [
-  'Emploi',
-  'Stage',
-  'Formation',
-  'Bourse',
-  'Volontariat',
-  'Appel_a_projets',
-]
 
 interface OpportunitesClientProps {
   initialRegion: string | null
@@ -291,39 +282,15 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           </p>
         </div>
 
-        {/* Rangée de chips types — mobile uniquement (design v2 M1).
-            flex-wrap (et non overflow-x-auto) pour ne pas piéger le focus clavier — fix B.3 (GUIC-197). */}
-        <div
-          className="mb-space-3 flex flex-wrap gap-space-1"
-          role="tablist"
-          aria-label="Filtrer par type d'opportunité"
-        >
-          {TYPE_CHIPS.map((t) => {
-            const active = filters.type === t
-            return (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() =>
-                  pushFilters({ ...filters, type: active ? undefined : t })
-                }
-                className={[
-                  'inline-flex items-center px-space-3 py-[7px] rounded-gj-pill',
-                  'text-fs-200 leading-none whitespace-nowrap border-[1.5px]',
-                  'min-h-[var(--tap-min)] md:min-h-[36px]',
-                  'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
-                  active
-                    ? 'bg-gj-teal-soft border-gj-teal text-gj-teal-deep font-black'
-                    : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong font-semibold',
-                ].join(' ')}
-              >
-                {typeLabel(t)}
-              </button>
-            )
-          })}
-        </div>
+        {/* Sous-onglets par type — GUIC-409. Remplace l'ancienne rangée de chips
+            mobile (commit antérieur GUIC-188/197). Présent aussi en desktop juste
+            au-dessus du header de liste. */}
+        <OpportunitesTabs
+          className="mb-space-3"
+          value={filters.type as TypeOpportunite | undefined}
+          onChange={(next) => pushFilters({ ...filters, type: next })}
+          counts={{}}
+        />
 
         <div className="mb-space-3">
           <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
@@ -360,8 +327,18 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
             activeQuery={filters.q || undefined}
             activeChips={activeChips}
             updatedAgo={updatedAgo}
-            className="mb-space-4"
+            className="mb-space-3"
           />
+
+          {/* Sous-onglets par type — desktop (GUIC-409). Visibles uniquement
+              à partir du breakpoint lg pour ne pas doubler avec la version mobile. */}
+          <div className="hidden lg:block mb-space-4 border-b border-gj-line">
+            <OpportunitesTabs
+              value={filters.type as TypeOpportunite | undefined}
+              onChange={(next) => pushFilters({ ...filters, type: next })}
+              counts={{}}
+            />
+          </div>
 
           {status === 'loading' && (
             <div className="grid grid-cols-1 gap-space-3">
