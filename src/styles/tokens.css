@@ -244,6 +244,22 @@
   --gj-container-md:     680px;
   --gj-container-wide:   820px;
   --gj-container-x:      1280px;
+  /* Palier grand écran (≥1536px / 2xl Tailwind) — respiration sans s'étaler.
+     Utilisé par `.container-page` en media query 2xl (voir globals.css). */
+  --gj-container-max-xl: 1440px;
+
+  /* Hauteur des topbars — référence partagée pour aligner les sticky internes
+     (filtres, asides) au-dessous de la barre.
+       - BenefTopBar desktop (app jeune)  = 64px (référence)
+       - Header public marketing desktop  ≈ 50px (majoré à 64px côté token,
+         la marge en plus reste visuellement neutre)
+       - AppTopbar mobile                 = 56px
+     Utiliser `var(--gj-sticky-offset)` pour un offset confortable sous la barre. */
+  --gj-topbar-h:        64px;
+  --gj-topbar-h-mobile: 56px;
+  /* Offset standard sticky aside/filtre : topbar + 8px de respiration. */
+  --gj-sticky-offset:   calc(var(--gj-topbar-h) + var(--space-2));
+  --gj-sticky-offset-mobile: calc(var(--gj-topbar-h-mobile) + var(--space-2));
 
   /* =========================================================
      11 · SAFE AREA iOS / Android edge-to-edge
