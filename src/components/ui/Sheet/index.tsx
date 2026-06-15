@@ -37,10 +37,22 @@ export function Sheet({
 }: SheetProps) {
   const [shown, setShown] = useState(false)
   const [dragY, setDragY] = useState(0)
+  const [isDesktop, setIsDesktop] = useState(false)
   const dragStart = useRef<number | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const titleId = useId()
+
+  // GUIC-417 — variant='side' desktop : panneau pleine hauteur (100dvh).
+  // Mobile (et variant='bottom') : bottom-sheet limité à maxHeightPct%.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(min-width: 768px)')
+    setIsDesktop(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -148,7 +160,8 @@ export function Sheet({
           ${shown ? 'translate-x-0 translate-y-0' : closedTransform}`}
         style={{
           paddingBottom: 'var(--safe-bottom)',
-          maxHeight: `${maxHeightPct}%`,
+          // GUIC-417 — side desktop = pleine hauteur (slide-over) ; sinon bottom-sheet limité.
+          maxHeight: variant === 'side' && isDesktop ? '100dvh' : `${maxHeightPct}%`,
           ...(dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : {}),
         }}
       >
