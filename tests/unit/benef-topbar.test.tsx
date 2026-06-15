@@ -2,97 +2,62 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
 const pushMock = jest.fn()
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
-}))
+jest.mock('next/navigation', () => {
+  const params = new URLSearchParams()
+  return {
+    useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
+    usePathname: () => '/jeune',
+    useSearchParams: () => params,
+  }
+})
 
 describe('<BenefTopBar />', () => {
   beforeEach(() => {
     pushMock.mockClear()
   })
 
-  it('rend search + 3 actions + UserMenu', () => {
-    render(<BenefTopBar userInitials="AD" userPrenom="Awa" userNom="Diop" />)
+  it('rend la searchbox et la zone droite minimale (notifications + aide)', () => {
+    render(<BenefTopBar />)
     expect(screen.getByRole('searchbox', { name: /Rechercher/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /favoris/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Notifications/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Aide/i })).toBeInTheDocument()
-    // UserMenu — aria-label inclut prénom + nom
-    expect(screen.getByRole('button', { name: /Menu utilisateur/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Aide$/i })).toBeInTheDocument()
   })
 
-  it('appelle onSearchChange', () => {
+  it("n'expose plus favoris, UserMenu ni Yaye dans la topbar (GUIC-413)", () => {
+    render(<BenefTopBar />)
+    expect(screen.queryByRole('button', { name: /favoris/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Menu utilisateur/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Ouvrir la conversation avec Yaye/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('appelle onSearchChange quand la valeur change', () => {
     const onChange = jest.fn()
     render(<BenefTopBar searchQuery="" onSearchChange={onChange} />)
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'stage' } })
     expect(onChange).toHaveBeenCalledWith('stage')
   })
 
-  it('affiche le badge unread', () => {
+  it('affiche le badge unread sur la cloche', () => {
     render(<BenefTopBar unread={5} />)
     expect(screen.getByLabelText(/5 non lues/i)).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument()
   })
 
-  it('affiche le badge bookmark', () => {
-    render(<BenefTopBar bookmarkCount={12} />)
-    expect(screen.getByLabelText(/12 sauvegardés/i)).toBeInTheDocument()
-  })
-
-  it('plafonne unread à 99+', () => {
+  it('plafonne le badge unread à 99+', () => {
     render(<BenefTopBar unread={200} />)
     expect(screen.getByText('99+')).toBeInTheDocument()
   })
 
-  it('expose un bouton Yaye qui ouvre le side panel', () => {
-    render(<BenefTopBar userInitials="AD" />)
-    const trigger = screen.getByRole('button', {
-      name: /Ouvrir la conversation avec Yaye/i,
-    })
-    expect(trigger).toBeInTheDocument()
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(trigger)
-    expect(screen.getByRole('dialog', { name: /Conversation avec Yaye/i })).toBeInTheDocument()
-    expect(trigger).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('notifie onYayeOpenChange en mode controlled', () => {
-    const onChange = jest.fn()
-    render(<BenefTopBar userInitials="AD" yayeOpen={false} onYayeOpenChange={onChange} />)
-    fireEvent.click(
-      screen.getByRole('button', { name: /Ouvrir la conversation avec Yaye/i }),
-    )
-    expect(onChange).toHaveBeenCalledWith(true)
-  })
-
-  it('appelle les click handlers', () => {
-    const onBookmark = jest.fn()
+  it('appelle onBellClick / onInfoClick', () => {
     const onBell = jest.fn()
     const onInfo = jest.fn()
-    render(
-      <BenefTopBar
-        userInitials="AD"
-        userPrenom="Awa"
-        userNom="Diop"
-        onBookmarkClick={onBookmark}
-        onBellClick={onBell}
-        onInfoClick={onInfo}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /favoris/i }))
+    render(<BenefTopBar onBellClick={onBell} onInfoClick={onInfo} />)
     fireEvent.click(screen.getByRole('button', { name: /Notifications/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Aide/i }))
-    expect(onBookmark).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /^Aide$/i }))
     expect(onBell).toHaveBeenCalled()
     expect(onInfo).toHaveBeenCalled()
-  })
-
-  it('ouvre le UserMenu (profil + déconnexion)', () => {
-    render(<BenefTopBar userInitials="AD" userPrenom="Awa" userNom="Diop" />)
-    fireEvent.click(screen.getByRole('button', { name: /Menu utilisateur/i }))
-    expect(screen.getByRole('menuitem', { name: /Mon profil/i })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /déconnecter/i })).toBeInTheDocument()
   })
 
   it('navigue vers /opportunites?q= au submit du formulaire', () => {
@@ -103,7 +68,7 @@ describe('<BenefTopBar />', () => {
     expect(pushMock).toHaveBeenCalledWith('/opportunites?q=data%20science')
   })
 
-  it('ignore la soumission si query vide', () => {
+  it('ignore la soumission si la query est vide', () => {
     render(<BenefTopBar />)
     const input = screen.getByRole('searchbox')
     fireEvent.submit(input.closest('form')!)

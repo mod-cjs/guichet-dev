@@ -19,7 +19,7 @@ const Frame = ({ children }: { children: React.ReactNode }) => (
 export const Default: Story = {
   render: () => (
     <Frame>
-      <BenefTopBar userInitials="AD" />
+      <BenefTopBar />
     </Frame>
   ),
 }
@@ -27,7 +27,7 @@ export const Default: Story = {
 export const WithBadges: Story = {
   render: () => (
     <Frame>
-      <BenefTopBar userInitials="AD" unread={3} bookmarkCount={12} />
+      <BenefTopBar unread={3} />
     </Frame>
   ),
 }
@@ -38,7 +38,6 @@ export const Controlled: Story = {
     return (
       <Frame>
         <BenefTopBar
-          userInitials="AD"
           searchQuery={q}
           onSearchChange={setQ}
           unread={5}

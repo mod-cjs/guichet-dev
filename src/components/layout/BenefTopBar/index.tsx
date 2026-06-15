@@ -71,38 +71,24 @@ export interface BenefTopBarProps {
   onSearchSubmit?: (value: string) => void
   /** Placeholder du champ recherche. */
   searchPlaceholder?: string
-  /** Nombre de notifications non lues. */
+  /** Nombre de notifications non lues (badge sur la cloche). */
   unread?: number
-  /** Nombre de favoris sauvegardés. */
-  bookmarkCount?: number
-  /** Initiales utilisateur (affichées en bout de barre). */
-  userInitials?: string
-  /** Prénom utilisateur (passé au UserMenu). */
-  userPrenom?: string
-  /** Nom utilisateur (passé au UserMenu). */
-  userNom?: string
-  /** GUIC-369 — propagé au UserMenu pour afficher la photo via proxy. */
-  cjsUid?: string | null
-  /** Callbacks pour chaque action. */
-  onBookmarkClick?: () => void
+  /** Callback clic sur la cloche notifications. */
   onBellClick?: () => void
+  /** Callback clic sur l'icône aide. */
   onInfoClick?: () => void
-  /** @deprecated — l'avatar ouvre désormais un `UserMenu`. */
-  onUserClick?: () => void
-  /** Etat (controlled) du side panel Yaye. Si omis, l'état est géré en interne. */
-  yayeOpen?: boolean
-  /** Callback ouverture/fermeture Yaye (controlled). */
-  onYayeOpenChange?: (open: boolean) => void
 }
 
 /**
  * BenefTopBar — top bar web bénéficiaire (≥1024px).
  *
- * Conforme `design-guichet-v2/web-dashboard.jsx` BenefTopBar :
+ * GUIC-413 — version minimale : seules les actions essentielles à droite.
  * - Search bar large (max 520px) + icon search + raccourci ⌘K
- * - Boutons droite : favoris (bookmark + count), cloche (unread badge),
- *   aide (info), avatar utilisateur
- * - Sticky top, h-16, bg-white, border-bottom
+ * - Fil d'Ariane contextuel (GUIC-402)
+ * - Zone droite : cloche notifications (badge unread, plafonné `99+`) + aide
+ *
+ * Favoris, profil/déconnexion et Yaye sont accessibles depuis la sidebar
+ * (ou via FAB pour Yaye) — pas dans la topbar.
  *
  * Visible ≥1024px — l'AppTopbar mobile prend le relais en-dessous.
  */
@@ -112,32 +98,9 @@ export function BenefTopBar({
   onSearchSubmit,
   searchPlaceholder = 'Rechercher une opportunité, un centre, un atelier…',
   unread = 0,
-  bookmarkCount = 0,
-  userInitials,
-  userPrenom = '',
-  userNom = '',
-  cjsUid,
-  onBookmarkClick,
   onBellClick,
   onInfoClick,
-  onUserClick,
-  yayeOpen: yayeOpenProp,
-  onYayeOpenChange,
 }: BenefTopBarProps) {
-  // Props conservées pour rétrocompatibilité — silencer les unused.
-  void unread
-  void bookmarkCount
-  void userInitials
-  void userPrenom
-  void userNom
-  void cjsUid
-  void onBookmarkClick
-  void onBellClick
-  void onInfoClick
-  void onUserClick
-  void yayeOpenProp
-  void onYayeOpenChange
-
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -282,6 +245,88 @@ export function BenefTopBar({
           )
         })}
       </nav>
+
+      {/* GUIC-413 — zone droite minimale : notifications + aide. Favoris,
+          profil/déconnexion et Yaye ont migré sidebar / FAB. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginLeft: 'auto',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onBellClick}
+          aria-label={
+            unread > 0
+              ? `Notifications, ${Math.min(unread, 99)}${unread > 99 ? '+' : ''} non lues`
+              : 'Notifications'
+          }
+          style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 44,
+            minHeight: 44,
+            padding: 10,
+            background: 'transparent',
+            border: 0,
+            borderRadius: 8,
+            color: 'var(--gj-ink)',
+            cursor: 'pointer',
+          }}
+        >
+          <Icon name="bell" size={20} />
+          {unread > 0 ? (
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 4,
+                minWidth: 16,
+                height: 16,
+                padding: '0 4px',
+                borderRadius: 8,
+                background: 'var(--gj-red)',
+                color: 'var(--gj-surface)',
+                fontSize: 10,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}
+            >
+              {unread > 99 ? '99+' : unread}
+            </span>
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={onInfoClick}
+          aria-label="Aide"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 44,
+            minHeight: 44,
+            padding: 10,
+            background: 'transparent',
+            border: 0,
+            borderRadius: 8,
+            color: 'var(--gj-ink)',
+            cursor: 'pointer',
+          }}
+        >
+          <Icon name="help" size={20} />
+        </button>
+      </div>
     </header>
   )
 }
