@@ -42,4 +42,37 @@ describe('<OpportunitesRecoCarousel />', () => {
     render(<OpportunitesRecoCarousel items={items} seeAllHref="/opportunites?reco=1" />)
     expect(screen.getByRole('link', { name: /Voir tout/i })).toHaveAttribute('href', '/opportunites?reco=1')
   })
+
+  // GUIC-404 — Wave 2 desktop : carousel → grille responsive ≥ xl
+  it('conserve le scroll horizontal mobile (< xl) avec snap', () => {
+    const { container } = render(<OpportunitesRecoCarousel items={items} />)
+    const list = container.querySelector('ul') as HTMLUListElement
+    expect(list).not.toBeNull()
+    expect(list.className).toMatch(/overflow-x-auto/)
+    expect(list.className).toMatch(/snap-x/)
+    expect(list.className).toMatch(/snap-mandatory/)
+  })
+
+  it('passe en grille à partir de xl (xl:grid-cols-3 2xl:grid-cols-4)', () => {
+    const { container } = render(<OpportunitesRecoCarousel items={items} />)
+    const list = container.querySelector('ul') as HTMLUListElement
+    expect(list.className).toMatch(/xl:grid\b/)
+    expect(list.className).toMatch(/xl:grid-cols-3/)
+    expect(list.className).toMatch(/2xl:grid-cols-4/)
+    // Neutralise le scroll/snap au-dessus de xl
+    expect(list.className).toMatch(/xl:overflow-visible/)
+    expect(list.className).toMatch(/xl:snap-none/)
+    // Hauteurs uniformes pour éviter les trous quand peu d'items
+    expect(list.className).toMatch(/xl:auto-rows-fr/)
+  })
+
+  it('neutralise la largeur fixe des items en desktop', () => {
+    const { container } = render(<OpportunitesRecoCarousel items={items} />)
+    const firstItem = container.querySelector('ul > li') as HTMLLIElement
+    expect(firstItem).not.toBeNull()
+    // Mobile : largeur fixe 280px pour scroll snap
+    expect(firstItem.className).toMatch(/w-\[280px\]/)
+    // Desktop : la carte s'étire dans la cellule de grille
+    expect(firstItem.className).toMatch(/xl:w-auto/)
+  })
 })

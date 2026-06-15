@@ -65,11 +65,15 @@ export function OpportunitesRecoCarousel({
           Aucune opportunité à recommander pour l&apos;instant.
         </div>
       ) : (
-        <ul className="flex gap-space-3 overflow-x-auto pb-space-2 snap-x snap-mandatory">
+        <ul
+          className="flex gap-space-3 overflow-x-auto pb-space-2 snap-x snap-mandatory
+            xl:grid xl:grid-cols-3 2xl:grid-cols-4 xl:auto-rows-fr
+            xl:overflow-visible xl:snap-none xl:pb-0"
+        >
           {items.map((o) => (
             <li
               key={o.id}
-              className="snap-start flex-shrink-0 w-[280px]"
+              className="snap-start flex-shrink-0 w-[280px] xl:w-auto xl:flex-shrink"
             >
               <Link
                 href={o.href}
