@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getMesReservationsCentres } from '@/lib/loaders/centres'
+import { PageHeader } from '@/components/ui'
 import { MesReservationsCentresClient } from './mes-reservations-centres-client'
 
 // GUIC-384 — Wave 5 — Mes réservations centres.
@@ -24,14 +25,10 @@ export default async function MesReservationsCentresPage() {
 
   return (
     <div>
-      <div className="mb-space-4">
-        <h1 className="text-fs-800 font-black text-color-text-primary">
-          Mes réservations centres
-        </h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Tes réservations de ressources dans les centres CJS.
-        </p>
-      </div>
+      <PageHeader
+        title="Mes réservations centres"
+        subtitle="Tes réservations de ressources dans les centres CJS."
+      />
       <MesReservationsCentresClient reservations={reservations} />
     </div>
   )
