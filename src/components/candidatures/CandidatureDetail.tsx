@@ -157,7 +157,10 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
               <summary className="cursor-pointer text-fs-200 font-bold text-gj-teal-deep">
                 Lettre de motivation
               </summary>
-              <p className="mt-space-2 whitespace-pre-line text-fs-300 text-color-text-primary">
+              <p
+                className="mt-space-2 whitespace-pre-line break-words text-fs-300 text-color-text-primary"
+                style={{ overflowWrap: 'anywhere' }}
+              >
                 {lettrePreview}
               </p>
               {lettreLong ? (
@@ -174,7 +177,7 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
 
           {candidature.cvUrl ? (
             <a
-              href={candidature.cvUrl}
+              href={`/api/candidatures/${candidature.id}/cv`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-space-2 text-fs-200 font-bold text-gj-teal-deep hover:underline"
