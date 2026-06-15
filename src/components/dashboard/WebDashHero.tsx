@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 interface Props {
   prenom:               string
@@ -13,6 +16,9 @@ interface Props {
  * stats clés et CTA Yaye.
  *
  * Référence : design-guichet-v2/web-dashboard.jsx#WebDashHero (L.271-339)
+ *
+ * GUIC-400 — le CTA "Yaye, dis-moi comment continuer" pilote le drawer
+ * `YayeSidePanel` via `YayeProvider` (déjà présent dans `/jeune/(app)/layout.tsx`).
  */
 export function WebDashHero({
   prenom,
@@ -20,6 +26,7 @@ export function WebDashHero({
   oppsRecommandees    = 0,
   joursAvantCloture   = null,
 }: Props) {
+  const yaye = useYayePanel()
   return (
     <section
       className="relative overflow-hidden rounded-gj-lg p-space-4 md:p-space-6
@@ -73,6 +80,9 @@ export function WebDashHero({
           </Link>
           <button
             type="button"
+            onClick={() => yaye.open()}
+            aria-haspopup="dialog"
+            aria-expanded={yaye.isOpen}
             className="inline-flex items-center gap-space-2 px-space-4 py-space-3
               rounded-gj-md bg-white/10 text-white border border-white/25
               font-black text-fs-300 hover:bg-white/20 transition-colors"
