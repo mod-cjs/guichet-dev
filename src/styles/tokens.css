@@ -281,6 +281,10 @@
      13 · Z-INDEX
      ========================================================= */
   --gj-z-nav:        200;
+
+  /* GUIC-402 — hauteur unifiée des topbars (BenefTopBar + admin + recruteur).
+     Mobile 56px, desktop 64px (cf. override @media plus bas). */
+  --gj-topbar-h:      56px;
   --gj-z-fbar:       100;
   --gj-z-bottom-nav: 300;
   --gj-z-chat:       400;
@@ -335,6 +339,14 @@
 @media (max-width: 480px) {
   input, select, textarea, button {
     font-size: max(16px, 1em);
+  }
+}
+
+/* GUIC-402 — topbar 64px à partir du breakpoint lg (1024px) pour respirer sur
+   desktop. Mobile reste à 56px (cf. :root). */
+@media (min-width: 1024px) {
+  :root {
+    --gj-topbar-h: 64px;
   }
 }
 
