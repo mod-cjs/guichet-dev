@@ -9,6 +9,7 @@ import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
 import { MyCJSCard }          from '@/components/centres/MyCJSCard'
+import { PageHeader }         from '@/components/ui'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -34,12 +35,11 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
 
   return (
     <div className="flex flex-col gap-space-5">
-      <div>
-        <h1 className="text-fs-600 font-black text-color-text-primary">Mon profil</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Complétez votre profil pour accéder à plus d&apos;opportunités
-        </p>
-      </div>
+      <PageHeader
+        title="Mon profil"
+        subtitle="Complétez votre profil pour accéder à plus d&apos;opportunités"
+        className="mb-0"
+      />
 
       {/* Layout desktop conforme design v2 : aside gauche 300px sticky (identité +
           complétude) + colonne droite (sections éditables). Mobile : empilement. */}

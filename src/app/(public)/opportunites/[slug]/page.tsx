@@ -8,6 +8,7 @@ import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
+import { Breadcrumbs } from '@/components/ui'
 import { opportunitesListUrl } from '@/lib/routes'
 
 // GUIC-21 — Détail d'opportunité en accès direct (SSR, indispensable au SEO).
@@ -50,9 +51,17 @@ export default async function OpportuniteDetailPage({
 
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
+      <Breadcrumbs
+        className="mb-space-3"
+        items={[
+          { label: 'Accueil', href: '/' },
+          { label: 'Opportunités', href: opportunitesListUrl },
+          { label: detail.titre },
+        ]}
+      />
       <Link
         href={opportunitesListUrl}
-        className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+        className="lg:hidden text-fs-200 font-bold text-gj-teal-deep hover:underline"
       >
         ← Toutes les opportunités
       </Link>

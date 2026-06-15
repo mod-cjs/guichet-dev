@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { loadMesCandidatures } from '@/lib/loaders/mes-candidatures'
 import { CandidaturesClient } from '@/components/candidatures'
+import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Mes candidatures' }
 export const dynamic = 'force-dynamic'
@@ -24,12 +25,10 @@ export default async function MesCandidaturesPage() {
 
   return (
     <div>
-      <div className="mb-space-4">
-        <h1 className="text-fs-800 font-black text-color-text-primary">Mes candidatures</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">
-          Suivi de vos candidatures aux opportunités
-        </p>
-      </div>
+      <PageHeader
+        title="Mes candidatures"
+        subtitle="Suivi de vos candidatures aux opportunités"
+      />
       <CandidaturesClient items={items} />
     </div>
   )

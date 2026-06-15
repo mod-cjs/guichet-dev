@@ -8,6 +8,7 @@ import {
 } from '@/lib/loaders/ressources'
 import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero'
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
+import { Breadcrumbs } from '@/components/ui'
 import { RessourceDetailClient } from './ressource-detail-client'
 
 /**
@@ -49,9 +50,17 @@ export default async function RessourceDetailPage({ params }: RessourceDetailPag
 
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
+      <Breadcrumbs
+        className="mb-space-3"
+        items={[
+          { label: 'Accueil', href: '/' },
+          { label: 'Ressources', href: '/ressources' },
+          { label: detail.titre },
+        ]}
+      />
       <Link
         href="/ressources"
-        className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
+        className="lg:hidden text-fs-200 font-bold text-gj-teal-deep hover:underline"
       >
         ← Toutes les ressources
       </Link>

@@ -13,11 +13,13 @@ describe('<Breadcrumbs />', () => {
     expect(screen.getByRole('navigation', { name: /fil d.?ariane/i })).toBeInTheDocument()
   })
 
-  it('rend tous les items dans une <ol>', () => {
+  it('rend une <ol> contenant les items + séparateurs', () => {
     const { container } = render(<Breadcrumbs items={items} />)
     const list = container.querySelector('ol')
     expect(list).not.toBeNull()
-    expect(list?.children.length).toBe(items.length)
+    // items réels = li sans data-breadcrumb-separator
+    const itemLis = list?.querySelectorAll('li:not([data-breadcrumb-separator])')
+    expect(itemLis?.length).toBe(items.length)
   })
 
   it('rend les items intermédiaires en <a> (liens) et le dernier en texte courant', () => {
