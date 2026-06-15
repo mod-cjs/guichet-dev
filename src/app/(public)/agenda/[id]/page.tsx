@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Card, Icon, Badge } from '@/components/ui'
+import { Card, Icon, Badge, Breadcrumbs } from '@/components/ui'
 import { EvenementDetailHero } from '@/components/evenements/EvenementDetailHero'
 import { EvenementInscriptionCta } from '@/components/evenements/EvenementInscriptionCta'
 import { getEvenementById } from '@/lib/loaders/evenements'
@@ -67,9 +67,16 @@ export default async function EvenementDetailPage({ params }: PageProps) {
 
   return (
     <div className="container-page py-space-6 flex flex-col gap-space-5">
+      <Breadcrumbs
+        items={[
+          { label: 'Accueil', href: '/' },
+          { label: 'Agenda', href: '/agenda' },
+          { label: evenement.titre },
+        ]}
+      />
       <Link
         href="/agenda"
-        className="inline-flex items-center gap-1 text-fs-200 font-bold text-gj-teal-deep hover:underline"
+        className="lg:hidden inline-flex items-center gap-1 text-fs-200 font-bold text-gj-teal-deep hover:underline"
       >
         <Icon name="chevron-left" size={16} />
         Retour à l’agenda

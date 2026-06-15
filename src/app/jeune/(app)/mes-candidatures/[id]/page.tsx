@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { loadCandidatureDetail } from '@/lib/candidature-detail-loader'
 import { CandidatureDetail } from '@/components/candidatures'
+import { Breadcrumbs } from '@/components/ui'
 
 /**
  * GUIC-253 — Page détail d'une candidature appartenant au jeune connecté.
@@ -33,5 +34,17 @@ export default async function CandidatureDetailPage({
   const candidature = await loadCandidatureDetail(id, session.cjsUid)
   if (!candidature) notFound()
 
-  return <CandidatureDetail candidature={candidature} />
+  return (
+    <>
+      <Breadcrumbs
+        className="mb-space-3"
+        items={[
+          { label: 'Accueil', href: '/jeune/tableau-de-bord' },
+          { label: 'Mes candidatures', href: '/jeune/mes-candidatures' },
+          { label: candidature.opportunite.titre },
+        ]}
+      />
+      <CandidatureDetail candidature={candidature} />
+    </>
+  )
 }
