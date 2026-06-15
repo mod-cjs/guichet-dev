@@ -15,7 +15,8 @@ const baseCentre = {
   nom: 'CJS Tambacounda',
   region: 'Tambacounda',
   ville: 'Tambacounda',
-  services: ['Conseil 1-à-1', 'Ateliers', 'Wifi', 'Salle réunion'],
+  addr: '12 av. Léopold Sédar Senghor',
+  services: ['Conseil 1-à-1', 'Ateliers', 'Wifi', 'Salle réunion', 'Imprimante'],
   conseillersCount: 3,
   estActif: true,
   horaires: [
@@ -28,9 +29,27 @@ export const Standard: Story = {
 }
 
 export const MonCentre: Story = {
-  args: { centre: baseCentre, isOpen: true, isMine: true },
+  args: { centre: { ...baseCentre, km: 1.2 }, isOpen: true, isMine: true },
 }
 
 export const Ferme: Story = {
   args: { centre: baseCentre, isOpen: false, isMine: false },
+}
+
+export const SansAdresseNiKm: Story = {
+  args: {
+    centre: { ...baseCentre, addr: undefined, km: undefined },
+    isOpen: true,
+  },
+}
+
+export const ServicesDebordent: Story = {
+  args: {
+    centre: {
+      ...baseCentre,
+      services: ['Conseil 1-à-1', 'Ateliers', 'Wifi', 'Salle réunion', 'Imprimante', 'Casiers', 'Cybercafé'],
+      km: 12.4,
+    },
+    isOpen: true,
+  },
 }

@@ -139,8 +139,7 @@ export async function POST(
     const updated = await prisma.reservation.update({
       where: { id },
       data:  {
-        // ⚠️ BLOCKER : remplacer par 'AnnuleeParCentre' une fois la migration appliquée
-        statut:             'AnnuleeParJeune',
+        statut:             'AnnuleeParCentre',
         raisonRefusOuAnnul: raisonFinale,
         decisionA:          now,
         annuleeA:           now,
