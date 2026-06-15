@@ -72,7 +72,7 @@ const mToggle = (on) => (
 const MobileProfileHero = () => {
   const wrap = {
     background: "linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)",
-    color: "#fff", borderRadius: 16, padding: 18, position: "relative", overflow: "hidden",
+    color: "#fff", borderRadius: 16, padding: 18, position: "relative", overflow: "hidden", flexShrink: 0,
     display: "flex", flexDirection: "column", gap: 14,
   };
   const metaPill = { display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.2)", padding: "4px 9px", borderRadius: 999, fontSize: 11.5, fontWeight: 700 };
@@ -91,13 +91,6 @@ const MobileProfileHero = () => {
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--gj-yellow)", color: "var(--gj-teal-deep)", fontSize: 9.5, fontWeight: 900, padding: "2px 8px", borderRadius: 999, marginTop: 6 }}>
             <svg className="gj-icon" style={{ width: 11, height: 11 }}><use href="#i-check-circle" /></svg>MEMBRE CJS
           </span>
-        </div>
-        <div style={{ position: "relative", width: 58, height: 58, flexShrink: 0 }}>
-          <svg width="58" height="58" viewBox="0 0 58 58">
-            <circle cx="29" cy="29" r="25" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="6" />
-            <circle cx="29" cy="29" r="25" fill="none" stroke="var(--gj-yellow)" strokeWidth="6" strokeLinecap="round" strokeDasharray={2 * Math.PI * 25} strokeDashoffset={2 * Math.PI * 25 * (1 - 0.72)} transform="rotate(-90 29 29)" />
-            <text x="50%" y="54%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff" }}>72%</text>
-          </svg>
         </div>
       </div>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", position: "relative" }}>

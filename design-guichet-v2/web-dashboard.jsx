@@ -67,6 +67,7 @@ const BenefSidebar = ({ active = "home", onNavChange = () => {} }) => {
     { title: "Mon parcours", items: [
       { id: "cand",     icon: "i-document",     label: "Mes candidatures",     badge: "3" },
       { id: "events",   icon: "i-calendar",     label: "Événements & ateliers" },
+      { id: "resources",icon: "i-resources",    label: "Ressources" },
       { id: "centres",  icon: "i-pin",          label: "Centres CJS" },
       { id: "messages", icon: "i-chat",         label: "Messagerie",           badge: "2" },
     ]},

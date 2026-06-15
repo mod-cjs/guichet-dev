@@ -49,6 +49,9 @@ const App = () => (
       <DCArtboard id="w2" label="Édition · formulaire" width={WEB_W} height={WEB_H}>
         <WebProfile editing />
       </DCArtboard>
+      <DCArtboard id="w3" label="Inclusion & accessibilité" width={WEB_W} height={WEB_H}>
+        <WebProfile editing="incl" />
+      </DCArtboard>
     </DCSection>
 
     <DCSection
@@ -68,5 +71,6 @@ const App = () => (
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
+<script src="accessibility.js"></script>
 </body>
 </html>

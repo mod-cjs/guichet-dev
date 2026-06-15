@@ -71,20 +71,6 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
-      // GUIC-386 — Wave 6.1 : accès "Ma carte CJS".
-      {
-        id: 'ma-carte',
-        href: '/jeune/ma-carte',
-        icon: 'profile',
-        label: 'Ma carte CJS',
-      },
-      // GUIC-384 — Wave 5 : accès "Mes réservations centres".
-      {
-        id: 'mes-reservations-centres',
-        href: '/jeune/mes-reservations-centres',
-        icon: 'bookmark',
-        label: 'Mes réservations centres',
-      },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },
@@ -539,7 +525,7 @@ export function BenefSidebar({
           onClick={handleLogout}
           disabled={loggingOut}
           aria-label="Se déconnecter"
-          className="no-underline"
+          className="no-underline benef-sidebar-logout"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -547,11 +533,9 @@ export function BenefSidebar({
             padding: '9px 10px',
             borderRadius: 8,
             fontSize: 13,
-            // Couleur subtile (gris par défaut), bascule en rouge au focus/hover
-            // via :hover dans une feuille de style ne s'applique pas ici (style inline)
-            // — on garde un gris discret, l'icône logout suffit à la lecture.
-            color: 'var(--gj-grey)',
-            fontWeight: 600,
+            // GUIC-411 — action destructive : couleur gj-red explicite + hover renforcé via classe.
+            color: 'var(--gj-red)',
+            fontWeight: 700,
             minHeight: 'var(--tap-min)',
             background: 'transparent',
             border: 0,

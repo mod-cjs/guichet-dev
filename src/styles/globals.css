@@ -74,3 +74,10 @@
     padding-bottom: calc(var(--gj-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* GUIC-411 — bouton déconnexion BenefSidebar : action destructive, hover red-soft. */
+.benef-sidebar-logout:hover:not(:disabled),
+.benef-sidebar-logout:focus-visible {
+  background: var(--gj-red-soft) !important;
+  color: var(--gj-red) !important;
+}

@@ -5,7 +5,7 @@
 // =====================================================================
 // QR Glyph — SVG pseudo-QR pattern (purely decorative, looks real)
 // =====================================================================
-const QRGlyph = ({ size = 160 }) => {
+const QRGlyph = ({ size = 160, plain = false }) => {
   // Generate a deterministic-looking QR-ish pattern of 25×25 cells.
   // 3 corner finder patterns + scattered cells.
   const cells = 25;
@@ -57,160 +57,163 @@ const QRGlyph = ({ size = 160 }) => {
 
   // Center logo cutout
   const cx = Math.floor(cells / 2), cy = Math.floor(cells / 2);
-  clearRect(cx - 3, cy - 3, 7, 7);
+  if (!plain) clearRect(cx - 3, cy - 3, 7, 7);
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: "block", background: "#fff", borderRadius: 8 }}>
       <rect x="0" y="0" width={size} height={size} fill="#fff" />
       {[...filled].map((k, i) => {
         const [x, y] = k.split(",").map(Number);
-        return <rect key={i} x={x * cell} y={y * cell} width={cell} height={cell} fill="#0A2A24" />;
+        return <rect key={i} x={x * cell} y={y * cell} width={cell} height={cell} fill={plain ? "#111" : "#0A2A24"} />;
       })}
-      {/* Center brand spot */}
-      <rect x={(cx - 2.5) * cell} y={(cy - 2.5) * cell} width={5 * cell} height={5 * cell} rx={cell * 1.2} fill="#fff" stroke="#0A2A24" strokeWidth={cell * 0.6} />
-      <circle cx={cx * cell + cell / 2} cy={cy * cell + cell / 2} r={cell * 1.4} fill="var(--gj-teal-deep)" />
+      {!plain && <rect x={(cx - 2.5) * cell} y={(cy - 2.5) * cell} width={5 * cell} height={5 * cell} rx={cell * 1.2} fill="#fff" stroke="#0A2A24" strokeWidth={cell * 0.6} />}
+      {!plain && <circle cx={cx * cell + cell / 2} cy={cy * cell + cell / 2} r={cell * 1.4} fill="var(--gj-teal-deep)" />}
     </svg>
   );
 };
 
 // =====================================================================
-// MyCJSCard — full member card with QR (for web dashboard, full size)
+// EMVChip — puce dorée style carte bancaire (formes simples)
 // =====================================================================
-const MyCJSCard = ({ compact = false, dark = true }) => {
-  const wrap = {
-    background: dark
-      ? "linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)"
-      : "#fff",
-    color: dark ? "#fff" : "var(--gj-ink)",
-    border: dark ? "0" : "1.5px solid var(--gj-line)",
-    borderRadius: 14, padding: compact ? 14 : 18,
-    position: "relative", overflow: "hidden",
-    display: "flex", flexDirection: "column", gap: 12,
-  };
-  const glow = {
-    position: "absolute", right: -50, top: -60,
-    width: 220, height: 220,
-    background: "radial-gradient(circle, rgba(249,196,0,.18), transparent 60%)",
-    pointerEvents: "none",
-  };
-  const head = { display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" };
-  const brand = {
-    display: "flex", alignItems: "center", gap: 8,
-    fontSize: 10.5, fontWeight: 800,
-    color: dark ? "var(--gj-yellow)" : "var(--gj-teal-deep)",
-    letterSpacing: ".5px", textTransform: "uppercase",
-  };
-  const body = { display: "flex", gap: 14, alignItems: "center", position: "relative" };
-  const qrBox = {
-    background: "#fff", padding: 8, borderRadius: 10,
-    flexShrink: 0, boxShadow: "0 4px 12px rgba(0,0,0,.18)",
-  };
-  const idCol = { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 };
-  const nameRow = { fontSize: 16, fontWeight: 900, lineHeight: 1.2 };
-  const idLine = {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-    fontSize: 13, fontWeight: 700, letterSpacing: ".5px",
-    color: dark ? "var(--gj-yellow)" : "var(--gj-teal-deep)",
-  };
-  const meta = {
-    display: "flex", flexWrap: "wrap", gap: 10, fontSize: 11,
-    color: dark ? "rgba(255,255,255,.78)" : "var(--gj-grey)",
-  };
-  const metaItem = { display: "inline-flex", alignItems: "center", gap: 4 };
-  const footRow = {
-    display: "flex", alignItems: "center", gap: 8,
-    paddingTop: 10, borderTop: `1px solid ${dark ? "rgba(255,255,255,.14)" : "var(--gj-line)"}`,
-    fontSize: 11, color: dark ? "rgba(255,255,255,.7)" : "var(--gj-grey)",
-    position: "relative",
-  };
+const EMVChip = ({ w = 38 }) => (
+  <div style={{ width: w, height: w * 0.76, borderRadius: w * 0.16, background: "linear-gradient(135deg, #FBD24E 0%, #E0A93B 45%, #C79C00 100%)", position: "relative", flexShrink: 0, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.12)", overflow: "hidden" }}>
+    <span style={{ position: "absolute", top: "32%", left: 0, right: 0, height: 1.2, background: "rgba(120,90,0,.55)" }} />
+    <span style={{ position: "absolute", top: "62%", left: 0, right: 0, height: 1.2, background: "rgba(120,90,0,.55)" }} />
+    <span style={{ position: "absolute", top: "12%", bottom: "12%", left: "34%", width: 1.2, background: "rgba(120,90,0,.55)" }} />
+    <span style={{ position: "absolute", top: "12%", bottom: "12%", left: "64%", width: 1.2, background: "rgba(120,90,0,.55)" }} />
+    <span style={{ position: "absolute", inset: "26% 30%", border: "1.2px solid rgba(120,90,0,.55)", borderRadius: 2 }} />
+  </div>
+);
 
+// =====================================================================
+// Barcode — code-barres décoratif (formes simples) pour le verso.
+// =====================================================================
+const Barcode = ({ height = 46 }) => {
+  const w = [2, 4, 2, 3, 5, 2, 2, 4, 2, 3, 2, 5, 3, 2, 2, 4, 2, 3, 5, 2, 2, 3, 4, 2, 2, 5, 2, 3, 2, 4, 2, 2, 3];
   return (
-    <div style={wrap}>
-      <span style={glow} />
-      <div style={head}>
-        <div style={brand}>
-          <svg className="gj-icon gj-icon--sm"><use href="#i-pin" /></svg>
-          Carte CJS
-        </div>
-        <div style={{
-          background: dark ? "rgba(0,0,0,.25)" : "var(--gj-bg)",
-          padding: "3px 8px", borderRadius: 999,
-          fontSize: 9.5, fontWeight: 800, letterSpacing: ".4px",
-          color: dark ? "var(--gj-yellow)" : "var(--gj-grey)",
-          textTransform: "uppercase",
-        }}>Membre actif</div>
-      </div>
-
-      <div style={body}>
-        <div style={qrBox}>
-          <QRGlyph size={compact ? 110 : 140} />
-        </div>
-        <div style={idCol}>
-          <div style={nameRow}>Awa Diop</div>
-          <div style={idLine}>GJS · AD · 23045</div>
-          <div style={meta}>
-            <span style={metaItem}>
-              <svg className="gj-icon gj-icon--xs" style={{ color: dark ? "var(--gj-yellow)" : "var(--gj-teal-deep)" }}><use href="#i-pin" /></svg>
-              CJS Tambacounda
-            </span>
-            <span style={metaItem}>
-              <svg className="gj-icon gj-icon--xs" style={{ color: dark ? "var(--gj-yellow)" : "var(--gj-teal-deep)" }}><use href="#i-calendar" /></svg>
-              Actif depuis 03/2025
-            </span>
-          </div>
-          <div style={{ fontSize: 10.5, color: dark ? "rgba(255,255,255,.55)" : "var(--gj-grey-2)", marginTop: 2, lineHeight: 1.4 }}>
-            Présente ce code à l'accueil de n'importe quel centre CJS.
-          </div>
-        </div>
-      </div>
-
-      {!compact && (
-        <div style={footRow}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7BE5B5" }} />
-          <span>QR valide · expire le 31 décembre 2026</span>
-        </div>
-      )}
+    <div style={{ display: "flex", alignItems: "stretch", gap: 1.5, height }}>
+      {w.map((x, i) => <span key={i} style={{ width: x, background: "#111" }} />)}
     </div>
   );
 };
 
-// GUIC-352 — verso de la carte CJS (utilisé par Lot 7 centres-web.jsx et centres-mobile.jsx).
-const MyCJSCardBack = ({ maxWidth = 480 }) => {
-  const wrap = {
-    maxWidth, width: "100%", borderRadius: 18, overflow: "hidden",
-    background: "linear-gradient(180deg, var(--gj-ink) 0%, #1a2a26 100%)",
-    color: "#fff", padding: 22, fontFamily: "var(--gj-font-sans)",
-    boxShadow: "0 12px 32px rgba(0,0,0,.28)",
-  };
-  const label = { fontSize: 10, letterSpacing: ".4px", textTransform: "uppercase", color: "var(--gj-yellow)", fontWeight: 800, marginBottom: 4 };
-  const value = { fontSize: 14, fontWeight: 800, marginBottom: 14 };
-  const bars = Array.from({ length: 42 }, (_, i) => {
-    const h = 32 + ((i * 7) % 22);
-    const w = i % 3 === 0 ? 3 : i % 5 === 0 ? 2 : 1;
-    return <span key={i} style={{ display: "inline-block", width: w, height: h, background: "#fff", marginRight: 2 }} />;
-  });
-  return (
-    <div style={wrap}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".5px" }}>VERSO · CARTE CJS</span>
-        <span style={{ fontSize: 10, opacity: .7 }}>2026</span>
+// =====================================================================
+// CardShell — feuille blanche commune (bord teal + coin plié optionnel),
+// fidèle au design imprimable officiel Guichet Jeunesse.
+// =====================================================================
+const CardShell = ({ children, maxWidth = 420, folded = false, foldText }) => (
+  <div style={{
+    width: "100%", maxWidth, aspectRatio: "1.585 / 1",
+    background: "#fff", borderRadius: 16, border: "1.5px solid var(--gj-line)",
+    boxShadow: "var(--gj-shadow-md)", position: "relative", overflow: "hidden", flexShrink: 0,
+    fontFamily: "var(--gj-font-sans)", display: "flex", flexDirection: "column",
+  }}>
+    <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, background: "linear-gradient(var(--gj-teal), var(--gj-teal-deep))", zIndex: 3 }} />
+    {/* texture de sécurité subtile (papier officiel) */}
+    <span style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, opacity: 0.5, backgroundImage: "repeating-linear-gradient(135deg, rgba(0,122,92,.05) 0 1px, transparent 1px 9px), radial-gradient(circle at 88% 86%, rgba(0,122,92,.06), transparent 38%)" }} />
+    {folded && (
+      <React.Fragment>
+        <div style={{ position: "absolute", top: 0, right: 0, width: "24%", aspectRatio: "1 / 1", background: "linear-gradient(135deg, var(--gj-yellow), #E8B400)", clipPath: "polygon(100% 0, 0 0, 100% 100%)", zIndex: 2 }} />
+        {foldText && (
+          <div style={{ position: "absolute", top: "8%", right: "5%", textAlign: "right", lineHeight: 1.05, zIndex: 3 }}>
+            <div style={{ fontSize: "clamp(8px,2.5%,10px)", fontWeight: 800, letterSpacing: ".6px", color: "var(--gj-ink)" }}>CARTE</div>
+            <div style={{ fontSize: "clamp(13px,4.2%,16px)", fontWeight: 900, color: "var(--gj-ink)" }}>{foldText}</div>
+          </div>
+        )}
+      </React.Fragment>
+    )}
+    {children}
+  </div>
+);
+
+const CJSLogo = ({ h = 24 }) => (
+  <img src="assets/logo-guichet.png" alt="Guichet Jeunesse.sn" style={{ height: h, width: "auto", display: "block", flexShrink: 0 }} />
+);
+
+// =====================================================================
+// MyCJSCard — RECTO de la carte bénéficiaire (fidèle au design officiel).
+// =====================================================================
+const MyCJSCard = ({ compact = false, maxWidth = 420 }) => (
+  <CardShell maxWidth={maxWidth} folded foldText="2026">
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "clamp(14px,4.4%,20px)", paddingLeft: "clamp(18px,5.4%,24px)" }}>
+      {/* header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px,2.6%,11px)" }}>
+        <CJSLogo h={compact ? 22 : 27} />
+        <span style={{ width: 1.5, height: 22, background: "var(--gj-line)", flexShrink: 0 }} />
+        <span style={{ fontSize: "clamp(8px,2.4%,9.5px)", fontWeight: 800, color: "var(--gj-teal-deep)", letterSpacing: ".6px", textTransform: "uppercase" }}>Bokk · Jàng · Liguéey</span>
       </div>
-      <div style={label}>Matricule</div>
-      <div style={{ ...value, fontFamily: "ui-monospace, Menlo, monospace", letterSpacing: ".8px" }}>GJS · AD · 23045</div>
-      <div style={label}>Conditions</div>
-      <div style={{ fontSize: 11, lineHeight: 1.55, opacity: .85, marginBottom: 18 }}>
-        Carte nominative · non transmissible. À présenter à l'accueil du centre.
-        Toute perte doit être signalée sous 48 h via Yaye ou ton conseiller·ère.
+      {/* body */}
+      <div style={{ display: "flex", gap: "clamp(13px,4.2%,18px)", alignItems: "center" }}>
+        <div style={{ background: "var(--gj-teal-soft)", border: "1px solid var(--gj-line)", borderRadius: 10, padding: "clamp(6px,1.8%,8px)", flexShrink: 0 }}>
+          <QRGlyph size={compact ? 104 : 124} plain />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "clamp(9px,2.8%,11px)", fontWeight: 800, color: "var(--gj-teal-deep)", letterSpacing: ".4px", textTransform: "uppercase" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--gj-green)" }} />Bénéficiaire actif
+          </div>
+          <div style={{ fontSize: "clamp(19px,6.2%,26px)", fontWeight: 900, color: "var(--gj-ink)", lineHeight: 1.08, marginTop: 7 }}>Awa Diop</div>
+          <div style={{ fontSize: "clamp(11px,3.3%,13px)", color: "var(--gj-ink)", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <svg className="gj-icon" style={{ width: 13, height: 13, color: "var(--gj-teal-deep)" }}><use href="#i-pin" /></svg><b>Tambacounda</b>
+          </div>
+        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 14, padding: "12px 14px", background: "rgba(255,255,255,.06)", borderRadius: 10, marginBottom: 12 }}>
-        {bars}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, opacity: .7 }}>
-        <span>Émise le 03/2025</span>
-        <span>guichetjeunesse.sn</span>
+      {/* footer */}
+      <div style={{ borderTop: "1px solid var(--gj-line)", paddingTop: "clamp(8px,2.6%,11px)", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
+        <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: "clamp(12px,3.6%,14px)", fontWeight: 700, letterSpacing: ".5px", color: "var(--gj-ink)" }}>GJ-2026-77294A</span>
+        <span style={{ textAlign: "right" }}>
+          <span style={{ display: "block", fontSize: 8, fontWeight: 800, color: "var(--gj-grey)", letterSpacing: ".6px", textTransform: "uppercase" }}>Inscrite le</span>
+          <span style={{ fontSize: "clamp(12px,3.7%,14px)", fontWeight: 800, color: "var(--gj-ink)" }}>14 mars 2024</span>
+        </span>
       </div>
     </div>
+  </CardShell>
+);
+
+// =====================================================================
+// MyCJSCardBack — VERSO de la carte bénéficiaire.
+// =====================================================================
+const MyCJSCardBack = ({ maxWidth = 420 }) => {
+  const chip = (label) => (
+    <span key={label} style={{ border: "1.5px solid var(--gj-line-strong)", borderRadius: 8, padding: "6px 12px", fontSize: "clamp(10px,2.9%,12px)", fontWeight: 700, color: "var(--gj-ink)", whiteSpace: "nowrap" }}>{label}</span>
+  );
+  return (
+    <CardShell maxWidth={maxWidth}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "clamp(14px,4.4%,20px)", paddingLeft: "clamp(18px,5.4%,24px)" }}>
+        {/* header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+            <CJSLogo h={22} />
+          </div>
+          <span style={{ fontSize: "clamp(9px,2.6%,11px)", fontWeight: 800, color: "var(--gj-grey)", letterSpacing: ".5px", textTransform: "uppercase", flexShrink: 0 }}>Bénéficiaire</span>
+        </div>
+        {/* access + barcode */}
+        <div style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: "clamp(11px,3.3%,13px)", fontWeight: 900, color: "var(--gj-ink)", letterSpacing: ".3px", marginBottom: 9 }}>CETTE CARTE OUVRE L'ACCÈS À</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, maxWidth: 280 }}>
+              {["Centres", "Ateliers", "Cours", "Bibliothèque", "Événements"].map(chip)}
+            </div>
+          </div>
+          <div style={{ textAlign: "center", flexShrink: 0 }}>
+            <Barcode height={40} />
+            <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 10.5, fontWeight: 700, color: "var(--gj-ink)", marginTop: 5, letterSpacing: ".5px" }}>GJ20267729 4A</div>
+          </div>
+        </div>
+        {/* footer */}
+        <div style={{ borderTop: "1px solid var(--gj-line)", paddingTop: "clamp(8px,2.6%,11px)", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontSize: "clamp(8px,2.3%,9.5px)", color: "var(--gj-grey)", lineHeight: 1.4, maxWidth: "58%" }}>
+            Document officiel non transférable. En cas de perte, contacter le 33 877 78 05 pour blocage. Conditions : guichetjeunesse.sn/carte
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: "clamp(11px,3.2%,13px)", fontWeight: 900, color: "var(--gj-teal-deep)" }}>guichetjeunesse.sn</div>
+            <div style={{ fontSize: "clamp(10px,3%,12px)", fontWeight: 800, color: "var(--gj-ink)", marginTop: 2, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <svg className="gj-icon" style={{ width: 12, height: 12, color: "var(--gj-teal-deep)" }}><use href="#i-phone" /></svg>33 877 78 05
+            </div>
+          </div>
+        </div>
+      </div>
+    </CardShell>
   );
 };
 
-Object.assign(window, { QRGlyph, MyCJSCard, MyCJSCardBack });
+Object.assign(window, { QRGlyph, MyCJSCard, MyCJSCardBack, Barcode, EMVChip });
