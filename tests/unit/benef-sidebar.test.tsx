@@ -42,7 +42,7 @@ describe('<BenefSidebar />', () => {
     expect(
       screen.getByRole('link', { name: /Bourses & Financement/i }),
     ).toHaveAttribute('href', '/opportunites?type=Bourse')
-    expect(screen.getByRole('link', { name: /Formations/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^Formations$/i })).toHaveAttribute(
       'href',
       '/opportunites?type=Formation',
     )

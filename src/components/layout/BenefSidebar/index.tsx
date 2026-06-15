@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import * as nav from 'next/navigation'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
@@ -57,10 +57,20 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'home', href: '/jeune/tableau-de-bord', icon: 'home', label: 'Accueil' },
     ],
   },
+  // GUIC-416 — conformité Lot 3 : la section Opportunités expose les
+  // sous-types (Emploi & Stages, Bourses & Financement, Formations,
+  // Concours & Appels) en raccourci, en plus de « Toutes » et
+  // « Mes favoris ». Les sous-items pointent vers /opportunites?type=…
+  // (filtre serveur déjà géré par OpportunitesClient via searchParams).
+  // Pas de badge count : compteur agrégé non disponible (cf. ticket).
   {
     title: 'Opportunités',
     items: [
-      { id: 'opportunites', href: '/opportunites', icon: 'target', label: 'Toutes les opportunités' },
+      { id: 'opp-all', href: '/opportunites', icon: 'target', label: 'Toutes' },
+      { id: 'opp-emploi', href: '/opportunites?type=Emploi', icon: 'employment', label: 'Emploi & Stages' },
+      { id: 'opp-bourse', href: '/opportunites?type=Bourse', icon: 'funding', label: 'Bourses & Financement' },
+      { id: 'opp-formation', href: '/opportunites?type=Formation', icon: 'learning', label: 'Formations' },
+      { id: 'opp-concours', href: '/opportunites?type=Appel_a_projets', icon: 'trending', label: 'Concours & Appels' },
       { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes favoris' },
     ],
   },
@@ -112,21 +122,60 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
 ]
 
 /**
- * Détermine l'id de l'item actif à partir du pathname courant.
- * - Match exact en priorité
+ * Découpe un href "/path?query" en [path, query].
+ */
+function splitHref(href: string): { path: string; query: string } {
+  const i = href.indexOf('?')
+  return i < 0
+    ? { path: href, query: '' }
+    : { path: href.slice(0, i), query: href.slice(i + 1) }
+}
+
+/**
+ * Détermine l'id de l'item actif à partir du pathname + searchParams courants.
+ * - Match exact path + query (ex. /opportunites?type=Emploi) en priorité absolue
+ * - Sinon match exact pathname (href sans query)
  * - Sinon match préfixe sur href (hors `/`)
+ *
+ * GUIC-416 — la section Opportunités expose plusieurs items partageant le
+ * même pathname `/opportunites` mais différenciés par `?type=…`. On
+ * privilégie le match query exact, puis on retombe sur l'item « Toutes »
+ * (`/opportunites` sans query) si aucun type n'est passé.
  */
 function resolveActiveId(
   pathname: string,
+  searchParams: URLSearchParams,
   sections: BenefSidebarSection[],
 ): string | undefined {
   const items = sections.flatMap(s => s.items)
-  // Match exact
-  const exact = items.find(it => it.href === pathname)
-  if (exact) return exact.id
-  // Match préfixe — privilégier le href le plus long
+
+  // 1. Match exact path + query
+  const currentType = searchParams.get('type') ?? ''
+  const queryHit = items.find(it => {
+    const { path, query } = splitHref(it.href)
+    if (path !== pathname || !query) return false
+    const itemType = new URLSearchParams(query).get('type') ?? ''
+    return itemType === currentType && itemType !== ''
+  })
+  if (queryHit) return queryHit.id
+
+  // 2. Match exact pathname (item sans query — ex. « Toutes »)
+  //    On ne le retient que si aucun `type` n'est présent dans l'URL,
+  //    sinon un sous-item plus précis aurait dû matcher au 1.
+  if (!currentType) {
+    const exact = items.find(it => {
+      const { path, query } = splitHref(it.href)
+      return path === pathname && !query
+    })
+    if (exact) return exact.id
+  }
+
+  // 3. Match préfixe — privilégier le href le plus long
   const candidates = items
-    .filter(it => it.href !== '/' && pathname.startsWith(it.href + '/'))
+    .filter(it => {
+      const { path } = splitHref(it.href)
+      return path !== '/' && pathname.startsWith(path + '/')
+    })
     .sort((a, b) => b.href.length - a.href.length)
   return candidates[0]?.id
 }
@@ -158,11 +207,15 @@ export function BenefSidebar({
 }: BenefSidebarProps) {
   // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
   const pathname = usePathname() ?? '/'
+  // GUIC-416 — searchParams nécessaires pour résoudre l'item actif quand
+  // plusieurs items partagent le même pathname (`/opportunites?type=…`).
+  // `useSearchParams` peut retourner null hors contexte → fallback vide.
+  const searchParams = useSearchParams() ?? new URLSearchParams()
   // `useRouter` peut être indisponible dans certains tests qui ne mockent
   // que `usePathname` (cf. tests/unit/benef-sidebar.test.tsx). On guard.
   const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
   const yayePanel = useYayePanel()
-  const activeId = active ?? resolveActiveId(pathname, sections)
+  const activeId = active ?? resolveActiveId(pathname, searchParams, sections)
   const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [loggingOut, setLoggingOut] = useState(false)
