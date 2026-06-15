@@ -13,17 +13,23 @@ import Link from 'next/link'
 
 export const metadata = {
   title: 'Aperçu design — Guichet Jeunesse',
-  description: 'Maquettes HTML livrées par le PO (lot 2026-06-04).',
+  description: 'Maquettes HTML livrées par le PO (lot 2026-06-15).',
 }
 
 const LOTS = [
-  { num: 1, label: 'Onboarding mobile + écrans clés (v1)', file: 'Lot 1 - Onboarding + Ecrans cles.html' },
+  { num: 1, label: 'Onboarding mobile + écrans clés', file: 'Lot 1 - Onboarding + Ecrans cles.html' },
   { num: 2, label: 'Onboarding web + Dashboard bénéficiaire', file: 'Lot 2 - Onboarding Web + Dashboard Beneficiaire.html' },
   { num: 3, label: 'Opportunités', file: 'Lot 3 - Opportunites.html' },
   { num: 4, label: 'Profil bénéficiaire', file: 'Lot 4 - Profil Beneficiaire.html' },
   { num: 5, label: 'Événements', file: 'Lot 5 - Evenements.html' },
   { num: 6, label: 'Ressources', file: 'Lot 6 - Ressources.html' },
   { num: 7, label: 'Centres CJS', file: 'Lot 7 - Centres CJS.html' },
+  { num: 8, label: 'Espace Conseiller', file: 'Lot 8 - Espace Conseiller.html' },
+  { num: 9, label: 'Mes candidatures', file: 'Lot 9 - Mes Candidatures.html' },
+  { num: 10, label: 'Espace Recruteur', file: 'Lot 10 - Espace Recruteur.html' },
+  { num: 11, label: 'Administration', file: 'Lot 11 - Administration.html' },
+  { num: 12, label: 'Compléments bénéficiaire', file: 'Lot 12 - Complements Beneficiaire.html' },
+  { num: 13, label: 'États système', file: 'Lot 13 - Etats Systeme.html' },
 ]
 
 export default function DesignPreviewPage() {
@@ -31,13 +37,13 @@ export default function DesignPreviewPage() {
     <main className="container-page py-space-6">
       <header className="mb-space-6">
         <p className="text-fs-100 uppercase tracking-wide text-color-text-secondary">
-          Aperçu PO — lot 2026-06-04
+          Aperçu PO — livraison 2026-06-15 (13 lots)
         </p>
         <h1 className="text-fs-800 font-black text-color-text-primary mt-space-1">
           Maquettes design v2
         </h1>
         <p className="text-fs-300 text-color-text-secondary mt-space-2 max-w-prose">
-          7 lots HTML autonomes livrés par le Product Owner. Chaque lien ouvre la maquette interactive
+          13 lots HTML autonomes livrés par le Product Owner. Chaque lien ouvre la maquette interactive
           en plein écran. Les sources JSX sont disponibles uniquement en dev sur <code>/preview-v2</code>.
         </p>
       </header>

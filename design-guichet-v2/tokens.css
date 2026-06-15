@@ -262,6 +262,10 @@
   --prog-yjc-2:     #082F19;
   --prog-yjc:       linear-gradient(135deg, var(--prog-yjc-1), var(--prog-yjc-2));
 
+  --prog-brm-1:     #1A4ED8;
+  --prog-brm-2:     #0E2A7A;
+  --prog-brm:       linear-gradient(135deg, var(--prog-brm-1), var(--prog-brm-2));
+
   --prog-edupop-1:  #007A5C;
   --prog-edupop-2:  #0A2820;
   --prog-edupop:    linear-gradient(135deg, var(--prog-edupop-1), var(--prog-edupop-2));
