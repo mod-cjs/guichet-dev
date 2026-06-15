@@ -1,7 +1,48 @@
 'use client'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
+
+/**
+ * GUIC-402 — Mapping des segments d'URL vers labels lisibles pour breadcrumbs.
+ * Couvre l'app jeune `/jeune/*` ; la racine `/jeune` est libellée « Mon espace ».
+ */
+const SEGMENT_LABELS: Record<string, string> = {
+  jeune: 'Mon espace',
+  'mes-favoris': 'Mes favoris',
+  'mes-candidatures': 'Mes candidatures',
+  'mon-profil': 'Mon profil',
+  'mes-notifications': 'Mes notifications',
+  parametres: 'Paramètres',
+  opportunites: 'Opportunités',
+  agenda: 'Agenda',
+  ressources: 'Ressources',
+  centres: 'Centres',
+  yaye: 'Yaye',
+}
+
+interface Crumb {
+  label: string
+  href: string
+}
+
+/**
+ * Construit un fil d'Ariane à partir du pathname. Limité à 3 niveaux pour rester
+ * lisible. Renvoie [] si pathname ne correspond pas à l'app jeune.
+ */
+function buildBreadcrumbs(pathname: string | null): Crumb[] {
+  if (!pathname || !pathname.startsWith('/jeune')) return []
+  const segments = pathname.split('/').filter(Boolean)
+  const crumbs: Crumb[] = []
+  let acc = ''
+  for (const seg of segments) {
+    acc += '/' + seg
+    const label = SEGMENT_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')
+    crumbs.push({ label, href: acc })
+  }
+  return crumbs.slice(0, 3)
+}
 
 /**
  * GUIC-375 — Recherche contextuelle : on redirige vers la liste correspondant
@@ -112,6 +153,7 @@ export function BenefTopBar({
     if (!isControlled) setInternalQuery(v)
     onSearchChange?.(v)
   }
+  const crumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname])
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const q = (value ?? '').trim()
@@ -133,7 +175,7 @@ export function BenefTopBar({
         padding: '10px 24px',
         alignItems: 'center',
         gap: 14,
-        minHeight: 64,
+        minHeight: 'var(--gj-topbar-h)',
         flexShrink: 0,
         zIndex: 'var(--gj-z-nav)',
       }}
@@ -192,7 +234,54 @@ export function BenefTopBar({
         <button type="submit" aria-label="Lancer la recherche" style={{ display: 'none' }} />
       </form>
 
-      <span style={{ flex: 1 }} />
+      {/* GUIC-402 — fil d'Ariane contextuel desktop pour combler l'espace droit
+          et offrir un repère de navigation hiérarchique. Masqué <lg. */}
+      <nav
+        aria-label="Fil d'Ariane"
+        className="hidden lg:flex"
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 13,
+          color: 'var(--gj-grey)',
+          minHeight: 44,
+          paddingLeft: 8,
+        }}
+      >
+        {crumbs.map((crumb, i) => {
+          const isLast = i === crumbs.length - 1
+          return (
+            <span key={crumb.href} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {i > 0 ? (
+                <span aria-hidden style={{ color: 'var(--gj-line)' }}>›</span>
+              ) : null}
+              {isLast ? (
+                <span
+                  aria-current="page"
+                  style={{ color: 'var(--gj-ink)', fontWeight: 600, padding: '10px 4px' }}
+                >
+                  {crumb.label}
+                </span>
+              ) : (
+                <Link
+                  href={crumb.href}
+                  className="no-underline"
+                  style={{
+                    color: 'var(--gj-grey)',
+                    padding: '10px 4px',
+                    minHeight: 44,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {crumb.label}
+                </Link>
+              )}
+            </span>
+          )
+        })}
+      </nav>
     </header>
   )
 }
