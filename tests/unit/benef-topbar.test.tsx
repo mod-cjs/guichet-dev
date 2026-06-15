@@ -4,6 +4,8 @@ import { BenefTopBar } from '@/components/layout/BenefTopBar'
 const pushMock = jest.fn()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
+  usePathname: () => '/jeune',
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 describe('<BenefTopBar />', () => {
