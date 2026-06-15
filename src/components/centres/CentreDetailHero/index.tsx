@@ -20,6 +20,12 @@ export interface CentreDetailHeroProps {
     conseillersCount: number
     latitude: number
     longitude: number
+    /**
+     * Distance lisible vers le centre (ex. "1,2 km"). Optionnel : si fourni,
+     * remplace `ville/region` dans la 3e chip du hero (priorité au design source
+     * `centres-web.jsx:153` qui affiche `c.km`).
+     */
+    km?: string | null
   }
   isOpen: boolean
   /** Texte ouverture/prochaine ouverture (ex. "08:00 - 18:00"). */
@@ -50,7 +56,9 @@ export function CentreDetailHero({
   onAppointmentClick,
   className = '',
 }: CentreDetailHeroProps) {
-  const villeOrRegion = centre.ville || centre.region
+  // Design source `centres-web.jsx:153` privilégie `c.km` (distance). Fallback ville/region
+  // si distance non fournie (pas de géoloc).
+  const localisationLabel = centre.km || centre.ville || centre.region
   const openText = openingHoursText
     ? isOpen
       ? `Ouvert · ${openingHoursText}`
@@ -201,7 +209,7 @@ export function CentreDetailHero({
               size={13}
               style={{ color: 'var(--gj-yellow)' }}
             />
-            {villeOrRegion}
+            {localisationLabel}
           </span>
         </div>
 
