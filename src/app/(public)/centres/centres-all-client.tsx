@@ -158,7 +158,7 @@ export function CentresAllClient({
         {userIsConnected && (
           <div className="hidden lg:flex flex-col gap-2 sm:flex-row sm:gap-3">
             <a
-              href="/jeune/mes-reservations"
+              href="/jeune/mes-reservations-centres"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
                 border: '1px solid var(--gj-teal-deep)',
@@ -174,7 +174,7 @@ export function CentresAllClient({
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
                 background: 'var(--gj-teal-deep)',
-                color: '#fff',
+                color: 'var(--gj-surface)',
                 minHeight: 44,
               }}
             >
@@ -196,6 +196,7 @@ export function CentresAllClient({
             longitude: c.longitude,
           }))}
           activeId={userCentrePrincipalId ?? undefined}
+          pulseActiveMarker={Boolean(userCentrePrincipalId)}
           onPinClick={handlePinClick}
           height={230}
           centresForList={centres.map((c) => ({
@@ -286,7 +287,7 @@ export function CentresAllClient({
           {userIsConnected ? (
             <>
               <a
-                href="/jeune/mes-reservations"
+                href="/jeune/mes-reservations-centres"
                 className="inline-flex items-center justify-center gap-2 rounded-gj-md text-fs-200 font-bold"
                 style={{
                   border: '1px solid var(--gj-teal-deep)',
