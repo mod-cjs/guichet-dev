@@ -91,6 +91,21 @@ describe('<CentreDetailHero />', () => {
     expect(onIti).toHaveBeenCalledTimes(1)
   })
 
+  it('GUIC-398 — chip 3e affiche `km` en priorité si fourni', () => {
+    render(
+      <CentreDetailHero
+        centre={{ ...baseCentre, km: '1,2 km' }}
+        isOpen
+      />,
+    )
+    expect(screen.getByTestId('chip-ville')).toHaveTextContent('1,2 km')
+  })
+
+  it('GUIC-398 — chip 3e fallback ville si `km` non fourni', () => {
+    render(<CentreDetailHero centre={baseCentre} isOpen />)
+    expect(screen.getByTestId('chip-ville')).toHaveTextContent('Tambacounda')
+  })
+
   it('rend une mini-carte Google Maps (rendu unique responsive, hidden lg:block)', () => {
     render(<CentreDetailHero centre={baseCentre} isOpen />)
     const wrapper = screen.getByTestId('hero-minimap')

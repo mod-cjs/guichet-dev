@@ -17,7 +17,13 @@
  *
  * Réponse 200 : `{ data: { id, statut } }`
  *
- * Statut posté : `AnnuleeParCentre` (migration `20260614180000_add_statut_annulee_par_centre`).
+ * ⚠️ BLOCKER SCHEMA — `StatutReservation.AnnuleeParCentre` n'existe pas encore
+ * dans `prisma/schema.prisma` (cf rapport Lot 7 W6). En attendant l'arbitrage
+ * PO + migration, on utilise `AnnuleeParJeune` comme valeur de repli (le champ
+ * `raisonRefusOuAnnul = "Annulée par le centre"` + le tracking
+ * `centre_reservation_cancelled_by_staff` permettent de discriminer côté KPI).
+ * Une fois la migration appliquée, remplacer la valeur ci-dessous par
+ * `'AnnuleeParCentre'`.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -126,8 +132,9 @@ export async function POST(
     }
 
     const now = new Date()
-    // GUIC-395 : raison optionnelle (le statut `AnnuleeParCentre` suffit à discriminer).
-    const raisonFinale = raisonBody.length > 0 ? raisonBody : null
+    const raisonFinale = raisonBody.length > 0
+      ? raisonBody
+      : 'Annulée par le centre'
 
     const updated = await prisma.reservation.update({
       where: { id },

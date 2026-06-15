@@ -5,6 +5,18 @@
  * Loader Prisma + getSession mockés.
  */
 
+// qrcode est une dépendance optionnelle (peer); en jest on stub.
+jest.mock(
+  'qrcode',
+  () => ({
+    __esModule: true,
+    default: {
+      toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,AA'),
+    },
+  }),
+  { virtual: true },
+)
+
 jest.mock('@/lib/auth', () => ({
   getSession: jest.fn(),
 }))
@@ -112,5 +124,32 @@ describe('/centres — W2 vue all', () => {
     mockGetCentres.mockResolvedValue([baseCentre])
     render(await Page())
     expect(screen.getByRole('main')).toBeInTheDocument()
+  })
+
+  // ──────────────── GUIC-398 / Wave 7 ────────────────
+
+  it('GUIC-398 — légende de la carte toujours visible (anonyme inclus)', async () => {
+    ;(getSession as jest.Mock).mockResolvedValue(null)
+    mockGetCentres.mockResolvedValue([baseCentre])
+    render(await Page())
+    const legends = screen.getAllByLabelText(/Légende de la carte/i)
+    expect(legends.length).toBeGreaterThan(0)
+  })
+
+  it('GUIC-398 — header "N centres" uppercase mobile', async () => {
+    ;(getSession as jest.Mock).mockResolvedValue(null)
+    mockGetCentres.mockResolvedValue([baseCentre])
+    render(await Page())
+    const header = screen.getByTestId('centres-count-header')
+    expect(header).toBeInTheDocument()
+    expect(header).toHaveTextContent(/1 centres/i)
+  })
+
+  it('GUIC-398 — visiteur non connecté voit un CTA "Se connecter pour avoir ta carte"', async () => {
+    ;(getSession as jest.Mock).mockResolvedValue(null)
+    mockGetCentres.mockResolvedValue([baseCentre])
+    render(await Page())
+    const cta = screen.getAllByLabelText(/Se connecter pour obtenir ta carte CJS/i)
+    expect(cta.length).toBeGreaterThan(0)
   })
 })
