@@ -191,7 +191,7 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
         estActif: true,
         ...(region ? { region } : {}),
       },
-      select:  { id: true, nom: true, adresse: true, region: true },
+      select:  { id: true, slug: true, nom: true, adresse: true, region: true },
       orderBy: { nom: 'asc' },
       take:    CENTRE_LIMIT,
     }),
@@ -259,7 +259,7 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
     // affiche la région à la place. La vraie distance sera ajoutée quand le
     // jeune partagera sa position (GUIC-200+).
     distance: String(c.region),
-    href:     `/centres/${c.id}`,
+    href:     c.slug ? `/centres/${c.slug}` : '/centres',
   }))
 
   const tracker: TrackerItem[] = candidaturesRaw.map((c) => {

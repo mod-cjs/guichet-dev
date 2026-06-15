@@ -8,7 +8,7 @@
  *   3. clic Ressources → /centres/[slug]/ressources
  *   4. clic Réserver → /centres/[slug]/ressources/[id]/reserver
  *   5. remplit le formulaire (date demain, créneau, 1 personne, motif > 20)
- *   6. submit → redirect /jeune/mes-reservations?created=<id>
+ *   6. submit → redirect /jeune/mes-reservations-centres?created=<id>
  *   7. /jeune/mes-reservations-centres → tab Acceptées
  *   8. clic Annuler → confirm → réservation passe en tab Toutes (Annulee)
  *
@@ -95,8 +95,8 @@ test.describe('flow réservation centre jeune (E2E)', () => {
     // Submit
     await page.getByRole('button', { name: /réserver|valider|confirmer/i }).click()
 
-    // 6. Redirect attendu vers /jeune/mes-reservations?created=...
-    await page.waitForURL(/\/jeune\/mes-reservations\?created=/, { timeout: 10_000 })
+    // 6. Redirect attendu vers /jeune/mes-reservations-centres?created=...
+    await page.waitForURL(/\/jeune\/mes-reservations-centres\?created=/, { timeout: 10_000 })
 
     // 7. Liste des réservations (route réelle = mes-reservations-centres)
     await page.goto('/jeune/mes-reservations-centres')

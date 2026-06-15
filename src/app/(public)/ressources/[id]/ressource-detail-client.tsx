@@ -39,7 +39,7 @@ const CTA_ICON: Record<TypeRessourceValue, IconName> = {
  *  - Outil → nouvel onglet.
  *
  * Favoris : pattern hérité de `ResourceCard` / `RessourcesClient` (toggle POST,
- * redirige vers /auth/sign-in en cas de 401).
+ * redirige vers /auth/connexion en cas de 401).
  */
 export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClientProps) {
   const router = useRouter()
@@ -74,7 +74,7 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
       })
       if (res.status === 401) {
         setIsFavori(previous)
-        router.push('/auth/sign-in')
+        router.push('/auth/connexion')
         return
       }
       if (!res.ok) {

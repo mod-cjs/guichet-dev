@@ -211,7 +211,7 @@ export function RessourcesClient({
           else next.add(id)
           return next
         })
-        router.push('/auth/sign-in')
+        router.push('/auth/connexion')
         return
       }
       if (!res.ok) throw new Error('toggle failed')

@@ -134,7 +134,7 @@ describe('<ReservationForm />', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     await waitFor(() =>
       expect(mockPush).toHaveBeenCalledWith(
-        '/jeune/mes-reservations?created=res-9',
+        '/jeune/mes-reservations-centres?created=res-9',
       ),
     )
   })
