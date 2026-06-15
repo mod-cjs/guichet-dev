@@ -109,7 +109,7 @@ function maxDateIso(): string {
  *
  * Orchestre : date · stepper personnes · slot picker · motif · upload.
  * Validation Zod côté client miroir API. Submit → POST /api/reservations
- * → redirect /jeune/mes-reservations?created=<id>.
+ * → redirect /jeune/mes-reservations-centres?created=<id>.
  *
  * Spec : M4-centres-lot7.md §5 Wave 4.
  */
@@ -221,7 +221,7 @@ export function ReservationForm({
       if (onSubmit) {
         const res = await onSubmit(payload)
         if (res && 'id' in res) {
-          router.push(`/jeune/mes-reservations?created=${res.id}`)
+          router.push(`/jeune/mes-reservations-centres?created=${res.id}`)
         }
         return
       }
@@ -236,7 +236,7 @@ export function ReservationForm({
       } | null
       if (r.status === 201 && json?.data?.reservation) {
         router.push(
-          `/jeune/mes-reservations?created=${json.data.reservation.id}`,
+          `/jeune/mes-reservations-centres?created=${json.data.reservation.id}`,
         )
         return
       }
