@@ -62,7 +62,7 @@ Retourne JSON STRICT :
   branches: [{ number, title, head, age_days, author }]
 }`,
   {
-    subagent_type: 'refactoring-specialist',
+    agentType: 'refactoring-specialist',
     label: 'inventory',
     phase: 'Inventory',
     schema: {
@@ -105,7 +105,7 @@ Retourne JSON :
   toEscalate: [{ category: 'E'|'F', item, reason }]
 }`,
   {
-    subagent_type: 'refactoring-specialist',
+    agentType: 'refactoring-specialist',
     label: 'triage',
     phase: 'Triage',
     schema: {
@@ -127,7 +127,8 @@ log(`  ${triage.toFixAuto.length} auto-fixables, ${triage.toEscalate.length} à 
 // Setup branche purge
 // ============================================================
 const REPO_ROOT_HINT = process.env.CJS_REPO_ROOT || '$(git rev-parse --show-toplevel)'
-const ticket = providedTicket || 'GUIC-PURGE'  // fallback if no Jira creation
+if (!providedTicket || !/^GUIC-\d+$/.test(providedTicket)) throw new Error('ticket required (Jira format GUIC-NNN). Create one via scripts/jira.sh create or pass providedTicket arg.')
+const ticket = providedTicket
 const worktreePath =
   providedWorktree ||
   `.claude/worktrees/purge-debt-${scope}`
@@ -178,7 +179,7 @@ Règles strictes :
 
 Ne pas push, ne pas créer PR. Retourne un résumé : { fixed: [...], failed: [...], commitsCreated: N }.`,
     {
-      subagent_type: 'refactoring-specialist',
+      agentType: 'refactoring-specialist',
       label: `fix:${stage.name}`,
       phase: stage.phase,
       schema: {
@@ -204,7 +205,7 @@ log('Running cjs-regression-guard before packaging')
 const guard = await agent(
   `Regression guard sur la branche \`${branch}\` (worktree ${worktreePath}). Verdict PASS ou FAIL avec détails.`,
   {
-    subagent_type: 'cjs-regression-guard',
+    agentType: 'cjs-regression-guard',
     label: 'quality-gate',
     phase: 'Quality gate',
   },
@@ -233,7 +234,7 @@ const pr = await agent(
 - corrections post-challenge: ${fixResults.map((r) => `${r.scope}: ${r.result?.commitsCreated || 0} commits`).join(', ')}
 
 Push + open PR + propagate mouhammadouod + Jira (transition 2).`,
-  { subagent_type: 'cjs-pr-packager', label: 'package', phase: 'Packaging' },
+  { agentType: 'cjs-pr-packager', label: 'package', phase: 'Packaging' },
 )
 
 return {

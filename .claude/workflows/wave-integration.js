@@ -51,7 +51,7 @@ const preflight = await agent(
    - Checklist § Validation humaine entièrement cochée
 4. Retourne un JSON STRICT : { ok: bool, reason?: string, tickets?: [{ ticket, component, lot, agentType, depends_on: [...] }], blockers?: [...] }`,
   {
-    subagent_type: 'agent-organizer',
+    agentType: 'agent-organizer',
     label: 'preflight',
     phase: 'Pré-flight',
     schema: {
@@ -120,7 +120,7 @@ Crée le worktree (git worktree add -B ...) depuis origin/dev frais.
 Update Jira : transition vers "En cours" (id 21).
 Retourne JSON { ticket, branch, worktreePath } ou { ticket, error }.`,
       {
-        subagent_type: 'git-workflow-manager',
+        agentType: 'git-workflow-manager',
         label: `setup:${t.ticket}`,
         phase: 'Setup',
         schema: {
@@ -147,30 +147,68 @@ if (validSetups.length < preflight.tickets.length) {
 }
 
 // ============================================================
-// Phase 3 — Pipeline tickets (design-v3-component per ticket)
+// Phase 3 — Pipeline tickets (DAG-aware : ondes successives selon depends_on)
 // ============================================================
 phase('Pipeline tickets')
-log(`Spawning design-v3-component for ${validSetups.length} tickets (max ${capped} concurrent)`)
 
 const ticketMap = Object.fromEntries(preflight.tickets.map((t) => [t.ticket, t]))
+const setupMap = Object.fromEntries(validSetups.map((s) => [s.ticket, s]))
 
-// Use pipeline for each ticket — automatic concurrency control via parallel/pipeline
-const results = await parallel(
-  validSetups.map((s) => async () => {
-    const t = ticketMap[s.ticket]
-    const userStoryTitle = `${t.component.split('/').pop()} conforme ${t.lot}`
-    return await workflow('design-v3-component', {
-      ticket: t.ticket,
-      component: t.component,
-      lot: t.lot,
-      worktreePath: s.worktreePath,
-      branch: s.branch,
-      userStoryTitle,
-      agentType: t.agentType,
-      maxRetries: 2,
-    })
-  }),
-)
+// Topological grouping into "ondes" : each onde = tickets dont toutes les deps sont déjà
+// "done" (livrées dans une onde précédente OU absentes de la vague).
+const allTicketIds = new Set(preflight.tickets.map((t) => t.ticket))
+const remaining = new Set(validSetups.map((s) => s.ticket))
+const done = new Set()
+const ondes = []
+let safety = 0
+
+while (remaining.size > 0 && safety < 20) {
+  safety++
+  const onde = []
+  for (const tid of remaining) {
+    const t = ticketMap[tid]
+    const deps = (t.depends_on || []).filter((d) => allTicketIds.has(d))  // only intra-wave deps
+    const allDepsDone = deps.every((d) => done.has(d))
+    if (allDepsDone) onde.push(tid)
+  }
+  if (onde.length === 0) {
+    log(`  WARN : DAG cycle detected on ${[...remaining].join(', ')} — running them anyway`)
+    onde.push(...remaining)
+  }
+  ondes.push(onde)
+  onde.forEach((tid) => { remaining.delete(tid); done.add(tid) })
+}
+
+log(`  DAG : ${ondes.length} onde(s) — sizes ${ondes.map((o) => o.length).join('/')}`)
+
+const allResults = []
+for (let i = 0; i < ondes.length; i++) {
+  const onde = ondes[i]
+  phase(`Onde ${i + 1}/${ondes.length}`)
+  log(`  Onde ${i + 1} : ${onde.length} ticket(s) parallèle (cap ${capped})`)
+  if (budget.total) log(`  budget: ${Math.round(budget.spent()/1000)}k/${Math.round(budget.total/1000)}k tokens spent`)
+
+  const ondeResults = await parallel(
+    onde.map((tid) => async () => {
+      const t = ticketMap[tid]
+      const s = setupMap[tid]
+      const userStoryTitle = `${t.component.split('/').pop()} conforme ${t.lot}`
+      return await workflow('design-v3-component', {
+        ticket: t.ticket,
+        component: t.component,
+        lot: t.lot,
+        worktreePath: s.worktreePath,
+        branch: s.branch,
+        userStoryTitle,
+        agentType: t.agentType,
+        maxRetries: 2,
+      })
+    }),
+  )
+  allResults.push(...ondeResults)
+}
+
+const results = allResults
 
 const livrés = results.filter(Boolean).filter((r) => r.ok)
 const échecs = results.filter(Boolean).filter((r) => !r.ok)
@@ -192,7 +230,7 @@ ${livrés.map((r) => `- ${r.ticket} : ${r.component} (${r.lot})`).join('\\n')}
 
 Si le dev server (http://localhost:3000) n'est pas accessible, indique-le et skip les screenshots.`,
     {
-      subagent_type: 'ui-ux-tester',
+      agentType: 'ui-ux-tester',
       label: 'post-audit',
       phase: 'Post-audit Playwright',
     },

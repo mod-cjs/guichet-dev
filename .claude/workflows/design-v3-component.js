@@ -45,7 +45,11 @@ if (!userStoryTitle) throw new Error('userStoryTitle required')
 log(`▶ design-v3-component for ${ticket} — ${component} vs ${lot}`)
 log(`  worktree=${worktreePath} · branch=${branch} · agent=${agentType}`)
 
-// Load the StructuredOutput schema for the auditor
+// Load the StructuredOutput schema for the auditor.
+// [SYNC SCHEMA] This schema MUST stay in sync with
+// .agent_context/schemas/audit-finding.schema.json — Workflow tool has no
+// filesystem access (no fs.readFileSync), so duplication is unavoidable.
+// If you update the schema file, update this constant accordingly, and vice-versa.
 const AUDIT_SCHEMA = {
   type: 'object',
   required: ['auditedTarget', 'lotReference', 'summary', 'findings'],
@@ -88,11 +92,12 @@ const AUDIT_SCHEMA = {
 
 // Phase 1 — Audit initial
 phase('Audit initial')
+if (budget.total) log(`  budget: ${Math.round(budget.spent()/1000)}k/${Math.round(budget.total/1000)}k tokens spent`)
 log(`Auditing ${component} against ${lot}`)
 const initialAudit = await agent(
   `Audit le composant \`${component}\` par rapport au design \`${lot}\`. Worktree : ${worktreePath}. Retourne ton rapport au format JSON conforme au schema.`,
   {
-    subagent_type: 'cjs-design-auditor',
+    agentType: 'cjs-design-auditor',
     schema: AUDIT_SCHEMA,
     label: `audit-init:${ticket}`,
     phase: 'Audit initial',
@@ -119,6 +124,7 @@ if (needsImpl) {
 
   let attempt = 0
   let implSuccess = false
+  let previousFindingsSig = null
 
   while (attempt < maxRetries && !implSuccess) {
     attempt++
@@ -132,7 +138,7 @@ ${JSON.stringify(initialAudit.findings, null, 2)}
 
 Ne pas push, ne pas créer de PR.`,
       {
-        subagent_type: agentType,
+        agentType: agentType,
         label: `impl:${ticket}:try${attempt}`,
         phase: 'Impl TDD',
       },
@@ -148,7 +154,7 @@ Ne pas push, ne pas créer de PR.`,
     finalAudit = await agent(
       `Re-audite le composant \`${component}\` après l'impl. Worktree : ${worktreePath}. JSON conforme au schema.`,
       {
-        subagent_type: 'cjs-design-auditor',
+        agentType: 'cjs-design-auditor',
         schema: AUDIT_SCHEMA,
         label: `audit-final:${ticket}:try${attempt}`,
         phase: 'Audit final',
@@ -165,6 +171,14 @@ Ne pas push, ne pas créer de PR.`,
       log(`  ✓ Impl OK — remaining medium/low only`)
       implSuccess = true
     } else {
+      // Early-exit if findings haven't changed since previous attempt (no progress)
+      const prevSig = previousFindingsSig
+      const currSig = JSON.stringify((finalAudit.findings || []).map(f => `${f.file}:${f.line || 0}:${f.severity}:${f.category || ''}`).sort())
+      if (prevSig && prevSig === currSig) {
+        log(`  ✗ Same ${remaining} findings as previous attempt — early-exit (no progress)`)
+        break
+      }
+      previousFindingsSig = currSig
       log(`  ✗ Still ${remaining} critical+high after attempt ${attempt}`)
     }
   }
@@ -187,12 +201,12 @@ const [tddVerdict, regVerdict] = await parallel([
   () =>
     agent(
       `Verdict TDD sur la branche \`${branch}\` (worktree ${worktreePath}). Base origin/dev.`,
-      { subagent_type: 'cjs-tdd-enforcer', label: `tdd:${ticket}`, phase: 'Quality gates' },
+      { agentType: 'cjs-tdd-enforcer', label: `tdd:${ticket}`, phase: 'Quality gates' },
     ),
   () =>
     agent(
       `Regression guard sur la branche \`${branch}\` (worktree ${worktreePath}). Run jest+tsc+lint+routes.`,
-      { subagent_type: 'cjs-regression-guard', label: `regression:${ticket}`, phase: 'Quality gates' },
+      { agentType: 'cjs-regression-guard', label: `regression:${ticket}`, phase: 'Quality gates' },
     ),
 ])
 
@@ -213,7 +227,7 @@ const prReport = await agent(
 - audit findings résolus : ${JSON.stringify(finalAudit.findings)}
 
 Push + open PR on dev + propagate mouhammadouod via scripts/propagate-mouhammadouod.sh + update Jira (transition 2).`,
-  { subagent_type: 'cjs-pr-packager', label: `package:${ticket}`, phase: 'Packaging' },
+  { agentType: 'cjs-pr-packager', label: `package:${ticket}`, phase: 'Packaging' },
 )
 
 if (!prReport) {
