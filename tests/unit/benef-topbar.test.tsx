@@ -2,14 +2,11 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
 const pushMock = jest.fn()
-jest.mock('next/navigation', () => {
-  const params = new URLSearchParams()
-  return {
-    useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
-    usePathname: () => '/jeune',
-    useSearchParams: () => params,
-  }
-})
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
+  usePathname: () => '/jeune',
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 describe('<BenefTopBar />', () => {
   beforeEach(() => {

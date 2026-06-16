@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 8 — Espace Conseiller · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="cjs-card.jsx"></script>
+<script type="text/babel" src="agent-data.jsx"></script>
+<script type="text/babel" src="agent-shell.jsx"></script>
+<script type="text/babel" src="settings-shared.jsx"></script>
+<script type="text/babel" src="agent-web.jsx"></script>
+<script type="text/babel" src="agent-web2.jsx"></script>
+<script type="text/babel" src="agent-mobile.jsx"></script>
+
+<script type="text/babel">
+const WEB_W = 1280;
+const WEB_H = 1180;
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 8 — Espace Conseiller"
+    subtitle="Back-office agent CJS · tableau de bord, réservations, bénéficiaires, check-in QR, publications, messagerie, agenda (web + mobile)"
+  >
+    <DCSection
+      id="web"
+      title="A · Web — Back-office conseiller"
+      subtitle="Sidebar foncée distincte · navigation cliquable entre les vues"
+    >
+      <DCArtboard id="w1" label="Tableau de bord agent" width={WEB_W} height={WEB_H}>
+        <WebAgent view="home" />
+      </DCArtboard>
+      <DCArtboard id="w2" label="Réservations à valider" width={WEB_W} height={WEB_H}>
+        <WebAgent view="resa" />
+      </DCArtboard>
+      <DCArtboard id="w3" label="Annuaire des bénéficiaires" width={WEB_W} height={WEB_H}>
+        <WebAgent view="benef" />
+      </DCArtboard>
+      <DCArtboard id="w4" label="Fiche bénéficiaire détaillée" width={WEB_W} height={WEB_H}>
+        <WebAgent view="fiche" />
+      </DCArtboard>
+      <DCArtboard id="w5" label="Check-in · scan QR + présence" width={WEB_W} height={WEB_H}>
+        <WebAgent view="checkin" />
+      </DCArtboard>
+      <DCArtboard id="w6" label="Publications · gérer" width={WEB_W} height={WEB_H}>
+        <WebAgent view="publish" />
+      </DCArtboard>
+      <DCArtboard id="w7" label="Publication · formulaire" width={WEB_W} height={WEB_H}>
+        <WebAgent view="publishForm" />
+      </DCArtboard>
+      <DCArtboard id="w8" label="Messagerie" width={WEB_W} height={WEB_H}>
+        <WebAgent view="messages" />
+      </DCArtboard>
+      <DCArtboard id="w9" label="Agenda & RDV" width={WEB_W} height={WEB_H}>
+        <WebAgent view="rdv" />
+      </DCArtboard>
+      <DCArtboard id="w10" label="Paramètres" width={WEB_W} height={WEB_H}>
+        <WebAgent view="settings" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection
+      id="mobile"
+      title="B · Mobile — Agent sur le terrain"
+      subtitle="Bottom-nav agent · scan QR en plein écran · navigation cliquable"
+    >
+      <DCArtboard id="m1" label="Tableau de bord" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="home" />
+      </DCArtboard>
+      <DCArtboard id="m2" label="Réservations à valider" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="resa" />
+      </DCArtboard>
+      <DCArtboard id="m3" label="Check-in · scan QR" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="checkin" />
+      </DCArtboard>
+      <DCArtboard id="m4" label="Messagerie" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="messages" />
+      </DCArtboard>
+      <DCArtboard id="m5" label="Bénéficiaires + fiche" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="benef" />
+      </DCArtboard>
+      <DCArtboard id="m6" label="Plus · sections" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="more" />
+      </DCArtboard>
+      <DCArtboard id="m7" label="Publications" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="publish" />
+      </DCArtboard>
+      <DCArtboard id="m8" label="Agenda & RDV" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="rdv" />
+      </DCArtboard>
+      <DCArtboard id="m9" label="Paramètres" width={PHONE_W} height={PHONE_H}>
+        <MobAgentApp start="settings" />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="accessibility.js"></script>
+</body>
+</html>

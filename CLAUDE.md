@@ -35,7 +35,8 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - Police : stack système (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`) — variable CSS `--gj-font-sans` injectée par `src/styles/tokens.css`
-- **`design-guichet-v2/`** = source de vérité visuelle (livraison PO 2026-05-26). `design/html.archive/` = ancien prototype, lecture seule.
+- **`design-guichet-v3/`** = **source de vérité visuelle** (livraison PO finale 2026-06-16, 14 lots + Bibliothèque Composants). Lire `public/design-v3/Note de design - Lots ajoutes.html` pour les principes (cohérence, identité par rôle, inclusion native) et les codes couleur par espace (jeune teal / conseiller teal-foncé / recruteur bleu / admin sombre+doré).
+- **`design-guichet-v2/`** = archive (livraison 2026-06-15) — conservée pour comparaison/rollback. Ne PAS utiliser comme référence d'implémentation. `design/html.archive/` = ancien prototype, lecture seule.
 - **Storybook** = catalogue UI vivant. Lancer `npm run storybook` (port 6006) pour explorer les primitives et leurs variants. Toute nouvelle primitive doit venir avec sa story `*.stories.tsx` à côté du composant.
 - **Icônes** : sprite SVG global servi depuis `/icons.svg`. Toujours utiliser `<Icon name="..." />` (jamais d'`<svg>` inline manuel ni d'emoji comme icône).
 
