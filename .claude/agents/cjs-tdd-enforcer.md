@@ -38,13 +38,20 @@ For every change shipped on a branch:
 3. The RED commit must come **before** the GREEN commit in chronological order (parent → child)
 4. Both commits must reference the same `[GUIC-NNN]` ticket
 
-**Exceptions tolerated** (no FAIL):
-- `chore(*)` commits (config, deps, docs, gitignore, etc.) — no test required
-- `docs(*)` commits — no test required
-- `merge:*` commits (auto-generated)
-- `style(*)` commits (formatting only)
-- Commits with subject starting with `revert:` — they revert a previous TDD pair
-- Commits where the diff is **only** in `.agent_context/`, `CLAUDE.md`, `README.md`, `*.md`, `.gitignore`, `package.json` lockfile bumps, or `*.stories.tsx` (Storybook stories alone don't need RED)
+**Exceptions tolerated** (no FAIL — chacune justifiée) :
+- `chore(*)` — config / deps / outils : pas de behaviour à tester (Husky, .gitignore, lockfile bumps mineurs)
+- `docs(*)` — README / commentaires / specs : pas de behaviour
+- `merge:*` — auto-générés par les merges, n'introduisent pas de code propre à cette branche
+- `style(*)` — Prettier / ESLint formatting only, pas de behaviour
+- `revert:*` — annule explicitement une paire TDD précédente, le RED associé est dans la paire d'origine
+- Diff **exclusivement** dans `.agent_context/`, `CLAUDE.md`, `README.md`, `*.md`, `.gitignore` : doc / config agent, pas de behaviour applicatif
+- Diff **exclusivement** dans `package-lock.json` / `pnpm-lock.yaml` / `yarn.lock` ou bumps de patch (≤ +5/-5 lignes dans `package.json` `"version":` field uniquement) : pas de changement de comportement runtime
+- Diff **exclusivement** dans `*.stories.tsx` : story Storybook = catalogue visuel, le composant sous-jacent est déjà couvert par sa paire TDD précédente
+
+**Non-exception** (à FAIL si rencontré) :
+- `feat(*)` avec lockfile bump significatif (> 5 lignes hors `"version":`) — nouvelle dep applicative, doit avoir une RED qui exerce son usage
+- Toute modif `prisma/schema.prisma` — schema = behaviour, nécessite RED (test loader / API)
+- Toute modif `src/middleware.ts` / `src/instrumentation.ts` — code transverse, RED obligatoire
 
 ## Execution flow
 
@@ -101,7 +108,7 @@ Special case: if a single commit is a `fix(*)` GREEN with `[GUIC-NNN]` but no RE
 
 For each non-EXEMPT commit:
 - Author MUST be `mod-cjs <mod-cjs@consortiumjeunesse.local>`. Otherwise → FAIL ("auteur invalide")
-- Body MUST contain `Closes GUIC-NNN` somewhere. Otherwise → WARN
+- Body MUST contain `Closes GUIC-NNN` somewhere. Otherwise → FAIL (CJS_AGENT_RULES § Commits le requiert explicitement)
 - Subject MUST NOT contain `Co-Authored-By` or `Generated with` or `Claude`. Otherwise → FAIL
 
 ### 6. Return verdict
@@ -134,7 +141,7 @@ Suggested remediation:
 - **Never modify code or commits**. You only read and report.
 - **Never push or PR**. That's `cjs-pr-packager`.
 - **Always include the SHA** of failed commits — the caller will use them to fix.
-- **Be strict but proportional**: a missing `Closes` is a WARN, not a FAIL. A missing RED is a FAIL.
+- **Be strict but proportional**: a missing RED is FAIL, an orphan RED (no GREEN yet) is WARN, a malformed subject is FAIL, a missing `Closes` line is FAIL (per CJS_AGENT_RULES).
 - **`--no-verify` tolerance** is for tsc/hooks at commit time, NOT for TDD discipline. You audit the COMMIT HISTORY, not the hook bypass.
 
 ## What you do NOT do

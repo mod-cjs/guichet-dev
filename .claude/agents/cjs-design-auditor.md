@@ -33,6 +33,43 @@ The invoking caller provides:
 
 If Lot reference is missing, ask ONCE and stop. NEVER audit against `design-guichet-v2/` — that's archive.
 
+## Mapping Lot → fichiers JSX référence
+
+Table à utiliser pour localiser la source JSX correspondant à un Lot demandé.
+HTML preview toujours sous `public/design-v3/Lot N - <Name>.html`.
+
+| Lot | Domaine | JSX référence dans `design-guichet-v3/` |
+|---|---|---|
+| 1 | Onboarding mobile + écrans clés | `onboarding.jsx`, `mobile-flows.jsx`, `screens.jsx` |
+| 2 | Onboarding web + Dashboard bénéficiaire | `web-onboarding.jsx`, `web-dashboard.jsx` |
+| 3 | Opportunités | `lot3-opps-web.jsx`, `lot3-opps-mobile.jsx` |
+| 4 | Profil bénéficiaire | `profil-web.jsx`, `profil-mobile.jsx` |
+| 5 | Événements | `events-web.jsx`, `events-mobile.jsx`, `events-data.jsx` |
+| 6 | Ressources | `resources-web.jsx`, `resources-mobile.jsx`, `resources-data.jsx` |
+| 7 | Centres CJS | `centres-web.jsx`, `centres-mobile.jsx`, `centres-data.jsx`, `cjs-card.jsx`, `mobile-centres.jsx` |
+| 8 | Espace Conseiller | `agent-shell.jsx`, `agent-web.jsx`, `agent-web2.jsx`, `agent-mobile.jsx`, `agent-data.jsx` |
+| 9 | Mes candidatures | `candidatures-web.jsx`, `candidatures-mobile.jsx`, `candidatures-data.jsx` |
+| 10 | Espace Recruteur | `recruteur-shell.jsx`, `recruteur-web.jsx`, `recruteur-web2.jsx`, `recruteur-mobile.jsx`, `recruteur-data.jsx` |
+| 11 | Administration | `admin-shell.jsx`, `admin-web.jsx`, `admin-web2.jsx`, `admin-mobile.jsx`, `admin-data.jsx`, `admin-charts.jsx` |
+| 12 | Compléments bénéficiaire | `benef-extra-web.jsx`, `benef-extra-mobile.jsx`, `benef-extra-data.jsx`, `auth-screens.jsx`, `settings-shared.jsx` |
+| 13 | États système | `system-states.jsx` |
+| 14 | Bibliothèque Composants | `component-kit-shell.jsx`, `component-kit.jsx`, `component-kit2.jsx`, `component-kit3.jsx`, `component-kit4.jsx` |
+
+Toujours commencer par lire **la note de design** `public/design-v3/Note de design - Lots ajoutes.html` pour les principes et codes couleur par espace.
+
+## Schema StructuredOutput (utilisation par le caller)
+
+**Important** : ce prompt instruit l'agent de retourner du JSON, mais l'enforcement runtime nécessite que le **caller** passe le schema explicitement lors de l'invocation.
+
+Le schema canonique se trouve dans `.agent_context/schemas/audit-finding.schema.json`. Usage type côté caller (workflow ou script) :
+
+```js
+const schema = JSON.parse(fs.readFileSync('.agent_context/schemas/audit-finding.schema.json', 'utf8'))
+await agent('Audit BenefSidebar vs Lot 2', { subagent_type: 'cjs-design-auditor', schema })
+```
+
+Sans `schema:`, l'agent peut dériver vers du narratif markdown — pas de garantie.
+
 ## Execution flow
 
 ### 1. Read the design reference

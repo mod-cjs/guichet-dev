@@ -103,41 +103,23 @@ Capture the PR URL from gh output (it's the last line: `https://github.com/...`)
 
 ### 4. Propagate to mouhammadouod
 
-The mouhammadouod staging mirror lives in the main worktree `agent-ae210669c88b5b848`:
+Invoke the standardized script (handles worktree path, vercel.json canonical
+resolution, tsconfig.tsbuildinfo --theirs, and source-conflict exit-with-error):
 
 ```bash
-cd /Users/macbook/Desktop/cjs/guichet/.claude/worktrees/agent-ae210669c88b5b848
-git fetch origin --quiet
-git -c user.name=mod-cjs -c user.email=mod-cjs@consortiumjeunesse.local merge --no-ff origin/<branch> -m "merge: <branch>" 2>&1 | tail -5
+cd /Users/macbook/Desktop/cjs/guichet
+./scripts/propagate-mouhammadouod.sh <branch>
 ```
 
-If conflicts:
-- `vercel.json` (recurring conflict): overwrite with the canonical 5-cron version:
-  ```json
-  {
-    "buildCommand": "prisma generate && next build",
-    "installCommand": "npm install --include=dev",
-    "framework": "nextjs",
-    "regions": ["cdg1"],
-    "crons": [
-      { "path": "/api/internal/notifications-dlq", "schedule": "*/10 * * * *" },
-      { "path": "/api/cron/cleanup-cv", "schedule": "0 3 * * *" },
-      { "path": "/api/cron/cleanup-centre-events", "schedule": "0 3 * * *" },
-      { "path": "/api/cron/cleanup-checkins", "schedule": "0 3 * * *" },
-      { "path": "/api/cron/reservations-batch", "schedule": "0 4 * * *" }
-    ]
-  }
-  ```
-- `tsconfig.tsbuildinfo`: `git checkout --theirs tsconfig.tsbuildinfo`
-- Other conflicts: `git checkout --theirs <file>` for non-source files; for source files, REPORT and stop (human decision).
+The script prints the resulting mouhammadouod commit hash on its last line.
+Capture it. If the script exits with code 4 -> source file conflict, **stop and
+report to caller** (human resolution needed). Any other non-zero exit -> report
+verbatim.
 
-Commit the resolution:
-```bash
-git -c user.name=mod-cjs -c user.email=mod-cjs@consortiumjeunesse.local commit --no-verify -m "merge: résolution <branch>"
-git push mouhammadouod tmp-mouhammadouod-dev:dev --no-verify 2>&1 | tail -2
-```
-
-Capture the new mouhammadouod commit hash.
+Environment overrides (rarely needed):
+- `CJS_MAIN_WORKTREE` -- path to the worktree where mouhammadouod is configured
+- `CJS_MOUHAMMADOUOD_BRANCH` -- defaults to `tmp-mouhammadouod-dev`
+- `CJS_GIT_USER_NAME` / `CJS_GIT_USER_EMAIL` -- author identity
 
 ### 5. Update Jira
 
