@@ -1,0 +1,379 @@
+/* =========================================================
+   Guichet Jeunesse Sénégal — Design Tokens · v2 (mobile-first)
+   Source : GuichetJeunesse_Prototype_V5.html
+   v2 ajoute :
+     - Échelle typographique remontée (corps = 16px, mini = 11px)
+     - Tokens hit-target (44px min, conforme HIG/Material)
+     - Échelle d'espacement (--space-1 … --space-8)
+     - Tokens sémantiques (intent / status / surface)
+     - Variables safe-area iOS
+     - Focus ring standardisé
+   v1 (--gj-fs-*) reste disponible mais aliasé sur la nouvelle échelle
+   ========================================================= */
+
+:root {
+  /* =========================================================
+     1 · COULEURS
+     ========================================================= */
+  /* Teal — primary brand */
+  --gj-teal:        #009F76;
+  --gj-teal-deep:   #007A5C;
+  --gj-teal-soft:   #E1F5EE;
+  --gj-teal-deep-2: #005A43;   /* hover / pressed sur teal-deep */
+
+  /* Yellow — secondary */
+  --gj-yellow:      #F9C400;
+  --gj-yellow-deep: #C79C00;   /* hover / gradient stop */
+  --gj-yellow-soft: #FFF8E0;
+  --gj-yellow-ink:  #6B5300;   /* texte sur yellow-soft (AA passé) */
+
+  /* Red — urgences */
+  --gj-red:         #D92A1E;
+  --gj-red-soft:    #FEE9E7;   /* AA-safe fond léger */
+  --gj-red-ink:     #8A1810;   /* texte sur red-soft */
+
+  /* Statuts */
+  --gj-blue:        #1A4ED8;
+  --gj-blue-deep:   #0E2A7A;   /* gradient stop / pressed */
+  --gj-blue-soft:   #E8EFFF;
+  --gj-blue-ink:    #1A3FA8;
+  --gj-green:       #15803D;
+  --gj-green-soft:  #E5F6E9;
+  --gj-green-ink:   #0F5C2C;
+
+  /* Chatbot — DEPRECATED v1.5, alias\u00e9s sur le brand teal-deep */
+  --gj-indigo:      var(--gj-teal-deep);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+  --gj-indigo-soft: var(--gj-teal-soft);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+
+  /* Yaye \u2014 assistant IA (v1.5 : Yaye = brand teal-deep, plus de surface s\u00e9par\u00e9e)
+     Les tokens --gj-yaye-* restent comme alias r\u00e9troactifs vers le brand
+     pour ne pas casser le code existant. Le wordmark logotype porte SEUL
+     le gradient signature ci-dessous. */
+  --gj-yaye-deep:   var(--gj-teal-deep);   /* alias \u2014 #007A5C */
+  --gj-yaye-deep-2: var(--gj-teal-deep-2); /* alias \u2014 #005A43 */
+  --gj-yaye-ink:    var(--gj-teal-soft);   /* texte sur surface Yaye */
+  --gj-yaye-accent: var(--gj-yellow);      /* accent jaune = "IA" / call-out */
+
+  /* Gradient signature Yaye \u2014 r\u00e9serv\u00e9 WORDMARK + AVATAR uniquement.
+     Extrait du logo officiel `assets/logo-yeah.svg`. */
+  --gj-yaye-grad-1: #19A757;
+  --gj-yaye-grad-2: #159D60;
+  --gj-yaye-grad-3: #10906D;
+  --gj-yaye-grad-4: #0A807F;
+  --gj-yaye-gradient: linear-gradient(135deg,
+    var(--gj-yaye-grad-1) 0%,
+    var(--gj-yaye-grad-2) 50%,
+    var(--gj-yaye-grad-4) 100%);
+
+  /* Ink-teal — la nuance la plus sombre de la palette,
+     pour footers, wallpapers, fin-de-gradient hero. */
+  --gj-ink-teal:    #0A2820;
+
+  /* WhatsApp */
+  --gj-whatsapp:      #25D366;
+  --gj-whatsapp-deep: #128C7E;
+
+  /* Neutres */
+  --gj-ink:         #111111;   /* + de contraste qu'avant (#1a1a1a) */
+  --gj-grey:        #4A4A4A;   /* AA sur surface blanche (était #606060 — limite) */
+  --gj-grey-2:      #767676;   /* texte tertiaire, à éviter sur teal-soft */
+  --gj-line:        #DDE5E1;
+  --gj-line-strong: #B8C4BE;
+  --gj-bg:          #F5F7F6;
+  --gj-surface:     #FFFFFF;
+  --gj-overlay:        rgba(0,0,0,.55);
+  --gj-overlay-light:  rgba(0,0,0,.45);
+
+  /* =========================================================
+     2 · TOKENS SÉMANTIQUES (intent → couleur)
+     ========================================================= */
+  --color-action-primary:    var(--gj-teal);
+  --color-action-primary-2:  var(--gj-teal-deep);    /* hover */
+  --color-action-secondary:  var(--gj-yellow);
+  --color-action-on-dark:    var(--gj-yellow);
+
+  --color-status-success:    var(--gj-green);
+  --color-status-success-bg: var(--gj-green-soft);
+  --color-status-info:       var(--gj-blue);
+  --color-status-info-bg:    var(--gj-blue-soft);
+  --color-status-warn:       var(--gj-yellow-ink);
+  --color-status-warn-bg:    var(--gj-yellow-soft);
+  --color-status-danger:     var(--gj-red);
+  --color-status-danger-bg:  var(--gj-red-soft);
+
+  --color-text-primary:      var(--gj-ink);
+  --color-text-secondary:    var(--gj-grey);
+  --color-text-on-dark:      #FFFFFF;
+  --color-text-muted:        var(--gj-grey-2);
+  --color-text-link:         var(--gj-teal-deep);
+
+  --color-bg-page:           var(--gj-bg);
+  --color-bg-surface:        var(--gj-surface);
+  --color-bg-elevated:       #FFFFFF;
+  --color-bg-tint:           var(--gj-teal-soft);
+
+  --color-border-default:    var(--gj-line);
+  --color-border-strong:     var(--gj-line-strong);
+  --color-border-focus:      var(--gj-teal-deep);
+
+  /* =========================================================
+     3 · TYPOGRAPHIE — échelle remontée
+     ========================================================= */
+  --gj-font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+                  Arial, "Noto Sans", sans-serif;
+
+  /* v2 — échelle accessible */
+  --fs-100: 11px;   /* tags & métadonnées (jamais en-dessous) */
+  --fs-200: 13px;   /* légendes, captions */
+  --fs-300: 14px;   /* texte d'appui, sous-titres */
+  --fs-400: 16px;   /* CORPS — défaut, anti-zoom iOS */
+  --fs-500: 18px;   /* sous-titres, libellés clés */
+  --fs-600: 20px;   /* titres de carte, liens forts */
+  --fs-700: 24px;   /* titres de section / chiffres KPI */
+  --fs-800: 28px;   /* titres de page */
+  --fs-900: 36px;   /* hero */
+
+  /* v1 aliases — pour ne rien casser ; remappés vers v2 */
+  --gj-fs-xs:   var(--fs-100);
+  --gj-fs-sm:   var(--fs-100);
+  --gj-fs-base: var(--fs-200);
+  --gj-fs-md:   var(--fs-300);
+  --gj-fs-lg:   var(--fs-400);
+  --gj-fs-xl:   var(--fs-500);
+  --gj-fs-2xl:  var(--fs-700);
+  --gj-fs-h2:   var(--fs-700);
+  --gj-fs-h1:   var(--fs-800);
+
+  --gj-fw-regular:  400;
+  --gj-fw-semibold: 600;
+  --gj-fw-bold:     700;
+  --gj-fw-black:    800;
+
+  --gj-lh-tight: 1.2;
+  --gj-lh-body:  1.5;
+  --gj-lh-loose: 1.65;
+
+  /* =========================================================
+     4 · ESPACEMENT (échelle 4 → 64)
+     ========================================================= */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+
+  /* =========================================================
+     5 · HIT TARGETS — règle d'or 44px
+     ========================================================= */
+  --tap-min:        44px;   /* iOS HIG */
+  --tap-comfortable:48px;   /* Material — recommandé */
+  --tap-dense:      36px;   /* DESKTOP UNIQUEMENT — proscrit sur mobile */
+  --tap-input:      48px;   /* hauteur d'input mobile */
+
+  /* =========================================================
+     6 · RADII
+     ========================================================= */
+  --gj-r-xs:  3px;
+  --gj-r-sm:  6px;
+  --gj-r-md:  8px;
+  --gj-r-lg:  10px;
+  --gj-r-xl:  14px;
+  --gj-r-2xl: 18px;
+  --gj-r-pill: 999px;
+
+  /* =========================================================
+     7 · ÉLÉVATION
+     ========================================================= */
+  --gj-shadow-sm:  0 1px 3px  rgba(0,0,0,.08);
+  --gj-shadow-md:  0 3px 10px rgba(0,0,0,.18);
+  --gj-shadow-lg:  0 8px 32px rgba(0,0,0,.15);
+  --gj-shadow-bottom-nav: 0 -1px 0 rgba(0,0,0,.06), 0 -4px 16px rgba(0,0,0,.04);
+
+  /* =========================================================
+     8 · BORDURES
+     ========================================================= */
+  --gj-bw:        1.5px;
+  --gj-bw-strong: 2px;
+  --gj-bw-accent: 4px;
+
+  /* =========================================================
+     9 · FOCUS — standardisé sur tout élément interactif
+     ========================================================= */
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color:  #00B287;        /* teal lumineux, AA contraste */
+  --focus-ring:        var(--focus-ring-width) solid var(--focus-ring-color);
+
+  /* =========================================================
+     10 · LAYOUT — breakpoints documentés
+     ========================================================= */
+  --bp-sm:  480px;   /* petit téléphone */
+  --bp-md:  768px;   /* tablette portrait / grand téléphone landscape */
+  --bp-lg:  1024px;  /* tablette landscape / desktop */
+  --bp-xl:  1280px;
+
+  --gj-container-narrow: 380px;
+  --gj-container-md:     680px;
+  --gj-container-wide:   820px;
+  --gj-container-x:      920px;
+
+  /* =========================================================
+     11 · SAFE AREA iOS / Android edge-to-edge
+     ========================================================= */
+  --safe-top:    env(safe-area-inset-top, 0);
+  --safe-right:  env(safe-area-inset-right, 0);
+  --safe-bottom: env(safe-area-inset-bottom, 0);
+  --safe-left:   env(safe-area-inset-left, 0);
+
+  /* =========================================================
+     12 · MOTION
+     ========================================================= */
+  --motion-fast:   120ms;
+  --motion-base:   200ms;
+  --motion-slow:   320ms;
+  --motion-ease:   cubic-bezier(.2,.8,.2,1);
+
+  /* =========================================================
+     13 · Z-INDEX
+     ========================================================= */
+  --gj-z-nav:        200;
+  --gj-z-fbar:       100;
+  --gj-z-bottom-nav: 300;
+  --gj-z-chat:       400;
+  --gj-z-overlay:    600;
+  --gj-z-toast:      800;
+
+  /* =========================================================
+     14 · PROGRAMMES DU CJS — palettes signature
+     ========================================================= */
+  --prog-yaakaar-1: #A3742A;
+  --prog-yaakaar-2: #5C4118;
+  --prog-yaakaar:   linear-gradient(135deg, var(--prog-yaakaar-1), var(--prog-yaakaar-2));
+
+  --prog-yeah-1:    #0A807F;
+  --prog-yeah-2:    #0D4D3A;
+  --prog-yeah:      linear-gradient(135deg, var(--prog-yeah-1), var(--prog-yeah-2));
+
+  --prog-yjc-1:     #15803D;
+  --prog-yjc-2:     #082F19;
+  --prog-yjc:       linear-gradient(135deg, var(--prog-yjc-1), var(--prog-yjc-2));
+
+  --prog-brm-1:     #1A4ED8;
+  --prog-brm-2:     #0E2A7A;
+  --prog-brm:       linear-gradient(135deg, var(--prog-brm-1), var(--prog-brm-2));
+
+  --prog-edupop-1:  #007A5C;
+  --prog-edupop-2:  #0A2820;
+  --prog-edupop:    linear-gradient(135deg, var(--prog-edupop-1), var(--prog-edupop-2));
+}
+
+/* =========================================================
+   PULSE — 3 keyframes standardisés (utilitaires globales)
+   ========================================================= */
+@keyframes gj-pulse-urgent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,42,30,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(217,42,30,0); }
+}
+@keyframes gj-pulse-yaye {
+  0%   { transform: scale(1);    opacity: .7; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes gj-pulse-live {
+  0%   { box-shadow: 0 0 0 0 rgba(123,229,181,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(123,229,181,0); }
+  100% { box-shadow: 0 0 0 0 rgba(123,229,181,0); }
+}
+
+/* =========================================================
+   RÈGLES GLOBALES UTILES
+   ========================================================= */
+
+/* Anti-zoom iOS sur les inputs : taille min 16px */
+@media (max-width: 480px) {
+  input, select, textarea, button {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Focus visible — actif partout par défaut */
+:where(button, a, [role="button"], input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--gj-r-sm);
+}
+
+/* Boutons et liens : touch-action pour éliminer le delay 300ms Android */
+:where(button, a, [role="button"]) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Zone tactile minimum — utilitaire à composer */
+.gj-tap {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================
+   ACCESSIBILITY MODES — v1.5
+   Active via data-attributes on <html>. Persistés via localStorage,
+   pilot\u00e9s par les toggles de l'onglet Inclusion (app PWA + utilisateur web).
+   ========================================================= */
+
+/* --- Contraste \u00e9lev\u00e9 ---
+   Renforce les contrastes texte/fond, durcit les bordures, supprime les
+   teintes douces qui passent mal pour les basses visions. */
+:root[data-contrast="high"] {
+  --gj-ink:         #000000;
+  --gj-grey:        #1A1A1A;
+  --gj-grey-2:      #333333;
+  --gj-line:        #000000;
+  --gj-line-strong: #000000;
+  --gj-bg:          #FFFFFF;
+  --gj-teal-soft:   #FFFFFF;
+  --gj-yellow-soft: #FFFFFF;
+  --gj-blue-soft:   #FFFFFF;
+  --gj-green-soft:  #FFFFFF;
+  --gj-red-soft:    #FFFFFF;
+  --gj-bw:          2px;
+  --gj-bw-strong:   3px;
+}
+:root[data-contrast="high"] body { background: #fff; }
+
+/* --- Taille texte ---
+   Multiplicateur appliqu\u00e9 \u00e0 toute l'\u00e9chelle typographique. */
+:root[data-text="s"]  { font-size: 14px; }
+:root[data-text="m"]  { font-size: 16px; }  /* default */
+:root[data-text="l"]  { font-size: 18px; }
+:root[data-text="xl"] { font-size: 20px; }
+
+/* --- Mode FALC (Facile \u00c0 Lire et \u00e0 Comprendre) ---
+   Espacement plus a\u00e9r\u00e9, line-height plus \u00e9lev\u00e9, gras renforc\u00e9
+   sur titres pour le scan visuel. */
+:root[data-falc="on"] {
+  --gj-lh-body:  1.75;
+  --gj-lh-tight: 1.4;
+}
+:root[data-falc="on"] body { letter-spacing: .015em; }
+:root[data-falc="on"] h1, :root[data-falc="on"] h2, :root[data-falc="on"] h3 { font-weight: 900; }
+
+/* --- Lecture audio Wolof ---
+   Marqueur visuel uniquement (le branchement TTS est c\u00f4t\u00e9 app). */
+:root[data-audio="wo"] .gj-audio-hint::before {
+  content: "\ud83d\udd0a "; margin-right: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
