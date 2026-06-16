@@ -35,7 +35,8 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Composants : `src/components/ui/` exclusivement — jamais de HTML Tailwind brut dans une page
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - Police : stack système (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`) — variable CSS `--gj-font-sans` injectée par `src/styles/tokens.css`
-- **`design-guichet-v2/`** = source de vérité visuelle (livraison PO 2026-05-26). `design/html.archive/` = ancien prototype, lecture seule.
+- **`design-guichet-v3/`** = **source de vérité visuelle** (livraison PO finale 2026-06-16, 14 lots + Bibliothèque Composants). Lire `public/design-v3/Note de design - Lots ajoutes.html` pour principes + codes couleur par espace (jeune teal · conseiller teal-foncé · recruteur bleu · admin sombre+doré).
+- **`design-guichet-v2/`** = archive (livraison 2026-06-15) — conservée comparaison/rollback. Ne pas utiliser comme référence d'implémentation. `design/html.archive/` = ancien prototype, lecture seule.
 - **Storybook** = catalogue UI vivant. Lancer `npm run storybook` (port 6006) pour explorer les primitives et leurs variants. Toute nouvelle primitive doit venir avec sa story `*.stories.tsx` à côté du composant.
 - **Icônes** : sprite SVG global servi depuis `/icons.svg`. Toujours utiliser `<Icon name="..." />` (jamais d'`<svg>` inline manuel ni d'emoji comme icône).
 
@@ -107,3 +108,31 @@ Modules : `m1-socle` `m2-auth` `m3-opportunites` `m4-centres` `m5-agenda` `m6-re
 ---
 
 ## Modes : CODING · SECURITY · REVIEW · TEST · MIGRATION
+
+---
+
+## Système d'agents Guichet (PR #178)
+
+Système d'agents Claude Code spécialisé pour automatiser l'intégration design v3.
+
+| Catégorie | Emplacement | Contenu |
+|---|---|---|
+| Agents customs | `.claude/agents/cjs-*.md` | `cjs-pr-packager`, `cjs-design-auditor`, `cjs-tdd-enforcer`, `cjs-regression-guard` |
+| Agents adoptés | `.claude/agents/*.md` | 9 VoltAgent (`nextjs-developer`, `frontend-developer`, etc.) — voir `.claude/agents/README.md` |
+| Skills slash | `.claude/skills/<nom>/SKILL.md` | `/propagate`, `/audit-visuel`, `/purge-debt`, `/feature-flag`, `/wave` |
+| Workflows JS | `.claude/workflows/*.js` | `design-v3-component`, `wave-integration`, `audit-purge-debt` |
+| Hooks Claude | `.claude/hooks/*.sh` | `pre-commit-check`, `guard-commit-format`, `guard-hex`, `save-agent-report` |
+| Schema | `.agent_context/schemas/audit-finding.schema.json` | StructuredOutput pour cjs-design-auditor |
+| Cron scripts | `scripts/cron/*.sh` | `rebase-mouhammadouod.sh` + `check-merge-queue.sh` (install crontab manuel) |
+| Source vérité partagée | `.agent_context/CJS_AGENT_RULES.md` | 141 lignes — lu en premier par tous les agents |
+
+**Usage type** :
+- Ship une branche : `/propagate <branch> <ticket> "<titre>"`
+- Audit visuel : `/audit-visuel <target> Lot N [--with-screenshots]`
+- Vague 0 dette : `/purge-debt --scope all`
+- Vague intégration : `/wave A-design-system` (après spec dans `.agent_context/specs/wave-A-design-system.md`)
+- Feature flag : `/feature-flag activate <component-path> [--pattern split|inline]`
+
+Disable hooks ponctuel : `export GUIC_HOOKS_OFF=1`.
+
+Voir `.claude/agents/README.md` + `.claude/skills/README.md` + `.claude/workflows/README.md` + `.claude/hooks/README.md` pour le détail par catégorie.
