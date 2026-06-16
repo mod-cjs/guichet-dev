@@ -587,4 +587,55 @@ describe('<CandidatureModal /> — refonte v2', () => {
       screen.getByRole('button', { name: /Envoyer ma candidature/i }),
     ).toBeDisabled()
   })
+
+  // GUIC-419 — bouton « Brouillon » dans le footer : sauvegarde explicite + ferme.
+  describe('GUIC-419 — bouton Brouillon', () => {
+    it('rend un bouton "Brouillon" distinct du CTA principal', () => {
+      renderModal()
+      const draftBtn = screen.getByRole('button', { name: /^Brouillon$/i })
+      expect(draftBtn).toBeInTheDocument()
+      // Doit être distinct du CTA "Envoyer ma candidature".
+      const submitBtn = screen.getByRole('button', { name: /Envoyer ma candidature/i })
+      expect(draftBtn).not.toBe(submitBtn)
+    })
+
+    it('cliquer sur "Brouillon" PUT le draft serveur et ferme le modal sans poster la candidature', async () => {
+      const innerMock = jest.fn(async () => {
+        // Toute requête (PUT draft inclus) → 200 OK pour simplifier.
+        return { ok: true, status: 200, json: async () => ({}) } as unknown as Response
+      })
+      installFetch(innerMock)
+      const { props } = renderModal()
+      // L'utilisateur tape quelque chose puis clique Brouillon.
+      await typeLettre('Je voulais finir plus tard…')
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Brouillon$/i }))
+      })
+      // onClose appelé immédiatement (le PUT est best-effort en void).
+      expect(props.onClose).toHaveBeenCalled()
+      // PUT /api/candidatures/drafts/<id> déclenché par le click (best-effort).
+      const draftCall = innerMock.mock.calls.find(([url, init]) => {
+        const u = typeof url === 'string' ? url : url.toString()
+        return (
+          u.includes('/api/candidatures/drafts/') &&
+          (init as RequestInit | undefined)?.method === 'PUT'
+        )
+      })
+      expect(draftCall).toBeDefined()
+      const body = JSON.parse((draftCall![1] as RequestInit).body as string)
+      expect(body.lettre).toMatch(/finir plus tard/)
+      // Pas de POST /api/candidatures : la candidature n'est pas soumise.
+      const submitCall = innerMock.mock.calls.find(([url, init]) => {
+        const u = typeof url === 'string' ? url : url.toString()
+        return u === '/api/candidatures' && (init as RequestInit | undefined)?.method === 'POST'
+      })
+      expect(submitCall).toBeUndefined()
+    }, 20000)
+
+    it('bouton Brouillon reste actif même si la lettre est trop courte / CGU non coché', () => {
+      renderModal()
+      const draftBtn = screen.getByRole('button', { name: /^Brouillon$/i })
+      expect(draftBtn).not.toBeDisabled()
+    })
+  })
 })
