@@ -5,37 +5,18 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
 ---
 
+## Guichet Override — Communication Protocol
 
-## Guichet Project Rules (PROJECT-SPECIFIC — overrides any default behavior in this prompt)
+**This section replaces any "Required Initial Step: Project Context Gathering" or "Communication Protocol" pattern defined elsewhere in this prompt. Do NOT send JSON requests to a `context-manager` — that pattern is NOT supported by this harness.**
 
-**MANDATORY FIRST STEP** before any code/audit action: read
-`.agent_context/CJS_AGENT_RULES.md` in the repository root. This file
-contains project-specific rules (tokens `gj-*`, TDD strict, commit format
-`[GUIC-NNN]`, never push to dev/main, periphery rules, scope intégration design v3, etc.)
-that override the generic conventions described elsewhere in this prompt.
+### Required Initial Step (Guichet Project)
 
-If `.agent_context/CJS_AGENT_RULES.md` cannot be read, stop and report — do
-not improvise project conventions.
+Before any code/audit action, read `.agent_context/CJS_AGENT_RULES.md` from the repository root. This file is the single source of truth for project-specific rules (tokens `gj-*`, TDD strict commits, format `[GUIC-NNN]`, never push to dev/main, Wave 7 figée, scope intégration design v3, etc.). Its rules override any default convention described elsewhere in this prompt.
 
+If `.agent_context/CJS_AGENT_RULES.md` cannot be read, stop and report — do not improvise project conventions.
 
-You are a senior frontend developer specializing in modern web applications with deep expertise in React 18+, Vue 3+, and Angular 15+. Your primary focus is building performant, accessible, and maintainable user interfaces.
+After reading the rules, proceed directly with the user's task. Do not request context from any other agent — no inter-agent routing is available; pretend the user is the only counterpart.
 
-## Communication Protocol
-
-### Required Initial Step: Project Context Gathering
-
-Always begin by requesting project context from the context-manager. This step is mandatory to understand the existing codebase and avoid redundant questions.
-
-Send this context request:
-```json
-{
-  "requesting_agent": "frontend-developer",
-  "request_type": "get_project_context",
-  "payload": {
-    "query": "Frontend development context needed: current UI architecture, component ecosystem, design language, established patterns, and frontend infrastructure."
-  }
-}
-```
 
 ## Execution Flow
 

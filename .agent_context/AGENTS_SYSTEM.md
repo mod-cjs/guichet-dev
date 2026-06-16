@@ -277,3 +277,53 @@ Ajout des 3 entrées memory + commit du système agent.
 1. **GO/NO-GO** sur l'architecture proposée (sections 2-7)
 2. **Priorisation** : tout faire en 14h, ou MVP en 6h (custom agents + skill /propagate uniquement) + reste plus tard
 3. **Smoke test** : sur quel composant simple lancer le pilote ?
+
+
+---
+
+## Étape A.5 — Corrections post-audit (2026-06-16)
+
+Audit honnête de l'étape A initiale a relevé 12 points. Corrections appliquées :
+
+### Élagages (3 agents retirés)
+- `multi-agent-coordinator` (opus) : overkill pour 3-4 agents en parallèle, fait pour large teams distribuées
+- `task-distributor` (haiku) : load balancing queues distribuées, hors scope projet
+- `context-manager` (sonnet) : doublon `CJS_AGENT_RULES.md`, sans backing infra dans notre harness
+
+### Ajouts (1 agent)
+- `nextjs-developer` (sonnet, depuis `02-language-specialists/`) — spécialiste Next.js 16 App Router, indispensable
+
+### Patch agents (réécrit)
+Le bloc précédent insérait "MANDATORY FIRST STEP" en PARALLÈLE du Communication Protocol VoltAgent → ordre contradictoire. Nouveau patch REMPLACE proprement le Communication Protocol par notre override Guichet, qui :
+- pointe vers `CJS_AGENT_RULES.md`
+- annule la dépendance `context-manager` (pas de routage JSON inter-agents dans cette harness)
+- demande à l'agent de procéder directement à la tâche utilisateur
+
+### `ui-ux-tester` corrigé
+- Tools `chrome-mcp` et `computer-use` retirés (absents harness)
+- Fallback documenté en tête : `public/design-v3/<Lot>.html` comme référence visuelle + Playwright via Bash si script dispo
+
+### `CJS_AGENT_RULES.md` compacté
+250 lignes → ~120 lignes. Détails déplacés vers `.agent_context/specs/` (layout-navigation.md, WORKFLOW.md, DECISIONS.md déjà présents). Tokens consommés par invocation réduits ~50%.
+
+### Non-routage JSON inter-agents (note pour futurs adopteurs)
+Les agents VoltAgent contiennent un pattern "Required Initial Step: Project Context Gathering" qui envoie un JSON `{requesting_agent, request_type, payload}` vers un `context-manager`. **Cette harness Claude Code n'a PAS de routage inter-agents** — ce JSON serait juste du texte. Le patch override désactive ce comportement et redirige vers CJS_AGENT_RULES.md (source unique partagée).
+
+### À tester (smoke test pendant Étape B)
+- Le harness charge-t-il automatiquement les agents de `.claude/agents/` du projet ? (à vérifier par invocation `subagent_type: nextjs-developer` ou `subagent_type: code-reviewer` sur une tâche réelle)
+- Le frontmatter `model: sonnet/opus/haiku` est-il honoré ou est-il ignoré au profit du modèle session ?
+
+### Liste finale des agents adoptés (9)
+
+| Agent | Modèle | Usage Guichet |
+|---|---|---|
+| `nextjs-developer` | sonnet | Pages App Router, server components, perf |
+| `frontend-developer` | sonnet | Composants UI multi-framework |
+| `ui-ux-tester` | sonnet | Audit visuel (sans chrome-mcp, fallback Read+Bash) |
+| `code-reviewer` | sonnet | Review post-impl |
+| `accessibility-tester` | sonnet | WCAG (post-48h) |
+| `refactoring-specialist` | sonnet | Vague 0 purge dette |
+| `git-workflow-manager` | sonnet | Branches/PRs/merges |
+| `agent-organizer` | sonnet | Assembler équipe pour `/wave` |
+| `workflow-orchestrator` | opus | Pipelines complexes design-v3-component |
+
