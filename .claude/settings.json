@@ -21,6 +21,10 @@
         "JIRA_EMAIL": "ryhow99@gmail.com",
         "JIRA_API_TOKEN": ""
       }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }

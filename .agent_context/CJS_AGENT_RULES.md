@@ -100,6 +100,15 @@ Voir `.agent_context/specs/layout-navigation.md` pour le détail.
 - `src/components/centres/*` (Wave 7 figée) — NE PAS toucher hors ticket centres explicite
 - `src/app/(public)/centres/[slug]/` — idem
 
+## MCP servers disponibles (projet)
+
+| MCP | Statut | Usage |
+|---|---|---|
+| `jira` | Configuré mais token vide — contourné via `scripts/jira.sh` | API REST directe |
+| `playwright` (`@playwright/mcp@latest`) | **Configuré** — utilisable par `ui-ux-tester` | Navigation, DOM eval, screenshots 3 viewports (mobile 375×812 / tablet 768×1024 / desktop 1440×900), console + network inspection |
+
+Pour activer un nouveau MCP : éditer `.claude/settings.json` → `mcpServers` → redémarrer Claude Code.
+
 ## Multi-agent — feedbacks établis
 
 - Max 3-4 agents parallèles par vague
