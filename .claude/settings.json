@@ -4,10 +4,27 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/pre-commit-check.sh"
-          }
+          { "type": "command", "command": ".claude/hooks/pre-commit-check.sh" },
+          { "type": "command", "command": ".claude/hooks/guard-commit-format.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/guard-hex.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/guard-hex.sh" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/save-agent-report.sh" }
         ]
       }
     ]
