@@ -17,7 +17,11 @@
 
 ## F2 — Conseil & orientation active *(valeur différenciante)* — **inclut la recommandation d'opportunités**
 
-C'est **la** fonction de recommandation : proposer à l'utilisateur des opportunités selon son **profil et ses besoins**. Elle opère en **deux modes complémentaires** :
+C'est **la** fonction de recommandation : proposer à l'utilisateur des opportunités selon son **profil et ses besoins**.
+
+> 🧠 **Moteur unique = le graphe.** Le raisonnement (pertinence, éligibilité, écart de compétences, parcours) se fait **toujours** par traversée Cypher. Les deux modes ci-dessous ne sont que **deux façons d'accéder au même calcul** — l'un en direct, l'autre pré-calculé. Aucun second moteur de scoring (cf. [02 §0](./02-knowledge-graph-neo4j.md)).
+
+Elle opère en **deux modes complémentaires** :
 
 ### F2-a — Recommandation réactive (à la demande)
 - **Déclencheur** : l'utilisateur demande (« trouve-moi un financement pour mon projet maraîcher »).
@@ -27,7 +31,7 @@ C'est **la** fonction de recommandation : proposer à l'utilisateur des opportun
 ### F2-b — Recommandation proactive (pré-calculée)
 - **Déclencheur** : ouverture de session (« voici 3 opportunités pour toi »), ou push WhatsApp (v1.1).
 - **Outils** : **`get_recommendations`** → lit `RecommandationIA` (scores pré-calculés, **sans appel LLM** = rapide).
-- **Pipeline de scoring** : un job (batch + à la création/modif d'opportunité) calcule les scores via le graphe et **écrit `RecommandationIA`** (Prisma). Implémente `src/lib/ia/recommandation.ts` (stub aujourd'hui). Les scores **naissent en Prisma** (invariant read-model [02 §0](./02-knowledge-graph-neo4j.md)).
+- **Pipeline de scoring** : un job (batch + à la création/modif d'opportunité) lance la **même traversée du graphe** que F2-a et **écrit le résultat (score + raison/chemin) dans `RecommandationIA`** (Prisma). Implémente `src/lib/ia/recommandation.ts` (stub aujourd'hui) ; il **orchestre le graphe et n'invente aucun score**. Les scores **naissent en Prisma** (read-model [02 §0](./02-knowledge-graph-neo4j.md)), le raisonnement reste dans le graphe.
 
 - **Flux commun** : lit le profil **avant** de répondre, adapte selon le rôle (bénéficiaire = insertion ; gestionnaire = opérationnel). Rendu : cards web / synthèse WhatsApp ([04](./04-canaux-web-whatsapp.md)).
 - **Règles** : filtrage RBAC/centre obligatoire ; sortie reco collaborative **anonymisée** ([07](./07-securite-conformite.md)).

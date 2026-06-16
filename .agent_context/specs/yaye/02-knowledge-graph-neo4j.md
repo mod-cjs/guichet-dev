@@ -16,6 +16,15 @@ Conséquences directes :
 
 > ⚠️ Le jour où une donnée serait *née* dans le graphe (écrite uniquement dans Neo4j), cette garantie tombe et la cohérence devient un vrai risque de corruption. **À proscrire en revue de code.**
 
+### Corollaire — le graphe est l'**unique moteur de raisonnement** de la recommandation
+
+> 🧠 **INVARIANT** : tout raisonnement de recommandation/matching (pertinence, éligibilité, écart de compétences, parcours) se fait **par traversée du graphe**. Il n'existe **aucun second moteur** de scoring ailleurs.
+
+- **Raisonnement** = traversées Cypher (le « cerveau »). **Résultat** = score + **chemin explicatif**, matérialisé dans `RecommandationIA` (Prisma) comme **cache**, jamais comme logique parallèle.
+- **Réactif** (`query_knowledge_graph`) et **proactif** (`get_recommendations`) partagent **la même** logique de traversée : le proactif n'est que le **même calcul exécuté en avance** (batch) et **mémoïsé**. Le précalcul est une **optimisation de latence + le moyen du push** (v1.1), pas une logique différente.
+- **Explicabilité** : `RecommandationIA.raison` porte le **chemin du graphe** (« requiert X que tu maîtrises via le certificat Moodle Y, financée par le programme Z de ta région »), pas un score opaque.
+- **Garde-fou (revue de code)** : `src/lib/ia/recommandation.ts` **n'invente aucun score** (pas d'heuristique mots-clés/pondérations maison qui divergerait du graphe) — il **orchestre** la traversée et **écrit** le résultat. Un seul cerveau : le graphe.
+
 ## 1. Pourquoi un graphe
 
 Les données du Guichet sont **fondamentalement relationnelles** : une opportunité requiert des compétences, est publiée par une organisation, financée par un programme, localisée dans une région ; un bénéficiaire maîtrise des compétences (issues de ses diplômes et certificats Moodle), a postulé à des offres, s'est inscrit à des événements ; un livre a des exemplaires à des emplacements précis. Neo4j stocke ces entités et relations de façon **lisible et traversable**, sans vecteurs, sans couche opaque — ce qui permet le **matching par parcours** (compétences manquantes → formations → centre → événement).
