@@ -12,6 +12,15 @@
 
 set -euo pipefail
 
+# Log rotation : truncate any /tmp/cron-*.log > 5M to 1M (keep tail)
+for L in /tmp/cron-*.log; do
+  [ -f "$L" ] || continue
+  if [ "$(stat -f%z "$L" 2>/dev/null || stat -c%s "$L" 2>/dev/null)" -gt 5242880 ]; then
+    tail -c 1048576 "$L" > "$L.tmp" && mv "$L.tmp" "$L"
+  fi
+done
+
+
 # Détecte le repo root (le script peut être appelé depuis n'importe où)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${CJS_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"

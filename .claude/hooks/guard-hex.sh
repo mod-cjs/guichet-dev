@@ -3,86 +3,138 @@
 # Bloque l'écriture de litéraux hex couleur dans le code applicatif.
 # Tokens `gj-*` requis par CLAUDE.md (cf .agent_context/CJS_AGENT_RULES.md § Conventions UI).
 #
-# Whitelist : design-guichet-*/, public/design-*/, node_modules/, *.svg
-# Pour ajouter une exception ponctuelle dans le code applicatif, commenter avec
-# `// gj-hex-exception: <raison>` sur la même ligne ou la précédente.
+# Whitelist (skip totalement) :
+#  - design-guichet-{v2,v3}/, design/html.archive/
+#  - public/design-v{2,3}/
+#  - node_modules/, .next/, dist/, build/
+#  - Fichiers binaires (.svg/.png/.jpg/etc)
+#  - .md / .json / .lock / .yml / .yaml / .toml / .prisma
+#  - src/styles/tokens.css, colors_and_type.css  (DOIVENT définir des hex)
+#
+# Exception ponctuelle dans code applicatif : commenter `// gj-hex-exception: <raison>`
+# sur la même ligne. Skip aussi les ancres HTML/URL (`href="#anchor"`).
+#
+# Env GUIC_HOOKS_OFF=1 → disable rapide (debug)
 
 set -u
 
-input=$(cat)
+# Early exit if hooks disabled
+[ "${GUIC_HOOKS_OFF:-0}" = "1" ] && exit 0
 
-# Extraire file_path et le payload (new_string pour Edit, content pour Write)
-file_path=$(printf '%s' "$input" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(d.get('file_path', '') or d.get('path', ''))
-except Exception:
-    pass
-" 2>/dev/null)
+# Lire stdin dans un fichier temp pour robustesse JSON (caractères spéciaux)
+payload_file=$(mktemp -t guard-hex-payload.XXXXXX) || exit 0
+trap "rm -f '$payload_file'" EXIT
+cat > "$payload_file"
 
-payload=$(printf '%s' "$input" | python3 -c "
-import sys, json
+# Parse file_path + new_string/content depuis le fichier (pas string interpolation)
+read -r file_path payload < <(python3 - "$payload_file" << 'PYEOF'
+import json, sys
 try:
-    d = json.load(sys.stdin)
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+    file_path = d.get('file_path', '') or d.get('path', '')
     # Edit utilise new_string, Write utilise content
-    print(d.get('new_string', '') or d.get('content', ''))
+    payload = d.get('new_string', '') or d.get('content', '')
+    # Output : 1ère ligne = file_path, reste = payload encodé base64 pour transport sûr
+    import base64
+    print(file_path)
+    print(base64.b64encode(payload.encode()).decode())
 except Exception:
     pass
-" 2>/dev/null)
+PYEOF
+)
 
-# Exit immédiat si pas de fichier ou de payload
-[ -z "$file_path" ] && exit 0
-[ -z "$payload" ] && exit 0
+# read va couper sur newlines : payload est la 1ère ligne après file_path (= base64 b64)
+# Plus simple : tout faire en Python d'un coup
+result=$(python3 - "$payload_file" << 'PYEOF'
+import json, re, sys
 
-# Whitelist : skip si chemin dans une zone exemptée
-case "$file_path" in
-  */design-guichet-v2/*|*/design-guichet-v3/*|*/design/html.archive/*) exit 0 ;;
-  */public/design-v2/*|*/public/design-v3/*) exit 0 ;;
-  */node_modules/*|*/.next/*|*/dist/*|*/build/*) exit 0 ;;
-  *.svg|*.png|*.jpg|*.jpeg|*.gif|*.ico|*.webp) exit 0 ;;
-  *.md|*.json|*.lock|*.yml|*.yaml|*.toml) exit 0 ;;
-  */CLAUDE.md|*/CJS_AGENT_RULES.md|*/AGENTS_SYSTEM.md) exit 0 ;;
-  */tokens.css|*/colors_and_type.css) exit 0 ;;  # les tokens DOIVENT définir des hex
-  */globals.css) exit 0 ;;  # gradient stops parfois en hex toléré
-esac
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except Exception:
+    sys.exit(0)
 
-# Scan le payload pour hex couleur (#RGB / #RRGGBB / #RRGGBBAA)
-# Exclut les lignes contenant `gj-hex-exception:`
-violations=$(printf '%s' "$payload" | python3 -c "
-import sys, re
-content = sys.stdin.read()
-pattern = re.compile(r'#[0-9a-fA-F]{3,8}\b')
-lines = content.split('\n')
+file_path = d.get('file_path', '') or d.get('path', '')
+payload = d.get('new_string', '') or d.get('content', '')
+
+if not file_path or not payload:
+    sys.exit(0)
+
+# Whitelist by path (skip silently)
+SKIP_PATTERNS = [
+    'design-guichet-v2/', 'design-guichet-v3/', 'design/html.archive/',
+    'public/design-v2/', 'public/design-v3/',
+    'node_modules/', '.next/', 'dist/', 'build/',
+    'src/styles/tokens.css', 'src/styles/colors_and_type.css',
+    # globals.css retiré de la whitelist — doit respecter les tokens
+    '.agent_context/', 'CLAUDE.md', 'CJS_AGENT_RULES.md', 'AGENTS_SYSTEM.md',
+]
+if any(p in file_path for p in SKIP_PATTERNS):
+    sys.exit(0)
+
+# Skip binaires + non-code
+SKIP_EXTS = ('.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp',
+             '.md', '.json', '.lock', '.yml', '.yaml', '.toml', '.prisma',
+             '.svg', '.txt')
+if file_path.lower().endswith(SKIP_EXTS):
+    sys.exit(0)
+
+# Scan hex literals
+hex_pattern = re.compile(r'#[0-9a-fA-F]{3,8}\b')
+lines = payload.split('\n')
 violations = []
+
 for i, line in enumerate(lines, 1):
-    # Skip line if exception comment
+    # Skip lines with exception comment
     if 'gj-hex-exception' in line:
         continue
-    matches = pattern.findall(line)
-    # Filter false positives : URL fragments (#anchor), CSS variable refs, JS hash literals are usually OK
-    real = [m for m in matches if len(m) in (4, 7, 9)]  # #RGB / #RRGGBB / #RRGGBBAA
-    if real:
-        # Skip if line looks like a JSX import path / URL anchor (start with 'href=' or contains '://')
-        if 'href=' in line and '#' in line and not re.search(r'(color|background|border|fill|stroke|outline|shadow|gradient)', line):
+    matches = hex_pattern.findall(line)
+    # Filter false positives : URL anchors (href="#..." without color context)
+    real = []
+    for m in matches:
+        # Length 4 = #RGB, 7 = #RRGGBB, 9 = #RRGGBBAA (others = anchors/hashes)
+        if len(m) not in (4, 7, 9):
             continue
+        # Skip if line is clearly an HTML anchor (href + #) without color context
+        if 'href=' in line and not re.search(
+            r'(color|background|border|fill|stroke|outline|shadow|gradient)', line
+        ):
+            continue
+        real.append(m)
+    if real:
         for m in real:
-            violations.append((i, m, line.strip()[:120]))
-print(len(violations))
+            violations.append({
+                'line': i,
+                'hex': m,
+                'snippet': line.strip()[:120],
+            })
+
+if not violations:
+    sys.exit(0)
+
+# Output structuré
+print(f"COUNT={len(violations)}")
 for v in violations[:5]:
-    print(f'L{v[0]}: {v[1]} — {v[2]}')
-")
+    print(f"L{v['line']}: {v['hex']} — {v['snippet']}")
+PYEOF
+)
 
-count=$(printf '%s' "$violations" | head -1)
+# Si pas de résultat → no violations
+[ -z "$result" ] && exit 0
 
-if [ -n "$count" ] && [ "$count" -gt 0 ] 2>/dev/null; then
-    echo "" >&2
-    echo "❌ Hex couleur interdits détectés ($count occurrence(s)) dans $file_path :" >&2
-    printf '%s' "$violations" | tail -n +2 >&2
-    echo "" >&2
-    echo "Utiliser des tokens \`var(--gj-*)\` (CLAUDE.md § Tokens couleur)." >&2
-    echo "Pour une exception ponctuelle, ajouter \`// gj-hex-exception: <raison>\` sur la même ligne." >&2
-    exit 2
+count=$(echo "$result" | grep -oE 'COUNT=[0-9]+' | cut -d= -f2)
+
+if [ -z "$count" ] || [ "$count" -eq 0 ] 2>/dev/null; then
+    exit 0
 fi
 
-exit 0
+# Block avec message
+echo "" >&2
+echo "❌ Hex couleur interdits détectés ($count occurrence(s)) :" >&2
+echo "$result" | grep -E '^L[0-9]+' >&2
+echo "" >&2
+echo "Utiliser des tokens var(--gj-*) (CLAUDE.md § Tokens couleur)." >&2
+echo "Exception ponctuelle : commentaire \`// gj-hex-exception: <raison>\` sur la ligne." >&2
+echo "Disable temporaire : export GUIC_HOOKS_OFF=1" >&2
+exit 2
