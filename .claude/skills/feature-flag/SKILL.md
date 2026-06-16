@@ -12,13 +12,47 @@ You are invoking the **feature-flag** skill. Wrap (or unwrap) a component behind
 
 If missing, ask once.
 
+## Argument validation
+
+1. **action** ∈ `{activate, deactivate}` — refuse anything else.
+2. **component-path** exists : `test -f <path>` — abort if missing.
+3. **component-path is NOT in `centres/*`** : Wave 7 figée — refuse.
+4. **For deactivate** : the path must already be a switcher (check for `process.env.NEXT_PUBLIC_DESIGN_V3` substring) — abort if not flagged.
+
 ## Flag conventions
 
 - Source of truth : `NEXT_PUBLIC_DESIGN_V3` in `.env.local` (default `"false"` for safety). User must set to `"true"` to see v3.
 - Read in code via : `process.env.NEXT_PUBLIC_DESIGN_V3 === 'true'`
 - Wrap : in the consumer (page or layout), pick the v3 component or the legacy.
 
-## Pattern (activate)
+## 2 patterns (choisir selon la taille du composant)
+
+**Pattern A — Split files (RECOMMANDÉ pour composants ≥ 200 lignes ou refactors structurels)**
+
+Crée 3 fichiers : index switcher + `<Name>Legacy.tsx` + `<Name>V3.tsx`. Détaillé ci-dessous.
+
+**Pattern B — Early-return inline (pour composants < 200 lignes ou refactors visuels seulement)**
+
+Garde 1 seul fichier, ajoute un early-return en tête. Plus léger, moins de fichiers, mais le diff de la PR est dense.
+
+```tsx
+'use client'
+import { useV3JSX } from './BenefSidebarV3'  // ou local fn
+const DESIGN_V3 = process.env.NEXT_PUBLIC_DESIGN_V3 === 'true'
+
+export function BenefSidebar(props: BenefSidebarProps) {
+  if (DESIGN_V3) return <BenefSidebarV3Body {...props} />
+  // ... legacy JSX inline (existant)
+}
+
+function BenefSidebarV3Body(props: BenefSidebarProps) {
+  // ... nouveau JSX v3 inline
+}
+```
+
+Le caller passe `--pattern split` ou `--pattern inline` (défaut : `split` pour les composants > 200 lignes, `inline` sinon — vérifier `wc -l <file>` avant choix).
+
+## Pattern A — Split files (activate)
 
 Recommended pattern for non-trivial components — create a sibling file `<Name>V3.tsx` next to `<Name>.tsx`, then a switcher `<Name>/index.tsx` that picks one:
 

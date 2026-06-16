@@ -16,25 +16,37 @@ If anything missing, ask in one short message and wait.
 
 ## Steps to execute
 
-### 1. Validate
-Before doing anything destructive, read `.agent_context/CJS_AGENT_RULES.md` for current project conventions.
+## Argument validation
 
-Check:
-- The branch is not `main`, `dev`, `staging` (FATAL ERROR)
-- A worktree for the branch exists in `.claude/worktrees/`
-- Working tree is clean (`git status --short` empty in the worktree)
+Before doing anything destructive, read `.agent_context/CJS_AGENT_RULES.md` for current project conventions, then validate :
+1. **Branch format** : must match `^(feat|fix|chore|refactor|perf|security)/GUIC-\d+-[a-z0-9-]+$`. Refuse otherwise.
+2. **Branch is not protected** : MUST NOT be `main`, `dev`, `staging`, `master`, `production`. Fatal error.
+3. **Ticket format** : each ticket must match `^GUIC-\d+$`. Comma-separated if multiple.
+4. **Worktree exists** : check `git worktree list | grep <branch>` — abort if absent ("crée d'abord le worktree avec `git worktree add ...`").
+5. **Working tree clean** : `git -C <worktree> status --short` must be empty.
+6. **Commits ahead** : `git -C <worktree> log --oneline origin/dev..HEAD | wc -l` ≥ 1, ideally ≥ 2 (RED + GREEN).
 
-### 2. (Optional, recommended) TDD enforcement
-If the caller did not already run it, invoke `cjs-tdd-enforcer` on the branch. If VERDICT=FAIL, stop and report — do not push a non-TDD-compliant branch.
+## Steps to execute
 
-### 3. Delegate to cjs-pr-packager
+### 1. TDD enforcement (OBLIGATOIRE)
+
+Invoke `cjs-tdd-enforcer` on the branch. If VERDICT=FAIL, stop and report — do not push a non-TDD-compliant branch.
+
+**Opt-out exceptionnel** : si le user passe explicitement `--skip-tdd-check --reason "<justification>"` (par exemple un hotfix urgent prod), accepter mais :
+- Logger la raison dans le commentaire Jira (`NB : TDD check bypassé — <raison>`)
+- WARN dans le rapport final
+- Le tech lead verra et décidera
+
+Sans `--skip-tdd-check` et un FAIL → STOP, pas de PR.
+
+### 2. Delegate to cjs-pr-packager
 Invoke the `cjs-pr-packager` agent with the inputs above. It will:
 - push the branch with `--no-verify`
 - create the PR with the structured template
 - run `./scripts/propagate-mouhammadouod.sh <branch>` for staging propagation
 - update Jira (comment with PR URL + transition `Revue en cours` id=2)
 
-### 4. Return the summary
+### 3. Return the summary
 Show the user:
 - PR URL (clickable)
 - mouhammadouod commit hash

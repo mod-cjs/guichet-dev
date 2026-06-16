@@ -17,6 +17,17 @@ Optional flags:
 
 If target or Lot missing, ask in one short message.
 
+## Argument validation
+
+Before invoking the auditor:
+
+1. **Target exists** :
+   - If target is a file path: `test -f "$target"` — abort if missing with "<target> introuvable".
+   - If target is a route: search `find src/app -path "*${route#/}*page.tsx"` — abort if no match.
+2. **Lot in 1..14** : the lotRef must match `^Lot ([1-9]|1[0-4])$`. Refuse `Lot 99`, `lot 3` (case), etc., suggest correction.
+3. **Lot JSX exists** : `ls design-guichet-v3/*.jsx | grep -i <lot-keyword>` — if no match (rare), refuse with "Lot N source absente — vérifier `design-guichet-v3/`".
+4. **Schema readable** : `test -f .agent_context/schemas/audit-finding.schema.json` — abort if missing (étape B.5 prérequise).
+
 ## Steps to execute
 
 ### 1. Load schema

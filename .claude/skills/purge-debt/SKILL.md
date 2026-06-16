@@ -22,16 +22,34 @@ You are invoking the **purge-debt** skill. The goal is to bring `dev` back to a 
 
 If `all`, run sub-vagues sequentially. If a specific scope, only that one.
 
+## Argument validation
+
+1. **scope** ∈ `{tsc, tests, migration, branches, all}` — refuse anything else.
+2. **Repo state** : `git rev-parse --show-toplevel` must succeed (abort if not a git repo).
+3. **Not already running** : check no other `.claude/worktrees/purge-debt` exists (abort with "purge-debt déjà en cours, finir d'abord").
+4. **dev fetched** : `git fetch origin --quiet` succeeds (network needed).
+
 ## Steps to execute
 
 ### Setup
-Always start from a clean dev:
+Compute the repo root dynamically (portable across machines):
+
 ```bash
-cd /Users/macbook/Desktop/cjs/guichet
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
 git fetch origin --quiet
-git worktree add -B chore/GUIC-XXX-purge-debt .claude/worktrees/purge-debt origin/dev
 ```
-(Replace `GUIC-XXX` with the actual ticket — create one via `./scripts/jira.sh create` if needed.)
+
+Create a ticket if missing (or pass existing one as input):
+```bash
+TICKET=$(./scripts/jira.sh create "chore(qa) Vague 0 — purge dette tsc + tests + migration" "Purge des erreurs préexistantes bloquant le pipeline design v3." | head -1)
+echo "Created $TICKET"
+```
+
+Then the worktree:
+```bash
+git worktree add -B "chore/$TICKET-purge-debt" ".claude/worktrees/purge-debt" origin/dev
+```
 
 ### Scope: `tsc`
 1. Inventory errors:
