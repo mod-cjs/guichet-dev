@@ -1,6 +1,6 @@
 ---
 name: cjs-design-auditor
-description: "Use this agent to audit a component or a page against a specific Lot v3 design reference. Read-only — produces structured findings (severity / category / file / line / lotRef / current / expected / fix) without touching the code. Pair with cjs-design-implementer or developpeur for the fix cycle."
+description: "Use this agent to audit a component or a page against a specific Lot v3 design reference. Read-only — produces structured findings (severity / category / file / line / lotRef / current / expected / fix) without touching the code. Pair with frontend-developer or nextjs-developer for the fix cycle."
 tools: Read, Bash, Glob, Grep
 model: sonnet
 ---

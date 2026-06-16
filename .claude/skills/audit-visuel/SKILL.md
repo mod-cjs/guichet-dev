@@ -80,4 +80,4 @@ If 0 findings → success message, mention what was checked.
 - NEVER modify code in this skill — only audit
 - NEVER audit `src/components/centres/*` (Wave 7 figée — agent already refuses, but double-check)
 - NEVER use `design-guichet-v2/` as reference — only v3
-- If the user asks to FIX the findings, invoke `cjs-design-implementer` (or `developpeur` if absent) in a separate step — do not chain automatically
+- If the user asks to FIX the findings, invoke `frontend-developer` (ou `nextjs-developer` pour pages App Router) (or `developpeur` if absent) in a separate step — do not chain automatically

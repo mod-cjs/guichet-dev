@@ -1,5 +1,10 @@
 # Système d'agents Guichet — architecture v1
 
+
+> **NB après audit (étape A→E.5)** : ce document est le plan INITIAL. Quelques agents annoncés ici n'ont pas été créés (renommés ou délégués à des agents VoltAgent adoptés). Voir `.claude/agents/README.md` pour la liste finale.
+> - `cjs-design-implementer` → remplacé par `frontend-developer` (VoltAgent) ou `nextjs-developer` selon la cible
+> - `cjs-flag-toggler` → remplacé par la skill `/feature-flag` qui agit directement (pas d'agent intermédiaire)
+
 > Objectif : exploiter toutes les capacités Claude (custom agents, skills, workflows, hooks, schemas, cron) pour livrer l'intégration design v3 sans régression et en évitant le travail manuel répété (boilerplate PR / propagation / Jira / audit visuel).
 >
 > Branche : `chore/agents-refinement`. À merger avant lancement Vague 0 design v3.
