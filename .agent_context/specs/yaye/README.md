@@ -35,6 +35,8 @@ Yaye est l'agent IA conversationnel **natif** du Guichet (pas un microservice s�
 | 09 | [roadmap-decoupage.md](./09-roadmap-decoupage.md) | Découpage en lots livrables + dépendances |
 | 10 | [risques.md](./10-risques.md) | **⚠️ 6 risques + conditions de réussite (Go/No-Go) — à lire avant le Lot 1** |
 | 11 | [fonctionnalites.md](./11-fonctionnalites.md) | **Les 7 fonctions de Yaye** (déclencheur · outils · flux · règles · events · état code) — vue consolidée |
+| 12 | [suivi-mise-en-place.md](./12-suivi-mise-en-place.md) | **📋 Tableau de bord de suivi** — décisions, risques, lots, POC : statut de chaque tâche (à tenir à jour) |
+| 13 | [journal.md](./13-journal.md) | **🗓 Journal daté** — trace des avancées, décisions et jalons (ce qui a été fait, quand, pourquoi) |
 
 ## 4. Documents liés (existant repo)
 
