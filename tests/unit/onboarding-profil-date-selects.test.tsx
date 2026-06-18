@@ -5,7 +5,7 @@
  * [GUIC-429] RED : vérifie que l'input date natif est remplacé
  * par 3 selects jour/mois/année affichant les libellés FR.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { OnboardingProfil } from '@/app/jeune/onboarding/_screens/OnboardingProfil'
 import { OnboardingProfilWeb } from '@/app/jeune/onboarding/_screens-web/OnboardingProfilWeb'
 
@@ -66,19 +66,30 @@ describe('F-01 — OnboardingProfil — date naissance : 3 selects FR', () => {
       genre: 'F', region: 'Dakar', commune: '',
     }} />)
 
+    // Sélectionne année, mois, jour — doit reconstruire '2003-04-12'
     fireEvent.change(screen.getByRole('combobox', { name: /ann[ée]e/i }), { target: { value: '2003' } })
     fireEvent.change(screen.getByRole('combobox', { name: /mois/i }), { target: { value: '04' } })
     fireEvent.change(screen.getByRole('combobox', { name: /jour/i }), { target: { value: '12' } })
 
+    // Vérifie que les selects reflètent les valeurs sélectionnées
+    expect(screen.getByRole('combobox', { name: /ann[ée]e/i })).toHaveValue('2003')
+    expect(screen.getByRole('combobox', { name: /mois/i })).toHaveValue('04')
+    expect(screen.getByRole('combobox', { name: /jour/i })).toHaveValue('12')
+
+    // Clique sur Continuer et vérifie qu'un appel PUT step=1 est fait avec dateNaissance correcte
     fireEvent.click(screen.getByRole('button', { name: /^continuer/i }))
 
-    await new Promise(r => setTimeout(r, 50))
-    const identiteCall = fetchMock.mock.calls.find(
-      (c: unknown[]) => c[1] && JSON.parse((c[1] as { body: string }).body).step === 1
-    )
-    expect(identiteCall).toBeDefined()
-    expect(JSON.parse((identiteCall![1] as { body: string }).body).data.dateNaissance).toBe('2003-04-12')
-  })
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(
+        (c: unknown[]) => {
+          try {
+            const b = JSON.parse((c[1] as { body: string }).body)
+            return b.step === 1 && b.data?.dateNaissance === '2003-04-12'
+          } catch { return false }
+        }
+      )).toBe(true)
+    })
+  }, 15000)
 
   it('pré-remplit les 3 selects depuis initial.dateNaissance YYYY-MM-DD', () => {
     render(<OnboardingProfil initial={{
