@@ -47,12 +47,13 @@ describe('F-03 — CentrePrincipalForm — StepBar présent, pas de double <main
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
-  it('le step de centre-principal est 4 sur 5', () => {
+  it('le step de centre-principal est 3 sur 4 (flow sans téléphone GUIC-431)', () => {
     render(<CentrePrincipalForm centres={CENTRES} suggestedId={null} userRegion={null} />)
     const bar = screen.getByRole('progressbar')
     // StepBar rend aria-valuenow={step} aria-valuemax={total}
-    expect(bar).toHaveAttribute('aria-valuenow', '4')
-    expect(bar).toHaveAttribute('aria-valuemax', '5')
+    // Flow actuel 4 étapes : objectifs(1) → profil(2) → centre-principal(3) → recommandations(4)
+    expect(bar).toHaveAttribute('aria-valuenow', '3')
+    expect(bar).toHaveAttribute('aria-valuemax', '4')
   })
 
   it('ne rend PAS un élément <main> (le layout parent le fournit)', () => {

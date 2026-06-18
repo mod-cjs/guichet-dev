@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { getCentresWithStatusAndHoraires } from '@/lib/loaders/centres'
 import { suggestCentrePrincipal } from '@/lib/loaders/profil-onboarding'
 import { CentrePrincipalForm } from './centre-principal-form'
+import { CentrePrincipalFormWeb } from '../_screens-web/CentrePrincipalFormWeb'
 
 export const metadata = { title: 'Ton centre CJS — Guichet Jeunesse' }
 
@@ -33,16 +34,25 @@ export default async function OnboardingCentrePrincipalPage() {
     return a.nom.localeCompare(b.nom)
   })
 
+  const formProps = {
+    centres: sorted.map((c) => ({
+      id: c.id,
+      nom: c.nom,
+      region: c.region,
+      ville: c.ville,
+    })),
+    suggestedId,
+    userRegion: session.region ?? null,
+  }
+
   return (
-    <CentrePrincipalForm
-      centres={sorted.map((c) => ({
-        id: c.id,
-        nom: c.nom,
-        region: c.region,
-        ville: c.ville,
-      }))}
-      suggestedId={suggestedId}
-      userRegion={session.region ?? null}
-    />
+    <>
+      <div className="gj-onboarding-mobile">
+        <CentrePrincipalForm {...formProps} />
+      </div>
+      <div className="gj-onboarding-web">
+        <CentrePrincipalFormWeb {...formProps} />
+      </div>
+    </>
   )
 }
