@@ -61,3 +61,32 @@ export const SideOpportuniteDetail: Story = {
     return <Demo />
   },
 }
+
+/**
+ * GUIC-417 — slide-over droit pleine hauteur sur desktop (100dvh).
+ * Sur mobile (< 768px), le composant retombe en bottom-sheet limité à
+ * `maxHeightPct%` (94 par défaut).
+ */
+export const SidePleineHauteurDesktop: Story = {
+  render: () => {
+    const Demo = () => {
+      const [open, setOpen] = useState(true)
+      return (
+        <div style={{ minHeight: 600 }}>
+          <Button onClick={() => setOpen(true)}>Ouvrir détail</Button>
+          <Sheet isOpen={open} onClose={() => setOpen(false)} variant="side" title="Détail opportunité">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p>Slide-over droit, pleine hauteur sur desktop (md+).</p>
+              {Array.from({ length: 20 }).map((_, i) => (
+                <p key={i} style={{ color: 'var(--gj-grey)' }}>
+                  Paragraphe {i + 1} — le panel occupe 100dvh et le contenu défile.
+                </p>
+              ))}
+            </div>
+          </Sheet>
+        </div>
+      )
+    }
+    return <Demo />
+  },
+}
