@@ -38,7 +38,7 @@ test('200 + rapport si secret valide', async () => {
   expect(res.status).toBe(200)
   const body = await res.json()
   expect(body.data).toMatchObject({ backend: 'neo4j' })
-  expect(mockReproject).toHaveBeenCalledWith({ wipe: false })
+  expect(mockReproject).toHaveBeenCalledWith({ wipe: true })
 })
 
 test('500 si la reprojection échoue', async () => {

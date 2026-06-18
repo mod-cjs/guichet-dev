@@ -13,6 +13,8 @@ const m = {
   profilFindUnique: jest.fn(),
   skillFindMany: jest.fn(),
   candidatureFindMany: jest.fn(),
+  certFindMany: jest.fn(),
+  diplomeFindMany: jest.fn(),
 }
 jest.mock('@/lib/prisma', () => ({
   prisma: {
@@ -21,6 +23,8 @@ jest.mock('@/lib/prisma', () => ({
     profilJeune: { findUnique: (...a: unknown[]) => m.profilFindUnique(...a) },
     skill: { findMany: (...a: unknown[]) => m.skillFindMany(...a) },
     candidature: { findMany: (...a: unknown[]) => m.candidatureFindMany(...a) },
+    certificatMoodle: { findMany: (...a: unknown[]) => m.certFindMany(...a) },
+    diplome: { findMany: (...a: unknown[]) => m.diplomeFindMany(...a) },
   },
 }))
 
@@ -32,7 +36,12 @@ const SKILLS = [
 ]
 const scope = { cjsUid: 'u-1' }
 
-beforeEach(() => Object.values(m).forEach(fn => fn.mockReset()))
+beforeEach(() => {
+  Object.values(m).forEach(fn => fn.mockReset())
+  // Par défaut : aucun certificat/diplôme (MAITRISE = compétences profil seules).
+  m.certFindMany.mockResolvedValue([])
+  m.diplomeFindMany.mockResolvedValue([])
+})
 
 test('skillGap : compétence requise non maîtrisée → manquante + formation proposée', async () => {
   // requise: React ; maîtrisée (flou via profil): JavaScript
@@ -57,6 +66,17 @@ test('skillGap : tout maîtrisé → aucune manquante, pas de requête formation
   expect(gap.formations).toHaveLength(0)
   // la 2e requête (formations) ne doit pas être lancée
   expect(m.oppSkillFindMany).toHaveBeenCalledTimes(1)
+})
+
+test('skillGap : compétence ATTESTÉE par un certificat compte comme maîtrisée (#1, spec §4)', async () => {
+  // requise: React ; profil vide MAIS certificat Moodle "React" → pas une manquante.
+  m.oppSkillFindMany.mockResolvedValueOnce([{ skill: { id: 's-react', slug: 'react', libelle: 'React' } }])
+  m.profilFindUnique.mockResolvedValueOnce({ id: 'p1', competences: [] })
+  m.skillFindMany.mockResolvedValueOnce(SKILLS)
+  m.certFindMany.mockResolvedValueOnce([{ formation: 'React' }])
+
+  const gap = await new PrismaGraphAdapter().skillGap(scope, 'opp-1')
+  expect(gap.manquantes).toHaveLength(0)
 })
 
 test('eligibleOpportunites : filtre par niveau autorisé + exclut déjà postulées', async () => {

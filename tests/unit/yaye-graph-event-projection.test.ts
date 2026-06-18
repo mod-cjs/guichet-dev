@@ -14,6 +14,8 @@ jest.mock('@/lib/ia/graph/projection/cypher', () => ({
   ensureIndexes: jest.fn(async () => {}),
   mergeNodes: jest.fn(async () => 1),
   mergeRels: jest.fn(async () => 1),
+  deleteRelsOfTypes: jest.fn(async () => {}),
+  detachDeleteNode: jest.fn(async () => {}),
   wipeGraph: jest.fn(async () => {}),
 }))
 
@@ -68,6 +70,18 @@ test('formation : schéma + nœud commun + label Formation + REQUIERT/DEVELOPPE/
 
   const rels = cy.mergeRels.mock.calls.map(c => c[0])
   expect(rels).toEqual(expect.arrayContaining(['EST_DE_TYPE', 'FINANCE', 'PUBLIE', 'RELEVE_DE', 'SITUE_A', 'REQUIERT', 'DEVELOPPE', 'ETIQUETTE']))
+
+  // purge des arêtes re-projetées AVANT re-merge (MERGE additif → sinon arêtes fantômes)
+  expect(cy.deleteRelsOfTypes).toHaveBeenCalledWith('Opportunite', 'id', 'o1', expect.arrayContaining(['REQUIERT', 'ETIQUETTE']))
+})
+
+test('purge : ne touche pas aux arêtes pilotées ailleurs (A_POSTULE, INSCRIT_A…)', async () => {
+  mockFindUnique.mockResolvedValueOnce(formationOpp)
+  await projectOpportunite('o1')
+  const purged = cy.deleteRelsOfTypes.mock.calls[0][3] as string[]
+  expect(purged).not.toContain('A_POSTULE')
+  expect(purged).not.toContain('INSCRIT_A')
+  expect(purged).not.toContain('INTERESSE_PAR')
 })
 
 test('syncOpportuniteToGraph : fail-soft (ne lève jamais)', async () => {

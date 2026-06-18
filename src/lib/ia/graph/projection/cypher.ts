@@ -128,6 +128,30 @@ export async function mergeRels(
   }
 }
 
+/**
+ * Supprime les relations d'un nœud dont le TYPE est dans `relTypes` (les deux sens).
+ * Sert à PURGER les arêtes périmées avant un re-merge (projection événementielle) :
+ * MERGE seul est additif et ne retire jamais une relation supprimée côté Prisma.
+ * `relTypes` est paramétré (jamais interpolé) → sûr.
+ */
+export async function deleteRelsOfTypes(
+  label: string,
+  key: string,
+  value: unknown,
+  relTypes: string[],
+): Promise<void> {
+  if (relTypes.length === 0) return
+  const cypher =
+    `MATCH (n:${ident(label)} {${ident(key)}: $value})-[r]-() ` +
+    `WHERE type(r) IN $relTypes DELETE r`
+  const session = writeSession()
+  try {
+    await session.run(cypher, { value, relTypes })
+  } finally {
+    await session.close()
+  }
+}
+
 /** Supprime un nœud (et ses relations) par clé naturelle — voie événementielle de suppression. */
 export async function detachDeleteNode(label: string, key: string, value: unknown): Promise<void> {
   const cypher = `MATCH (n:${ident(label)} {${ident(key)}: $value}) DETACH DELETE n`

@@ -73,7 +73,7 @@
 - [x] ✅ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback) — `src/lib/ia/graph/`
 - [x] ✅ Driver `neo4j-driver@6` + connexion + **contraintes/index** (`projection/schema.ts` + `cypher.ts`)
 - [x] ✅ 1a — Décompression opportunités (10 labels multiples) + relations cœur (`REQUIERT`/`DEVELOPPE`/`FINANCE`/`PUBLIE`/`ETIQUETTE`/`EST_DE_TYPE`/`RELEVE_DE`/`SITUE_A`)
-- [x] ✅ 1b — Profil & parcours : **normalisation FLOUE** compétences → `MAITRISE` (R2, `skills-normalize.ts`) ; `A_OBTENU`/`A_EXERCE`/`ATTESTE`/`A_POSTULE`/`INTERESSE_PAR`
+- [x] ✅ 1b — Profil & parcours : **normalisation FLOUE** compétences → `MAITRISE` (R2, `skills-normalize.ts`), dérivée **du profil ∪ des certificats/diplômes** (ATTESTE, spec §4) ; `A_OBTENU`/`A_EXERCE`/`ATTESTE`/`A_POSTULE`/`INTERESSE_PAR`
 - [x] ✅ 1c — Agenda & ressources : `Evenement`/`INSCRIT_A`/`SE_DEROULE_A` ; `PREPARE` (dérivée floue)
 - [x] ✅ 1d — Centres : `Salle`/`Vehicule`/`DISPOSE_DE` (`ACCESSIBLE_A`/zone = Lot 2 ; biblio = Lot 3)
 - [x] ✅ Pipeline d'alimentation Prisma→Neo4j idempotent (`reprojectAll`, sync nocturne) — voie événementielle à brancher
@@ -82,8 +82,12 @@
 - [x] ✅ 1e — Recommandation proactive : scoring graphe → `RecommandationIA` (cache) + outil **`get_recommendations`** (`recommandation.ts`, registre TOOLS)
 - [x] ✅ **Voie événementielle BRANCHÉE** : `projectOpportunite(id)` + `removeOpportuniteFromGraph(id)` + déclencheurs fail-soft, **câblés dans `OpportuniteService.create/update/delete`** (import paresseux, fire-and-forget)
 - [x] ✅ **Reprojection nocturne** : route cron `/api/cron/yaye-graph-sync` (Bearer `CRON_SECRET`) + `vercel.json` (02:30) — au passage : virgule manquante JSON corrigée
+- [x] ✅ **Anti-péremption** (audit #2) : projection événementielle PURGE les arêtes re-projetées avant re-merge (`deleteRelsOfTypes`) ; cron nocturne en `wipe:true` (rebuild complet = zéro donnée périmée)
+- [x] ✅ **Tests adapter Neo4j** (audit #4) : skillGap/eligible/collaborative/parcours en session mockée (parité avec le fallback)
 - [ ] ⬜ **Exécution réelle** (ops) : provisionner Neo4j 5.x, `reprojectAll` sur données réelles, mesurer latence des templates
-- [x] ✅ **Tests** : 50 nouveaux (normalisation, niveaux, fallback, reco, projection, query_knowledge_graph, projection événementielle, cron, sync write-path) — **144/144 verts** (suites Yaye + service)
+- [ ] ⬜ **RBAC à compléter** (audit #3, MEDIUM) : filtrage `role`/`centreId` dans les templates (aujourd'hui borné au `cjsUid` — OK bénéficiaire v1, requis pour gestionnaire/Lot 7)
+- [ ] ⬜ **Mineur** (audit #5) : reco = blend 0.6/0.4 (heuristique au-dessus des signaux graphe) ; `PREPARE` matche `theme` vs libellé (spec dit `theme↔categorie`)
+- [x] ✅ **Tests** : 57 nouveaux — **151/151 verts** (suites Yaye + service)
 
 ### Lot 2 — Ressources centres (salles + véhicules)
 - [ ] ⬜ Mapper `reserve_resource` sur `Reservation`/`RessourceCentre`

@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { TypeRessourceCentre } from '@prisma/client'
 import { logger } from '@/lib/logger'
 import { isNeo4jConfigured } from '@/lib/neo4j'
-import { detachDeleteNode, mergeNodes, mergeRels, wipeGraph, type RelPair } from './cypher'
+import { deleteRelsOfTypes, detachDeleteNode, mergeNodes, mergeRels, wipeGraph, type RelPair } from './cypher'
 import { ensureGraphSchema, OPPORTUNITE_SUBTYPE_LABELS } from './schema'
 import { buildSkillIndex, matchSkills, parseCompetences, type SkillRef } from '../skills-normalize'
 
@@ -266,24 +266,44 @@ async function projectDerived(): Promise<Record<string, number>> {
   const skills = await prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } })
   const index = buildSkillIndex(skills as SkillRef[])
 
-  // MAITRISE : ProfilJeune.competences (Json libre) → Competence (flou).
-  const profils = await prisma.profilJeune.findMany({ select: { cjsUid: true, competences: true } })
+  // profil → cjsUid (les certificats/diplômes sont rattachés via profilId).
+  const profils = await prisma.profilJeune.findMany({ select: { id: true, cjsUid: true, competences: true } })
+  const profilToUid = new Map(profils.map(p => [p.id, p.cjsUid]))
+
+  // MAITRISE = compétences auto-déclarées (profil) ∪ compétences ATTESTÉES par
+  // les certificats/diplômes (spec 02 §4 : « competences (Json) + dérivée des
+  // certificats/diplômes »). Sans ce 2e canal, un cert Moodle non re-saisi
+  // apparaîtrait à tort comme une compétence manquante dans l'analyse d'écart.
   const maitrise: RelPair[] = []
   for (const p of profils) {
     for (const comp of parseCompetences(p.competences)) {
       for (const m of matchSkills(comp, index)) maitrise.push({ from: p.cjsUid, to: m.id })
     }
   }
-  counts.MAITRISE = await mergeRels('MAITRISE', 'Beneficiaire', 'cjsUid', 'Competence', 'id', dedupePairs(maitrise))
 
   // ATTESTE : Certificat.formation + Diplome.intitule → Competence (flou).
+  // Au passage, on dérive MAITRISE depuis le bénéficiaire propriétaire.
+  const certs = await prisma.certificatMoodle.findMany({ select: { id: true, profilId: true, formation: true } })
+  const diplomes = await prisma.diplome.findMany({ select: { id: true, profilId: true, intitule: true } })
   const atteste: RelPair[] = []
-  const certs = await prisma.certificatMoodle.findMany({ select: { id: true, formation: true } })
-  for (const c of certs) for (const m of matchSkills(c.formation, index)) atteste.push({ from: c.id, to: m.id })
-  counts.ATTESTE = await mergeRels('ATTESTE', 'Certificat', 'id', 'Competence', 'id', dedupePairs(atteste))
-  const diplomes = await prisma.diplome.findMany({ select: { id: true, intitule: true } })
   const attesteD: RelPair[] = []
-  for (const d of diplomes) for (const m of matchSkills(d.intitule, index)) attesteD.push({ from: d.id, to: m.id })
+  for (const c of certs) {
+    const uid = profilToUid.get(c.profilId)
+    for (const m of matchSkills(c.formation, index)) {
+      atteste.push({ from: c.id, to: m.id })
+      if (uid) maitrise.push({ from: uid, to: m.id })
+    }
+  }
+  for (const d of diplomes) {
+    const uid = profilToUid.get(d.profilId)
+    for (const m of matchSkills(d.intitule, index)) {
+      attesteD.push({ from: d.id, to: m.id })
+      if (uid) maitrise.push({ from: uid, to: m.id })
+    }
+  }
+
+  counts.MAITRISE = await mergeRels('MAITRISE', 'Beneficiaire', 'cjsUid', 'Competence', 'id', dedupePairs(maitrise))
+  counts.ATTESTE = await mergeRels('ATTESTE', 'Certificat', 'id', 'Competence', 'id', dedupePairs(atteste))
   counts.ATTESTE += await mergeRels('ATTESTE', 'Diplome', 'id', 'Competence', 'id', dedupePairs(attesteD))
 
   // PREPARE : RessourcePedagogique.theme → Competence (flou).
@@ -338,6 +358,11 @@ const SUBTYPE_RELATIONS: ReadonlyArray<readonly [string, string]> = [
   ['Mentorat', 'mentorat'], ['Mobilite', 'mobilite'], ['Volontariat', 'volontariat'],
 ]
 
+/** Types de relations qu'une re-projection d'opportunité RECRÉE (donc à purger avant). */
+const OPP_PROJECTED_RELS = [
+  'EST_DE_TYPE', 'FINANCE', 'PUBLIE', 'RELEVE_DE', 'SITUE_A', 'REQUIERT', 'DEVELOPPE', 'ETIQUETTE',
+]
+
 /**
  * Projette/rafraîchit UNE opportunité (création/modification) + ses relations cœur.
  * Idempotent. No-op si Neo4j non configuré. Les nœuds référentiels (Competence,
@@ -376,6 +401,10 @@ export async function projectOpportunite(id: string): Promise<boolean> {
   // Enums réifiés référencés (merge défensif pour ne pas perdre la relation).
   if (o.domaine) await mergeNodes('Secteur', 'libelle', [{ libelle: String(o.domaine) }])
   if (o.region) await mergeNodes('Region', 'nom', [{ nom: String(o.region) }])
+
+  // PURGE des arêtes re-projetées (MERGE est additif → sinon skill/tag retiré = arête fantôme).
+  // On ne touche PAS aux arêtes pilotées ailleurs (A_POSTULE, INSCRIT_A, INTERESSE_PAR…).
+  await deleteRelsOfTypes('Opportunite', 'id', o.id, OPP_PROJECTED_RELS)
 
   // Relations cœur.
   if (o.typeId) await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id', [{ from: o.id, to: o.typeId }])

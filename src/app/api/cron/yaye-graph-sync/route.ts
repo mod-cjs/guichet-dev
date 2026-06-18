@@ -2,8 +2,10 @@
  * GUIC-259 / GUIC-279 — Cron : reprojection complète Prisma → Neo4j du Knowledge
  * Graph de Yaye (filet de sécurité idempotent). À planifier 1×/nuit via `vercel.json`.
  *
- * Invariant : Neo4j = read-model reconstructible. Cette reprojection rejoue toute
- * la projection (MERGE) → corrige toute dérive de la voie événementielle.
+ * Invariant : Neo4j = read-model reconstructible. Reprojection en `wipe:true`
+ * (purge + rebuild complet) → garantit ZÉRO donnée périmée (MERGE seul est additif
+ * et ne retirerait jamais un nœud/arête supprimé côté Prisma). Bref fenêtre de
+ * reconstruction acceptable pour un read-model de découverte/reco (cron 02:30).
  * No-op si Neo4j non configuré (le fallback Prisma est alors la source directe).
  *
  * Auth : Bearer `CRON_SECRET` (header `Authorization`).
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 
   try {
-    const report = await reprojectAll({ wipe: false })
+    const report = await reprojectAll({ wipe: true })
     logger.info('cron/yaye-graph-sync ok', {
       backend: report.backend,
       durationMs: report.durationMs,

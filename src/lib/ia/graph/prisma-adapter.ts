@@ -82,16 +82,27 @@ export class PrismaGraphAdapter implements GraphPort {
     return rows.map(toOpp)
   }
 
-  /** Compétences maîtrisées (ids) par matching flou des `competences` du profil. */
+  /**
+   * Compétences maîtrisées (ids) par matching flou. Parité avec le graphe (spec 02 §4) :
+   * compétences auto-déclarées (profil) ∪ compétences attestées par les certificats/diplômes.
+   */
   private async masteredSkillIds(cjsUid: string): Promise<{ mastered: Set<string>; allSkills: SkillRef[] }> {
     const [profil, skills] = await Promise.all([
-      prisma.profilJeune.findUnique({ where: { cjsUid }, select: { competences: true } }),
+      prisma.profilJeune.findUnique({ where: { cjsUid }, select: { id: true, competences: true } }),
       prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } }),
     ])
     const index = buildSkillIndex(skills as SkillRef[])
     const mastered = new Set<string>()
     for (const comp of parseCompetences(profil?.competences)) {
       for (const m of matchSkills(comp, index)) mastered.add(m.id)
+    }
+    if (profil) {
+      const [certs, diplomes] = await Promise.all([
+        prisma.certificatMoodle.findMany({ where: { profilId: profil.id }, select: { formation: true } }),
+        prisma.diplome.findMany({ where: { profilId: profil.id }, select: { intitule: true } }),
+      ])
+      for (const c of certs) for (const m of matchSkills(c.formation, index)) mastered.add(m.id)
+      for (const d of diplomes) for (const m of matchSkills(d.intitule, index)) mastered.add(m.id)
     }
     return { mastered, allSkills: skills as SkillRef[] }
   }
