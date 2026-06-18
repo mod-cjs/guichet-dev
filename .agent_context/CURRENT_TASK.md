@@ -20,22 +20,32 @@
 | GUIC-433 | Outil `query_knowledge_graph` (NL→Cypher whitelisté + RBAC) | ⬜ |
 | GUIC-434 | Reco proactive (`RecommandationIA` + `get_recommendations`) | ⬜ |
 
-## Fait (GUIC-275)
+## Fait — cœur Lot 1 (code complet, 100/100 tests Yaye verts)
+**GUIC-275 (socle)**
 - `src/lib/neo4j.ts` — driver singleton lazy + `isNeo4jConfigured()` + `neo4jDatabase()` + close.
-- `src/lib/ia/graph/port.ts` — interface `GraphPort` + types + `clampLimit`.
-- `src/lib/ia/graph/neo4j-adapter.ts` — `Neo4jGraphAdapter` (health + 1er template Cypher whitelisté).
-- `src/lib/ia/graph/prisma-adapter.ts` — `PrismaGraphAdapter` (fallback recherche/health, sans SQL brut).
-- `src/lib/ia/graph/index.ts` — `getGraphPort()` (sélection Neo4j/Prisma + mémoïsation) + `resetGraphPort()`.
-- `.env.example` — bloc `NEO4J_*`.
-- `tests/unit/yaye-graph.test.ts` — 11 tests verts (sélection, fallback, health, mapping).
-- Dépendance `neo4j-driver@^6` ajoutée.
+- `graph/port.ts` — interface `GraphPort` (search + skillGap + eligible + collaborative + multiEntityPath) + types.
+- `graph/neo4j-adapter.ts` / `prisma-adapter.ts` — adapter cible + fallback (sans SQL brut).
+- `graph/index.ts` — `getGraphPort()` (sélection Neo4j/Prisma + mémoïsation).
 
-## Reste à faire (GUIC-275)
-- [ ] Provisionner l'instance Neo4j 5.x réelle (infra/env) — côté ops.
-- [ ] Câbler `getGraphPort()` dans l'outil `search_opportunities` (migration douce du Lot 0) — à arbitrer (ou attendre GUIC-433).
+**GUIC-276/277 (schéma)** — `graph/projection/schema.ts` (LABEL_KEYS 17 labels + 10 sous-types) + `cypher.ts` (mergeNodes/mergeRels/ensureConstraints/ensureIndexes/wipeGraph, idempotent).
+
+**GUIC-278 (relations + R2)** — `graph/skills-normalize.ts` (matching FLOU : synonymes + Dice + containment) ; ~25 relations dont `MAITRISE`/`ATTESTE`/`PREPARE` dérivées floues.
+
+**GUIC-279 (projection)** — `graph/projection/project.ts` : `reprojectAll()` (nœuds décompressés + relations FK + dérivées), idempotent, no-op si Neo4j absent.
+
+**GUIC-433 (traversées)** — `graph/cypher-templates.ts` (whitelistés/paramétrés/RBAC) : recherche, gap compétences, éligibilité (`niveau.ts`), reco collaborative **agrégée**, parcours multi-entités. Fallback Prisma équivalent.
+
+**GUIC-434 (reco proactive)** — `recommandation.ts` (orchestre le graphe, écrit `RecommandationIA` cache, aucun score inventé) + outil `get_recommendations` dans `tools.ts`.
+
+Tests : `yaye-skills-normalize`, `yaye-graph-niveau`, `yaye-graph-fallback`, `yaye-recommandation`, `yaye-graph-projection`, `yaye-graph` (+11).
+
+## Reste à faire (exécution réelle — hors code applicatif)
+- [ ] Provisionner Neo4j 5.x (ops) → `NEO4J_*` → l'adapter Neo4j prend le relais.
+- [ ] `reprojectAll()` sur données réelles + mesure de latence des templates.
+- [ ] Brancher la voie **événementielle** (upsert à la création/modif d'opportunité) + l'outil `query_knowledge_graph` (NL→params Groq) côté agent.
 
 ## Prochaine étape
-GUIC-276 — contraintes/index + projection des nœuds cœur (opportunités décompressées d'abord).
+Provisionner Neo4j + reprojection réelle, puis câblage `query_knowledge_graph` dans l'agent (réactif).
 
 ## Garde-fous (rappel spec 02 §0)
 - Prisma/MariaDB = source de vérité ; Neo4j = read-model reconstructible. **Sens d'écriture unique** Prisma→Neo4j.

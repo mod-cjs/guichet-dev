@@ -117,7 +117,7 @@ test('Neo4jGraphAdapter.healthcheck : ok + session READ fermée', async () => {
   mockRun.mockResolvedValueOnce({ records: [] })
   const h = await new Neo4jGraphAdapter().healthcheck()
   expect(h).toMatchObject({ ok: true, backend: 'neo4j' })
-  expect(mockRun).toHaveBeenCalledWith('RETURN 1 AS ok')
+  expect(mockRun).toHaveBeenCalledWith('RETURN 1 AS ok', {})
   expect(mockClose).toHaveBeenCalled()
 })
 

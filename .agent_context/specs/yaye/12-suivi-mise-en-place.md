@@ -69,16 +69,18 @@
 - [ ] ⬜ **Pour exécuter** : renseigner `GROQ_API_KEY` (vide) + `prisma migrate deploy` (table `agent_logs` absente en local) + réparer le build rouge pré-existant
 - [x] ✅ Webhook WhatsApp (`/api/whatsapp`) branché sur `runAgent` (ne dépend plus de `rag.ts`)
 
-### Lot 1 — Knowledge Graph Neo4j (enrichi)
-- [ ] ⬜ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback)
-- [ ] ⬜ Driver `neo4j-driver` + connexion + contraintes/index
-- [ ] ⬜ 1a — Décompression opportunités (labels multiples) + relations cœur
-- [ ] ⬜ 1b — Profil & parcours : normalisation compétences → `MAITRISE` ; `A_OBTENU`/`ATTESTE`/`A_POSTULE`
-- [ ] ⬜ 1c — Agenda & ressources : `Evenement`/`INSCRIT_A`/`SE_DEROULE_A` ; `PREPARE`
-- [ ] ⬜ 1d — Centres : `Salle`/`Vehicule`/`DISPOSE_DE`/`ACCESSIBLE_A`
-- [ ] ⬜ Pipeline d'alimentation Prisma→Neo4j (événementiel + sync nocturne)
-- [ ] ⬜ `query_knowledge_graph` + templates (recherche, gap compétences, reco collab, parcours)
-- [ ] ⬜ 1e — Recommandation proactive : scoring → `RecommandationIA` + outil `get_recommendations`
+### Lot 1 — Knowledge Graph Neo4j (enrichi) — 🟢 cœur livré (code), reste exécution réelle
+- [x] ✅ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback) — `src/lib/ia/graph/`
+- [x] ✅ Driver `neo4j-driver@6` + connexion + **contraintes/index** (`projection/schema.ts` + `cypher.ts`)
+- [x] ✅ 1a — Décompression opportunités (10 labels multiples) + relations cœur (`REQUIERT`/`DEVELOPPE`/`FINANCE`/`PUBLIE`/`ETIQUETTE`/`EST_DE_TYPE`/`RELEVE_DE`/`SITUE_A`)
+- [x] ✅ 1b — Profil & parcours : **normalisation FLOUE** compétences → `MAITRISE` (R2, `skills-normalize.ts`) ; `A_OBTENU`/`A_EXERCE`/`ATTESTE`/`A_POSTULE`/`INTERESSE_PAR`
+- [x] ✅ 1c — Agenda & ressources : `Evenement`/`INSCRIT_A`/`SE_DEROULE_A` ; `PREPARE` (dérivée floue)
+- [x] ✅ 1d — Centres : `Salle`/`Vehicule`/`DISPOSE_DE` (`ACCESSIBLE_A`/zone = Lot 2 ; biblio = Lot 3)
+- [x] ✅ Pipeline d'alimentation Prisma→Neo4j idempotent (`reprojectAll`, sync nocturne) — voie événementielle à brancher
+- [x] ✅ Templates de traversée (recherche, **gap compétences**, **éligibilité**, **reco collab agrégée**, **parcours multi-entités**) — `cypher-templates.ts` + fallback Prisma. *(outil `query_knowledge_graph` NL→params = câblage agent restant, GUIC-433)*
+- [x] ✅ 1e — Recommandation proactive : scoring graphe → `RecommandationIA` (cache) + outil **`get_recommendations`** (`recommandation.ts`, registre TOOLS)
+- [ ] ⬜ **Exécution réelle** : provisionner Neo4j 5.x, `reprojectAll` sur données réelles, mesurer latence, brancher la voie événementielle + `query_knowledge_graph` côté agent
+- [x] ✅ **Tests** : 32 nouveaux (normalisation floue, niveaux, fallback gap/éligibilité/collab, reco, projection) — **100/100 Yaye verts**
 
 ### Lot 2 — Ressources centres (salles + véhicules)
 - [ ] ⬜ Mapper `reserve_resource` sur `Reservation`/`RessourceCentre`

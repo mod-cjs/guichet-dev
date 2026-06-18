@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { Domaine, Region, TypeOpportunite } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
+import { getRecommandations } from './recommandation'
 import type { YayeBlock, YayeOppItem } from './blocks'
 
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
@@ -168,11 +169,60 @@ const searchOpportunities: AgentTool = {
   },
 }
 
+// ── get_recommendations ──────────────────────────────────────────────────────
+// Reco proactive issue du GRAPHE (profils similaires + éligibilité), lecture seule.
+// Lit le cache `RecommandationIA` (cf. recommandation.ts) — aucun appel LLM ici.
+const getRecommendations: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'get_recommendations',
+      description:
+        'Recommandations personnalisées d\'opportunités pour le bénéficiaire connecté, ' +
+        'issues du graphe de connaissances (profils au parcours similaire + éligibilité à son ' +
+        'niveau). Renvoie des offres cliquables avec la raison. À utiliser pour « que me ' +
+        'conseilles-tu ? » ou une suggestion proactive.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  async execute(_args, ctx) {
+    const recos = await getRecommandations(ctx.cjsUid)
+    if (recos.length === 0) return { ok: true, data: { count: 0 } }
+
+    const rows = await prisma.opportunite.findMany({
+      where: { id: { in: recos.map(r => r.opportuniteId) }, deletedAt: null },
+      select: {
+        id: true, slug: true, titre: true, type: true, region: true,
+        organisation: true, organisationLibelle: true, deadline: true,
+      },
+    })
+    const byId = new Map(rows.map(r => [r.id, r]))
+    const items: YayeOppItem[] = recos.flatMap(reco => {
+      const r = byId.get(reco.opportuniteId)
+      return r
+        ? [{
+            id: r.id, slug: r.slug, titre: r.titre, type: String(r.type),
+            organisation: r.organisationLibelle ?? r.organisation ?? null,
+            region: r.region ? String(r.region) : null,
+            deadline: r.deadline ? r.deadline.toISOString() : null,
+          }]
+        : []
+    })
+
+    return {
+      ok: true,
+      data: { count: items.length, raisons: recos.map(r => r.raison) },
+      block: items.length > 0 ? { kind: 'opportunites', items } : undefined,
+    }
+  },
+}
+
 /** Registre des outils disponibles. */
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
   get_realtime_data: getRealtimeData,
   search_opportunities: searchOpportunities,
+  get_recommendations: getRecommendations,
 }
 
 /** Définitions à passer à Groq (`tools` param). */

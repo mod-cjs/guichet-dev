@@ -45,9 +45,50 @@ export interface GraphOpportunite {
   deadline: string | null
 }
 
+/** Référence compacte d'une compétence. */
+export interface CompetenceRef {
+  slug: string | null
+  libelle: string
+}
+
+/** Résultat d'une analyse d'écart de compétences (orientation active, spec §4.2). */
+export interface SkillGapResult {
+  /** Compétences requises par l'offre que le bénéficiaire ne maîtrise pas. */
+  manquantes: CompetenceRef[]
+  /** Formations publiées qui développent ces compétences manquantes. */
+  formations: GraphOpportunite[]
+}
+
+/** Une reco collaborative AGRÉGÉE (jamais d'attribut d'un autre bénéficiaire). */
+export interface RecoAggregate {
+  id: string
+  slug: string
+  titre: string
+  popularite: number
+}
+
+/** Un maillon de parcours multi-entités (opportunité → formation → programme). */
+export interface MultiEntityPath {
+  id: string
+  slug: string
+  titre: string
+  competence: string | null
+  formationTitre: string | null
+  programmeNom: string | null
+}
+
+/** Portée d'appel d'un bénéficiaire (RBAC : un appel ne voit que ses données). */
+export interface GraphUserScope {
+  cjsUid: string
+  roles?: string[]
+}
+
 /**
  * Port du graphe. Toute opération est en LECTURE (Neo4j = read-model).
  * Les écritures passent par le pipeline de projection Prisma→Neo4j (GUIC-279).
+ *
+ * Réactif (`query_knowledge_graph`) et proactif (`get_recommendations`) partagent
+ * cette même logique de traversée (spec §0 — un seul cerveau : le graphe).
  */
 export interface GraphPort {
   readonly backend: GraphBackend
@@ -55,6 +96,14 @@ export interface GraphPort {
   healthcheck(): Promise<GraphHealth>
   /** Recherche simple d'opportunités publiées et non expirées. */
   searchOpportunites(criteria: OpportuniteSearchCriteria): Promise<GraphOpportunite[]>
+  /** Écart de compétences entre un bénéficiaire et une opportunité + formations qui le comblent. */
+  skillGap(scope: GraphUserScope, opportuniteId: string): Promise<SkillGapResult>
+  /** Opportunités éligibles au profil (niveau d'étude + expérience), non déjà postulées. */
+  eligibleOpportunites(scope: GraphUserScope, limit?: number): Promise<GraphOpportunite[]>
+  /** Reco collaborative agrégée (« des profils comme toi ont aussi postulé à… »). */
+  collaborativeReco(scope: GraphUserScope, limit?: number): Promise<RecoAggregate[]>
+  /** Parcours multi-entités pour la découverte (opportunité → compétence → formation → programme). */
+  multiEntityPath(criteria: { domaine?: string; region?: string; limit?: number }): Promise<MultiEntityPath[]>
 }
 
 export const DEFAULT_LIMIT = 5
