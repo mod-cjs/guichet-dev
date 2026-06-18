@@ -70,6 +70,7 @@ Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH
 - Salutation / question générale → réponds **directement**, sans outil.
 - Conseil personnalisé ("une offre pour moi", "suis-je éligible ?") → récupère **d'abord le profil**.
 - Question d'état ("où en sont mes candidatures ?", "mes favoris") → utilise les **données temps réel**.
+- Raisonnement sur les opportunités ("suis-je prêt pour cette offre ?", "qu'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).
 N'appelle un outil que s'il apporte une information utile à ta réponse ; sinon réponds directement.
 
 ## Langue
@@ -158,7 +159,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       const name = call.function.name
       const tStart = Date.now()
       const tool = TOOLS[name]
-      let result: { ok: boolean; data?: unknown; error?: string; block?: YayeBlock }
+      let result: { ok: boolean; data?: unknown; error?: string; block?: YayeBlock; graph?: { template: string; nodesReturned: number } }
 
       if (!tool) {
         result = { ok: false, error: `Outil inconnu: ${name}` }
@@ -183,6 +184,20 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         statut: result.ok ? 'succes' : 'echec',
         payload: { args: call.function.arguments },
       })
+
+      // Trace dédiée des interrogations du graphe (spec 02 §5 — événement graph_interroge).
+      if (result.graph) {
+        await logAgentEvent({
+          ...base,
+          typeEvenement: 'graph_interroge',
+          toolCalled: name,
+          dureeMs: Date.now() - tStart,
+          statut: result.ok ? 'succes' : 'echec',
+          cypherQuery: result.graph.template,
+          nodesReturned: { count: result.graph.nodesReturned },
+          payload: { args: call.function.arguments },
+        })
+      }
 
       // On renvoie au LLM les données (ok/data/error), PAS le bloc de rendu (économie de tokens).
       messages.push({

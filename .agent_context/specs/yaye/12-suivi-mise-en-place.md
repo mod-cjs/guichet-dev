@@ -77,10 +77,13 @@
 - [x] ✅ 1c — Agenda & ressources : `Evenement`/`INSCRIT_A`/`SE_DEROULE_A` ; `PREPARE` (dérivée floue)
 - [x] ✅ 1d — Centres : `Salle`/`Vehicule`/`DISPOSE_DE` (`ACCESSIBLE_A`/zone = Lot 2 ; biblio = Lot 3)
 - [x] ✅ Pipeline d'alimentation Prisma→Neo4j idempotent (`reprojectAll`, sync nocturne) — voie événementielle à brancher
-- [x] ✅ Templates de traversée (recherche, **gap compétences**, **éligibilité**, **reco collab agrégée**, **parcours multi-entités**) — `cypher-templates.ts` + fallback Prisma. *(outil `query_knowledge_graph` NL→params = câblage agent restant, GUIC-433)*
+- [x] ✅ Templates de traversée (recherche, **gap compétences**, **éligibilité**, **reco collab agrégée**, **parcours multi-entités**) — `cypher-templates.ts` + fallback Prisma
+- [x] ✅ **Outil réactif `query_knowledge_graph`** (5 intents NL→params→template) câblé dans l'agent + journal **`graph_interroge`** (cypher/nodesReturned) — GUIC-433
 - [x] ✅ 1e — Recommandation proactive : scoring graphe → `RecommandationIA` (cache) + outil **`get_recommendations`** (`recommandation.ts`, registre TOOLS)
-- [ ] ⬜ **Exécution réelle** : provisionner Neo4j 5.x, `reprojectAll` sur données réelles, mesurer latence, brancher la voie événementielle + `query_knowledge_graph` côté agent
-- [x] ✅ **Tests** : 32 nouveaux (normalisation floue, niveaux, fallback gap/éligibilité/collab, reco, projection) — **100/100 Yaye verts**
+- [x] ✅ **Voie événementielle** : `projectOpportunite(id)` + déclencheur fail-soft `syncOpportuniteToGraph` (à appeler depuis la création/modif d'opportunité)
+- [x] ✅ **Reprojection nocturne** : route cron `/api/cron/yaye-graph-sync` (Bearer `CRON_SECRET`) + `vercel.json` (02:30) — au passage : virgule manquante JSON corrigée
+- [ ] ⬜ **Exécution réelle** : provisionner Neo4j 5.x, `reprojectAll` sur données réelles, mesurer latence ; brancher `syncOpportuniteToGraph` dans `OpportuniteService` (write path)
+- [x] ✅ **Tests** : 48 nouveaux (normalisation, niveaux, fallback, reco, projection, query_knowledge_graph, projection événementielle, cron) — **116/116 Yaye verts**
 
 ### Lot 2 — Ressources centres (salles + véhicules)
 - [ ] ⬜ Mapper `reserve_resource` sur `Reservation`/`RessourceCentre`

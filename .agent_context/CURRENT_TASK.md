@@ -39,13 +39,20 @@
 
 Tests : `yaye-skills-normalize`, `yaye-graph-niveau`, `yaye-graph-fallback`, `yaye-recommandation`, `yaye-graph-projection`, `yaye-graph` (+11).
 
+## Câblage réactif + alimentation (fait — 116/116 tests Yaye verts)
+- **Outil `query_knowledge_graph`** (`tools.ts`) : 5 intents (recherche, ecart_competences, eligibilite, reco_collaborative, parcours) → `GraphPort` ; cards + méta `graph`. Registre TOOLS + prompt système orienté.
+- **Agent** (`agent.ts`) : journalise **`graph_interroge`** (cypherQuery=template, nodesReturned) en plus de `api_appelee`.
+- **Voie événementielle** (`projection/project.ts`) : `projectOpportunite(id)` (upsert nœud + sous-type + relations cœur) + `syncOpportuniteToGraph(id)` fail-soft.
+- **Reprojection nocturne** : `src/app/api/cron/yaye-graph-sync/route.ts` (Bearer `CRON_SECRET`) + `vercel.json` (02:30, virgule JSON manquante corrigée).
+- Helper mutualisé `loadOppItems` (get_recommendations + query_knowledge_graph).
+
 ## Reste à faire (exécution réelle — hors code applicatif)
 - [ ] Provisionner Neo4j 5.x (ops) → `NEO4J_*` → l'adapter Neo4j prend le relais.
 - [ ] `reprojectAll()` sur données réelles + mesure de latence des templates.
-- [ ] Brancher la voie **événementielle** (upsert à la création/modif d'opportunité) + l'outil `query_knowledge_graph` (NL→params Groq) côté agent.
+- [ ] Appeler `syncOpportuniteToGraph(id)` depuis le write path `OpportuniteService` (création/modif/suppression).
 
 ## Prochaine étape
-Provisionner Neo4j + reprojection réelle, puis câblage `query_knowledge_graph` dans l'agent (réactif).
+Provisionner Neo4j + reprojection réelle ; brancher `syncOpportuniteToGraph` dans `OpportuniteService`.
 
 ## Garde-fous (rappel spec 02 §0)
 - Prisma/MariaDB = source de vérité ; Neo4j = read-model reconstructible. **Sens d'écriture unique** Prisma→Neo4j.

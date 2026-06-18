@@ -330,4 +330,77 @@ export async function reprojectAll(opts: { wipe?: boolean } = {}): Promise<Proje
   return { backend: 'neo4j', durationMs, nodes, relations }
 }
 
+// ── Voie événementielle (upsert mono-opportunité) ──────────────────────────────
+
+const SUBTYPE_RELATIONS: ReadonlyArray<readonly [string, string]> = [
+  ['Emploi', 'emploi'], ['Stage', 'stage'], ['Formation', 'formation'], ['Bourse', 'bourse'],
+  ['Concours', 'concours'], ['AppelAProjets', 'appelAProjets'], ['Financement', 'financement'],
+  ['Mentorat', 'mentorat'], ['Mobilite', 'mobilite'], ['Volontariat', 'volontariat'],
+]
+
+/**
+ * Projette/rafraîchit UNE opportunité (création/modification) + ses relations cœur.
+ * Idempotent. No-op si Neo4j non configuré. Les nœuds référentiels (Competence,
+ * Programme…) sont supposés déjà projetés (réparés sinon par `reprojectAll`).
+ */
+export async function projectOpportunite(id: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  const o = await prisma.opportunite.findUnique({
+    where: { id },
+    include: {
+      emploi: true, stage: true, formation: true, bourse: true, concours: true,
+      appelAProjets: true, financement: true, mentorat: true, mobilite: true, volontariat: true,
+      skills: true, tags: true,
+    },
+  })
+  if (!o || o.deletedAt) return false
+  await ensureGraphSchema()
+
+  await mergeNodes('Opportunite', 'id', [{
+    id: o.id, slug: o.slug, titre: o.titre, domaine: o.domaine, region: o.region,
+    statut: o.statut, deadline: o.deadline, remuneration: o.remuneration,
+    niveauEtudeMin: o.niveauEtudeMin, organisationLibelle: o.organisationLibelle, vues: o.vues,
+  }])
+
+  // Label de sous-type + props spécifiques (le 1er non-null — invariant XOR).
+  for (const [label, key] of SUBTYPE_RELATIONS) {
+    const sub = (o as unknown as Record<string, unknown>)[key]
+    if (sub) {
+      const props: Record<string, unknown> = { ...(sub as Record<string, unknown>) }
+      delete props.opportuniteId
+      await mergeNodes('Opportunite', 'id', [{ id: o.id, ...props }], [label])
+      break
+    }
+  }
+
+  // Enums réifiés référencés (merge défensif pour ne pas perdre la relation).
+  if (o.domaine) await mergeNodes('Secteur', 'libelle', [{ libelle: String(o.domaine) }])
+  if (o.region) await mergeNodes('Region', 'nom', [{ nom: String(o.region) }])
+
+  // Relations cœur.
+  if (o.typeId) await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id', [{ from: o.id, to: o.typeId }])
+  if (o.programmeId) await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id', [{ from: o.programmeId, to: o.id }])
+  if (o.organisationId) await mergeRels('PUBLIE', 'Organisation', 'id', 'Opportunite', 'id', [{ from: o.organisationId, to: o.id }])
+  if (o.domaine) await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle', [{ from: o.id, to: String(o.domaine) }])
+  if (o.region) await mergeRels('SITUE_A', 'Opportunite', 'id', 'Region', 'nom', [{ from: o.id, to: String(o.region) }])
+  await mergeRels('REQUIERT', 'Opportunite', 'id', 'Competence', 'id',
+    o.skills.filter(s => s.requise).map(s => ({ from: o.id, to: s.skillId, requise: true })))
+  if (o.formation) {
+    await mergeRels('DEVELOPPE', 'Opportunite', 'id', 'Competence', 'id',
+      o.skills.filter(s => !s.requise).map(s => ({ from: o.id, to: s.skillId })))
+  }
+  await mergeRels('ETIQUETTE', 'Opportunite', 'id', 'Tag', 'id', o.tags.map(t => ({ from: o.id, to: t.tagId })))
+  return true
+}
+
+/**
+ * Déclencheur FAIL-SOFT (fire-and-forget) à appeler après création/modif d'une
+ * opportunité. Ne lève jamais, ne bloque jamais la requête appelante.
+ */
+export function syncOpportuniteToGraph(id: string): void {
+  void projectOpportunite(id).catch(err =>
+    logger.warn('[graph:projection] sync opportunité échouée (fail-soft)', { id, err: String(err) }),
+  )
+}
+
 export { OPPORTUNITE_SUBTYPE_LABELS }
