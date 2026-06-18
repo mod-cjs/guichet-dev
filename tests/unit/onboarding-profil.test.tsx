@@ -25,7 +25,10 @@ describe('<OnboardingProfil /> — écran 4/5', () => {
     render(<OnboardingProfil initial={EMPTY_INITIAL} />)
     expect(screen.getByLabelText(/prénom/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^nom/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/date de naissance/i)).toBeInTheDocument()
+    // F-01 : date de naissance est désormais 3 selects (jour/mois/année)
+    expect(screen.getByRole('combobox', { name: /jour/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /mois/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /ann[ée]e/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/commune/i)).toBeInTheDocument()
   })
 

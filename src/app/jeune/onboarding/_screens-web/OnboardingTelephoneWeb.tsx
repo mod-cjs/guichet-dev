@@ -218,6 +218,7 @@ export function OnboardingTelephoneWeb({ telephone }: Props) {
             </button>
             <Link
               href="/api/auth/login"
+              prefetch={false}
               className="inline-flex items-center gap-2 font-black no-underline"
               style={{
                 background: 'var(--gj-whatsapp)',
