@@ -329,6 +329,29 @@ export function CandidatureModal({
     onClose()
   }, [submitted, lettre, hasCv, onClose])
 
+  // GUIC-419 — Bouton "Brouillon" du footer : sauvegarde explicite (serveur +
+  // localStorage en miroir) puis ferme sans déclencher le POST candidature.
+  // Court-circuite le garde-fou `handleClose` (l'utilisateur sait qu'il sauve).
+  const saveDraftAndClose = useCallback(() => {
+    // Sauvegarde locale immédiate (synchrone, offline-first).
+    saveCandidatureDraft({
+      cjsUid: null,
+      opportuniteId,
+      lettre,
+      consent,
+      hadCvFile: cvFile !== null || cvUploaded !== null,
+      cvMode,
+    })
+    // Sauvegarde serveur best-effort (multi-device).
+    void pushServerDraft(opportuniteId, {
+      lettre,
+      consent,
+      cvMode,
+      cvUrl: cvUploaded?.url ?? null,
+    })
+    onClose()
+  }, [opportuniteId, lettre, consent, cvFile, cvUploaded, cvMode, onClose])
+
   async function submit() {
     if (!canSubmit) return
     setSending(true)
@@ -746,23 +769,39 @@ export function CandidatureModal({
         </span>
       </label>
 
-      {/* CTA sticky */}
+      {/* CTA sticky — GUIC-419 : footer = [Brouillon outline] + [Envoyer primaire]. */}
       <div
         className="sticky bottom-0 left-0 right-0 bg-white pt-space-3 pb-space-2 mt-space-5
           border-t border-gj-line -mx-space-4 px-space-4"
       >
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full"
-          loading={sending}
-          disabled={!canSubmit}
-          onClick={submit}
-          aria-describedby={disabledReason ? counterId : undefined}
-          title={disabledReason}
-        >
-          Envoyer ma candidature
-        </Button>
+        <div className="flex gap-space-2">
+          {/* GUIC-419 — Bouton Brouillon : pousse le draft serveur puis ferme.
+              Reste actif tant que l'envoi n'est pas en cours (sauvegarde partielle
+              autorisée même si lettre trop courte / CGU non cochée). */}
+          <button
+            type="button"
+            data-testid="save-draft-button"
+            onClick={saveDraftAndClose}
+            disabled={sending}
+            className="inline-flex items-center justify-center rounded-gj-md bg-white
+              text-color-text-muted border-[1.5px] border-gj-line font-bold text-fs-200
+              px-space-4 min-h-[46px] hover:bg-gj-bg disabled:opacity-60"
+          >
+            Brouillon
+          </button>
+          <Button
+            variant="primary"
+            size="lg"
+            className="flex-1"
+            loading={sending}
+            disabled={!canSubmit}
+            onClick={submit}
+            aria-describedby={disabledReason ? counterId : undefined}
+            title={disabledReason}
+          >
+            Envoyer ma candidature
+          </Button>
+        </div>
         <p className="flex items-center justify-center gap-space-1 mt-space-2 text-fs-100 text-color-text-muted">
           <Icon name="whatsapp" size={14} />
           Tu seras notifié par WhatsApp dès qu&apos;on a une réponse.
