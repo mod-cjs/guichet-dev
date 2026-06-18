@@ -149,7 +149,7 @@ export function OnboardingTelephone({ telephone }: Props) {
       />
 
       <div className="text-center pb-space-3 text-fs-100 text-gj-grey px-space-4">
-        Vérification gérée par le <Link href="/api/auth/login" className="font-bold text-gj-teal-deep no-underline">SSO CJS</Link>.
+        Vérification gérée par le <Link href="/api/auth/login" prefetch={false} className="font-bold text-gj-teal-deep no-underline">SSO CJS</Link>.
       </div>
     </div>
   )
