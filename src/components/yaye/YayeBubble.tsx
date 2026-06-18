@@ -1,7 +1,7 @@
 'use client'
 
 import { YayeFab } from '@/components/ui/Yaye/YayeFab'
-import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
+import { YayeConversation } from '@/components/yaye/YayeConversation'
 import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 export interface YayeBubbleProps {
@@ -38,7 +38,7 @@ export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
     return (
       <>
         {!isOpen && <YayeFab bottom={bottom} right={right} onClick={open} />}
-        <YayeSidePanel open={isOpen} onClose={close} />
+        <YayeConversation open={isOpen} onClose={close} />
       </>
     )
   }
@@ -57,7 +57,7 @@ export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
           </span>
         </>
       )}
-      <YayeSidePanel open={isOpen} onClose={close} />
+      <YayeConversation open={isOpen} onClose={close} />
     </>
   )
 }

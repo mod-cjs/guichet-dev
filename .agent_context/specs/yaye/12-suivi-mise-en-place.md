@@ -53,12 +53,21 @@
 
 ## Implémentation applicative (Next.js / TypeScript) — cf. [09 roadmap](./09-roadmap-decoupage.md)
 
-### Lot 0 — Fondations agent (sans Neo4j)
-- [ ] ⬜ Service agent : orchestration intention → outil → réponse normalisée
-- [ ] ⬜ Réécrire `src/lib/ia/rag.ts` (1 appel) → **function calling Groq** (fusion intention+outil, R3)
-- [ ] ⬜ Implémenter `src/app/api/ia/route.ts` (501 aujourd'hui) en SSE + brancher `YayeChat.tsx`
-- [ ] ⬜ Réutiliser `ConversationWhatsApp`/`MessageWhatsApp` (transcript) + Redis cache
-- [ ] ⬜ Modèle Prisma `agent_logs` + migration + journaliseur (événements de base)
+### Lot 0 — Fondations agent (sans Neo4j) — 🟡 en cours
+- [x] ✅ Service agent : orchestration intention → outil → réponse (`src/lib/ia/agent.ts`, `runAgent`)
+- [x] ✅ **Function calling Groq** (fusion intention+outil en 1 appel, R3) + 2 outils (`tools.ts` : `get_user_profile`, `get_realtime_data`)
+- [x] ✅ Modèle Prisma `AgentLog` + migration `20260617120000_add_agent_logs` + journaliseur fail-soft (`agent-logs.ts`)
+- [x] ✅ **Tests unitaires** (16, Groq/Prisma mockés) : `runAgent` (boucle + RBAC + max-rounds + blocs), journaliser fail-soft, outils (dont `search_opportunities`), garde-fous route — `tests/unit/yaye-*.test.ts`
+- [x] ✅ `src/app/api/ia/route.ts` implémentée (réponse **en blocs**) — SSE reporté au Lot 5
+- [x] ✅ **Bonne surface câblée** : drawer du bouton flottant (`YayeFab`→`YayeConversation`→`YayeSidePanel`), composer réel branché sur `/api/ia` (la page `YayeChat` mobile reste à aligner sur les blocs)
+- [x] ✅ **Anticipé des Lots 1/5** : outil `search_opportunities` (Prisma réel) + contrat de réponse **en blocs** + rendu **cards opportunités cliquables** (`YayeOppCard` → `/opportunites/[slug]`) + CTA **Candidater** (`?postuler=1`) + `YayeActionCard` pour les soumissions
+- [x] ✅ **Contexte serveur Redis** (`context.ts`, TTL 30 min web / 7 j WhatsApp, fail-soft) — `/api/ia` est désormais autorité serveur (plus l'historique client)
+- [x] ✅ **Webhook WhatsApp → `runAgent`** (`/api/whatsapp`) : résolution `cjs_uid` via binding `ConversationWhatsApp`, **formateur blocs→texte** (`format-whatsapp.ts`, liste numérotée + deep links), invite si non lié, idempotence conservée
+- [ ] ⬜ *(refinement)* Miroir durable `ConversationWhatsApp.contexte` + transcript `MessageWhatsApp` (aujourd'hui : Redis pour le contexte)
+- [x] ✅ Page mobile `YayeChat` (`/jeune/yaye`) alignée sur le **même flux blocs** que le drawer (cards cliquables)
+- [x] ✅ **Jamais de % de compatibilité** dans les réponses Yaye (règle 7 du prompt + mocks nettoyés). Exception hors chat : `YayeMatchCard` (page détail) — à arbitrer
+- [ ] ⬜ **Pour exécuter** : renseigner `GROQ_API_KEY` (vide) + `prisma migrate deploy` (table `agent_logs` absente en local) + réparer le build rouge pré-existant
+- [ ] ⬜ Brancher le webhook WhatsApp (`/api/whatsapp`) sur `runAgent` (utilise encore `rag.ts`)
 
 ### Lot 1 — Knowledge Graph Neo4j (enrichi)
 - [ ] ⬜ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback)
@@ -114,6 +123,6 @@
 |-------|---------------|
 | Cadrage & décisions | 🟡 1/9 décisions actées · risques non levés |
 | POC Knowledge Graph | ✅ validé (mécanique + mesure) |
-| Implémentation app (Lots 0-8) | ⬜ non démarrée |
+| Implémentation app | 🟢 **Lot 0 ~complet** (agent, agent_logs, /api/ia blocs + Redis, drawer+page UI cards, WhatsApp→runAgent, 68 tests) — restent prérequis d'exécution (clé Groq, migration, build rouge) · Lots 1-8 ⬜ |
 
 > Prochain jalon bloquant : **lever R1 (Neo4j) et R2 (normalisation compétences)** → débloque le Lot 1.

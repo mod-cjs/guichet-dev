@@ -1,75 +1,36 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
-import { YayeActionCard } from '@/components/ui/Yaye/YayeActionCard'
 import { QuickReplies, type QuickReply } from '@/components/ui/Yaye/QuickReplies'
 import { Icon } from '@/components/ui/Icon'
+import { YayeBlocks } from '@/components/yaye/YayeBlocks'
+import type { YayeBlock } from '@/lib/ia/blocks'
 
-/** Types de messages affichés dans la conversation. */
-export type YayeMessage =
-  | { id: string; kind: 'bubble'; from: 'bot' | 'user'; text: string; timestamp?: string }
-  | {
-      id: string
-      kind: 'action-card'
-      title?: string
-      subtitle?: string
-      actions: { icon: 'check-circle' | 'document' | 'mail' | 'sparkle'; label: string }[]
-    }
+/** Message affiché dans la conversation. `text` est un ReactNode → permet d'y rendre
+ *  des blocs riches (texte + cards opportunités cliquables + actions), via YayeBlocks. */
+export type YayeMessage = { id: string; kind: 'bubble'; from: 'bot' | 'user'; text: ReactNode; timestamp?: string }
 
-/** Liste de messages mock d'entrée. */
 const INITIAL_MESSAGES: YayeMessage[] = [
   {
     id: 'm1',
     kind: 'bubble',
     from: 'bot',
-    text: "Salama Awa. J'ai analysé 247 offres ce matin — 3 collent à >90% à ton profil. Je te les montre ?",
+    text: "Salama 👋 Je suis Yaye. Dis-moi ce que tu cherches — une opportunité, une formation, ou bien où en sont tes candidatures.",
     timestamp: '09:41',
-  },
-  {
-    id: 'm2',
-    kind: 'bubble',
-    from: 'user',
-    text: 'Oui, montre-moi les meilleures',
-    timestamp: '09:42',
-  },
-  {
-    id: 'm3',
-    kind: 'action-card',
-    title: 'Yaye a agi pour toi',
-    subtitle: '3 actions · à valider',
-    actions: [
-      { icon: 'check-circle', label: 'Filtré 247 → 3 opportunités (match 92%, 91%, 90%)' },
-      { icon: 'document', label: 'Pré-rempli ton dossier candidature' },
-      { icon: 'mail', label: 'Préparé un brouillon d’email pour le recruteur' },
-    ],
   },
 ]
 
 const INITIAL_REPLIES: QuickReply[] = [
-  { label: 'Voir les 3 opportunités', value: 'Voir les 3 opportunités' },
-  { label: 'Affiner par localisation', value: 'Affiner par localisation' },
-  { label: 'Trouve plutôt une formation', value: 'Trouve plutôt une formation' },
-  { label: 'Préparer ma candidature', value: 'Préparer ma candidature' },
+  { label: 'Une offre pour moi', value: 'Trouve-moi une opportunité adaptée à mon profil' },
+  { label: 'Une formation', value: 'Je cherche une formation près de chez moi' },
+  { label: 'Mes candidatures', value: 'Où en sont mes candidatures ?' },
 ]
 
-const BOT_DELAY_MS = 800
-
-function botReplyFor(input: string): string {
-  const t = input.toLowerCase()
-  if (t.includes('formation')) {
-    return "Bien noté — je cherche des formations courtes finançables près de chez toi. 2 secondes…"
-  }
-  if (t.includes('localis') || t.includes('près')) {
-    return "Tu es à Tambacounda. Je restreins le rayon à 50 km. OK ?"
-  }
-  if (t.includes('candidature') || t.includes('dossier')) {
-    return "Ton dossier est prêt à 80%. Il manque ta lettre de motivation. On la rédige ensemble ?"
-  }
-  return "Reçu. Je traite ta demande et je reviens vers toi avec une proposition concrète."
-}
+/** Garde les N derniers échanges envoyés à l'agent comme contexte. */
+const HISTORY_MAX = 10
 
 export function YayeChat() {
   const [messages, setMessages] = useState<YayeMessage[]>(INITIAL_MESSAGES)
@@ -77,6 +38,9 @@ export function YayeChat() {
   const [isTyping, setIsTyping] = useState(false)
   const listEndRef = useRef<HTMLDivElement | null>(null)
   const idCounter = useRef(0)
+  // Persistance conversation côté agent : id de session + historique envoyé en contexte.
+  const sessionIdRef = useRef<string | undefined>(undefined)
+  const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
   const nextId = () => {
     idCounter.current += 1
@@ -88,34 +52,47 @@ export function YayeChat() {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }, [])
 
-  const sendMessage = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-      const userMsg: YayeMessage = {
-        id: nextId(),
-        kind: 'bubble',
-        from: 'user',
-        text: trimmed,
-        timestamp: formatTime(),
-      }
-      setMessages(prev => [...prev, userMsg])
-      setInput('')
-      setIsTyping(true)
-      const reply = botReplyFor(trimmed)
-      setTimeout(() => {
-        const botMsg: YayeMessage = {
-          id: nextId(),
-          kind: 'bubble',
-          from: 'bot',
-          text: reply,
-          timestamp: formatTime(),
-        }
-        setMessages(prev => [...prev, botMsg])
-        setIsTyping(false)
-      }, BOT_DELAY_MS)
+  const pushBot = useCallback(
+    (text: ReactNode) => {
+      setMessages(prev => [...prev, { id: nextId(), kind: 'bubble', from: 'bot', text, timestamp: formatTime() }])
     },
     [formatTime],
+  )
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      setMessages(prev => [
+        ...prev,
+        { id: nextId(), kind: 'bubble', from: 'user', text: trimmed, timestamp: formatTime() },
+      ])
+      setInput('')
+      setIsTyping(true)
+
+      const history = historyRef.current.slice(-HISTORY_MAX)
+      historyRef.current.push({ role: 'user', content: trimmed })
+
+      try {
+        const res = await fetch('/api/ia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: trimmed, sessionId: sessionIdRef.current, history }),
+        })
+        const json = await res.json()
+        const reply: string =
+          json?.data?.reply ?? json?.error?.message ?? "Je n'ai pas pu répondre pour le moment."
+        const blocks: YayeBlock[] = json?.data?.blocks ?? [{ kind: 'text', text: reply }]
+        if (json?.data?.sessionId) sessionIdRef.current = json.data.sessionId
+        historyRef.current.push({ role: 'assistant', content: reply })
+        pushBot(<YayeBlocks blocks={blocks} />)
+      } catch {
+        pushBot('Connexion interrompue. Réessaie dans un instant.')
+      } finally {
+        setIsTyping(false)
+      }
+    },
+    [formatTime, pushBot],
   )
 
   // Auto-scroll quand la liste change.
@@ -162,20 +139,11 @@ export function YayeChat() {
         aria-label="Conversation Yaye"
         className="flex-1 overflow-y-auto px-space-3 py-space-3 flex flex-col gap-space-3"
       >
-        {messages.map(m =>
-          m.kind === 'bubble' ? (
-            <YayeBubble key={m.id} from={m.from} timestamp={m.timestamp}>
-              {m.text}
-            </YayeBubble>
-          ) : (
-            <YayeActionCard
-              key={m.id}
-              title={m.title}
-              subtitle={m.subtitle}
-              actions={m.actions}
-            />
-          ),
-        )}
+        {messages.map(m => (
+          <YayeBubble key={m.id} from={m.from} timestamp={m.timestamp}>
+            {m.text}
+          </YayeBubble>
+        ))}
         {isTyping && (
           <div
             data-testid="yaye-typing"

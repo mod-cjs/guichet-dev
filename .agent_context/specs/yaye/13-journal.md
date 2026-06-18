@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-06-17 — Lot 0 : complétion (canaux + persistance + cards)
+- **Fait** : réponses **en blocs** (texte + cards opportunités cliquables) — outil `search_opportunities`
+  (Prisma) ; **bonne surface UI** câblée (drawer du bouton flottant `YayeConversation`/`YayeSidePanel` +
+  page mobile `YayeChat`) ; **contexte serveur Redis** (`context.ts`, autorité serveur) ; **webhook
+  WhatsApp → `runAgent`** + formateur blocs→texte (`format-whatsapp.ts`) + binding `cjs_uid`.
+- **Prompt** : règle « jamais de % de compatibilité » + config modèle surchargeable par env.
+- **Validé** : tsc ✅, eslint ✅, **68 tests Yaye** (15 suites).
+- **Restes** : prérequis d'exécution (clé Groq, migration `agent_logs`, build rouge pré-existant) ;
+  miroir durable `ConversationWhatsApp.contexte`/`MessageWhatsApp` ; SSE (Lot 5).
+
+## 2026-06-17 — Lot 0 : fondations agent (code applicatif)
+- **Fait** : modèle Prisma `AgentLog` + enums + migration `20260617120000_add_agent_logs` ;
+  journaliseur fail-soft (`src/lib/ia/agent-logs.ts`) ; outils function-calling
+  (`src/lib/ia/tools.ts` : `get_user_profile`, `get_realtime_data`) ; orchestrateur
+  `runAgent` (`src/lib/ia/agent.ts`, boucle intention+outil en 1 appel, R3) ;
+  route `/api/ia` (POST, auth + rate-limit + journalisation) ; `YayeChat.tsx` branché
+  sur le vrai backend (fin du mock).
+- **Validé** : tsc ✅ et eslint ✅ sur tous les nouveaux fichiers (0 erreur).
+- **Bloqué / à suivre** : `GROQ_API_KEY` vide + migration non appliquée en local (DB cible
+  ambiguë 3306/3307) → pas d'exécution end-to-end. SSE reporté (Lot 5). Webhook WhatsApp
+  utilise encore `rag.ts`. Build global rouge (tests pré-existants) à réparer avant commit vert.
+- **Liens** : `.agent_context/specs/yaye/12-suivi-mise-en-place.md` (Lot 0)
+
 ## 2026-06-17 — POC Knowledge Graph : enrichissement + mesure de qualité
 - **Fait** : génération de données synthétiques enrichies (`enrich_dump.py`) pour densifier les arêtes
   (REQUIERT, MAITRISE, A_POSTULE, ETIQUETTE, PUBLIE, ATTESTE…) ; cadre de **mesure de qualité**

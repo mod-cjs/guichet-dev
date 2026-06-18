@@ -1237,3 +1237,70 @@ model CentreEvent {
   @@index([centreId, type, ts])
   @@map("centre_events")
 }
+
+// ─────────────────────────────────────────────
+// M12 — IA : TRAÇABILITÉ AGENT YAYE (GUIC-259)
+// Trace technique par événement (distincte de MessageWhatsApp = transcript,
+// et de CentreEvent = KPI). Cf. .agent_context/specs/yaye/06-agent-logs-tracabilite.md
+// ─────────────────────────────────────────────
+
+enum CanalAgent {
+  web
+  whatsapp
+
+  @@map("canal_agent")
+}
+
+enum StatutAgent {
+  succes
+  echec
+  partiel
+
+  @@map("statut_agent")
+}
+
+/// Types d'événements journalisés par Yaye (taxonomie spec §7.3).
+enum TypeEvenementAgent {
+  session_ouverte
+  message_recu
+  intention_detectee
+  graph_interroge
+  api_appelee
+  reponse_generee
+  badge_genere
+  reservation_soumise
+  emprunt_initie
+  retour_enregistre
+  contenu_transmis
+  format_canal
+  escalade_conseiller
+  erreur
+
+  @@map("type_evenement_agent")
+}
+
+/// Une ligne par action de Yaye, écrite au moment où elle se produit.
+/// Une conversation de 10 échanges génère typiquement 40-60 lignes.
+model AgentLog {
+  id            String             @id @default(uuid()) @db.VarChar(36)
+  sessionId     String             @map("session_id") @db.VarChar(36)
+  cjsUid        String?            @map("cjs_uid") @db.VarChar(36)
+  role          String?            @db.VarChar(40)
+  centreId      String?            @map("centre_id") @db.VarChar(36)
+  canal         CanalAgent
+  tsMs          BigInt             @map("ts_ms") // horodatage epoch en millisecondes
+  typeEvenement TypeEvenementAgent @map("type_evenement")
+  toolCalled    String?            @map("tool_called") @db.VarChar(60)
+  payload       Json? // message, paramètres, résultats — ⚠️ PII : minimisation + droit à l'oubli (doc 07/10)
+  cypherQuery   String?            @map("cypher_query") @db.Text
+  nodesReturned Json?              @map("nodes_returned")
+  formatCanal   String?            @map("format_canal") @db.VarChar(40)
+  dureeMs       Int?               @map("duree_ms")
+  statut        StatutAgent        @default(succes)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  @@index([sessionId, createdAt])
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([typeEvenement, createdAt])
+  @@map("agent_logs")
+}
