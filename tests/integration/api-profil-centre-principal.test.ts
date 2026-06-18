@@ -2,6 +2,7 @@
  * @jest-environment node
  *
  * Tests `POST /api/profil/centre-principal` (Wave 2 / GUIC-353).
+ * [GUIC-431] RED — update → upsert (ProfilJeune créé à la finalisation, pas avant)
  */
 
 jest.mock('@/lib/auth', () => ({
@@ -12,11 +13,11 @@ jest.mock('@/lib/rate-limit', () => ({
   rateLimit: jest.fn().mockResolvedValue(null),
 }))
 
-const mockUpdate = jest.fn()
+const mockUpsert = jest.fn()
 const mockCentreFind = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
-    profilJeune: { update: (...a: unknown[]) => mockUpdate(...a) },
+    profilJeune: { upsert: (...a: unknown[]) => mockUpsert(...a) },
     centre: { findUnique: (...a: unknown[]) => mockCentreFind(...a) },
   },
 }))
@@ -35,7 +36,7 @@ function postReq(body: unknown): NextRequest {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  mockUpdate.mockResolvedValue({})
+  mockUpsert.mockResolvedValue({})
   mockCentreFind.mockResolvedValue({ id: 'c1', estActif: true })
 })
 
@@ -46,14 +47,15 @@ describe('POST /api/profil/centre-principal', () => {
     expect(r.status).toBe(401)
   })
 
-  it('met à jour centrePrincipalId quand centreId valide', async () => {
+  it('upsert centrePrincipalId quand centreId valide', async () => {
     ;(getSession as jest.Mock).mockResolvedValue({ cjsUid: 'uid-1' })
     const r = await POST(postReq({ centreId: 'c1' }))
     expect(r.status).toBe(200)
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { cjsUid: 'uid-1' },
-        data: expect.objectContaining({ centrePrincipalId: 'c1' }),
+        update: expect.objectContaining({ centrePrincipalId: 'c1' }),
+        create: expect.objectContaining({ cjsUid: 'uid-1', centrePrincipalId: 'c1' }),
       }),
     )
   })
@@ -62,9 +64,10 @@ describe('POST /api/profil/centre-principal', () => {
     ;(getSession as jest.Mock).mockResolvedValue({ cjsUid: 'uid-1' })
     const r = await POST(postReq({ centreId: null }))
     expect(r.status).toBe(200)
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ centrePrincipalId: null }),
+        update: expect.objectContaining({ centrePrincipalId: null }),
+        create: expect.objectContaining({ cjsUid: 'uid-1', centrePrincipalId: null }),
       }),
     )
     // Pas de lookup centre si null
