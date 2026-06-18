@@ -9,8 +9,29 @@ import { Chip } from '@/components/ui/Chip'
 import { StepBar } from '@/components/ui/StepBar'
 import { FooterCTA } from '@/components/ui/FooterCTA'
 import { REGIONS_SENEGAL } from '@/lib/regions'
+import { communesForRegion } from '@/lib/communes'
 import { patchDraft, readDraft } from '@/lib/onboarding-draft'
 import { stepIdentiteSchema, stepLocalisationSchema } from '@/lib/validations/onboarding'
+
+/**
+ * Valeur sentinelle utilisée dans le select commune / niveau pour déclencher
+ * le mode saisie libre « Autre ». Ne correspond à aucune commune réelle.
+ */
+const AUTRE_VALUE = '__autre__'
+
+/**
+ * Mapping enum Prisma NiveauEtudes → libellé FR affiché dans le select.
+ * GUIC-432.
+ */
+const NIVEAU_ETUDES_OPTIONS: { value: string; label: string }[] = [
+  { value: 'BFEM',       label: 'BFEM' },
+  { value: 'BAC',        label: 'Baccalauréat' },
+  { value: 'BAC_PLUS_2', label: 'Bac+2 (DUT/BTS)' },
+  { value: 'BAC_PLUS_3', label: 'Licence (Bac+3)' },
+  { value: 'BAC_PLUS_5', label: 'Master (Bac+5)' },
+  { value: 'DOCTORAT',   label: 'Doctorat' },
+  { value: AUTRE_VALUE,  label: 'Autre' },
+]
 
 /**
  * Libellés des mois en français pour les 3 selects de date de naissance.
@@ -95,6 +116,17 @@ export function OnboardingProfil({ initial }: Props) {
   const [genre, setGenre]                 = useState<'M' | 'F' | 'Autre' | null>(initial.genre)
   const [region, setRegion]               = useState(initial.region)
   const [commune, setCommune]             = useState(initial.commune)
+  // Select commune : valeur du select (nom commune ou AUTRE_VALUE)
+  // Initialisé depuis initial.commune : si la commune n'est pas dans la liste de la région,
+  // on considère qu'elle a été saisie librement → mode Autre.
+  const [communeSelectVal, setCommuneSelectVal] = useState<string>(() => {
+    if (!initial.commune) return ''
+    const list = communesForRegion(initial.region)
+    return list.includes(initial.commune) ? initial.commune : AUTRE_VALUE
+  })
+  // Niveau d'études
+  const [niveauSelectVal, setNiveauSelectVal] = useState<string>('')
+  const [niveauLibre, setNiveauLibre]         = useState<string>('')
   const [loading, setLoading]             = useState(false)
   const [errors, setErrors]               = useState<Record<string, string>>({})
 
@@ -143,6 +175,43 @@ export function OnboardingProfil({ initial }: Props) {
     // 'Autre' n'est pas envoyé à l'API (enum Prisma = M|F seulement).
     // On garde l'info en local pour l'UX mais on n'altère pas le draft persisté.
     if (g === 'M' || g === 'F') void patchDraft({ genre: g })
+  }
+
+  function handleRegionChange(r: string) {
+    setRegion(r)
+    void patchDraft({ region: r })
+    // Réinitialiser commune si la valeur actuelle n'est plus dans la nouvelle liste
+    const newList = communesForRegion(r)
+    if (communeSelectVal !== AUTRE_VALUE && commune && !newList.includes(commune)) {
+      setCommune('')
+      setCommuneSelectVal('')
+      void patchDraft({ commune: undefined })
+    }
+  }
+
+  function handleCommuneSelectChange(val: string) {
+    setCommuneSelectVal(val)
+    if (val === AUTRE_VALUE) {
+      // Passage en saisie libre : on vide la valeur persistée
+      // jusqu'à ce que l'utilisateur saisisse quelque chose
+      setCommune('')
+      void patchDraft({ commune: undefined })
+    } else {
+      setCommune(val)
+      void patchDraft({ commune: val || undefined })
+    }
+  }
+
+  function handleCommuneLibreChange(val: string) {
+    setCommune(val)
+    void patchDraft({ commune: val || undefined })
+  }
+
+  function handleNiveauSelectChange(val: string) {
+    setNiveauSelectVal(val)
+    if (val === AUTRE_VALUE) {
+      setNiveauLibre('')
+    }
   }
 
   async function handleSubmit() {
@@ -320,10 +389,7 @@ export function OnboardingProfil({ initial }: Props) {
               <Chip
                 key={r.value}
                 selected={region === r.value}
-                onClick={() => {
-                  setRegion(r.value)
-                  void patchDraft({ region: r.value })
-                }}
+                onClick={() => handleRegionChange(r.value)}
               >
                 {r.label}
               </Chip>
@@ -335,18 +401,53 @@ export function OnboardingProfil({ initial }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <FieldLabel htmlFor="commune">
+          <FieldLabel htmlFor="commune-select">
             Commune <span className="text-fs-100 text-gj-grey-2 font-semibold ml-1">FACULTATIF</span>
           </FieldLabel>
-          <Input
-            id="commune"
-            placeholder="ex. Bakel, Kidira…"
-            value={commune}
-            onChange={e => {
-              setCommune(e.target.value)
-              void patchDraft({ commune: e.target.value || undefined })
-            }}
+          <Select
+            id="commune-select"
+            aria-label="Commune"
+            value={communeSelectVal}
+            onChange={e => handleCommuneSelectChange(e.target.value)}
+            disabled={!region}
+            placeholder={region ? 'Choisir une commune…' : 'Choisis d\'abord ta région'}
+            options={[
+              ...communesForRegion(region).map(c => ({ value: c, label: c })),
+              { value: AUTRE_VALUE, label: 'Autre (préciser)' },
+            ]}
           />
+          {communeSelectVal === AUTRE_VALUE && (
+            <Input
+              id="commune-libre"
+              aria-label="Commune"
+              placeholder="Saisir votre commune…"
+              value={commune}
+              onChange={e => handleCommuneLibreChange(e.target.value)}
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FieldLabel htmlFor="niveau-select">
+            Niveau d&apos;études <span className="text-fs-100 text-gj-grey-2 font-semibold ml-1">FACULTATIF</span>
+          </FieldLabel>
+          <Select
+            id="niveau-select"
+            aria-label="Niveau d'études"
+            value={niveauSelectVal}
+            onChange={e => handleNiveauSelectChange(e.target.value)}
+            placeholder="Choisir un niveau…"
+            options={NIVEAU_ETUDES_OPTIONS}
+          />
+          {niveauSelectVal === AUTRE_VALUE && (
+            <Input
+              id="niveau-libre"
+              aria-label="Niveau d'études"
+              placeholder="Préciser votre niveau…"
+              value={niveauLibre}
+              onChange={e => setNiveauLibre(e.target.value)}
+            />
+          )}
         </div>
 
         {errors._form ? (
