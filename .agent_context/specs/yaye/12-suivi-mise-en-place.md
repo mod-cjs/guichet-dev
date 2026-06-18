@@ -20,8 +20,8 @@
 - [x] ✅ **D9 — Périmètre KG** : ACTÉ = graphe enrichi (21 nœuds)
 
 ### Conditions Go / No-Go Lot 1 (cf. [10](./10-risques.md))
-- [ ] **R1** — Neo4j confirmé **ou** `GraphPort` + fallback Prisma posé
-- [ ] **R2** — Pipeline de normalisation des compétences conçu (ou matching domaine assumé)
+- [x] ✅ **R1** — ACTÉ (2026-06-18) : `GraphPort` + `Neo4jGraphAdapter`/`PrismaGraphAdapter` codés **en parallèle** du provisionnement Neo4j 5.x (GUIC-275). Démarrage code non bloqué par l'infra.
+- [x] ✅ **R2** — ACTÉ (2026-06-18) : normalisation compétences `ProfilJeune.competences` → `MAITRISE` en **matching flou** (table synonymes + distance de chaîne) dès v1.
 - [ ] **R3** — Budget de latence défini + fusion intention/outil en un appel
 - [ ] **R4** — Seuil de confiance + whitelist templates Cypher + fallback escalade
 - [ ] **R5** — `agent_logs` inclus dans le droit à l'oubli + rétention
@@ -53,7 +53,7 @@
 
 ## Implémentation applicative (Next.js / TypeScript) — cf. [09 roadmap](./09-roadmap-decoupage.md)
 
-### Lot 0 — Fondations agent (sans Neo4j) — 🟡 en cours
+### Lot 0 — Fondations agent (sans Neo4j) — ✅ terminé
 - [x] ✅ Service agent : orchestration intention → outil → réponse (`src/lib/ia/agent.ts`, `runAgent`)
 - [x] ✅ **Function calling Groq** (fusion intention+outil en 1 appel, R3) + 2 outils (`tools.ts` : `get_user_profile`, `get_realtime_data`)
 - [x] ✅ Modèle Prisma `AgentLog` + migration `20260617120000_add_agent_logs` + journaliseur fail-soft (`agent-logs.ts`)
@@ -67,7 +67,7 @@
 - [x] ✅ Page mobile `YayeChat` (`/jeune/yaye`) alignée sur le **même flux blocs** que le drawer (cards cliquables)
 - [x] ✅ **Jamais de % de compatibilité** dans les réponses Yaye (règle 7 du prompt + mocks nettoyés). Exception hors chat : `YayeMatchCard` (page détail) — à arbitrer
 - [ ] ⬜ **Pour exécuter** : renseigner `GROQ_API_KEY` (vide) + `prisma migrate deploy` (table `agent_logs` absente en local) + réparer le build rouge pré-existant
-- [ ] ⬜ Brancher le webhook WhatsApp (`/api/whatsapp`) sur `runAgent` (utilise encore `rag.ts`)
+- [x] ✅ Webhook WhatsApp (`/api/whatsapp`) branché sur `runAgent` (ne dépend plus de `rag.ts`)
 
 ### Lot 1 — Knowledge Graph Neo4j (enrichi)
 - [ ] ⬜ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback)
@@ -123,6 +123,6 @@
 |-------|---------------|
 | Cadrage & décisions | 🟡 1/9 décisions actées · risques non levés |
 | POC Knowledge Graph | ✅ validé (mécanique + mesure) |
-| Implémentation app | 🟢 **Lot 0 ~complet** (agent, agent_logs, /api/ia blocs + Redis, drawer+page UI cards, WhatsApp→runAgent, 68 tests) — restent prérequis d'exécution (clé Groq, migration, build rouge) · Lots 1-8 ⬜ |
+| Implémentation app | ✅ **Lot 0 terminé** (agent, agent_logs, /api/ia blocs + Redis, drawer+page UI cards, WhatsApp→runAgent, 68 tests) — restent prérequis d'exécution (clé Groq, migration, build rouge) · Lots 1-8 ⬜ |
 
 > Prochain jalon bloquant : **lever R1 (Neo4j) et R2 (normalisation compétences)** → débloque le Lot 1.
