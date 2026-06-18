@@ -16,7 +16,8 @@ describe('<YayeSidePanel />', () => {
 
   it('affiche les messages par défaut (mock)', () => {
     render(<YayeSidePanel open onClose={() => {}} />)
-    expect(screen.getByText(/Salama Awa/i)).toBeInTheDocument()
+    // Sans prenom, le greeting générique "Salama !" est utilisé (pas de nom codé en dur)
+    expect(screen.getByText(/Salama/i)).toBeInTheDocument()
     expect(screen.getByText(/stage en agro/i)).toBeInTheDocument()
     expect(screen.getByText(/J'ai filtré 247 offres/i)).toBeInTheDocument()
   })

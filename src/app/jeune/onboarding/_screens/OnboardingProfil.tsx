@@ -203,7 +203,7 @@ export function OnboardingProfil({ initial }: Props) {
                     cursor: 'pointer',
                   }}
                 >
-                  {g === 'F' ? 'F' : g === 'M' ? 'H' : 'Autre'}
+                  {g === 'F' ? 'Femme' : g === 'M' ? 'Homme' : 'Non précisé'}
                 </button>
               ))}
             </div>
