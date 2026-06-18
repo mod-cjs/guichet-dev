@@ -2,13 +2,16 @@ import { render, screen } from '@testing-library/react'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 
 let mockPathname = '/'
+let mockSearch = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => mockSearch,
 }))
 
 describe('<BenefSidebar />', () => {
   beforeEach(() => {
     mockPathname = '/'
+    mockSearch = new URLSearchParams()
   })
 
   it('a role="navigation" et aria-label', () => {
@@ -20,8 +23,52 @@ describe('<BenefSidebar />', () => {
   it('rend les items par défaut', () => {
     render(<BenefSidebar />)
     expect(screen.getByText('Accueil')).toBeInTheDocument()
-    expect(screen.getByText(/Toutes les opportunités/i)).toBeInTheDocument()
+    expect(screen.getByText('Toutes')).toBeInTheDocument()
     expect(screen.getByText('Mes candidatures')).toBeInTheDocument()
+  })
+
+  // GUIC-416 — conformité Lot 3 design : la section Opportunités expose les
+  // sous-types (Emploi & Stages, Bourses & Financement, Formations,
+  // Concours & Appels) en plus de « Toutes » et « Mes favoris ».
+  it('section "Opportunités" : expose les 6 sous-items du design Lot 3', () => {
+    render(<BenefSidebar />)
+    expect(screen.getByRole('link', { name: /Toutes/i })).toHaveAttribute(
+      'href',
+      '/opportunites',
+    )
+    expect(
+      screen.getByRole('link', { name: /Emploi & Stages/i }),
+    ).toHaveAttribute('href', '/opportunites?type=Emploi')
+    expect(
+      screen.getByRole('link', { name: /Bourses & Financement/i }),
+    ).toHaveAttribute('href', '/opportunites?type=Bourse')
+    expect(screen.getByRole('link', { name: /^Formations$/i })).toHaveAttribute(
+      'href',
+      '/opportunites?type=Formation',
+    )
+    expect(
+      screen.getByRole('link', { name: /Concours & Appels/i }),
+    ).toHaveAttribute('href', '/opportunites?type=Appel_a_projets')
+    expect(screen.getByRole('link', { name: /Mes favoris/i })).toHaveAttribute(
+      'href',
+      '/jeune/mes-favoris',
+    )
+  })
+
+  it('active state : pathname=/opportunites + ?type=Emploi → item "Emploi & Stages" actif', () => {
+    mockPathname = '/opportunites'
+    mockSearch = new URLSearchParams('type=Emploi')
+    render(<BenefSidebar />)
+    const active = screen.getByRole('link', { current: 'page' })
+    expect(active).toHaveTextContent('Emploi & Stages')
+  })
+
+  it('active state : pathname=/opportunites sans type → item "Toutes" actif', () => {
+    mockPathname = '/opportunites'
+    mockSearch = new URLSearchParams()
+    render(<BenefSidebar />)
+    const active = screen.getByRole('link', { current: 'page' })
+    expect(active).toHaveTextContent('Toutes')
   })
 
   it('n\'affiche plus d\'item "Mon profil" dans le menu (carte profil unique — GUIC-376)', () => {
