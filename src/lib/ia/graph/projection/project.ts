@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { TypeRessourceCentre } from '@prisma/client'
 import { logger } from '@/lib/logger'
 import { isNeo4jConfigured } from '@/lib/neo4j'
-import { mergeNodes, mergeRels, wipeGraph, type RelPair } from './cypher'
+import { detachDeleteNode, mergeNodes, mergeRels, wipeGraph, type RelPair } from './cypher'
 import { ensureGraphSchema, OPPORTUNITE_SUBTYPE_LABELS } from './schema'
 import { buildSkillIndex, matchSkills, parseCompetences, type SkillRef } from '../skills-normalize'
 
@@ -400,6 +400,20 @@ export async function projectOpportunite(id: string): Promise<boolean> {
 export function syncOpportuniteToGraph(id: string): void {
   void projectOpportunite(id).catch(err =>
     logger.warn('[graph:projection] sync opportunité échouée (fail-soft)', { id, err: String(err) }),
+  )
+}
+
+/** Retire une opportunité du graphe (suppression). No-op si Neo4j non configuré. */
+export async function removeOpportuniteFromGraph(id: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  await detachDeleteNode('Opportunite', 'id', id)
+  return true
+}
+
+/** Déclencheur FAIL-SOFT de suppression (fire-and-forget). */
+export function syncOpportuniteDeletion(id: string): void {
+  void removeOpportuniteFromGraph(id).catch(err =>
+    logger.warn('[graph:projection] suppression opportunité échouée (fail-soft)', { id, err: String(err) }),
   )
 }
 

@@ -128,6 +128,17 @@ export async function mergeRels(
   }
 }
 
+/** Supprime un nœud (et ses relations) par clé naturelle — voie événementielle de suppression. */
+export async function detachDeleteNode(label: string, key: string, value: unknown): Promise<void> {
+  const cypher = `MATCH (n:${ident(label)} {${ident(key)}: $value}) DETACH DELETE n`
+  const session = writeSession()
+  try {
+    await session.run(cypher, { value })
+  } finally {
+    await session.close()
+  }
+}
+
 /** Vide entièrement le graphe (reprojection complète nocturne — filet de sécurité). */
 export async function wipeGraph(): Promise<void> {
   const session = writeSession()
