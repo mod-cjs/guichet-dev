@@ -96,7 +96,7 @@ export interface UseProfilResult {
 
 export function useProfilStep(
   initial: ProfilInitial,
-  nextRoute = '/jeune/onboarding/recommandations',
+  nextRoute = '/jeune/onboarding/centre-principal',
 ): UseProfilResult {
   const router = useRouter()
   const [prenom, setPrenom]               = useState(initial.prenom)

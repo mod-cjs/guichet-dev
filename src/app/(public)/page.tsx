@@ -18,7 +18,7 @@ const SECTIONS = [
 export default async function Accueil() {
   const session = await getSession()
   if (session) {
-    redirect(session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding/telephone')
+    redirect(session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding/objectifs')
   }
 
   return (

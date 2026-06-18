@@ -82,7 +82,7 @@ export function CentrePrincipalForm({
 
   return (
     <div className="min-h-[100dvh] bg-gj-bg flex flex-col">
-      <StepBar step={4} total={5} />
+      <StepBar step={3} total={4} />
 
       <div className="mx-auto w-full max-w-md px-space-4 pt-space-5 pb-space-6 flex flex-col gap-space-4">
         <header>

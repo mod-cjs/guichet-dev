@@ -91,7 +91,7 @@ export function OnboardingProfilWeb({ initial }: Props) {
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
-      <OnboardingNavWeb step={3} total={4} />
+      <OnboardingNavWeb step={2} total={4} />
       <div
         className="flex-1 flex flex-col items-center"
         style={{ padding: '48px 24px 40px', overflowY: 'auto' }}

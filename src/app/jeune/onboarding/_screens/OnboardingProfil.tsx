@@ -202,7 +202,7 @@ export function OnboardingProfil({ initial }: Props) {
         region,
         commune: commune || undefined,
       })
-      router.push('/jeune/onboarding/recommandations')
+      router.push('/jeune/onboarding/centre-principal')
     } catch {
       setErrors({ _form: 'Erreur réseau. Veuillez réessayer.' })
     } finally {
@@ -212,7 +212,7 @@ export function OnboardingProfil({ initial }: Props) {
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-surface)' }}>
-      <StepBar step={3} total={5} />
+      <StepBar step={2} total={4} />
 
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-5 overflow-y-auto">
         <div>
