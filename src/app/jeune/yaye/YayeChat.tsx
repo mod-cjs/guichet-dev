@@ -41,6 +41,9 @@ export function YayeChat() {
   // Persistance conversation côté agent : id de session + historique envoyé en contexte.
   const sessionIdRef = useRef<string | undefined>(undefined)
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
+  // Handler stable pour les quick replies (évite la dépendance circulaire de `sendMessage`).
+  const sendRef = useRef<(t: string) => void>(() => {})
+  const handleQuickReply = useCallback((value: string) => sendRef.current(value), [])
 
   const nextId = () => {
     idCounter.current += 1
@@ -85,15 +88,16 @@ export function YayeChat() {
         const blocks: YayeBlock[] = json?.data?.blocks ?? [{ kind: 'text', text: reply }]
         if (json?.data?.sessionId) sessionIdRef.current = json.data.sessionId
         historyRef.current.push({ role: 'assistant', content: reply })
-        pushBot(<YayeBlocks blocks={blocks} />)
+        pushBot(<YayeBlocks blocks={blocks} onQuickReply={handleQuickReply} />)
       } catch {
         pushBot('Connexion interrompue. Réessaie dans un instant.')
       } finally {
         setIsTyping(false)
       }
     },
-    [formatTime, pushBot],
+    [formatTime, pushBot, handleQuickReply],
   )
+  sendRef.current = sendMessage
 
   // Auto-scroll quand la liste change.
   useEffect(() => {

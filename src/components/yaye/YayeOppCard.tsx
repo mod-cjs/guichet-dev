@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { TypeOpportunite } from '@prisma/client'
 import { Icon } from '@/components/ui'
 import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
+import { TYPE_ICON, typeAccentBorder } from '@/components/opportunites/opportunite-type-meta'
 import { buildDeadlineInfo } from '@/components/opportunites/OppCard'
 import { regionLabel } from '@/lib/regions'
 import type { YayeOppItem } from '@/lib/ia/blocks'
@@ -17,12 +18,14 @@ import type { YayeOppItem } from '@/lib/ia/blocks'
 export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?: () => void }) {
   const dl = buildDeadlineInfo(opp.deadline)
   const region = regionLabel(opp.region)
+  const type = opp.type as TypeOpportunite
 
   return (
     <article
       data-testid="yaye-opp-card"
+      data-type={type}
       className={`relative bg-gj-surface border-[1.5px] ${dl?.urgent ? 'border-gj-red' : 'border-gj-line'}
-        rounded-gj-lg p-space-3 flex flex-col gap-space-2`}
+        ${typeAccentBorder(type)} rounded-gj-lg p-space-3 flex flex-col gap-space-2`}
     >
       {/* Lien étiré — carte cliquable vers le détail. */}
       <Link
@@ -34,7 +37,8 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
 
       <div className="flex items-center gap-space-1 flex-wrap">
         <OpportuniteTypeChip
-          type={opp.type as TypeOpportunite}
+          type={type}
+          leadingIcon={TYPE_ICON[type]}
           tone={dl?.urgent ? 'red' : undefined}
           suffix={dl?.urgent ? dl.label : undefined}
         />
@@ -42,6 +46,13 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
 
       <div className="font-bold text-fs-300 text-gj-ink leading-snug">{opp.titre}</div>
       {opp.organisation && <div className="text-fs-200 text-gj-grey">{opp.organisation}</div>}
+
+      {opp.note && (
+        <div className="inline-flex items-start gap-1 text-fs-100 text-gj-teal-deep font-bold">
+          <Icon name="sparkle" size={12} aria-hidden className="mt-[2px] shrink-0" />
+          <span>{opp.note}</span>
+        </div>
+      )}
 
       <div className="flex items-center gap-space-3 text-fs-200 text-gj-grey">
         {region && (

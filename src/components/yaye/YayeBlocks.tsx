@@ -2,24 +2,40 @@
 
 import { useRouter } from 'next/navigation'
 import { YayeActionCard } from '@/components/ui/Yaye/YayeActionCard'
+import { QuickReplies } from '@/components/ui/Yaye/QuickReplies'
 import type { IconName } from '@/components/ui/Icon'
 import { YayeOppCard } from './YayeOppCard'
+import { YayeText } from './YayeText'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
 /**
  * Rend la réponse normalisée de Yaye (liste de blocs) dans une bulle bot :
- * - `text`         → texte simple
- * - `opportunites` → cards cliquables (`YayeOppCard`)
- * - `action`       → carte « Yaye a agi pour toi » + boutons (soumission)
+ * - `text`          → texte avec mise en forme légère (gras + puces) via `YayeText`
+ * - `opportunites`  → cards cliquables (`YayeOppCard`)
+ * - `quick_replies` → boutons de suivi tappables (renvoient un message)
+ * - `action`        → carte « Yaye a agi pour toi » + boutons (soumission)
  */
-export function YayeBlocks({ blocks, onNavigate }: { blocks: YayeBlock[]; onNavigate?: () => void }) {
+export function YayeBlocks({
+  blocks,
+  onNavigate,
+  onQuickReply,
+}: {
+  blocks: YayeBlock[]
+  onNavigate?: () => void
+  onQuickReply?: (value: string) => void
+}) {
   const router = useRouter()
 
   return (
     <div className="flex flex-col gap-space-2">
       {blocks.map((b, i) => {
         if (b.kind === 'text') {
-          return b.text ? <span key={i}>{b.text}</span> : null
+          return b.text ? <YayeText key={i} text={b.text} /> : null
+        }
+        if (b.kind === 'quick_replies') {
+          return onQuickReply ? (
+            <QuickReplies key={i} replies={b.replies} onSelect={onQuickReply} />
+          ) : null
         }
         if (b.kind === 'opportunites') {
           return (

@@ -111,32 +111,45 @@ npm run dev                                # Next sur http://localhost:3000
 
 ---
 
-## 6. Initialiser les données (les deux bases)
+## 6. Initialiser les données (les deux bases) — VOIE CANONIQUE : enrichie
 
-### 6.1 MariaDB
+> On travaille exclusivement dans les bases **enrichies** : MariaDB `yaye_poc_enriched`
+> + Neo4j `enriched`. C'est ce qui permet d'éprouver Yaye à volumétrie réelle.
+> `.env.example`/`.env.local` sont déjà alignés sur ces deux bases.
 
-**Option « parité prod »** — base `guichet_jeunesse` via Prisma :
+### 6.1 MariaDB — charger le dump enrichi
 
 ```bash
-# DATABASE_URL doit pointer sur guichet_jeunesse
-npx prisma migrate deploy     # applique les migrations (schéma)
-npx prisma db seed            # jeu de données de base (tsx prisma/seed/index.ts)
+npm run db:load:enriched     # crée yaye_poc_enriched + importe le dump (idempotent)
 ```
 
-**Option « volumétrie réelle »** — base `yaye_poc_enriched` : déjà présente dans le container MariaDB (dump POC). Pointer `DATABASE_URL` dessus, rien à migrer.
+- ⚠️ **Le dump est hors Git** (PII de ~22 000 jeunes + 16 Mo — cf. `yaye-kg-poc/.gitignore`).
+  Un coéquipier doit l'**obtenir auprès du Lead** et le déposer dans
+  `yaye-kg-poc/data/` (nom attendu : `dump-railway-…-enriched.sql`) avant de lancer la commande.
+  Chemin personnalisé : `npm run db:load:enriched -- /chemin/vers/mon-dump.sql`.
+
+> Le dump enrichi a des **types d'opportunités variés** (Emploi/Stage/Formation/Bourse/
+> Volontariat/Appel à projets) et des **organisations réalistes** — déjà intégrés au dump.
+> Pour rejouer la diversification après un rechargement brut : `npm run db:diversify:enriched`
+> (script déterministe [scripts/sql/diversify-enriched.sql](../scripts/sql/diversify-enriched.sql),
+> reconstruit aussi les sous-types polymorphes). Relancer ensuite `npm run yaye:reproject`.
+
+> Variante « parité prod stricte » (sans volumétrie) — base `guichet_jeunesse` via Prisma :
+> `npx prisma migrate deploy && npx prisma db seed` (pointer `DATABASE_URL` dessus).
 
 ### 6.2 Neo4j — projeter le graphe depuis MariaDB
 
-Le graphe se **reconstruit** depuis MariaDB (jamais l'inverse) :
+Le graphe se **reconstruit** depuis MariaDB (jamais l'inverse). La cible par défaut
+est désormais `enriched` (= `NEO4J_DATABASE`), donc aucune option à passer :
 
 ```bash
-# Source = la base pointée par DATABASE_URL ; cible = --db (défaut : "yayeapp")
-npm run yaye:reproject -- --db yayeapp            # purge + rebuild complet (idempotent)
-npm run yaye:reproject -- --db yayeapp --no-wipe  # merge sans purge (mise à jour additive)
+npm run yaye:reproject              # → base Neo4j "enriched", purge + rebuild (idempotent)
+npm run yaye:reproject -- --no-wipe # merge sans purge (mise à jour additive)
 ```
 
 - Crée la base Neo4j cible si absente, projette **nœuds décompressés + ~25 relations + dérivées floues** (`MAITRISE`, `ATTESTE`, `PREPARE`).
-- Pour viser cette base depuis l'app, mettre `NEO4J_DATABASE` sur le même nom.
+- Reconstruit `enriched` avec le **projecteur TypeScript du Lot 1** (≠ ancienne projection POC Python) — c'est exactement le graphe que l'app interroge.
+- Pour viser une autre base : `npm run yaye:reproject -- --db <nom>` **et** aligner `NEO4J_DATABASE` dessus (nom sans underscore).
 
 **Alternative** : la route cron (identique au job nocturne de prod) :
 
@@ -239,8 +252,8 @@ npx jest tests/unit/yaye               # suite Yaye (agent + graphe)
 ## 12. Checklist « comme en prod »
 
 - [ ] `docker compose ps` → `app`, `mariadb`, `redis`, `neo4j` **Up (healthy)**
-- [ ] MariaDB initialisée (migrations + seed, **ou** dump POC)
-- [ ] Neo4j **projeté** depuis MariaDB (`yaye:reproject`) et `NEO4J_DATABASE` aligné
+- [ ] MariaDB `yaye_poc_enriched` chargée (`npm run db:load:enriched`)
+- [ ] Neo4j `enriched` **projeté** depuis MariaDB (`npm run yaye:reproject`) et `NEO4J_DATABASE=enriched`
 - [ ] `GROQ_API_KEY` renseignée
 - [ ] Page test atteignable → l'agent répond avec `backend":"neo4j"` et des **cards** cliquables
 - [ ] `npm run validate` vert

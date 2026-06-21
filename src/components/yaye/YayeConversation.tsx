@@ -35,6 +35,10 @@ export function YayeConversation({ open, onClose }: { open: boolean; onClose: ()
   const sessionIdRef = useRef<string | undefined>(undefined)
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
 
+  // Handler stable pour les quick replies (évite la dépendance circulaire de `send` sur lui-même).
+  const sendRef = useRef<(t: string) => void>(() => {})
+  const handleQuickReply = useCallback((value: string) => sendRef.current(value), [])
+
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
@@ -59,7 +63,7 @@ export function YayeConversation({ open, onClose }: { open: boolean; onClose: ()
         historyRef.current.push({ role: 'assistant', content: reply })
         setMessages(prev => [
           ...prev,
-          { id: nid(), from: 'bot', text: <YayeBlocks blocks={blocks} onNavigate={onClose} /> },
+          { id: nid(), from: 'bot', text: <YayeBlocks blocks={blocks} onNavigate={onClose} onQuickReply={handleQuickReply} /> },
         ])
       } catch {
         setMessages(prev => [
@@ -72,6 +76,7 @@ export function YayeConversation({ open, onClose }: { open: boolean; onClose: ()
     },
     [sending, onClose],
   )
+  sendRef.current = send
 
   return (
     <YayeSidePanel

@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { OpportuniteTypeChip } from './OpportuniteTypeChip'
+import { TYPE_ICON, typeAccentBorder } from './opportunite-type-meta'
 import { regionLabel } from '@/lib/regions'
 import { formatDeadline, formatDeadlineFull } from '@/lib/format-date'
 import type { OpportuniteListItem } from '@/types/opportunite'
@@ -54,7 +55,8 @@ export function OppCard({ item, isFavori, onToggleFavori, matchScore = null }: O
   return (
     <article
       data-testid="opp-card"
-      className={`relative bg-gj-surface border-[1.5px] ${borderClass} rounded-gj-lg p-space-3
+      data-type={item.type}
+      className={`relative bg-gj-surface border-[1.5px] ${borderClass} ${typeAccentBorder(item.type)} rounded-gj-lg p-space-3
         flex flex-col gap-space-2`}
     >
       {/* Lien étiré — toute la carte est cliquable, pas de bouton imbriqué. */}
@@ -68,6 +70,7 @@ export function OppCard({ item, isFavori, onToggleFavori, matchScore = null }: O
       <div className="flex items-center gap-space-1 flex-wrap">
         <OpportuniteTypeChip
           type={item.type}
+          leadingIcon={TYPE_ICON[item.type]}
           tone={dl?.urgent ? 'red' : undefined}
           suffix={dl?.urgent ? dl.label : undefined}
         />

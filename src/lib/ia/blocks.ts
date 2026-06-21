@@ -13,12 +13,21 @@ export interface YayeOppItem {
   organisation: string | null
   region: string | null
   deadline: string | null // ISO 8601
+  /** Contexte affiché SUR la card (ex. raison de reco « plébiscitée par… ») — jamais en prose. */
+  note?: string | null
+}
+
+/** Réponse rapide tappable : `label` affiché, `value` renvoyé comme message. */
+export interface YayeQuickReply {
+  label: string
+  value: string
 }
 
 /** Un bloc de réponse — rendu différemment selon son `kind`. */
 export type YayeBlock =
   | { kind: 'text'; text: string }
   | { kind: 'opportunites'; items: YayeOppItem[] }
+  | { kind: 'quick_replies'; replies: YayeQuickReply[] }
   | {
       kind: 'action'
       title?: string

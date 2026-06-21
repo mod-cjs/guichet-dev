@@ -14,13 +14,20 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
 
   for (const b of blocks) {
     if (b.kind === 'text') {
-      if (b.text.trim()) parts.push(b.text.trim())
+      // Markdown-lite → WhatsApp : `**gras**` devient `*gras*` (les puces `- ` restent).
+      const txt = b.text.trim().replace(/\*\*([^*]+)\*\*/g, '*$1*')
+      if (txt) parts.push(txt)
     } else if (b.kind === 'opportunites') {
       const lines = b.items.slice(0, MAX_ITEMS).map((o, i) => {
         const meta = [o.type, o.region].filter(Boolean).join(' · ')
-        return `${i + 1}. *${o.titre}*` + (meta ? `\n   ${meta}` : '') + `\n   ${APP_URL}/opportunites/${o.slug}`
+        return `${i + 1}. *${o.titre}*` + (meta ? `\n   ${meta}` : '') +
+          (o.note ? `\n   ${o.note}` : '') + `\n   ${APP_URL}/opportunites/${o.slug}`
       })
       if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'quick_replies') {
+      // Pas de boutons en texte brut : on invite à répondre par l'une des options.
+      const opts = b.replies.map(r => `• ${r.label}`).join('\n')
+      if (opts) parts.push(`Réponds par :\n${opts}`)
     } else {
       // action : on résume en texte (les boutons riches n'existent pas en texte brut)
       const head = [b.title, b.subtitle].filter(Boolean).join(' — ')
