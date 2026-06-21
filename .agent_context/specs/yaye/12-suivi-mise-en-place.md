@@ -101,11 +101,19 @@
 - [x] ✅ Tests : 8 (récap/confirm/fallback/erreurs) — suite Yaye verte (134 tests).
 - [ ] ⬜ **Hors périmètre (exige de modifier le service existant)** : véhicule `EnAttente` + restriction géo (`region bénéficiaire = zone centre`, GUIC-338) + idempotence + notifs réelles. À porter dans `POST /api/reservations` quand le PO autorisera à le toucher.
 
-### Lot 3 — Bibliothèque physique
-- [ ] ⬜ Modèles Prisma `Livre`/`ExemplaireLibre`/`Rayon`/`Emprunt` + migration
-- [ ] ⬜ Routes `search_library` / `borrow_book` / `get_active_loans`
-- [ ] ⬜ Emprunt « initié » → effectif au scan ; retour par scan
-- [ ] ⬜ Sync nœuds Neo4j biblio
+### Lot 3 — Bibliothèque physique — ⏸ BLOQUÉ (infra inexistante)
+> Étude de l'existant (2026-06-21) : **aucune** infra bibliothèque (pas de modèle `Livre`/`Exemplaire`/`Rayon`/`Emprunt`, pas de route, pas d'UI). Epic JIRA **GUIC-274** entièrement « À faire » (GUIC-341 données, 342 recherche, 343 emprunt/scan, 344 front, 345 tests).
+> Consigne PO : Yaye ne branche que de l'existant → **rien à brancher** ici tant que le backend biblio (GUIC-341/342/343) n'est pas livré côté m4-centres. Lot reporté.
+- [ ] ⬜ (préalable, hors Yaye) Backend bibliothèque : modèles + migration + routes
+- [ ] ⬜ (ensuite) Outils Yaye `search_library` / `borrow_book` / `get_active_loans` + sync Neo4j
+
+### Lot 4 — Badge — 🟢 outil Yaye livré (GUIC-294)
+- [x] ✅ `get_badge` branché sur le système EXISTANT **QR/JWT rotatif** `/api/cjs-card/qr-token` (in-process, cookie propagé) + carte action vers `/jeune/ma-carte`. Service badge inchangé.
+- [ ] ⬜ Note : le ticket GUIC-294 visait `/api/users/[cjs_uid]/badge` (HMAC + code 6 car.) **inexistant** ; on s'est branché sur l'existant JWT (D1 JWT vs HMAC non tranché). 4 formats + offline + code SMS = hors périmètre (exigerait de créer l'infra).
+
+### F6 — Candidature assistée — 🟢 outil Yaye livré
+- [x] ✅ `submit_application` branché sur la route EXISTANTE **`POST /api/candidatures`** (GUIC-21), CV réutilisé depuis `ProfilJeune.cvUrl`, récap puis `confirm=true`, gestion déjà-postulé (409) / profil incomplet (403) / fallback web. Service candidature inchangé.
+- [x] ✅ Tests : +9 (badge + candidature). Suite Yaye verte (148).
 
 ### Lot 4 — Badge (selon D1)
 - [ ] ⬜ Mapper `get_badge` sur le système retenu (JWT rotatif recommandé)

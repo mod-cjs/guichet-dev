@@ -10,9 +10,13 @@ import { Domaine, Region, TypeOpportunite, TypeRessourceCentre } from '@prisma/c
 import type { Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
 import { appUrl } from '@/lib/app-url'
+import { LETTRE_MIN_CHARS } from '@/lib/constants/candidature'
+import { GET as cjsCardQrTokenGET } from '@/app/api/cjs-card/qr-token/route'
+import { POST as candidaturesPOST } from '@/app/api/candidatures/route'
 import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
+import { callInternalRoute } from './internal-api'
 import type { YayeBlock, YayeOppItem } from './blocks'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -542,6 +546,163 @@ const reserveResource: AgentTool = {
   },
 }
 
+// ── get_badge (Lot 4) ─────────────────────────────────────────────────────────
+// Donne au bénéficiaire son badge numérique CJS. Branché sur le système EXISTANT
+// (QR/JWT rotatif `/api/cjs-card/qr-token`) — inchangé. Le rendu du QR se fait sur
+// la page carte existante ; ici on confirme la disponibilité + lien profond.
+const getBadge: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'get_badge',
+      description:
+        "Donne au bénéficiaire son badge numérique CJS (QR de la carte) pour entrer ou se faire " +
+        "scanner au centre. À utiliser quand il demande « mon badge », « ma carte CJS », « le QR du centre ».",
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  async execute() {
+    const base = appUrl()
+    const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token' })
+    const data = r.json.data as { expiresAt?: string; token?: string } | undefined
+
+    if (r.ok && data?.token) {
+      return {
+        ok: true,
+        data: { expiresAt: data.expiresAt ?? null },
+        block: {
+          kind: 'action',
+          title: 'Ton badge CJS 📲',
+          subtitle: 'Présente le QR au centre pour entrer, pointer ou récupérer une réservation.',
+          actions: [],
+          buttons: [{ label: 'Afficher mon badge', href: `${base}/jeune/ma-carte`, primary: true }],
+        },
+      }
+    }
+    if (r.unauthenticated) {
+      return {
+        ok: true,
+        data: { needsWeb: true },
+        block: {
+          kind: 'action',
+          title: 'Ton badge CJS',
+          subtitle: 'Connecte-toi pour afficher ton QR.',
+          actions: [],
+          buttons: [{ label: 'Ouvrir ma carte', href: `${base}/jeune/ma-carte`, primary: true }],
+        },
+      }
+    }
+    return { ok: false, error: r.json.error?.message ?? 'Impossible de générer ton badge pour le moment.' }
+  },
+}
+
+// ── submit_application (F6) ────────────────────────────────────────────────────
+// Soumet une candidature via la route EXISTANTE POST /api/candidatures (GUIC-21) —
+// inchangée. Écriture en DEUX TEMPS (récap puis confirm=true), CV réutilisé depuis
+// le profil. Fallback web hors contexte authentifié.
+const submitApplication: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'submit_application',
+      description:
+        "Soumet une candidature à une opportunité pour le bénéficiaire. Flux OBLIGATOIRE : appelle " +
+        "d'abord SANS `confirm` pour le récapitulatif, présente-le, puis `confirm=true` SEULEMENT après " +
+        "un accord explicite. Le CV du profil est réutilisé automatiquement. Fournis `opportuniteId` " +
+        `(depuis la recherche/le contexte) et une lettre de motivation d'au moins ${LETTRE_MIN_CHARS} caractères.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          opportuniteId: { type: 'string', description: "Identifiant de l'opportunité visée" },
+          lettreMotivation: { type: 'string', description: `Lettre de motivation (≥ ${LETTRE_MIN_CHARS} caractères)` },
+          notificationsConsent: { type: 'boolean', description: 'true si la personne accepte les notifications de suivi' },
+          confirm: { type: 'boolean', description: 'true UNIQUEMENT après accord explicite — déclenche la soumission' },
+        },
+        required: ['opportuniteId', 'lettreMotivation'],
+      },
+    },
+  },
+  async execute(args, ctx) {
+    const opportuniteId = typeof args.opportuniteId === 'string' ? args.opportuniteId.trim() : ''
+    const lettreMotivation = typeof args.lettreMotivation === 'string' ? args.lettreMotivation.trim() : ''
+    const notificationsConsent = args.notificationsConsent === true
+    const confirm = args.confirm === true
+
+    if (!opportuniteId) return { ok: false, error: "Il me faut l'opportunité visée pour candidater." }
+    if (lettreMotivation.length < LETTRE_MIN_CHARS) {
+      return { ok: false, error: `La lettre de motivation doit faire au moins ${LETTRE_MIN_CHARS} caractères — aide la personne à l'étoffer.` }
+    }
+
+    const [opp, profil] = await Promise.all([
+      prisma.opportunite.findFirst({
+        where: { id: opportuniteId, deletedAt: null },
+        select: { slug: true, titre: true, organisation: true, organisationLibelle: true },
+      }),
+      prisma.profilJeune.findUnique({ where: { cjsUid: ctx.cjsUid }, select: { cvUrl: true } }),
+    ])
+    if (!opp) return { ok: false, error: 'Cette opportunité est introuvable.' }
+    const orga = opp.organisationLibelle ?? opp.organisation ?? null
+    const base = appUrl()
+
+    // Étape 1 — récapitulatif AVANT écriture.
+    if (!confirm) {
+      return {
+        ok: true,
+        data: { needsConfirmation: true, recap: { opportunite: opp.titre, organisation: orga, cvJoint: Boolean(profil?.cvUrl) } },
+        block: {
+          kind: 'action',
+          title: 'Récapitulatif de ta candidature',
+          subtitle: orga ? `${opp.titre} · ${orga}` : opp.titre,
+          actions: [
+            { icon: 'document', label: profil?.cvUrl ? 'CV du profil joint' : 'Sans CV (ajoute-le à ton profil)' },
+          ],
+        },
+      }
+    }
+
+    // Étape 2 — soumission via la route EXISTANTE.
+    const r = await callInternalRoute(candidaturesPOST, {
+      method: 'POST',
+      path: '/api/candidatures',
+      body: { opportuniteId, lettreMotivation, cvUrl: profil?.cvUrl ?? undefined, notificationsConsent },
+    })
+
+    if (r.ok) {
+      return {
+        ok: true,
+        data: { submitted: true },
+        block: {
+          kind: 'action',
+          title: 'Candidature envoyée ✅',
+          subtitle: orga ? `${opp.titre} · ${orga}` : opp.titre,
+          actions: [],
+          buttons: [{ label: 'Mes candidatures', href: `${base}/jeune/mes-candidatures`, primary: true }],
+        },
+      }
+    }
+    const code = r.json.error?.code
+    if (code === 'ALREADY_APPLIED') {
+      return { ok: true, data: { alreadyApplied: true }, block: {
+        kind: 'action', title: 'Tu as déjà postulé à cette offre', subtitle: opp.titre, actions: [],
+        buttons: [{ label: 'Mes candidatures', href: `${base}/jeune/mes-candidatures`, primary: true }],
+      } }
+    }
+    if (code === 'PROFILE_INCOMPLETE') {
+      return { ok: true, data: { profileIncomplete: true }, block: {
+        kind: 'action', title: 'Complète ton profil pour candidater', subtitle: r.json.error?.message ?? '', actions: [],
+        buttons: [{ label: 'Compléter mon profil', href: `${base}/jeune/mon-profil`, primary: true }],
+      } }
+    }
+    if (r.unauthenticated) {
+      return { ok: true, data: { needsWeb: true }, block: {
+        kind: 'action', title: 'Finalise ta candidature en ligne', subtitle: opp.titre, actions: [],
+        buttons: [{ label: 'Postuler sur le site', href: `${base}/opportunites/${opp.slug}?postuler=1`, primary: true }],
+      } }
+    }
+    return { ok: false, error: r.json.error?.message ?? 'La candidature a échoué.' }
+  },
+}
+
 /** Registre des outils disponibles. */
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
@@ -551,6 +712,8 @@ export const TOOLS: Record<string, AgentTool> = {
   query_knowledge_graph: queryKnowledgeGraph,
   get_reservable_resources: getReservableResources,
   reserve_resource: reserveResource,
+  get_badge: getBadge,
+  submit_application: submitApplication,
 }
 
 /** Définitions à passer à Groq (`tools` param). */
