@@ -58,7 +58,7 @@ test('ecart_competences : RBAC (cjsUid) + manquantes + formations en cards', asy
     formations: [opp],
   })
   const r = await qkg.execute({ intent: 'ecart_competences', opportuniteId: 'opp-X' }, ctx)
-  expect(port.skillGap).toHaveBeenCalledWith({ cjsUid: 'u-1', roles: ['beneficiaire'] }, 'opp-X')
+  expect(port.skillGap).toHaveBeenCalledWith({ cjsUid: 'u-1', roles: ['beneficiaire'], centreId: null }, 'opp-X')
   expect((r.data as { manquantes: string[] }).manquantes).toEqual(['React'])
   expect(r.block).toEqual({ kind: 'opportunites', items: [opp] })
   expect(r.graph).toEqual({ template: 'skill_gap', nodesReturned: 2 })
@@ -67,7 +67,7 @@ test('ecart_competences : RBAC (cjsUid) + manquantes + formations en cards', asy
 test('eligibilite → eligibleOpportunites bornée au cjsUid', async () => {
   port.eligibleOpportunites.mockResolvedValueOnce([opp])
   const r = await qkg.execute({ intent: 'eligibilite' }, ctx)
-  expect(port.eligibleOpportunites).toHaveBeenCalledWith({ cjsUid: 'u-1', roles: ['beneficiaire'] })
+  expect(port.eligibleOpportunites).toHaveBeenCalledWith({ cjsUid: 'u-1', roles: ['beneficiaire'], centreId: null })
   expect(r.graph).toMatchObject({ template: 'eligible' })
 })
 

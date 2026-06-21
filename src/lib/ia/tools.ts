@@ -51,6 +51,8 @@ export interface ToolDefinition {
 export interface ToolContext {
   cjsUid: string
   roles: string[]
+  /** Centre de rattachement de l'appelant (staff/gestionnaire) — borne les traversées centre. */
+  centreId?: string | null
 }
 
 export interface ToolResult {
@@ -190,7 +192,9 @@ const searchOpportunities: AgentTool = {
 
     return {
       ok: true,
-      data: { count: items.length, titres: items.map(i => i.titre) },
+      // Pas de titres ici : les offres sont déjà sur les cards (block). On ne renvoie
+      // au LLM que le décompte pour éviter qu'il ré-énumère en prose (anti-redondance).
+      data: { count: items.length },
       block: items.length > 0 ? { kind: 'opportunites', items } : undefined,
     }
   },
@@ -206,9 +210,10 @@ const getRecommendations: AgentTool = {
       name: 'get_recommendations',
       description:
         'Recommandations personnalisées d\'opportunités pour le bénéficiaire connecté, ' +
-        'issues du graphe de connaissances (profils au parcours similaire + éligibilité à son ' +
-        'niveau). Renvoie des offres cliquables avec la raison. À utiliser pour « que me ' +
-        'conseilles-tu ? » ou une suggestion proactive.',
+        'adaptées à son parcours et à son niveau d\'étude. Renvoie des offres cliquables (la ' +
+        'raison est portée par la card). À utiliser pour « que me conseilles-tu ? » ou une ' +
+        'suggestion proactive. Présente-les comme adaptées à SON profil — ne mentionne jamais ' +
+        'd\'autres usagers ni de nombre.',
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
@@ -216,10 +221,14 @@ const getRecommendations: AgentTool = {
     const recos = await getRecommandations(ctx.cjsUid)
     if (recos.length === 0) return { ok: true, data: { count: 0 } }
 
-    const items = await loadOppItems(recos.map(r => r.opportuniteId))
+    // La raison (réelle, issue du graphe) est portée PAR la card (note), pas renvoyée
+    // au LLM : sinon il l'énumère en prose sans connaître les titres → « Opportunité 1, 2… ».
+    const noteById = new Map(recos.map(r => [r.opportuniteId, r.raison || null]))
+    const items = (await loadOppItems(recos.map(r => r.opportuniteId)))
+      .map(it => ({ ...it, note: noteById.get(it.id) ?? null }))
     return {
       ok: true,
-      data: { count: items.length, raisons: recos.map(r => r.raison) },
+      data: { count: items.length },
       block: items.length > 0 ? { kind: 'opportunites', items } : undefined,
     }
   },
@@ -244,7 +253,7 @@ const queryKnowledgeGraph: AgentTool = {
         "- `ecart_competences` : pour une offre donnée (opportuniteId), les compétences qui manquent " +
         "au jeune + les formations qui les développent (« suis-je prêt ? »).\n" +
         "- `eligibilite` : offres adaptées à son niveau d'étude et son expérience.\n" +
-        "- `reco_collaborative` : offres plébiscitées par des profils au parcours similaire.\n" +
+        "- `reco_collaborative` : offres pertinentes au vu de son parcours (présente-les comme adaptées à SON profil, jamais via d'autres usagers ni un nombre).\n" +
         "- `parcours` : chaîne opportunité → compétence → formation → programme (découverte).",
       parameters: {
         type: 'object',
@@ -266,7 +275,7 @@ const queryKnowledgeGraph: AgentTool = {
       return { ok: false, error: `Intention inconnue: ${String(args.intent)}` }
     }
     const graph = getGraphPort()
-    const scope = { cjsUid: ctx.cjsUid, roles: ctx.roles }
+    const scope = { cjsUid: ctx.cjsUid, roles: ctx.roles, centreId: ctx.centreId ?? null }
     const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
     switch (intent) {
@@ -274,7 +283,7 @@ const queryKnowledgeGraph: AgentTool = {
         const opps = await graph.searchOpportunites({ domaine: str(args.domaine), region: str(args.region), type: str(args.type), q: str(args.q) })
         return {
           ok: true,
-          data: { intent, count: opps.length, titres: opps.map(o => o.titre) },
+          data: { intent, count: opps.length },
           block: opps.length ? { kind: 'opportunites', items: opps } : undefined,
           graph: { template: 'search', nodesReturned: opps.length },
         }
@@ -287,9 +296,11 @@ const queryKnowledgeGraph: AgentTool = {
           ok: true,
           data: {
             intent,
+            // Les compétences manquantes ne sont pas des cards → utiles au LLM. Les
+            // formations, elles, sont affichées en cards : on ne renvoie que leur nombre.
             manquantes: gap.manquantes.map(c => c.libelle),
             count_manquantes: gap.manquantes.length,
-            formations: gap.formations.map(f => f.titre),
+            count_formations: gap.formations.length,
           },
           block: gap.formations.length ? { kind: 'opportunites', items: gap.formations } : undefined,
           graph: { template: 'skill_gap', nodesReturned: gap.manquantes.length + gap.formations.length },
@@ -299,7 +310,7 @@ const queryKnowledgeGraph: AgentTool = {
         const opps = await graph.eligibleOpportunites(scope)
         return {
           ok: true,
-          data: { intent, count: opps.length, titres: opps.map(o => o.titre) },
+          data: { intent, count: opps.length },
           block: opps.length ? { kind: 'opportunites', items: opps } : undefined,
           graph: { template: 'eligible', nodesReturned: opps.length },
         }
@@ -309,7 +320,7 @@ const queryKnowledgeGraph: AgentTool = {
         const items = await loadOppItems(recos.map(r => r.id))
         return {
           ok: true,
-          data: { intent, count: recos.length, titres: recos.map(r => r.titre) },
+          data: { intent, count: recos.length },
           block: items.length ? { kind: 'opportunites', items } : undefined,
           graph: { template: 'collaborative', nodesReturned: recos.length },
         }

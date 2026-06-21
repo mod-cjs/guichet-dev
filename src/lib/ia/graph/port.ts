@@ -81,6 +81,12 @@ export interface MultiEntityPath {
 export interface GraphUserScope {
   cjsUid: string
   roles?: string[]
+  /**
+   * Centre de rattachement de l'appelant staff (gestionnaire/conseiller). `null` pour
+   * un bénéficiaire (périmètre national). Disponible dans les templates pour borner
+   * les traversées au centre — activé avec la surface gestionnaire (Lot 7).
+   */
+  centreId?: string | null
 }
 
 /**

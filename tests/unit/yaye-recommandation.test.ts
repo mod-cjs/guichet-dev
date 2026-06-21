@@ -52,7 +52,10 @@ test('computeRecommandations : combine collaboratif + éligibilité, trie par sc
   // A : 0.6*(4/4)=0.6 ; B : 0.6*(1/4)=0.15 + 0.4*(1-0/2)=0.4 = 0.55 ; C : 0.4*(1-1/2)=0.2
   expect(recos.map(r => r.opportuniteId)).toEqual(['A', 'B', 'C'])
   expect(recos[0].score).toBeCloseTo(0.6, 5)
-  expect(recos.find(r => r.opportuniteId === 'B')!.raison).toContain('similaire')
+  // CONFIDENTIALITÉ (CDP) : la raison parle de la personne, jamais d'autres usagers ni d'un nombre.
+  const raisons = recos.map(r => r.raison).join(' | ')
+  expect(raisons).toMatch(/ton parcours|ton niveau/)
+  expect(raisons).not.toMatch(/profil\(s\)|similaire|ont postulé|\d+\s*profil/)
 })
 
 test('computeRecommandations : graphe muet → liste vide (fail-soft)', async () => {

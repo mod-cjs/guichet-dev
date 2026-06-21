@@ -166,6 +166,53 @@ export function matchSkills(
     .slice(0, max)
 }
 
+/** Compétence du référentiel enrichie de sa catégorie (pour la dérivée PREPARE). */
+export interface SkillWithCategorie extends SkillRef {
+  categorie?: string | null
+}
+
+/**
+ * PREPARE (spec 02 §4 + tableau §relations : `theme ↔ Competence.categorie`).
+ * Une ressource pédagogique PRÉPARE les compétences dont la CATÉGORIE correspond
+ * à son thème — pas son libellé. On regroupe les compétences par catégorie, on
+ * matche le thème (flou) sur le libellé de catégorie, et on relie la ressource à
+ * TOUTES les compétences des catégories retenues.
+ *
+ * @returns les ids `Competence` à relier (dédupliqués).
+ */
+export function matchThemeToCategorieSkills(
+  theme: string,
+  skills: SkillWithCategorie[],
+  opts: { threshold?: number } = {},
+): string[] {
+  const threshold = opts.threshold ?? DEFAULT_THRESHOLD
+  const q = canonical(normalizeLabel(theme))
+  if (!q) return []
+
+  // Regroupe les ids de compétences par catégorie normalisée (+ sa forme canonique).
+  const byCategorie = new Map<string, { forms: Set<string>; ids: string[] }>()
+  for (const s of skills) {
+    if (!s.categorie) continue
+    const n = normalizeLabel(s.categorie)
+    if (!n) continue
+    const entry = byCategorie.get(n) ?? { forms: new Set([n, canonical(n)]), ids: [] }
+    entry.ids.push(s.id)
+    byCategorie.set(n, entry)
+  }
+
+  const ids = new Set<string>()
+  for (const { forms, ids: skillIds } of byCategorie.values()) {
+    let best = 0
+    for (const form of forms) {
+      const sim = bestSimilarity(q, form)
+      if (sim > best) best = sim
+      if (best === 1) break
+    }
+    if (best >= threshold) for (const id of skillIds) ids.add(id)
+  }
+  return [...ids]
+}
+
 /** Parse `ProfilJeune.competences` (Json : string[] direct, ou texte JSON, ou null). */
 export function parseCompetences(value: unknown): string[] {
   let arr: unknown = value

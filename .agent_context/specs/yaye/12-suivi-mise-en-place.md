@@ -69,7 +69,7 @@
 - [ ] ⬜ **Pour exécuter** : renseigner `GROQ_API_KEY` (vide) + `prisma migrate deploy` (table `agent_logs` absente en local) + réparer le build rouge pré-existant
 - [x] ✅ Webhook WhatsApp (`/api/whatsapp`) branché sur `runAgent` (ne dépend plus de `rag.ts`)
 
-### Lot 1 — Knowledge Graph Neo4j (enrichi) — 🟢 cœur livré (code), reste exécution réelle
+### Lot 1 — Knowledge Graph Neo4j (enrichi) — ✅ code terminé · reste l'exécution réelle (ops) + filtrage centre Lot 7
 - [x] ✅ **`GraphPort`** + `Neo4jGraphAdapter` / `PrismaGraphAdapter` (fallback) — `src/lib/ia/graph/`
 - [x] ✅ Driver `neo4j-driver@6` + connexion + **contraintes/index** (`projection/schema.ts` + `cypher.ts`)
 - [x] ✅ 1a — Décompression opportunités (10 labels multiples) + relations cœur (`REQUIERT`/`DEVELOPPE`/`FINANCE`/`PUBLIE`/`ETIQUETTE`/`EST_DE_TYPE`/`RELEVE_DE`/`SITUE_A`)
@@ -84,10 +84,13 @@
 - [x] ✅ **Reprojection nocturne** : route cron `/api/cron/yaye-graph-sync` (Bearer `CRON_SECRET`) + `vercel.json` (02:30) — au passage : virgule manquante JSON corrigée
 - [x] ✅ **Anti-péremption** (audit #2) : projection événementielle PURGE les arêtes re-projetées avant re-merge (`deleteRelsOfTypes`) ; cron nocturne en `wipe:true` (rebuild complet = zéro donnée périmée)
 - [x] ✅ **Tests adapter Neo4j** (audit #4) : skillGap/eligible/collaborative/parcours en session mockée (parité avec le fallback)
-- [ ] ⬜ **Exécution réelle** (ops) : provisionner Neo4j 5.x, `reprojectAll` sur données réelles, mesurer latence des templates
-- [ ] ⬜ **RBAC à compléter** (audit #3, MEDIUM) : filtrage `role`/`centreId` dans les templates (aujourd'hui borné au `cjsUid` — OK bénéficiaire v1, requis pour gestionnaire/Lot 7)
-- [ ] ⬜ **Mineur** (audit #5) : reco = blend 0.6/0.4 (heuristique au-dessus des signaux graphe) ; `PREPARE` matche `theme` vs libellé (spec dit `theme↔categorie`)
-- [x] ✅ **Tests** : 57 nouveaux — **151/151 verts** (suites Yaye + service)
+- [x] ✅ **Exécution réelle (ops, local)** : Neo4j 5-enterprise provisionné (docker, healthy) ; `reprojectAll` sur le dataset `yaye_poc_enriched` (4340 opps, 22510 bénéf.) → **39 484 nœuds / 116 107 relations en 22 s** ; app confirmée sur `backend: neo4j` (db `enriched`).
+  - **Latence templates** (`npm run yaye:latency`, 25 tours, données réelles) : search 28ms/p95 51 · skillGap 24/37 · eligible 38/**p95 120** · collab 22/42 · parcours 7/11 — tous sous budget interactif.
+  - **Données** : `PREPARE=0` (thèmes ressources = domaines de contenu ≠ catégories de compétences) et `FINANCE=0` (0 opp avec `programme_id` dans le dump) — artefacts du jeu synthétique, **pas des bugs projecteur** ; à corriger côté données (cf. refinement « raffiner dérivées »).
+  - [ ] ⬜ Reste **prod** : provisionner Neo4j Aura + `reproject` sur données réelles + brancher le cron nocturne en prod.
+- [x] ✅ **RBAC — plumbing fait** (audit #3) : `centreId` propagé `agent → ToolContext → GraphUserScope` (était capté puis perdu avant les outils). Le **filtrage centre dans les templates** s'active avec la surface gestionnaire (Lot 7) — les opportunités sont liées à `Region` (SITUE_A), pas à un centre, donc rien à filtrer pour le bénéficiaire v1.
+- [x] ✅ **Mineur (audit #5)** : `PREPARE` corrigé en `theme ↔ Competence.categorie` (`matchThemeToCategorieSkills`, relie toutes les compétences de la catégorie) ; blend reco `0.6/0.4` extériorisé en constantes documentées `COLLAB_WEIGHT/ELIGIBLE_WEIGHT` + commentaire d'invariant réconcilié (signaux du graphe combinés, pas inventés)
+- [x] ✅ **Tests** : +3 (PREPARE par catégorie) — suites Yaye **vertes** (skills-normalize, query-knowledge-graph, recommandation, agent, projection)
 
 ### Lot 2 — Ressources centres (salles + véhicules)
 - [ ] ⬜ Mapper `reserve_resource` sur `Reservation`/`RessourceCentre`
@@ -132,6 +135,6 @@
 |-------|---------------|
 | Cadrage & décisions | 🟡 1/9 décisions actées · risques non levés |
 | POC Knowledge Graph | ✅ validé (mécanique + mesure) |
-| Implémentation app | ✅ **Lot 0 terminé** (agent, agent_logs, /api/ia blocs + Redis, drawer+page UI cards, WhatsApp→runAgent, 68 tests) — restent prérequis d'exécution (clé Groq, migration, build rouge) · Lots 1-8 ⬜ |
+| Implémentation app | ✅ **Lots 0 & 1 terminés (code)** — agent + KG (GraphPort Neo4j/Prisma, 21 nœuds, 5 templates, reco proactive, projection événementielle + cron, audits #2-#5 traités). Restent : exécution réelle Neo4j (ops), filtrage centre gestionnaire (Lot 7) · Lots 2-8 ⬜ |
 
-> Prochain jalon bloquant : **lever R1 (Neo4j) et R2 (normalisation compétences)** → débloque le Lot 1.
+> Prochain jalon : **Lot 2** (ressources centres) — parallélisable avec le Lot 3. Côté ops : provisionner Neo4j 5.x pour basculer du fallback Prisma au moteur cible.

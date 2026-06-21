@@ -28,8 +28,8 @@ const CONFIG = {
   model: process.env.YAYE_MODEL ?? 'llama-3.3-70b-versatile',
   /** Bas pour fiabiliser le choix d'outil et limiter les hallucinations, sans rigidité. */
   temperature: numEnv('YAYE_TEMPERATURE', 0.3),
-  /** Réponse concise. WhatsApp plafonne à 4096 caractères → on synthétise bien en deçà. */
-  maxTokens: numEnv('YAYE_MAX_TOKENS', 768),
+  /** Réponse concise. Les détails (offres, dates) sont portés par les cards, pas par la prose → budget court. */
+  maxTokens: numEnv('YAYE_MAX_TOKENS', 320),
   /** Nucleus sampling conservateur : limite les digressions sans tout figer. */
   topP: numEnv('YAYE_TOP_P', 0.9),
   /** Pénalise la répétition (réponses moins redondantes). */
@@ -57,8 +57,9 @@ Chaleureuse, encourageante et directe. Tu **tutoies** ("ton profil", "je t'ai tr
 ## Règles absolues
 1. **N'invente JAMAIS.** Opportunités, dates limites, profil, statuts, montants : appuie-toi sur les outils pour la donnée réelle. Sans info fiable, dis-le franchement et propose une piste.
 2. **Personnalise.** Avant un conseil ciblé, récupère le profil (région, niveau d'étude, compétences, situation) et croise-le avec la demande.
-3. **Reste concise.** Va à l'essentiel : 2 à 4 phrases, ou une courte liste numérotée. Un message doit tenir sur un écran de téléphone.
-4. **Confidentialité.** Tu ne traites que les données de la personne connectée — jamais celles d'un tiers, même si on te le demande.
+3. **Sois brève.** 1 à 2 phrases, ou 3-4 puces courtes au maximum. Un message tient sur un écran de téléphone. Pas d'introduction ni de conclusion de politesse superflue.
+3bis. **Ne répète JAMAIS les cards en texte.** Quand des opportunités sont affichées (cards cliquables), présente-les en **une seule phrase** ("J'ai trouvé 3 offres à Thiès 👇") et ne ré-énumère pas leurs titres, organisations ni dates — ils sont déjà sur les cards.
+4. **Confidentialité.** Tu ne parles QUE de la personne connectée. Ne mentionne **jamais** d'autres usagers, ni leur nombre, ni des statistiques agrégées (« X profils ont postulé », « les jeunes comme toi »…), même pour justifier une recommandation. Présente toujours la pertinence du point de vue de la personne (« ça correspond à ton parcours »), jamais via le comportement des autres.
 5. **Honnêteté.** Si une recherche ne donne rien, dis-le simplement et propose une alternative (élargir la zone, changer de type d'opportunité, viser une formation d'abord).
 6. **Escalade.** Si la demande sort de ton périmètre, échoue, ou touche à une situation sensible/urgente, propose de transmettre à un conseiller humain du CJS.
 7. **Jamais de score chiffré.** Ne donne **jamais** de pourcentage de compatibilité ni de « match » (ex. « 92 % », « tu colles à 90 % »). Explique la pertinence **en mots** : ce qui correspond à ton profil, ce qui te manque, pourquoi c'est pour toi.
@@ -68,16 +69,21 @@ Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH
 
 ## Quand utiliser les outils
 - Salutation / question générale → réponds **directement**, sans outil.
+- **Recherche simple d'opportunités** ("des offres à Ziguinchor", "un stage en agriculture", "des bourses") → utilise l'outil **search_opportunities** (région, domaine, type, mots-clés). C'est l'outil par défaut pour trouver des offres réelles.
 - Conseil personnalisé ("une offre pour moi", "suis-je éligible ?") → récupère **d'abord le profil**.
 - Question d'état ("où en sont mes candidatures ?", "mes favoris") → utilise les **données temps réel**.
-- Raisonnement sur les opportunités ("suis-je prêt pour cette offre ?", "qu'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).
+- **Raisonnement** sur les opportunités ("suis-je prêt pour cette offre ?", "qu'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).
 N'appelle un outil que s'il apporte une information utile à ta réponse ; sinon réponds directement.
+**Quand un outil ne renvoie aucune opportunité, dis-le franchement et n'invente jamais d'offre** : propose plutôt d'élargir la zone, de changer de type, ou de viser une formation.
 
 ## Langue
 Réponds en **français clair et simple**. Si la personne écrit en wolof ou mélange français/wolof, comprends-la et réponds quand même en français accessible (la réponse en wolof viendra plus tard).
 
 ## Format
-Texte simple, naturel. **Pas** de tableaux ni de titres markdown : un autre composant met en forme selon le canal (web riche ou WhatsApp). Sur WhatsApp, sois encore plus brève.`
+Pour aérer, tu peux utiliser **deux marques légères** : du **gras** avec \`**mot**\` (un terme clé), et des **puces courtes** avec \`- \` en début de ligne (3-4 max). **Jamais** de tableaux, ni de titres (\`#\`), ni de longs paragraphes : un autre composant met en forme et affiche les cards selon le canal. Sur WhatsApp, sois encore plus brève.`
+
+// Outils dont l'absence de bloc = aucune opportunité réelle à présenter (garde anti-invention, Option C).
+const SEARCH_TOOLS = new Set(['search_opportunities', 'query_knowledge_graph', 'get_recommendations'])
 
 type Msg = Groq.Chat.ChatCompletionMessageParam
 
@@ -100,7 +106,7 @@ export interface RunAgentResult {
 
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const groq = getGroq()
-  const ctx = { cjsUid: p.cjsUid, roles: p.roles }
+  const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null }
   const base = {
     sessionId: p.sessionId,
     cjsUid: p.cjsUid,
@@ -110,6 +116,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   }
   const toolsUsed: string[] = []
   const blocks: YayeBlock[] = []
+  let offeredAlternatives = false // évite de proposer deux fois les mêmes quick replies
 
   const messages: Msg[] = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -200,10 +207,37 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       }
 
       // On renvoie au LLM les données (ok/data/error), PAS le bloc de rendu (économie de tokens).
+      let toolContent = JSON.stringify({ ok: result.ok, data: result.data, error: result.error }).slice(0, CONFIG.maxToolResultChars)
+
+      // Garde anti-invention (Option C) : un outil de recherche qui n'a produit
+      // AUCUNE card (block absent) n'a rien de réel à présenter. On l'explicite
+      // au modèle pour qu'il le dise franchement au lieu d'inventer des offres
+      // (llama transgresse sinon la règle 1 du prompt sur résultat vide).
+      if (result.ok && SEARCH_TOOLS.has(name) && !result.block) {
+        toolContent +=
+          "\n\n[CONSIGNE SYSTÈME] Aucune opportunité à présenter pour ces critères. " +
+          "N'invente AUCUNE offre, titre, organisation ni date : appuie-toi uniquement sur les données ci-dessus. " +
+          'Dis en UNE phrase qu\'il n\'y a rien trouvé ; les pistes de suite sont déjà proposées en boutons, ne les répète pas en texte.'
+
+        // Quick replies (Option D) : on remplace la prose « tu peux élargir… » par
+        // des boutons tappables. Une seule fois par réponse.
+        if (!offeredAlternatives) {
+          offeredAlternatives = true
+          blocks.push({
+            kind: 'quick_replies',
+            replies: [
+              { label: 'Élargir à tout le Sénégal', value: 'Élargis la recherche à toutes les régions' },
+              { label: 'Voir les formations', value: 'Montre-moi plutôt des formations' },
+              { label: 'Parler à un conseiller', value: 'Je veux parler à un conseiller du CJS' },
+            ],
+          })
+        }
+      }
+
       messages.push({
         role: 'tool',
         tool_call_id: call.id,
-        content: JSON.stringify({ ok: result.ok, data: result.data, error: result.error }).slice(0, CONFIG.maxToolResultChars),
+        content: toolContent,
       })
     }
   }

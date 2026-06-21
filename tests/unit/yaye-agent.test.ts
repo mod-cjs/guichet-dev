@@ -55,7 +55,7 @@ test('appelle un outil avec la portée RBAC (cjsUid) puis répond', async () => 
 
   const r = await runAgent({ ...base, message: 'mes candidatures ?' })
 
-  expect(mockExecute).toHaveBeenCalledWith({ scope: 'candidatures' }, { cjsUid: 'u-1', roles: ['beneficiaire'] })
+  expect(mockExecute).toHaveBeenCalledWith({ scope: 'candidatures' }, { cjsUid: 'u-1', roles: ['beneficiaire'], centreId: null })
   expect(r.toolsUsed).toEqual(['test_tool'])
   expect(r.reply).toBe('Tu as 2 candidatures')
   expect(mockLog).toHaveBeenCalledWith(

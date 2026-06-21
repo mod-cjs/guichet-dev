@@ -2,16 +2,19 @@
  * Reprojection Prisma → Neo4j (GUIC-259, Lot 1) vers une base CIBLE.
  *
  * Outil d'ops/validation : rejoue `reprojectAll()` (le filet nocturne) en ligne de
- * commande. Par défaut vise une base ISOLÉE `yaye_app` pour ne pas toucher aux
- * bases du POC (`standard` / `enriched`).
+ * commande. Par défaut vise la base `enriched` — celle que l'app interroge
+ * (`NEO4J_DATABASE=enriched` en local comme dans docker-compose). Ainsi
+ * `npm run yaye:reproject` reconstruit exactement le graphe que lit Yaye, avec
+ * le projecteur TypeScript du Lot 1 (et non l'ancienne projection POC Python).
  *
  * Usage :
- *   npx tsx scripts/yaye-graph-reproject.ts                  # → base yaye_app, wipe
- *   npx tsx scripts/yaye-graph-reproject.ts --db enriched    # cible explicite
+ *   npx tsx scripts/yaye-graph-reproject.ts                  # → base enriched, wipe
+ *   npx tsx scripts/yaye-graph-reproject.ts --db standard    # autre cible explicite
  *   npx tsx scripts/yaye-graph-reproject.ts --no-wipe        # merge sans purge
  *
  * Charge `.env.local` (DATABASE_URL source + NEO4J_*). Source = la base MariaDB
- * pointée par DATABASE_URL ; cible = `--db` (sinon yaye_app).
+ * pointée par DATABASE_URL (= yaye_poc_enriched) ; cible = `--db` (sinon enriched).
+ * NB : nom de base Neo4j sans underscore (contrainte Neo4j 5).
  */
 import { config } from 'dotenv'
 
@@ -19,7 +22,7 @@ config({ path: '.env.local' })
 
 const args = process.argv.slice(2)
 const dbIdx = args.indexOf('--db')
-const targetDb = dbIdx >= 0 ? args[dbIdx + 1] : 'yaye_app'
+const targetDb = dbIdx >= 0 ? args[dbIdx + 1] : 'enriched'
 const wipe = !args.includes('--no-wipe')
 
 // Doit être posé AVANT l'import des modules qui lisent neo4jDatabase().

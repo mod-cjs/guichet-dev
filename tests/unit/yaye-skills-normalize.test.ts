@@ -9,8 +9,10 @@ import {
   diceCoefficient,
   buildSkillIndex,
   matchSkills,
+  matchThemeToCategorieSkills,
   parseCompetences,
   type SkillRef,
+  type SkillWithCategorie,
 } from '@/lib/ia/graph/skills-normalize'
 
 const SKILLS: SkillRef[] = [
@@ -59,6 +61,29 @@ test('matchSkills : terme hors référentiel → aucune correspondance', () => {
 test('matchSkills : containment (intitulé long contenant la compétence)', () => {
   const m = matchSkills('Licence en agriculture durable', index)
   expect(m.map(x => x.id)).toContain('s-agri')
+})
+
+// PREPARE (spec 02 §4) : theme ↔ Competence.categorie — pas le libellé.
+const SKILLS_CAT: SkillWithCategorie[] = [
+  { id: 's-js', slug: 'javascript', libelle: 'JavaScript', categorie: 'Numérique' },
+  { id: 's-py', slug: 'python', libelle: 'Python', categorie: 'Numérique' },
+  { id: 's-agri', slug: 'agriculture', libelle: 'Agriculture', categorie: 'Agriculture' },
+  { id: 's-sans', slug: 'autre', libelle: 'Autre', categorie: null },
+]
+
+test('matchThemeToCategorieSkills : un thème relie TOUTES les compétences de sa catégorie', () => {
+  const ids = matchThemeToCategorieSkills('numerique', SKILLS_CAT)
+  expect(ids.sort()).toEqual(['s-js', 's-py'])
+})
+
+test('matchThemeToCategorieSkills : matching flou sur le libellé de catégorie (accents)', () => {
+  expect(matchThemeToCategorieSkills('Numérique', SKILLS_CAT).sort()).toEqual(['s-js', 's-py'])
+  expect(matchThemeToCategorieSkills('Agriculture durable', SKILLS_CAT)).toEqual(['s-agri'])
+})
+
+test('matchThemeToCategorieSkills : thème hors catégories ou vide → aucune relation', () => {
+  expect(matchThemeToCategorieSkills('astrophysique', SKILLS_CAT)).toEqual([])
+  expect(matchThemeToCategorieSkills('', SKILLS_CAT)).toEqual([])
 })
 
 test('parseCompetences : array, texte JSON, null, valeurs sales', () => {

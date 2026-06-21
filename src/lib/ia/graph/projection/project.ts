@@ -15,7 +15,14 @@ import { logger } from '@/lib/logger'
 import { isNeo4jConfigured } from '@/lib/neo4j'
 import { deleteRelsOfTypes, detachDeleteNode, mergeNodes, mergeRels, wipeGraph, type RelPair } from './cypher'
 import { ensureGraphSchema, OPPORTUNITE_SUBTYPE_LABELS } from './schema'
-import { buildSkillIndex, matchSkills, parseCompetences, type SkillRef } from '../skills-normalize'
+import {
+  buildSkillIndex,
+  matchSkills,
+  matchThemeToCategorieSkills,
+  parseCompetences,
+  type SkillRef,
+  type SkillWithCategorie,
+} from '../skills-normalize'
 
 export interface ProjectionReport {
   backend: 'neo4j' | 'skipped'
@@ -263,7 +270,7 @@ async function projectRelations(): Promise<Record<string, number>> {
 
 async function projectDerived(): Promise<Record<string, number>> {
   const counts: Record<string, number> = {}
-  const skills = await prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } })
+  const skills = await prisma.skill.findMany({ select: { id: true, slug: true, libelle: true, categorie: true } })
   const index = buildSkillIndex(skills as SkillRef[])
 
   // profil → cjsUid (les certificats/diplômes sont rattachés via profilId).
@@ -306,10 +313,16 @@ async function projectDerived(): Promise<Record<string, number>> {
   counts.ATTESTE = await mergeRels('ATTESTE', 'Certificat', 'id', 'Competence', 'id', dedupePairs(atteste))
   counts.ATTESTE += await mergeRels('ATTESTE', 'Diplome', 'id', 'Competence', 'id', dedupePairs(attesteD))
 
-  // PREPARE : RessourcePedagogique.theme → Competence (flou).
+  // PREPARE : RessourcePedagogique.theme ↔ Competence.categorie (spec 02 §4).
+  // Le thème prépare TOUTES les compétences de la/les catégorie(s) qu'il désigne
+  // (pas un matching libellé-à-libellé, qui raterait les compétences sœurs).
   const ressources = await prisma.ressource.findMany({ select: { id: true, theme: true } })
   const prepare: RelPair[] = []
-  for (const r of ressources) for (const m of matchSkills(r.theme, index)) prepare.push({ from: r.id, to: m.id })
+  for (const r of ressources) {
+    for (const id of matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])) {
+      prepare.push({ from: r.id, to: id })
+    }
+  }
   counts.PREPARE = await mergeRels('PREPARE', 'RessourcePedagogique', 'id', 'Competence', 'id', dedupePairs(prepare))
 
   return counts

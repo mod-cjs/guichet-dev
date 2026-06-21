@@ -1,9 +1,11 @@
 // Recommandation proactive d'opportunités (GUIC-434, Lot 1e).
 // Spec : .agent_context/specs/yaye/02-knowledge-graph-neo4j.md §0 (corollaire) + 11 F2
 //
-// ⚠️ INVARIANT : un seul cerveau = le graphe. Ce module N'INVENTE AUCUN score —
-// il ORCHESTRE des traversées (reco collaborative + éligibilité) via le GraphPort
-// et MÉMOÏSE le résultat dans `RecommandationIA` (Prisma) comme CACHE explicable.
+// ⚠️ INVARIANT : un seul cerveau = le graphe. Les SIGNAUX viennent tous de
+// traversées (reco collaborative + éligibilité) via le GraphPort — ce module
+// n'invente aucun signal ; il les COMBINE par un blend de rang documenté
+// (cf. COLLAB_WEIGHT/ELIGIBLE_WEIGHT) et MÉMOÏSE le résultat dans
+// `RecommandationIA` (Prisma) comme CACHE explicable.
 // Le réactif (query_knowledge_graph) et ce proactif partagent la même logique.
 
 import { prisma } from '@/lib/prisma'
@@ -17,6 +19,13 @@ export interface RecommandationResult {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+// Pondérations du blend de rang (signaux normalisés ∈ [0,1]). Le collaboratif pèse
+// davantage car c'est le signal de pertinence le plus discriminant ; l'éligibilité
+// affine. Documentées et testées (yaye-recommandation.test) — ce n'est pas une
+// boîte noire : la `raison` portée par chaque reco reste le chemin explicatif.
+const COLLAB_WEIGHT = 0.6
+const ELIGIBLE_WEIGHT = 0.4
 
 /**
  * Calcule les recommandations par TRAVERSÉE du graphe (pas de scoring parallèle) :
@@ -39,16 +48,19 @@ export async function computeRecommandations(cjsUid: string, limit = 5): Promise
     acc.set(id, e)
   }
 
+  // CONFIDENTIALITÉ (CDP) : le signal collaboratif sert au SCORE, mais la raison
+  // affichée ne parle JAMAIS d'autres usagers ni de leur nombre — uniquement du
+  // bénéficiaire conseillé.
   const maxPop = Math.max(1, ...collab.map(c => c.popularite))
   for (const c of collab) {
-    bump(c.id, 0.6 * (c.popularite / maxPop), `${c.popularite} profil(s) au parcours similaire y ont postulé`)
+    bump(c.id, COLLAB_WEIGHT * (c.popularite / maxPop), 'correspond à ton parcours et tes centres d’intérêt')
   }
   eligibles.forEach((o, i) => {
-    bump(o.id, 0.4 * (1 - i / Math.max(1, eligibles.length)), 'correspond à votre niveau d’étude et votre profil')
+    bump(o.id, ELIGIBLE_WEIGHT * (1 - i / Math.max(1, eligibles.length)), 'adaptée à ton niveau d’étude et ton profil')
   })
 
   return [...acc.entries()]
-    .map(([opportuniteId, e]) => ({ opportuniteId, score: round2(e.score), raison: e.raisons.join(' · ') }))
+    .map(([opportuniteId, e]) => ({ opportuniteId, score: round2(e.score), raison: e.raisons[0] ?? '' }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
 }
