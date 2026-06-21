@@ -3,6 +3,10 @@
  *
  * GUIC-240 — Idempotence sur webhook WhatsApp (Meta peut renvoyer 3× le même message).
  * Vérifie qu'un même `message.id` n'est traité qu'une seule fois (SET NX TTL 7j Redis).
+ *
+ * NB : depuis le Lot 0 Yaye (GUIC-259), le webhook utilise le MÊME moteur que le web
+ * (`runAgent`) après résolution du binding `ConversationWhatsApp` — plus l'ancien
+ * `rag.generateAgentResponse`. Ce test mocke donc `runAgent` + le contexte Redis.
  */
 
 process.env.WHATSAPP_APP_SECRET    = 'test-app-secret'
@@ -18,9 +22,34 @@ jest.mock('@/lib/redis', () => ({
   redis: { set: (...args: unknown[]) => mockRedisSet(...args) },
 }))
 
-const mockGenerateAgentResponse = jest.fn().mockResolvedValue('réponse Yaye')
-jest.mock('@/lib/ia/rag', () => ({
-  generateAgentResponse: (...args: unknown[]) => mockGenerateAgentResponse(...args),
+// Moteur Yaye partagé (canal whatsapp) — remplace l'ancien rag.generateAgentResponse.
+const mockRunAgent = jest.fn()
+jest.mock('@/lib/ia/agent', () => ({
+  runAgent: (...args: unknown[]) => mockRunAgent(...args),
+}))
+
+// Contexte conversationnel (Redis) — neutralisé.
+jest.mock('@/lib/ia/context', () => ({
+  loadContext: jest.fn().mockResolvedValue([]),
+  saveContext: jest.fn().mockResolvedValue(undefined),
+  TTL_WHATSAPP: 7 * 24 * 3600,
+}))
+
+// Formateur blocs → texte WhatsApp.
+jest.mock('@/lib/ia/format-whatsapp', () => ({
+  formatBlocksForWhatsApp: jest.fn().mockReturnValue('réponse Yaye'),
+}))
+
+// Binding téléphone ↔ cjs_uid (lien magique SSO).
+const mockConvFindUnique = jest.fn()
+const mockConvUpsert = jest.fn()
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    conversationWhatsApp: {
+      findUnique: (...args: unknown[]) => mockConvFindUnique(...args),
+      upsert: (...args: unknown[]) => mockConvUpsert(...args),
+    },
+  },
 }))
 
 const mockSendText = jest.fn().mockResolvedValue(undefined)
@@ -70,10 +99,18 @@ function buildRequest(body: string): NextRequest {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // Conversation LIÉE par défaut → le chemin agent (runAgent) est exercé.
+  mockConvFindUnique.mockResolvedValue({ id: 'conv-1', cjsUid: 'u-1' })
+  mockConvUpsert.mockResolvedValue({})
+  mockRunAgent.mockResolvedValue({
+    reply: 'réponse Yaye',
+    blocks: [{ kind: 'text', text: 'réponse Yaye' }],
+    toolsUsed: [],
+  })
 })
 
 describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
-  it('traite le 1er POST et appelle generateAgentResponse + sendTextMessage', async () => {
+  it('traite le 1er POST et appelle runAgent + sendTextMessage', async () => {
     mockRedisSet.mockResolvedValueOnce('OK') // NX réussit → clé créée
 
     const res = await POST(buildRequest(buildPayload('wamid.AAA')))
@@ -86,11 +123,11 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
       7 * 24 * 3600,
       'NX'
     )
-    expect(mockGenerateAgentResponse).toHaveBeenCalledTimes(1)
+    expect(mockRunAgent).toHaveBeenCalledTimes(1)
     expect(mockSendText).toHaveBeenCalledTimes(1)
   })
 
-  it('ignore le 2e POST avec le même message.id (NX renvoie null) et NE rejoue PAS le LLM', async () => {
+  it('ignore le 2e POST avec le même message.id (NX renvoie null) et NE rejoue PAS l’agent', async () => {
     mockRedisSet.mockResolvedValueOnce(null) // déjà existant
 
     const res  = await POST(buildRequest(buildPayload('wamid.AAA')))
@@ -98,7 +135,7 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
 
     expect(res.status).toBe(200)
     expect(json).toEqual({ ok: true, idempotent: true })
-    expect(mockGenerateAgentResponse).not.toHaveBeenCalled()
+    expect(mockRunAgent).not.toHaveBeenCalled()
     expect(mockSendText).not.toHaveBeenCalled()
   })
 
@@ -108,7 +145,18 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
     const res = await POST(buildRequest(buildPayload('wamid.BBB')))
 
     expect(res.status).toBe(200)
-    expect(mockGenerateAgentResponse).toHaveBeenCalledTimes(1)
+    expect(mockRunAgent).toHaveBeenCalledTimes(1)
+  })
+
+  it('compte non lié → invite à connecter le compte, NE lance PAS l’agent', async () => {
+    mockRedisSet.mockResolvedValueOnce('OK')
+    mockConvFindUnique.mockResolvedValueOnce(null) // pas de binding cjs_uid
+
+    const res = await POST(buildRequest(buildPayload('wamid.DDD')))
+
+    expect(res.status).toBe(200)
+    expect(mockRunAgent).not.toHaveBeenCalled()
+    expect(mockSendText).toHaveBeenCalledTimes(1) // message d'invitation
   })
 
   it('refuse une signature HMAC invalide (403) avant tout traitement', async () => {
@@ -123,6 +171,6 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
 
     expect(res.status).toBe(403)
     expect(mockRedisSet).not.toHaveBeenCalled()
-    expect(mockGenerateAgentResponse).not.toHaveBeenCalled()
+    expect(mockRunAgent).not.toHaveBeenCalled()
   })
 })

@@ -92,10 +92,14 @@
 - [x] ✅ **Mineur (audit #5)** : `PREPARE` corrigé en `theme ↔ Competence.categorie` (`matchThemeToCategorieSkills`, relie toutes les compétences de la catégorie) ; blend reco `0.6/0.4` extériorisé en constantes documentées `COLLAB_WEIGHT/ELIGIBLE_WEIGHT` + commentaire d'invariant réconcilié (signaux du graphe combinés, pas inventés)
 - [x] ✅ **Tests** : +3 (PREPARE par catégorie) — suites Yaye **vertes** (skills-normalize, query-knowledge-graph, recommandation, agent, projection)
 
-### Lot 2 — Ressources centres (salles + véhicules)
-- [ ] ⬜ Mapper `reserve_resource` sur `Reservation`/`RessourceCentre`
-- [ ] ⬜ Champ zone véhicule + restriction géo + validation gestionnaire (`StatutReservation.EnAttente`)
-- [ ] ⬜ Collecte séquentielle WhatsApp
+### Lot 2 — Ressources centres (salles + véhicules) — 🟢 connexion Yaye livrée (GUIC-273)
+> Périmètre acté avec le PO : **le système de réservation existe déjà** (m4-centres : `POST /api/reservations`, UI staff/jeune, cron, notifs). Le Lot 2 = **brancher Yaye dessus SANS modifier le service existant**.
+- [x] ✅ `reserve_resource` mappé sur l'endpoint **EXISTANT** via passerelle in-process (`src/lib/ia/reservations-gateway.ts`) — propage le cookie de session, **zéro logique métier dupliquée**, service inchangé.
+- [x] ✅ `get_reservable_resources` (lecture seule) : salles/véhicules de la **région du bénéficiaire** + liens profonds vers la page de réservation existante.
+- [x] ✅ **Confirmation avant écriture** : `reserve_resource(confirm=false)` → récapitulatif ; écriture seulement sur `confirm=true` après accord explicite (garde-fou outil + system prompt).
+- [x] ✅ **Collecte séquentielle** pilotée par le system prompt (date → créneau → nb personnes → motif ≥20 → récap → confirmation). Fallback **lien web** hors contexte authentifié (WhatsApp sans cookie).
+- [x] ✅ Tests : 8 (récap/confirm/fallback/erreurs) — suite Yaye verte (134 tests).
+- [ ] ⬜ **Hors périmètre (exige de modifier le service existant)** : véhicule `EnAttente` + restriction géo (`region bénéficiaire = zone centre`, GUIC-338) + idempotence + notifs réelles. À porter dans `POST /api/reservations` quand le PO autorisera à le toucher.
 
 ### Lot 3 — Bibliothèque physique
 - [ ] ⬜ Modèles Prisma `Livre`/`ExemplaireLibre`/`Rayon`/`Emprunt` + migration

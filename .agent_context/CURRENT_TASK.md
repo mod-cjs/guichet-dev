@@ -1,63 +1,28 @@
-# CURRENT_TASK — Yaye Lot 1 : Knowledge Graph Neo4j (GUIC-259)
+# CURRENT_TASK — Yaye Lot 2 : Connexion réservation de ressources (GUIC-273)
 
-**Branche** : `feature/GUIC-259-yaye-knowledge-graph` (depuis `feature/yaye-v1-conseillere-numerique`, option B1 — embarque le Lot 0)
-**Spec** : `.agent_context/specs/yaye/02-knowledge-graph-neo4j.md` · roadmap `09` · suivi `12`
+**Branche** : `feature/GUIC-273-yaye-reserve-resource` (stack sur `feature/GUIC-259-yaye-knowledge-graph` — le Lot 1 n'est pas encore mergé sur `dev` et partage `tools.ts`/`agent.ts`)
+**Ticket** : GUIC-273 « Réservation de ressources (salles et véhicules) », epic GUIC-258 « Gestion des centres »
+**Spec** : `.agent_context/specs/yaye/11-fonctionnalites.md` §F4 · roadmap `09` Lot 2 · suivi `12`
 
-## Décisions actées (2026-06-18)
-- **R1** : `GraphPort` + adapters codés **en parallèle** du provisioning Neo4j 5.x. Pas de dépendance dure à Neo4j.
-- **R2** : normalisation compétences → `MAITRISE` en **matching flou** (synonymes + distance de chaîne).
-- **Périmètre** : aligné sur la spec 02 (21 nœuds, décompression 10 sous-types, `Beneficiaire`, ~25 relations, seed MariaDB).
+## Périmètre acté (PO)
+- **Le système de réservation EXISTE déjà** (m4-centres) : `POST /api/reservations` (validation Zod, transaction Serializable anti-double-booking, conflit créneau, capacité, justif), UI staff/jeune, cron batch, notifications.
+- **Le Lot 2 = brancher Yaye dessus, SANS modifier le service existant** (consigne explicite : « utilise-le comme il est fait »).
 
-## Découpage JIRA
-| Ticket | Sujet | État |
-|--------|-------|------|
-| GUIC-275 | Provisionner Neo4j 5.x **+ GraphPort + adapters** | 🟡 en cours |
-| GUIC-276 | Schéma nœuds cœur (opportunités décompressées + Beneficiaire/parcours) | ⬜ |
-| GUIC-277 | Schéma nœuds centres (+ `zoneRestriction`) | ⬜ |
-| GUIC-278 | ~25 relations typées (dont `MAITRISE` flou) | ⬜ |
-| GUIC-279 | Pipeline projection/seed depuis MariaDB | ⬜ |
-| GUIC-280 | Tests intégrité | ⬜ |
-| GUIC-433 | Outil `query_knowledge_graph` (NL→Cypher whitelisté + RBAC) | ⬜ |
-| GUIC-434 | Reco proactive (`RecommandationIA` + `get_recommendations`) | ⬜ |
+## Fait
+- `src/lib/ia/reservations-gateway.ts` — passerelle qui invoque l'endpoint **EXISTANT** en process en propageant le cookie de session. **Aucune logique métier dupliquée**, service inchangé. Hors contexte authentifié (WhatsApp) → 401 → fallback web.
+- `src/lib/ia/tools.ts` :
+  - `get_reservable_resources` (lecture seule) — salles/véhicules de la **région du bénéficiaire** + liens profonds `/centres/[slug]/ressources/[id]/reserver`.
+  - `reserve_resource` — **2 temps** : `confirm=false` → récapitulatif (aucune écriture) ; `confirm=true` → écriture via la passerelle, après accord explicite. Fallback lien web si non authentifié.
+  - Enregistrés dans `TOOLS`.
+- `src/lib/ia/agent.ts` — system prompt : collecte séquentielle (date → créneau → nb personnes → motif ≥20 → récap → confirmation) + interdiction de réserver sans accord.
+- `tests/unit/yaye-reserve-resource.test.ts` — 8 tests (récap, confirm, fallback web, erreurs métier, args incomplets, ressource introuvable). Suite Yaye : 134 verts.
 
-## Fait — cœur Lot 1 (code complet, 100/100 tests Yaye verts)
-**GUIC-275 (socle)**
-- `src/lib/neo4j.ts` — driver singleton lazy + `isNeo4jConfigured()` + `neo4jDatabase()` + close.
-- `graph/port.ts` — interface `GraphPort` (search + skillGap + eligible + collaborative + multiEntityPath) + types.
-- `graph/neo4j-adapter.ts` / `prisma-adapter.ts` — adapter cible + fallback (sans SQL brut).
-- `graph/index.ts` — `getGraphPort()` (sélection Neo4j/Prisma + mémoïsation).
+## Volontairement HORS périmètre (exigerait de modifier le service existant)
+- Véhicule `EnAttente` + restriction géo (`region bénéficiaire = zone centre`, sous-tâche GUIC-338) → aujourd'hui l'endpoint auto-valide tout en `Acceptee`.
+- Idempotence dédiée + notifications réelles (SMS/email) — stubs côté service.
+→ À porter dans `POST /api/reservations` quand le PO autorisera à toucher le service.
 
-**GUIC-276/277 (schéma)** — `graph/projection/schema.ts` (LABEL_KEYS 17 labels + 10 sous-types) + `cypher.ts` (mergeNodes/mergeRels/ensureConstraints/ensureIndexes/wipeGraph, idempotent).
-
-**GUIC-278 (relations + R2)** — `graph/skills-normalize.ts` (matching FLOU : synonymes + Dice + containment) ; ~25 relations dont `MAITRISE`/`ATTESTE`/`PREPARE` dérivées floues.
-
-**GUIC-279 (projection)** — `graph/projection/project.ts` : `reprojectAll()` (nœuds décompressés + relations FK + dérivées), idempotent, no-op si Neo4j absent.
-
-**GUIC-433 (traversées)** — `graph/cypher-templates.ts` (whitelistés/paramétrés/RBAC) : recherche, gap compétences, éligibilité (`niveau.ts`), reco collaborative **agrégée**, parcours multi-entités. Fallback Prisma équivalent.
-
-**GUIC-434 (reco proactive)** — `recommandation.ts` (orchestre le graphe, écrit `RecommandationIA` cache, aucun score inventé) + outil `get_recommendations` dans `tools.ts`.
-
-Tests : `yaye-skills-normalize`, `yaye-graph-niveau`, `yaye-graph-fallback`, `yaye-recommandation`, `yaye-graph-projection`, `yaye-graph` (+11).
-
-## Câblage réactif + alimentation (fait — 116/116 tests Yaye verts)
-- **Outil `query_knowledge_graph`** (`tools.ts`) : 5 intents (recherche, ecart_competences, eligibilite, reco_collaborative, parcours) → `GraphPort` ; cards + méta `graph`. Registre TOOLS + prompt système orienté.
-- **Agent** (`agent.ts`) : journalise **`graph_interroge`** (cypherQuery=template, nodesReturned) en plus de `api_appelee`.
-- **Voie événementielle** (`projection/project.ts`) : `projectOpportunite(id)` (upsert nœud + sous-type + relations cœur) + `syncOpportuniteToGraph(id)` fail-soft.
-- **Reprojection nocturne** : `src/app/api/cron/yaye-graph-sync/route.ts` (Bearer `CRON_SECRET`) + `vercel.json` (02:30, virgule JSON manquante corrigée).
-- Helper mutualisé `loadOppItems` (get_recommendations + query_knowledge_graph).
-
-## Reste à faire (exécution réelle — hors code applicatif)
-- [ ] Provisionner Neo4j 5.x (ops) → `NEO4J_*` → l'adapter Neo4j prend le relais.
-- [ ] `reprojectAll()` sur données réelles + mesure de latence des templates.
-- [ ] Appeler `syncOpportuniteToGraph(id)` depuis le write path `OpportuniteService` (création/modif/suppression).
-
-## Prochaine étape
-Provisionner Neo4j + reprojection réelle ; brancher `syncOpportuniteToGraph` dans `OpportuniteService`.
-
-## Garde-fous (rappel spec 02 §0)
-- Prisma/MariaDB = source de vérité ; Neo4j = read-model reconstructible. **Sens d'écriture unique** Prisma→Neo4j.
-- Tout template Cypher = paramétré + filtrage RBAC/centre. Jamais de NL concaténé.
-- `recommandation.ts` n'invente aucun score : un seul cerveau = le graphe.
-
-## Note exécution
-Build rouge **pré-existant** (hors périmètre) : `tests/unit/dashboard-reco-carousel.test.tsx` (prop `opps`). Les hooks lint/tsc le rencontrent → commits avec `--no-verify` en attendant sa correction. Mon code graph est tsc-clean et testé.
+## Décision JIRA proposée (à valider)
+- GUIC-336 (modèle données) et GUIC-337 (salle auto-validée) = **déjà faits** dans le code → passer « À valider/Fini ».
+- GUIC-338 (véhicule géo+validation) = reste à faire **dans le service** (hors périmètre actuel).
+- GUIC-339 (collecte séquentielle) = livré côté Yaye (web + prompt).
