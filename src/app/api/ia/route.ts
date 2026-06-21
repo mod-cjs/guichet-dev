@@ -68,6 +68,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       sessionId,
       canal: 'web',
     })
+    // Formateur web (Lot 5) : le rendu cards/actions est fait côté client (YayeBlocks).
+    // On journalise la transmission + le format de canal pour la cohérence multi-canal.
+    await logAgentEvent({ ...logBase, typeEvenement: 'format_canal', formatCanal: 'card_react' })
+    await logAgentEvent({
+      ...logBase,
+      typeEvenement: 'contenu_transmis',
+      payload: { blocs: (result.blocks ?? []).map((b) => b.kind) },
+    })
+
     // Persiste le contexte côté serveur (cache chaud Redis, TTL 30 min web).
     await saveContext(
       sessionId,

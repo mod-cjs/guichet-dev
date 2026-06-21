@@ -35,10 +35,16 @@ jest.mock('@/lib/ia/context', () => ({
   TTL_WHATSAPP: 7 * 24 * 3600,
 }))
 
-// Formateur blocs → texte WhatsApp.
+// Formateur multi-canal (Lot 5) : on mocke le dispatcher d'envoi.
+const mockSendBlocks = jest.fn().mockResolvedValue({ formats: ['text'] })
 jest.mock('@/lib/ia/format-whatsapp', () => ({
-  formatBlocksForWhatsApp: jest.fn().mockReturnValue('réponse Yaye'),
+  sendYayeBlocksToWhatsApp: (...a: unknown[]) => mockSendBlocks(...a),
+  shouldSuggestWeb: jest.fn().mockReturnValue(false),
+  webSwitchMessage: jest.fn().mockReturnValue('switch web'),
 }))
+
+// Journalisation fail-soft neutralisée.
+jest.mock('@/lib/ia/agent-logs', () => ({ logAgentEvent: jest.fn().mockResolvedValue(undefined) }))
 
 // Binding téléphone ↔ cjs_uid (lien magique SSO).
 const mockConvFindUnique = jest.fn()
@@ -110,7 +116,7 @@ beforeEach(() => {
 })
 
 describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
-  it('traite le 1er POST et appelle runAgent + sendTextMessage', async () => {
+  it('traite le 1er POST et appelle runAgent + formateur multi-canal', async () => {
     mockRedisSet.mockResolvedValueOnce('OK') // NX réussit → clé créée
 
     const res = await POST(buildRequest(buildPayload('wamid.AAA')))
@@ -124,7 +130,7 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
       'NX'
     )
     expect(mockRunAgent).toHaveBeenCalledTimes(1)
-    expect(mockSendText).toHaveBeenCalledTimes(1)
+    expect(mockSendBlocks).toHaveBeenCalledTimes(1)
   })
 
   it('ignore le 2e POST avec le même message.id (NX renvoie null) et NE rejoue PAS l’agent', async () => {
@@ -136,7 +142,22 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
     expect(res.status).toBe(200)
     expect(json).toEqual({ ok: true, idempotent: true })
     expect(mockRunAgent).not.toHaveBeenCalled()
-    expect(mockSendText).not.toHaveBeenCalled()
+    expect(mockSendBlocks).not.toHaveBeenCalled()
+  })
+
+  it('réponse interactive (tap bouton) → runAgent reçoit la valeur encodée dans l’id', async () => {
+    mockRedisSet.mockResolvedValueOnce('OK')
+    const payload = JSON.stringify({
+      entry: [{ changes: [{ value: { messages: [{
+        id: 'wamid.INT', from: '221770000000', type: 'interactive',
+        interactive: { type: 'button_reply', button_reply: { id: 'Élargis la recherche', title: 'Élargir' } },
+      }] } }] }],
+    })
+
+    const res = await POST(buildRequest(payload))
+
+    expect(res.status).toBe(200)
+    expect(mockRunAgent).toHaveBeenCalledWith(expect.objectContaining({ message: 'Élargis la recherche' }))
   })
 
   it('fail-open : si Redis throw, on traite quand même le message (cohérent webhook SSO)', async () => {

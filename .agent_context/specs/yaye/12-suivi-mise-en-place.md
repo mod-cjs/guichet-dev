@@ -119,10 +119,14 @@
 - [ ] ⬜ Mapper `get_badge` sur le système retenu (JWT rotatif recommandé)
 - [ ] ⬜ 4 formats + actions au scan + mode offline
 
-### Lot 5 — Formateur de sortie multi-canal
-- [ ] ⬜ Objets normalisés → card/liste_whatsapp/image_qr/pdf/synthèse
-- [ ] ⬜ Boutons (3) + listes interactives Meta (10) + templates
-- [ ] ⬜ Bascule web (deep link SSO) si > 5 échanges
+### Lot 5 — Formateur de sortie multi-canal — 🟢 cœur livré (GUIC-263/317)
+- [x] ✅ **Messages interactifs Meta** (`src/lib/whatsapp.ts`) : `sendInteractiveButtons` (≤3, titre ≤20) + `sendInteractiveList` (≤10, titre ≤24) — limites Meta GUIC-317.
+- [x] ✅ **Formateur dispatcher** (`format-whatsapp.ts`) : `planWhatsAppDelivery` (pur) → texte (opportunités = liste numérotée + deep link) + boutons/liste selon le nombre de quick_replies ; `sendYayeBlocksToWhatsApp` renvoie les `formats`.
+- [x] ✅ **Webhook** : gère les **réponses interactives** (tap bouton/liste → valeur encodée dans l'`id` → `runAgent`) ; journalise `format_canal` + `contenu_transmis`.
+- [x] ✅ **Web** : rendu cards (déjà fait Lot 0) + events `format_canal=card_react`/`contenu_transmis` côté `/api/ia`.
+- [x] ✅ **Bascule web** (deep link) après >5 échanges WhatsApp (une fois).
+- [x] ✅ Tests : +10 (formateur/senders/webhook interactif). Suite Yaye verte (158).
+- [ ] ⬜ Hors périmètre (infra média/externe) : `image_qr`/`pdf_joint` (génération média), `synthese`, **templates Meta approuvés** (config externe → Lot 8), SSE streaming web (optim non bloquante).
 
 ### Lot 6 — Escalade conseiller
 - [ ] ⬜ Outil `escalate_to_advisor` + journalisation raison
@@ -140,6 +144,25 @@
 - [ ] ⬜ Outil `submit_application` sur `/api/candidatures` (existe) + flux WhatsApp séquentiel
 
 ---
+
+## Reste à faire — implémentabilité par lot (selon l'existant, règle « Yaye branche l'existant »)
+
+> Étude existant 2026-06-21. « Implémentable » = branchable sur de l'existant ou code Yaye pur (sans créer/modifier un service métier d'un autre module). « Bloqué » = exige une infra absente.
+
+| Lot | Implémentable maintenant | Bloqué (infra absente / externe) |
+|-----|--------------------------|----------------------------------|
+| **5 — Formateur multi-canal** | ✅ Enrichir le formateur (blocs → liste/synthèse), **boutons/listes interactives Meta** (extension de `src/lib/whatsapp.ts`, API Meta déjà branchée), **bascule web** après N échanges (logique Yaye), **SSE** sur `/api/ia` (route Yaye) | ⛔ Rien — mais les **templates** interactifs dépendent d'une approbation Meta (cf. Lot 8) |
+| **6 — Escalade conseiller** | ✅ Outil `escalate_to_advisor` qui **journalise** la raison (`agent_logs`, event `escalade_conseiller`) + propose un contact | ⛔ **Livraison au conseiller** : pas d'inbox conseiller, pas de module d'envoi WhatsApp admin, pas de notif temps réel (à créer) |
+| **7 — Panel admin sessions + Data Hub** | ✅ **Tout** : `AgentLog` existe + framework `src/app/admin/*` + pattern export `/api/v1/export` & `analytics/centres/export`. Liste+filtres, détail 2 niveaux, indicateurs, **export CSV**, agrégations Data Hub = lecture/agrégation sur l'existant | ⚠️ RBAC `role/centreId` à finaliser dans les requêtes (plumbing `centreId` prêt depuis Lot 1) |
+| **8 — Templates Meta & durcissement** | ✅ **Durcissement CDP** : purge/rétention `agent_logs` (pattern crons `cleanup-*` existants) + effacement sur **webhook SSO** existant ; gestion **fenêtre 24h** (logique code) | ⛔ **5 templates Meta approuvés** = config/validation **externe Meta** (hors code) ; tests de charge = ops |
+
+**Synthèse** : Lot 7 = entièrement faisable (exploite `agent_logs` + admin existants). Lot 5 = faisable (code Yaye + extension WhatsApp). Lot 6 = partiel (journalisation oui ; remise au conseiller non). Lot 8 = partiel (CDP oui ; templates Meta externes).
+
+### Reste à faire — récapitulatif consolidé
+- **Bloqués (infra à créer hors Yaye)** : Lot 3 bibliothèque (GUIC-341/342/343) · Lot 6 remise conseiller (inbox/notif) · Lot 8 templates Meta (externe).
+- **Hors périmètre « connexion » des lots déjà faits** (exigent de modifier un service) : véhicule géo+EnAttente (GUIC-338), idempotence/notifs réservation, badge 4 formats/offline/code 6 car. (D1 JWT vs HMAC).
+- **Ops** : Neo4j Aura prod + cron prod (Lot 1) ; build rouge pré-existant non-IA (17→16 suites).
+- **Process** : 3 PR Yaye à ouvrir/merger vers `dev` (GUIC-259, 273, 294) ; tickets JIRA à mettre à jour (GUIC-336/337 faits, 339 livré, 294 fait sur endpoint JWT existant).
 
 ## Légende d'avancement (à tenir à jour)
 

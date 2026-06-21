@@ -23,6 +23,91 @@ export async function sendTextMessage(to: string, text: string): Promise<void> {
   }
 }
 
+/** Bouton de réponse interactif Meta (max 3, titre ≤ 20 car.). */
+export interface WhatsAppButton {
+  /** Renvoyé tel quel par le webhook au tap (on y encode la valeur d'action). */
+  id: string
+  title: string
+}
+
+/** Ligne d'une liste interactive Meta (max 10, titre ≤ 24 car., description ≤ 72). */
+export interface WhatsAppRow {
+  id: string
+  title: string
+  description?: string
+}
+
+async function postWhatsApp(payload: Record<string, unknown>, kind: string): Promise<void> {
+  const res = await fetch(`${WA_API_URL}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+    },
+    body: JSON.stringify({ messaging_product: 'whatsapp', ...payload }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`WhatsApp ${kind} error: ${res.status} — ${err}`)
+  }
+}
+
+/**
+ * Message interactif à BOUTONS de réponse (GUIC-317). Limites Meta appliquées :
+ * 3 boutons max, titre ≤ 20 car., corps ≤ 1024 car. Au tap, le webhook reçoit
+ * `interactive.button_reply.id`.
+ */
+export async function sendInteractiveButtons(to: string, body: string, buttons: WhatsAppButton[]): Promise<void> {
+  await postWhatsApp(
+    {
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: body.slice(0, 1024) },
+        action: {
+          buttons: buttons.slice(0, 3).map(b => ({
+            type: 'reply',
+            reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) },
+          })),
+        },
+      },
+    },
+    'interactive-buttons',
+  )
+}
+
+/**
+ * Message interactif à LISTE déroulante (GUIC-317). Limites Meta : 10 lignes max,
+ * titre ≤ 24 car., description ≤ 72, label bouton ≤ 20. Au tap : `interactive.list_reply.id`.
+ */
+export async function sendInteractiveList(to: string, body: string, buttonLabel: string, rows: WhatsAppRow[]): Promise<void> {
+  await postWhatsApp(
+    {
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'list',
+        body: { text: body.slice(0, 1024) },
+        action: {
+          button: buttonLabel.slice(0, 20),
+          sections: [
+            {
+              title: 'Options',
+              rows: rows.slice(0, 10).map(r => ({
+                id: r.id.slice(0, 200),
+                title: r.title.slice(0, 24),
+                ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+              })),
+            },
+          ],
+        },
+      },
+    },
+    'interactive-list',
+  )
+}
+
 /**
  * Envoie un message via un template Meta pré-approuvé (GUIC-21).
  * Obligatoire pour les messages business-initiés hors fenêtre de service 24 h.
