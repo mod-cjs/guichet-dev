@@ -2,10 +2,14 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
 const pushMock = jest.fn()
+// Stable singleton : le composant re-synchronise son état interne sur la
+// référence retournée par useSearchParams (effet GUIC-378). Un nouvel objet à
+// chaque render relancerait l'effet et viderait le champ après chaque frappe.
+const searchParamsStub = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
   usePathname: () => '/jeune',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParamsStub,
 }))
 
 describe('<BenefTopBar />', () => {

@@ -81,7 +81,13 @@ function pickFile(input: HTMLInputElement, file: File) {
   fireEvent.change(input)
 }
 
-async function typeLettre(value = 'Je postule parce que cette opportunité correspond à mon parcours.') {
+// Lettre par défaut > LETTRE_MIN_CHARS (300) pour que le bouton "Envoyer" soit actif.
+const LETTRE_DEFAUT =
+  "Je souhaite postuler à cette opportunité car elle correspond parfaitement à mon parcours et à mes aspirations professionnelles. " +
+  "Fort de mon expérience et de mes compétences acquises, je suis convaincu de pouvoir apporter une réelle valeur ajoutée à votre organisation. " +
+  "Mon profil, axé sur le développement et la collaboration, me permettra de m'intégrer rapidement et d'être opérationnel dès le premier jour."
+
+async function typeLettre(value = LETTRE_DEFAUT) {
   const ta = screen.getByLabelText(/Lettre de motivation/i) as HTMLTextAreaElement
   await act(async () => {
     fireEvent.change(ta, { target: { value } })
@@ -155,8 +161,8 @@ describe('<CandidatureModal /> — refonte v2', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
     // Pas d'élément stepper
     expect(screen.queryByText(/Étape \d/i)).not.toBeInTheDocument()
-    // Bandeau pré-rempli
-    expect(screen.getByText(/Pré-rempli depuis ton profil/i)).toBeInTheDocument()
+    // Bandeau pré-rempli (texte v2 — GUIC-380)
+    expect(screen.getByText(/Tu candidates avec les infos de ton profil/i)).toBeInTheDocument()
     // Carte profil
     expect(screen.getByText(/Awa Diop · 22 ans/)).toBeInTheDocument()
     expect(screen.getByText(/Tambacounda/)).toBeInTheDocument()
@@ -492,7 +498,8 @@ describe('<CandidatureModal /> — refonte v2', () => {
           }),
         } as unknown as Response
       }
-      if (url.startsWith('/api/candidatures')) {
+      // Intercept uniquement le POST /api/candidatures (pas les drafts PUT/GET/DELETE).
+      if (url === '/api/candidatures' && (init as RequestInit | undefined)?.method === 'POST') {
         candidaturesPayload = init?.body ? JSON.parse(init.body as string) : null
         return {
           ok: true,
@@ -500,7 +507,9 @@ describe('<CandidatureModal /> — refonte v2', () => {
           json: async () => ({ data: { id: '99999999-aaaa-bbbb-cccc-dddddddddddd' } }),
         } as unknown as Response
       }
-      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+      // Draft endpoints (GET/PUT/DELETE) : retourne une réponse vide (non-ok) pour éviter
+      // que le composant croit avoir restauré un brouillon avec des valeurs parasites.
+      return { ok: false, status: 404, json: async () => ({}) } as unknown as Response
     }) as unknown as typeof fetch
 
     renderModal({ requiresFileUpload: true })
@@ -566,26 +575,55 @@ describe('<CandidatureModal /> — refonte v2', () => {
       fireEvent.click(screen.getByRole('button', { name: /Envoyer ma candidature/i }))
     })
     await waitFor(() => expect(innerMock).toHaveBeenCalled())
-    const callBody = JSON.parse(innerMock.mock.calls[0][1]!.body as string)
+    // Cherche l'appel POST /api/candidatures parmi tous les appels (le GET drafts est aussi capturé).
+    const candidaturesCall = (innerMock.mock.calls as [string, RequestInit?][]).find(
+      ([url, init]) => url === '/api/candidatures' && (init as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(candidaturesCall).toBeDefined()
+    const callBody = JSON.parse((candidaturesCall![1] as RequestInit).body as string)
     expect(callBody.cvUrl).toMatch(/^https:\/\/blob\.example\//)
     expect(callBody.notificationsConsent).toBe(true)
   })
 
-  it('GUIC-232 — profil incomplet : bandeau + bouton désactivé', async () => {
-    global.fetch = withCompletudeOk(
-      async () => ({ ok: false, status: 500, json: async () => ({}) }) as unknown as Response,
-      ['region', 'niveauEtude', 'domainesInteret'],
+  it('GUIC-232 / GUIC-380 — profil incomplet : 403 PROFILE_INCOMPLETE → ferme modale et redirige', async () => {
+    // Le bandeau frontal "profil-incomplet-banner" a été supprimé (GUIC-380) :
+    // le POST /api/candidatures retourne 403 + code PROFILE_INCOMPLETE,
+    // et le composant ferme la modale puis route vers /jeune/candidature/profil-incomplet.
+    const missingFields = ['region', 'niveauEtude', 'domainesInteret']
+    installFetch(
+      jest.fn(async (url: string) => {
+        if (url === '/api/candidatures') {
+          return {
+            ok: false,
+            status: 403,
+            json: async () => ({
+              error: { code: 'PROFILE_INCOMPLETE', missing: missingFields },
+            }),
+          } as unknown as Response
+        }
+        return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+      }),
     )
-    renderModal()
-    expect(await screen.findByTestId('profil-incomplet-banner')).toBeInTheDocument()
-    expect(screen.getByText(/région/)).toBeInTheDocument()
-    expect(screen.getByText(/Compléter mon profil/i)).toBeInTheDocument()
-    // Même après lettre + CGU, le bouton reste désactivé.
+    const onClose = jest.fn()
+    renderModal({ onClose })
     await typeLettre()
     await checkConsent()
-    expect(
-      screen.getByRole('button', { name: /Envoyer ma candidature/i }),
-    ).toBeDisabled()
+    const btn = screen.getByRole('button', { name: /Envoyer ma candidature/i })
+    expect(btn).not.toBeDisabled()
+    await act(async () => {
+      fireEvent.click(btn)
+    })
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    // Redirection vers la page intermédiaire avec les champs manquants en querystring.
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining('/jeune/candidature/profil-incomplet'),
+    )
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining('opp=550e8400-e29b-41d4-a716-446655440000'),
+    )
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining('missing=region'),
+    )
   })
 
   // GUIC-419 — bouton « Brouillon » dans le footer : sauvegarde explicite + ferme.
@@ -614,7 +652,8 @@ describe('<CandidatureModal /> — refonte v2', () => {
       // onClose appelé immédiatement (le PUT est best-effort en void).
       expect(props.onClose).toHaveBeenCalled()
       // PUT /api/candidatures/drafts/<id> déclenché par le click (best-effort).
-      const draftCall = innerMock.mock.calls.find(([url, init]) => {
+      const calls = innerMock.mock.calls as unknown as Array<[string | URL, RequestInit?]>
+      const draftCall = calls.find(([url, init]) => {
         const u = typeof url === 'string' ? url : url.toString()
         return (
           u.includes('/api/candidatures/drafts/') &&
@@ -625,7 +664,7 @@ describe('<CandidatureModal /> — refonte v2', () => {
       const body = JSON.parse((draftCall![1] as RequestInit).body as string)
       expect(body.lettre).toMatch(/finir plus tard/)
       // Pas de POST /api/candidatures : la candidature n'est pas soumise.
-      const submitCall = innerMock.mock.calls.find(([url, init]) => {
+      const submitCall = calls.find(([url, init]) => {
         const u = typeof url === 'string' ? url : url.toString()
         return u === '/api/candidatures' && (init as RequestInit | undefined)?.method === 'POST'
       })

@@ -147,10 +147,23 @@ describe('<CentresAllClient /> — fixes W2', () => {
     expect(wrapper?.className).toMatch(/lg:flex/)
   })
 
-  it('légende NON affichée si user sans centre principal', () => {
+  it('légende affichée même sans centre principal (dès qu’il y a des centres)', () => {
+    // La légende ne dépend plus du centre principal : elle est rendue dès que
+    // `centres.length > 0` (blocs carte desktop + mobile).
     render(
       <CentresAllClient
         centres={[baseCentre]}
+        userIsConnected={true}
+        user={{ ...user, centrePrincipal: null }}
+      />,
+    )
+    expect(screen.getAllByLabelText(/Légende de la carte/i).length).toBeGreaterThan(0)
+  })
+
+  it('légende NON affichée si aucun centre', () => {
+    render(
+      <CentresAllClient
+        centres={[]}
         userIsConnected={true}
         user={{ ...user, centrePrincipal: null }}
       />,
