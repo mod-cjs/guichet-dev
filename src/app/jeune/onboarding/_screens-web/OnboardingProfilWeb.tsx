@@ -252,6 +252,9 @@ export function OnboardingProfilWeb({ initial }: Props) {
                   </button>
                 ))}
               </div>
+              {f.errors.genre ? (
+                <p className="text-gj-red" style={{ fontSize: 12, marginTop: 4 }}>{f.errors.genre}</p>
+              ) : null}
             </div>
           </div>
 
