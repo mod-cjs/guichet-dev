@@ -76,7 +76,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
       {/* GUIC-373 — Yaye bubble universel pour l'app jeune.
           GUIC-376 — l'état d'ouverture est partagé avec le CTA sidebar
           via `YayeProvider`. */}
-      <YayeBubble />
+      <YayeBubble prenom={session.prenom ?? undefined} />
     </div>
     </YayeProvider>
   )
