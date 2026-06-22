@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getCentresWithStatusAndHoraires } from '@/lib/loaders/centres'
-import { suggestCentrePrincipal } from '@/lib/loaders/profil-onboarding'
+import { suggestCentrePrincipal, getUserRegion, resolveOnboardingRegion } from '@/lib/loaders/profil-onboarding'
 import { CentrePrincipalForm } from './centre-principal-form'
 import { CentrePrincipalFormWeb } from '../_screens-web/CentrePrincipalFormWeb'
 
@@ -20,16 +20,21 @@ export default async function OnboardingCentrePrincipalPage() {
   if (!session) redirect('/auth/connexion')
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
 
+  // La région saisie à l'étape profil est en base mais pas dans le JWT — la base
+  // fait foi pour suggérer le bon centre (GUIC-448).
+  const dbRegion = await getUserRegion(session.cjsUid)
+  const region   = resolveOnboardingRegion(dbRegion, session.region)
+
   const centres = await getCentresWithStatusAndHoraires()
   const suggestedId = await suggestCentrePrincipal({
-    region: session.region,
+    region,
     cjsUid: session.cjsUid,
   })
 
   // Trier : région du jeune d'abord, puis le reste alphabétique
   const sorted = [...centres].sort((a, b) => {
-    const aMatch = session.region && a.region === session.region ? 0 : 1
-    const bMatch = session.region && b.region === session.region ? 0 : 1
+    const aMatch = region && a.region === region ? 0 : 1
+    const bMatch = region && b.region === region ? 0 : 1
     if (aMatch !== bMatch) return aMatch - bMatch
     return a.nom.localeCompare(b.nom)
   })
@@ -42,7 +47,7 @@ export default async function OnboardingCentrePrincipalPage() {
       ville: c.ville,
     })),
     suggestedId,
-    userRegion: session.region ?? null,
+    userRegion: region,
   }
 
   return (
