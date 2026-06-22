@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Select } from '@/components/ui/Select'
+import { StepBar } from '@/components/ui/StepBar'
+import { FieldLabel } from '@/components/ui/FieldLabel'
 
 export interface CentrePrincipalOption {
   id: string
@@ -35,6 +38,9 @@ function track(type: string, metadata: Record<string, unknown>) {
  * Pré-sélectionne l'id suggéré (centre de la région SSO). 2 CTAs :
  *  - "Continuer" : POST `/api/profil/centre-principal` puis `/recommandations`.
  *  - "Passer cette étape" : POST avec `centreId: null` puis `/recommandations`.
+ *
+ * Étape 4/5 dans le flow : telephone(1) → objectifs(2) → profil(3) →
+ * centre-principal(4) → recommandations(5).
  */
 export function CentrePrincipalForm({
   centres,
@@ -75,54 +81,42 @@ export function CentrePrincipalForm({
   }
 
   return (
-    <main role="main" className="min-h-[100dvh] bg-gj-bg flex flex-col">
+    <div className="min-h-[100dvh] bg-gj-bg flex flex-col">
+      <StepBar step={4} total={5} />
+
       <div className="mx-auto w-full max-w-md px-space-4 pt-space-5 pb-space-6 flex flex-col gap-space-4">
         <header>
-          <h1 className="text-fs-500 font-black m-0" style={{ color: 'var(--gj-ink, #0E1A1F)' }}>
+          <h1 className="text-fs-500 font-black m-0 text-color-text-primary">
             Choisis ton centre CJS principal
           </h1>
-          <p className="text-fs-200 mt-1" style={{ color: 'var(--gj-grey, #65706B)' }}>
+          <p className="text-fs-200 mt-1 text-gj-grey">
             On t&apos;a suggéré le centre de ta région — tu peux le changer à tout moment dans ton profil.
           </p>
         </header>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-fs-200 font-bold" style={{ color: 'var(--gj-ink, #0E1A1F)' }}>
-            Centre CJS
-          </span>
-          <select
+        <div className="flex flex-col gap-2">
+          <FieldLabel htmlFor="centre-select">Centre CJS</FieldLabel>
+          <Select
+            id="centre-select"
+            aria-label="Centre CJS"
             value={selectedId ?? ''}
             onChange={(e) => setSelectedId(e.target.value || null)}
-            aria-label="Sélectionner un centre CJS"
-            className="w-full px-3 py-3 rounded-gj-md text-fs-200"
-            style={{
-              background: 'var(--gj-surface, #fff)',
-              border: '1px solid var(--gj-line, #DDE3E1)',
-              minHeight: 44,
-            }}
-            disabled={loading}
-          >
-            <option value="">— Aucun centre principal —</option>
-            {centres.map((c) => {
+            options={centres.map((c) => {
               const inMyRegion = userRegion && c.region === userRegion
-              return (
-                <option key={c.id} value={c.id}>
-                  {c.nom} — {c.ville}
-                  {inMyRegion ? ' (ta région)' : ''}
-                </option>
-              )
+              return {
+                value: c.id,
+                label: `${c.nom} — ${c.ville}${inMyRegion ? ' (ta région)' : ''}`,
+              }
             })}
-          </select>
-        </label>
+            placeholder="— Aucun centre principal —"
+            disabled={loading}
+          />
+        </div>
 
         {error && (
           <p
             role="alert"
-            className="text-fs-200 px-3 py-2 rounded-gj-sm"
-            style={{
-              color: 'var(--gj-red, #D7263D)',
-              background: 'var(--gj-red-soft, #FDECEE)',
-            }}
+            className="text-fs-200 px-3 py-2 rounded-gj-sm text-gj-red bg-gj-red-soft"
           >
             {error}
           </p>
@@ -135,8 +129,8 @@ export function CentrePrincipalForm({
             onClick={() => submit(selectedId)}
             className="w-full px-4 py-3 rounded-gj-md text-fs-200 font-bold disabled:opacity-50"
             style={{
-              background: 'var(--gj-teal-deep, #0A2A24)',
-              color: '#fff',
+              background: 'var(--gj-teal-deep)',
+              color: 'var(--gj-surface)',
               minHeight: 44,
             }}
           >
@@ -146,10 +140,9 @@ export function CentrePrincipalForm({
             type="button"
             disabled={loading}
             onClick={() => submit(null)}
-            className="w-full px-4 py-3 rounded-gj-md text-fs-200 font-medium"
+            className="w-full px-4 py-3 rounded-gj-md text-fs-200 font-medium text-gj-grey"
             style={{
               background: 'transparent',
-              color: 'var(--gj-grey, #65706B)',
               minHeight: 44,
             }}
           >
@@ -157,6 +150,6 @@ export function CentrePrincipalForm({
           </button>
         </div>
       </div>
-    </main>
+    </div>
   )
 }

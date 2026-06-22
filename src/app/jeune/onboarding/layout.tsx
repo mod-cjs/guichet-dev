@@ -36,6 +36,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
             </Link>
             <Link
               href="/api/auth/logout"
+              prefetch={false}
               className="text-fs-200 text-gj-grey hover:text-gj-red no-underline whitespace-nowrap"
             >
               Quitter

@@ -2,6 +2,29 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 
+function mockMatchMedia(matches: boolean) {
+  const listeners: Array<(e: MediaQueryListEvent) => void> = []
+  const mql: Partial<MediaQueryList> = {
+    matches,
+    media: '(min-width: 768px)',
+    addEventListener: (_e: string, l: EventListener) =>
+      listeners.push(l as (e: MediaQueryListEvent) => void),
+    removeEventListener: (_e: string, l: EventListener) => {
+      const i = listeners.indexOf(l as (e: MediaQueryListEvent) => void)
+      if (i >= 0) listeners.splice(i, 1)
+    },
+    dispatchEvent: () => true,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+  }
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: () => mql as MediaQueryList,
+  })
+}
+
 function Harness({ initialOpen = true }: { initialOpen?: boolean }) {
   const [open, setOpen] = useState(initialOpen)
   return (
@@ -77,6 +100,41 @@ describe('<Sheet />', () => {
     expect(document.activeElement).toBe(ta)
     fireEvent.change(ta, { target: { value: 'ab' } })
     expect(document.activeElement).toBe(ta)
+  })
+
+  describe('GUIC-417 — hauteur panel selon variant + viewport', () => {
+    it('variant="side" sur desktop (md+) : max-height = 100dvh (pleine hauteur)', () => {
+      mockMatchMedia(true)
+      render(
+        <Sheet isOpen onClose={() => {}} variant="side" title="Détail">
+          <p>contenu</p>
+        </Sheet>,
+      )
+      const dialog = screen.getByRole('dialog') as HTMLElement
+      expect(dialog.style.maxHeight).toBe('100dvh')
+    })
+
+    it('variant="side" sur mobile : max-height = maxHeightPct% (bottom-sheet)', () => {
+      mockMatchMedia(false)
+      render(
+        <Sheet isOpen onClose={() => {}} variant="side" maxHeightPct={70} title="Détail">
+          <p>contenu</p>
+        </Sheet>,
+      )
+      const dialog = screen.getByRole('dialog') as HTMLElement
+      expect(dialog.style.maxHeight).toBe('70%')
+    })
+
+    it('variant="bottom" sur desktop : max-height = maxHeightPct% (pas de pleine hauteur)', () => {
+      mockMatchMedia(true)
+      render(
+        <Sheet isOpen onClose={() => {}} variant="bottom" maxHeightPct={94} title="Filtres">
+          <p>contenu</p>
+        </Sheet>,
+      )
+      const dialog = screen.getByRole('dialog') as HTMLElement
+      expect(dialog.style.maxHeight).toBe('94%')
+    })
   })
 
   it('piège le focus : Tab depuis le dernier élément revient au premier', () => {

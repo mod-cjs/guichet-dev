@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 11 — Administration · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="admin-data.jsx"></script>
+<script type="text/babel" src="admin-charts.jsx"></script>
+<script type="text/babel" src="admin-shell.jsx"></script>
+<script type="text/babel" src="admin-web.jsx"></script>
+<script type="text/babel" src="admin-web2.jsx"></script>
+<script type="text/babel" src="admin-mobile.jsx"></script>
+
+<script type="text/babel">
+const WEB_W = 1280;
+const WEB_H = 1240;
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 11 — Administration"
+    subtitle="Super-admin national CJS · pilotage, modération, partenaires, statistiques, rôles (web + mobile)"
+  >
+    <DCSection
+      id="web"
+      title="A · Web — Back-office national"
+      subtitle="Sidebar sombre accent doré · data-viz riche + carte · navigation cliquable"
+    >
+      <DCArtboard id="w1" label="Tableau de bord national" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="home" />
+      </DCArtboard>
+      <DCArtboard id="w2" label="Centres CJS · performance" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="centres" />
+      </DCArtboard>
+      <DCArtboard id="w3" label="Utilisateurs · gestion" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="users" />
+      </DCArtboard>
+      <DCArtboard id="w4" label="Modération des publications" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="moderation" />
+      </DCArtboard>
+      <DCArtboard id="w5" label="Partenaires & recruteurs" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="partners" />
+      </DCArtboard>
+      <DCArtboard id="w6" label="Statistiques & rapports" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="stats" />
+      </DCArtboard>
+      <DCArtboard id="w7" label="Contenu · médiathèque" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="content" />
+      </DCArtboard>
+      <DCArtboard id="w8" label="Rôles & droits" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="roles" />
+      </DCArtboard>
+      <DCArtboard id="w10" label="Types d'opportunité · CRUD" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="types" />
+      </DCArtboard>
+      <DCArtboard id="w9" label="Journal d'audit" width={WEB_W} height={WEB_H}>
+        <WebAdmin view="audit" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection
+      id="mobile"
+      title="B · Mobile — Pilotage en mobilité"
+      subtitle="KPIs, modération rapide, centres, utilisateurs · navigation cliquable"
+    >
+      <DCArtboard id="m1" label="Tableau de bord" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="home" />
+      </DCArtboard>
+      <DCArtboard id="m2" label="Modération" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="moderation" />
+      </DCArtboard>
+      <DCArtboard id="m3" label="Centres · performance" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="centres" />
+      </DCArtboard>
+      <DCArtboard id="m4" label="Utilisateurs" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="users" />
+      </DCArtboard>
+      <DCArtboard id="m5" label="Plus · sections secondaires" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="more" />
+      </DCArtboard>
+      <DCArtboard id="m6" label="Statistiques & rapports" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="stats" />
+      </DCArtboard>
+      <DCArtboard id="m7" label="Partenaires & recruteurs" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="partners" />
+      </DCArtboard>
+      <DCArtboard id="m8" label="Contenu · médiathèque" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="content" />
+      </DCArtboard>
+      <DCArtboard id="m9" label="Rôles & droits" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="roles" />
+      </DCArtboard>
+      <DCArtboard id="m10" label="Journal d'audit" width={PHONE_W} height={PHONE_H}>
+        <MobAdminApp start="audit" />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="accessibility.js"></script>
+</body>
+</html>
