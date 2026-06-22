@@ -1237,3 +1237,158 @@ model CentreEvent {
   @@index([centreId, type, ts])
   @@map("centre_events")
 }
+
+// ─────────────────────────────────────────────
+// M12 — IA : TRAÇABILITÉ AGENT YAYE (GUIC-259)
+// Trace technique par événement (distincte de MessageWhatsApp = transcript,
+// et de CentreEvent = KPI). Cf. .agent_context/specs/yaye/06-agent-logs-tracabilite.md
+// ─────────────────────────────────────────────
+
+enum CanalAgent {
+  web
+  whatsapp
+
+  @@map("canal_agent")
+}
+
+enum StatutAgent {
+  succes
+  echec
+  partiel
+
+  @@map("statut_agent")
+}
+
+/// Types d'événements journalisés par Yaye (taxonomie spec §7.3).
+enum TypeEvenementAgent {
+  session_ouverte
+  message_recu
+  intention_detectee
+  graph_interroge
+  api_appelee
+  reponse_generee
+  badge_genere
+  reservation_soumise
+  emprunt_initie
+  retour_enregistre
+  contenu_transmis
+  format_canal
+  escalade_conseiller
+  erreur
+
+  @@map("type_evenement_agent")
+}
+
+/// Une ligne par action de Yaye, écrite au moment où elle se produit.
+/// Une conversation de 10 échanges génère typiquement 40-60 lignes.
+model AgentLog {
+  id            String             @id @default(uuid()) @db.VarChar(36)
+  sessionId     String             @map("session_id") @db.VarChar(36)
+  cjsUid        String?            @map("cjs_uid") @db.VarChar(36)
+  role          String?            @db.VarChar(40)
+  centreId      String?            @map("centre_id") @db.VarChar(36)
+  canal         CanalAgent
+  tsMs          BigInt             @map("ts_ms") // horodatage epoch en millisecondes
+  typeEvenement TypeEvenementAgent @map("type_evenement")
+  toolCalled    String?            @map("tool_called") @db.VarChar(60)
+  payload       Json? // message, paramètres, résultats — ⚠️ PII : minimisation + droit à l'oubli (doc 07/10)
+  cypherQuery   String?            @map("cypher_query") @db.Text
+  nodesReturned Json?              @map("nodes_returned")
+  formatCanal   String?            @map("format_canal") @db.VarChar(40)
+  dureeMs       Int?               @map("duree_ms")
+  statut        StatutAgent        @default(succes)
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  @@index([sessionId, createdAt])
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([typeEvenement, createdAt])
+  @@map("agent_logs")
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Métriques de performance conversationnelle Yaye (GUIC-435 — Yaye Quality Score)
+// On AJOUTE, on ne modifie pas l'existant. Spec : 14-metriques-performance-conversationnelle.md
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Feedback explicite de l'utilisateur (couche 5 — satisfaction). 👍 = +1, 👎 = -1.
+/// `raison` peut contenir du texte libre (PII) → minimisation + droit à l'oubli.
+model YayeFeedback {
+  id        String     @id @default(uuid()) @db.VarChar(36)
+  sessionId String     @map("session_id") @db.VarChar(36)
+  cjsUid    String?    @map("cjs_uid") @db.VarChar(36)
+  canal     CanalAgent
+  tourIndex Int?       @map("tour_index") // tour visé dans la session (null = session globale)
+  note      Int // +1 (👍) ou -1 (👎)
+  raison    String?    @db.Text // optionnel, surtout sur 👎 — PII
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([cjsUid, createdAt(sort: Desc)])
+  @@index([canal, createdAt])
+  @@map("yaye_feedback")
+}
+
+/// Scores du juge LLM (couche 3 — qualité conversationnelle). 6 dimensions 0-1.
+/// `tourIndex` null = note de la conversation entière. `drapeauRouge` = garde-fou levé.
+model YayeEvalScore {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  sessionId     String   @map("session_id") @db.VarChar(36)
+  tourIndex     Int?     @map("tour_index")
+  juge          String   @db.VarChar(80) // modèle juge + version de rubric, ex "groq:llama-3.3-70b@rubric-v1"
+  fidelite      Float // anti-hallucination — CRITIQUE (garde-fou)
+  pertinence    Float
+  utilite       Float
+  persona       Float
+  conformiteCdp Float    @map("conformite_cdp") // CRITIQUE (garde-fou)
+  langue        Float
+  drapeauRouge  Boolean  @default(false) @map("drapeau_rouge")
+  commentaire   String?  @db.Text // justification courte du juge
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([drapeauRouge, createdAt])
+  @@map("yaye_eval_scores")
+}
+
+/// Transcript web durable (GUIC-435 — option A). Texte PSEUDONYMISÉ des tours web,
+/// pour rendre les conversations web jugeables par le juge LLM (couche 3).
+/// Écriture gardée par le flag d'env `YAYE_PERSIST_WEB_TRANSCRIPT` (défaut OFF).
+/// ⚠️ CDP : texte pseudonymisé avant écriture + purge au droit à l'oubli (cascade cjs_uid).
+model YayeTranscriptTurn {
+  id            String     @id @default(uuid()) @db.VarChar(36)
+  sessionId     String     @map("session_id") @db.VarChar(36)
+  cjsUid        String?    @map("cjs_uid") @db.VarChar(36)
+  canal         CanalAgent
+  tourIndex     Int        @map("tour_index")
+  userText      String?    @map("user_text") @db.Text // pseudonymisé
+  assistantText String?    @map("assistant_text") @db.Text // pseudonymisé
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  @@index([sessionId, tourIndex])
+  @@map("yaye_transcript_turns")
+}
+
+/// Rollup par session : 1 ligne / conversation (couches 1-2-4-5 agrégées + YQS composite).
+/// Matérialisé par le service de rollups + le cron d'éval pour ne pas scanner agent_logs en live.
+model YayeSessionSummary {
+  id             String     @id @default(uuid()) @db.VarChar(36)
+  sessionId      String     @unique @map("session_id") @db.VarChar(36)
+  cjsUid         String?    @map("cjs_uid") @db.VarChar(36)
+  centreId       String?    @map("centre_id") @db.VarChar(36)
+  canal          CanalAgent
+  nbTours        Int        @map("nb_tours")
+  dureeMs        Int        @map("duree_ms")
+  escalade       Boolean    @default(false)
+  resolu         Boolean    @default(false)
+  converti       Boolean    @default(false) // a produit une action métier (candidature/réservation)
+  yqs            Float? // score composite 0-100 (null tant que non calculé)
+  drapeauRouge   Boolean    @default(false) @map("drapeau_rouge")
+  intentionPrinc String?    @map("intention_princ") @db.VarChar(60)
+  calculeLe      DateTime   @default(now()) @map("calcule_le")
+
+  @@index([canal, calculeLe])
+  @@index([intentionPrinc])
+  @@index([centreId, calculeLe])
+  @@map("yaye_session_summaries")
+}

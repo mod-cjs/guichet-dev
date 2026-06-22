@@ -1,7 +1,7 @@
 'use client'
 
 import { YayeFab } from '@/components/ui/Yaye/YayeFab'
-import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
+import { YayeConversation } from '@/components/yaye/YayeConversation'
 import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 export interface YayeBubbleProps {

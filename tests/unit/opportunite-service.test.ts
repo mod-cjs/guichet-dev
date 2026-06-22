@@ -48,6 +48,14 @@ const prismaMock = { ...mocks, $transaction: mockTransaction }
 
 jest.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 
+// GUIC-259 — la projection KG est déclenchée par import dynamique fail-soft : on la mocke.
+const mockSyncGraph = jest.fn()
+const mockSyncDelete = jest.fn()
+jest.mock('@/lib/ia/graph/projection/project', () => ({
+  syncOpportuniteToGraph: (...a: unknown[]) => mockSyncGraph(...a),
+  syncOpportuniteDeletion: (...a: unknown[]) => mockSyncDelete(...a),
+}))
+
 import { OpportuniteService, assertAvecDetails, legacyTypeFromSlug } from '@/lib/services/opportunite-service'
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────
@@ -370,5 +378,36 @@ describe('assertAvecDetails — invariant XOR', () => {
   it('rejette si typeRef est manquant', () => {
     const row = { ...freshOpp('o', 'emploi', { emploi: { typeContrat: 'CDI' } }), typeRef: null }
     expect(() => assertAvecDetails(row)).toThrow(/typeRef manquant/)
+  })
+})
+
+// ─── Synchronisation Knowledge Graph (GUIC-259, Lot 1) ──────────────────────
+describe('OpportuniteService — sync Knowledge Graph (fire-and-forget)', () => {
+  const flush = () => new Promise(r => setImmediate(r)) // laisse le import() dynamique se résoudre
+
+  beforeEach(() => {
+    mockSyncGraph.mockClear()
+    mockSyncDelete.mockClear()
+  })
+
+  it('création → syncOpportuniteToGraph(id)', async () => {
+    mocks.opportuniteType.findUnique.mockResolvedValue(typeRow('emploi'))
+    mocks.opportunite.create.mockResolvedValue({ id: 'opp-kg' })
+    mocks.opportuniteEmploi.create.mockResolvedValue({})
+    mocks.opportunite.findUnique.mockResolvedValue(freshOpp('opp-kg', 'emploi', { emploi: { typeContrat: 'CDI' } }))
+
+    const svc = new OpportuniteService(prismaMock as never)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await svc.create({ type: 'emploi', base: baseInput() as any, details: { typeContrat: 'CDI' } as any })
+    await flush()
+    expect(mockSyncGraph).toHaveBeenCalledWith('opp-kg')
+  })
+
+  it('suppression → syncOpportuniteDeletion(id)', async () => {
+    mocks.opportunite.delete.mockResolvedValue({})
+    const svc = new OpportuniteService(prismaMock as never)
+    await svc.delete('opp-del')
+    await flush()
+    expect(mockSyncDelete).toHaveBeenCalledWith('opp-del')
   })
 })
