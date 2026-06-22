@@ -17,16 +17,20 @@ import Image from 'next/image'
  * adapté aux tokens `gj-*` et au composant `Image` Next.
  */
 export interface OnboardingNavWebProps {
-  /** Étape courante. 0 = landing, 1..total = étapes du funnel. */
+  /** Étape courante (1..total). Aligné sur le stepper mobile — GUIC-444. */
   step: number
-  /** Nombre d'étapes après la landing. Total de dots = `total + 1`. */
+  /** Nombre total d'étapes du funnel. Total de dots = `total`. */
   total: number
   /** Affiche "Déjà inscrit ? Se connecter". Défaut true. */
   showLogin?: boolean
 }
 
 export function OnboardingNavWeb({ step, total, showLogin = true }: OnboardingNavWebProps) {
-  const dotsCount = total + 1
+  const dotsCount = total
+  // `step` est 1-based (objectifs = 1 … recommandations = total). On clamp pour
+  // rester dans [1, total] et dériver l'index 0-based du point actif.
+  const current    = Math.min(Math.max(step, 1), total)
+  const activeIndex = current - 1
   return (
     <header
       className="sticky top-0 bg-gj-surface border-b border-gj-line"
@@ -48,12 +52,12 @@ export function OnboardingNavWeb({ step, total, showLogin = true }: OnboardingNa
           role="progressbar"
           aria-valuemin={1}
           aria-valuemax={dotsCount}
-          aria-valuenow={Math.min(step + 1, dotsCount)}
-          aria-label={`Étape ${Math.min(step + 1, dotsCount)} sur ${dotsCount}`}
+          aria-valuenow={current}
+          aria-label={`Étape ${current} sur ${dotsCount}`}
         >
           {Array.from({ length: dotsCount }).map((_, i) => {
-            const done = i < step
-            const on = i === step
+            const done = i < activeIndex
+            const on = i === activeIndex
             return (
               <span
                 key={i}
