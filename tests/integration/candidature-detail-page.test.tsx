@@ -76,7 +76,9 @@ describe('Candidature detail — page', () => {
     render(ui)
     expect(screen.getByTestId('detail-title')).toHaveTextContent('Stage Data — Sonatel')
     expect(screen.getByTestId('detail-status-pill')).toBeInTheDocument()
-    expect(screen.getByTestId('detail-cv-link')).toHaveAttribute('href', 'https://cdn/cv.pdf')
+    // GUIC-364/415 — le CV passe par un proxy privé (ownership) plutôt que
+    // l'URL CDN directe : /api/candidatures/<id>/cv.
+    expect(screen.getByTestId('detail-cv-link')).toHaveAttribute('href', '/api/candidatures/cand-1/cv')
   })
 
   it('omet le lien CV si le DTO n\'en a pas (cvUrl null)', async () => {

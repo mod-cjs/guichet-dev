@@ -23,8 +23,10 @@ async function makeToken(
 ): Promise<string> {
   const secret = new TextEncoder().encode(opts.secret ?? SECRET)
   const now = Math.floor(Date.now() / 1000)
-  return await new SignJWT({ nonce: payload.nonce })
-    .setProtectedHeader({ alg: 'HS256' })
+  // GUIC-389 : le vérifieur exige kid='cjs-checkin-v1' et scope='checkin',
+  // sinon il renvoie null. On reproduit donc l'émetteur conforme.
+  return await new SignJWT({ nonce: payload.nonce, scope: 'checkin' })
+    .setProtectedHeader({ alg: 'HS256', kid: 'cjs-checkin-v1' })
     .setSubject(payload.sub)
     .setIssuedAt(now)
     .setExpirationTime(opts.exp ?? now + 900)

@@ -50,7 +50,9 @@ describe('Page /centres/[slug]/ressources/[id]/reserver', () => {
     )
     // « Salle A » apparaît dans le récap + h1 du formulaire → ≥ 1.
     expect(screen.getAllByText('Salle A').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/CJS Tambacounda · 8/)).toBeInTheDocument()
+    // GUIC-399 : « CJS Tambacounda · 8 » apparaît à la fois dans le header recap
+    // du parent ET dans le mini-recap (ReservationRecapMini) du formulaire → ≥ 1.
+    expect(screen.getAllByText(/CJS Tambacounda · 8/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Gratuit').length).toBeGreaterThan(0)
   })
 

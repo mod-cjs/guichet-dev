@@ -37,18 +37,14 @@ describe('<ResourceCard />', () => {
     expect(screen.getByText('Regarder')).toBeInTheDocument()
   })
 
-  it('lien externe ouvre dans un nouvel onglet (rel noopener)', () => {
+  it('overlay pointe vers la page détail interne /ressources/<id> (GUIC-363)', () => {
     const { container } = render(
-      <ResourceCard item={makeItem({ url: 'https://exemple.org/x' })} />,
+      <ResourceCard item={makeItem({ id: 'r42', url: 'https://exemple.org/x' })} />,
     )
     const a = container.querySelector('a') as HTMLAnchorElement
-    expect(a.target).toBe('_blank')
-    expect(a.rel).toContain('noopener')
-  })
-
-  it('lien interne sans target=_blank', () => {
-    const { container } = render(<ResourceCard item={makeItem({ url: '/docs/x' })} />)
-    const a = container.querySelector('a') as HTMLAnchorElement
+    // L'overlay mène toujours à la fiche détail interne, jamais à l'URL externe
+    // directement, et n'ouvre donc plus de nouvel onglet.
+    expect(a.getAttribute('href')).toBe('/ressources/r42')
     expect(a.target).toBe('')
   })
 

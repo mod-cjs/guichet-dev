@@ -1,40 +1,63 @@
 import { render, screen } from '@testing-library/react'
-import { OpportunitesRecoCarousel } from '@/components/dashboard/OpportunitesRecoCarousel'
-import { MOCK_RECO_OPPS } from '@/components/dashboard/mock-data'
+import {
+  OpportunitesRecoCarousel,
+  type OppRecoCard,
+} from '@/components/dashboard/OpportunitesRecoCarousel'
+
+const ITEMS: OppRecoCard[] = [
+  {
+    id:    'opp-1',
+    tag:   'Bourse · J-3',
+    tone:  'urgent',
+    title: 'Bourse agricole — Micro-initiative maraîchère',
+    org:   'ANIDA · Tambacounda',
+    href:  '/opportunites/bourse-agri',
+  },
+  {
+    id:    'opp-2',
+    tag:   'Stage · J-9',
+    tone:  'cjs',
+    title: 'Stage Data Science · 6 mois',
+    org:   'Sonatel · Dakar',
+    href:  '/opportunites/stage-data',
+  },
+]
 
 describe('<OpportunitesRecoCarousel />', () => {
-  it('rend le titre par défaut "Pour toi"', () => {
-    render(<OpportunitesRecoCarousel opps={MOCK_RECO_OPPS} />)
-    expect(screen.getByText('Pour toi')).toBeInTheDocument()
+  it('rend le titre par défaut "À ne pas rater"', () => {
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
+    expect(screen.getByText('À ne pas rater')).toBeInTheDocument()
   })
 
   it('rend toutes les opportunités fournies', () => {
-    render(<OpportunitesRecoCarousel opps={MOCK_RECO_OPPS} />)
-    for (const o of MOCK_RECO_OPPS) {
-      expect(screen.getByText(o.titre)).toBeInTheDocument()
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
+    for (const o of ITEMS) {
+      expect(screen.getByText(o.title)).toBeInTheDocument()
     }
   })
 
   it('rend le lien "Voir tout" par défaut vers /opportunites', () => {
-    render(<OpportunitesRecoCarousel opps={MOCK_RECO_OPPS} />)
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
     const seeAll = screen.getByRole('link', { name: /voir tout/i })
     expect(seeAll).toHaveAttribute('href', '/opportunites')
   })
 
-  it('ne rend rien quand la liste est vide', () => {
-    const { container } = render(<OpportunitesRecoCarousel opps={[]} />)
-    expect(container.firstChild).toBeNull()
+  it('affiche un état vide quand la liste est vide', () => {
+    render(<OpportunitesRecoCarousel items={[]} />)
+    expect(
+      screen.getByText(/Aucune opportunité à recommander/i),
+    ).toBeInTheDocument()
   })
 
   it('respecte titre et lede custom', () => {
     render(
       <OpportunitesRecoCarousel
-        opps={MOCK_RECO_OPPS}
-        title="À ne pas rater"
+        items={ITEMS}
+        title="Pour toi"
         lede="Sélection pour ton profil"
       />,
     )
-    expect(screen.getByText('À ne pas rater')).toBeInTheDocument()
+    expect(screen.getByText('Pour toi')).toBeInTheDocument()
     expect(screen.getByText('Sélection pour ton profil')).toBeInTheDocument()
   })
 })

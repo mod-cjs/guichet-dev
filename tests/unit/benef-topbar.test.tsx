@@ -2,10 +2,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
 
 const pushMock = jest.fn()
+// Instance stable : useSearchParams doit retourner la MÊME référence à chaque
+// rendu, sinon le useEffect([searchParams]) de BenefTopBar se redéclenche et
+// ré-synchronise internalQuery <- ?q= ('') à chaque render, écrasant la valeur
+// tapée en mode uncontrolled (faux négatif au submit).
+const mockSearchParams = new URLSearchParams()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: (...args: unknown[]) => pushMock(...args) }),
   usePathname: () => '/jeune',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }))
 
 describe('<BenefTopBar />', () => {

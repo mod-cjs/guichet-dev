@@ -115,8 +115,8 @@ describe('loadDashboardData', () => {
 
   it('renvoie 3 centres filtrés par région du jeune', async () => {
     mockCentreFindMany.mockResolvedValueOnce([
-      { id: 'c-1', nom: 'CJS Dakar',     adresse: 'Plateau',  region: 'Dakar' },
-      { id: 'c-2', nom: 'CJS Pikine',    adresse: 'Pikine',   region: 'Dakar' },
+      { id: 'c-1', slug: 'cjs-dakar',  nom: 'CJS Dakar',  adresse: 'Plateau', region: 'Dakar' },
+      { id: 'c-2', slug: 'cjs-pikine', nom: 'CJS Pikine', adresse: 'Pikine',  region: 'Dakar' },
     ])
     const data = await loadDashboardData(CJS_UID)
 
@@ -125,7 +125,7 @@ describe('loadDashboardData', () => {
       id:       'c-1',
       name:     'CJS Dakar',
       address:  'Plateau',
-      href:     '/centres/c-1',
+      href:     '/centres/cjs-dakar',
     })
     const callArgs = mockCentreFindMany.mock.calls[0][0]
     expect(callArgs.where.region).toBe('Dakar')

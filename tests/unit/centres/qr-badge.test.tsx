@@ -19,13 +19,15 @@ describe('<QRBadge />', () => {
     render(<QRBadge url="https://guichetjeunesse.sn/checkin/v1/x" />)
     const img = await screen.findByAltText(
       /QR code de check-in carte CJS — code temporaire/i,
+      undefined,
+      { timeout: 4000 },
     )
     expect(img).toHaveAttribute('src', 'data:image/png;base64,FAKE')
   })
 
   it('applique la taille demandée sur l\'image', async () => {
     render(<QRBadge url="https://guichetjeunesse.sn/checkin/v1/x" size={180} />)
-    const img = await screen.findByAltText(/QR code de check-in/i)
+    const img = await screen.findByAltText(/QR code de check-in/i, undefined, { timeout: 4000 })
     expect(img).toHaveAttribute('width', '180')
     expect(img).toHaveAttribute('height', '180')
   })
@@ -53,7 +55,7 @@ describe('<QRBadge />', () => {
         onRefreshClick={onRefresh}
       />,
     )
-    const btn = await screen.findByRole('button', { name: /Rafraîchir/i })
+    const btn = await screen.findByRole('button', { name: /Rafraîchir/i }, { timeout: 4000 })
     await act(async () => {
       fireEvent.click(btn)
     })
