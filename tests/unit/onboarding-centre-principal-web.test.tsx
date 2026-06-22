@@ -58,9 +58,10 @@ describe('CentrePrincipalFormWeb', () => {
       />,
     )
     const bar = screen.getByRole('progressbar')
-    // step=3, total=4 → dotsCount=5, aria-valuenow=min(3+1,5)=4
-    expect(bar).toHaveAttribute('aria-valuenow', '4')
-    expect(bar).toHaveAttribute('aria-valuemax', '5')
+    // GUIC-444 — stepper web aligné sur le mobile : dotsCount=total (plus de
+    // total+1). step=3, total=4 → dotsCount=4, aria-valuenow=min(3,4)=3.
+    expect(bar).toHaveAttribute('aria-valuenow', '3')
+    expect(bar).toHaveAttribute('aria-valuemax', '4')
   })
 
   it('rend un combobox DS Select pour le choix du centre', () => {

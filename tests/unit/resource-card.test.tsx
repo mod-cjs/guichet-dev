@@ -37,18 +37,25 @@ describe('<ResourceCard />', () => {
     expect(screen.getByText('Regarder')).toBeInTheDocument()
   })
 
-  it('lien externe ouvre dans un nouvel onglet (rel noopener)', () => {
+  // GUIC-363 — l'overlay de la carte pointe désormais vers la page détail
+  // interne (`/ressources/<id>`), quelle que soit l'URL cible de la ressource.
+  // L'ouverture externe (nouvel onglet) est gérée depuis la page détail, plus
+  // depuis la carte → plus de target=_blank ici.
+  it('le lien de la carte pointe vers la page détail interne /ressources/<id>', () => {
     const { container } = render(
-      <ResourceCard item={makeItem({ url: 'https://exemple.org/x' })} />,
+      <ResourceCard item={makeItem({ id: 'r42', url: 'https://exemple.org/x' })} />,
     )
     const a = container.querySelector('a') as HTMLAnchorElement
-    expect(a.target).toBe('_blank')
-    expect(a.rel).toContain('noopener')
+    expect(a.getAttribute('href')).toBe('/ressources/r42')
+    expect(a.target).toBe('')
   })
 
-  it('lien interne sans target=_blank', () => {
-    const { container } = render(<ResourceCard item={makeItem({ url: '/docs/x' })} />)
+  it('même pour une URL interne, la carte renvoie vers /ressources/<id>', () => {
+    const { container } = render(
+      <ResourceCard item={makeItem({ id: 'r7', url: '/docs/x' })} />,
+    )
     const a = container.querySelector('a') as HTMLAnchorElement
+    expect(a.getAttribute('href')).toBe('/ressources/r7')
     expect(a.target).toBe('')
   })
 
