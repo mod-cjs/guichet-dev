@@ -6,6 +6,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { runAgent } from '@/lib/ia/agent'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
 import { loadContext, saveContext, TTL_WEB } from '@/lib/ia/context'
+import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import type { YayeBlock } from '@/lib/ia/blocks'
 import type { ApiResponse } from '@/types/api'
 
@@ -75,6 +76,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       ...logBase,
       typeEvenement: 'contenu_transmis',
       payload: { blocs: (result.blocks ?? []).map((b) => b.kind) },
+    })
+
+    // Capture durable du transcript web (option A, GUIC-435) — no-op si flag OFF.
+    // Pseudonymisé + fail-soft. tourIndex = nb de tours antérieurs (history = paires).
+    await recordWebTurn({
+      sessionId,
+      cjsUid: session.cjsUid,
+      tourIndex: Math.floor(history.length / 2),
+      userText: message,
+      assistantText: result.reply,
     })
 
     // Persiste le contexte côté serveur (cache chaud Redis, TTL 30 min web).

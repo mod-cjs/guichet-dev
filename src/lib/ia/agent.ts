@@ -10,6 +10,7 @@ import Groq from 'groq-sdk'
 import type { CanalAgent } from '@prisma/client'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
+import { summarizeToolResult } from './metrics/tool-summary'
 import type { YayeBlock } from './blocks'
 
 // ── Configuration du modèle ───────────────────────────────────────────────
@@ -192,7 +193,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         toolCalled: name,
         dureeMs: Date.now() - tStart,
         statut: result.ok ? 'succes' : 'echec',
-        payload: { args: call.function.arguments },
+        // `resume` = données métier renvoyées (non-PII, borné) → permet au juge de mesurer
+        // la fidélité/groundedness au lieu de la deviner (GUIC-435, R1).
+        payload: { args: call.function.arguments, resume: summarizeToolResult(name, result) },
       })
 
       // Trace dédiée des interrogations du graphe (spec 02 §5 — événement graph_interroge).
