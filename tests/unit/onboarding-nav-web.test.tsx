@@ -11,18 +11,21 @@ describe('<OnboardingNavWeb />', () => {
     expect(logoLink).toHaveAttribute('href', '/')
   })
 
-  it('affiche total+1 dots (step 0..total inclus)', () => {
+  // GUIC-444 — le stepper web est aligné sur le mobile : `total` dots (pas total+1),
+  // numérotation 1-based (objectifs 1/4 … recommandations 4/4).
+  it('affiche exactement `total` dots', () => {
     const { container } = render(<OnboardingNavWeb step={2} total={4} />)
     const progress = container.querySelector('[role="progressbar"]')!
-    expect(progress.children.length).toBe(5)
+    expect(progress.children.length).toBe(4)
   })
 
-  it('expose aria-valuenow = step+1 et aria-valuemax = total+1', () => {
+  it('expose aria-valuenow = step (1-based) et aria-valuemax = total', () => {
     render(<OnboardingNavWeb step={2} total={4} />)
     const progress = screen.getByRole('progressbar')
-    expect(progress).toHaveAttribute('aria-valuenow', '3')
-    expect(progress).toHaveAttribute('aria-valuemax', '5')
+    expect(progress).toHaveAttribute('aria-valuenow', '2')
+    expect(progress).toHaveAttribute('aria-valuemax', '4')
     expect(progress).toHaveAttribute('aria-valuemin', '1')
+    expect(progress).toHaveAttribute('aria-label', 'Étape 2 sur 4')
   })
 
   it('affiche "Se connecter" par défaut (showLogin=true)', () => {
@@ -36,7 +39,7 @@ describe('<OnboardingNavWeb />', () => {
     expect(screen.queryByRole('link', { name: /se connecter/i })).not.toBeInTheDocument()
   })
 
-  it('step 0 = landing → premier dot actif, aucun "done"', () => {
+  it('clampe step < 1 sur la 1re étape → premier dot actif, aucun "done"', () => {
     const { container } = render(<OnboardingNavWeb step={0} total={4} />)
     const dots = container.querySelectorAll('[role="progressbar"] > span')
     // 1er dot actif (width 28), les autres inactifs (width 8)
