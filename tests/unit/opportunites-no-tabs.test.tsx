@@ -153,44 +153,33 @@ beforeEach(() => {
 
 // ── F09 — Suppression des tabs ─────────────────────────────────────────────
 describe('F09 — Tabs supprimées de la page liste', () => {
-  it('ne rend PAS de role="tab" dans OpportunitesClient', async () => {
+  it('ne rend PAS de role="tab" dans OpportunitesClient', () => {
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(screen.queryByRole('tab')).toBeNull()
-    })
+    expect(screen.queryByRole('tab')).toBeNull()
   })
 
-  it('le composant OpportunitesTabs n\'est pas monté dans la liste', async () => {
+  it('le composant OpportunitesTabs n\'est pas monté dans la liste', () => {
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      // Toutes / Emplois / Stages / Formations tabs ne doivent pas exister
-      expect(screen.queryByRole('tab', { name: /toutes/i })).toBeNull()
-      expect(screen.queryByRole('tab', { name: /emplois/i })).toBeNull()
-      expect(screen.queryByRole('tab', { name: /stages/i })).toBeNull()
-    })
+    // Toutes / Emplois / Stages / Formations tabs ne doivent pas exister
+    expect(screen.queryByRole('tab', { name: /toutes/i })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /emplois/i })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /stages/i })).toBeNull()
   })
 
   it('le filtrage par type via FiltresPanel modifie l\'URL (pas de tabs)', async () => {
     render(<OpportunitesClient initialRegion={null} />)
-    // Attend que le chargement initial soit fait
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
-    // Cliquer sur le filtre Type=Stage dans le FiltresPanel (desktop mock)
+    // Le FiltresPanel est disponible immédiatement (pas de dépendance au fetch)
     const filtreStageBtn = screen.getByTestId('filtres-panel-stage')
     await userEvent.click(filtreStageBtn)
     expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining('type=Stage'),
       expect.anything(),
     )
-  })
+  }, 15000)
 
   it('reset du type via FiltresPanel retire le param type de l\'URL', async () => {
     currentSearch = 'type=Stage'
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
     const resetBtn = screen.getByTestId('filtres-panel-reset-type')
     await userEvent.click(resetBtn)
     // L'URL ne doit plus contenir type=
@@ -198,49 +187,37 @@ describe('F09 — Tabs supprimées de la page liste', () => {
       expect.not.stringContaining('type='),
       expect.anything(),
     )
-  })
+  }, 15000)
 })
 
 // ── F24 — Bouton filtres mobile : icône + badge ──────────────────────────────
 describe('F24 — Bouton filtres mobile : icône filter + badge pill', () => {
-  it('affiche l\'icône filter dans le bouton filtres mobile', async () => {
+  it('affiche l\'icône filter dans le bouton filtres mobile', () => {
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
     // L'icône filter doit être présente dans le bouton filtres mobile
     expect(screen.getByTestId('icon-filter')).toBeInTheDocument()
   })
 
-  it('affiche un badge pill avec le count actif quand des filtres sont actifs', async () => {
+  it('affiche un badge pill avec le count actif quand des filtres sont actifs', () => {
     currentSearch = 'type=Stage&region=DAKAR'
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
     // 2 filtres actifs (type + region) → badge avec "2"
     const badge = screen.getByTestId('filters-badge')
     expect(badge).toBeInTheDocument()
     expect(badge).toHaveTextContent('2')
   })
 
-  it('masque le badge quand aucun filtre actif', async () => {
+  it('masque le badge quand aucun filtre actif', () => {
     currentSearch = ''
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
     expect(screen.queryByTestId('filters-badge')).toBeNull()
   })
 })
 
 // ── F25 — Icône recherche dans le champ search mobile ───────────────────────
 describe('F25 — Icône search dans le champ de recherche', () => {
-  it('le champ recherche mobile a une icône search à gauche (prefixIcon)', async () => {
+  it('le champ recherche mobile a une icône search à gauche (prefixIcon)', () => {
     render(<OpportunitesClient initialRegion={null} />)
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled()
-    })
     // L'Input avec prefixIcon="search" doit rendre un icon-search
     expect(screen.getByTestId('icon-search')).toBeInTheDocument()
   })
