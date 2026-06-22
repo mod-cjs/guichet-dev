@@ -68,7 +68,7 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
                 nom: initial.nom,
                 matricule: `GJS · ${(initial.prenom?.[0] ?? '?').toUpperCase()}${(initial.nom?.[0] ?? '?').toUpperCase()} · ${initial.cjsUid.slice(0, 6).toUpperCase()}`,
                 membreDepuis: '—',
-                photoUrl: getProfilePhotoUrl(initial.cjsUid),
+                photoUrl: getProfilePhotoUrl(initial.cjsUid, Boolean(photoUrl)),
               }}
             />
           </div>
