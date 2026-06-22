@@ -41,8 +41,10 @@ describe('<MyCJSCard />', () => {
     expect(screen.queryByTestId('my-cjs-card-initials')).toBeNull()
   })
 
-  it('recto rend le skeleton QR si qrUrl absent', () => {
-    render(<MyCJSCard user={USER} />)
+  it('recto rend le skeleton QR si aucun QR ni seed (pas de qrUrl/cjsUid/matricule)', () => {
+    // GUIC-368 — avec un seed (matricule/cjsUid), le composant génère un QR démo
+    // de fallback ; le skeleton ne s'affiche que sans aucune source de QR.
+    render(<MyCJSCard user={{ ...USER, matricule: '' }} />)
     expect(screen.getByTestId('my-cjs-card-qr-skeleton')).toBeInTheDocument()
   })
 
