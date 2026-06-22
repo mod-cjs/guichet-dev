@@ -24,7 +24,7 @@ import {
   type ObjectifId, type OnboardingDraft,
 } from '@/lib/onboarding-draft'
 import {
-  stepIdentiteSchema, stepLocalisationSchema,
+  stepLocalisationSchema, validateIdentiteProfil,
 } from '@/lib/validations/onboarding'
 
 // ─── Écran 3 — Objectifs ────────────────────────────────────────────────────
@@ -141,31 +141,36 @@ export function useProfilStep(
     setErrors({})
     setLoading(true)
 
-    const id = stepIdentiteSchema.safeParse({
-      prenom: prenom.trim(),
-      nom: nom.trim(),
-      dateNaissance: dateNaissance || null,
-      genre: genre === 'M' || genre === 'F' ? genre : null,
-    })
+    const errs = validateIdentiteProfil({ nom, prenom, dateNaissance, genre })
     const loc = stepLocalisationSchema.safeParse({
       region,
       commune: commune || null,
     })
+    if (!loc.success) {
+      for (const i of loc.error.issues) {
+        const key = i.path[0]
+        if (typeof key === 'string' && !errs[key]) errs[key] = i.message
+      }
+    }
 
-    if (!id.success || !loc.success) {
-      const errs: Record<string, string> = {}
-      for (const i of id.success ? [] : id.error.issues) errs[i.path[0] as string] = i.message
-      for (const i of loc.success ? [] : loc.error.issues) errs[i.path[0] as string] = i.message
+    if (Object.keys(errs).length > 0 || !loc.success) {
       setErrors(errs)
       setLoading(false)
       return
+    }
+
+    const identiteData = {
+      prenom: prenom.trim(),
+      nom: nom.trim(),
+      dateNaissance: dateNaissance || null,
+      genre: genre === 'M' || genre === 'F' ? genre : null,
     }
 
     try {
       const r1 = await fetch('/api/v1/onboarding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 1, data: id.data }),
+        body: JSON.stringify({ step: 1, data: identiteData }),
       })
       if (!r1.ok) {
         const body = await r1.json().catch(() => ({}))

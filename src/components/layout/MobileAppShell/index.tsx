@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
+import { getHasProfilePhoto } from '@/lib/loaders/profil-photo'
 import { MobileShellGate } from './MobileShellGate'
 
 /**
@@ -14,9 +15,11 @@ export async function MobileTopShell() {
   if (!session) return null
   // GUIC-247 — badge cloche : non-lues lues côté serveur (best-effort).
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
+  // GUIC-447 — présence photo (best-effort) pour éviter le 404 proxy.
+  const hasPhoto = await getHasProfilePhoto(session.cjsUid).catch(() => false)
   return (
     <MobileShellGate>
-      <AppTopbar session={session} unread={unread} />
+      <AppTopbar session={session} unread={unread} hasPhoto={hasPhoto} />
     </MobileShellGate>
   )
 }

@@ -12,10 +12,12 @@ interface Props {
   nom:      string
   /** GUIC-369 — si fourni, charge la photo via proxy `/api/profil/photo/file`. */
   cjsUid?:  string | null
+  /** GUIC-447 — true si une photo existe ; sinon pas de requête proxy (→ initiales). */
+  hasPhoto?: boolean
 }
 
-export function UserMenu({ initials, prenom, nom, cjsUid }: Props) {
-  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
+export function UserMenu({ initials, prenom, nom, cjsUid, hasPhoto = false }: Props) {
+  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [open, setOpen]   = useState(false)
   const [busy, setBusy]   = useState(false)
