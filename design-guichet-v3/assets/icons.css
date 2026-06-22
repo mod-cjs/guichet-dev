@@ -1,0 +1,48 @@
+/* ============================================================
+   ICONS — Guichet Jeunesse v1
+   Système d'icônes mature, remplace l'usage des emoji.
+   Style : 24x24, stroke 1.5px, currentColor, line-caps rondes.
+   Inspiré de Lucide / Phosphor mais propre au DS.
+   ============================================================ */
+
+.gj-icon{
+  display:inline-block;
+  width:1em;
+  height:1em;
+  vertical-align:-.15em;
+  flex-shrink:0;
+  fill:none;
+  stroke:currentColor;
+}
+
+/* Tailles standardisées */
+.gj-icon--xs{width:14px;height:14px}
+.gj-icon--sm{width:16px;height:16px}
+.gj-icon--md{width:20px;height:20px}
+.gj-icon--lg{width:24px;height:24px}
+.gj-icon--xl{width:32px;height:32px}
+.gj-icon--2xl{width:48px;height:48px}
+
+/* Conteneur d'icône (badge / avatar coloré) */
+.gj-icon-tile{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;height:40px;
+  border-radius:var(--gj-r-md);
+  background:var(--gj-teal-soft);
+  color:var(--gj-teal-deep);
+  flex-shrink:0;
+}
+.gj-icon-tile .gj-icon{width:20px;height:20px}
+.gj-icon-tile--sm{width:32px;height:32px}
+.gj-icon-tile--sm .gj-icon{width:16px;height:16px}
+.gj-icon-tile--lg{width:48px;height:48px}
+.gj-icon-tile--lg .gj-icon{width:24px;height:24px}
+
+/* Variantes de tile */
+.gj-icon-tile--yellow{background:var(--gj-yellow-soft);color:#6B5300}
+.gj-icon-tile--blue{background:var(--gj-blue-soft);color:var(--gj-blue)}
+.gj-icon-tile--red{background:var(--gj-red-soft);color:#8A1810}
+.gj-icon-tile--green{background:var(--gj-green-soft);color:var(--gj-green)}
+.gj-icon-tile--neutral{background:var(--gj-bg);color:var(--color-text-secondary)}

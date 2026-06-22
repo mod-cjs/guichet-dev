@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Chip } from '@/components/ui/Chip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
@@ -14,6 +15,45 @@ interface Props {
 }
 
 /**
+ * Libellés des mois en français (F-01 — web variant).
+ */
+const MOIS_FR_WEB = [
+  { value: '01', label: 'janvier' },
+  { value: '02', label: 'février' },
+  { value: '03', label: 'mars' },
+  { value: '04', label: 'avril' },
+  { value: '05', label: 'mai' },
+  { value: '06', label: 'juin' },
+  { value: '07', label: 'juillet' },
+  { value: '08', label: 'août' },
+  { value: '09', label: 'septembre' },
+  { value: '10', label: 'octobre' },
+  { value: '11', label: 'novembre' },
+  { value: '12', label: 'décembre' },
+]
+
+const CURRENT_YEAR_WEB = new Date().getFullYear()
+const ANNEE_OPTIONS_WEB = Array.from({ length: 66 }, (_, i) => {
+  const y = CURRENT_YEAR_WEB - 15 - i
+  return { value: String(y), label: String(y) }
+})
+const JOUR_OPTIONS_WEB = Array.from({ length: 31 }, (_, i) => {
+  const d = i + 1
+  return { value: String(d), label: String(d) }
+})
+
+function parseDatePartsWeb(date: string): { jour: string; mois: string; annee: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!m) return { jour: '', mois: '', annee: '' }
+  return { annee: m[1], mois: m[2], jour: String(parseInt(m[3], 10)) }
+}
+
+function buildDateWeb(annee: string, mois: string, jour: string): string {
+  if (!annee || !mois || !jour) return ''
+  return `${annee}-${mois}-${jour.padStart(2, '0')}`
+}
+
+/**
  * Onboarding écran 4/5 — version WEB.
  *
  * Carte centrée 820px, grille 2 colonnes pour prénom/nom et année/genre.
@@ -21,6 +61,8 @@ interface Props {
  * Footer avec retour + Continuer.
  *
  * Réutilise la logique `useProfilStep` (validation Zod + submit step 1+2).
+ *
+ * F-01 : date de naissance en 3 selects FR (jour/mois/année).
  */
 export function OnboardingProfilWeb({ initial }: Props) {
   const f = useProfilStep(initial)
@@ -29,6 +71,23 @@ export function OnboardingProfilWeb({ initial }: Props) {
   // sera persisté côté backend dans une future itération (step 3 du schéma
   // `stepProfilSchema` l'accepte déjà via `niveauEtude`).
   const [niveauEtudes, setNiveauEtudes] = useState('')
+  const initParts = parseDatePartsWeb(initial.dateNaissance)
+  const [jourDN, setJourDN]   = useState(initParts.jour)
+  const [moisDN, setMoisDN]   = useState(initParts.mois)
+  const [anneeDN, setAnneeDN] = useState(initParts.annee)
+
+  function handleJourChange(v: string) {
+    setJourDN(v)
+    f.setDateNaissance(buildDateWeb(anneeDN, moisDN, v))
+  }
+  function handleMoisChange(v: string) {
+    setMoisDN(v)
+    f.setDateNaissance(buildDateWeb(anneeDN, v, jourDN))
+  }
+  function handleAnneeChange(v: string) {
+    setAnneeDN(v)
+    f.setDateNaissance(buildDateWeb(v, moisDN, jourDN))
+  }
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
@@ -83,15 +142,40 @@ export function OnboardingProfilWeb({ initial }: Props) {
 
           <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="web-dn" required>Date de naissance</FieldLabel>
-              <Input
-                id="web-dn"
-                type="date"
-                value={f.dateNaissance}
-                onChange={e => f.setDateNaissance(e.target.value)}
-                error={f.errors.dateNaissance}
-                autoComplete="bday"
-              />
+              {/* F-01 : 3 selects FR au lieu de input[type=date] natif */}
+              <FieldLabel htmlFor="web-dn-jour" required>Date de naissance</FieldLabel>
+              <div className="flex gap-1">
+                <Select
+                  id="web-dn-jour"
+                  aria-label="Jour"
+                  value={jourDN}
+                  onChange={e => handleJourChange(e.target.value)}
+                  options={JOUR_OPTIONS_WEB}
+                  placeholder="Jour"
+                  className="flex-1"
+                />
+                <Select
+                  id="web-dn-mois"
+                  aria-label="Mois"
+                  value={moisDN}
+                  onChange={e => handleMoisChange(e.target.value)}
+                  options={MOIS_FR_WEB}
+                  placeholder="Mois"
+                  className="flex-1"
+                />
+                <Select
+                  id="web-dn-annee"
+                  aria-label="Année"
+                  value={anneeDN}
+                  onChange={e => handleAnneeChange(e.target.value)}
+                  options={ANNEE_OPTIONS_WEB}
+                  placeholder="Année"
+                  className="flex-1"
+                />
+              </div>
+              {f.errors.dateNaissance ? (
+                <p className="text-gj-red" style={{ fontSize: 12, marginTop: 4 }}>{f.errors.dateNaissance}</p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-1">
               <FieldLabel htmlFor="web-genre-group" required>Je suis</FieldLabel>

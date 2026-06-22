@@ -102,7 +102,10 @@ describe('OnboardingProfilWeb', () => {
     render(<OnboardingProfilWeb initial={initial} />)
     expect(screen.getByLabelText(/Prénom/i)).toHaveValue('Awa')
     expect(screen.getByLabelText(/^Nom/i)).toHaveValue('Diop')
-    expect(screen.getByLabelText(/Date de naissance/i)).toHaveValue('2003-01-15')
+    // F-01 : date de naissance est désormais 3 selects (jour/mois/année)
+    expect(screen.getByRole('combobox', { name: /ann[ée]e/i })).toHaveValue('2003')
+    expect(screen.getByRole('combobox', { name: /mois/i })).toHaveValue('01')
+    expect(screen.getByRole('combobox', { name: /jour/i })).toHaveValue('15')
   })
 
   test('Continuer appelle steps 1 + 2 API et redirige', async () => {

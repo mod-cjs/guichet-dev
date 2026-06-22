@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://guichetjeunesse.sn/schemas/audit-finding.schema.json",
+  "title": "AuditFindingReport",
+  "description": "Structured output for cjs-design-auditor. The caller MUST pass this schema via Agent({schema: ...}) so the runtime forces validation. Without it, the agent may return narrative markdown.",
+  "type": "object",
+  "required": ["auditedTarget", "lotReference", "summary", "findings"],
+  "properties": {
+    "auditedTarget": {
+      "type": "string",
+      "description": "Absolute or repo-relative path of the component/route audited. e.g. 'src/components/layout/BenefSidebar/index.tsx' or '/jeune/tableau-de-bord'."
+    },
+    "lotReference": {
+      "type": "string",
+      "description": "Which Lot v3 was used as reference. e.g. 'Lot 2', 'Lot 3', 'Lot 14'.",
+      "pattern": "^Lot ([1-9]|1[0-4])$"
+    },
+    "summary": {
+      "type": "object",
+      "required": ["critical", "high", "medium", "low", "total"],
+      "properties": {
+        "critical": {"type": "integer", "minimum": 0},
+        "high": {"type": "integer", "minimum": 0},
+        "medium": {"type": "integer", "minimum": 0},
+        "low": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0}
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["severity", "category", "file", "lotRef", "fix"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "category": {
+            "type": "string",
+            "enum": ["color", "spacing", "typography", "icon", "layout", "interaction", "a11y", "copy"]
+          },
+          "file": {
+            "type": "string",
+            "description": "Repo-relative path of the offending file"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based line number, or omit if not applicable (e.g. multi-line issue)"
+          },
+          "lotRef": {
+            "type": "string",
+            "description": "Specific reference in design-guichet-v3/ or public/design-v3/. Format: '<file> L<start>-<end>' or '<HTML file>: <section>'. e.g. 'web-dashboard.jsx L60-66' or 'Lot 14 - Bibliotheque Composants.html: Button section'."
+          },
+          "current": {
+            "type": "string",
+            "description": "Verbatim snippet of what the implementation currently does"
+          },
+          "expected": {
+            "type": "string",
+            "description": "Verbatim snippet of what the design specifies"
+          },
+          "fix": {
+            "type": "string",
+            "description": "Actionable, concrete fix description (1-2 sentences)"
+          }
+        }
+      }
+    },
+    "missingFromDesign": {
+      "type": "array",
+      "description": "Code present in the implementation but absent from the Lot reference (potential scope creep). Format: 1 line per item.",
+      "items": {"type": "string"}
+    },
+    "hors_perimetre_flag": {
+      "type": "array",
+      "description": "Design elements visible in the Lot but not implemented yet, OR audit-truncated cases, OR Wave 7-figée components skipped. Format: 1 line per item.",
+      "items": {"type": "string"}
+    }
+  }
+}

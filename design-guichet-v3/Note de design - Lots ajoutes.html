@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Note de design — Guichet Jeunesse Sénégal</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--gj-bg);font-family:var(--gj-font-sans);color:var(--gj-ink)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+  .page{max-width:880px;margin:0 auto;padding:56px 60px 80px}
+
+  /* cover band */
+  .cover{background:linear-gradient(135deg,var(--gj-teal-deep) 0%,var(--gj-ink-teal) 100%);color:#fff;border-radius:20px;padding:40px 42px;position:relative;overflow:hidden;margin-bottom:40px}
+  .cover .glow{position:absolute;right:-60px;top:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(249,196,0,.2),transparent 62%);pointer-events:none}
+  .cover .eyebrow{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--gj-yellow);display:flex;align-items:center;gap:8px}
+  .cover h1{font-size:34px;font-weight:900;line-height:1.12;margin:14px 0 0}
+  .cover p{font-size:15px;line-height:1.6;opacity:.92;margin:12px 0 0;max-width:600px}
+  .cover .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  .cover .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700}
+
+  h2.sec{font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--gj-grey);margin:44px 0 16px;padding-bottom:10px;border-bottom:2px solid var(--gj-line)}
+  .intro{font-size:15px;line-height:1.7;color:var(--gj-ink)}
+  .intro b{font-weight:800}
+
+  /* principle cards */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .pcard{background:#fff;border:1.5px solid var(--gj-line);border-radius:14px;padding:18px}
+  .pcard .ic{width:40px;height:40px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:11px}
+  .pcard h3{font-size:15px;font-weight:900;margin:0 0 5px}
+  .pcard p{font-size:13px;line-height:1.55;color:var(--gj-grey);margin:0}
+
+  /* lot entries */
+  .lot{background:#fff;border:1.5px solid var(--gj-line);border-radius:16px;padding:22px 24px;margin-bottom:16px;break-inside:avoid}
+  .lot-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .lot-num{width:46px;height:46px;border-radius:12px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:17px}
+  .lot-head h3{font-size:18px;font-weight:900;margin:0;line-height:1.2}
+  .lot-head .sub{font-size:12.5px;color:var(--gj-grey);margin-top:2px}
+  .lot ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .lot li{display:flex;gap:10px;font-size:13.5px;line-height:1.5;color:var(--gj-ink)}
+  .lot li svg{width:16px;height:16px;color:var(--gj-teal-deep);flex-shrink:0;margin-top:2px}
+  .tag{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.3px;margin-left:auto;flex-shrink:0}
+
+  .note{display:flex;gap:12px;background:var(--gj-yellow-soft);border-radius:12px;padding:15px 17px;margin-top:8px}
+  .note svg{width:20px;height:20px;color:var(--gj-yellow-ink);flex-shrink:0}
+  .note p{margin:0;font-size:13px;line-height:1.55;color:var(--gj-yellow-ink);font-weight:600}
+
+  .foot{margin-top:48px;padding-top:20px;border-top:2px solid var(--gj-line);font-size:12px;color:var(--gj-grey-2);text-align:center;line-height:1.6}
+
+  @media print{
+    body{background:#fff}
+    .page{padding:0 0 30px}
+    .lot,.pcard{box-shadow:none}
+    .cover{border-radius:0}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- COVER -->
+  <section class="cover">
+    <span class="glow"></span>
+    <div class="eyebrow"><svg class="gj-icon" style="width:15px;height:15px"><use href="#i-resources"/></svg>Note de design</div>
+    <h1>Guichet Jeunesse Sénégal<br>Évolutions de design des interfaces</h1>
+    <p>Récapitulatif des partis pris et des modifications de design appliqués aux lots ajoutés à la plateforme — parcours bénéficiaire, back-offices et fondations transversales.</p>
+    <div class="meta">
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-calendar"/></svg>Juin 2026</span>
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-target"/></svg>13 lots · web + mobile</span>
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-users"/></svg>4 profils utilisateurs</span>
+    </div>
+  </section>
+
+  <!-- SYSTEME -->
+  <h2 class="sec">Le système de design, fil conducteur</h2>
+  <p class="intro">Tous les lots reposent sur un <b>socle de design unique</b> (tokens de couleur, échelle typographique, jeu d'icônes, composants partagés). Chaque écran a été conçu pour s'inscrire dans cette grammaire visuelle plutôt que d'inventer de nouvelles conventions. Trois principes ont guidé les ajouts&nbsp;:</p>
+
+  <div class="grid2" style="margin-top:18px">
+    <div class="pcard">
+      <span class="ic" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)"><svg class="gj-icon" style="width:20px;height:20px"><use href="#i-heart"/></svg></span>
+      <h3>Cohérence avant tout</h3>
+      <p>Mêmes cartes, mêmes rayons, même rythme d'espacement et mêmes couleurs sémantiques (teal = marque, jaune = action/aujourd'hui, vert = succès, rouge = alerte) d'un lot à l'autre.</p>
+    </div>
+    <div class="pcard">
+      <span class="ic" style="background:var(--gj-yellow-soft);color:var(--gj-yellow-ink)"><svg class="gj-icon" style="width:20px;height:20px"><use href="#i-profile"/></svg></span>
+      <h3>Une identité par rôle</h3>
+      <p>Chaque espace possède une signature visuelle distincte (couleur d'accent, barre latérale) pour que l'utilisateur sache toujours « où » il se trouve, sans rompre l'unité de la marque.</p>
+    </div>
+    <div class="pcard">
+      <span class="ic" style="background:var(--gj-blue-soft);color:var(--gj-blue-ink)"><svg class="gj-icon" style="width:20px;height:20px"><use href="#i-globe"/></svg></span>
+      <h3>Inclusion native</h3>
+      <p>Contraste, tailles de texte, langues nationales et états système pensés dès la conception — l'accessibilité n'est pas une couche ajoutée mais une dimension du design.</p>
+    </div>
+    <div class="pcard">
+      <span class="ic" style="background:var(--gj-green-soft);color:var(--gj-green-ink)"><svg class="gj-icon" style="width:20px;height:20px"><use href="#i-engagement"/></svg></span>
+      <h3>Ancrage sénégalais</h3>
+      <p>Carte du Sénégal, carte de membre CJS officielle, devise wolof, contexte local (régions, communes, partenaires) — le design parle au public visé.</p>
+    </div>
+  </div>
+
+  <!-- PALETTE DES IDENTITES -->
+  <h2 class="sec">Codes couleur par espace</h2>
+  <div class="lot" style="padding:18px 22px">
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-profile"/></svg><span><b>Bénéficiaire (le jeune)</b> — barre latérale claire, accent <b>teal</b>. L'espace principal, chaleureux et lisible.</span><span class="tag" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">Teal</span></li>
+      <li><svg class="gj-icon"><use href="#i-engagement"/></svg><span><b>Conseiller / agent CJS</b> — barre latérale <b>teal foncé</b>, posture « back-office » sérieuse et dense.</span><span class="tag" style="background:var(--gj-teal-soft);color:var(--gj-ink-teal)">Teal foncé</span></li>
+      <li><svg class="gj-icon"><use href="#i-employment"/></svg><span><b>Recruteur / partenaire</b> — accent <b>bleu</b> + puce entreprise « partenaire vérifié ».</span><span class="tag" style="background:var(--gj-blue-soft);color:var(--gj-blue-ink)">Bleu</span></li>
+      <li><svg class="gj-icon"><use href="#i-target"/></svg><span><b>Administration nationale</b> — barre latérale <b>sombre</b>, accent <b>doré</b> : registre « gouvernance ».</span><span class="tag" style="background:#11201C;color:var(--gj-yellow)">Sombre / Or</span></li>
+    </ul>
+  </div>
+
+  <!-- LOTS -->
+  <h2 class="sec">Détail des lots ajoutés</h2>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">4</span>
+      <div><h3>Profil bénéficiaire</h3><div class="sub">Consultation · édition · inclusion &amp; accessibilité</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>En-tête de profil retravaillé&nbsp;: avatar, badge « Membre CJS », pastilles d'information et action « Modifier » alignée — sans jauge de pourcentage à l'intérieur du bandeau.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Page dédiée <b>Inclusion &amp; accessibilité</b> (taille du texte, vision, lecture, navigation) sortie de la colonne du profil.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Sélecteur de <b>langues nationales</b> (français, wolof, pulaar/peul, sérère, diola, mandingue) réellement fonctionnel en démonstration.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Bouton « Partager aux recruteurs » retiré de l'en-tête pour épurer l'action principale.</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">5</span>
+      <div><h3>Événements &amp; ateliers</h3><div class="sub">Découverte · inscription · participation</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Palettes signature par type d'événement (atelier, forum, formation, webinaire, conférence) pour un repérage visuel immédiat.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Parcours complet cliquable&nbsp;: liste → fiche → inscription 1 clic → confirmation, « Mes événements », calendrier, avis après participation.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Billet de check-in désormais représenté par la <b>carte CJS blanche</b> officielle (QR contrasté).</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-green-soft);color:var(--gj-green-ink)">6</span>
+      <div><h3>Ressources / médiathèque</h3><div class="sub">Guides, modèles, boîtes à outils</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Aperçus de documents générés en CSS (pas d'images factices) et badge « audio Wolof » sur les ressources concernées.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Lecteur PDF à chrome sombre avec sommaire latéral, pour une lecture confortable et concentrée.</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">7</span>
+      <div><h3>Centres CJS &amp; carte de membre</h3><div class="sub">Réseau · réservation · carte QR</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg><b>Carte stylisée du Sénégal</b> dessinée sur mesure (silhouette fidèle, presqu'île de Dakar, enclave gambienne, Casamance) avec pins des centres.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg><b>Carte de membre CJS</b> redessinée au format carte officielle&nbsp;: liseré teal, coin plié, QR agrandi, devise wolof « Bokk · Jàng · Liguéey », recto/verso, texture de sécurité.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Réservation de ressources (salle, véhicule, poste) avec états d'acceptation et accès rapide à la carte depuis la page Centres.</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-ink-teal)">8</span>
+      <div><h3>Espace conseiller / agent CJS</h3><div class="sub">Back-office terrain</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Nouvelle <b>identité back-office</b>&nbsp;: barre latérale teal foncé, en-tête « Espace conseiller », densité d'information accrue.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Validation des réservations (accepter/refuser/proposer un créneau), check-in par <b>scan QR</b> avec viseur, et liste de présence.</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">9</span>
+      <div><h3>Mes candidatures</h3><div class="sub">Suivi du pipeline</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Mini-pipeline à 5 points sur chaque carte + <b>timeline verticale</b> de suivi détaillée (avec notes du recruteur et prochaine étape contextuelle).</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-blue-soft);color:var(--gj-blue-ink)">10</span>
+      <div><h3>Espace recruteur / partenaire</h3><div class="sub">Recrutement</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Identité <b>bleu</b> + puce entreprise vérifiée. <b>Pipeline kanban</b> à 4 colonnes (Reçues → Présélection → Entretien → Décision).</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Fiche candidat avec score d'adéquation, et modal de planification d'entretien (format, date, créneau).</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:#11201C;color:var(--gj-yellow)">11</span>
+      <div><h3>Administration nationale</h3><div class="sub">Pilotage &amp; gouvernance</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Registre « gouvernance »&nbsp;: barre latérale sombre, accent doré. <b>Data-viz riche</b> dessinée en SVG (sparklines, courbe, donut, barres, carte à bulles).</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Modération assistée par l'IA Yaye, gestion des types d'opportunité (CRUD), partenaires, contenu, rôles &amp; droits et journal d'audit.</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-teal-soft);color:var(--gj-teal-deep)">12</span>
+      <div><h3>Compléments bénéficiaire &amp; authentification</h3><div class="sub">Lacunes comblées après audit</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Messagerie bénéficiaire (conseillers, recruteurs, Yaye), Mes sauvegardes, Notifications &amp; préférences.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Écrans <b>Connexion</b> / mot de passe oublié et <b>Confidentialité / RGPD</b> (consentements, droits, loi n°2008-12).</li>
+    </ul>
+  </div>
+
+  <div class="lot">
+    <div class="lot-head">
+      <span class="lot-num" style="background:var(--gj-grey);color:#fff">13</span>
+      <div><h3>États système</h3><div class="sub">Fondations d'expérience</div></div>
+    </div>
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Bibliothèque d'états transversaux&nbsp;: <b>chargement</b> (skeletons animés), <b>erreur réseau</b>, <b>hors-ligne</b> (bandeau dédié) et <b>vide</b> — web et mobile.</li>
+    </ul>
+  </div>
+
+  <!-- TRANSVERSAL -->
+  <h2 class="sec">Fondations transversales</h2>
+  <div class="lot" style="padding:18px 22px">
+    <ul>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg><b>Mode accessibilité</b> présent sur les 13 lots&nbsp;: bouton flottant + panneau (contraste élevé, taille du texte, espacement, animations réduites, niveaux de gris, grand curseur, guide de lecture, lecture vocale), préférences persistantes.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg><b>Accessibilité WCAG</b>&nbsp;: noms accessibles ajoutés automatiquement aux champs et boutons-icône&nbsp;; usages du jaune audités (conformes AA sur fonds sombres).</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg><b>Carte CJS unifiée</b> (version blanche, meilleure qualité) sur toutes les interfaces où elle apparaît.</li>
+      <li><svg class="gj-icon"><use href="#i-check"/></svg>Prototypes <b>navigables au clic</b> au sein de chaque lot, pour donner à voir les parcours réels.</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <svg class="gj-icon"><use href="#i-bookmark"/></svg>
+    <p>Ces écrans sont des maquettes haute-fidélité. Le volet visuel et interactif est fonctionnel&nbsp;; l'internationalisation complète (traductions + audio en langues nationales) et l'intégration aux données réelles relèvent de la phase de développement.</p>
+  </div>
+
+  <div class="foot">
+    Guichet Jeunesse Sénégal — Note de design des lots ajoutés · Juin 2026<br>
+    Document interne · pour impression&nbsp;: Cmd/Ctrl + P
+  </div>
+
+</div>
+</body>
+</html>

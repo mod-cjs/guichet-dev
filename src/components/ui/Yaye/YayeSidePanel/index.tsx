@@ -25,34 +25,39 @@ export interface YayeSidePanelProps {
   onQuickReply?: (value: string) => void
   /** Etiquette de section (date/horaire) affichée en haut. */
   dateLabel?: string
-  // ── Composer (optionnel — si absent, le champ reste un mock non contrôlé). ──
-  /** Valeur contrôlée du champ de saisie. */
-  composerValue?: string
-  /** Changement de la saisie. */
-  onComposerChange?: (value: string) => void
-  /** Envoi du message (submit). Active le composer réel. */
-  onSend?: (text: string) => void
-  /** Envoi en cours → désactive le champ et le bouton. */
-  sending?: boolean
+  /**
+   * Prénom de l'utilisateur connecté pour personnaliser le greeting.
+   * Si absent ou vide, un greeting générique sans nom est utilisé.
+   */
+  prenom?: string
 }
 
-const DEFAULT_MESSAGES: YayeSidePanelMessage[] = [
-  {
-    id: 'm1',
-    from: 'bot',
-    text: "Salama Awa. J'ai 3 opportunités pour toi à Tambacounda — toutes en agri / projet.",
-  },
-  {
-    id: 'm2',
-    from: 'user',
-    text: 'Trouve-moi un stage en agro, près de chez moi, payé.',
-  },
-  {
-    id: 'm3',
-    from: 'bot',
-    text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
-  },
-]
+/**
+ * Génère les messages par défaut en personnalisant le greeting avec le prénom.
+ * Si prenom est absent ou vide, le greeting est générique (pas de nom codé en dur).
+ */
+function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
+  const salutation = prenom?.trim()
+    ? `Salama ${prenom.trim()}.`
+    : 'Salama !'
+  return [
+    {
+      id: 'm1',
+      from: 'bot',
+      text: `${salutation} J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet.`,
+    },
+    {
+      id: 'm2',
+      from: 'user',
+      text: 'Trouve-moi un stage en agro, près de chez moi, payé.',
+    },
+    {
+      id: 'm3',
+      from: 'bot',
+      text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
+    },
+  ]
+}
 
 const DEFAULT_REPLIES: QuickReply[] = [
   { label: 'Voir les 2 offres', value: 'voir-offres' },
@@ -77,15 +82,13 @@ const DEFAULT_REPLIES: QuickReply[] = [
 export function YayeSidePanel({
   open,
   onClose,
-  messages = DEFAULT_MESSAGES,
+  messages,
   quickReplies = DEFAULT_REPLIES,
   onQuickReply,
   dateLabel = "Aujourd'hui · 9:41",
-  composerValue,
-  onComposerChange,
-  onSend,
-  sending = false,
+  prenom,
 }: YayeSidePanelProps) {
+  const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
 
@@ -261,7 +264,7 @@ export function YayeSidePanel({
           >
             {dateLabel}
           </div>
-          {messages.map((m) => (
+          {resolvedMessages.map((m) => (
             <YayeBubble key={m.id} from={m.from}>
               {m.text}
             </YayeBubble>
