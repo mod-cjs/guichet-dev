@@ -367,8 +367,8 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
 
         {/* ── Mobile card list ─────────────────────────────────────────────── */}
         <div
-          className="md:hidden"
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}
+          className="md:hidden flex flex-col"
+          style={{ gap: 10, marginTop: 12 }}
           aria-label="Liste des centres (vue mobile)"
         >
           {centres.length === 0 && (

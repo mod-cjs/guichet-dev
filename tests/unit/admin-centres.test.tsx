@@ -154,6 +154,8 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
     expect(desktop!.className).toMatch(/md:block/)
     // Cartes mobile : cachées ≥ md (sinon doublon en desktop = le bug)
     expect(mobile!.className).toMatch(/md:hidden/)
+    expect(mobile!.style.display).toBe('')
+    expect(desktop!.style.display).toBe('')
   })
 
   /* ── CRUD (GUIC-464) ──────────────────────────────────────────────────── */
