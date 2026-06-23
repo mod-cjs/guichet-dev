@@ -53,14 +53,16 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
   it('affiche les en-têtes de colonnes', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
     expect(screen.getByText(/^centre$/i)).toBeInTheDocument()
-    expect(screen.getByText(/jeunes/i)).toBeInTheDocument()
-    expect(screen.getByText(/agents/i)).toBeInTheDocument()
+    // "Jeunes" apparaît plusieurs fois (header + mobile) — on vérifie juste sa présence
+    expect(screen.getAllByText(/^jeunes$/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^agents$/i).length).toBeGreaterThan(0)
   })
 
   /* ── Ligne de données ───────────────────────────────────────────────────── */
   it('affiche le nom du premier centre', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
-    expect(screen.getByText('Centre de Dakar')).toBeInTheDocument()
+    // Nom apparaît dans le tableau desktop ET dans les cartes mobile
+    expect(screen.getAllByText('Centre de Dakar').length).toBeGreaterThan(0)
   })
 
   it('affiche le label de région du premier centre', () => {
@@ -96,7 +98,8 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
   /* ── État vide ──────────────────────────────────────────────────────────── */
   it('affiche "Aucun centre" si la liste est vide', () => {
     render(<CentresAdminTable centres={[]} total={0} />)
-    expect(screen.getByText(/aucun centre/i)).toBeInTheDocument()
+    // Desktop + mobile rendent chacun un message vide
+    expect(screen.getAllByText(/aucun centre/i).length).toBeGreaterThan(0)
   })
 
   /* ── Règle no-hex ──────────────────────────────────────────────────────── */
