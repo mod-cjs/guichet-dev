@@ -210,7 +210,7 @@ export function AdminSidebar({
           {/* Logo rendu blanc via filter */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/assets/logo-guichet.png"
+            src="/logo-guichet.png"
             alt="Guichet Jeunesse.sn"
             style={{ height: 27, width: 'auto', filter: 'brightness(0) invert(1)' }}
           />

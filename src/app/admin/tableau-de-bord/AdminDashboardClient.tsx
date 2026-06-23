@@ -154,11 +154,10 @@ export function AdminDashboardClient({ data }: Props) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 14,
         }}
-        // Mobile 2×2
-        className="sm:grid-cols-4 grid-cols-2"
+        // Mobile 2×2, desktop 4 — colonnes pilotées par Tailwind (responsive)
+        className="grid grid-cols-2 sm:grid-cols-4"
       >
         {kpiDefs.map((k, i) => (
           <div
@@ -226,10 +225,11 @@ export function AdminDashboardClient({ data }: Props) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1.3fr 1fr',
           gap: 20,
           alignItems: 'start',
         }}
+        // Mobile 1 colonne, desktop 1.3fr/1fr — responsive (évite l'overflow horizontal mobile)
+        className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr]"
       >
         {/* LineChart : Croissance des inscriptions */}
         <div
