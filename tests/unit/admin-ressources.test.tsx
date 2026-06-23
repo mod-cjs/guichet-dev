@@ -6,27 +6,29 @@
  * les deux branches (desktop table + mobile cards) sont présentes dans le DOM.
  * Les assertions utilisent donc `getAllBy*` quand les doublons sont attendus.
  */
-import { render, screen } from '@testing-library/react'
-import { AdminRessourcesTable } from '@/app/admin/ressources/AdminRessourcesTable'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-// TypeRessource enum values as strings (mirrors prisma schema)
-type TypeRessource = 'PDF' | 'Video' | 'Lien' | 'Guide' | 'Outil'
+// Server actions (prisma/auth) mockées au niveau unitaire — intégration réelle
+// prouvée dans tests/integration/admin-ressources-actions.test.ts.
+const mockCreer = jest.fn()
+const mockModifier = jest.fn()
+const mockSupprimer = jest.fn()
+jest.mock('@/app/admin/ressources/actions', () => ({
+  creerRessource: (...a: unknown[]) => mockCreer(...a),
+  modifierRessource: (...a: unknown[]) => mockModifier(...a),
+  supprimerRessource: (...a: unknown[]) => mockSupprimer(...a),
+}))
 
-interface RessourceRow {
-  id: string
-  titre: string
-  type: TypeRessource
-  categorie: string | null
-  theme: string
-  vues: number
-  estPublic: boolean
-}
+import { AdminRessourcesTable, type RessourceRow } from '@/app/admin/ressources/AdminRessourcesTable'
+import { RessourceFormModal } from '@/app/admin/ressources/RessourceFormModal'
 
 const MOCK_RESSOURCES: RessourceRow[] = [
   {
     id: 'r1',
     titre: 'Guide de recherche d\'emploi',
+    description: 'Un guide complet.',
     type: 'PDF',
+    url: 'https://example.org/guide.pdf',
     categorie: 'Emploi',
     theme: 'Insertion',
     vues: 1240,
@@ -35,7 +37,9 @@ const MOCK_RESSOURCES: RessourceRow[] = [
   {
     id: 'r2',
     titre: 'Tutoriel CV en ligne',
+    description: 'Vidéo CV.',
     type: 'Video',
+    url: 'https://example.org/cv',
     categorie: null,
     theme: 'Formation',
     vues: 0,
@@ -44,13 +48,21 @@ const MOCK_RESSOURCES: RessourceRow[] = [
   {
     id: 'r3',
     titre: 'Outil de bilan de compétences',
+    description: 'Outil interactif.',
     type: 'Outil',
+    url: 'https://example.org/bilan',
     categorie: 'Compétences',
     theme: 'Orientation',
     vues: 88,
     estPublic: true,
   },
 ]
+
+beforeEach(() => {
+  mockCreer.mockReset()
+  mockModifier.mockReset()
+  mockSupprimer.mockReset()
+})
 
 describe('GUIC-455 — AdminRessourcesTable Lot 11 contenu médiathèque', () => {
   /* ── En-têtes de colonnes ─────────────────────────────────────────────── */
@@ -146,5 +158,49 @@ describe('GUIC-455 — AdminRessourcesTable Lot 11 contenu médiathèque', () =>
   it('affiche un message vide quand la liste est vide', () => {
     render(<AdminRessourcesTable ressources={[]} total={0} />)
     expect(screen.getByText(/aucune ressource/i)).toBeInTheDocument()
+  })
+
+  /* ── CRUD (GUIC-463) ──────────────────────────────────────────────────── */
+  it('given clic "Ajouter une ressource", then ouvre le formulaire de création', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getByRole('button', { name: /ajouter une ressource/i }))
+    expect(screen.getByLabelText(/URL/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /créer/i })).toBeInTheDocument()
+  })
+
+  it('given clic Supprimer + confirmation, then appelle supprimerRessource(id)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(mockSupprimer).toHaveBeenCalledWith('r1'))
+    confirmSpy.mockRestore()
+  })
+
+  it('given clic Supprimer SANS confirmation, then n\'appelle pas supprimerRessource', () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    expect(mockSupprimer).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+})
+
+describe('GUIC-463 — RessourceFormModal', () => {
+  it('given création + champs remplis, when submit, then appelle creerRessource', async () => {
+    render(<RessourceFormModal isOpen onClose={() => {}} />)
+    fireEvent.change(screen.getByLabelText(/^titre/i), { target: { value: 'Nouveau guide' } })
+    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Desc' } })
+    fireEvent.change(screen.getByLabelText(/^thème/i), { target: { value: 'Emploi' } })
+    fireEvent.change(screen.getByLabelText(/URL/i), { target: { value: 'https://example.org/x.pdf' } })
+    fireEvent.click(screen.getByRole('button', { name: /créer/i }))
+    await waitFor(() => expect(mockCreer).toHaveBeenCalledTimes(1))
+    expect(mockCreer.mock.calls[0][0]).toMatchObject({ titre: 'Nouveau guide', url: 'https://example.org/x.pdf' })
+  })
+
+  it('given édition, when submit, then appelle modifierRessource(id, …)', async () => {
+    render(<RessourceFormModal isOpen onClose={() => {}} ressource={MOCK_RESSOURCES[0]} />)
+    fireEvent.click(screen.getByRole('button', { name: /enregistrer/i }))
+    await waitFor(() => expect(mockModifier).toHaveBeenCalledTimes(1))
+    expect(mockModifier.mock.calls[0][0]).toBe('r1')
   })
 })
