@@ -2,14 +2,17 @@
  * GUIC-452 — AdminUsersTable Lot 11 (sombre + doré)
  * Tests RED : assertions sur la page Utilisateurs admin design v3.
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { AdminUsersTable, type AdminUserRow, type StatutCount } from '@/app/admin/utilisateurs/AdminUsersTable'
 
+const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
-  useRouter:    () => ({ push: jest.fn(), replace: jest.fn() }),
+  useRouter:    () => ({ push: mockPush, replace: jest.fn() }),
   usePathname:  () => '/admin/utilisateurs',
   useSearchParams: () => new URLSearchParams(),
 }))
+
+beforeEach(() => mockPush.mockClear())
 
 const MOCK_ROWS: AdminUserRow[] = [
   {
@@ -190,5 +193,30 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
   it('affiche un message "Aucun utilisateur" si rows est vide', () => {
     render(<AdminUsersTable {...defaultProps} rows={[]} total={0} totalPages={0} />)
     expect(screen.getByText(/aucun utilisateur/i)).toBeInTheDocument()
+  })
+
+  /* ── Recherche fonctionnelle (GUIC-468) ──────────────────────────────── */
+  it('given une saisie, when submit du formulaire de recherche, then router.push avec ?q=', () => {
+    render(<AdminUsersTable {...defaultProps} />)
+    const input = screen.getByLabelText(/rechercher un utilisateur/i)
+    fireEvent.change(input, { target: { value: 'Awa' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(mockPush).toHaveBeenCalledWith('/admin/utilisateurs?q=Awa')
+  })
+
+  it('given un statut actif + une recherche, when submit, then conserve le statut dans l\'URL', () => {
+    render(<AdminUsersTable {...defaultProps} statut="actif" />)
+    const input = screen.getByLabelText(/rechercher un utilisateur/i)
+    fireEvent.change(input, { target: { value: 'Sow' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(mockPush).toHaveBeenCalledWith('/admin/utilisateurs?q=Sow&statut=actif')
+  })
+
+  it('given une recherche vide, when submit, then router.push sans param q', () => {
+    render(<AdminUsersTable {...defaultProps} />)
+    const input = screen.getByLabelText(/rechercher un utilisateur/i)
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(mockPush).toHaveBeenCalledWith('/admin/utilisateurs')
   })
 })
