@@ -1,17 +1,21 @@
 import type { Metadata } from 'next'
+import { prisma } from '@/lib/prisma'
+import { CentresAdminTable } from './centres-admin-table'
 
-export const metadata: Metadata = { title: 'Centres CJS' }
+export const metadata: Metadata = { title: 'Centres CJS — Admin' }
 
-export default function Page() {
-  return (
-    <div>
-      <div className="mb-space-5">
-        <h1 className="text-fs-800 font-black text-color-text-primary">Centres CJS</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">Gestion des 9 centres du réseau</p>
-      </div>
-      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        Centres CJS — Sprint 3 (M8)
-      </div>
-    </div>
-  )
+export default async function Page() {
+  const centres = await prisma.centre.findMany({
+    include: {
+      _count: {
+        select: {
+          profilsRattaches: true,
+          agents: true,
+        },
+      },
+    },
+    orderBy: { nom: 'asc' },
+  })
+
+  return <CentresAdminTable centres={centres} total={centres.length} />
 }
