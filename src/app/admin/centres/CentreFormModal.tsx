@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { regionLabel } from '@/lib/regions'
-import { creerCentre, modifierCentre, type CentreInput } from './actions'
+import { Region } from '@prisma/client'
+import { creerCentre, modifierCentre } from './actions'
 
 const REGIONS = [
   'Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga',
@@ -56,9 +57,9 @@ export function CentreFormModal({ isOpen, onClose, centre }: CentreFormModalProp
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    const input: CentreInput = {
+    const input = {
       nom,
-      region: region as CentreInput['region'],
+      region: region as Region,
       adresse,
       latitude: Number(latitude),
       longitude: Number(longitude),

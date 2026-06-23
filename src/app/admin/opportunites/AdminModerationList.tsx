@@ -65,7 +65,7 @@ function ModerationCard({ item }: { item: ModerationItem }) {
           size="sm"
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => approuverOpportunite(item.id))}
+          onClick={() => startTransition(() => { void approuverOpportunite(item.id) })}
           className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60"
           style={{ background: 'var(--gj-green)' }}
         >
@@ -75,7 +75,7 @@ function ModerationCard({ item }: { item: ModerationItem }) {
         <button
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => rejeterOpportunite(item.id))}
+          onClick={() => startTransition(() => { void rejeterOpportunite(item.id) })}
           className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60"
           style={{
             background: 'var(--gj-surface)',

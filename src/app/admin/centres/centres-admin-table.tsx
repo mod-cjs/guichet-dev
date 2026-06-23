@@ -123,7 +123,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
   }
   function handleDelete(centre: CentreRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer le centre « ${centre.nom} » ?`)) return
-    startTransition(() => supprimerCentre(centre.id))
+    startTransition(() => { void supprimerCentre(centre.id) })
   }
 
   return (
