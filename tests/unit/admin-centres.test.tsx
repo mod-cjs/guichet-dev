@@ -2,16 +2,31 @@
  * GUIC-457 — AdminCentres Lot 11 (sombre + doré)
  * Tests RED : assertions sur la table centres admin design v3.
  */
-import { render, screen } from '@testing-library/react'
-import { CentresAdminTable } from '@/app/admin/centres/centres-admin-table'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+
+// Server actions (prisma/auth) mockées au niveau unitaire — intégration réelle
+// prouvée dans tests/integration/admin-centres-actions.test.ts.
+const mockCreer = jest.fn()
+const mockModifier = jest.fn()
+const mockSupprimer = jest.fn()
+jest.mock('@/app/admin/centres/actions', () => ({
+  creerCentre: (...a: unknown[]) => mockCreer(...a),
+  modifierCentre: (...a: unknown[]) => mockModifier(...a),
+  supprimerCentre: (...a: unknown[]) => mockSupprimer(...a),
+}))
+
+import { CentresAdminTable, type CentreRow } from '@/app/admin/centres/centres-admin-table'
 
 // --- données mock ---
-const MOCK_CENTRES = [
+const MOCK_CENTRES: CentreRow[] = [
   {
     id: 'c1',
     nom: 'Centre de Dakar',
-    region: 'Dakar' as const,
+    region: 'Dakar',
     adresse: '12 rue de Thiong, Dakar',
+    latitude: 14.7,
+    longitude: -17.45,
+    telephone: '+221770000001',
     estActif: true,
     conseillersCount: 4,
     responsable: 'Fatou Diallo',
@@ -22,8 +37,11 @@ const MOCK_CENTRES = [
   {
     id: 'c2',
     nom: 'Centre de Thiès',
-    region: 'Thies' as const,
+    region: 'Thies',
     adresse: '5 avenue Léopold Sédar Senghor, Thiès',
+    latitude: 14.79,
+    longitude: -16.93,
+    telephone: '+221770000002',
     estActif: true,
     conseillersCount: 2,
     responsable: 'Moussa Diop',
@@ -32,6 +50,12 @@ const MOCK_CENTRES = [
     _count: { profilsRattaches: 213, agents: 3 },
   },
 ]
+
+beforeEach(() => {
+  mockCreer.mockReset()
+  mockModifier.mockReset()
+  mockSupprimer.mockReset()
+})
 
 describe('GUIC-457 — CentresAdminTable Lot 11', () => {
   /* ── En-têtes de colonnes ───────────────────────────────────────────────── */
@@ -130,5 +154,35 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
     expect(desktop!.className).toMatch(/md:block/)
     // Cartes mobile : cachées ≥ md (sinon doublon en desktop = le bug)
     expect(mobile!.className).toMatch(/md:hidden/)
+  })
+
+  /* ── CRUD (GUIC-464) ──────────────────────────────────────────────────── */
+  it('given clic "Ajouter un centre", then ouvre le formulaire de création', () => {
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getByRole('button', { name: /ajouter un centre/i }))
+    expect(screen.getByLabelText(/^nom/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/latitude/i)).toBeInTheDocument()
+  })
+
+  it('given clic Supprimer + confirmation, then appelle supprimerCentre(id)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(mockSupprimer).toHaveBeenCalledWith('c1'))
+    confirmSpy.mockRestore()
+  })
+
+  it('given clic Supprimer SANS confirmation, then n\'appelle pas supprimerCentre', () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    expect(mockSupprimer).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('given clic Modifier, then ouvre le formulaire pré-rempli (Enregistrer)', () => {
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /modifier/i })[0])
+    expect(screen.getByRole('button', { name: /enregistrer/i })).toBeInTheDocument()
   })
 })

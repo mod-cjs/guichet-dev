@@ -1,10 +1,13 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { regionLabel } from '@/lib/regions'
 import { Region } from '@prisma/client'
+import { CentreFormModal } from './CentreFormModal'
+import { supprimerCentre } from './actions'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -13,6 +16,11 @@ export interface CentreRow {
   nom: string
   region: Region
   adresse: string
+  /** Coordonnées (édition) */
+  latitude: number
+  longitude: number
+  /** Téléphone (édition) */
+  telephone: string
   estActif: boolean
   conseillersCount: number
   responsable: string
@@ -101,7 +109,25 @@ export function CentresAdminTableSkeleton() {
 // ─── Main table component ────────────────────────────────────────────────────
 
 export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editCentre, setEditCentre] = useState<CentreRow | undefined>(undefined)
+  const [, startTransition] = useTransition()
+
+  function openCreate() {
+    setEditCentre(undefined)
+    setModalOpen(true)
+  }
+  function openEdit(centre: CentreRow) {
+    setEditCentre(centre)
+    setModalOpen(true)
+  }
+  function handleDelete(centre: CentreRow) {
+    if (typeof window !== 'undefined' && !window.confirm(`Supprimer le centre « ${centre.nom} » ?`)) return
+    startTransition(() => supprimerCentre(centre.id))
+  }
+
   return (
+    <>
     <div
       style={{
         padding: '22px 28px 40px',
@@ -146,6 +172,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
           </div>
           <Button
             variant="primary"
+            onClick={openCreate}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -297,6 +324,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
                   <button
                     type="button"
                     aria-label="Modifier"
+                    onClick={() => openEdit(centre)}
                     style={{
                       width: 32,
                       height: 32,
@@ -315,6 +343,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
                   <button
                     type="button"
                     aria-label="Supprimer"
+                    onClick={() => handleDelete(centre)}
                     style={{
                       width: 32,
                       height: 32,
@@ -403,5 +432,11 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
 
       </div>
     </div>
+    <CentreFormModal
+      isOpen={modalOpen}
+      onClose={() => setModalOpen(false)}
+      centre={editCentre}
+    />
+    </>
   )
 }
