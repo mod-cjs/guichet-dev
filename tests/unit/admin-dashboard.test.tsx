@@ -85,7 +85,9 @@ describe('GUIC-451 — AdminDashboardClient', () => {
 
   // ── Valeurs KPI ───────────────────────────────────────────────────────────
   it('affiche la valeur KPI jeunes inscrits (22 400)', () => {
-    expect(screen.getByText('22 400')).toBeInTheDocument()
+    // toLocaleString('fr-FR') utilise   (espace fine insécable) comme
+    // séparateur de milliers — on matche avec une regex permissive.
+    expect(screen.getByText(/22[ \s]?400/)).toBeInTheDocument()
   })
 
   it('affiche la valeur KPI centres actifs (14)', () => {
