@@ -8,6 +8,11 @@
  * service, jamais par `prisma.opportuniteEmploi.create` directement (cf. spec §8.4).
  *
  * Aucun accès SQL brut. Aucun loader / endpoint API n'est touché ici (sera 178c).
+ *
+ * GUIC-259 (Yaye Lot 1) : chaque écriture déclenche la synchronisation du
+ * Knowledge Graph Neo4j (fire-and-forget, fail-soft, no-op si Neo4j absent).
+ * Import PARESSEUX → n'alourdit pas le chargement du service (pas de neo4j-driver
+ * au module-load) ; ne perturbe jamais l'écriture.
  */
 import type {
   Prisma,
@@ -284,6 +289,13 @@ type Tx = Pick<
   | 'opportuniteTag'
 >
 
+/** Sync KG en arrière-plan (import paresseux + fail-soft) — ne bloque jamais l'écriture. */
+function fireGraphSync(action: 'syncOpportuniteToGraph' | 'syncOpportuniteDeletion', id: string): void {
+  void import('@/lib/ia/graph/projection/project')
+    .then(m => m[action](id))
+    .catch(() => { /* fail-soft : l'écriture Prisma reste la source de vérité */ })
+}
+
 export class OpportuniteService {
   constructor(private readonly db: PrismaClient) {}
 
@@ -292,7 +304,7 @@ export class OpportuniteService {
    * Garantit l'invariant XOR.
    */
   async create(input: CreateOpportuniteInput): Promise<OpportuniteAvecDetails> {
-    return this.db.$transaction(async (tx) => {
+    const result = await this.db.$transaction(async (tx) => {
       const type = await tx.opportuniteType.findUnique({ where: { slug: input.type } })
       if (!type) {
         throw new Error(`OpportuniteType introuvable pour slug=${input.type}`)
@@ -332,6 +344,8 @@ export class OpportuniteService {
       })
       return assertAvecDetails(reloaded)
     })
+    fireGraphSync('syncOpportuniteToGraph', result.id) // projection KG (fire-and-forget)
+    return result
   }
 
   /** Lecture mère + sous-type discriminé. Retourne `null` si introuvable ou soft-deleted. */
@@ -382,7 +396,7 @@ export class OpportuniteService {
         Partial<VolontariatDetailsInput>
     },
   ): Promise<OpportuniteAvecDetails> {
-    return this.db.$transaction(async (tx) => {
+    const result = await this.db.$transaction(async (tx) => {
       const existing = await tx.opportunite.findUnique({
         where: { id },
         include: { typeRef: true },
@@ -432,11 +446,14 @@ export class OpportuniteService {
       })
       return assertAvecDetails(reloaded)
     })
+    fireGraphSync('syncOpportuniteToGraph', result.id) // projection KG (fire-and-forget)
+    return result
   }
 
   /** Suppression définitive (cascade depuis la mère vers sous-type + jonctions). */
   async delete(id: string): Promise<void> {
     await this.db.opportunite.delete({ where: { id } })
+    fireGraphSync('syncOpportuniteDeletion', id) // retrait du KG (fire-and-forget)
   }
 
   // ───────── helpers privés ─────────

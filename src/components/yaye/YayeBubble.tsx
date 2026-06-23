@@ -1,7 +1,7 @@
 'use client'
 
 import { YayeFab } from '@/components/ui/Yaye/YayeFab'
-import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
+import { YayeConversation } from '@/components/yaye/YayeConversation'
 import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 export interface YayeBubbleProps {
@@ -15,6 +15,8 @@ export interface YayeBubbleProps {
    */
   bottom?: number
   right?: number
+  /** Prénom de l'utilisateur connecté — transmis à YayeSidePanel pour le greeting. */
+  prenom?: string
 }
 
 /**
@@ -29,7 +31,7 @@ export interface YayeBubbleProps {
  * Sur mobile, la BottomNav prend 72px en bas → on remonte le FAB.
  * Sur desktop, on garde le décalage par défaut (24px).
  */
-export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
+export function YayeBubble({ bottom, right = 16, prenom }: YayeBubbleProps) {
   const { isOpen, open, close } = useYayePanel()
 
   // GUIC-378 : quand le drawer est ouvert, on masque la bubble FAB pour qu'elle
@@ -38,7 +40,7 @@ export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
     return (
       <>
         {!isOpen && <YayeFab bottom={bottom} right={right} onClick={open} />}
-        <YayeSidePanel open={isOpen} onClose={close} />
+        <YayeSidePanel open={isOpen} onClose={close} prenom={prenom} />
       </>
     )
   }
@@ -57,7 +59,7 @@ export function YayeBubble({ bottom, right = 16 }: YayeBubbleProps) {
           </span>
         </>
       )}
-      <YayeSidePanel open={isOpen} onClose={close} />
+      <YayeSidePanel open={isOpen} onClose={close} prenom={prenom} />
     </>
   )
 }

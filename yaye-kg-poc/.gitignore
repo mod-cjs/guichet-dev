@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+# Dumps et données : jamais commités (PII + volume)
+data/*.sql
+data/*.dump
+!data/.gitkeep
+.virtual_documents/

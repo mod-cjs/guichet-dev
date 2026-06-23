@@ -1,5 +1,6 @@
 import type { TypeOpportunite } from '@prisma/client'
 import { Icon, type IconName } from '@/components/ui'
+import { TYPE_TONE, type OpportuniteTone as Tone } from './opportunite-type-meta'
 
 /**
  * Chip non-interactif (label) qui colorise un type d'opportunité selon la
@@ -7,28 +8,12 @@ import { Icon, type IconName } from '@/components/ui'
  *
  * GUIC-188 — Phase 2B/2 mobile.
  *
- * Sectorisation (alignée sur l'enum Prisma `TypeOpportunite`) :
- *  - Emploi          → teal (cjs)
- *  - Stage           → teal (cjs)
- *  - Formation       → blue (info / learning)
- *  - Bourse          → yellow (partner)
- *  - Volontariat     → green (engagement)
- *  - Appel_a_projets → yellow (partner)
+ * Sectorisation et icônes : voir `opportunite-type-meta.ts` (source unique
+ * partagée avec OppCard / YayeOppCard).
  *
  * Note : si une nouvelle valeur d'enum apparaît sans couleur sectorielle,
- * le fallback est `grey` (TODO Phase 4).
+ * le fallback est `grey`.
  */
-
-type Tone = 'teal' | 'yellow' | 'blue' | 'green' | 'red' | 'grey'
-
-const TYPE_TONE: Record<TypeOpportunite, Tone> = {
-  Emploi: 'teal',
-  Stage: 'teal',
-  Formation: 'blue',
-  Bourse: 'yellow',
-  Volontariat: 'green',
-  Appel_a_projets: 'yellow',
-}
 
 const TONE_CLASSES: Record<Tone, string> = {
   teal:   'bg-gj-teal-soft text-gj-teal-deep',
