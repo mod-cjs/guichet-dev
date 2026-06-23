@@ -5,6 +5,12 @@
 import { render, screen } from '@testing-library/react'
 import { AdminUsersTable, type AdminUserRow, type StatutCount } from '@/app/admin/utilisateurs/AdminUsersTable'
 
+jest.mock('next/navigation', () => ({
+  useRouter:    () => ({ push: jest.fn(), replace: jest.fn() }),
+  usePathname:  () => '/admin/utilisateurs',
+  useSearchParams: () => new URLSearchParams(),
+}))
+
 const MOCK_ROWS: AdminUserRow[] = [
   {
     cjsUid: 'uid-001',
@@ -85,7 +91,10 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
 
   it('rend les chips pour chaque statut avec leur compteur', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    expect(screen.getByRole('button', { name: /actif/i })).toBeInTheDocument()
+    // Utilise getAllByRole car "Actif" peut matcher "Inactif" aussi → on veut exactement Actif (150)
+    const chips = screen.getAllByRole('button')
+    const actifChip = chips.find((b) => b.textContent?.includes('Actif') && !b.textContent?.includes('Inactif'))
+    expect(actifChip).toBeDefined()
     expect(screen.getByRole('button', { name: /inactif/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /anonymis/i })).toBeInTheDocument()
     // les compteurs sont affichés
@@ -101,23 +110,28 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
 
   it('le chip correspondant au statut filtré est sélectionné', () => {
     render(<AdminUsersTable {...defaultProps} statut="actif" />)
-    const actifChip = screen.getByRole('button', { name: /actif/i })
+    // Cherche le chip dont le texte contient "Actif" mais pas "Inactif"
+    const chips = screen.getAllByRole('button')
+    const actifChip = chips.find((b) => b.textContent?.includes('Actif') && !b.textContent?.includes('Inactif'))
+    expect(actifChip).toBeDefined()
     expect(actifChip).toHaveAttribute('aria-pressed', 'true')
   })
 
   /* ── En-têtes de colonnes ────────────────────────────────────────────── */
   it('affiche les colonnes: Utilisateur, Rôle, Centre/Commune, Statut', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    expect(screen.getByText(/utilisateur/i)).toBeInTheDocument()
-    expect(screen.getByText(/rôle/i)).toBeInTheDocument()
-    expect(screen.getByText(/centre/i)).toBeInTheDocument()
-    expect(screen.getByText(/statut/i)).toBeInTheDocument()
+    // getAllByText car "Utilisateur" peut apparaître dans le titre ET les en-têtes
+    expect(screen.getAllByText(/utilisateur/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Rôle')).toBeInTheDocument()
+    expect(screen.getByText('Centre / Commune')).toBeInTheDocument()
+    expect(screen.getByText('Statut')).toBeInTheDocument()
   })
 
   /* ── Données de lignes ───────────────────────────────────────────────── */
   it('affiche le nom et prénom du premier utilisateur', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    expect(screen.getByText(/Fatou Diallo/i)).toBeInTheDocument()
+    const matches = screen.getAllByText(/Fatou Diallo/i)
+    expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
   it('affiche le pill "Bénéficiaire" pour chaque ligne', () => {
@@ -128,13 +142,16 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
 
   it('affiche la commune ou le centre du premier utilisateur', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    // Le 1er user a un centrePrincipalNom
-    expect(screen.getByText(/Centre CJS Dakar/i)).toBeInTheDocument()
+    // Le 1er user a un centrePrincipalNom — peut apparaître dans table + mobile cards
+    const matches = screen.getAllByText(/Centre CJS Dakar/i)
+    expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('affiche "Dakar Plateau" pour l\'utilisateur sans centre', () => {
+  it('affiche la commune du 2e utilisateur (sans centre principal)', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    expect(screen.getByText(/Thiès/i)).toBeInTheDocument()
+    // 2e row : pas de centrePrincipalNom → affiche commune "Thiès"
+    const matches = screen.getAllByText(/Thiès/i)
+    expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
   it('affiche un indicateur de statut coloré pour le 2e utilisateur (inactif)', () => {
@@ -153,8 +170,9 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
   /* ── Initiales avatar ────────────────────────────────────────────────── */
   it('affiche les initiales de l\'avatar du premier utilisateur', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    // Fatou Diallo → "FD"
-    expect(screen.getByText('FD')).toBeInTheDocument()
+    // Fatou Diallo → "FD" (peut apparaître dans table + mobile cards)
+    const matches = screen.getAllByText('FD')
+    expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
   /* ── Pagination ──────────────────────────────────────────────────────── */
