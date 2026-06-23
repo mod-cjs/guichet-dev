@@ -92,9 +92,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     const active = screen.getAllByRole('link', { current: 'page' })
     const activeCentres = active.find(a => /centres cjs/i.test(a.textContent ?? ''))
     expect(activeCentres).toBeDefined()
-    // L'item actif doit porter le gradient doré (via inline style)
+    // L'item actif porte le gradient doré --gj-admin-gold via inline style (rendu
+    // navigateur). jsdom n'évalue pas var() sur le shorthand `background`, donc on
+    // vérifie le marqueur d'état actif data-active (la branche linkActiveStyle est prise).
+    expect(activeCentres).toHaveAttribute('data-active', 'true')
+    // Et la font-weight 800 de l'item actif est bien sérialisée (preuve du spread actif).
     const style = (activeCentres as HTMLElement).getAttribute('style') ?? ''
-    expect(style).toMatch(/gj-admin-gold|linear-gradient/i)
+    expect(style).toMatch(/font-weight:\s*800/i)
   })
 
   /* ── Pas de bottom-nav ──────────────────────────────────────────────────── */
