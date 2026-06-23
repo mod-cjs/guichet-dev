@@ -8,6 +8,10 @@
  */
 import { prisma } from '@/lib/prisma'
 
+// La 1re requête ouvre la connexion (cold start) — lente sur la MariaDB locale.
+// Timeout généreux pour un test d'intégration déterministe (pas de faux-rouge flaky).
+jest.setTimeout(30000)
+
 // Bords (non-DB) mockés : session + revalidation.
 const mockGetSession = jest.fn()
 jest.mock('@/lib/auth', () => ({ getSession: () => mockGetSession() }))
