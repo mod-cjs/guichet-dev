@@ -309,6 +309,23 @@
   --prog-edupop-1:  #007A5C;
   --prog-edupop-2:  #0A2820;
   --prog-edupop:    linear-gradient(135deg, var(--prog-edupop-1), var(--prog-edupop-2));
+
+  /* =========================================================
+     15 · Lot 11 — Administration (sombre + doré)
+     NE PAS réutiliser --gj-ink (#111).
+     ========================================================= */
+  --gj-admin-bg:              #11201C;
+  --gj-admin-gold-stop:       #E0A93B;
+  --gj-admin-gold:            linear-gradient(135deg, var(--gj-yellow), #E0A93B);
+  --gj-admin-on-gold:         #11201C;
+  --gj-admin-fg:              #ffffff;
+  --gj-admin-fg-72:           rgba(255,255,255,.72);
+  --gj-admin-fg-60:           rgba(255,255,255,.60);
+  --gj-admin-fg-40:           rgba(255,255,255,.40);
+  --gj-admin-surface:         rgba(255,255,255,.05);
+  --gj-admin-border:          rgba(255,255,255,.10);
+  --gj-admin-border-soft:     rgba(255,255,255,.07);
+  --gj-admin-badge-muted-bg:  rgba(255,255,255,.12);
 }
 
 /* =========================================================
