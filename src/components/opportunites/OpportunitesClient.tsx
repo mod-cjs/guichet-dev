@@ -2,13 +2,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { TypeOpportunite } from '@prisma/client'
-import { Button, EmptyState, Input, Pagination, SkeletonCard } from '@/components/ui'
+import { EmptyState, Icon, Input, Pagination, SkeletonCard } from '@/components/ui'
 import { OppCard } from './OppCard'
 import { typeLabel } from './OpportuniteTypeChip'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
 import { OpportunitesFiltersSheet } from './OpportunitesFiltersSheet'
 import { OpportunitesListHeader, type ActiveChip } from './OpportunitesListHeader'
-import { OpportunitesTabs } from './OpportunitesTabs'
 import { useFavoris } from './FavorisProvider'
 import { regionLabel } from '@/lib/regions'
 import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite'
@@ -282,20 +281,31 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
           </p>
         </div>
 
-        {/* Sous-onglets par type — GUIC-409. Remplace l'ancienne rangée de chips
-            mobile (commit antérieur GUIC-188/197). Présent aussi en desktop juste
-            au-dessus du header de liste. */}
-        <OpportunitesTabs
-          className="mb-space-3"
-          value={filters.type as TypeOpportunite | undefined}
-          onChange={(next) => pushFilters({ ...filters, type: next })}
-          counts={{}}
-        />
-
+        {/* Bouton filtres mobile — icône filtre + badge pill count (GUIC-460 F24) */}
         <div className="mb-space-3">
-          <Button variant="ghost" size="md" onClick={() => setFiltersOpen(true)}>
-            Filtres avancés{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </Button>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            aria-label={`Filtres${activeFilterCount > 0 ? ` (${activeFilterCount} actifs)` : ''}`}
+            className="relative inline-flex items-center justify-center gap-space-2
+              min-h-[var(--tap-min)] px-space-3 rounded-gj-md
+              border-[1.5px] border-gj-line bg-white text-gj-teal-deep
+              font-bold text-fs-300 cursor-pointer hover:bg-gj-teal-soft
+              transition-colors duration-200"
+          >
+            <Icon name="filter" size={18} aria-hidden />
+            <span>Filtres</span>
+            {activeFilterCount > 0 && (
+              <span
+                data-testid="filters-badge"
+                className="inline-flex items-center justify-center
+                  min-w-[20px] h-[20px] px-[5px] rounded-full
+                  bg-gj-teal-deep text-white text-fs-100 font-extrabold leading-none"
+              >
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -329,16 +339,6 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
             updatedAgo={updatedAgo}
             className="mb-space-3"
           />
-
-          {/* Sous-onglets par type — desktop (GUIC-409). Visibles uniquement
-              à partir du breakpoint lg pour ne pas doubler avec la version mobile. */}
-          <div className="hidden lg:block mb-space-4 border-b border-gj-line">
-            <OpportunitesTabs
-              value={filters.type as TypeOpportunite | undefined}
-              onChange={(next) => pushFilters({ ...filters, type: next })}
-              counts={{}}
-            />
-          </div>
 
           {status === 'loading' && (
             <div className="grid grid-cols-1 gap-space-3">
