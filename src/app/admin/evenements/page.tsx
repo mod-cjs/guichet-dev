@@ -37,11 +37,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       select: {
         id: true,
         titre: true,
+        description: true,
         type: true,
         statut: true,
         dateDebut: true,
         lieu: true,
         capaciteMax: true,
+        estGratuit: true,
         centre: { select: { nom: true } },
         _count: { select: { inscriptions: true } },
       },
@@ -66,6 +68,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     lieuLabel: e.centre?.nom ?? e.lieu,
     inscrits: e._count.inscriptions,
     capaciteMax: e.capaciteMax,
+    description: e.description,
+    lieu: e.lieu,
+    dateDebutIso: e.dateDebut.toISOString(),
+    estGratuit: e.estGratuit,
   }))
 
   return (

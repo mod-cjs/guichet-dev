@@ -1,8 +1,11 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { EvenementFormModal, type EvenementFormValues } from './EvenementFormModal'
+import { supprimerEvenement } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +27,11 @@ export interface EvenementRow {
   inscrits: number
   /** Capacité max (nullable dans le modèle) */
   capaciteMax: number | null
+  /** Champs bruts pour l'édition */
+  description: string
+  lieu: string
+  dateDebutIso: string
+  estGratuit: boolean
 }
 
 export interface AdminEvenementsTableProps {
@@ -155,7 +163,35 @@ export function AdminEvenementsTable({
   activeStatut,
   counts,
 }: AdminEvenementsTableProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editEvent, setEditEvent] = useState<EvenementFormValues | undefined>(undefined)
+  const [, startTransition] = useTransition()
+
+  function openCreate() {
+    setEditEvent(undefined)
+    setModalOpen(true)
+  }
+  function openEdit(row: EvenementRow) {
+    setEditEvent({
+      id: row.id,
+      titre: row.titre,
+      description: row.description,
+      type: row.type,
+      statut: row.statut,
+      dateDebut: row.dateDebutIso,
+      lieu: row.lieu,
+      capaciteMax: row.capaciteMax,
+      estGratuit: row.estGratuit,
+    })
+    setModalOpen(true)
+  }
+  function handleDelete(row: EvenementRow) {
+    if (typeof window !== 'undefined' && !window.confirm(`Supprimer l'événement « ${row.titre} » ?`)) return
+    startTransition(() => { void supprimerEvenement(row.id) })
+  }
+
   return (
+    <>
     <div style={{ padding: '22px 28px 40px' }}>
       <div style={{ maxWidth: 1040, margin: '0 auto' }}>
         {/* Header */}
@@ -171,6 +207,7 @@ export function AdminEvenementsTable({
           <Button
             variant="primary"
             size="md"
+            onClick={openCreate}
             className="inline-flex items-center gap-[7px] font-black text-[13.5px] !rounded-[10px]"
             style={{ background: 'var(--gj-teal-deep)' }}
             type="button"
@@ -252,20 +289,38 @@ export function AdminEvenementsTable({
                         <StatutPill statut={row.statut} />
                       </td>
                       <td className="px-[18px] py-[13px] text-right">
-                        <button
-                          type="button"
-                          aria-label="Gérer l'événement"
-                          className="inline-flex items-center justify-center rounded-[8px]"
-                          style={{
-                            width: 32,
-                            height: 32,
-                            border: '1.5px solid var(--gj-line)',
-                            background: 'var(--gj-surface)',
-                            color: 'var(--gj-grey)',
-                          }}
-                        >
-                          <Icon name="settings" size={15} />
-                        </button>
+                        <div className="inline-flex items-center gap-[6px]">
+                          <button
+                            type="button"
+                            aria-label="Modifier"
+                            onClick={() => openEdit(row)}
+                            className="inline-flex items-center justify-center rounded-[8px]"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              border: '1.5px solid var(--gj-line)',
+                              background: 'var(--gj-surface)',
+                              color: 'var(--gj-grey)',
+                            }}
+                          >
+                            <Icon name="settings" size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Supprimer"
+                            onClick={() => handleDelete(row)}
+                            className="inline-flex items-center justify-center rounded-[8px]"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              border: '1.5px solid var(--gj-red)',
+                              background: 'var(--gj-surface)',
+                              color: 'var(--gj-red-ink)',
+                            }}
+                          >
+                            <Icon name="block" size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -282,5 +337,11 @@ export function AdminEvenementsTable({
         )}
       </div>
     </div>
+    <EvenementFormModal
+      isOpen={modalOpen}
+      onClose={() => setModalOpen(false)}
+      evenement={editEvent}
+    />
+    </>
   )
 }

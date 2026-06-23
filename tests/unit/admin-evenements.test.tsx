@@ -1,4 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+
+// Server actions mockées au niveau unitaire — intégration réelle prouvée dans
+// tests/integration/admin-evenements-actions.test.ts.
+const mockCreer = jest.fn()
+const mockModifier = jest.fn()
+const mockSupprimer = jest.fn()
+jest.mock('@/app/admin/evenements/actions', () => ({
+  creerEvenement: (...a: unknown[]) => mockCreer(...a),
+  modifierEvenement: (...a: unknown[]) => mockModifier(...a),
+  supprimerEvenement: (...a: unknown[]) => mockSupprimer(...a),
+}))
+
 import { AdminEvenementsTable, type EvenementRow } from '@/app/admin/evenements/AdminEvenementsTable'
 
 const ROWS: EvenementRow[] = [
@@ -11,6 +23,10 @@ const ROWS: EvenementRow[] = [
     lieuLabel: 'Centre Dakar Plateau',
     inscrits: 84,
     capaciteMax: 120,
+    description: 'Forum annuel.',
+    lieu: 'Dakar Plateau',
+    dateDebutIso: '2026-07-12T09:00:00.000Z',
+    estGratuit: true,
   },
   {
     id: 'e2',
@@ -21,8 +37,18 @@ const ROWS: EvenementRow[] = [
     lieuLabel: 'Thiès',
     inscrits: 30,
     capaciteMax: null,
+    description: 'Atelier pratique.',
+    lieu: 'Thiès',
+    dateDebutIso: '2026-05-02T14:00:00.000Z',
+    estGratuit: false,
   },
 ]
+
+beforeEach(() => {
+  mockCreer.mockReset()
+  mockModifier.mockReset()
+  mockSupprimer.mockReset()
+})
 
 describe('GUIC-454 — AdminEvenementsTable (Lot 11)', () => {
   it('affiche le titre et le total', () => {
@@ -59,5 +85,35 @@ describe('GUIC-454 — AdminEvenementsTable (Lot 11)', () => {
   it('affiche un état vide si aucun événement', () => {
     render(<AdminEvenementsTable evenements={[]} total={0} activeStatut={null} counts={{}} />)
     expect(screen.getByText(/Aucun événement/i)).toBeInTheDocument()
+  })
+
+  /* ── CRUD (GUIC-467) ──────────────────────────────────────────────────── */
+  it('given clic "Ajouter un événement", then ouvre le formulaire de création', () => {
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getByRole('button', { name: /ajouter un événement/i }))
+    expect(screen.getByLabelText(/^titre/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/date de début/i)).toBeInTheDocument()
+  })
+
+  it('given clic Modifier, then ouvre le formulaire pré-rempli (Enregistrer)', () => {
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /modifier/i })[0])
+    expect(screen.getByRole('button', { name: /enregistrer/i })).toBeInTheDocument()
+  })
+
+  it('given clic Supprimer + confirmation, then appelle supprimerEvenement(id)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(mockSupprimer).toHaveBeenCalledWith('e1'))
+    confirmSpy.mockRestore()
+  })
+
+  it('given clic Supprimer SANS confirmation, then n\'appelle pas supprimerEvenement', () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    expect(mockSupprimer).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
   })
 })
