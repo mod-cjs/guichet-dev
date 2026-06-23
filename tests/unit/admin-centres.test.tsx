@@ -114,4 +114,21 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
     // Hex hors sprite = violation (hors valeurs attendues du mock)
     expect(styles).not.toMatch(/#[0-9a-fA-F]{3,6}(?![0-9a-fA-F])/g)
   })
+
+  /* ── Régression Ce1 — doublon desktop/mobile (audit Playwright 2026-06-23) ── */
+  // Bug : les blocs desktop/mobile utilisaient des classes custom sans CSS
+  // (`admin-centres-table--*`) → aucune media query → les DEUX s'affichaient en
+  // desktop. Sentinelle : exiger les utilitaires responsive Tailwind réels.
+  it('given le rendu, then le bloc desktop est `hidden md:block` et les cartes mobile `md:hidden` (anti-doublon)', () => {
+    const { container } = render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    const desktop = container.querySelector('[aria-label="Liste des centres CJS"]') as HTMLElement | null
+    const mobile = container.querySelector('[aria-label="Liste des centres (vue mobile)"]') as HTMLElement | null
+    expect(desktop).toBeTruthy()
+    expect(mobile).toBeTruthy()
+    // Desktop : caché en mobile, affiché ≥ md
+    expect(desktop!.className).toMatch(/(^|\s)hidden(\s|$)/)
+    expect(desktop!.className).toMatch(/md:block/)
+    // Cartes mobile : cachées ≥ md (sinon doublon en desktop = le bug)
+    expect(mobile!.className).toMatch(/md:hidden/)
+  })
 })
