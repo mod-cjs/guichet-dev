@@ -1,7 +1,9 @@
 'use client'
 
+import { useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { approuverOpportunite, rejeterOpportunite } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ export interface AdminModerationListProps {
 // ─── card ─────────────────────────────────────────────────────────────────────
 
 function ModerationCard({ item }: { item: ModerationItem }) {
+  const [pending, startTransition] = useTransition()
   return (
     <div
       className="rounded-[14px] p-[18px]"
@@ -61,7 +64,9 @@ function ModerationCard({ item }: { item: ModerationItem }) {
           variant="primary"
           size="sm"
           type="button"
-          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px]"
+          disabled={pending}
+          onClick={() => startTransition(() => approuverOpportunite(item.id))}
+          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60"
           style={{ background: 'var(--gj-green)' }}
         >
           <Icon name="check" size={14} />
@@ -69,7 +74,9 @@ function ModerationCard({ item }: { item: ModerationItem }) {
         </Button>
         <button
           type="button"
-          className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px]"
+          disabled={pending}
+          onClick={() => startTransition(() => rejeterOpportunite(item.id))}
+          className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60"
           style={{
             background: 'var(--gj-surface)',
             color: 'var(--gj-red-ink)',
