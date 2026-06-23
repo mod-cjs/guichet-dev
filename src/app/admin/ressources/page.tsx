@@ -31,7 +31,9 @@ export default async function Page({
       select: {
         id: true,
         titre: true,
+        description: true,
         type: true,
+        url: true,
         categorie: true,
         theme: true,
         vues: true,

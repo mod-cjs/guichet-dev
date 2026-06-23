@@ -1,7 +1,10 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { RessourceFormModal } from './RessourceFormModal'
+import { supprimerRessource } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -11,7 +14,11 @@ export type TypeRessource = 'PDF' | 'Video' | 'Lien' | 'Guide' | 'Outil'
 export interface RessourceRow {
   id: string
   titre: string
+  /** Description (édition) */
+  description: string
   type: TypeRessource
+  /** URL de la ressource (édition) */
+  url: string
   /** Catégorie explicite (nullable) */
   categorie: string | null
   /** Thème : fallback si categorie absente */
@@ -152,8 +159,26 @@ function RessourceMobileCard({ row }: { row: RessourceRow }) {
  * - `categorie ?? theme` → colonne "Catégorie"
  */
 export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTableProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editRow, setEditRow] = useState<RessourceRow | undefined>(undefined)
+  const [, startTransition] = useTransition()
+
+  function openCreate() {
+    setEditRow(undefined)
+    setModalOpen(true)
+  }
+  function openEdit(row: RessourceRow) {
+    setEditRow(row)
+    setModalOpen(true)
+  }
+  function handleDelete(row: RessourceRow) {
+    if (typeof window !== 'undefined' && !window.confirm(`Supprimer « ${row.titre} » ?`)) return
+    startTransition(() => supprimerRessource(row.id))
+  }
+
   return (
-    <div style={{ padding: '22px 28px 40px' }}>
+    <>
+      <div style={{ padding: '22px 28px 40px' }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
         {/* ── Page header ─────────────────────────────────────────────── */}
         <div
@@ -173,6 +198,7 @@ export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTable
           <Button
             variant="primary"
             size="md"
+            onClick={openCreate}
             className="inline-flex items-center gap-[7px] font-black text-[13.5px] !rounded-[10px]"
             style={{ background: 'var(--gj-teal-deep)' }}
             type="button"
@@ -282,20 +308,38 @@ export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTable
                         </td>
                         {/* Action */}
                         <td className="px-[18px] py-[13px] text-right">
-                          <button
-                            type="button"
-                            aria-label="Modifier"
-                            className="inline-flex items-center justify-center rounded-[8px]"
-                            style={{
-                              width: 32,
-                              height: 32,
-                              border: '1.5px solid var(--gj-line)',
-                              background: 'var(--gj-surface)',
-                              color: 'var(--gj-grey)',
-                            }}
-                          >
-                            <Icon name="settings" size={15} />
-                          </button>
+                          <div className="inline-flex items-center gap-[6px]">
+                            <button
+                              type="button"
+                              aria-label="Modifier"
+                              onClick={() => openEdit(row)}
+                              className="inline-flex items-center justify-center rounded-[8px]"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                border: '1.5px solid var(--gj-line)',
+                                background: 'var(--gj-surface)',
+                                color: 'var(--gj-grey)',
+                              }}
+                            >
+                              <Icon name="settings" size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Supprimer"
+                              onClick={() => handleDelete(row)}
+                              className="inline-flex items-center justify-center rounded-[8px]"
+                              style={{
+                                width: 32,
+                                height: 32,
+                                border: '1.5px solid var(--gj-red)',
+                                background: 'var(--gj-surface)',
+                                color: 'var(--gj-red-ink)',
+                              }}
+                            >
+                              <Icon name="block" size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -313,6 +357,12 @@ export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTable
           </div>
         )}
       </div>
-    </div>
+      </div>
+      <RessourceFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        ressource={editRow}
+      />
+    </>
   )
 }

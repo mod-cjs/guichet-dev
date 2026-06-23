@@ -1,0 +1,99 @@
+/**
+ * @jest-environment node
+ *
+ * GUIC-463 — Server actions CRUD Ressources (admin). INTÉGRATION RÉELLE :
+ * prisma N'EST PAS mocké → vraie MariaDB (quality-charter §3). Auth/cache mockés.
+ * Pré-requis : DATABASE_URL vers la base de test locale (docker gj-maria 3307).
+ */
+import { prisma } from '@/lib/prisma'
+
+jest.setTimeout(30000)
+
+const mockGetSession = jest.fn()
+jest.mock('@/lib/auth', () => ({ getSession: () => mockGetSession() }))
+const mockRevalidate = jest.fn()
+jest.mock('next/cache', () => ({ revalidatePath: (...a: unknown[]) => mockRevalidate(...a) }))
+
+import {
+  creerRessource,
+  modifierRessource,
+  supprimerRessource,
+} from '@/app/admin/ressources/actions'
+
+const base = {
+  cjsUid: 'test-admin', nom: 'T', prenom: 'A', email: null, telephone: null,
+  region: null, accessToken: 'x', refreshToken: 'y', expiresAt: 0, onboardingComplete: true,
+}
+const ADMIN = { ...base, roles: ['admin'] }
+const JEUNE = { ...base, roles: ['beneficiaire'] }
+
+const valid = {
+  titre: 'Guide test CRUD',
+  description: 'Fixture intégration GUIC-463.',
+  type: 'PDF' as const,
+  theme: 'Emploi',
+  url: 'https://example.org/guide.pdf',
+  categorie: 'Démarches',
+  estPublic: true,
+}
+
+const created: string[] = []
+afterEach(async () => {
+  if (created.length) {
+    await prisma.ressource.deleteMany({ where: { id: { in: created } } })
+    created.length = 0
+  }
+})
+afterAll(async () => { await prisma.$disconnect() })
+
+describe('GUIC-463 — CRUD ressources (DB réelle)', () => {
+  it('given admin + données valides, when creer, then la ressource existe en base', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const r = await creerRessource(valid)
+    created.push(r.id)
+    const row = await prisma.ressource.findUnique({ where: { id: r.id } })
+    expect(row?.titre).toBe('Guide test CRUD')
+    expect(row?.type).toBe('PDF')
+    expect(row?.estPublic).toBe(true)
+    expect(mockRevalidate).toHaveBeenCalledWith('/admin/ressources')
+  })
+
+  it('given une ressource, when modifier, then les champs changent en base', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const r = await creerRessource(valid); created.push(r.id)
+    await modifierRessource(r.id, { ...valid, titre: 'Titre modifié', estPublic: false })
+    const row = await prisma.ressource.findUnique({ where: { id: r.id } })
+    expect(row?.titre).toBe('Titre modifié')
+    expect(row?.estPublic).toBe(false)
+  })
+
+  it('given une ressource, when supprimer, then la row disparaît', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const r = await creerRessource(valid)
+    await supprimerRessource(r.id)
+    const row = await prisma.ressource.findUnique({ where: { id: r.id } })
+    expect(row).toBeNull()
+  })
+
+  it('given NON-admin, when creer, then refus ET rien créé', async () => {
+    mockGetSession.mockResolvedValue(JEUNE)
+    const before = await prisma.ressource.count()
+    await expect(creerRessource(valid)).rejects.toThrow(/FORBIDDEN/)
+    expect(await prisma.ressource.count()).toBe(before)
+  })
+
+  it('given admin + titre vide, when creer, then rejet Zod (rien créé)', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const before = await prisma.ressource.count()
+    await expect(creerRessource({ ...valid, titre: '' })).rejects.toThrow()
+    expect(await prisma.ressource.count()).toBe(before)
+  })
+
+  it('given NON-admin, when supprimer, then refus ET row conservée', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const r = await creerRessource(valid); created.push(r.id)
+    mockGetSession.mockResolvedValue(JEUNE)
+    await expect(supprimerRessource(r.id)).rejects.toThrow(/FORBIDDEN/)
+    expect(await prisma.ressource.findUnique({ where: { id: r.id } })).not.toBeNull()
+  })
+})
