@@ -115,7 +115,9 @@ export function AdminUsersTable({
     [pathname, q, statut],
   )
 
-  function handleSearch(value: string) {
+  function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const value = (new FormData(e.currentTarget).get('q')?.toString() ?? '').trim()
     startTransition(() => {
       const sp = new URLSearchParams()
       if (value) sp.set('q', value)
@@ -177,7 +179,9 @@ export function AdminUsersTable({
           </div>
 
           {/* Recherche */}
-          <div
+          <form
+            role="search"
+            onSubmit={handleSearchSubmit}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -202,9 +206,10 @@ export function AdminUsersTable({
               <Icon name="search" size={16} />
             </span>
             <input
-              placeholder="Rechercher…"
+              type="search"
+              name="q"
+              placeholder="Rechercher… (Entrée)"
               defaultValue={q}
-              onChange={(e) => handleSearch(e.target.value)}
               aria-label="Rechercher un utilisateur"
               style={{
                 flex: 1,
@@ -216,7 +221,10 @@ export function AdminUsersTable({
                 color: 'var(--gj-ink)',
               }}
             />
-          </div>
+            <button type="submit" aria-label="Lancer la recherche" style={{ border: 0, background: 'transparent', cursor: 'pointer', padding: 0, display: 'inline-flex' }}>
+              <Icon name="arrow-right" size={15} style={{ color: 'var(--gj-grey)' }} />
+            </button>
+          </form>
         </div>
 
         {/* ── Chips filtre statut ── */}
