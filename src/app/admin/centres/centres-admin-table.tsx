@@ -168,7 +168,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
 
         {/* ── Desktop table ───────────────────────────────────────────────── */}
         <div
-          className="admin-centres-table--desktop"
+          className="hidden md:block"
           style={{
             background: 'var(--gj-surface)',
             border: '1.5px solid var(--gj-line)',
@@ -338,7 +338,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
 
         {/* ── Mobile card list ─────────────────────────────────────────────── */}
         <div
-          className="admin-centres-table--mobile"
+          className="md:hidden"
           style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}
           aria-label="Liste des centres (vue mobile)"
         >
