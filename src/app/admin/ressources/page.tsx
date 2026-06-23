@@ -1,17 +1,48 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { AdminRessourcesTable } from './AdminRessourcesTable'
 
-export const metadata: Metadata = { title: 'Ressources' }
+export const metadata: Metadata = {
+  title: 'Contenu · médiathèque — Admin CJS',
+}
 
-export default function Page() {
-  return (
-    <div>
-      <div className="mb-space-5">
-        <h1 className="text-fs-800 font-black text-color-text-primary">Ressources</h1>
-        <p className="text-fs-300 text-color-text-secondary mt-space-1">Gestion de la bibliothèque pédagogique</p>
-      </div>
-      <div className="bg-gj-teal-soft border border-gj-teal rounded-gj-lg p-space-4 text-gj-teal-deep text-fs-300">
-        Ressources — Sprint 3 (M8)
-      </div>
-    </div>
-  )
+const PAGE_SIZE = 20
+
+interface SP {
+  page?: string
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<SP>
+}) {
+  const session = await getSession()
+  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+
+  const sp = await searchParams
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
+  const skip = (page - 1) * PAGE_SIZE
+
+  const [ressources, total] = await Promise.all([
+    prisma.ressource.findMany({
+      select: {
+        id: true,
+        titre: true,
+        type: true,
+        categorie: true,
+        theme: true,
+        vues: true,
+        estPublic: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: PAGE_SIZE,
+    }),
+    prisma.ressource.count(),
+  ])
+
+  return <AdminRessourcesTable ressources={ressources} total={total} />
 }
