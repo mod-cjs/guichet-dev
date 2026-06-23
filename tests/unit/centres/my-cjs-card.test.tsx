@@ -41,9 +41,20 @@ describe('<MyCJSCard />', () => {
     expect(screen.queryByTestId('my-cjs-card-initials')).toBeNull()
   })
 
-  it('recto rend le skeleton QR si qrUrl absent', () => {
-    render(<MyCJSCard user={USER} />)
+  it('recto rend le skeleton QR si aucun QR dérivable (ni qrUrl, ni cjsUid, ni matricule)', () => {
+    // GUIC-368 : avec un matricule OU un cjsUid, un QR fallback est dérivé et
+    // un <QRBadge> est rendu (plus de skeleton). Le skeleton ne subsiste que
+    // s'il n'y a aucune graine pour fabriquer le QR fallback.
+    render(<MyCJSCard user={{ ...USER, matricule: '' }} />)
     expect(screen.getByTestId('my-cjs-card-qr-skeleton')).toBeInTheDocument()
+  })
+
+  it('recto rend un QRBadge fallback dès qu’un matricule est fourni (GUIC-368)', () => {
+    render(<MyCJSCard user={USER} />)
+    // Plus de skeleton propre à la carte : le QR fallback est délégué à
+    // <QRBadge> (qui affiche son propre skeleton le temps de la génération async).
+    expect(screen.queryByTestId('my-cjs-card-qr-skeleton')).toBeNull()
+    expect(screen.getByTestId('qr-badge-skeleton')).toBeInTheDocument()
   })
 
   it('compact = pas de QR rendu, pas de footer centre/membre', () => {

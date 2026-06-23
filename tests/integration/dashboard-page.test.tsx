@@ -2,8 +2,9 @@
  * Test d'intégration léger pour la page `/jeune/(app)/tableau-de-bord`.
  *
  * On mock `getSession` et `prisma` pour isoler le rendu de la composition.
- * Le but est de garantir que toutes les sections du dashboard sont rendues
- * dans le bon ordre (Phase 2B/1 — GUIC-187).
+ * Le but est de garantir que les sections du dashboard web (réécrites
+ * GUIC-206/404/412) sont rendues : hero, KPIs, carrousel reco, événements,
+ * centres et le panneau Yaye.
  */
 import { render, screen } from '@testing-library/react'
 
@@ -15,11 +16,34 @@ jest.mock('@/lib/auth', () => ({
   })),
 }))
 
+// Profil par défaut : couvre la requête page (completionScore) ET la requête
+// loader (domainesInteret / utilisateur.region).
+const defaultProfil = {
+  completionScore: 65,
+  domainesInteret: ['Numérique'],
+  utilisateur: { region: 'Dakar' },
+}
+
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     profilJeune: {
-      findUnique: jest.fn(async () => ({ completionScore: 65 })),
+      findUnique: jest.fn(async () => defaultProfil),
     },
+    // loadDashboardCounts
+    candidature: {
+      count: jest.fn(async () => 2),
+      findMany: jest.fn(async () => []),
+    },
+    inscriptionEvenement: { count: jest.fn(async () => 1) },
+    ressourceFavorite: { count: jest.fn(async () => 3) },
+    opportuniteFavorite: { count: jest.fn(async () => 0) },
+    certificatMoodle: { count: jest.fn(async () => 0) },
+    experience: { count: jest.fn(async () => 0) },
+    diplome: { count: jest.fn(async () => 0) },
+    // loadDashboardData
+    opportunite: { findMany: jest.fn(async () => []) },
+    evenement: { findMany: jest.fn(async () => []) },
+    centre: { findMany: jest.fn(async () => []) },
   },
 }))
 
@@ -31,40 +55,38 @@ jest.mock('next/navigation', () => ({
 import TableauDeBordPage from '@/app/jeune/(app)/tableau-de-bord/page'
 
 describe('TableauDeBordPage (intégration)', () => {
-  it('rend toutes les sections du dashboard mobile dans l\'ordre', async () => {
+  it('rend les sections du dashboard web', async () => {
     const ui = await TableauDeBordPage()
     render(ui)
 
-    // 1. Hero — prénom + programme
+    // 1. Hero — salutation avec le prénom
     expect(screen.getByText('Awa')).toBeInTheDocument()
-    expect(screen.getByText('Programme YEAH')).toBeInTheDocument()
 
     // 2. KPIs
     expect(screen.getByLabelText('Indicateurs clés')).toBeInTheDocument()
-    expect(screen.getByText('Candidatures')).toBeInTheDocument()
+    expect(screen.getByText('Candidatures en cours')).toBeInTheDocument()
 
-    // 3. Tracker — score 65 vient du mock Prisma
-    expect(screen.getByText('Profil 65% complété')).toBeInTheDocument()
-
-    // 4. Reco carousel
+    // 3. Reco carousel (titre par défaut)
     expect(screen.getByText('À ne pas rater')).toBeInTheDocument()
 
-    // 5. Événements
+    // 4. Événements
     expect(screen.getByText('Événements à venir')).toBeInTheDocument()
 
-    // 6. Centres
-    expect(screen.getByText('Centres près de toi')).toBeInTheDocument()
+    // 5. Centres
+    expect(screen.getByText('Centres CJS près de toi')).toBeInTheDocument()
 
-    // 7. Yaye nudge
-    expect(screen.getByText(/yaye a 3 conseils pour toi/i)).toBeInTheDocument()
+    // 6. Panneau Yaye
+    expect(screen.getByLabelText('Yaye, ton agent IA')).toBeInTheDocument()
   })
 
   it('utilise un score de 0 quand le profil n\'existe pas', async () => {
     const { prisma } = jest.requireMock('@/lib/prisma')
-    prisma.profilJeune.findUnique.mockResolvedValueOnce(null)
+    // Les deux requêtes findUnique (page + loader) reçoivent null.
+    prisma.profilJeune.findUnique.mockResolvedValue(null)
 
     const ui = await TableauDeBordPage()
     render(ui)
-    expect(screen.getByText('Profil 0% complété')).toBeInTheDocument()
+    // Le nudge profil affiche le pourcentage de complétude (0%).
+    expect(screen.getByText('0%')).toBeInTheDocument()
   })
 })

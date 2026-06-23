@@ -122,7 +122,7 @@ describe('POST /api/upload/cv', () => {
     const [pathname, , options] = mockPut.mock.calls[0]
     expect(pathname).toBe('cv/uid-1/cv.pdf')
     expect(options).toMatchObject({
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
       contentType: 'application/pdf',
     })

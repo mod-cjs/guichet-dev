@@ -27,6 +27,6 @@ describe('<WebDashEvents />', () => {
 
   it('rend un lien "Voir tous"', () => {
     render(<WebDashEvents items={items} />)
-    expect(screen.getByRole('link', { name: /Voir tous/i })).toHaveAttribute('href', '/jeune/agenda')
+    expect(screen.getByRole('link', { name: /Voir tous/i })).toHaveAttribute('href', '/agenda')
   })
 })

@@ -60,6 +60,11 @@ const baseCentre = {
   longitude: -13.66,
   services: ['WiFi', 'Coworking'],
   conseillersCount: 3,
+  // GUIC-393 (W3) : centre-detail-client rend <CentreEquipeSection agents={centre.agents} />
+  // et <CentreEvenementsSection evenements={centre.evenementsAVenir} />. Sans ces champs,
+  // les composants lisent `.length` sur undefined.
+  agents: [],
+  evenementsAVenir: [],
   isOpen: true,
   openingHoursText: '08:00 - 18:00',
   horaires: [

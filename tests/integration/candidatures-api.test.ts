@@ -21,6 +21,8 @@ jest.mock('@/lib/prisma', () => ({
       findMany: (...a: unknown[]) => mockCandFindMany(...a),
       count: (...a: unknown[]) => mockCandCount(...a),
     },
+    // GUIC-382 — la route POST purge le brouillon après création réussie.
+    candidatureDraft: { delete: jest.fn().mockResolvedValue(null) },
   },
 }))
 
