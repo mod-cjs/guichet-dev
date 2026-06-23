@@ -26,7 +26,8 @@ const centreSchema = z.object({
   estActif: z.boolean().optional().default(true),
 })
 
-export type CentreInput = z.input<typeof centreSchema>
+// Non exporté : un fichier 'use server' ne peut exporter que des fonctions async.
+type CentreInput = z.input<typeof centreSchema>
 
 const idSchema = z.string().min(1, 'id requis')
 

@@ -23,7 +23,8 @@ const ressourceSchema = z.object({
   estPublic: z.boolean().optional().default(true),
 })
 
-export type RessourceInput = z.input<typeof ressourceSchema>
+// Non exporté : un fichier 'use server' ne peut exporter que des fonctions async.
+type RessourceInput = z.input<typeof ressourceSchema>
 
 const idSchema = z.string().min(1, 'id requis')
 

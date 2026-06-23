@@ -173,7 +173,7 @@ export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTable
   }
   function handleDelete(row: RessourceRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer « ${row.titre} » ?`)) return
-    startTransition(() => supprimerRessource(row.id))
+    startTransition(() => { void supprimerRessource(row.id) })
   }
 
   return (
