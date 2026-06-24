@@ -100,4 +100,69 @@ describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
       expect.objectContaining({ deadline: '7' }),
     )
   })
+
+  // F11 — Région en chips pill
+  it('F11 : la section Région rend des chips pill (role=button aria-pressed) et non des checkboxes', () => {
+    setup()
+    // Les régions doivent être rendues en chips pill (boutons avec aria-pressed)
+    // et non en input[type=checkbox]
+    const dakarChip = screen.getByRole('button', { name: /^Dakar$/i })
+    expect(dakarChip).toBeInTheDocument()
+    expect(dakarChip).toHaveAttribute('aria-pressed')
+    // Vérifie qu'il n'y a PAS de checkbox pour Dakar
+    const dakarCheckbox = screen.queryByRole('checkbox', { name: /^Dakar$/i })
+    expect(dakarCheckbox).not.toBeInTheDocument()
+  })
+
+  it('F11 : cliquer sur un chip région propage onChange avec region=Dakar', () => {
+    const { onChange } = setup()
+    const dakarChip = screen.getByRole('button', { name: /^Dakar$/i })
+    fireEvent.click(dakarChip)
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'Dakar' }),
+    )
+  })
+
+  it('F11 : chip région sélectionnée a aria-pressed=true', () => {
+    setup({ value: { sortBy: 'recent', region: 'Dakar' } })
+    const dakarChip = screen.getByRole('button', { name: /^Dakar$/i })
+    expect(dakarChip).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('F11 : re-cliquer sur un chip région déjà sélectionné retire le filtre', () => {
+    const { onChange } = setup({ value: { sortBy: 'recent', region: 'Dakar' } })
+    const dakarChip = screen.getByRole('button', { name: /^Dakar$/i })
+    fireEvent.click(dakarChip)
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ region: undefined }),
+    )
+  })
+
+  // F19 — Labels domaine enrichis
+  it('F19 : "Numerique" est affiché comme "Numérique / Tech"', () => {
+    setup()
+    expect(screen.getByLabelText('Numérique / Tech')).toBeInTheDocument()
+    // Le label brut ne doit pas apparaître
+    expect(screen.queryByLabelText('Numerique')).not.toBeInTheDocument()
+  })
+
+  it('F19 : "Agriculture" est affiché comme "Agriculture & élevage"', () => {
+    setup()
+    expect(screen.getByLabelText('Agriculture & élevage')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Agriculture')).not.toBeInTheDocument()
+  })
+
+  // F23 — Icône filtre dans l'en-tête
+  it('F23 : l\'en-tête "Filtres" contient une icône SVG (use href="/icons.svg#i-filter")', () => {
+    const { container } = render(
+      <FiltresPanel
+        value={baseValue}
+        onChange={jest.fn()}
+        onReset={jest.fn()}
+      />,
+    )
+    // L'icône est rendue via <Icon name="filter" /> — cherche le use#i-filter dans le DOM
+    const useEl = container.querySelector('use[href="/icons.svg#i-filter"]')
+    expect(useEl).toBeInTheDocument()
+  })
 })

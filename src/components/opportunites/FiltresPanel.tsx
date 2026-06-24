@@ -1,5 +1,5 @@
 'use client'
-import { Icon } from '@/components/ui'
+import { Icon, Chip } from '@/components/ui'
 import { typeLabel } from './OpportuniteTypeChip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import type { OpportuniteSortBy } from '@/types/opportunite'
@@ -60,8 +60,21 @@ const TYPES = [
   'Appel_a_projets',
 ] as const
 
+/** Mapping enrichi des libellés de domaine — valeur enum inchangée, label enrichi. */
+const DOMAINE_LABELS: Record<string, string> = {
+  Agriculture:    'Agriculture & élevage',
+  Numerique:      'Numérique / Tech',
+  Entrepreneuriat: 'Entrepreneuriat',
+  Citoyennete:    'Citoyenneté',
+  Environnement:  'Environnement',
+  Sante:          'Santé',
+  Education:      'Éducation',
+  Culture:        'Culture',
+  Autre:          'Autre',
+}
+
 function humanizeDomaine(value: string): string {
-  return value.replace(/_/g, ' ')
+  return DOMAINE_LABELS[value] ?? value.replace(/_/g, ' ')
 }
 
 function countActive(v: FiltresValue): number {
@@ -249,18 +262,17 @@ export function FiltresPanel({
         </Section>
 
         <Section title="Région">
-          <ul className="space-y-0">
+          <div className="flex flex-wrap gap-[6px] pt-space-1">
             {REGIONS_SENEGAL.map((r) => (
-              <FilterCheck
+              <Chip
                 key={r.value}
-                id={`f-reg-${r.value}`}
-                label={r.label}
-                count={counts?.region?.[r.value]}
-                checked={value.region === r.value}
-                onChange={() => pick('region', r.value)}
-              />
+                selected={value.region === r.value}
+                onClick={() => pick('region', r.value)}
+              >
+                {r.label}
+              </Chip>
             ))}
-          </ul>
+          </div>
         </Section>
 
         <Section title="Rémunération">
