@@ -29,7 +29,7 @@ export interface DashboardKPIs {
   jeunesInscrits: number
   centresActifs: number
   aModerer: number
-  /** null si pas de candidatures avec statut "Retenue" ce mois — affiche "—". */
+  /** Candidatures retenues ce mois (statut=Retenue) — null si aucune, affiche "—". */
   insertionsMois: number | null
   /** Nouveaux inscrits ce mois (delta jeunes). */
   jeunesNouveauxMois: number
@@ -107,7 +107,8 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
       href: '/admin/opportunites',
     },
     {
-      label: 'Insertions ce mois',
+      // Candidatures avec statut=Retenue ce mois (libellé honnête — distinct du modèle Insertion).
+      label: 'Candidatures retenues',
       value: kpis.insertionsMois != null ? fmt(kpis.insertionsMois) : '—',
       tone: 'green',
       icon: 'trending',
@@ -493,7 +494,7 @@ export function AdminDashboardClient({ data }: Props) {
           }}
         >
           <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>
-            Insertions par mois
+            Candidatures retenues / mois
           </h2>
           <Link
             href="/admin/data-hub"
