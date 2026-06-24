@@ -33,7 +33,7 @@ export function YayeFeedback({ sessionId, tourIndex }: Props) {
   }
 
   if (etat === 'merci') {
-    return <span className="text-fs-100 text-color-text-secondary">Merci pour ton retour 🙏</span>
+    return <span className="text-fs-100 text-color-text-secondary">Merci pour ton retour.</span>
   }
 
   return (

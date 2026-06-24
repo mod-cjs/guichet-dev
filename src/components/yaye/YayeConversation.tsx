@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { YayeSidePanel, type YayeSidePanelMessage } from '@/components/ui/Yaye/YayeSidePanel'
 import type { QuickReply } from '@/components/ui/Yaye/QuickReplies'
+import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
 import { YayeBlocks } from './YayeBlocks'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
@@ -10,20 +11,10 @@ const HISTORY_MAX = 10
 let counter = 0
 const nid = () => `yc-${++counter}`
 
-function buildIntro(prenom?: string): YayeSidePanelMessage {
-  const salutation = prenom?.trim() ? `Salama ${prenom.trim()} 👋` : 'Salama 👋'
-  return {
-    id: 'intro',
-    from: 'bot',
-    text: `${salutation} Je suis Yaye. Dis-moi ce que tu cherches — une opportunité, une formation, ou bien où en sont tes candidatures.`,
-  }
+/** Greeting d'intro. `rng` injectable : init SSR déterministe (variante 0), re-tirage aléatoire à l'ouverture. */
+function buildIntro(prenom?: string, rng?: () => number): YayeSidePanelMessage {
+  return { id: 'intro', from: 'bot', text: pickGreeting(prenom, rng) }
 }
-
-const SUGGESTIONS: QuickReply[] = [
-  { label: 'Une offre pour moi', value: 'Trouve-moi une opportunité adaptée à mon profil' },
-  { label: 'Mes candidatures', value: 'Où en sont mes candidatures ?' },
-  { label: 'Une formation', value: 'Je cherche une formation près de chez moi' },
-]
 
 /**
  * Conteneur de conversation Yaye : gère l'état (messages, session, historique),
@@ -40,11 +31,24 @@ export function YayeConversation({
   onClose: () => void
   prenom?: string
 }) {
-  const [messages, setMessages] = useState<YayeSidePanelMessage[]>(() => [buildIntro(prenom)])
+  // Init déterministe (variante 0) pour éviter tout écart d'hydratation SSR↔client.
+  const [messages, setMessages] = useState<YayeSidePanelMessage[]>(() => [buildIntro(prenom, () => 0)])
+  const [suggestions, setSuggestions] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const sessionIdRef = useRef<string | undefined>(undefined)
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
+
+  // À chaque ouverture du drawer, si la conversation n'a pas commencé, on varie
+  // la salutation ET les amorces (côté client → pas de mismatch d'hydratation).
+  useEffect(() => {
+    if (open && messagesRef.current.length <= 1) {
+      setMessages([buildIntro(prenom)])
+      setSuggestions(pickSuggestions())
+    }
+  }, [open, prenom])
 
   // Handler stable pour les quick replies (évite la dépendance circulaire de `send` sur lui-même).
   const sendRef = useRef<(t: string) => void>(() => {})
@@ -94,7 +98,7 @@ export function YayeConversation({
       open={open}
       onClose={onClose}
       messages={messages}
-      quickReplies={messages.length <= 1 ? SUGGESTIONS : []}
+      quickReplies={messages.length <= 1 ? suggestions : []}
       onQuickReply={send}
       composerValue={input}
       onComposerChange={setInput}

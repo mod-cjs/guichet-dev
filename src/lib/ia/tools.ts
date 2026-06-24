@@ -519,7 +519,7 @@ const reserveResource: AgentTool = {
         data: { reservationId: result.reservation.id, statut: result.reservation.statut },
         block: {
           kind: 'action',
-          title: accepted ? 'Réservation confirmée ✅' : 'Demande envoyée ⏳',
+          title: accepted ? 'Réservation confirmée' : 'Demande envoyée',
           subtitle: `${ressource.nom} · ${date} · ${creneauDebut}–${creneauFin}`,
           actions: [],
           buttons: [{ label: 'Mes réservations', href: `${base}/jeune/mes-reservations-centres`, primary: true }],
@@ -572,7 +572,7 @@ const getBadge: AgentTool = {
         data: { expiresAt: data.expiresAt ?? null },
         block: {
           kind: 'action',
-          title: 'Ton badge CJS 📲',
+          title: 'Ton badge CJS',
           subtitle: 'Présente le QR au centre pour entrer, pointer ou récupérer une réservation.',
           actions: [],
           buttons: [{ label: 'Afficher mon badge', href: `${base}/jeune/ma-carte`, primary: true }],
@@ -673,7 +673,7 @@ const submitApplication: AgentTool = {
         data: { submitted: true },
         block: {
           kind: 'action',
-          title: 'Candidature envoyée ✅',
+          title: 'Candidature envoyée',
           subtitle: orga ? `${opp.titre} · ${orga}` : opp.titre,
           actions: [],
           buttons: [{ label: 'Mes candidatures', href: `${base}/jeune/mes-candidatures`, primary: true }],

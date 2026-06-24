@@ -52,7 +52,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm1',
       from: 'bot',
-      text: `${salutation} J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet.`,
+      text: `${salutation} J'ai trouvé des opportunités pour toi à Tambacounda, en agri et projet.`,
     },
     {
       id: 'm2',
@@ -62,7 +62,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm3',
       from: 'bot',
-      text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
+      text: "Reçu. J'ai trouvé celles qui collent vraiment à ton profil. Je te montre ?",
     },
   ]
 }
@@ -132,7 +132,9 @@ export function YayeSidePanel({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 60,
+        // Modal (backdrop + aria-modal) → niveau overlay, AU-DESSUS du header
+        // (--gj-z-nav:200) et de la bottom-nav (300), sinon le haut du panel est masqué.
+        zIndex: 'var(--gj-z-overlay)',
         display: 'flex',
         justifyContent: 'flex-end',
       }}

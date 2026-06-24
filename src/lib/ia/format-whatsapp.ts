@@ -113,5 +113,5 @@ export function shouldSuggestWeb(priorHistoryLength: number): boolean {
 
 /** Invitation à poursuivre sur le web (deep link). */
 export function webSwitchMessage(): string {
-  return `💡 Pour une expérience complète (cards, badge, PDF), continue sur le Guichet : ${APP_URL}/jeune/yaye`
+  return `Pour une expérience complète (cards, badge, PDF), continue sur le Guichet : ${APP_URL}/jeune/yaye`
 }
