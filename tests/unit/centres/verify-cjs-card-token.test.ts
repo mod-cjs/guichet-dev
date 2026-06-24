@@ -23,8 +23,8 @@ async function makeToken(
 ): Promise<string> {
   const secret = new TextEncoder().encode(opts.secret ?? SECRET)
   const now = Math.floor(Date.now() / 1000)
-  // GUIC-389 : le vérifieur exige kid='cjs-checkin-v1' et scope='checkin',
-  // sinon il renvoie null. On reproduit donc l'émetteur conforme.
+  // GUIC-389 — l'émetteur réel (qr-token route) ajoute kid + scope ; le vérifieur
+  // les exige. Le helper doit donc les fournir pour produire un token « valide ».
   return await new SignJWT({ nonce: payload.nonce, scope: 'checkin' })
     .setProtectedHeader({ alg: 'HS256', kid: 'cjs-checkin-v1' })
     .setSubject(payload.sub)
