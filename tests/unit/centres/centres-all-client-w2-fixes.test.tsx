@@ -147,10 +147,9 @@ describe('<CentresAllClient /> — fixes W2', () => {
     expect(wrapper?.className).toMatch(/lg:flex/)
   })
 
-  it('légende affichée dès qu’il y a des centres, même sans centre principal (W2 GUIC-358)', () => {
-    // W2 a découplé la légende du centre principal : `showLegend = centres.length > 0`.
-    // Elle est donc rendue (desktop + mobile) dès qu'au moins un centre existe,
-    // indépendamment de `user.centrePrincipal`.
+  it('légende affichée même sans centre principal (dès qu’il y a des centres)', () => {
+    // La légende ne dépend plus du centre principal : elle est rendue dès que
+    // `centres.length > 0` (blocs carte desktop + mobile).
     render(
       <CentresAllClient
         centres={[baseCentre]}
@@ -161,7 +160,7 @@ describe('<CentresAllClient /> — fixes W2', () => {
     expect(screen.getAllByLabelText(/Légende de la carte/i).length).toBeGreaterThan(0)
   })
 
-  it('légende NON affichée s’il n’y a aucun centre', () => {
+  it('légende NON affichée si aucun centre', () => {
     render(
       <CentresAllClient
         centres={[]}

@@ -1,47 +1,47 @@
 import { render, screen } from '@testing-library/react'
-import {
-  OpportunitesRecoCarousel,
-  type OppRecoCard,
-} from '@/components/dashboard/OpportunitesRecoCarousel'
+import { OpportunitesRecoCarousel } from '@/components/dashboard/OpportunitesRecoCarousel'
+import type { OppRecoCard } from '@/components/dashboard/OpportunitesRecoCarousel'
 
-const OPPS: OppRecoCard[] = [
-  { id: 'o1', tag: 'J-3 · URGENT', tone: 'urgent', title: 'Bourse agricole maraîchère', org: 'jusqu\'à 600 000 FCFA · Tambacounda', href: '/opportunites/o1' },
-  { id: 'o2', tag: 'CJS', tone: 'cjs', title: 'Stage marketing digital', org: 'CJS · Dakar', href: '/opportunites/o2' },
+// Données alignées sur la signature actuelle du composant (OppRecoCard[]),
+// post-refacto opps→items / MiniOpp→OppRecoCard (Vague 0).
+const ITEMS: OppRecoCard[] = [
+  { id: '1', tag: 'Emploi', tone: 'cjs', title: 'Développeur web junior', org: 'CTIC Dakar', href: '/opportunites/dev-web-junior' },
+  { id: '2', tag: 'Stage', tone: 'urgent', title: 'Stage Data Science', org: 'Sonatel', href: '/opportunites/stage-data-science' },
 ]
 
 describe('<OpportunitesRecoCarousel />', () => {
-  it('rend le titre par défaut "À ne pas rater"', () => {
-    render(<OpportunitesRecoCarousel items={OPPS} />)
+  it('rend le titre par défaut « À ne pas rater »', () => {
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
     expect(screen.getByText('À ne pas rater')).toBeInTheDocument()
   })
 
   it('rend toutes les opportunités fournies', () => {
-    render(<OpportunitesRecoCarousel items={OPPS} />)
-    for (const o of OPPS) {
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
+    for (const o of ITEMS) {
       expect(screen.getByText(o.title)).toBeInTheDocument()
     }
   })
 
-  it('rend le lien "Voir tout" par défaut vers /opportunites', () => {
-    render(<OpportunitesRecoCarousel items={OPPS} />)
+  it('rend le lien « Voir tout » par défaut vers /opportunites', () => {
+    render(<OpportunitesRecoCarousel items={ITEMS} />)
     const seeAll = screen.getByRole('link', { name: /voir tout/i })
     expect(seeAll).toHaveAttribute('href', '/opportunites')
   })
 
-  it('affiche un état vide explicite quand la liste est vide', () => {
+  it('affiche un état vide quand la liste est vide', () => {
     render(<OpportunitesRecoCarousel items={[]} />)
-    expect(screen.getByText(/aucune opportunité à recommander/i)).toBeInTheDocument()
+    expect(screen.getByText(/Aucune opportunité à recommander/i)).toBeInTheDocument()
   })
 
   it('respecte titre et lede custom', () => {
     render(
       <OpportunitesRecoCarousel
-        items={OPPS}
-        title="À ne pas rater absolument"
+        items={ITEMS}
+        title="Pour toi"
         lede="Sélection pour ton profil"
       />,
     )
-    expect(screen.getByText('À ne pas rater absolument')).toBeInTheDocument()
+    expect(screen.getByText('Pour toi')).toBeInTheDocument()
     expect(screen.getByText('Sélection pour ton profil')).toBeInTheDocument()
   })
 })

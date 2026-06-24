@@ -37,14 +37,25 @@ describe('<ResourceCard />', () => {
     expect(screen.getByText('Regarder')).toBeInTheDocument()
   })
 
-  it('overlay pointe vers la page détail interne /ressources/<id> (GUIC-363)', () => {
+  // GUIC-363 — l'overlay de la carte pointe désormais vers la page détail
+  // interne (`/ressources/<id>`), quelle que soit l'URL cible de la ressource.
+  // L'ouverture externe (nouvel onglet) est gérée depuis la page détail, plus
+  // depuis la carte → plus de target=_blank ici.
+  it('le lien de la carte pointe vers la page détail interne /ressources/<id>', () => {
     const { container } = render(
       <ResourceCard item={makeItem({ id: 'r42', url: 'https://exemple.org/x' })} />,
     )
     const a = container.querySelector('a') as HTMLAnchorElement
-    // L'overlay mène toujours à la fiche détail interne, jamais à l'URL externe
-    // directement, et n'ouvre donc plus de nouvel onglet.
     expect(a.getAttribute('href')).toBe('/ressources/r42')
+    expect(a.target).toBe('')
+  })
+
+  it('même pour une URL interne, la carte renvoie vers /ressources/<id>', () => {
+    const { container } = render(
+      <ResourceCard item={makeItem({ id: 'r7', url: '/docs/x' })} />,
+    )
+    const a = container.querySelector('a') as HTMLAnchorElement
+    expect(a.getAttribute('href')).toBe('/ressources/r7')
     expect(a.target).toBe('')
   })
 
