@@ -43,6 +43,8 @@ interface KpiDef {
   icon: 'users' | 'pin' | 'shield' | 'trending'
   spark: number[]
   urgent?: boolean
+  /** Si défini, la carte KPI devient un lien vers cette destination. */
+  href?: string
 }
 
 function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
@@ -71,6 +73,7 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
       icon: 'shield',
       spark: [kpis.aModerer],
       urgent: kpis.aModerer > 0,
+      href: '/admin/opportunites',
     },
     {
       label: 'Insertions ce mois',
@@ -159,66 +162,80 @@ export function AdminDashboardClient({ data }: Props) {
         // Mobile 2×2, desktop 4 — colonnes pilotées par Tailwind (responsive)
         className="grid grid-cols-2 sm:grid-cols-4"
       >
-        {kpiDefs.map((k, i) => (
-          <div
-            key={i}
-            style={{
-              background: 'var(--gj-surface)',
-              border: `1.5px solid ${k.urgent ? 'var(--gj-yellow)' : 'var(--gj-line)'}`,
-              borderRadius: 14,
-              padding: 16,
-              cursor: k.urgent ? 'pointer' : 'default',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-              }}
-            >
-              <span
+        {kpiDefs.map((k, i) => {
+          const baseStyle = {
+            background: 'var(--gj-surface)',
+            border: `1.5px solid ${k.urgent ? 'var(--gj-yellow)' : 'var(--gj-line)'}`,
+            borderRadius: 14,
+            padding: 16,
+            display: 'block',
+          }
+          const inner = (
+            <>
+              <div
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: TONE_BG[k.tone],
-                  color: TONE_FG[k.tone],
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
                 }}
               >
-                <Icon name={k.icon} size={18} />
-              </span>
-              {k.spark.length > 0 && (
-                <Spark data={k.spark} color={TONE_FG[k.tone]} />
-              )}
-            </div>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: 'var(--gj-ink)',
-                marginTop: 10,
-                lineHeight: 1,
-              }}
+                <span
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: TONE_BG[k.tone],
+                    color: TONE_FG[k.tone],
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name={k.icon} size={18} />
+                </span>
+                {k.spark.length > 0 && (
+                  <Spark data={k.spark} color={TONE_FG[k.tone]} />
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 900,
+                  color: 'var(--gj-ink)',
+                  marginTop: 10,
+                  lineHeight: 1,
+                }}
+              >
+                {k.value}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--gj-ink)',
+                  marginTop: 5,
+                }}
+              >
+                {k.label}
+              </div>
+            </>
+          )
+          return k.href ? (
+            <Link
+              key={i}
+              href={k.href}
+              aria-label={k.label}
+              style={{ ...baseStyle, cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
             >
-              {k.value}
+              {inner}
+            </Link>
+          ) : (
+            <div key={i} style={{ ...baseStyle, cursor: k.urgent ? 'pointer' : 'default' }}>
+              {inner}
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--gj-ink)',
-                marginTop: 5,
-              }}
-            >
-              {k.label}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* ── Grille LineChart + Donut ──────────────────────────────────────── */}

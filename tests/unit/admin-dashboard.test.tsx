@@ -116,14 +116,14 @@ describe('GUIC-451 — AdminDashboardClient', () => {
 
   // ── Call-out modération ──────────────────────────────────────────────────
   it('affiche le call-out de modération', () => {
-    expect(screen.getByRole('link', { name: /modérer/i })).toBeInTheDocument()
+    // GUIC-461 : la KPI "À modérer" est désormais aussi un lien → plusieurs liens /modérer/.
+    expect(screen.getAllByRole('link', { name: /modérer/i }).length).toBeGreaterThan(0)
   })
 
-  it('le lien de modération pointe vers /admin/opportunites', () => {
-    expect(screen.getByRole('link', { name: /modérer/i })).toHaveAttribute(
-      'href',
-      '/admin/opportunites'
-    )
+  it('tous les liens de modération pointent vers /admin/opportunites', () => {
+    const links = screen.getAllByRole('link', { name: /modérer/i })
+    expect(links.length).toBeGreaterThan(0)
+    links.forEach((l) => expect(l).toHaveAttribute('href', '/admin/opportunites'))
   })
 
   // ── Légende Donut ────────────────────────────────────────────────────────

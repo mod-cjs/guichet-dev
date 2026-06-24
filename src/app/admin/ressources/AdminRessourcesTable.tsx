@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { Pagination } from '@/components/ui/Pagination'
 import { RessourceFormModal } from './RessourceFormModal'
 import { supprimerRessource } from './actions'
 
@@ -32,6 +33,10 @@ export interface RessourceRow {
 export interface AdminRessourcesTableProps {
   ressources: RessourceRow[]
   total: number
+  /** Page courante (1-based) — défaut 1 */
+  currentPage?: number
+  /** Nombre total de pages — défaut 1 (pas de pagination) */
+  totalPages?: number
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -109,7 +114,7 @@ function StatutPill({ estPublic }: StatutPillProps) {
 
 // ─── mobile card ─────────────────────────────────────────────────────────────
 
-function RessourceMobileCard({ row }: { row: RessourceRow }) {
+function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row: RessourceRow) => void }) {
   const categorie = row.categorie ?? row.theme
   return (
     <div
@@ -133,6 +138,7 @@ function RessourceMobileCard({ row }: { row: RessourceRow }) {
       <button
         type="button"
         aria-label="Modifier"
+        onClick={() => onEdit(row)}
         className="inline-flex items-center justify-center rounded-[8px] shrink-0"
         style={{
           width: 32,
@@ -158,7 +164,7 @@ function RessourceMobileCard({ row }: { row: RessourceRow }) {
  * - `estPublic`→ statut Publié (true) / Brouillon (false)
  * - `categorie ?? theme` → colonne "Catégorie"
  */
-export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTableProps) {
+export function AdminRessourcesTable({ ressources, total, currentPage = 1, totalPages = 1 }: AdminRessourcesTableProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editRow, setEditRow] = useState<RessourceRow | undefined>(undefined)
   const [, startTransition] = useTransition()
@@ -351,9 +357,20 @@ export function AdminRessourcesTable({ ressources, total }: AdminRessourcesTable
             {/* Mobile card list */}
             <div className="md:hidden">
               {ressources.map((row) => (
-                <RessourceMobileCard key={row.id} row={row} />
+                <RessourceMobileCard key={row.id} row={row} onEdit={openEdit} />
               ))}
             </div>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              baseUrl="/admin/ressources"
+              ariaLabel="Pagination"
+            />
           </div>
         )}
       </div>
