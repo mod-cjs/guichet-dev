@@ -7,8 +7,18 @@ import { Spark } from '@/components/admin/charts/Spark'
 import { LineChart } from '@/components/admin/charts/LineChart'
 import { BarChart, type BarChartItem } from '@/components/admin/charts/BarChart'
 import { Donut, type DonutSegment } from '@/components/admin/charts/Donut'
+import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
 
 // ── Types exportés (utilisés aussi par la page serveur) ──────────────────────
+
+export interface DashboardCentre {
+  id: string
+  nom: string
+  latitude: number
+  longitude: number
+  region: string
+  slug: string
+}
 
 export interface GrowthPoint {
   month: string
@@ -28,6 +38,8 @@ export interface DashboardData {
   growthSeries: GrowthPoint[]
   accountSplit: DonutSegment[]
   monthlyCandidatures: BarChartItem[]
+  /** Centres géolocalisés pour la carte « Présence nationale ». */
+  centres: DashboardCentre[]
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -109,7 +121,7 @@ interface Props {
 }
 
 export function AdminDashboardClient({ data }: Props) {
-  const { kpis, growthSeries, accountSplit, monthlyCandidatures } = data
+  const { kpis, growthSeries, accountSplit, monthlyCandidatures, centres } = data
   const kpiDefs = buildKpis(kpis, growthSeries)
 
   const growthLabels = growthSeries.map((g) => g.month)
@@ -357,6 +369,31 @@ export function AdminDashboardClient({ data }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Présence nationale (carte Google Maps des centres) ───────────── */}
+      <div
+        style={{
+          background: 'var(--gj-surface)',
+          border: '1.5px solid var(--gj-line)',
+          borderRadius: 14,
+          padding: 18,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 900, color: 'var(--gj-ink)' }}>Présence nationale</h2>
+          <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>
+            {centres.length} centre{centres.length > 1 ? 's' : ''} géolocalisé{centres.length > 1 ? 's' : ''}
+          </span>
+        </div>
+        <CentresMapGoogle
+          centres={centres.map((c) => ({ id: c.id, nom: c.nom, latitude: c.latitude, longitude: c.longitude }))}
+          centresForList={centres.map((c) => ({ id: c.id, nom: c.nom, region: c.region, slug: c.slug }))}
+          height={320}
+          zoom={6}
+          disableUI
+        />
       </div>
 
       {/* ── BarChart + call-out modération ───────────────────────────────── */}

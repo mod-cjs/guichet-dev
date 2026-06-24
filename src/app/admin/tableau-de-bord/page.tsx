@@ -143,6 +143,21 @@ export default async function Page() {
     v: monthlyCandidaturesRaw[i] ?? 0,
   }))
 
+  // ── Centres géolocalisés (carte « Présence nationale ») ───────────────────
+  const centresGeo = await prisma.centre.findMany({
+    where: { estActif: true },
+    select: { id: true, nom: true, latitude: true, longitude: true, region: true, slug: true },
+    orderBy: { nom: 'asc' },
+  })
+  const centres = centresGeo.map((c) => ({
+    id: c.id,
+    nom: c.nom,
+    latitude: c.latitude,
+    longitude: c.longitude,
+    region: String(c.region),
+    slug: c.slug,
+  }))
+
   const data: DashboardData = {
     kpis: {
       jeunesInscrits,
@@ -153,6 +168,7 @@ export default async function Page() {
     growthSeries,
     accountSplit,
     monthlyCandidatures,
+    centres,
   }
 
   return <AdminDashboardClient data={data} />
