@@ -158,17 +158,44 @@ export default async function Page() {
     slug: c.slug ?? '',
   }))
 
+  // ── Deltas + indicateurs secondaires (données réelles uniquement) ─────────
+  const [candidaturesMois, ateliersTenus, insertionJeunesRows] = await Promise.all([
+    prisma.candidature.count({ where: { soumiseA: { gte: monthStart, lte: monthEnd } } }),
+    prisma.evenement.count({ where: { statut: 'termine' } }),
+    prisma.insertion.groupBy({ by: ['cjsUid'] }),
+  ])
+
+  const jeunesNouveauxMois = monthlyCounts[monthlyCounts.length - 1] ?? 0
+  const insLast = monthlyCandidaturesRaw[monthlyCandidaturesRaw.length - 1] ?? 0
+  const insPrev = monthlyCandidaturesRaw[monthlyCandidaturesRaw.length - 2] ?? 0
+  const insertionsDeltaPct = insPrev > 0 ? Math.round(((insLast - insPrev) / insPrev) * 100) : null
+
+  const tauxInsertion = jeunesInscrits > 0
+    ? Math.round((insertionJeunesRows.length / jeunesInscrits) * 100)
+    : 0
+  const nf = (n: number) => n.toLocaleString('fr-FR')
+
+  const secondaires = [
+    { label: "Taux d'insertion moyen", value: `${tauxInsertion}%`, icon: 'trending' as const },
+    { label: 'Candidatures (mois)', value: nf(candidaturesMois), icon: 'document' as const },
+    { label: 'Ateliers tenus', value: nf(ateliersTenus), icon: 'calendar' as const },
+    { label: 'Partenaires actifs', value: nf(recruteurs), icon: 'employment' as const },
+  ]
+
   const data: DashboardData = {
     kpis: {
       jeunesInscrits,
       centresActifs,
       aModerer: opportunitesAModerer,
       insertionsMois: insertionsMois,
+      jeunesNouveauxMois,
+      insertionsDeltaPct,
     },
     growthSeries,
     accountSplit,
     monthlyCandidatures,
     centres,
+    secondaires,
   }
 
   return <AdminDashboardClient data={data} />

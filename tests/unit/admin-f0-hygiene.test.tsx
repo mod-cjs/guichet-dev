@@ -73,11 +73,12 @@ const RES_ROWS: RessourceRow[] = [
 ]
 
 const DASH: DashboardData = {
-  kpis: { jeunesInscrits: 22_400, centresActifs: 14, aModerer: 5, insertionsMois: 120 },
+  kpis: { jeunesInscrits: 22_400, centresActifs: 14, aModerer: 5, insertionsMois: 120, jeunesNouveauxMois: 0, insertionsDeltaPct: null },
   growthSeries: [{ month: 'Mai', cumulative: 22400 }],
   accountSplit: [{ label: 'Bénéficiaires', value: 20000, color: 'var(--gj-teal)' }],
   monthlyCandidatures: [{ m: 'Mai', v: 120 }],
   centres: [],
+  secondaires: [],
 }
 
 // ── Modération : Aperçu = lien public ──────────────────────────────────────

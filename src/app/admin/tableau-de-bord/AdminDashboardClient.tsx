@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
-import { Icon } from '@/components/ui/Icon'
+import { Icon, type IconName } from '@/components/ui/Icon'
 import { Spark } from '@/components/admin/charts/Spark'
 import { LineChart } from '@/components/admin/charts/LineChart'
 import { BarChart, type BarChartItem } from '@/components/admin/charts/BarChart'
@@ -31,6 +31,17 @@ export interface DashboardKPIs {
   aModerer: number
   /** null si pas de candidatures avec statut "Retenue" ce mois — affiche "—". */
   insertionsMois: number | null
+  /** Nouveaux inscrits ce mois (delta jeunes). */
+  jeunesNouveauxMois: number
+  /** Variation des insertions vs mois précédent (%), null si non calculable. */
+  insertionsDeltaPct: number | null
+}
+
+/** Indicateur secondaire (bandeau de mini-KPIs) — données réelles uniquement. */
+export interface SecondaryKpi {
+  label: string
+  value: string
+  icon: IconName
 }
 
 export interface DashboardData {
@@ -40,6 +51,8 @@ export interface DashboardData {
   monthlyCandidatures: BarChartItem[]
   /** Centres géolocalisés pour la carte « Présence nationale ». */
   centres: DashboardCentre[]
+  /** Indicateurs secondaires (taux d'insertion, candidatures, ateliers, partenaires…). */
+  secondaires: SecondaryKpi[]
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +70,10 @@ interface KpiDef {
   urgent?: boolean
   /** Si défini, la carte KPI devient un lien vers cette destination. */
   href?: string
+  /** Ligne de variation sous la valeur (ex « +1 240 ce mois »). */
+  delta?: string
+  /** Sens de la variation (vert si true, neutre/jaune sinon). */
+  deltaUp?: boolean
 }
 
 function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
@@ -70,6 +87,8 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
       tone: 'teal',
       icon: 'users',
       spark: sparkGrowth.length > 0 ? sparkGrowth : [kpis.jeunesInscrits],
+      delta: `+${fmt(kpis.jeunesNouveauxMois)} ce mois`,
+      deltaUp: true,
     },
     {
       label: 'Centres actifs',
@@ -96,6 +115,11 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
         kpis.insertionsMois != null
           ? [Math.max(0, kpis.insertionsMois - 10), kpis.insertionsMois]
           : [0],
+      delta:
+        kpis.insertionsDeltaPct != null
+          ? `${kpis.insertionsDeltaPct >= 0 ? '+' : ''}${kpis.insertionsDeltaPct}% vs mois dernier`
+          : undefined,
+      deltaUp: (kpis.insertionsDeltaPct ?? 0) >= 0,
     },
   ]
 }
@@ -121,7 +145,7 @@ interface Props {
 }
 
 export function AdminDashboardClient({ data }: Props) {
-  const { kpis, growthSeries, accountSplit, monthlyCandidatures, centres } = data
+  const { kpis, growthSeries, accountSplit, monthlyCandidatures, centres, secondaires } = data
   const kpiDefs = buildKpis(kpis, growthSeries)
 
   const growthLabels = growthSeries.map((g) => g.month)
@@ -231,6 +255,18 @@ export function AdminDashboardClient({ data }: Props) {
               >
                 {k.label}
               </div>
+              {k.delta && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginTop: 3,
+                    color: k.deltaUp ? 'var(--gj-green-ink)' : 'var(--gj-yellow-ink)',
+                  }}
+                >
+                  {k.delta}
+                </div>
+              )}
             </>
           )
           return k.href ? (
@@ -249,6 +285,49 @@ export function AdminDashboardClient({ data }: Props) {
           )
         })}
       </div>
+
+      {/* ── Indicateurs secondaires (mini-KPIs, données réelles) ──────────── */}
+      {secondaires.length > 0 && (
+        <div
+          style={{ display: 'grid', gap: 10, marginBottom: 20 }}
+          className="grid-cols-2 sm:grid-cols-4"
+        >
+          {secondaires.map((s, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                background: 'var(--gj-surface)',
+                border: '1.5px solid var(--gj-line)',
+                borderRadius: 12,
+                padding: '10px 12px',
+              }}
+            >
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  background: 'var(--gj-teal-soft)',
+                  color: 'var(--gj-teal-deep)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name={s.icon} size={15} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--gj-ink)', lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 2 }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Grille LineChart + Donut ──────────────────────────────────────── */}
       <div
