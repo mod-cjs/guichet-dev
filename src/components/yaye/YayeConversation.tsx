@@ -11,7 +11,7 @@ let counter = 0
 const nid = () => `yc-${++counter}`
 
 function buildIntro(prenom?: string): YayeSidePanelMessage {
-  const salutation = prenom?.trim() ? `Salama ${prenom.trim()} 👋` : 'Salama 👋'
+  const salutation = prenom?.trim() ? `Salama ${prenom.trim()}.` : 'Salama !'
   return {
     id: 'intro',
     from: 'bot',

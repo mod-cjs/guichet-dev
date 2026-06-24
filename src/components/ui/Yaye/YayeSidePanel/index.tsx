@@ -52,7 +52,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm1',
       from: 'bot',
-      text: `${salutation} J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet.`,
+      text: `${salutation} J'ai trouvé des opportunités pour toi à Tambacounda, en agri et projet.`,
     },
     {
       id: 'm2',
@@ -62,7 +62,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm3',
       from: 'bot',
-      text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
+      text: "Reçu. J'ai trouvé celles qui collent vraiment à ton profil. Je te montre ?",
     },
   ]
 }
