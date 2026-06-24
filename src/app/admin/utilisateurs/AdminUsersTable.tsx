@@ -1,7 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useCallback, useTransition } from 'react'
+import { useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
@@ -113,22 +114,6 @@ export function AdminUsersTable({
   const router = useRouter()
   const pathname = usePathname()
   const [, startTransition] = useTransition()
-
-  const buildUrl = useCallback(
-    (params: Record<string, string | number>) => {
-      const sp = new URLSearchParams()
-      if (q)      sp.set('q', q)
-      if (statut) sp.set('statut', statut)
-      sp.set('page', '1')
-      Object.entries(params).forEach(([k, v]) => {
-        if (v === '' || v === undefined) sp.delete(k)
-        else sp.set(k, String(v))
-      })
-      const qs = sp.toString()
-      return qs ? `${pathname}?${qs}` : pathname
-    },
-    [pathname, q, statut],
-  )
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -416,7 +401,8 @@ export function AdminUsersTable({
                   </span>
 
                   {/* Colonne Action */}
-                  <button
+                  <Link
+                    href={`/admin/utilisateurs/${u.cjsUid}`}
                     style={{
                       width: 32,
                       height: 32,
@@ -429,12 +415,12 @@ export function AdminUsersTable({
                       alignItems: 'center',
                       justifyContent: 'center',
                       justifySelf: 'end',
+                      textDecoration: 'none',
                     }}
-                    aria-label={`Gérer ${u.prenom} ${u.nom}`}
-                    type="button"
+                    aria-label={`Voir la fiche de ${u.prenom} ${u.nom}`}
                   >
                     <Icon name="settings" size={15} />
-                  </button>
+                  </Link>
                 </div>
               )
             })
