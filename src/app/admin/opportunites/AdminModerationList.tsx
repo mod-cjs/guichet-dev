@@ -3,12 +3,15 @@
 import { useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { Pagination } from '@/components/ui/Pagination'
 import { approuverOpportunite, rejeterOpportunite } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
 export interface ModerationItem {
   id: string
+  /** Slug de l'offre pour l'aperçu sur la page publique */
+  slug: string
   titre: string
   /** Libellé du type d'opportunité (Emploi, Stage, Bourse, …) */
   typeLabel: string
@@ -21,6 +24,10 @@ export interface ModerationItem {
 export interface AdminModerationListProps {
   items: ModerationItem[]
   total: number
+  /** Page courante (1-based) — défaut 1 */
+  currentPage?: number
+  /** Nombre total de pages — défaut 1 (pas de pagination) */
+  totalPages?: number
 }
 
 // ─── card ─────────────────────────────────────────────────────────────────────
@@ -86,8 +93,10 @@ function ModerationCard({ item }: { item: ModerationItem }) {
           <Icon name="close" size={14} />
           Rejeter
         </button>
-        <button
-          type="button"
+        <a
+          href={`/opportunites/${item.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px]"
           style={{
             background: 'var(--gj-surface)',
@@ -97,7 +106,7 @@ function ModerationCard({ item }: { item: ModerationItem }) {
         >
           <Icon name="eye" size={14} />
           Aperçu
-        </button>
+        </a>
       </div>
     </div>
   )
@@ -113,7 +122,7 @@ function ModerationCard({ item }: { item: ModerationItem }) {
  * aucun champ de verdict/conformité IA (RecommandationIA = matching jeune↔offre,
  * pas une modération) → AUCUN bloc verdict IA n'est rendu.
  */
-export function AdminModerationList({ items, total }: AdminModerationListProps) {
+export function AdminModerationList({ items, total, currentPage = 1, totalPages = 1 }: AdminModerationListProps) {
   return (
     <div style={{ padding: '22px 28px 40px' }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
@@ -143,6 +152,17 @@ export function AdminModerationList({ items, total }: AdminModerationListProps) 
             {items.map((item) => (
               <ModerationCard key={item.id} item={item} />
             ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              baseUrl="/admin/opportunites"
+              ariaLabel="Pagination"
+            />
           </div>
         )}
       </div>

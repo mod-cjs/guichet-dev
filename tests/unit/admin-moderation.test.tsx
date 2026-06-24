@@ -23,6 +23,7 @@ beforeEach(() => {
 const ITEMS: ModerationItem[] = [
   {
     id: 'o1',
+    slug: 'developpeur-full-stack',
     titre: 'Développeur full-stack',
     typeLabel: 'Emploi',
     organisation: 'Sonatel',
@@ -30,6 +31,7 @@ const ITEMS: ModerationItem[] = [
   },
   {
     id: 'o2',
+    slug: 'bourse-mobilite-2026',
     titre: 'Bourse de mobilité 2026',
     typeLabel: 'Bourse',
     organisation: 'CJS',

@@ -18,6 +18,12 @@ jest.mock('next/navigation', () => ({
   redirect: (path: string) => mockRedirect(path),
 }))
 
+// On teste UNIQUEMENT la garde de la page serveur : on coupe la chaîne d'import
+// du composant enfant (table → modal → server action → next/cache, incompatible jsdom).
+jest.mock('@/app/admin/centres/centres-admin-table', () => ({
+  CentresAdminTable: () => null,
+}))
+
 import Page from '@/app/admin/centres/page'
 import { getSession } from '@/lib/auth'
 

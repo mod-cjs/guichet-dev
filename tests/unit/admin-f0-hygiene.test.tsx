@@ -6,7 +6,7 @@
  *  - Ressources : bouton "Modifier" mobile branché (ouvre la modale).
  *  - Dashboard : KPI "À modérer" cliquable → /admin/opportunites.
  */
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 // ── Mock Icon (sprite SVG indispo en jsdom) ───────────────────────────────
 jest.mock('@/components/ui/Icon', () => ({

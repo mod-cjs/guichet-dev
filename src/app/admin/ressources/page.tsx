@@ -46,5 +46,14 @@ export default async function Page({
     prisma.ressource.count(),
   ])
 
-  return <AdminRessourcesTable ressources={ressources} total={total} />
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  return (
+    <AdminRessourcesTable
+      ressources={ressources}
+      total={total}
+      currentPage={page}
+      totalPages={totalPages}
+    />
+  )
 }
