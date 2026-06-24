@@ -58,6 +58,7 @@ export default async function Page({
         email:     true,
         commune:   true,
         statut:    true,
+        role:      true,
         createdAt: true,
         profil: {
           select: {
@@ -97,6 +98,7 @@ export default async function Page({
     email:              u.email,
     commune:            u.commune,
     statut:             u.statut,
+    role:               u.role,
     createdAt:          u.createdAt,
     centrePrincipalNom: u.profil?.centrePrincipal?.nom ?? null,
   }))

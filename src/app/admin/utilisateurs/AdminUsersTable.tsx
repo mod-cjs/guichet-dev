@@ -15,8 +15,23 @@ export interface AdminUserRow {
   email: string | null
   commune: string | null
   statut: 'actif' | 'inactif' | 'anonymise'
+  /** Rôle principal mis en cache depuis le SSO (null = non encore synchronisé). */
+  role: string | null
   createdAt: Date
   centrePrincipalNom: string | null
+}
+
+/** Libellé d'affichage du rôle (fallback Bénéficiaire si non synchronisé). */
+const ROLE_LABEL: Record<string, string> = {
+  beneficiaire: 'Bénéficiaire',
+  conseiller: 'Conseiller',
+  recruteur: 'Recruteur',
+  admin: 'Admin',
+  data_steward: 'Data steward',
+}
+function roleLabel(role: string | null): string {
+  if (!role) return 'Bénéficiaire'
+  return ROLE_LABEL[role] ?? role
 }
 
 export interface StatutCount {
@@ -364,7 +379,7 @@ export function AdminUsersTable({
                         color: 'var(--gj-teal-deep)',
                       }}
                     >
-                      Bénéficiaire
+                      {roleLabel(u.role)}
                     </span>
                   </span>
 
@@ -503,7 +518,7 @@ export function AdminUsersTable({
                     color: 'var(--gj-teal-deep)',
                   }}
                 >
-                  Bénéficiaire
+                  {roleLabel(u.role)}
                 </span>
               </div>
             ))}
