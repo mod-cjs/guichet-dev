@@ -3,7 +3,11 @@
 import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { Card, Button, Input, Select } from '@/components/ui'
+import { communesForRegion } from '@/lib/communes'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
+
+/** Sentinelle « Autre (préciser) » — commune libre / genre non précisé (GUIC-445). */
+const AUTRE = '__autre__'
 
 const ALLOWED_PHOTO_MIME_CLIENT = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_PHOTO_BYTES_CLIENT    = 5 * 1024 * 1024
@@ -95,8 +99,34 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
     dateNaissance: data.dateNaissance ?? '',
   })
 
+  // GUIC-445 — commune en mode saisie libre (« Autre ») si la valeur existante
+  // n'appartient pas à la liste officielle de la région.
+  const [communeAutre, setCommuneAutre] = useState(
+    () => Boolean(data.commune) && !communesForRegion(data.region).includes(data.commune ?? ''),
+  )
+
+  const communeOptions = communesForRegion(form.region)
+
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  function handleRegionChange(r: string) {
+    setForm(f => {
+      // Réinitialiser la commune si elle n'est plus valide dans la nouvelle région.
+      const stillValid = communeAutre || communesForRegion(r).includes(f.commune)
+      return { ...f, region: r, commune: stillValid ? f.commune : '' }
+    })
+  }
+
+  function handleCommuneSelect(val: string) {
+    if (val === AUTRE) {
+      setCommuneAutre(true)
+      set('commune', '')
+    } else {
+      setCommuneAutre(false)
+      set('commune', val)
+    }
   }
 
   async function save() {
@@ -109,7 +139,8 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
         body: JSON.stringify({
           region:        form.region        || null,
           commune:       form.commune       || null,
-          genre:         form.genre         || null,
+          // L'enum Prisma n'accepte que M|F : « Non précisé » (AUTRE) → null.
+          genre:         form.genre === 'M' || form.genre === 'F' ? form.genre : null,
           dateNaissance: form.dateNaissance || null,
         }),
       })
@@ -229,16 +260,35 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
           <Select
             id="region" label="Région" value={form.region}
             options={REGIONS} placeholder="Sélectionner une région"
-            onChange={e => set('region', e.target.value)}
+            onChange={e => handleRegionChange(e.target.value)}
           />
-          <Input
-            id="commune" label="Commune" value={form.commune}
-            placeholder="Ex : Médina"
-            onChange={e => set('commune', e.target.value)}
-          />
+          {/* GUIC-445 — commune : select filtré par région + « Autre » (saisie libre). */}
           <Select
-            id="genre" label="Genre" value={form.genre}
-            options={[{ value: 'M', label: 'Homme' }, { value: 'F', label: 'Femme' }]}
+            id="commune" label="Commune"
+            value={communeAutre ? AUTRE : form.commune}
+            disabled={!form.region}
+            options={[
+              ...communeOptions.map(c => ({ value: c, label: c })),
+              { value: AUTRE, label: 'Autre (préciser)' },
+            ]}
+            placeholder={form.region ? 'Choisir une commune…' : 'Choisis d’abord ta région'}
+            onChange={e => handleCommuneSelect(e.target.value)}
+          />
+          {communeAutre && (
+            <Input
+              id="commune-libre" label="Préciser la commune" value={form.commune}
+              placeholder="Saisir votre commune…"
+              onChange={e => set('commune', e.target.value)}
+            />
+          )}
+          {/* GUIC-445 — genre 3 options alignées sur l'onboarding (+ Non précisé). */}
+          <Select
+            id="genre" label="Genre" value={form.genre || ''}
+            options={[
+              { value: 'F', label: 'Femme' },
+              { value: 'M', label: 'Homme' },
+              { value: AUTRE, label: 'Non précisé' },
+            ]}
             placeholder="Sélectionner"
             onChange={e => set('genre', e.target.value)}
           />

@@ -114,7 +114,7 @@ describe('OnboardingProfilWeb', () => {
     await waitFor(() => expect(onboardingCalls).toHaveLength(2))
     expect(onboardingCalls[0]?.step).toBe(1)
     expect(onboardingCalls[1]?.step).toBe(2)
-    expect(pushMock).toHaveBeenCalledWith('/jeune/onboarding/recommandations')
+    expect(pushMock).toHaveBeenCalledWith('/jeune/onboarding/centre-principal')
   })
 })
 

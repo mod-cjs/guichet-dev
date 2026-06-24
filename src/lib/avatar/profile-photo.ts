@@ -15,10 +15,16 @@
  * mais reste stable au sein d'une session, ce qui permet à Next.js de
  * mémoriser l'image.
  *
- * @returns L'URL proxy stable si `cjsUid` est fourni, sinon `undefined` →
- *   l'`<Avatar>` consommateur retombe sur les initiales.
+ * GUIC-447 — On ne construit l'URL que si une photo existe réellement
+ * (`hasPhoto`). Auparavant l'URL était toujours produite dès qu'un `cjsUid`
+ * était présent, et le proxy renvoyait un 404 (bruyant en console) quand le
+ * jeune n'avait pas de photo. Le `hasPhoto` provient de `ProfilJeune.photoUrl`
+ * (cf `getHasProfilePhoto`), threadé par les layouts serveur.
+ *
+ * @returns L'URL proxy stable si `cjsUid` ET `hasPhoto`, sinon `undefined` →
+ *   l'`<Avatar>` consommateur retombe sur les initiales (sans requête réseau).
  */
-export function getProfilePhotoUrl(cjsUid?: string | null): string | undefined {
-  if (!cjsUid) return undefined
+export function getProfilePhotoUrl(cjsUid?: string | null, hasPhoto = false): string | undefined {
+  if (!cjsUid || !hasPhoto) return undefined
   return `/api/profil/photo/file?cb=${encodeURIComponent(cjsUid)}`
 }

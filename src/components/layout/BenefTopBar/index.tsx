@@ -3,46 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
-
-/**
- * GUIC-402 — Mapping des segments d'URL vers labels lisibles pour breadcrumbs.
- * Couvre l'app jeune `/jeune/*` ; la racine `/jeune` est libellée « Mon espace ».
- */
-const SEGMENT_LABELS: Record<string, string> = {
-  jeune: 'Mon espace',
-  'mes-favoris': 'Mes favoris',
-  'mes-candidatures': 'Mes candidatures',
-  'mon-profil': 'Mon profil',
-  'mes-notifications': 'Mes notifications',
-  parametres: 'Paramètres',
-  opportunites: 'Opportunités',
-  agenda: 'Agenda',
-  ressources: 'Ressources',
-  centres: 'Centres',
-  yaye: 'Yaye',
-}
-
-interface Crumb {
-  label: string
-  href: string
-}
-
-/**
- * Construit un fil d'Ariane à partir du pathname. Limité à 3 niveaux pour rester
- * lisible. Renvoie [] si pathname ne correspond pas à l'app jeune.
- */
-function buildBreadcrumbs(pathname: string | null): Crumb[] {
-  if (!pathname || !pathname.startsWith('/jeune')) return []
-  const segments = pathname.split('/').filter(Boolean)
-  const crumbs: Crumb[] = []
-  let acc = ''
-  for (const seg of segments) {
-    acc += '/' + seg
-    const label = SEGMENT_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ')
-    crumbs.push({ label, href: acc })
-  }
-  return crumbs.slice(0, 3)
-}
+import { buildBreadcrumbs } from './buildBreadcrumbs'
 
 /**
  * GUIC-375 — Recherche contextuelle : on redirige vers la liste correspondant

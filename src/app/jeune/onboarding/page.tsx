@@ -13,5 +13,5 @@ export default async function OnboardingEntryPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
-  redirect('/jeune/onboarding/telephone')
+  redirect('/jeune/onboarding/objectifs')
 }

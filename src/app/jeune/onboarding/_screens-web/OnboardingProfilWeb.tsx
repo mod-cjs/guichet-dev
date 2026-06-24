@@ -7,8 +7,28 @@ import { Select } from '@/components/ui/Select'
 import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Chip } from '@/components/ui/Chip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
+import { communesForRegion } from '@/lib/communes'
 import { useProfilStep, type ProfilInitial } from '../_logic/use-onboarding-step'
 import { OnboardingNavWeb } from './OnboardingNavWeb'
+
+/**
+ * Valeur sentinelle utilisée dans le select commune / niveau pour déclencher
+ * le mode saisie libre « Autre ». GUIC-432.
+ */
+const AUTRE_VALUE = '__autre__'
+
+/**
+ * Mapping enum Prisma NiveauEtudes → libellé FR. GUIC-432.
+ */
+const NIVEAU_ETUDES_OPTIONS: { value: string; label: string }[] = [
+  { value: 'BFEM',       label: 'BFEM' },
+  { value: 'BAC',        label: 'Baccalauréat' },
+  { value: 'BAC_PLUS_2', label: 'Bac+2 (DUT/BTS)' },
+  { value: 'BAC_PLUS_3', label: 'Licence (Bac+3)' },
+  { value: 'BAC_PLUS_5', label: 'Master (Bac+5)' },
+  { value: 'DOCTORAT',   label: 'Doctorat' },
+  { value: AUTRE_VALUE,  label: 'Autre' },
+]
 
 interface Props {
   initial: ProfilInitial
@@ -66,11 +86,16 @@ function buildDateWeb(annee: string, mois: string, jour: string): string {
  */
 export function OnboardingProfilWeb({ initial }: Props) {
   const f = useProfilStep(initial)
-  // Niveau d'études — state local seulement : le draft API (GUIC-181) ne
-  // porte pas encore ce champ, mais l'input n'est plus orphelin. Le champ
-  // sera persisté côté backend dans une future itération (step 3 du schéma
-  // `stepProfilSchema` l'accepte déjà via `niveauEtude`).
-  const [niveauEtudes, setNiveauEtudes] = useState('')
+  // Commune select — état local pour la valeur du select (commune ou AUTRE_VALUE)
+  const [communeSelectVal, setCommuneSelectVal] = useState<string>(() => {
+    if (!initial.commune) return ''
+    const list = communesForRegion(initial.region)
+    return list.includes(initial.commune) ? initial.commune : AUTRE_VALUE
+  })
+  // Niveau d'études — state local : le draft API (GUIC-181) ne porte pas encore
+  // ce champ. Le champ sera persisté côté backend dans une future itération.
+  const [niveauSelectVal, setNiveauSelectVal] = useState<string>('')
+  const [niveauLibre, setNiveauLibre]         = useState<string>('')
   const initParts = parseDatePartsWeb(initial.dateNaissance)
   const [jourDN, setJourDN]   = useState(initParts.jour)
   const [moisDN, setMoisDN]   = useState(initParts.mois)
@@ -89,9 +114,35 @@ export function OnboardingProfilWeb({ initial }: Props) {
     f.setDateNaissance(buildDateWeb(v, moisDN, jourDN))
   }
 
+  function handleRegionChange(r: string) {
+    f.setRegion(r)
+    // Réinitialiser commune si elle n'est plus dans la nouvelle liste
+    const newList = communesForRegion(r)
+    if (communeSelectVal !== AUTRE_VALUE && f.commune && !newList.includes(f.commune)) {
+      f.setCommune('')
+      setCommuneSelectVal('')
+    }
+  }
+
+  function handleCommuneSelectChange(val: string) {
+    setCommuneSelectVal(val)
+    if (val === AUTRE_VALUE) {
+      f.setCommune('')
+    } else {
+      f.setCommune(val)
+    }
+  }
+
+  function handleNiveauSelectChange(val: string) {
+    setNiveauSelectVal(val)
+    if (val === AUTRE_VALUE) {
+      setNiveauLibre('')
+    }
+  }
+
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
-      <OnboardingNavWeb step={3} total={4} />
+      <OnboardingNavWeb step={2} total={4} />
       <div
         className="flex-1 flex flex-col items-center"
         style={{ padding: '48px 24px 40px', overflowY: 'auto' }}
@@ -201,6 +252,9 @@ export function OnboardingProfilWeb({ initial }: Props) {
                   </button>
                 ))}
               </div>
+              {f.errors.genre ? (
+                <p className="text-gj-red" style={{ fontSize: 12, marginTop: 4 }}>{f.errors.genre}</p>
+              ) : null}
             </div>
           </div>
 
@@ -218,7 +272,7 @@ export function OnboardingProfilWeb({ initial }: Props) {
                 <Chip
                   key={r.value}
                   selected={f.region === r.value}
-                  onClick={() => f.setRegion(r.value)}
+                  onClick={() => handleRegionChange(r.value)}
                 >
                   {r.label}
                 </Chip>
@@ -231,28 +285,54 @@ export function OnboardingProfilWeb({ initial }: Props) {
 
           <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="web-commune">
+              <FieldLabel htmlFor="web-commune-select">
                 Commune
                 <span className="text-gj-grey-2" style={{ fontSize: 10, marginLeft: 4 }}>FACULTATIF</span>
               </FieldLabel>
-              <Input
-                id="web-commune"
-                placeholder="ex. Bakel, Kidira, Goudiry…"
-                value={f.commune}
-                onChange={e => f.setCommune(e.target.value)}
+              <Select
+                id="web-commune-select"
+                aria-label="Commune"
+                value={communeSelectVal}
+                onChange={e => handleCommuneSelectChange(e.target.value)}
+                disabled={!f.region}
+                placeholder={f.region ? 'Choisir une commune…' : 'Choisis d\'abord ta région'}
+                options={[
+                  ...communesForRegion(f.region).map(c => ({ value: c, label: c })),
+                  { value: AUTRE_VALUE, label: 'Autre (préciser)' },
+                ]}
               />
+              {communeSelectVal === AUTRE_VALUE && (
+                <Input
+                  id="web-commune-libre"
+                  aria-label="Commune"
+                  placeholder="Saisir votre commune…"
+                  value={f.commune}
+                  onChange={e => f.setCommune(e.target.value)}
+                />
+              )}
             </div>
             <div className="flex flex-col gap-1">
-              <FieldLabel htmlFor="web-niveau">
+              <FieldLabel htmlFor="web-niveau-select">
                 Niveau d&apos;études
                 <span className="text-gj-grey-2" style={{ fontSize: 10, marginLeft: 4 }}>FACULTATIF</span>
               </FieldLabel>
-              <Input
-                id="web-niveau"
-                placeholder="ex. Bac +2, Licence, Master…"
-                value={niveauEtudes}
-                onChange={e => setNiveauEtudes(e.target.value)}
+              <Select
+                id="web-niveau-select"
+                aria-label="Niveau d'études"
+                value={niveauSelectVal}
+                onChange={e => handleNiveauSelectChange(e.target.value)}
+                placeholder="Choisir un niveau…"
+                options={NIVEAU_ETUDES_OPTIONS}
               />
+              {niveauSelectVal === AUTRE_VALUE && (
+                <Input
+                  id="web-niveau-libre"
+                  aria-label="Niveau d'études"
+                  placeholder="Préciser votre niveau…"
+                  value={niveauLibre}
+                  onChange={e => setNiveauLibre(e.target.value)}
+                />
+              )}
             </div>
           </div>
 

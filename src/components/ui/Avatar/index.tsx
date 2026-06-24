@@ -17,6 +17,12 @@ interface AvatarProps {
    * (gestion `onError` ci-dessous).
    */
   cjsUid?: string | null
+  /**
+   * GUIC-447 — `true` si le user a réellement une photo (`ProfilJeune.photoUrl`).
+   * Sans ça, on n'émet pas de requête proxy (qui renverrait un 404 bruyant) et
+   * on affiche directement les initiales.
+   */
+  hasPhoto?: boolean
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -32,11 +38,11 @@ const SIZE_PX: Record<'sm' | 'md' | 'lg', number> = {
   lg: 64,
 }
 
-export function Avatar({ nom, prenom, src, cjsUid, size = 'md' }: AvatarProps) {
+export function Avatar({ nom, prenom, src, cjsUid, hasPhoto = false, size = 'md' }: AvatarProps) {
   const initiales = `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`
   const alt = [prenom, nom].filter(Boolean).join(' ') || 'Avatar'
   const px = SIZE_PX[size]
-  const resolvedSrc = src ?? getProfilePhotoUrl(cjsUid ?? undefined)
+  const resolvedSrc = src ?? getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   return (
     <div className={`${SIZES[size]} rounded-full bg-gj-teal flex items-center justify-center overflow-hidden flex-shrink-0`}>
       {resolvedSrc

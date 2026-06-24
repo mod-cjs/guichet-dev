@@ -7,6 +7,7 @@ import { SkipLink } from '@/components/ui/SkipLink'
 import { YayeBubble } from '@/components/yaye/YayeBubble'
 import { YayeProvider } from '@/components/yaye/YayeProvider'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
+import { getHasProfilePhoto } from '@/lib/loaders/profil-photo'
 
 /**
  * Layout des pages app jeune.
@@ -38,6 +39,8 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
   const userMeta = session.region ?? undefined
   // GUIC-247 — badge cloche desktop : non-lues côté serveur (best-effort).
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
+  // GUIC-447 — présence photo pour éviter le 404 proxy (best-effort).
+  const hasPhoto = await getHasProfilePhoto(session.cjsUid).catch(() => false)
 
   return (
     <YayeProvider>
@@ -51,6 +54,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           userMeta={userMeta}
           userInitials={userInitials || undefined}
           cjsUid={session.cjsUid}
+          hasPhoto={hasPhoto}
           unread={unread}
         />
       </div>
