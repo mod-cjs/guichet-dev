@@ -155,7 +155,7 @@ export default async function Page() {
     latitude: c.latitude,
     longitude: c.longitude,
     region: String(c.region),
-    slug: c.slug,
+    slug: c.slug ?? '',
   }))
 
   const data: DashboardData = {
