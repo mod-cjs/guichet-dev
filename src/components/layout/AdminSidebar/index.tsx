@@ -46,6 +46,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
+      { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
       { id: 'stats', href: '/admin/data-hub', icon: 'trending', label: 'Statistiques' },
     ],
   },
