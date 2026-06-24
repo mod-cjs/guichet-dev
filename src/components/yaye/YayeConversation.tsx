@@ -10,10 +10,13 @@ const HISTORY_MAX = 10
 let counter = 0
 const nid = () => `yc-${++counter}`
 
-const INTRO: YayeSidePanelMessage = {
-  id: 'intro',
-  from: 'bot',
-  text: "Salama 👋 Je suis Yaye. Dis-moi ce que tu cherches — une opportunité, une formation, ou bien où en sont tes candidatures.",
+function buildIntro(prenom?: string): YayeSidePanelMessage {
+  const salutation = prenom?.trim() ? `Salama ${prenom.trim()} 👋` : 'Salama 👋'
+  return {
+    id: 'intro',
+    from: 'bot',
+    text: `${salutation} Je suis Yaye. Dis-moi ce que tu cherches — une opportunité, une formation, ou bien où en sont tes candidatures.`,
+  }
 }
 
 const SUGGESTIONS: QuickReply[] = [
@@ -28,8 +31,16 @@ const SUGGESTIONS: QuickReply[] = [
  * (bouton flottant). Les réponses en blocs sont rendues via `YayeBlocks`
  * (texte + cards opportunités cliquables + actions de soumission).
  */
-export function YayeConversation({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [messages, setMessages] = useState<YayeSidePanelMessage[]>([INTRO])
+export function YayeConversation({
+  open,
+  onClose,
+  prenom,
+}: {
+  open: boolean
+  onClose: () => void
+  prenom?: string
+}) {
+  const [messages, setMessages] = useState<YayeSidePanelMessage[]>(() => [buildIntro(prenom)])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const sessionIdRef = useRef<string | undefined>(undefined)

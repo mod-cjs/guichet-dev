@@ -30,6 +30,14 @@ export interface YayeSidePanelProps {
    * Si absent ou vide, un greeting générique sans nom est utilisé.
    */
   prenom?: string
+  /** Valeur contrôlée du composer. Fournie avec `onSend` → composer réel. */
+  composerValue?: string
+  /** Callback de saisie du composer (composer contrôlé). */
+  onComposerChange?: (value: string) => void
+  /** Callback d'envoi. Si fourni, le composer est réel (branché sur `/api/ia`) ; sinon mock non contrôlé. */
+  onSend?: (value: string) => void
+  /** Vrai pendant l'envoi : désactive le composer et le bouton. */
+  sending?: boolean
 }
 
 /**
@@ -87,6 +95,10 @@ export function YayeSidePanel({
   onQuickReply,
   dateLabel = "Aujourd'hui · 9:41",
   prenom,
+  composerValue,
+  onComposerChange,
+  onSend,
+  sending = false,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)

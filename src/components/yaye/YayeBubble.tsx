@@ -15,7 +15,7 @@ export interface YayeBubbleProps {
    */
   bottom?: number
   right?: number
-  /** Prénom de l'utilisateur connecté — transmis à YayeSidePanel pour le greeting. */
+  /** Prénom de l'utilisateur connecté — transmis à YayeConversation pour le greeting. */
   prenom?: string
 }
 
@@ -23,7 +23,7 @@ export interface YayeBubbleProps {
  * YayeBubble — bouton flottant universel d'accès à Yaye.
  *
  * GUIC-373 — monté dans les layouts publics et `/jeune/(app)`. Click → ouvre
- * un drawer (`YayeSidePanel`). z-index `--gj-z-chat` > BottomNav.
+ * un drawer (`YayeConversation`, qui branche le composer sur `/api/ia`). z-index `--gj-z-chat` > BottomNav.
  *
  * GUIC-376 — l'état d'ouverture est désormais piloté par `YayeProvider` afin
  * que le CTA Yaye de la `BenefSidebar` puisse ouvrir **le même** drawer.
@@ -40,7 +40,7 @@ export function YayeBubble({ bottom, right = 16, prenom }: YayeBubbleProps) {
     return (
       <>
         {!isOpen && <YayeFab bottom={bottom} right={right} onClick={open} />}
-        <YayeSidePanel open={isOpen} onClose={close} prenom={prenom} />
+        <YayeConversation open={isOpen} onClose={close} prenom={prenom} />
       </>
     )
   }
@@ -59,7 +59,7 @@ export function YayeBubble({ bottom, right = 16, prenom }: YayeBubbleProps) {
           </span>
         </>
       )}
-      <YayeSidePanel open={isOpen} onClose={close} prenom={prenom} />
+      <YayeConversation open={isOpen} onClose={close} prenom={prenom} />
     </>
   )
 }
