@@ -35,6 +35,8 @@ const MOCK_DATA: DashboardData = {
     centresActifs: 14,
     aModerer: 5,
     insertionsMois: 120,
+    jeunesNouveauxMois: 1240,
+    insertionsDeltaPct: 12,
   },
   growthSeries: [
     { month: 'Nov', cumulative: 12000 },
@@ -63,6 +65,12 @@ const MOCK_DATA: DashboardData = {
     { id: 'c1', nom: 'CJS Dakar', latitude: 14.69, longitude: -17.44, region: 'Dakar', slug: 'cjs-dakar' },
     { id: 'c2', nom: 'CJS Thiès', latitude: 14.79, longitude: -16.93, region: 'Thiès', slug: 'cjs-thies' },
   ],
+  secondaires: [
+    { label: "Taux d'insertion moyen", value: '61%', icon: 'trending' },
+    { label: 'Candidatures (mois)', value: '4 312', icon: 'document' },
+    { label: 'Ateliers tenus', value: '186', icon: 'calendar' },
+    { label: 'Partenaires actifs', value: '412', icon: 'employment' },
+  ],
 }
 
 describe('GUIC-451 — AdminDashboardClient', () => {
@@ -79,6 +87,23 @@ describe('GUIC-451 — AdminDashboardClient', () => {
     const map = screen.getByTestId('centres-map')
     expect(map).toHaveTextContent('CJS Dakar')
     expect(map).toHaveTextContent('CJS Thiès')
+  })
+
+  // ── Deltas KPI — GUIC-467 (F6) ─────────────────────────────────────────────
+  it('affiche le delta « nouveaux ce mois » sous le KPI jeunes', () => {
+    expect(screen.getByText(/\+1\s?240 ce mois/i)).toBeInTheDocument()
+  })
+
+  it('affiche le delta % des insertions vs mois dernier', () => {
+    expect(screen.getByText(/\+12% vs mois dernier/i)).toBeInTheDocument()
+  })
+
+  // ── Indicateurs secondaires — GUIC-467 (F6) ────────────────────────────────
+  it('affiche les indicateurs secondaires (taux insertion, candidatures, ateliers, partenaires)', () => {
+    expect(screen.getByText(/taux d.insertion moyen/i)).toBeInTheDocument()
+    expect(screen.getByText('61%')).toBeInTheDocument()
+    expect(screen.getByText(/ateliers tenus/i)).toBeInTheDocument()
+    expect(screen.getByText(/partenaires actifs/i)).toBeInTheDocument()
   })
 
   // ── Titre page ────────────────────────────────────────────────────────────
