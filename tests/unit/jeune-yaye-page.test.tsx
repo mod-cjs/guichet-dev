@@ -12,9 +12,16 @@ beforeAll(() => {
 })
 
 const mockFetch = jest.fn()
+let randomSpy: jest.SpyInstance
 beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
+  // Greeting + amorces varient par Math.random ; on fige sur la variante canonique
+  // (« Salama … » + « Une offre pour moi ») pour des assertions déterministes.
+  randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0)
+})
+afterEach(() => {
+  randomSpy.mockRestore()
 })
 
 function replyOnce(reply: string) {

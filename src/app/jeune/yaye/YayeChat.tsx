@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
@@ -8,33 +8,25 @@ import { QuickReplies, type QuickReply } from '@/components/ui/Yaye/QuickReplies
 import { Icon } from '@/components/ui/Icon'
 import { YayeBlocks } from '@/components/yaye/YayeBlocks'
 import { YayeFeedback } from '@/components/yaye/YayeFeedback'
+import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
 /** Message affiché dans la conversation. `text` est un ReactNode → permet d'y rendre
  *  des blocs riches (texte + cards opportunités cliquables + actions), via YayeBlocks. */
 export type YayeMessage = { id: string; kind: 'bubble'; from: 'bot' | 'user'; text: ReactNode; timestamp?: string }
 
-const INITIAL_MESSAGES: YayeMessage[] = [
-  {
-    id: 'm1',
-    kind: 'bubble',
-    from: 'bot',
-    text: "Salama 👋 Je suis Yaye. Dis-moi ce que tu cherches — une opportunité, une formation, ou bien où en sont tes candidatures.",
-    timestamp: '09:41',
-  },
-]
-
-const INITIAL_REPLIES: QuickReply[] = [
-  { label: 'Une offre pour moi', value: 'Trouve-moi une opportunité adaptée à mon profil' },
-  { label: 'Une formation', value: 'Je cherche une formation près de chez moi' },
-  { label: 'Mes candidatures', value: 'Où en sont mes candidatures ?' },
-]
+/** Message d'intro varié. `rng` injectable : init SSR déterministe, re-tirage au montage. */
+function buildIntroMessage(rng?: () => number): YayeMessage {
+  return { id: 'm1', kind: 'bubble', from: 'bot', text: pickGreeting(undefined, rng), timestamp: '09:41' }
+}
 
 /** Garde les N derniers échanges envoyés à l'agent comme contexte. */
 const HISTORY_MAX = 10
 
 export function YayeChat() {
-  const [messages, setMessages] = useState<YayeMessage[]>(INITIAL_MESSAGES)
+  // Init déterministe (variante 0) pour éviter tout écart d'hydratation SSR↔client.
+  const [messages, setMessages] = useState<YayeMessage[]>(() => [buildIntroMessage(() => 0)])
+  const [replies, setReplies] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const listEndRef = useRef<HTMLDivElement | null>(null)
@@ -115,7 +107,12 @@ export function YayeChat() {
     listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isTyping])
 
-  const quickReplies = useMemo<QuickReply[]>(() => INITIAL_REPLIES, [])
+  // Au montage (côté client → pas de mismatch d'hydratation), on varie la
+  // salutation ET les amorces si la conversation n'a pas encore commencé.
+  useEffect(() => {
+    setMessages(prev => (prev.length <= 1 ? [buildIntroMessage()] : prev))
+    setReplies(pickSuggestions())
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,7 +177,7 @@ export function YayeChat() {
         style={{ paddingBottom: 'var(--safe-bottom)' }}
       >
         <div className="px-space-3 pt-space-2">
-          <QuickReplies replies={quickReplies} onSelect={sendMessage} />
+          <QuickReplies replies={replies} onSelect={sendMessage} />
         </div>
         <form
           onSubmit={handleSubmit}
