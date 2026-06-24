@@ -17,7 +17,7 @@ beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
   // Greeting + amorces varient par Math.random ; on fige sur la variante canonique
-  // (« Salama … » + « Une offre pour moi ») pour des assertions déterministes.
+  // (« Bonjour … » + « Une offre pour moi ») pour des assertions déterministes.
   randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0)
 })
 afterEach(() => {
@@ -38,7 +38,7 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
     render(<YayeChat />)
     expect(screen.getByText('Yaye')).toBeInTheDocument()
     expect(screen.getByText('En ligne')).toBeInTheDocument()
-    expect(screen.getByText(/Salama/)).toBeInTheDocument()
+    expect(screen.getByText(/Bonjour/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Une offre pour moi/i })).toBeInTheDocument()
     // Aucune mention de pourcentage de compatibilité dans l'écran initial.
     expect(screen.queryByText(/%/)).not.toBeInTheDocument()

@@ -1,8 +1,8 @@
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
 
 describe('Yaye — variété conversationnelle (greetings.ts)', () => {
-  it('rng=()=>0 → variante canonique déterministe (« Salama … » + « Une offre pour moi »)', () => {
-    expect(pickGreeting('Awa', () => 0)).toMatch(/^Salama Awa\./)
+  it('rng=()=>0 → variante canonique déterministe (« Bonjour … » + « Une offre pour moi »)', () => {
+    expect(pickGreeting('Awa', () => 0)).toMatch(/^Bonjour Awa\./)
     expect(pickSuggestions(() => 0)[0]).toEqual({
       label: 'Une offre pour moi',
       value: 'Trouve-moi une opportunité adaptée à mon profil',
@@ -32,6 +32,13 @@ describe('Yaye — variété conversationnelle (greetings.ts)', () => {
     const emojiOrPct = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]|%/u
     for (const r of [0, 0.2, 0.4, 0.6, 0.8, 0.99]) {
       expect(pickGreeting('Awa', () => r)).not.toMatch(emojiOrPct)
+    }
+  })
+
+  it('français uniquement — aucune salutation wolof/arabe (Salama, Salam, Na nga def…)', () => {
+    const nonFr = /salama|salam|asalaa|malekum|na nga def/i
+    for (const r of [0, 0.2, 0.4, 0.6, 0.8, 0.99]) {
+      expect(pickGreeting('Awa', () => r)).not.toMatch(nonFr)
     }
   })
 })
