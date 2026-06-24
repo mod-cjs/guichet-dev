@@ -1,3 +1,7 @@
+/**
+ * GUIC-450 — AdminSidebar Lot 11 (sombre + doré)
+ * Tests RED : assertions sur le chrome admin design v3.
+ */
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
@@ -7,56 +11,135 @@ jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
 }))
 
-describe('GUIC-204 — AdminSidebar', () => {
+describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
   beforeEach(() => {
     mockPathname = '/admin/tableau-de-bord'
   })
 
-  it('rend le header "Administration CJS"', () => {
+  /* ── 7 liens exacts avec hrefs ──────────────────────────────────────────── */
+  it('rend le lien "Tableau de bord" vers /admin/tableau-de-bord', () => {
     render(<AdminSidebar />)
-    expect(screen.getAllByText(/Administration/i).length).toBeGreaterThan(0)
+    const link = screen.getAllByRole('link', { name: /tableau de bord/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/tableau-de-bord')
   })
 
-  it('a 7 items de navigation (Tableau de bord + 5 modération + 1 système)', () => {
+  it('rend le lien "Centres CJS" vers /admin/centres', () => {
     render(<AdminSidebar />)
-    expect(screen.getAllByText('Tableau de bord').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Utilisateurs').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Opportunités').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Événements').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Ressources').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Centres').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Data Hub').length).toBeGreaterThan(0)
+    const link = screen.getAllByRole('link', { name: /centres cjs/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/centres')
   })
 
+  it('rend le lien "Utilisateurs" vers /admin/utilisateurs', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /utilisateurs/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/utilisateurs')
+  })
+
+  it('rend le lien "Statistiques" vers /admin/data-hub', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /statistiques/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/data-hub')
+  })
+
+  it('rend le lien "Modération" vers /admin/opportunites', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /modération/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/opportunites')
+  })
+
+  it('rend le lien "Événements" vers /admin/evenements', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /événements/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/evenements')
+  })
+
+  it('rend le lien "Contenu" vers /admin/ressources', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /contenu/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/ressources')
+  })
+
+  /* ── Section headers ────────────────────────────────────────────────────── */
+  it('affiche le header de section "Pilotage"', () => {
+    render(<AdminSidebar />)
+    expect(screen.getByText('Pilotage')).toBeInTheDocument()
+  })
+
+  it('affiche le header de section "Gouvernance"', () => {
+    render(<AdminSidebar />)
+    expect(screen.getByText('Gouvernance')).toBeInTheDocument()
+  })
+
+  /* ── Item actif gold class ──────────────────────────────────────────────── */
+  it('marque l\'item actif avec aria-current="page"', () => {
+    mockPathname = '/admin/tableau-de-bord'
+    render(<AdminSidebar />)
+    const active = screen.getAllByRole('link', { current: 'page' })
+    expect(active.length).toBeGreaterThan(0)
+    expect(active[0]).toHaveTextContent(/tableau de bord/i)
+  })
+
+  it('marque Utilisateurs actif quand pathname = /admin/utilisateurs', () => {
+    mockPathname = '/admin/utilisateurs'
+    render(<AdminSidebar />)
+    const active = screen.getAllByRole('link', { current: 'page' })
+    expect(active.some(a => /utilisateurs/i.test(a.textContent ?? ''))).toBe(true)
+  })
+
+  it('applique la classe/style gold sur l\'item actif', () => {
+    mockPathname = '/admin/centres'
+    render(<AdminSidebar />)
+    const active = screen.getAllByRole('link', { current: 'page' })
+    const activeCentres = active.find(a => /centres cjs/i.test(a.textContent ?? ''))
+    expect(activeCentres).toBeDefined()
+    // L'item actif porte le gradient doré --gj-admin-gold via inline style (rendu
+    // navigateur). jsdom n'évalue pas var() sur le shorthand `background`, donc on
+    // vérifie le marqueur d'état actif data-active (la branche linkActiveStyle est prise).
+    expect(activeCentres).toHaveAttribute('data-active', 'true')
+    // Et la font-weight 800 de l'item actif est bien sérialisée (preuve du spread actif).
+    const style = (activeCentres as HTMLElement).getAttribute('style') ?? ''
+    expect(style).toMatch(/font-weight:\s*800/i)
+  })
+
+  /* ── Pas de bottom-nav ──────────────────────────────────────────────────── */
+  it('ne rend pas de bottom-nav (règle absolue admin = pas de bottom-nav)', () => {
+    render(<AdminSidebar />)
+    expect(screen.queryByTestId('bottom-nav')).toBeNull()
+    // On s'assure qu'il y a exactement 1 landmark nav (la sidebar)
+    const navs = screen.getAllByRole('navigation')
+    expect(navs.length).toBe(1)
+  })
+
+  /* ── Déconnexion en footer ──────────────────────────────────────────────── */
   it('a un lien "Se déconnecter" en footer', () => {
     render(<AdminSidebar />)
-    expect(screen.getAllByText(/Se déconnecter/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/se déconnecter/i)).toBeInTheDocument()
   })
 
+  /* ── Drawer mobile ──────────────────────────────────────────────────────── */
   it('hamburger mobile a aria-expanded="false" par défaut', () => {
     render(<AdminSidebar />)
-    expect(screen.getByLabelText(/Ouvrir le menu/i)).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByLabelText(/ouvrir le menu/i)).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('hamburger clic ouvre la sidebar (aria-expanded="true")', async () => {
     render(<AdminSidebar />)
-    const btn = screen.getByLabelText(/Ouvrir le menu/i)
+    const btn = screen.getByLabelText(/ouvrir le menu/i)
     await userEvent.setup().click(btn)
-    expect(screen.getByLabelText(/Fermer le menu/i)).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByLabelText(/fermer le menu/i)).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('ESC ferme la sidebar quand ouverte', async () => {
     render(<AdminSidebar />)
     const u = userEvent.setup()
-    await u.click(screen.getByLabelText(/Ouvrir le menu/i))
+    await u.click(screen.getByLabelText(/ouvrir le menu/i))
     await u.keyboard('{Escape}')
-    expect(screen.getByLabelText(/Ouvrir le menu/i)).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByLabelText(/ouvrir le menu/i)).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it("marque l'item actif via aria-current selon usePathname", () => {
-    mockPathname = '/admin/utilisateurs'
+  /* ── Label « Admin national » ───────────────────────────────────────────── */
+  it('affiche le label "Admin national" dans le header', () => {
     render(<AdminSidebar />)
-    const actives = screen.getAllByRole('link', { current: 'page' })
-    expect(actives.some(a => /Utilisateurs/.test(a.textContent ?? ''))).toBe(true)
+    expect(screen.getByText(/admin national/i)).toBeInTheDocument()
   })
 })

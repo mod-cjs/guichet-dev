@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
         nom:    claims.family_name ?? undefined,
         prenom: claims.given_name  ?? undefined,
         email:  claims.email       ?? undefined,
+        // GUIC-469 — rôle principal mis en cache depuis le SSO (source de vérité = SSO).
+        role:   roles[0],
       },
       create: {
         cjsUid:    claims.sub,
@@ -63,6 +65,7 @@ export async function GET(request: NextRequest) {
         prenom:    claims.given_name  ?? '',
         email:     claims.email       ?? undefined,
         telephone: toE164(claims.phone_number),
+        role:      roles[0],
       },
       select: { onboardingComplete: true, region: true, commune: true },
     })
