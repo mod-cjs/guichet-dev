@@ -39,6 +39,7 @@ export default async function Page({
           utilisateur: { select: { prenom: true, nom: true } },
         },
         orderBy: { inscritA: 'asc' },
+        take: 300,
       },
     },
   })
@@ -68,6 +69,14 @@ export default async function Page({
       inscritA: i.inscritA,
     }))
 
+  // La présence n'est pertinente que si l'événement a déjà eu lieu.
+  const presencePertinente = ev.statut === 'en_cours' || ev.statut === 'termine'
+
+  // Mention de troncature si la sous-requête a atteint sa limite (take: 300).
+  const mentionTroncature = inscrits.length === 300
+    ? `300 premiers affichés · export CSV pour la liste complète`
+    : undefined
+
   const data: EvenementDetailData = {
     id: ev.id,
     titre: ev.titre,
@@ -86,6 +95,8 @@ export default async function Page({
       tauxPresence,
     },
     inscrits,
+    presencePertinente,
+    mentionTroncature,
   }
 
   return <AdminEvenementDetail data={data} />

@@ -34,6 +34,10 @@ export interface EvenementDetailData {
   capaciteMax: number | null
   stats: EvenementDetailStats
   inscrits: EvenementInscrit[]
+  /** Vrai si l'événement a eu lieu (en_cours ou terminé) — affiche le taux de présence. */
+  presencePertinente: boolean
+  /** Mention à afficher si la liste est tronquée (> 300 inscrits). */
+  mentionTroncature?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -117,7 +121,10 @@ export function AdminEvenementDetail({ data }: { data: EvenementDetailData }) {
 
         {/* Liste des inscrits */}
         <h2 style={{ fontSize: 13, fontWeight: 900, color: 'var(--gj-ink)', marginBottom: 12 }}>
-          Inscrits ({data.stats.inscrits}) · présence {data.stats.tauxPresence}%
+          Participants ({data.inscrits.length})
+          {data.presencePertinente
+            ? ` · présence ${data.stats.tauxPresence}%`
+            : null}
         </h2>
         <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
           {data.inscrits.length === 0 ? (
@@ -144,6 +151,11 @@ export function AdminEvenementDetail({ data }: { data: EvenementDetailData }) {
             })
           )}
         </div>
+        {data.mentionTroncature && (
+          <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 8, textAlign: 'center' }}>
+            {data.mentionTroncature}
+          </p>
+        )}
       </div>
     </div>
   )

@@ -9,8 +9,18 @@ const STATUT_LABEL: Record<string, string> = {
   annule: 'Annulé',
 }
 
-function csvCell(v: string): string {
-  const s = v ?? ''
+/**
+ * Échappe une valeur pour inclusion dans une cellule CSV.
+ * Anti-injection de formule : préfixe d'une apostrophe si la valeur
+ * commence par =, +, -, @, \t ou \r (vecteurs classiques d'injection CSV).
+ * Exportée pour les tests unitaires.
+ */
+export function csvCell(v: string): string {
+  let s = v ?? ''
+  // Anti-injection de formule — doit être appliqué AVANT l'échappement des guillemets.
+  if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) {
+    s = "'" + s
+  }
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
@@ -42,6 +52,7 @@ export async function GET(
           utilisateur: { select: { prenom: true, nom: true, email: true } },
         },
         orderBy: { inscritA: 'asc' },
+        take: 5000,
       },
     },
   })
@@ -65,12 +76,13 @@ export async function GET(
       .join(','),
   )
   const csv = '﻿' + [header.join(','), ...lines].join('\r\n')
+  const date = new Date().toISOString().slice(0, 10)
 
   return new NextResponse(csv, {
     status: 200,
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="participants-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Content-Disposition': `attachment; filename="participants-${id}-${date}.csv"`,
     },
   })
 }
