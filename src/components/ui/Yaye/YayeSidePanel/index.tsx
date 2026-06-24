@@ -132,7 +132,9 @@ export function YayeSidePanel({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 60,
+        // Modal (backdrop + aria-modal) → niveau overlay, AU-DESSUS du header
+        // (--gj-z-nav:200) et de la bottom-nav (300), sinon le haut du panel est masqué.
+        zIndex: 'var(--gj-z-overlay)',
         display: 'flex',
         justifyContent: 'flex-end',
       }}
