@@ -22,6 +22,7 @@ const MOCK_ROWS: AdminUserRow[] = [
     email: 'fatou.diallo@example.com',
     commune: 'Dakar Plateau',
     statut: 'actif',
+    role: null,
     createdAt: new Date('2025-01-15T10:00:00Z'),
     centrePrincipalNom: 'Centre CJS Dakar',
   },
@@ -32,6 +33,7 @@ const MOCK_ROWS: AdminUserRow[] = [
     email: 'mamadou.sow@example.com',
     commune: 'Thiès',
     statut: 'inactif',
+    role: 'conseiller',
     createdAt: new Date('2025-03-20T14:00:00Z'),
     centrePrincipalNom: null,
   },
@@ -42,6 +44,7 @@ const MOCK_ROWS: AdminUserRow[] = [
     email: 'aissatou.ndiaye@example.com',
     commune: 'Saint-Louis',
     statut: 'anonymise',
+    role: 'admin',
     createdAt: new Date('2025-06-01T08:00:00Z'),
     centrePrincipalNom: 'Centre CJS Saint-Louis',
   },
@@ -137,10 +140,12 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('affiche le pill "Bénéficiaire" pour chaque ligne', () => {
+  // GUIC-469 — affiche le RÔLE RÉEL (cache SSO), fallback "Bénéficiaire" si null.
+  it('affiche le rôle réel par utilisateur (Conseiller, Admin) + fallback Bénéficiaire si null', () => {
     render(<AdminUsersTable {...defaultProps} />)
-    const pills = screen.getAllByText(/bénéficiaire/i)
-    expect(pills.length).toBeGreaterThanOrEqual(MOCK_ROWS.length)
+    expect(screen.getAllByText('Bénéficiaire').length).toBeGreaterThanOrEqual(1) // row1 role=null → fallback
+    expect(screen.getAllByText('Conseiller').length).toBeGreaterThanOrEqual(1)   // row2 role=conseiller
+    expect(screen.getAllByText('Admin').length).toBeGreaterThanOrEqual(1)        // row3 role=admin
   })
 
   it('affiche la commune ou le centre du premier utilisateur', () => {
