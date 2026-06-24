@@ -29,6 +29,9 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/admin',
   useRouter: () => ({ push: jest.fn() }),
 }))
+jest.mock('@/components/centres/CentresMapGoogle', () => ({
+  CentresMapGoogle: () => <div data-testid="centres-map" />,
+}))
 
 import {
   AdminModerationList,
@@ -74,6 +77,7 @@ const DASH: DashboardData = {
   growthSeries: [{ month: 'Mai', cumulative: 22400 }],
   accountSplit: [{ label: 'Bénéficiaires', value: 20000, color: 'var(--gj-teal)' }],
   monthlyCandidatures: [{ m: 'Mai', v: 120 }],
+  centres: [],
 }
 
 // ── Modération : Aperçu = lien public ──────────────────────────────────────

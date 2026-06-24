@@ -22,6 +22,13 @@ jest.mock('@/components/ui/Icon', () => ({
   ),
 }))
 
+// ── Mock CentresMapGoogle (Google Maps JS API indispo en jsdom) ───────────
+jest.mock('@/components/centres/CentresMapGoogle', () => ({
+  CentresMapGoogle: ({ centres }: { centres: { id: string; nom: string }[] }) => (
+    <div data-testid="centres-map">{centres.map((c) => c.nom).join(', ')}</div>
+  ),
+}))
+
 const MOCK_DATA: DashboardData = {
   kpis: {
     jeunesInscrits: 22_400,
@@ -52,11 +59,26 @@ const MOCK_DATA: DashboardData = {
     { m: 'Avr', v: 118 },
     { m: 'Mai', v: 120 },
   ],
+  centres: [
+    { id: 'c1', nom: 'CJS Dakar', latitude: 14.69, longitude: -17.44, region: 'Dakar', slug: 'cjs-dakar' },
+    { id: 'c2', nom: 'CJS Thiès', latitude: 14.79, longitude: -16.93, region: 'Thiès', slug: 'cjs-thies' },
+  ],
 }
 
 describe('GUIC-451 — AdminDashboardClient', () => {
   beforeEach(() => {
     render(<AdminDashboardClient data={MOCK_DATA} />)
+  })
+
+  // ── Présence nationale (carte Google Maps) — GUIC-467 ──────────────────────
+  it('affiche la carte « Présence nationale »', () => {
+    expect(screen.getByRole('heading', { name: /présence nationale/i })).toBeInTheDocument()
+  })
+
+  it('passe les centres géolocalisés à la carte', () => {
+    const map = screen.getByTestId('centres-map')
+    expect(map).toHaveTextContent('CJS Dakar')
+    expect(map).toHaveTextContent('CJS Thiès')
   })
 
   // ── Titre page ────────────────────────────────────────────────────────────
