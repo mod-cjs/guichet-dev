@@ -250,6 +250,8 @@ model Utilisateur {
   genre              Genre?
   dateNaissance      DateTime?    @map("date_naissance")
   statut             StatutCompte @default(actif)
+  // Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login).
+  role               String?      @db.VarChar(40)
   commune            String?      @db.VarChar(100)
   onboardingComplete Boolean      @default(false) @map("onboarding_complete")
   drupalUid          Int?         @unique @map("drupal_uid")
@@ -269,10 +271,13 @@ model Utilisateur {
   // Lot 7 — Centres CJS (GUIC-350)
   reservations          Reservation[]
   checkIns              CheckIn[]
+  // M8 admin (GUIC-469) — suivi des insertions professionnelles
+  insertions            Insertion[]
 
   @@index([email])
   @@index([telephone])
   @@index([statut])
+  @@index([role])
   @@map("utilisateurs")
 }
 
@@ -559,10 +564,30 @@ model Centre {
   checkIns         CheckIn[]
   events           CentreEvent[]
   profilsRattaches ProfilJeune[]     @relation("ProfilCentrePrincipal")
+  insertions       Insertion[]
 
   @@index([region])
   @@index([slug])
   @@map("centres")
+}
+
+/// Insertion professionnelle d'un jeune (emploi/stage/formation) — base du taux d'insertion (GUIC-469).
+model Insertion {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  cjsUid        String   @map("cjs_uid") @db.VarChar(36)
+  opportuniteId String?  @map("opportunite_id") @db.VarChar(36)
+  centreId      String?  @map("centre_id") @db.VarChar(36)
+  type          String?  @db.VarChar(50)
+  dateInsertion DateTime @default(now()) @map("date_insertion")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  centre      Centre?     @relation(fields: [centreId], references: [id])
+
+  @@index([cjsUid])
+  @@index([centreId])
+  @@index([dateInsertion])
+  @@map("insertions")
 }
 
 model AgentCentre {
