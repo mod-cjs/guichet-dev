@@ -24,6 +24,8 @@ export interface AppTopbarProps {
   subtitle?: string
   userInitials?: string
   unread?: number
+  /** GUIC-447 — true si l'utilisateur a une photo (sinon pas de requête proxy). */
+  hasPhoto?: boolean
   onYayeClick?: () => void
   onBellClick?: () => void
   onUserClick?: () => void
@@ -43,6 +45,7 @@ export function AppTopbar({
   subtitle,
   userInitials,
   unread = 0,
+  hasPhoto = false,
   onYayeClick,
   onBellClick,
   onUserClick,
@@ -264,6 +267,7 @@ export function AppTopbar({
               prenom={session.prenom ?? ''}
               nom={session.nom ?? ''}
               cjsUid={session.cjsUid}
+              hasPhoto={hasPhoto}
             />
           ) : initials ? (
             <button

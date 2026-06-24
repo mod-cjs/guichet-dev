@@ -37,6 +37,8 @@ export interface BenefSidebarProps {
   userInitials?: string
   /** GUIC-369 — affiche la photo de profil via proxy `/api/profil/photo/file`. */
   cjsUid?: string | null
+  /** GUIC-447 — true si une photo existe ; sinon pas de requête proxy (→ initiales). */
+  hasPhoto?: boolean
   /**
    * @deprecated GUIC-376 — le CTA Yaye n'ouvre plus une page mais le drawer
    * `YayeSidePanel` via `YayeProvider`. Prop conservée pour compat ascendante,
@@ -185,6 +187,7 @@ export function BenefSidebar({
   userMeta,
   userInitials,
   cjsUid,
+  hasPhoto = false,
   // GUIC-376 — `yayeHref` est désormais ignoré (déprécié).
   yayeHref: _yayeHref,
   unread = 0,
@@ -202,7 +205,7 @@ export function BenefSidebar({
   const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
   const yayePanel = useYayePanel()
   const activeId = active ?? resolveActiveId(pathname, searchParams, sections)
-  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined)
+  const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [loggingOut, setLoggingOut] = useState(false)
 

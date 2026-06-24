@@ -92,7 +92,7 @@ export function OnboardingObjectifs({ prenom }: Props) {
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-surface)' }}>
-      <StepBar step={2} total={5} />
+      <StepBar step={1} total={4} />
 
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-5 overflow-y-auto">
         {/* Bulle Yaye */}

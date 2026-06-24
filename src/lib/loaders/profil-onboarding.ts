@@ -19,3 +19,27 @@ export async function suggestCentrePrincipal(session: {
   })
   return c?.id ?? null
 }
+
+/**
+ * Région effective du jeune pour l'onboarding — GUIC-448.
+ *
+ * La région saisie à l'étape « profil » est persistée en base (PUT step 2) mais
+ * **pas** rafraîchie dans le JWT de session. Pour la plupart des comptes le token
+ * SSO ne porte aucune région : `session.region` est donc périmé/`null` à l'étape
+ * centre-principal, ce qui cassait la suggestion. La base fait foi.
+ */
+export function resolveOnboardingRegion(
+  dbRegion: string | null | undefined,
+  sessionRegion: string | null | undefined,
+): string | null {
+  return dbRegion ?? sessionRegion ?? null
+}
+
+/** Lit la région enregistrée en base pour un jeune (source de vérité). */
+export async function getUserRegion(cjsUid: string): Promise<string | null> {
+  const u = await prisma.utilisateur.findUnique({
+    where:  { cjsUid },
+    select: { region: true },
+  })
+  return u?.region ?? null
+}

@@ -162,7 +162,7 @@ export function OnboardingRecommandations({ prenom }: Props) {
 
   return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100dvh - 3rem)', background: 'var(--gj-bg)' }}>
-      <StepBar step={5} total={5} label="Étape 5 / 5" />
+      <StepBar step={4} total={4} label="Étape 4 / 4" />
 
       <div className="flex-1 flex flex-col gap-space-3 px-space-4 py-space-4 overflow-y-auto">
         {/* Bulle Yaye gradient */}

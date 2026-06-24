@@ -72,7 +72,7 @@ describe('<OnboardingProfil /> — écran 4/5', () => {
     const calls = (global.fetch as jest.Mock).mock.calls
     expect(JSON.parse(calls[0][1].body).step).toBe(1)
     expect(JSON.parse(calls[1][1].body).step).toBe(2)
-    expect(pushMock).toHaveBeenCalledWith('/jeune/onboarding/recommandations')
+    expect(pushMock).toHaveBeenCalledWith('/jeune/onboarding/centre-principal')
   })
 
   it('sélection d\'une région envoie un PATCH region au backend', async () => {

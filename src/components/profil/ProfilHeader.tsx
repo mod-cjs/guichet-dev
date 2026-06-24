@@ -23,7 +23,9 @@ export function ProfilHeader({ nom, prenom, email, completionScore, photoUrl, cj
   // GUIC-369 — Si on a un `cjsUid` on PRIVILÉGIE le proxy (le `photoUrl` brut
   // issu de `ProfilJeune.photoUrl` pointe sur un Blob privé Vercel non
   // accessible directement). `photoUrl` reste un fallback (legacy).
-  const resolvedSrc = getProfilePhotoUrl(cjsUid ?? undefined) ?? photoUrl ?? undefined
+  // GUIC-447 — `hasPhoto` dérivé de `photoUrl` (ProfilJeune.photoUrl) : pas de
+  // requête proxy si pas de photo.
+  const resolvedSrc = getProfilePhotoUrl(cjsUid ?? undefined, Boolean(photoUrl)) ?? photoUrl ?? undefined
   return (
     <div className="flex flex-col gap-space-4">
       <div className="flex items-center gap-space-4">

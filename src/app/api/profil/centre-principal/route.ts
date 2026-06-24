@@ -73,16 +73,18 @@ export async function POST(
     }
   }
 
-  // Mise à jour défensive — la colonne `centrePrincipalId` est introduite W0
-  // (PR #116). On encapsule pour ne pas casser si la migration n'est pas encore
-  // appliquée en local.
+  // Upsert défensif — ProfilJeune est créé à la finalisation (step 3 de
+  // /api/v1/onboarding). L'écran centre-principal s'exécute AVANT cette
+  // finalisation : la ligne peut donc ne pas exister encore → upsert.
+  // La finalisation ne touche pas `centrePrincipalId`, la valeur est préservée.
   try {
-    await prisma.profilJeune.update({
+    await prisma.profilJeune.upsert({
       where: { cjsUid: session.cjsUid },
-      data: { centrePrincipalId: centreId },
+      update: { centrePrincipalId: centreId },
+      create: { cjsUid: session.cjsUid, centrePrincipalId: centreId },
     })
   } catch (e) {
-    console.error('[profil/centre-principal] update failed', e)
+    console.error('[profil/centre-principal] upsert failed', e)
     return NextResponse.json(
       {
         error: {
