@@ -22,12 +22,21 @@ jest.mock('@/components/ui/Icon', () => ({
   ),
 }))
 
+// ── Mock CentresMapGoogle (Google Maps JS API indispo en jsdom) ───────────
+jest.mock('@/components/centres/CentresMapGoogle', () => ({
+  CentresMapGoogle: ({ centres }: { centres: { id: string; nom: string }[] }) => (
+    <div data-testid="centres-map">{centres.map((c) => c.nom).join(', ')}</div>
+  ),
+}))
+
 const MOCK_DATA: DashboardData = {
   kpis: {
     jeunesInscrits: 22_400,
     centresActifs: 14,
     aModerer: 5,
     insertionsMois: 120,
+    jeunesNouveauxMois: 1240,
+    insertionsDeltaPct: 12,
   },
   growthSeries: [
     { month: 'Nov', cumulative: 12000 },
@@ -52,11 +61,49 @@ const MOCK_DATA: DashboardData = {
     { m: 'Avr', v: 118 },
     { m: 'Mai', v: 120 },
   ],
+  centres: [
+    { id: 'c1', nom: 'CJS Dakar', latitude: 14.69, longitude: -17.44, region: 'Dakar', slug: 'cjs-dakar' },
+    { id: 'c2', nom: 'CJS Thiès', latitude: 14.79, longitude: -16.93, region: 'Thiès', slug: 'cjs-thies' },
+  ],
+  secondaires: [
+    { label: "Taux d'insertion moyen", value: '61%', icon: 'trending' },
+    { label: 'Candidatures (mois)', value: '4 312', icon: 'document' },
+    { label: 'Ateliers tenus', value: '186', icon: 'calendar' },
+    { label: 'Partenaires actifs', value: '412', icon: 'employment' },
+  ],
 }
 
 describe('GUIC-451 — AdminDashboardClient', () => {
   beforeEach(() => {
     render(<AdminDashboardClient data={MOCK_DATA} />)
+  })
+
+  // ── Présence nationale (carte Google Maps) — GUIC-467 ──────────────────────
+  it('affiche la carte « Présence nationale »', () => {
+    expect(screen.getByRole('heading', { name: /présence nationale/i })).toBeInTheDocument()
+  })
+
+  it('passe les centres géolocalisés à la carte', () => {
+    const map = screen.getByTestId('centres-map')
+    expect(map).toHaveTextContent('CJS Dakar')
+    expect(map).toHaveTextContent('CJS Thiès')
+  })
+
+  // ── Deltas KPI — GUIC-467 (F6) ─────────────────────────────────────────────
+  it('affiche le delta « nouveaux ce mois » sous le KPI jeunes', () => {
+    expect(screen.getByText(/\+1\s?240 ce mois/i)).toBeInTheDocument()
+  })
+
+  it('affiche le delta % des insertions vs mois dernier', () => {
+    expect(screen.getByText(/\+12% vs mois dernier/i)).toBeInTheDocument()
+  })
+
+  // ── Indicateurs secondaires — GUIC-467 (F6) ────────────────────────────────
+  it('affiche les indicateurs secondaires (taux insertion, candidatures, ateliers, partenaires)', () => {
+    expect(screen.getByText(/taux d.insertion moyen/i)).toBeInTheDocument()
+    expect(screen.getByText('61%')).toBeInTheDocument()
+    expect(screen.getByText(/ateliers tenus/i)).toBeInTheDocument()
+    expect(screen.getByText(/partenaires actifs/i)).toBeInTheDocument()
   })
 
   // ── Titre page ────────────────────────────────────────────────────────────
@@ -79,8 +126,9 @@ describe('GUIC-451 — AdminDashboardClient', () => {
     expect(screen.getByText(/à modérer/i)).toBeInTheDocument()
   })
 
-  it('affiche le label KPI "Insertions ce mois"', () => {
-    expect(screen.getByText(/insertions ce mois/i)).toBeInTheDocument()
+  it('affiche le label KPI "Candidatures retenues" (ex-"Insertions ce mois")', () => {
+    // Plusieurs occurrences possibles (KPI + titre BarChart) — on vérifie l'existence.
+    expect(screen.getAllByText(/candidatures retenues/i).length).toBeGreaterThan(0)
   })
 
   // ── Valeurs KPI ───────────────────────────────────────────────────────────
@@ -108,9 +156,9 @@ describe('GUIC-451 — AdminDashboardClient', () => {
     ).toBeInTheDocument()
   })
 
-  it('affiche la card "Insertions par mois"', () => {
+  it('affiche la card "Candidatures retenues / mois" (ex-"Insertions par mois")', () => {
     expect(
-      screen.getByRole('heading', { name: /insertions par mois/i })
+      screen.getByRole('heading', { name: /candidatures retenues \/ mois/i })
     ).toBeInTheDocument()
   })
 

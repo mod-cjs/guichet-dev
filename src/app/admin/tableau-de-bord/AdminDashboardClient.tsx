@@ -2,13 +2,23 @@
 
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
-import { Icon } from '@/components/ui/Icon'
+import { Icon, type IconName } from '@/components/ui/Icon'
 import { Spark } from '@/components/admin/charts/Spark'
 import { LineChart } from '@/components/admin/charts/LineChart'
 import { BarChart, type BarChartItem } from '@/components/admin/charts/BarChart'
 import { Donut, type DonutSegment } from '@/components/admin/charts/Donut'
+import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
 
 // ── Types exportés (utilisés aussi par la page serveur) ──────────────────────
+
+export interface DashboardCentre {
+  id: string
+  nom: string
+  latitude: number
+  longitude: number
+  region: string
+  slug: string
+}
 
 export interface GrowthPoint {
   month: string
@@ -19,8 +29,19 @@ export interface DashboardKPIs {
   jeunesInscrits: number
   centresActifs: number
   aModerer: number
-  /** null si pas de candidatures avec statut "Retenue" ce mois — affiche "—". */
+  /** Candidatures retenues ce mois (statut=Retenue) — null si aucune, affiche "—". */
   insertionsMois: number | null
+  /** Nouveaux inscrits ce mois (delta jeunes). */
+  jeunesNouveauxMois: number
+  /** Variation des insertions vs mois précédent (%), null si non calculable. */
+  insertionsDeltaPct: number | null
+}
+
+/** Indicateur secondaire (bandeau de mini-KPIs) — données réelles uniquement. */
+export interface SecondaryKpi {
+  label: string
+  value: string
+  icon: IconName
 }
 
 export interface DashboardData {
@@ -28,6 +49,10 @@ export interface DashboardData {
   growthSeries: GrowthPoint[]
   accountSplit: DonutSegment[]
   monthlyCandidatures: BarChartItem[]
+  /** Centres géolocalisés pour la carte « Présence nationale ». */
+  centres: DashboardCentre[]
+  /** Indicateurs secondaires (taux d'insertion, candidatures, ateliers, partenaires…). */
+  secondaires: SecondaryKpi[]
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,6 +70,10 @@ interface KpiDef {
   urgent?: boolean
   /** Si défini, la carte KPI devient un lien vers cette destination. */
   href?: string
+  /** Ligne de variation sous la valeur (ex « +1 240 ce mois »). */
+  delta?: string
+  /** Sens de la variation (vert si true, neutre/jaune sinon). */
+  deltaUp?: boolean
 }
 
 function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
@@ -58,6 +87,8 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
       tone: 'teal',
       icon: 'users',
       spark: sparkGrowth.length > 0 ? sparkGrowth : [kpis.jeunesInscrits],
+      delta: `+${fmt(kpis.jeunesNouveauxMois)} ce mois`,
+      deltaUp: true,
     },
     {
       label: 'Centres actifs',
@@ -76,7 +107,8 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
       href: '/admin/opportunites',
     },
     {
-      label: 'Insertions ce mois',
+      // Candidatures avec statut=Retenue ce mois (libellé honnête — distinct du modèle Insertion).
+      label: 'Candidatures retenues',
       value: kpis.insertionsMois != null ? fmt(kpis.insertionsMois) : '—',
       tone: 'green',
       icon: 'trending',
@@ -84,6 +116,11 @@ function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
         kpis.insertionsMois != null
           ? [Math.max(0, kpis.insertionsMois - 10), kpis.insertionsMois]
           : [0],
+      delta:
+        kpis.insertionsDeltaPct != null
+          ? `${kpis.insertionsDeltaPct >= 0 ? '+' : ''}${kpis.insertionsDeltaPct}% vs mois dernier`
+          : undefined,
+      deltaUp: (kpis.insertionsDeltaPct ?? 0) >= 0,
     },
   ]
 }
@@ -109,7 +146,7 @@ interface Props {
 }
 
 export function AdminDashboardClient({ data }: Props) {
-  const { kpis, growthSeries, accountSplit, monthlyCandidatures } = data
+  const { kpis, growthSeries, accountSplit, monthlyCandidatures, centres, secondaires } = data
   const kpiDefs = buildKpis(kpis, growthSeries)
 
   const growthLabels = growthSeries.map((g) => g.month)
@@ -219,6 +256,18 @@ export function AdminDashboardClient({ data }: Props) {
               >
                 {k.label}
               </div>
+              {k.delta && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    marginTop: 3,
+                    color: k.deltaUp ? 'var(--gj-green-ink)' : 'var(--gj-yellow-ink)',
+                  }}
+                >
+                  {k.delta}
+                </div>
+              )}
             </>
           )
           return k.href ? (
@@ -237,6 +286,49 @@ export function AdminDashboardClient({ data }: Props) {
           )
         })}
       </div>
+
+      {/* ── Indicateurs secondaires (mini-KPIs, données réelles) ──────────── */}
+      {secondaires.length > 0 && (
+        <div
+          style={{ display: 'grid', gap: 10, marginBottom: 20 }}
+          className="grid-cols-2 sm:grid-cols-4"
+        >
+          {secondaires.map((s, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                background: 'var(--gj-surface)',
+                border: '1.5px solid var(--gj-line)',
+                borderRadius: 12,
+                padding: '10px 12px',
+              }}
+            >
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  background: 'var(--gj-teal-soft)',
+                  color: 'var(--gj-teal-deep)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name={s.icon} size={15} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--gj-ink)', lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 2 }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Grille LineChart + Donut ──────────────────────────────────────── */}
       <div
@@ -359,6 +451,31 @@ export function AdminDashboardClient({ data }: Props) {
         </div>
       </div>
 
+      {/* ── Présence nationale (carte Google Maps des centres) ───────────── */}
+      <div
+        style={{
+          background: 'var(--gj-surface)',
+          border: '1.5px solid var(--gj-line)',
+          borderRadius: 14,
+          padding: 18,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 900, color: 'var(--gj-ink)' }}>Présence nationale</h2>
+          <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>
+            {centres.length} centre{centres.length > 1 ? 's' : ''} géolocalisé{centres.length > 1 ? 's' : ''}
+          </span>
+        </div>
+        <CentresMapGoogle
+          centres={centres.map((c) => ({ id: c.id, nom: c.nom, latitude: c.latitude, longitude: c.longitude }))}
+          centresForList={centres.map((c) => ({ id: c.id, nom: c.nom, region: c.region, slug: c.slug }))}
+          height={320}
+          zoom={6}
+          disableUI
+        />
+      </div>
+
       {/* ── BarChart + call-out modération ───────────────────────────────── */}
       <div
         style={{
@@ -377,7 +494,7 @@ export function AdminDashboardClient({ data }: Props) {
           }}
         >
           <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>
-            Insertions par mois
+            Candidatures retenues / mois
           </h2>
           <Link
             href="/admin/data-hub"
