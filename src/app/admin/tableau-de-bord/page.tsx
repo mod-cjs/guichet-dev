@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { buildAccountSplit } from '@/lib/loaders/account-split'
 import { getGrowthSeries } from '@/lib/loaders/growth-series'
@@ -34,7 +35,7 @@ function startOfCurrentMonth(): Date {
 
 export default async function Page() {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const months = getLast7Months()
   const monthStart = startOfCurrentMonth()

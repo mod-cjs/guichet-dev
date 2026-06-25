@@ -3,9 +3,9 @@ import { getSession, encodeSession, setSessionCookie } from '@/lib/auth'
 import { isSessionActive } from '@/lib/session-store'
 import { saveTokens, clearTokens } from '@/lib/token-store'
 import { revokeToken } from '@/lib/sso-client'
+import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
-const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
 
 const PROTECTED: { pattern: RegExp; check: (roles: string[]) => boolean }[] = [
   { pattern: /^\/jeune\//,     check: roles => roles.some(r => BENEFICIAIRE_ROLES.has(r)) },

@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
@@ -49,7 +50,7 @@ function parseDate(v: string | null, fallback: Date): Date {
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !session.roles.includes('admin')) {
+  if (!session || !isAdminRole(session.roles)) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Admin requis' } },
       { status: 403 },

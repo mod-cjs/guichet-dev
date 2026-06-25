@@ -41,9 +41,22 @@ describe('GUIC-456 — AdminStatsClient (Lot 11)', () => {
     expect(screen.getByText('Conseillers')).toBeInTheDocument()
   })
 
-  it('expose des liens d\'export vers les routes existantes', () => {
+  it('expose les exports admin session-gated (données réelles, C3)', () => {
     render(<AdminStatsClient data={DATA} />)
-    const link = screen.getByRole('link', { name: /utilisateurs/i })
-    expect(link).toHaveAttribute('href', '/api/v1/export/utilisateurs')
+    // Routes /api/admin/export/* (garde de session) et non /api/v1/export/* (clé Data Hub).
+    expect(screen.getByRole('link', { name: /utilisateurs/i })).toHaveAttribute(
+      'href',
+      '/api/admin/export/utilisateurs',
+    )
+    expect(screen.getByRole('link', { name: /opportunités/i })).toHaveAttribute(
+      'href',
+      '/api/admin/export/opportunites',
+    )
+  })
+
+  it('ne propose PLUS Formations / Programmes (jeux de données vides — C3)', () => {
+    render(<AdminStatsClient data={DATA} />)
+    expect(screen.queryByRole('link', { name: /formations/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /programmes/i })).toBeNull()
   })
 })

@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { AdminTopBar } from '@/components/layout/AdminSidebar/AdminTopBar'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   // Dériver les infos utilisateur depuis la session pour la carte sidebar
   const userName = `${session.prenom} ${session.nom}`.trim() || 'Admin national'

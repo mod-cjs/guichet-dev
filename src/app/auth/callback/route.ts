@@ -6,6 +6,7 @@ import { clearRevocation } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger, hashId } from '@/lib/logger'
 import { safeReturnTo } from '@/lib/security/safe-return-to'
+import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 import type { CJSSession } from '@/types/user'
 
 export async function GET(request: NextRequest) {
@@ -143,7 +144,6 @@ function toE164(phone: string | null | undefined): string | undefined {
   if (/^\d{9}$/.test(cleaned))  return '+221' + cleaned
   return cleaned
 }
-const ADMIN_ROLES        = new Set(['admin', 'moderator', 'super_admin'])
 
 function roleRedirect(session: CJSSession): string {
   if (session.roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
