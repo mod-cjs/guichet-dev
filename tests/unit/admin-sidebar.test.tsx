@@ -35,6 +35,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/utilisateurs')
   })
 
+  // G11 — la page analytics centres n'est plus orpheline : lien de nav présent.
+  it('rend le lien "Analytics centres" vers /admin/analytics/centres', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /analytics centres/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/analytics/centres')
+  })
+
   it('rend le lien "Statistiques" vers /admin/data-hub', () => {
     render(<AdminSidebar />)
     const link = screen.getAllByRole('link', { name: /statistiques/i })[0]
@@ -57,6 +64,19 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     render(<AdminSidebar />)
     const link = screen.getAllByRole('link', { name: /contenu/i })[0]
     expect(link).toHaveAttribute('href', '/admin/ressources')
+  })
+
+  /* ── G9 — badge modération alimenté par le compteur de brouillons ────────── */
+  it('affiche le badge rouge sur Modération quand moderationCount > 0', () => {
+    render(<AdminSidebar moderationCount={7} />)
+    const link = screen.getAllByRole('link', { name: /modération/i })[0]
+    expect(link.textContent).toContain('7')
+  })
+
+  it('n’affiche aucun badge quand moderationCount = 0', () => {
+    render(<AdminSidebar moderationCount={0} />)
+    const link = screen.getAllByRole('link', { name: /modération/i })[0]
+    expect(link.textContent).not.toMatch(/\d/)
   })
 
   /* ── Section headers ────────────────────────────────────────────────────── */
