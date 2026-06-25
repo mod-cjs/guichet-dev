@@ -270,9 +270,13 @@ export function AdminEvenementsTable({
                     >
                       <td className="px-[18px] py-[13px]">
                         <div className="flex items-center gap-[10px] flex-wrap">
-                          <span className="text-[13.5px] font-black" style={{ color: 'var(--gj-ink)' }}>
+                          <Link
+                            href={`/admin/evenements/${row.id}`}
+                            className="text-[13.5px] font-black hover:underline"
+                            style={{ color: 'var(--gj-ink)', textDecoration: 'none' }}
+                          >
                             {row.titre}
-                          </span>
+                          </Link>
                           <TypePill type={row.type} />
                         </div>
                       </td>
