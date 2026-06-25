@@ -83,6 +83,7 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
+      { id: 'bibliotheque', href: '/jeune/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },

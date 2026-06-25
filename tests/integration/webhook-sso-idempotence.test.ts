@@ -32,11 +32,16 @@ jest.mock('@/lib/rate-limit', () => ({
 
 const mockUpsert = jest.fn()
 const mockUpdate = jest.fn()
+const mockEmpruntDeleteMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: {
       upsert: (...args: unknown[]) => mockUpsert(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
+    },
+    // Droit à l'oubli (Lot 3) : handleAnonymized purge l'historique d'emprunts.
+    emprunt: {
+      deleteMany: (...args: unknown[]) => mockEmpruntDeleteMany(...args),
     },
   },
 }))
@@ -90,6 +95,7 @@ describe('POST /api/webhooks/sso — idempotence & sécurité (GUIC-243)', () =>
     mockRateLimit.mockResolvedValue(null) // rate-limit OK par défaut
     mockUpdate.mockResolvedValue({})
     mockUpsert.mockResolvedValue({})
+    mockEmpruntDeleteMany.mockResolvedValue({ count: 0 })
   })
 
   it('Redis OK + event neuf → 200 ok, handler exécuté', async () => {

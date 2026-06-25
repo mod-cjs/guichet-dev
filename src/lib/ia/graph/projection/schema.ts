@@ -35,10 +35,13 @@ export const LABEL_KEYS: Record<string, string> = {
   // Agenda & ressources pédagogiques
   Evenement: 'id',
   RessourcePedagogique: 'id',
-  // Centres & ressources physiques (biblio physique = Lot 3)
+  // Centres & ressources physiques
   Centre: 'id',
   Salle: 'id',
   Vehicule: 'id',
+  // Bibliothèque physique (Lot 3, GUIC-274)
+  Livre: 'id',
+  Exemplaire: 'id',
 }
 
 /** Index secondaires accélérant les filtres de matching les plus fréquents. */
@@ -50,6 +53,8 @@ export const INDEX_SPECS: ReadonlyArray<readonly [string, string]> = [
   ['Competence', 'slug'],
   ['Beneficiaire', 'region'],
   ['Evenement', 'statut'],
+  ['Livre', 'theme'],
+  ['Exemplaire', 'statut'],
 ]
 
 /** Crée contraintes + index. Idempotent — à exécuter avant toute projection. */
