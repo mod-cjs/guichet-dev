@@ -15,12 +15,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials =
     `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
 
-  // Dériver les infos utilisateur depuis la session pour la carte sidebar
-  const userName = `${session.prenom} ${session.nom}`.trim() || 'Admin national'
-  const userRole = 'Administrateur national'
-  const userInitials =
-    `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
-
   return (
     <>
       <SkipLink />

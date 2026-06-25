@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import {
   AdminEvenementsTable,
@@ -24,7 +25,7 @@ interface SP {
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const sp = await searchParams
   const activeStatut = STATUTS.includes(sp.statut as StatutEvenement)
