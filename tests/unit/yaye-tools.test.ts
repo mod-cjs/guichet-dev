@@ -19,6 +19,10 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
+const mockRecordEscalade = jest.fn()
+jest.mock('@/lib/ia/escalade', () => ({ recordEscalade: (...a: unknown[]) => mockRecordEscalade(...a) }))
+jest.mock('@/lib/app-url', () => ({ appUrl: () => 'https://app.test' }))
+
 import { TOOLS } from '@/lib/ia/tools'
 
 const ctx = { cjsUid: 'u-1', roles: ['beneficiaire'] }
@@ -28,6 +32,7 @@ beforeEach(() => {
   mockGroupBy.mockReset()
   mockCount.mockReset()
   mockFindMany.mockReset()
+  mockRecordEscalade.mockReset()
 })
 
 test('get_user_profile : renvoie le profil du cjsUid en portée', async () => {
@@ -92,4 +97,37 @@ test('search_opportunities : enum invalide ignoré (pas de crash Prisma)', async
   await TOOLS.search_opportunities.execute({ domaine: 'PasUnDomaine' }, ctx)
   const where = mockFindMany.mock.calls[0][0].where
   expect(where.domaine).toBeUndefined() // valeur invalide non transmise à Prisma
+})
+
+// ── escalate_to_advisor (Lot 6) ────────────────────────────────────────────
+
+test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc action', async () => {
+  mockRecordEscalade.mockResolvedValueOnce(undefined)
+  const r = await TOOLS.escalate_to_advisor.execute(
+    { motif: 'sujet_sensible', resume: 'situation personnelle difficile' },
+    { ...ctx, sessionId: 's-1', canal: 'web' },
+  )
+  expect(r.ok).toBe(true)
+  expect(mockRecordEscalade).toHaveBeenCalledWith(
+    expect.objectContaining({
+      sessionId: 's-1', canal: 'web', cjsUid: 'u-1', raison: 'sujet_sensible',
+      stade: 'situation personnelle difficile',
+    }),
+  )
+  expect(r.block?.kind).toBe('action')
+})
+
+test('escalate_to_advisor : sans session/canal → ok:false, aucune trace', async () => {
+  const r = await TOOLS.escalate_to_advisor.execute({ motif: 'autre' }, ctx)
+  expect(r.ok).toBe(false)
+  expect(mockRecordEscalade).not.toHaveBeenCalled()
+})
+
+test('escalate_to_advisor : motif inconnu normalisé en "autre"', async () => {
+  mockRecordEscalade.mockResolvedValueOnce(undefined)
+  await TOOLS.escalate_to_advisor.execute(
+    { motif: 'n_importe_quoi' },
+    { ...ctx, sessionId: 's-2', canal: 'whatsapp' },
+  )
+  expect(mockRecordEscalade).toHaveBeenCalledWith(expect.objectContaining({ raison: 'autre' }))
 })

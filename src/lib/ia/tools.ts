@@ -7,7 +7,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { Domaine, Region, TypeOpportunite, TypeRessourceCentre } from '@prisma/client'
-import type { Prisma } from '@prisma/client'
+import type { CanalAgent, Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
 import { appUrl } from '@/lib/app-url'
 import { LETTRE_MIN_CHARS } from '@/lib/constants/candidature'
@@ -17,6 +17,7 @@ import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
+import { recordEscalade } from './escalade'
 import type { YayeBlock, YayeOppItem } from './blocks'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -59,6 +60,10 @@ export interface ToolContext {
   roles: string[]
   /** Centre de rattachement de l'appelant (staff/gestionnaire) — borne les traversées centre. */
   centreId?: string | null
+  /** Session conversationnelle courante — requis par les outils qui journalisent (escalade). */
+  sessionId?: string
+  /** Canal d'échange (web/whatsapp) — pour la traçabilité d'escalade. */
+  canal?: CanalAgent
 }
 
 export interface ToolResult {
@@ -703,6 +708,81 @@ const submitApplication: AgentTool = {
   },
 }
 
+// ── escalate_to_advisor (Lot 6) ───────────────────────────────────────────────
+// Passe la main à un opérateur humain du CJS. Yaye l'appelle quand la demande la
+// dépasse, touche à une situation sensible, ou que la personne réclame un humain.
+// Branché sur l'EXISTANT : recordEscalade journalise l'événement `escalade_conseiller`
+// et alimente la file admin `escalades_yaye` (consultée par le staff). Aucune écriture
+// dans un autre module. La remise temps réel au conseiller (notification) viendra ensuite.
+const ESCALADE_MOTIFS = ['demande_complexe', 'sujet_sensible', 'demande_explicite', 'echec_repete', 'autre'] as const
+
+const escalateToAdvisor: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'escalate_to_advisor',
+      description:
+        "Transmet la conversation à un conseiller humain du CJS. À utiliser quand : la personne " +
+        "DEMANDE explicitement de parler à un humain ; le sujet est SENSIBLE (détresse, santé, " +
+        "violence, situation personnelle difficile) ; ou la demande dépasse ce que tu peux traiter " +
+        "avec tes outils. Appelle cet outil UNE SEULE FOIS, puis confirme chaleureusement à la " +
+        "personne que sa demande est transmise à l'équipe — ne promets pas de délai précis.",
+      parameters: {
+        type: 'object',
+        properties: {
+          motif: {
+            type: 'string',
+            enum: [...ESCALADE_MOTIFS],
+            description: "Catégorie d'escalade (sujet_sensible pour toute détresse/situation personnelle).",
+          },
+          resume: {
+            type: 'string',
+            description: 'Résumé court et factuel de la demande à transmettre au conseiller (sans données de tiers).',
+          },
+        },
+        required: ['motif'],
+      },
+    },
+  },
+  async execute(args, ctx) {
+    // Sans session/canal, on ne peut pas tracer l'escalade de façon fiable.
+    if (!ctx.sessionId || !ctx.canal) {
+      return { ok: false, error: "Contexte de session indisponible pour l'escalade." }
+    }
+    const motif = typeof args.motif === 'string' && (ESCALADE_MOTIFS as readonly string[]).includes(args.motif)
+      ? args.motif
+      : 'autre'
+    const resume = typeof args.resume === 'string' ? args.resume.trim().slice(0, 280) : null
+
+    await recordEscalade({
+      sessionId: ctx.sessionId,
+      cjsUid: ctx.cjsUid,
+      role: ctx.roles[0] ?? null,
+      centreId: ctx.centreId ?? null,
+      canal: ctx.canal,
+      raison: motif,
+      stade: resume,
+    })
+
+    const base = appUrl()
+    return {
+      ok: true,
+      // Le LLM confirme avec ses mots ; on lui rappelle juste de rester honnête sur le délai.
+      data: {
+        escalated: true,
+        message: "Demande transmise à l'équipe CJS. Confirme-le chaleureusement, sans promettre de délai précis.",
+      },
+      block: {
+        kind: 'action',
+        title: 'Demande transmise à un conseiller',
+        subtitle: 'Un membre de l’équipe CJS prendra le relais. En attendant, tu peux aussi joindre un centre.',
+        actions: [],
+        buttons: [{ label: 'Trouver un centre CJS', href: `${base}/centres`, primary: true }],
+      },
+    }
+  },
+}
+
 /** Registre des outils disponibles. */
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
@@ -714,6 +794,7 @@ export const TOOLS: Record<string, AgentTool> = {
   reserve_resource: reserveResource,
   get_badge: getBadge,
   submit_application: submitApplication,
+  escalate_to_advisor: escalateToAdvisor,
 }
 
 /** Définitions à passer à Groq (`tools` param). */

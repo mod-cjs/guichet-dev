@@ -31,6 +31,8 @@ export interface AdminSidebarProps {
   userInitials?: string
   /** Compteur de modération (badge rouge sur l'item Modération). Null = absent. */
   moderationCount?: number | null
+  /** Compteur d'escalades Yaye en attente (badge doré sur l'item Escalades). Null = absent. */
+  escaladeCount?: number | null
 }
 
 /* ── Données de navigation (4 sections Lot 11) ──────────────────────────── */
@@ -57,6 +59,14 @@ const SECTIONS: NavSection[] = [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
+    ],
+  },
+  {
+    title: 'Assistant IA',
+    items: [
+      { id: 'yaye-metriques', href: '/admin/analytics/yaye', icon: 'chart', label: 'Métriques Yaye' },
+      { id: 'yaye-sessions', href: '/admin/yaye/sessions', icon: 'chat', label: 'Sessions Yaye' },
+      { id: 'yaye-escalades', href: '/admin/yaye/escalades', icon: 'bell', label: 'Escalades' },
     ],
   },
 ]
@@ -111,8 +121,15 @@ export function AdminSidebar({
   userRole = 'Administrateur national',
   userInitials = 'AN',
   moderationCount = null,
+  escaladeCount = null,
 }: AdminSidebarProps) {
   const pathname = usePathname() ?? ''
+  // Compteurs dynamiques par item (badge). Rouge pour les items urgents (modération),
+  // doré pour les autres (escalades Yaye en attente).
+  const itemCounts: Record<string, number | null> = {
+    moderation: moderationCount,
+    'yaye-escalades': escaladeCount,
+  }
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const close = useCallback(() => setOpen(false), [])
@@ -304,8 +321,8 @@ export function AdminSidebar({
               )}
               {section.items.map(item => {
                 const on = isActive(item.href)
-                const showBadge =
-                  item.urgent && moderationCount != null && moderationCount > 0
+                const badgeCount = itemCounts[item.id]
+                const showBadge = badgeCount != null && badgeCount > 0
 
                 return (
                   <Link
@@ -332,15 +349,15 @@ export function AdminSidebar({
                           <span
                             style={{
                               marginLeft: 'auto',
-                              background: 'var(--gj-red)',
-                              color: 'var(--gj-surface)',
+                              background: item.urgent ? 'var(--gj-red)' : 'var(--gj-admin-gold)',
+                              color: item.urgent ? 'var(--gj-surface)' : 'var(--gj-admin-on-gold)',
                               fontSize: 9.5,
                               fontWeight: 800,
                               padding: '2px 7px',
                               borderRadius: 10,
                             }}
                           >
-                            {moderationCount}
+                            {badgeCount}
                           </span>
                         )}
                       </>

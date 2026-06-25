@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
+import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { AdminTopBar } from '@/components/layout/AdminSidebar/AdminTopBar'
@@ -15,11 +16,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials =
     `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
 
-  // Dériver les infos utilisateur depuis la session pour la carte sidebar
-  const userName = `${session.prenom} ${session.nom}`.trim() || 'Admin national'
-  const userRole = 'Administrateur national'
-  const userInitials =
-    `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
+  // Badge sidebar : escalades Yaye en attente de prise en charge (fail-soft).
+  const escaladeCount = await prisma.escaladeYaye
+    .count({ where: { statut: 'en_attente' } })
+    .catch(() => 0)
 
   return (
     <>
@@ -51,6 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           userName={userName}
           userRole={userRole}
           userInitials={userInitials}
+          escaladeCount={escaladeCount}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
