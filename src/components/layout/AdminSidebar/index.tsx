@@ -227,7 +227,6 @@ export function AdminSidebar({
           }}
         >
           {/* Logo rendu blanc via filter */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-guichet.png"
             alt="Guichet Jeunesse.sn"
