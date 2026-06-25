@@ -5,6 +5,8 @@ RUN apk add --no-cache libc6-compat
 # Dépendances
 FROM base AS deps
 COPY package.json package-lock.json* ./
+# Le postinstall de @prisma/client lance `prisma generate` → il lui faut le schéma.
+COPY prisma ./prisma
 RUN npm ci
 
 # Build

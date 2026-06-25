@@ -1,10 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
-import { buildAccountSplit } from '@/lib/loaders/account-split'
-import { getGrowthSeries } from '@/lib/loaders/growth-series'
 import { AdminDashboardClient, type DashboardData } from './AdminDashboardClient'
 
 export const metadata: Metadata = { title: 'Tableau de bord — Administration CJS' }
@@ -35,7 +32,7 @@ function startOfCurrentMonth(): Date {
 
 export default async function Page() {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
+  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
 
   const months = getLast7Months()
   const monthStart = startOfCurrentMonth()
@@ -123,17 +120,45 @@ export default async function Page() {
     ),
   ])
 
-  // ── Croissance cumulée (M1 — loader unique, cumul honnête, partagé data-hub) ──
-  // monthlyCountsRaw = inscriptions NOUVELLES par mois (conservé pour le delta « +N ce mois »).
+  // ── Croissance cumulée ───────────────────────────────────────────────────
+  // monthlyCountsRaw = [count_month0, count_month1, …, count_month6]
+  // On reconstitue le cumulatif depuis le total actuel − somme des derniers mois.
   const monthlyCounts = monthlyCountsRaw as number[]
-  const growthSeries = await getGrowthSeries(months)
+
+  let runningTotal = jeunesInscrits
+  // Retranche les mois du plus récent au plus ancien pour approximer le cumulatif.
+  // Math.max(0, ...) évite les valeurs négatives si les suppressions de comptes
+  // dépassent les inscriptions sur une tranche (ex. purge RGPD).
+  const growthSeries = months
+    .map(({ label }, i) => {
+      const idx = months.length - 1 - i
+      const cumulative = Math.max(0, runningTotal)
+      runningTotal -= monthlyCounts[months.length - 1 - i] ?? 0
+      return { month: months[idx].label, cumulative }
+    })
+    .reverse()
 
   // ── Répartition comptes ──────────────────────────────────────────────────
-  // Définition UNIQUE partagée avec le data-hub (cf audit C1/C2). Le donut ne
-  // contient que des comptes utilisateurs fiables (Bénéficiaires/Conseillers) ;
-  // les organisations partenaires = métrique séparée (≠ compte utilisateur).
-  const account = buildAccountSplit({ total: jeunesInscrits, conseillers, organisations: recruteurs })
-  const accountSplit = account.segments.filter((s) => s.value > 0)
+  // Bénéficiaires ≈ tous les Utilisateur (les conseillers/recruteurs ont aussi
+  // une entrée Utilisateur mais on ne peut pas les distinguer sans rôle SSO
+  // dans notre DB — on utilise les counts dérivés des tables de relation).
+  const accountSplit = [
+    {
+      label: 'Bénéficiaires',
+      value: Math.max(0, jeunesInscrits - conseillers),
+      color: 'var(--gj-teal)',
+    },
+    {
+      label: 'Conseillers',
+      value: conseillers,
+      color: 'var(--gj-teal-deep)',
+    },
+    {
+      label: 'Recruteurs',
+      value: recruteurs,
+      color: 'var(--gj-blue)',
+    },
+  ].filter((s) => s.value > 0)
 
   // ── Candidatures retenues / mois (BarChart) ──────────────────────────────
   // Source : Candidature statut=Retenue par tranche mensuelle.
@@ -162,16 +187,13 @@ export default async function Page() {
 
   // Taux d'insertion = jeunes ayant ≥1 Insertion / total bénéficiaires
   // (cohorte = tous les inscrits ; à affiner avec le PO si cohorte « accompagnés »).
+  const tauxInsertion = jeunesInscrits > 0
+    ? Math.round((insertionJeunesRows.length / jeunesInscrits) * 100)
+    : 0
   const nf = (n: number) => n.toLocaleString('fr-FR')
-  // E4 — honnêteté donnée vide : si AUCUNE insertion n'est encore enregistrée
-  // (modèle Insertion non alimenté), afficher « — » et non « 0 % » (qui se lirait
-  // « 0 % d'insertion = échec du programme » au lieu de « donnée non collectée »).
-  const tauxInsertionValue = insertionJeunesRows.length === 0
-    ? '—'
-    : `${jeunesInscrits > 0 ? Math.round((insertionJeunesRows.length / jeunesInscrits) * 100) : 0}%`
 
   const secondaires = [
-    { label: "Taux d'insertion moyen", value: tauxInsertionValue, icon: 'trending' as const },
+    { label: "Taux d'insertion moyen", value: `${tauxInsertion}%`, icon: 'trending' as const },
     { label: 'Candidatures (mois)', value: nf(candidaturesMois), icon: 'document' as const },
     { label: 'Ateliers tenus', value: nf(ateliersTenus), icon: 'calendar' as const },
     { label: 'Partenaires actifs', value: nf(recruteurs), icon: 'employment' as const },

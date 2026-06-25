@@ -1,34 +1,43 @@
-# Tâche active — GUIC-21 · Détail opportunité et workflow de candidature
+# CURRENT_TASK — Métriques de performance conversationnelle Yaye (GUIC-435)
 
-Branche : feature/GUIC-21-opportunite-detail-candidature
-          (branchée sur feature/GUIC-20-... car GUIC-20 pas encore mergée dans dev)
-Module  : m3-opportunites · Sprint 1 · 8 SP
-Spec    : .agent_context/specs/GUIC-21-opportunite-detail-candidature.md
-Études  : M3-opportunites-ux.md · M3-opportunites-ui.md
-JIRA    : GUIC-21 (En cours) · sous-tâches GUIC-77..83
+**Branche** : `feature/GUIC-435-metriques-performance-yaye` (stack sur `feature/GUIC-263-yaye-formateur-multicanal` — les lots Yaye ne sont pas encore mergés sur `dev`)
+**Story** : GUIC-435 « Métriques de performance conversationnelle de Yaye (Yaye Quality Score) »
+**Spec** : `.agent_context/specs/yaye/14-metriques-performance-conversationnelle.md` · tickets `14b`
 
-## Méthode
-TDD strict — tests d'abord (red), code ensuite (green). `npm run validate` avant chaque commit.
+## Objectif
+Noter la qualité conversationnelle de Yaye à partir des bases enrichies existantes, **sans modifier les services existants** (on ajoute). 5 couches → score composite **YQS 0-100**, garde-fous non compensables (fidélité anti-hallucination + conformité CDP).
 
-## Dépend de GUIC-20 (déjà livré sur la branche parente)
-slug, OpportunityCard, ui/Sheet, API favoris, loader — disponibles.
+## Découpage (jalons A→F) · ordre : A → (B ∥ C ∥ D) → F → E
+- **A — Socle** : reconstructeur de transcript + rollups `agent_logs` + dashboard couches 1-2. *(en cours)*
+- **B — Feedback** : `YayeFeedback` + UI pouce web/WA + CSAT.
+- **C — Juge LLM** : `YayeEvalScore` + cron `yaye-eval` (Groq llama-3.3-70b) + rubric.
+- **D — Résultat** : jointures métier (conversion reco→candidature, complétion action).
+- **F — YQS composite** : `YayeSessionSummary` + agrégation + garde-fous + alertes.
+- **E — Golden set** : harnais reproductible + précision d'intention + détection régression.
 
-## Workflow TDD — étapes
+## Invariants
+- On **ajoute**, on ne modifie pas (`AgentLog`, `tools.ts`, endpoints métier intacts).
+- Fail-soft : une erreur de mesure n'interrompt jamais une conversation.
+- Garde-fous fidélité/CDP non compensables (plafonnent le YQS + drapeau rouge).
+- CDP : pseudonymisation avant juge, purge au droit à l'oubli (cascade `cjs_uid`).
+- Dashboard sous `/admin/analytics/yaye` (convention existante `src/app/admin/analytics/`).
+- Cron `yaye-eval` : auth `Bearer ${CRON_SECRET}`, planifié à 03:00+ (après `yaye-graph-sync` 02:30).
 
-1. ⏳ Schéma : champ `notificationsConsent` sur `Candidature` + migration
-2. ⏳ Tests `GET /api/opportunites/[slug]` → red → route détail (vues + dédoublonnage IP) → green
-3. ⏳ Tests dispatcher notifications → red → `src/lib/notifications/` (after() + DLQ + canal WhatsApp) → green
-4. ⏳ Tests `POST/GET /api/candidatures` → red → routes (remplace le stub) → green
-5. ⏳ Tests drain DLQ `/api/internal/notifications-dlq` → red → route (CRON_SECRET) → green
-6. ⏳ Frontend : intercepting route détail, `OpportuniteDetail`, `CandidatureModal`,
-   `MesCandidatures` + page `/jeune/candidatures`
-7. ⏳ `npm run validate` vert → commit `[GUIC-21] … Closes GUIC-21` → PR vers `dev`
+## Garde-fou Git (incident résolu)
+- Brancher depuis le lot précédent, **jamais depuis `dev`** (sinon les ~79 fichiers Yaye disparaissent).
+- État disque `~dev` rencontré en début de tâche → sauvegardé dans `stash@{0}` (WIP-disque-pre-GUIC-435).
 
-## Rappels protocole
-- TDD obligatoire · `npm run validate` avant chaque commit
-- Pas de mention IA, auteur `mod-cjs`
-- Commit : `feat|fix|test(m3-opportunites): [GUIC-21] description` · pied `Closes GUIC-21`
+## Fait (jalons A→F livrés, tsc=0, eslint 0 erreur, 184 tests Yaye verts)
+- Spec `14` + tickets `14b` rédigés, vérifiés, corrigés.
+- **A** : 3 modèles Prisma + migration SQL `20260622120000_add_yaye_metrics_guic435` · `metrics/transcript.ts` · `metrics/rollups.ts` · dashboard `/admin/analytics/yaye`.
+- **B** : `YayeFeedback` · `metrics/feedback.ts` · `POST /api/ia/feedback` · `components/yaye/YayeFeedback.tsx` (pouce web) · CSAT au dashboard. *(émission boutons feedback WhatsApp : différée — ne pas déstabiliser le formateur WA)*.
+- **C** : `metrics/pseudonymize.ts` · `metrics/judge.ts` (Groq llama-3.3-70b, rubric adversariale, JSON) · `metrics/eval-run.ts` (stratifié) · cron `GET /api/cron/yaye-eval` (Bearer CRON_SECRET, `vercel.json` 03:15).
+- **D** : `metrics/outcomes.ts` (conversion reco→candidature, actions via Yaye) — lecture seule.
+- **F** : `metrics/yqs.ts` (composite 0-100, garde-fous non compensables fidélité/CDP) + hero dashboard.
+- **E** : `metrics/golden/` (scénarios + harnais précision d'intention) · `metrics/regression.ts`.
+- Tests : 8 nouvelles suites `tests/unit/yaye-metrics-*.test.ts`.
 
-## Hors scope
-Traitement recruteur des candidatures → m9-recruteur. Upload CV → reporté.
-Canaux email/SMS → tickets de suivi (dispatcher livré ici, canal WhatsApp seul).
+## Reste
+- Migration à appliquer en base (`prisma migrate deploy`).
+- Décision commit (branche porte 31 rouges PRÉEXISTANTS hors périmètre).
+- Sous-tâche : émission des boutons feedback côté WhatsApp.

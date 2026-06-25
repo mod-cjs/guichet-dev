@@ -108,3 +108,31 @@ Modules : `m1-socle` `m2-auth` `m3-opportunites` `m4-centres` `m5-agenda` `m6-re
 ---
 
 ## Modes : CODING · SECURITY · REVIEW · TEST · MIGRATION
+
+---
+
+## Système d'agents Guichet (PR #178)
+
+Système d'agents Claude Code spécialisé pour automatiser l'intégration design v3.
+
+| Catégorie | Emplacement | Contenu |
+|---|---|---|
+| Agents customs | `.claude/agents/cjs-*.md` | `cjs-pr-packager`, `cjs-design-auditor`, `cjs-tdd-enforcer`, `cjs-regression-guard` |
+| Agents adoptés | `.claude/agents/*.md` | 9 VoltAgent (`nextjs-developer`, `frontend-developer`, etc.) — voir `.claude/agents/README.md` |
+| Skills slash | `.claude/skills/<nom>/SKILL.md` | `/propagate`, `/audit-visuel`, `/purge-debt`, `/feature-flag`, `/wave` |
+| Workflows JS | `.claude/workflows/*.js` | `design-v3-component`, `wave-integration`, `audit-purge-debt` |
+| Hooks Claude | `.claude/hooks/*.sh` | `pre-commit-check`, `guard-commit-format`, `guard-hex`, `save-agent-report` |
+| Schema | `.agent_context/schemas/audit-finding.schema.json` | StructuredOutput pour cjs-design-auditor |
+| Cron scripts | `scripts/cron/*.sh` | `rebase-mouhammadouod.sh` + `check-merge-queue.sh` (install crontab manuel) |
+| Source vérité partagée | `.agent_context/CJS_AGENT_RULES.md` | 141 lignes — lu en premier par tous les agents |
+
+**Usage type** :
+- Ship une branche : `/propagate <branch> <ticket> "<titre>"`
+- Audit visuel : `/audit-visuel <target> Lot N [--with-screenshots]`
+- Vague 0 dette : `/purge-debt --scope all`
+- Vague intégration : `/wave A-design-system` (après spec dans `.agent_context/specs/wave-A-design-system.md`)
+- Feature flag : `/feature-flag activate <component-path> [--pattern split|inline]`
+
+Disable hooks ponctuel : `export GUIC_HOOKS_OFF=1`.
+
+Voir `.claude/agents/README.md` + `.claude/skills/README.md` + `.claude/workflows/README.md` + `.claude/hooks/README.md` pour le détail par catégorie.

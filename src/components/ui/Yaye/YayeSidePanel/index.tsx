@@ -30,6 +30,14 @@ export interface YayeSidePanelProps {
    * Si absent ou vide, un greeting générique sans nom est utilisé.
    */
   prenom?: string
+  /** Valeur contrôlée du composer. Fournie avec `onSend` → composer réel. */
+  composerValue?: string
+  /** Callback de saisie du composer (composer contrôlé). */
+  onComposerChange?: (value: string) => void
+  /** Callback d'envoi. Si fourni, le composer est réel (branché sur `/api/ia`) ; sinon mock non contrôlé. */
+  onSend?: (value: string) => void
+  /** Vrai pendant l'envoi : désactive le composer et le bouton. */
+  sending?: boolean
 }
 
 /**
@@ -44,7 +52,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm1',
       from: 'bot',
-      text: `${salutation} J'ai 3 opportunités à 90%+ match pour toi à Tambacounda — toutes en agri / projet.`,
+      text: `${salutation} J'ai trouvé des opportunités pour toi à Tambacounda, en agri et projet.`,
     },
     {
       id: 'm2',
@@ -54,7 +62,7 @@ function buildDefaultMessages(prenom?: string): YayeSidePanelMessage[] {
     {
       id: 'm3',
       from: 'bot',
-      text: "Reçu. J'ai filtré 247 offres → 2 collent vraiment. Je te montre ?",
+      text: "Reçu. J'ai trouvé celles qui collent vraiment à ton profil. Je te montre ?",
     },
   ]
 }
@@ -87,6 +95,10 @@ export function YayeSidePanel({
   onQuickReply,
   dateLabel = "Aujourd'hui · 9:41",
   prenom,
+  composerValue,
+  onComposerChange,
+  onSend,
+  sending = false,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -120,7 +132,9 @@ export function YayeSidePanel({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 60,
+        // Modal (backdrop + aria-modal) → niveau overlay, AU-DESSUS du header
+        // (--gj-z-nav:200) et de la bottom-nav (300), sinon le haut du panel est masqué.
+        zIndex: 'var(--gj-z-overlay)',
         display: 'flex',
         justifyContent: 'flex-end',
       }}
@@ -279,9 +293,13 @@ export function YayeSidePanel({
           )}
         </div>
 
-        {/* Composer (mock, no real submit) */}
+        {/* Composer — réel si `onSend` fourni, sinon mock non contrôlé. */}
         <form
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={(e) => {
+            e.preventDefault()
+            const v = (composerValue ?? '').trim()
+            if (onSend && v && !sending) onSend(v)
+          }}
           style={{
             padding: 12,
             background: 'var(--gj-surface)',
@@ -314,6 +332,9 @@ export function YayeSidePanel({
             type="text"
             placeholder="Demande à Yaye…"
             aria-label="Message à Yaye"
+            value={onSend ? (composerValue ?? '') : undefined}
+            onChange={onSend ? (e) => onComposerChange?.(e.target.value) : undefined}
+            disabled={sending}
             style={{
               flex: 1,
               border: '1.5px solid var(--gj-line)',
@@ -329,6 +350,7 @@ export function YayeSidePanel({
           <button
             type="submit"
             aria-label="Envoyer"
+            disabled={sending || (onSend ? !(composerValue ?? '').trim() : false)}
             style={{
               background: 'var(--gj-teal-deep)',
               color: 'var(--gj-surface)',
@@ -336,7 +358,8 @@ export function YayeSidePanel({
               borderRadius: '50%',
               width: 40,
               height: 40,
-              cursor: 'pointer',
+              cursor: sending ? 'default' : 'pointer',
+              opacity: sending || (onSend && !(composerValue ?? '').trim()) ? 0.55 : 1,
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',

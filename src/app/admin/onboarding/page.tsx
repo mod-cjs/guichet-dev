@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { regionLabel } from '@/lib/regions'
 import {
@@ -52,7 +51,7 @@ export function buildRegionFunnel(
 
 export default async function Page() {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
+  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
 
   const seuilRelance = new Date(Date.now() - RELANCE_JOURS * 86_400_000)
 

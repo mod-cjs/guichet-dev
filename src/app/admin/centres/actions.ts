@@ -4,13 +4,12 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { Region } from '@prisma/client'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 
 /** Garde de rôle — fail-closed. */
 async function assertAdmin(): Promise<void> {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) {
+  if (!session || !session.roles.includes('admin')) {
     throw new Error('FORBIDDEN')
   }
 }

@@ -1,11 +1,8 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { regionLabel } from '@/lib/regions'
-import { buildAccountSplit } from '@/lib/loaders/account-split'
-import { getGrowthSeries } from '@/lib/loaders/growth-series'
 import { AdminStatsClient, type AdminStatsData } from './AdminStatsClient'
 
 export const metadata: Metadata = { title: 'Statistiques & rapports — Admin CJS' }
@@ -26,7 +23,7 @@ function lastMonths(n: number): { label: string; from: Date; to: Date }[] {
 
 export default async function Page() {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
+  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
 
   const months = lastMonths(7)
 
@@ -34,12 +31,20 @@ export default async function Page() {
     totalBeneficiaires,
     conseillers,
     recruteurs,
+    inscriptionsParMois,
     candidaturesParMois,
     parRegion,
   ] = await Promise.all([
     prisma.utilisateur.count({ where: { deletedAt: null } }),
     prisma.agentCentre.groupBy({ by: ['cjsUid'] }).then((r) => r.length),
     prisma.organisation.count(),
+    Promise.all(
+      months.map((m) =>
+        prisma.utilisateur.count({
+          where: { createdAt: { gte: m.from, lte: m.to }, deletedAt: null },
+        }),
+      ),
+    ),
     Promise.all(
       months.map((m) =>
         prisma.candidature.count({ where: { soumiseA: { gte: m.from, lte: m.to } } }),
@@ -52,16 +57,22 @@ export default async function Page() {
     }),
   ])
 
-  // Inscriptions cumulées (M1 — loader unique, cumul honnête, partagé avec le dashboard).
-  const growth = await getGrowthSeries(months)
-  const growthValues = growth.map((g) => g.cumulative)
+  // Inscriptions cumulées : total actuel − somme des mois ultérieurs (approx du cumul historique).
+  const sumWindow = inscriptionsParMois.reduce((s, v) => s + v, 0)
+  let running = totalBeneficiaires - sumWindow + (inscriptionsParMois[0] ?? 0)
+  const growthValues = months.map((_, i) => {
+    if (i > 0) running += inscriptionsParMois[i]
+    return running
+  })
 
   const candidatures = months.map((m, i) => ({ m: m.label, v: candidaturesParMois[i] }))
 
-  // Définition UNIQUE partagée avec le tableau de bord (cf audit C1/C2).
-  const account = buildAccountSplit({ total: totalBeneficiaires, conseillers, organisations: recruteurs })
-  const accountSplit = account.segments
-  const totalComptes = account.totalComptes
+  const accountSplit = [
+    { label: 'Bénéficiaires', value: totalBeneficiaires, color: 'var(--gj-teal)' },
+    { label: 'Conseillers', value: conseillers, color: 'var(--gj-blue-ink)' },
+    { label: 'Recruteurs', value: recruteurs, color: 'var(--gj-yellow)' },
+  ]
+  const totalComptes = totalBeneficiaires + conseillers + recruteurs
 
   const byRegion = parRegion
     .filter((r) => r.region != null)

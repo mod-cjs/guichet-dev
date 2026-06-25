@@ -1,0 +1,8 @@
+# Yaye KG POC — dépendances Python
+neo4j>=5.20              # driver officiel Neo4j (testé 6.2 ; compatible Aura, scheme neo4j+s://)
+SQLAlchemy>=2.0          # lecture MariaDB
+PyMySQL>=1.1             # driver MySQL/MariaDB pour SQLAlchemy
+pandas>=2.2              # DataFrames intermédiaires
+python-dotenv>=1.0       # chargement .env
+jupyterlab>=4.0          # notebook
+tqdm>=4.66               # barres de progression sur les batchs de MERGE

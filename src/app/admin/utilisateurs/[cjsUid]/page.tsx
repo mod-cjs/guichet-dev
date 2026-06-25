@@ -1,14 +1,10 @@
 import type { Metadata } from 'next'
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
-import { auditPiiAccess } from '@/lib/audit'
 import { AdminUserDetail, type UserDetailData } from './AdminUserDetail'
 
-// M5 — `cjsUid` (identifiant SSO pivot) en clair dans l'URL : no-referrer évite sa
-// fuite via l'en-tête Referer vers d'éventuelles ressources externes (ex. photoUrl).
-export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS', referrer: 'no-referrer' }
+export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS' }
 
 function toStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
@@ -20,7 +16,7 @@ export default async function Page({
   params: Promise<{ cjsUid: string }>
 }) {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
+  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
 
   const { cjsUid } = await params
 
@@ -67,10 +63,6 @@ export default async function Page({
   ])
 
   if (!u) notFound()
-
-  // E1 — traçabilité CDP : consultation d'une fiche bénéficiaire (PII) journalisée
-  // (acteur + cible hachés). Après le notFound() pour ne tracer que les accès réels.
-  auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: u.cjsUid })
 
   const data: UserDetailData = {
     cjsUid: u.cjsUid,

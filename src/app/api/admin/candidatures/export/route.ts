@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import type { StatutCandidature, Prisma } from '@prisma/client'
 
@@ -25,7 +24,7 @@ function csvCell(v: string): string {
  */
 export async function GET(request: NextRequest) {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) {
+  if (!session || !session.roles.includes('admin')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
       { status: 403 },

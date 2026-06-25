@@ -1,0 +1,6 @@
+# Rapports d'agents archivés par .claude/hooks/save-agent-report.sh
+# Locaux, non-commités (volumineux + données potentiellement sensibles)
+*.md
+*.log
+!.gitignore
+!README.md

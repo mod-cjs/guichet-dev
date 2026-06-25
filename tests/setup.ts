@@ -1,18 +1,25 @@
 import '@testing-library/jest-dom'
 
-// jsdom n'expose pas TextEncoder/TextDecoder en globals ; certains modules
-// (undici via @vercel/blob, importé par src/lib/upload/profil-uploads.ts)
-// les requièrent au chargement. On les polyfille depuis Node `util`.
-import { TextEncoder, TextDecoder } from 'util'
-// undici / @vercel/blob et jose (vérification JWT carte CJS) requièrent aussi
-// `ReadableStream` en global, absent de l'env jsdom de jest. Polyfill Node.
-import { ReadableStream } from 'stream/web'
+// Polyfill TextEncoder/TextDecoder pour jsdom sous Node récent (≥ 20/24).
+// Certains modules (undici via @vercel/blob, génération QR, etc.) les importent au
+// chargement, or jsdom ne les expose pas globalement → "ReferenceError: TextEncoder
+// is not defined" qui fait échouer la suite à l'import (avant toute logique de test).
+import { TextEncoder, TextDecoder } from 'node:util'
+import { ReadableStream, WritableStream, TransformStream } from 'node:stream/web'
+import { MessagePort, MessageChannel } from 'node:worker_threads'
 
-const g = globalThis as unknown as {
-  TextEncoder?: typeof TextEncoder
-  TextDecoder?: typeof TextDecoder
-  ReadableStream?: typeof ReadableStream
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const g = globalThis as any
+const polyfills: Record<string, unknown> = {
+  TextEncoder,
+  TextDecoder,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  MessagePort,
+  MessageChannel,
 }
-if (typeof g.TextEncoder === 'undefined') g.TextEncoder = TextEncoder
-if (typeof g.TextDecoder === 'undefined') g.TextDecoder = TextDecoder
-if (typeof g.ReadableStream === 'undefined') g.ReadableStream = ReadableStream
+for (const [name, impl] of Object.entries(polyfills)) {
+  if (typeof g[name] === 'undefined') g[name] = impl
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */

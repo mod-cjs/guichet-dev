@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { YayeChat } from '@/app/jeune/yaye/YayeChat'
 
 jest.mock('next/navigation', () => ({
@@ -11,71 +11,69 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = jest.fn()
 })
 
-describe('<YayeChat /> — page Yaye fullscreen mobile (GUIC-194)', () => {
-  beforeEach(() => {
-    jest.useFakeTimers()
-  })
-  afterEach(() => {
-    jest.useRealTimers()
-  })
+const mockFetch = jest.fn()
+let randomSpy: jest.SpyInstance
+beforeEach(() => {
+  mockFetch.mockReset()
+  global.fetch = mockFetch as unknown as typeof fetch
+  // Greeting + amorces varient par Math.random ; on fige sur la variante canonique
+  // (« Bonjour … » + « Une offre pour moi ») pour des assertions déterministes.
+  randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0)
+})
+afterEach(() => {
+  randomSpy.mockRestore()
+})
 
-  it('rend le header + les messages mock initiaux + quick replies', () => {
+function replyOnce(reply: string) {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      data: { reply, blocks: [{ kind: 'text', text: reply }], sessionId: '11111111-1111-1111-1111-111111111111' },
+    }),
+  })
+}
+
+describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
+  it("rend le header, l'intro (sans pourcentage) et les suggestions", () => {
     render(<YayeChat />)
     expect(screen.getByText('Yaye')).toBeInTheDocument()
     expect(screen.getByText('En ligne')).toBeInTheDocument()
-    expect(screen.getByText(/Salama Awa/)).toBeInTheDocument()
-    expect(screen.getByText('Yaye a agi pour toi')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: /Réponses suggérées/i })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /Voir les 3 opportunités/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Bonjour/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Une offre pour moi/i })).toBeInTheDocument()
+    // Aucune mention de pourcentage de compatibilité dans l'écran initial.
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
   })
 
-  it("envoie un message user depuis l'input et déclenche une réponse bot après 800ms", () => {
+  it("envoie un message et affiche la réponse de l'agent", async () => {
+    replyOnce('Voici une formation près de chez toi.')
     render(<YayeChat />)
     const input = screen.getByLabelText('Message') as HTMLInputElement
     const submit = screen.getByRole('button', { name: 'Envoyer' })
 
-    // Bouton désactivé tant qu'input vide.
     expect(submit).toBeDisabled()
-
-    fireEvent.change(input, { target: { value: 'Trouve-moi une formation' } })
+    fireEvent.change(input, { target: { value: 'Je cherche une formation' } })
     expect(submit).not.toBeDisabled()
 
     fireEvent.click(submit)
-
-    // Message user visible immédiatement, input réinitialisé.
-    expect(screen.getByText('Trouve-moi une formation')).toBeInTheDocument()
+    expect(screen.getByText('Je cherche une formation')).toBeInTheDocument()
     expect(input.value).toBe('')
 
-    // Indicateur typing présent.
-    expect(screen.getByTestId('yaye-typing')).toBeInTheDocument()
-
-    // Avance le timer simulé → la réponse bot apparaît.
-    act(() => {
-      jest.advanceTimersByTime(800)
-    })
-    expect(screen.queryByTestId('yaye-typing')).not.toBeInTheDocument()
-    expect(screen.getByText(/formations courtes/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByText('Voici une formation près de chez toi.')).toBeInTheDocument(),
+    )
+    expect(mockFetch).toHaveBeenCalledWith('/api/ia', expect.objectContaining({ method: 'POST' }))
   })
 
-  it('click sur une QuickReply envoie immédiatement le message', () => {
+  it('une QuickReply envoie immédiatement le message', async () => {
+    replyOnce('Je regarde tes candidatures.')
     render(<YayeChat />)
-    fireEvent.click(screen.getByRole('button', { name: /Affiner par localisation/i }))
-
-    // Le texte apparaît à la fois dans la quick reply et dans le message user envoyé.
-    expect(screen.getAllByText('Affiner par localisation').length).toBeGreaterThanOrEqual(2)
-    act(() => {
-      jest.advanceTimersByTime(800)
-    })
-    expect(screen.getByText(/Tambacounda/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Mes candidatures/i }))
+    await waitFor(() => expect(screen.getByText('Je regarde tes candidatures.')).toBeInTheDocument())
   })
 
   it("n'envoie rien sur soumission d'un input blanc", () => {
     render(<YayeChat />)
-    const form = screen.getByLabelText('Envoyer un message à Yaye')
-    fireEvent.submit(form)
-    // Pas de typing indicator.
-    expect(screen.queryByTestId('yaye-typing')).not.toBeInTheDocument()
+    fireEvent.submit(screen.getByLabelText('Envoyer un message à Yaye'))
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

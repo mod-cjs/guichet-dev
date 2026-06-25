@@ -54,3 +54,6 @@ scripts/jira.sh
 
 # Storybook build à la racine — ignoré (committé uniquement sous public/storybook/ pour servir via Vercel)
 storybook-static/
+
+# Sauvegardes locales de .env (secrets)
+.env.local.bak-*

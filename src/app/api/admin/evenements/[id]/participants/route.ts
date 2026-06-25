@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 
 const STATUT_LABEL: Record<string, string> = {
@@ -34,7 +33,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) {
+  if (!session || !session.roles.includes('admin')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
       { status: 403 },
