@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { AdminDashboardClient, type DashboardData } from './AdminDashboardClient'
 
@@ -32,7 +33,7 @@ function startOfCurrentMonth(): Date {
 
 export default async function Page() {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const months = getLast7Months()
   const monthStart = startOfCurrentMonth()

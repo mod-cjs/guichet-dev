@@ -20,12 +20,13 @@ export interface AdminStatsClientProps {
   data: AdminStatsData
 }
 
-// Exports réutilisant les routes existantes (src/app/api/v1/export/*).
+// Exports admin session-gated, données réelles Prisma (C3). On n'expose QUE les
+// jeux de données réellement alimentés : Formations (modèle inexistant) et
+// Programmes (hors scope admin) sont retirés — pas de bouton qui exporte du vide.
+// Les routes `/api/v1/export/*` (clé Data Hub) restent pour l'interop machine.
 const EXPORTS: { label: string; href: string }[] = [
-  { label: 'Utilisateurs', href: '/api/v1/export/utilisateurs' },
-  { label: 'Opportunités', href: '/api/v1/export/opportunites' },
-  { label: 'Formations', href: '/api/v1/export/formations' },
-  { label: 'Programmes', href: '/api/v1/export/programmes' },
+  { label: 'Utilisateurs', href: '/api/admin/export/utilisateurs' },
+  { label: 'Opportunités', href: '/api/admin/export/opportunites' },
 ]
 
 // ─── card shell ───────────────────────────────────────────────────────────────

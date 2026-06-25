@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
+import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { AdminTopBar } from '@/components/layout/AdminSidebar/AdminTopBar'
@@ -15,11 +16,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials =
     `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
 
-  // Dériver les infos utilisateur depuis la session pour la carte sidebar
-  const userName = `${session.prenom} ${session.nom}`.trim() || 'Admin national'
-  const userRole = 'Administrateur national'
-  const userInitials =
-    `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
+  // G9/G10 — compteur de publications en attente de modération (brouillons).
+  // Alimente le badge rouge de l'item « Modération » (sidebar) ET la cloche du
+  // topbar (dans le design Lot 11, le badge 23 de la cloche = la file de modération).
+  const aModerer = await prisma.opportunite.count({
+    where: { statut: 'brouillon', deletedAt: null },
+  })
 
   return (
     <>
@@ -51,11 +53,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           userName={userName}
           userRole={userRole}
           userInitials={userInitials}
+          moderationCount={aModerer}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* ── Topbar desktop (blanc, clair) ─────────────────────────── */}
-          <AdminTopBar />
+          <AdminTopBar notificationCount={aModerer} />
 
           <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0">
             {children}

@@ -45,6 +45,7 @@ const SECTIONS: NavSection[] = [
     title: 'Pilotage',
     items: [
       { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS' },
+      { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Analytics centres' },
       { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
       { id: 'onboarding', href: '/admin/onboarding', icon: 'target', label: 'Onboarding' },
@@ -55,8 +56,10 @@ const SECTIONS: NavSection[] = [
     title: 'Gouvernance',
     items: [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
+      { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
+      { id: 'audit', href: '/admin/journal-audit', icon: 'document', label: 'Journal d’audit' },
     ],
   },
 ]

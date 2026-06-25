@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { auditPiiAccess } from '@/lib/audit'
 import { AdminUserDetail, type UserDetailData } from './AdminUserDetail'
 
 export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS' }
@@ -16,7 +18,7 @@ export default async function Page({
   params: Promise<{ cjsUid: string }>
 }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const { cjsUid } = await params
 
@@ -63,6 +65,11 @@ export default async function Page({
   ])
 
   if (!u) notFound()
+
+  // E1 — traçabilité CDP : consultation d'une fiche bénéficiaire (PII) journalisée
+  // (stdout haché + trail audit_logs). Après le notFound() pour ne tracer que les
+  // accès réels. Fail-soft : n'interrompt jamais le rendu de la page.
+  await auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: u.cjsUid })
 
   const data: UserDetailData = {
     cjsUid: u.cjsUid,
