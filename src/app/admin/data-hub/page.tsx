@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { regionLabel } from '@/lib/regions'
+import { buildAccountSplit } from '@/lib/loaders/account-split'
 import { AdminStatsClient, type AdminStatsData } from './AdminStatsClient'
 
 export const metadata: Metadata = { title: 'Statistiques & rapports — Admin CJS' }
@@ -67,12 +68,10 @@ export default async function Page() {
 
   const candidatures = months.map((m, i) => ({ m: m.label, v: candidaturesParMois[i] }))
 
-  const accountSplit = [
-    { label: 'Bénéficiaires', value: totalBeneficiaires, color: 'var(--gj-teal)' },
-    { label: 'Conseillers', value: conseillers, color: 'var(--gj-blue-ink)' },
-    { label: 'Recruteurs', value: recruteurs, color: 'var(--gj-yellow)' },
-  ]
-  const totalComptes = totalBeneficiaires + conseillers + recruteurs
+  // Définition UNIQUE partagée avec le tableau de bord (cf audit C1/C2).
+  const account = buildAccountSplit({ total: totalBeneficiaires, conseillers, organisations: recruteurs })
+  const accountSplit = account.segments
+  const totalComptes = account.totalComptes
 
   const byRegion = parRegion
     .filter((r) => r.region != null)

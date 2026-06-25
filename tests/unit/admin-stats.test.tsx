@@ -11,8 +11,7 @@ const DATA: AdminStatsData = {
   ],
   accountSplit: [
     { label: 'Bénéficiaires', value: 4872, color: 'var(--gj-teal)' },
-    { label: 'Conseillers', value: 58, color: 'var(--gj-blue-ink)' },
-    { label: 'Recruteurs', value: 412, color: 'var(--gj-yellow)' },
+    { label: 'Conseillers', value: 58, color: 'var(--gj-teal-deep)' },
   ],
   byRegion: [
     { m: 'Dakar', v: 12840 },
@@ -36,11 +35,10 @@ describe('GUIC-456 — AdminStatsClient (Lot 11)', () => {
     expect(screen.getByText(/par région/i)).toBeInTheDocument()
   })
 
-  it('affiche la légende du donut (rôles + valeurs)', () => {
+  it('affiche la légende du donut (comptes utilisateurs fiables)', () => {
     render(<AdminStatsClient data={DATA} />)
     expect(screen.getByText('Bénéficiaires')).toBeInTheDocument()
     expect(screen.getByText('Conseillers')).toBeInTheDocument()
-    expect(screen.getByText('Recruteurs')).toBeInTheDocument()
   })
 
   it('expose des liens d\'export vers les routes existantes', () => {

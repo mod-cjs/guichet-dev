@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { buildAccountSplit } from '@/lib/loaders/account-split'
 import { AdminDashboardClient, type DashboardData } from './AdminDashboardClient'
 
 export const metadata: Metadata = { title: 'Tableau de bord — Administration CJS' }
@@ -139,26 +140,11 @@ export default async function Page() {
     .reverse()
 
   // ── Répartition comptes ──────────────────────────────────────────────────
-  // Bénéficiaires ≈ tous les Utilisateur (les conseillers/recruteurs ont aussi
-  // une entrée Utilisateur mais on ne peut pas les distinguer sans rôle SSO
-  // dans notre DB — on utilise les counts dérivés des tables de relation).
-  const accountSplit = [
-    {
-      label: 'Bénéficiaires',
-      value: Math.max(0, jeunesInscrits - conseillers),
-      color: 'var(--gj-teal)',
-    },
-    {
-      label: 'Conseillers',
-      value: conseillers,
-      color: 'var(--gj-teal-deep)',
-    },
-    {
-      label: 'Recruteurs',
-      value: recruteurs,
-      color: 'var(--gj-blue)',
-    },
-  ].filter((s) => s.value > 0)
+  // Définition UNIQUE partagée avec le data-hub (cf audit C1/C2). Le donut ne
+  // contient que des comptes utilisateurs fiables (Bénéficiaires/Conseillers) ;
+  // les organisations partenaires = métrique séparée (≠ compte utilisateur).
+  const account = buildAccountSplit({ total: jeunesInscrits, conseillers, organisations: recruteurs })
+  const accountSplit = account.segments.filter((s) => s.value > 0)
 
   // ── Candidatures retenues / mois (BarChart) ──────────────────────────────
   // Source : Candidature statut=Retenue par tranche mensuelle.

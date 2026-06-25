@@ -50,7 +50,6 @@ const MOCK_DATA: DashboardData = {
   accountSplit: [
     { label: 'Bénéficiaires', value: 20000, color: 'var(--gj-teal)' },
     { label: 'Conseillers', value: 1800, color: 'var(--gj-teal-deep)' },
-    { label: 'Recruteurs', value: 600, color: 'var(--gj-blue)' },
   ],
   monthlyCandidatures: [
     { m: 'Nov', v: 80 },
@@ -175,10 +174,12 @@ describe('GUIC-451 — AdminDashboardClient', () => {
   })
 
   // ── Légende Donut ────────────────────────────────────────────────────────
-  it('affiche les labels de la légende Donut (Bénéficiaires, Conseillers, Recruteurs)', () => {
+  // C1/C2 : le donut « comptes » ne contient que des comptes utilisateurs fiables
+  // (Bénéficiaires/Conseillers) ; les organisations partenaires sont une métrique
+  // séparée (indicateur « Partenaires actifs »), pas une tranche du donut.
+  it('affiche les labels de la légende Donut (Bénéficiaires, Conseillers)', () => {
     expect(screen.getByText(/bénéficiaires/i)).toBeInTheDocument()
     expect(screen.getByText(/conseillers/i)).toBeInTheDocument()
-    expect(screen.getByText(/recruteurs/i)).toBeInTheDocument()
   })
 
   // ── Prop typée : vérification que DashboardData est correctement accepté ──
