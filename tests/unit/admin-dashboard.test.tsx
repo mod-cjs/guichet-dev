@@ -126,8 +126,9 @@ describe('GUIC-451 — AdminDashboardClient', () => {
     expect(screen.getByText(/à modérer/i)).toBeInTheDocument()
   })
 
-  it('affiche le label KPI "Insertions ce mois"', () => {
-    expect(screen.getByText(/insertions ce mois/i)).toBeInTheDocument()
+  it('affiche le label KPI "Candidatures retenues" (ex-"Insertions ce mois")', () => {
+    // Plusieurs occurrences possibles (KPI + titre BarChart) — on vérifie l'existence.
+    expect(screen.getAllByText(/candidatures retenues/i).length).toBeGreaterThan(0)
   })
 
   // ── Valeurs KPI ───────────────────────────────────────────────────────────
@@ -155,9 +156,9 @@ describe('GUIC-451 — AdminDashboardClient', () => {
     ).toBeInTheDocument()
   })
 
-  it('affiche la card "Insertions par mois"', () => {
+  it('affiche la card "Candidatures retenues / mois" (ex-"Insertions par mois")', () => {
     expect(
-      screen.getByRole('heading', { name: /insertions par mois/i })
+      screen.getByRole('heading', { name: /candidatures retenues \/ mois/i })
     ).toBeInTheDocument()
   })
 

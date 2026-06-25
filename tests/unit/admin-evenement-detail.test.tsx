@@ -18,6 +18,7 @@ const DATA: EvenementDetailData = {
   lieu: 'Dakar Plateau',
   centreNom: 'CJS Dakar',
   capaciteMax: 50,
+  presencePertinente: false,
   stats: {
     inscrits: 30,
     presents: 12,
@@ -53,6 +54,11 @@ describe('GUIC-465 — AdminEvenementDetail (supervision)', () => {
     expect(screen.getByText(/60\s*%/)).toBeInTheDocument() // remplissage
   })
 
+  it('le titre de la liste affiche le nombre réel de lignes rendues (Participants)', () => {
+    render(<AdminEvenementDetail data={DATA} />)
+    expect(screen.getByRole('heading', { level: 2, name: /Participants \(3\)/i })).toBeInTheDocument()
+  })
+
   it('liste les inscrits avec leur statut', () => {
     render(<AdminEvenementDetail data={DATA} />)
     expect(screen.getByText(/Awa Diop/i)).toBeInTheDocument()
@@ -81,5 +87,39 @@ describe('GUIC-465 — AdminEvenementDetail (supervision)', () => {
   it('gère un événement sans inscrit', () => {
     render(<AdminEvenementDetail data={{ ...DATA, inscrits: [], stats: { ...DATA.stats, inscrits: 0 } }} />)
     expect(screen.getByText(/aucun inscrit/i)).toBeInTheDocument()
+  })
+
+  // ── Sentinelles post-audit (GUIC-465) ─────────────────────────────────────
+
+  it('capacité null → taux remplissage 0% sans NaN ni division par zéro', () => {
+    const data: EvenementDetailData = {
+      ...DATA,
+      capaciteMax: null,
+      stats: { ...DATA.stats, tauxRemplissage: 0 },
+    }
+    render(<AdminEvenementDetail data={data} />)
+    // La carte taux doit afficher 0% et non NaN%
+    const cards = screen.getAllByText(/0\s*%/)
+    expect(cards.length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/NaN/i)).toBeNull()
+  })
+
+  it('présence masquée si statut a_venir (presencePertinente = false)', () => {
+    render(<AdminEvenementDetail data={{ ...DATA, statut: 'a_venir', presencePertinente: false }} />)
+    // Le titre de la liste ne doit PAS contenir "présence X%"
+    const h2 = screen.getByRole('heading', { level: 2 })
+    expect(h2.textContent).not.toMatch(/pr[ée]sence\s+\d+\s*%/i)
+  })
+
+  it('présence affichée si statut termine (presencePertinente = true)', () => {
+    render(<AdminEvenementDetail data={{ ...DATA, statut: 'termine', presencePertinente: true }} />)
+    const h2 = screen.getByRole('heading', { level: 2 })
+    expect(h2.textContent).toMatch(/pr[ée]sence\s+40\s*%/i)
+  })
+
+  it('affiche la mention troncature si fournie', () => {
+    const mention = '300 premiers affichés · export CSV pour la liste complète'
+    render(<AdminEvenementDetail data={{ ...DATA, mentionTroncature: mention }} />)
+    expect(screen.getByText(mention)).toBeInTheDocument()
   })
 })
