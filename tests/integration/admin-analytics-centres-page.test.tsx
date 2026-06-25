@@ -53,6 +53,11 @@ const ANALYTICS = {
   topCentres: [{ centreId: 'c1', centreNom: 'CJS Tambacounda', count: 42 }],
   byType: [{ type: 'Salle', count: 10 }],
   byStatut: [{ statut: 'Acceptee', count: 100 }],
+  accesQr: { total: 60, parQr: 40, parManuel: 20, tauxQr: 40 / 60 },
+  accesQrParJour: [
+    { date: '2026-05-01', count: 1 },
+    { date: '2026-05-02', count: 3 },
+  ],
 }
 
 beforeEach(() => {

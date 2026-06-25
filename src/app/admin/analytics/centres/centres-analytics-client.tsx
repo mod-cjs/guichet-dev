@@ -226,6 +226,7 @@ export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
           <CentresKpiCard label="Taux de check-in" value={pct(kpis.checkinRate)} />
           <CentresKpiCard label="Taux d'annulation" value={pct(kpis.cancelRate)} />
           <CentresKpiCard label="Taux no-show" value={pct(kpis.noShowRate)} />
+          <CentresKpiCard label="Accès par QR" value={pct(analytics.accesQr.tauxQr)} />
         </div>
 
         {/* Charts */}
@@ -264,6 +265,29 @@ export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
             variant="donut"
           />
         </Card>
+
+        {/* Accès au centre par QR code (vs saisie manuelle) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
+          <Card padded>
+            <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
+              Accès par QR vs manuel
+            </h2>
+            <CentresChartPie
+              data={[
+                { label: 'QR carte CJS', count: analytics.accesQr.parQr },
+                { label: 'Saisie manuelle', count: analytics.accesQr.parManuel },
+              ]}
+              variant="donut"
+            />
+          </Card>
+
+          <Card padded>
+            <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
+              Accès par QR par jour
+            </h2>
+            <CentresChartReservationsByDay data={analytics.accesQrParJour} />
+          </Card>
+        </div>
       </section>
     </div>
   )
