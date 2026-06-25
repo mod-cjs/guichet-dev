@@ -67,8 +67,9 @@ export default async function Page({
   if (!u) notFound()
 
   // E1 — traçabilité CDP : consultation d'une fiche bénéficiaire (PII) journalisée
-  // (acteur + cible hachés). Après le notFound() pour ne tracer que les accès réels.
-  auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: u.cjsUid })
+  // (stdout haché + trail audit_logs). Après le notFound() pour ne tracer que les
+  // accès réels. Fail-soft : n'interrompt jamais le rendu de la page.
+  await auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: u.cjsUid })
 
   const data: UserDetailData = {
     cjsUid: u.cjsUid,

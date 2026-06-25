@@ -73,6 +73,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/ressources')
   })
 
+  // G3 — journal d'audit : écran de consultation de la traçabilité.
+  it('rend le lien "Journal d’audit" vers /admin/journal-audit', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /journal d.audit/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/journal-audit')
+  })
+
   /* ── G9 — badge modération alimenté par le compteur de brouillons ────────── */
   it('affiche le badge rouge sur Modération quand moderationCount > 0', () => {
     render(<AdminSidebar moderationCount={7} />)

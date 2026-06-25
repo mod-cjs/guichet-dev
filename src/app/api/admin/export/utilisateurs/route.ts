@@ -46,8 +46,8 @@ export async function GET() {
     },
   })
 
-  // E1 — accès PII de masse journalisé (acteur haché + volume).
-  auditPiiAccess('export.utilisateurs', session.cjsUid, { count: users.length })
+  // E1 — accès PII de masse journalisé (stdout haché + trail audit_logs).
+  await auditPiiAccess('export.utilisateurs', session.cjsUid, { count: users.length })
 
   const header = ['Prénom', 'Nom', 'Email', 'Téléphone', 'Région', 'Commune', 'Statut', 'Inscrit le']
   const lines = users.map((u) =>
