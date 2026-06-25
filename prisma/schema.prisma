@@ -1451,3 +1451,22 @@ model YayeSessionSummary {
   @@index([centreId, calculeLe])
   @@map("yaye_session_summaries")
 }
+
+/// Journal d'audit des actions sensibles (consultation PII, modération…) — traçabilité
+/// CDP (loi sénégalaise 2008-12). Consulté par l'admin (/admin/journal-audit). Table
+/// protégée (accès admin only) : stocke le `cjsUid` acteur EN CLAIR pour résoudre
+/// l'identité dans la timeline. Rétention/anonymisation = raffinement DPO ultérieur.
+/// Alimenté par src/lib/audit.ts (écriture fail-soft, jamais bloquante).
+model AuditLog {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  actorCjsUid String   @map("actor_cjs_uid") @db.VarChar(36)
+  action      String   @db.VarChar(64)
+  targetType  String?  @map("target_type") @db.VarChar(40)
+  targetId    String?  @map("target_id") @db.VarChar(64)
+  meta        Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([actorCjsUid])
+  @@map("audit_logs")
+}

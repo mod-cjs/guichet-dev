@@ -1,16 +1,20 @@
 'use client'
+import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 
 /**
  * AdminTopBar — barre supérieure desktop pour le chrome admin (Lot 11).
  *
  * Fond blanc / `--gj-bg`, bordure `--gj-line`.
- * Contenu : slot titre (statique « Administration »), pill « Année 2026 »,
- * bouton « Exporter », bouton cloche (badge rouge optionnel).
+ * Contenu : titre « Administration », pill année courante, et cloche qui sert de
+ * raccourci vers la file de modération (le badge = publications en attente, comme
+ * le badge 23 de la maquette Lot 11). L'ancien bouton « Exporter » non câblé a été
+ * retiré : l'export se fait par page (data-hub, candidatures…), pas globalement.
  *
  * Masquée sur mobile (la barre mobile sombre vit dans layout.tsx).
  */
 export function AdminTopBar({ notificationCount }: { notificationCount?: number }) {
+  const annee = new Date().getFullYear()
   return (
     <div
       className="hidden md:flex"
@@ -56,36 +60,17 @@ export function AdminTopBar({ notificationCount }: { notificationCount?: number 
         }}
       >
         <Icon name="calendar" size={14} style={{ color: 'var(--gj-grey)' }} />
-        Année 2026
+        Année {annee}
       </div>
 
-      {/* Bouton Exporter */}
-      <button
-        type="button"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 7,
-          background: 'var(--gj-surface)',
-          color: 'var(--gj-ink)',
-          border: '1.5px solid var(--gj-line)',
-          padding: '0 15px',
-          minHeight: 40,
-          borderRadius: 10,
-          fontWeight: 800,
-          fontSize: 12.5,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        <Icon name="download" size={15} />
-        Exporter
-      </button>
-
-      {/* Bouton cloche — badge rouge si notificationCount > 0 */}
-      <button
-        type="button"
-        aria-label="Notifications"
+      {/* Cloche → raccourci vers la file de modération (badge = en attente) */}
+      <Link
+        href="/admin/opportunites"
+        aria-label={
+          notificationCount != null && notificationCount > 0
+            ? `${notificationCount} publication(s) en attente de modération`
+            : 'File de modération'
+        }
         style={{
           width: 42,
           height: 42,
@@ -100,12 +85,13 @@ export function AdminTopBar({ notificationCount }: { notificationCount?: number 
           position: 'relative',
           flexShrink: 0,
           fontFamily: 'inherit',
+          textDecoration: 'none',
         }}
       >
         <Icon name="bell" size={18} />
         {notificationCount != null && notificationCount > 0 && (
           <span
-            aria-label={`${notificationCount} notifications`}
+            aria-hidden
             style={{
               position: 'absolute',
               top: -4,
@@ -127,7 +113,7 @@ export function AdminTopBar({ notificationCount }: { notificationCount?: number 
             {notificationCount}
           </span>
         )}
-      </button>
+      </Link>
     </div>
   )
 }

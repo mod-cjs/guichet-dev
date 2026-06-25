@@ -21,6 +21,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .count({ where: { statut: 'en_attente' } })
     .catch(() => 0)
 
+  // G9/G10 — compteur de publications en attente de modération (brouillons).
+  // Alimente le badge rouge de l'item « Modération » (sidebar) ET la cloche du
+  // topbar (dans le design Lot 11, le badge 23 de la cloche = la file de modération).
+  const aModerer = await prisma.opportunite.count({
+    where: { statut: 'brouillon', deletedAt: null },
+  })
+
   return (
     <>
       <SkipLink />
@@ -52,11 +59,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           userRole={userRole}
           userInitials={userInitials}
           escaladeCount={escaladeCount}
+          moderationCount={aModerer}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* ── Topbar desktop (blanc, clair) ─────────────────────────── */}
-          <AdminTopBar />
+          <AdminTopBar notificationCount={aModerer} />
 
           <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0">
             {children}
