@@ -13,6 +13,9 @@ import { appUrl } from '@/lib/app-url'
 import { LETTRE_MIN_CHARS } from '@/lib/constants/candidature'
 import { GET as cjsCardQrTokenGET } from '@/app/api/cjs-card/qr-token/route'
 import { POST as candidaturesPOST } from '@/app/api/candidatures/route'
+import { GET as biblioLivresGET } from '@/app/api/bibliotheque/livres/route'
+import { GET as biblioEmpruntsGET, POST as biblioEmpruntsPOST } from '@/app/api/bibliotheque/emprunts/route'
+import type { EmpruntVue, SearchLivresResult } from '@/lib/bibliotheque/service'
 import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
@@ -784,6 +787,223 @@ const escalateToAdvisor: AgentTool = {
 }
 
 /** Registre des outils disponibles. */
+// ── search_library (Lot 3, GUIC-342) ────────────────────────────────────────
+// Recherche dans la bibliothèque physique des centres via l'endpoint EXISTANT
+// `GET /api/bibliotheque/livres` (in-process, cookie propagé). Renvoie les livres,
+// le nombre d'exemplaires disponibles et leur emplacement physique précis.
+const searchLibrary: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'search_library',
+      description:
+        'Cherche des livres dans la bibliothèque physique des centres (par titre, auteur, ' +
+        'thème ou niveau). À utiliser quand le bénéficiaire veut « un livre sur… », « emprunter ' +
+        'un livre », « est-ce que la bibliothèque a… ». Renvoie les livres, les exemplaires ' +
+        'disponibles et leur emplacement (centre · rayon · étagère · position).',
+      parameters: {
+        type: 'object',
+        properties: {
+          q: { type: 'string', description: 'Mots-clés : titre, auteur ou ISBN' },
+          theme: { type: 'string', description: 'Filtrer par thème' },
+          niveau: { type: 'string', description: 'Filtrer par niveau' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const qs = new URLSearchParams()
+    if (typeof args.q === 'string' && args.q.trim()) qs.set('q', args.q.trim())
+    if (typeof args.theme === 'string' && args.theme.trim()) qs.set('theme', args.theme.trim())
+    if (typeof args.niveau === 'string' && args.niveau.trim()) qs.set('niveau', args.niveau.trim())
+
+    const r = await callInternalRoute(biblioLivresGET, {
+      method: 'GET',
+      path: `/api/bibliotheque/livres?${qs.toString()}`,
+    })
+    if (!r.ok) {
+      if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour consulter la bibliothèque.' }
+      return { ok: false, error: r.json.error?.message ?? 'Recherche bibliothèque indisponible.' }
+    }
+    const result = r.json.data as SearchLivresResult
+    const livres = result.livres ?? []
+    if (livres.length === 0) {
+      return { ok: true, data: { livres: [] }, block: { kind: 'text', text: 'Aucun livre trouvé pour cette recherche.' } }
+    }
+
+    const base = appUrl()
+    return {
+      ok: true,
+      // Données structurées pour que Yaye décrive les emplacements en langage naturel.
+      data: {
+        livres: livres.map(l => ({
+          id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme,
+          exemplairesDisponibles: l.exemplairesDisponibles,
+          emplacements: l.emplacements.map(e => ({
+            centre: e.centreNom, rayon: e.rayon, etagere: e.etagere, position: e.position,
+          })),
+        })),
+      },
+      block: {
+        kind: 'action',
+        title: `${livres.length} livre${livres.length > 1 ? 's' : ''} trouvé${livres.length > 1 ? 's' : ''}`,
+        actions: livres.slice(0, 4).map(l => ({
+          icon: 'book',
+          label: `${l.titre} — ${l.auteur} (${l.exemplairesDisponibles} dispo)`,
+        })),
+        buttons: livres.slice(0, 3).map(l => ({
+          label: l.titre.length > 28 ? `${l.titre.slice(0, 25)}…` : l.titre,
+          href: `${base}/jeune/bibliotheque/${l.id}`,
+        })),
+      },
+    }
+  },
+}
+
+// ── borrow_book (Lot 3, GUIC-343) ───────────────────────────────────────────
+// Écriture en DEUX TEMPS : confirm=false → récapitulatif (aucune écriture) ;
+// confirm=true → initie l'emprunt via `POST /api/bibliotheque/emprunts` EXISTANT.
+// L'emprunt reste « initié » jusqu'au scan du badge au centre.
+const borrowBook: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'borrow_book',
+      description:
+        "Initie l'emprunt d'un exemplaire précis (identifié par son `exemplaireId`, obtenu via " +
+        'search_library). Toujours appeler avec confirm=false d\'abord pour montrer le ' +
+        'récapitulatif, puis confirm=true après accord explicite. L\'emprunt devient effectif ' +
+        'au scan du badge au centre.',
+      parameters: {
+        type: 'object',
+        properties: {
+          exemplaireId: { type: 'string', description: "Identifiant de l'exemplaire à emprunter" },
+          confirm: { type: 'boolean', description: 'false = récapitulatif ; true = initier réellement' },
+        },
+        required: ['exemplaireId'],
+      },
+    },
+  },
+  async execute(args) {
+    const exemplaireId = typeof args.exemplaireId === 'string' ? args.exemplaireId : ''
+    const confirm = args.confirm === true
+    if (!exemplaireId) return { ok: false, error: "Précise quel exemplaire emprunter (exemplaireId)." }
+
+    const base = appUrl()
+    // Étape 1 — récapitulatif AVANT toute écriture.
+    if (!confirm) {
+      const ex = await prisma.exemplaire.findUnique({
+        where: { id: exemplaireId },
+        select: {
+          statut: true, rayon: true, etagere: true, position: true,
+          livre: { select: { titre: true, auteur: true } },
+          centre: { select: { nom: true } },
+        },
+      })
+      if (!ex) return { ok: false, error: 'Exemplaire introuvable.' }
+      if (ex.statut !== 'disponible') return { ok: false, error: "Cet exemplaire n'est plus disponible." }
+      return {
+        ok: true,
+        data: {
+          needsConfirmation: true,
+          recap: { livre: ex.livre.titre, auteur: ex.livre.auteur, centre: ex.centre.nom,
+            emplacement: `rayon ${ex.rayon} · étagère ${ex.etagere} · position ${ex.position}` },
+        },
+        block: {
+          kind: 'action',
+          title: "Récapitulatif de l'emprunt",
+          subtitle: `${ex.livre.titre} — ${ex.livre.auteur}`,
+          actions: [
+            { icon: 'building', label: ex.centre.nom },
+            { icon: 'map-pin', label: `Rayon ${ex.rayon} · étagère ${ex.etagere} · pos. ${ex.position}` },
+          ],
+        },
+      }
+    }
+
+    // Étape 2 — initie l'emprunt via l'endpoint EXISTANT.
+    const r = await callInternalRoute(biblioEmpruntsPOST, {
+      method: 'POST',
+      path: '/api/bibliotheque/emprunts',
+      body: { exemplaireId },
+    })
+    if (r.ok) {
+      const emprunt = (r.json.data as { emprunt: EmpruntVue }).emprunt
+      return {
+        ok: true,
+        data: { empruntId: emprunt.id, statut: emprunt.statut },
+        block: {
+          kind: 'action',
+          title: 'Emprunt initié',
+          subtitle: `${emprunt.livre.titre} · ${emprunt.exemplaire.centreNom}`,
+          actions: [{ icon: 'info', label: 'Présente ton badge au centre pour finaliser l\'emprunt.' }],
+          buttons: [{ label: 'Mes emprunts', href: `${base}/jeune/bibliotheque/mes-emprunts`, primary: true }],
+        },
+      }
+    }
+    if (r.unauthenticated) {
+      return {
+        ok: true,
+        data: { needsWeb: true },
+        block: {
+          kind: 'action',
+          title: 'Finalise ton emprunt en ligne',
+          actions: [],
+          buttons: [{ label: 'Ouvrir la bibliothèque', href: `${base}/jeune/bibliotheque`, primary: true }],
+        },
+      }
+    }
+    return { ok: false, error: r.json.error?.message ?? "L'emprunt a échoué." }
+  },
+}
+
+// ── get_active_loans (Lot 3, GUIC-343) ──────────────────────────────────────
+// Emprunts en cours du bénéficiaire + dates de retour, via `GET /api/bibliotheque/emprunts`.
+const getActiveLoans: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'get_active_loans',
+      description:
+        'Liste les emprunts en cours du bénéficiaire (livres non encore rendus) avec leur ' +
+        'date de retour prévue. À utiliser pour « mes emprunts », « quels livres ai-je », ' +
+        '« quand dois-je rendre ».',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  async execute() {
+    const r = await callInternalRoute(biblioEmpruntsGET, { method: 'GET', path: '/api/bibliotheque/emprunts' })
+    if (!r.ok) {
+      if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour voir tes emprunts.' }
+      return { ok: false, error: r.json.error?.message ?? 'Impossible de récupérer tes emprunts.' }
+    }
+    const emprunts = (r.json.data as { emprunts: EmpruntVue[] }).emprunts ?? []
+    if (emprunts.length === 0) {
+      return { ok: true, data: { emprunts: [] }, block: { kind: 'text', text: "Tu n'as aucun emprunt en cours." } }
+    }
+    return {
+      ok: true,
+      data: {
+        emprunts: emprunts.map(e => ({
+          livre: e.livre.titre, auteur: e.livre.auteur, statut: e.statut,
+          centre: e.exemplaire.centreNom, dateRetourPrevue: e.dateRetourPrevue,
+        })),
+      },
+      block: {
+        kind: 'action',
+        title: `${emprunts.length} emprunt${emprunts.length > 1 ? 's' : ''} en cours`,
+        actions: emprunts.slice(0, 5).map(e => ({
+          icon: 'book',
+          label: e.dateRetourPrevue
+            ? `${e.livre.titre} — retour avant le ${new Date(e.dateRetourPrevue).toLocaleDateString('fr-FR')}`
+            : `${e.livre.titre} — à retirer au centre`,
+        })),
+      },
+    }
+  },
+}
+
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
   get_realtime_data: getRealtimeData,
@@ -795,6 +1015,9 @@ export const TOOLS: Record<string, AgentTool> = {
   get_badge: getBadge,
   submit_application: submitApplication,
   escalate_to_advisor: escalateToAdvisor,
+  search_library: searchLibrary,
+  borrow_book: borrowBook,
+  get_active_loans: getActiveLoans,
 }
 
 /** Définitions à passer à Groq (`tools` param). */

@@ -104,6 +104,18 @@ async function projectNodes(): Promise<Record<string, number>> {
     counts[label] = await mergeNodes(label, 'id', rows)
   }
 
+  // Bibliothèque physique (Lot 3) : Livre (catalogue) + Exemplaire (physique, localisé).
+  const livres = await prisma.livre.findMany({
+    select: { id: true, titre: true, auteur: true, theme: true, niveau: true, langue: true, isbn: true },
+  })
+  counts.Livre = await mergeNodes('Livre', 'id', livres)
+
+  const exemplaires = await prisma.exemplaire.findMany({
+    select: { id: true, codeBarre: true, rayon: true, etagere: true, position: true, statut: true },
+  })
+  counts.Exemplaire = await mergeNodes('Exemplaire', 'id',
+    exemplaires.map(e => ({ ...e, statut: String(e.statut) })))
+
   // Bénéficiaire (données minimales — pas de PII sensible, spec §3.C).
   const users = await prisma.utilisateur.findMany({
     where: { deletedAt: null },
@@ -262,6 +274,13 @@ async function projectRelations(): Promise<Record<string, number>> {
     counts.DISPOSE_DE += await mergeRels('DISPOSE_DE', 'Centre', 'id', label, 'id',
       rc.filter(r => r.type === label).map(r => ({ from: r.centreId, to: r.id })))
   }
+
+  // Bibliothèque (Lot 3) : CONTIENT (Livre→Exemplaire) + EST_LOCALISE_EN (Exemplaire→Centre).
+  const exemplairesRel = await prisma.exemplaire.findMany({ select: { id: true, livreId: true, centreId: true } })
+  counts.CONTIENT = await mergeRels('CONTIENT', 'Livre', 'id', 'Exemplaire', 'id',
+    exemplairesRel.map(e => ({ from: e.livreId, to: e.id })))
+  counts.EST_LOCALISE_EN = await mergeRels('EST_LOCALISE_EN', 'Exemplaire', 'id', 'Centre', 'id',
+    exemplairesRel.map(e => ({ from: e.id, to: e.centreId })))
 
   return counts
 }
@@ -456,6 +475,75 @@ export async function removeOpportuniteFromGraph(id: string): Promise<boolean> {
 export function syncOpportuniteDeletion(id: string): void {
   void removeOpportuniteFromGraph(id).catch(err =>
     logger.warn('[graph:projection] suppression opportunité échouée (fail-soft)', { id, err: String(err) }),
+  )
+}
+
+// ── Voie événementielle bibliothèque (Lot 3, GUIC-274) ──────────────────────────
+
+/** Relations qu'une re-projection d'exemplaire RECRÉE (donc à purger avant re-merge). */
+const EXEMPLAIRE_PROJECTED_RELS = ['EST_LOCALISE_EN']
+
+/**
+ * Projette/rafraîchit UN livre (catalogue). Idempotent, no-op si Neo4j non configuré.
+ */
+export async function projectLivre(id: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  const l = await prisma.livre.findUnique({
+    where: { id },
+    select: { id: true, titre: true, auteur: true, theme: true, niveau: true, langue: true, isbn: true },
+  })
+  if (!l) return false
+  await ensureGraphSchema()
+  await mergeNodes('Livre', 'id', [l])
+  return true
+}
+
+/**
+ * Projette/rafraîchit UN exemplaire + ses relations (CONTIENT depuis son livre,
+ * EST_LOCALISE_EN vers son centre). Idempotent, no-op si Neo4j non configuré.
+ */
+export async function projectExemplaire(id: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  const e = await prisma.exemplaire.findUnique({
+    where: { id },
+    select: { id: true, codeBarre: true, rayon: true, etagere: true, position: true, statut: true, livreId: true, centreId: true },
+  })
+  if (!e) return false
+  await ensureGraphSchema()
+  await mergeNodes('Exemplaire', 'id', [{
+    id: e.id, codeBarre: e.codeBarre, rayon: e.rayon, etagere: e.etagere, position: e.position, statut: String(e.statut),
+  }])
+  await deleteRelsOfTypes('Exemplaire', 'id', e.id, EXEMPLAIRE_PROJECTED_RELS)
+  await mergeRels('CONTIENT', 'Livre', 'id', 'Exemplaire', 'id', [{ from: e.livreId, to: e.id }])
+  await mergeRels('EST_LOCALISE_EN', 'Exemplaire', 'id', 'Centre', 'id', [{ from: e.id, to: e.centreId }])
+  return true
+}
+
+/** Déclencheur FAIL-SOFT (fire-and-forget) après création/modif d'un livre. */
+export function syncLivreToGraph(id: string): void {
+  void projectLivre(id).catch(err =>
+    logger.warn('[graph:projection] sync livre échouée (fail-soft)', { id, err: String(err) }),
+  )
+}
+
+/** Déclencheur FAIL-SOFT (fire-and-forget) après création/modif d'un exemplaire. */
+export function syncExemplaireToGraph(id: string): void {
+  void projectExemplaire(id).catch(err =>
+    logger.warn('[graph:projection] sync exemplaire échouée (fail-soft)', { id, err: String(err) }),
+  )
+}
+
+/** Retire un exemplaire du graphe (suppression). No-op si Neo4j non configuré. */
+export async function removeExemplaireFromGraph(id: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  await detachDeleteNode('Exemplaire', 'id', id)
+  return true
+}
+
+/** Déclencheur FAIL-SOFT de suppression d'exemplaire (fire-and-forget). */
+export function syncExemplaireDeletion(id: string): void {
+  void removeExemplaireFromGraph(id).catch(err =>
+    logger.warn('[graph:projection] suppression exemplaire échouée (fail-soft)', { id, err: String(err) }),
   )
 }
 

@@ -11,7 +11,7 @@
 const mockReservationGroupBy = jest.fn()
 const mockReservationFindMany = jest.fn()
 const mockReservationCount = jest.fn()
-const mockCheckInCount = jest.fn()
+const mockCheckInFindMany = jest.fn()
 const mockCentreFindMany = jest.fn()
 const mockRessourceFindMany = jest.fn()
 
@@ -22,11 +22,19 @@ jest.mock('@/lib/prisma', () => ({
       findMany: (...a: unknown[]) => mockReservationFindMany(...a),
       count: (...a: unknown[]) => mockReservationCount(...a),
     },
-    checkIn: { count: (...a: unknown[]) => mockCheckInCount(...a) },
+    checkIn: { findMany: (...a: unknown[]) => mockCheckInFindMany(...a) },
     centre: { findMany: (...a: unknown[]) => mockCentreFindMany(...a) },
     ressourceCentre: { findMany: (...a: unknown[]) => mockRessourceFindMany(...a) },
   },
 }))
+
+/** Fabrique n check-ins (q en QrCard, le reste en Manuel) à une date donnée. */
+function checkins(q: number, manuel: number, date = new Date('2026-05-10T10:00:00Z')) {
+  return [
+    ...Array.from({ length: q }, () => ({ effectueA: date, via: 'QrCard' as const })),
+    ...Array.from({ length: manuel }, () => ({ effectueA: date, via: 'Manuel' as const })),
+  ]
+}
 
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 
@@ -36,7 +44,7 @@ beforeEach(() => {
   mockReservationGroupBy.mockResolvedValue([])
   mockReservationFindMany.mockResolvedValue([])
   mockReservationCount.mockResolvedValue(0)
-  mockCheckInCount.mockResolvedValue(0)
+  mockCheckInFindMany.mockResolvedValue([])
   mockCentreFindMany.mockResolvedValue([])
   mockRessourceFindMany.mockResolvedValue([])
 })
@@ -58,7 +66,7 @@ describe('getCentresAnalytics', () => {
       .mockResolvedValueOnce([]) // top
       .mockResolvedValueOnce([]) // byRessource
 
-    mockCheckInCount.mockResolvedValue(60)
+    mockCheckInFindMany.mockResolvedValue(checkins(40, 20)) // 60 check-ins : 40 QR + 20 manuels
     mockReservationCount.mockResolvedValue(50) // période précédente
 
     const out = await getCentresAnalytics({ from: FROM, to: TO })
@@ -68,6 +76,8 @@ describe('getCentresAnalytics', () => {
     expect(out.kpis.checkinRate).toBeCloseTo(0.6, 5) // 60 / 100
     expect(out.kpis.cancelRate).toBeCloseTo((10 + 5) / 123, 5)
     expect(out.kpis.noShowRate).toBeCloseTo(8 / 100, 5) // 8 NonHonoree / 100 acceptées
+    // Ventilation des accès par QR
+    expect(out.accesQr).toEqual({ total: 60, parQr: 40, parManuel: 20, tauxQr: 40 / 60 })
   })
 
   it('agrège reservationsByDay en remplissant les jours à zéro', async () => {
@@ -160,7 +170,28 @@ describe('getCentresAnalytics', () => {
     // Le 1er groupBy (statuts) doit recevoir centreId.in
     const firstCall = mockReservationGroupBy.mock.calls[0][0]
     expect(firstCall.where.centreId).toEqual({ in: ['c1', 'c2'] })
-    // Idem pour checkIn count
-    expect(mockCheckInCount.mock.calls[0][0].where.centreId).toEqual({ in: ['c1', 'c2'] })
+    // Idem pour le findMany des check-ins
+    expect(mockCheckInFindMany.mock.calls[0][0].where.centreId).toEqual({ in: ['c1', 'c2'] })
+  })
+
+  it('agrège accesQrParJour (QR uniquement) en remplissant les jours à zéro', async () => {
+    mockCheckInFindMany.mockResolvedValue([
+      { effectueA: new Date('2026-05-01T09:00:00Z'), via: 'QrCard' },
+      { effectueA: new Date('2026-05-01T18:00:00Z'), via: 'QrCard' },
+      { effectueA: new Date('2026-05-01T12:00:00Z'), via: 'Manuel' }, // exclu de la série QR
+      { effectueA: new Date('2026-05-03T10:00:00Z'), via: 'QrCard' },
+    ])
+
+    const out = await getCentresAnalytics({
+      from: new Date('2026-05-01T00:00:00Z'),
+      to: new Date('2026-05-04T00:00:00Z'),
+    })
+
+    expect(out.accesQrParJour).toEqual([
+      { date: '2026-05-01', count: 2 },
+      { date: '2026-05-02', count: 0 },
+      { date: '2026-05-03', count: 1 },
+      { date: '2026-05-04', count: 0 },
+    ])
   })
 })

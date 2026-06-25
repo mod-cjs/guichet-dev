@@ -35,12 +35,28 @@ export interface CentresAnalyticsKpis {
   noShowRate: number
 }
 
+/** Ventilation des accès au centre par canal de check-in (GUIC-388 — extension QR). */
+export interface CentresAnalyticsAccesQr {
+  /** Total des check-ins sur la période. */
+  total: number
+  /** Check-ins via scan du QR de la carte CJS (`CheckInVia.QrCard`). */
+  parQr: number
+  /** Check-ins saisis manuellement par le staff (`CheckInVia.Manuel`). */
+  parManuel: number
+  /** Part des accès faits par QR. 0–1. */
+  tauxQr: number
+}
+
 export interface CentresAnalytics {
   kpis: CentresAnalyticsKpis
   reservationsByDay: Array<{ date: string; count: number }>
   topCentres: Array<{ centreId: string; centreNom: string; count: number }>
   byType: Array<{ type: string; count: number }>
   byStatut: Array<{ statut: string; count: number }>
+  /** Accès par QR vs manuel sur la période. */
+  accesQr: CentresAnalyticsAccesQr
+  /** Tendance journalière des accès par QR (continue, jours à 0 inclus). */
+  accesQrParJour: Array<{ date: string; count: number }>
 }
 
 function buildWhere(filters: CentresAnalyticsFilters) {
@@ -102,7 +118,20 @@ export async function getCentresAnalytics(
     effectueA: { gte: filters.from, lte: filters.to },
   }
   if (centreFilter) checkinWhere.centreId = centreFilter
-  const checkinCount = await prisma.checkIn.count({ where: checkinWhere })
+  // Un seul findMany (date + canal) sert : le total, le split QR/Manuel et la tendance QR.
+  const checkins = await prisma.checkIn.findMany({
+    where: checkinWhere,
+    select: { effectueA: true, via: true },
+  })
+  const checkinCount = checkins.length
+  const parQr = checkins.filter((c) => c.via === 'QrCard').length
+  const parManuel = checkinCount - parQr
+  const accesQr: CentresAnalyticsAccesQr = {
+    total: checkinCount,
+    parQr,
+    parManuel,
+    tauxQr: checkinCount > 0 ? parQr / checkinCount : 0,
+  }
 
   const checkinRate = accepteeCount > 0 ? checkinCount / accepteeCount : 0
   const cancelRate = totalReservations > 0 ? annuleeCount / totalReservations : 0
@@ -191,6 +220,24 @@ export async function getCentresAnalytics(
     count,
   }))
 
+  // 7. Tendance journalière des accès par QR (même fenêtre continue que les réservations).
+  const qrByDayMap = new Map<string, number>()
+  for (const c of checkins) {
+    if (c.via !== 'QrCard') continue
+    const d = isoDay(c.effectueA)
+    qrByDayMap.set(d, (qrByDayMap.get(d) ?? 0) + 1)
+  }
+  const accesQrParJour: Array<{ date: string; count: number }> = []
+  const qrCursor = new Date(filters.from)
+  qrCursor.setUTCHours(0, 0, 0, 0)
+  const qrEnd = new Date(filters.to)
+  qrEnd.setUTCHours(0, 0, 0, 0)
+  while (qrCursor.getTime() <= qrEnd.getTime()) {
+    const key = isoDay(qrCursor)
+    accesQrParJour.push({ date: key, count: qrByDayMap.get(key) ?? 0 })
+    qrCursor.setUTCDate(qrCursor.getUTCDate() + 1)
+  }
+
   return {
     kpis: {
       totalReservations,
@@ -203,5 +250,7 @@ export async function getCentresAnalytics(
     topCentres,
     byType,
     byStatut,
+    accesQr,
+    accesQrParJour,
   }
 }

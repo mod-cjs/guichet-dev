@@ -31,6 +31,7 @@ export default async function CentreStaffProtectedLayout({ children }: { childre
           <Link href="/centre-staff" className="text-gj-teal-deep hover:underline min-h-[var(--tap-min)] inline-flex items-center">Accueil</Link>
           <Link href="/centre-staff/reservations" className="text-gj-teal-deep hover:underline min-h-[var(--tap-min)] inline-flex items-center">Réservations</Link>
           <Link href="/centre-staff/checkins" className="text-gj-teal-deep hover:underline min-h-[var(--tap-min)] inline-flex items-center">Check-ins</Link>
+          <Link href="/centre-staff/bibliotheque" className="text-gj-teal-deep hover:underline min-h-[var(--tap-min)] inline-flex items-center">Bibliothèque</Link>
         </nav>
       </header>
       <main className="flex-1 p-space-4 max-w-6xl w-full mx-auto">{children}</main>

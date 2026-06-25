@@ -148,6 +148,14 @@ async function handleAnonymized(p: Payload): Promise<void> {
       updatedAt:    new Date(),
     },
   })
+
+  // CDP / droit à l'oubli (Lot 3, GUIC-274) : purge l'HISTORIQUE d'emprunts
+  // (donnée personnelle de lecture). On conserve les emprunts ACTIFS — le livre
+  // est physiquement encore sorti ; ils deviendront purgeables au retour. Le
+  // cjsUid reste pour la cohérence référentielle (l'utilisateur est anonymisé).
+  await prisma.emprunt.deleteMany({
+    where: { cjsUid: p.cjs_uid, statut: { in: ['rendu', 'annule'] } },
+  })
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────

@@ -47,6 +47,7 @@ const SECTIONS: NavSection[] = [
     title: 'Pilotage',
     items: [
       { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS' },
+      { id: 'bibliotheque', href: '/admin/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
       { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Analytics centres' },
       { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
