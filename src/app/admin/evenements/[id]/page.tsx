@@ -72,8 +72,9 @@ export default async function Page({
   // La présence n'est pertinente que si l'événement a déjà eu lieu.
   const presencePertinente = ev.statut === 'en_cours' || ev.statut === 'termine'
 
-  // Mention de troncature si la sous-requête a atteint sa limite (take: 300).
-  const mentionTroncature = inscrits.length === 300
+  // Mention de troncature : tester le compte BRUT fetché (avant filtrage des annulés),
+  // sinon des annulés dans les 300 masqueraient la troncature → sous-comptage silencieux.
+  const mentionTroncature = ev.inscriptions.length === 300
     ? `300 premiers affichés · export CSV pour la liste complète`
     : undefined
 

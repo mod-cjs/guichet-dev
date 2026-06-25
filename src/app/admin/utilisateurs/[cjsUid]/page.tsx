@@ -4,7 +4,9 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AdminUserDetail, type UserDetailData } from './AdminUserDetail'
 
-export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS' }
+// M5 — `cjsUid` (identifiant SSO pivot) en clair dans l'URL : no-referrer évite sa
+// fuite via l'en-tête Referer vers d'éventuelles ressources externes (ex. photoUrl).
+export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS', referrer: 'no-referrer' }
 
 function toStringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
