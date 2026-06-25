@@ -1330,6 +1330,40 @@ model AgentLog {
   @@map("agent_logs")
 }
 
+/// Stade de traitement d'une escalade Yaye → conseiller humain (Lot 6).
+enum StatutEscalade {
+  en_attente // signalée, aucun conseiller ne l'a encore prise
+  prise_en_charge // un conseiller s'en occupe
+  resolue // traitée / clôturée
+
+  @@map("statut_escalade")
+}
+
+/// File d'escalade Yaye → opérateur humain (Lot 6).
+/// Une ligne est créée au moment où Yaye décide de passer la main à un conseiller.
+/// La TRACE événementielle reste dans `agent_logs` (type `escalade_conseiller`) ;
+/// ce modèle porte uniquement l'ÉTAT de traitement (statut + qui/quand), mutable
+/// par le staff depuis le panel admin. On ne mute jamais `agent_logs` (append-only).
+model EscaladeYaye {
+  id         String         @id @default(uuid()) @db.VarChar(36)
+  sessionId  String         @map("session_id") @db.VarChar(36)
+  cjsUid     String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
+  role       String?        @db.VarChar(40)
+  centreId   String?        @map("centre_id") @db.VarChar(36)
+  canal      CanalAgent
+  raison     String?        @db.Text // pourquoi l'escalade — peut contenir des PII
+  stade      String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
+  statut     StatutEscalade @default(en_attente)
+  traitePar  String?        @map("traite_par") @db.VarChar(36) // cjs_uid du conseiller qui traite
+  traiteA    DateTime?      @map("traite_a")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([statut, createdAt])
+  @@index([sessionId])
+  @@index([centreId, statut])
+  @@map("escalades_yaye")
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Métriques de performance conversationnelle Yaye (GUIC-435 — Yaye Quality Score)
 // On AJOUTE, on ne modifie pas l'existant. Spec : 14-metriques-performance-conversationnelle.md

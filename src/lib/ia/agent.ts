@@ -10,6 +10,7 @@ import Groq from 'groq-sdk'
 import type { CanalAgent } from '@prisma/client'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
+import { recordEscalade } from './escalade'
 import { summarizeToolResult } from './metrics/tool-summary'
 import type { YayeBlock } from './blocks'
 
@@ -80,6 +81,7 @@ Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH
 - **Réserver une salle ou un véhicule** d'un centre → d'abord **get_reservable_resources** pour trouver la ressource et son identifiant. Puis **collecte ce qui manque, une info à la fois** : date (AAAA-MM-JJ), créneau (HH:MM–HH:MM), nombre de personnes, et un **motif d'au moins 20 caractères**. Quand tu as tout, appelle **reserve_resource SANS confirmer** pour afficher le récapitulatif, demande « Je confirme ? », et n'appelle **reserve_resource avec confirm=true qu'APRÈS un oui explicite**. Ne réserve **jamais** sans cet accord.
 - **Badge / carte CJS** ("mon badge", "ma carte", "le QR pour entrer au centre") → utilise **get_badge**.
 - **Postuler / candidater** à une opportunité → utilise **submit_application**. Récupère l'**opportuniteId** depuis la recherche ou le contexte, **collecte une lettre de motivation suffisamment développée** (le CV du profil est joint automatiquement), appelle **SANS confirmer** pour le récapitulatif, puis **confirm=true seulement APRÈS un oui explicite**. Ne soumets **jamais** sans cet accord.
+- **Passer la main à un conseiller humain** → utilise **escalate_to_advisor** dès que la personne **demande explicitement** un humain, que le sujet est **sensible** (détresse, santé, violence, situation personnelle difficile : escalade tout de suite, motif \`sujet_sensible\`, sans creuser), ou que sa demande **dépasse** tes outils. Appelle-le **une seule fois**, puis confirme avec chaleur que sa demande est transmise à l'équipe CJS — **ne promets aucun délai précis**.
 N'appelle un outil que s'il apporte une information utile à ta réponse ; sinon réponds directement.
 **Quand un outil ne renvoie aucune opportunité, dis-le franchement et n'invente jamais d'offre** : propose plutôt d'élargir la zone, de changer de type, ou de viser une formation.
 
@@ -126,7 +128,7 @@ export interface RunAgentResult {
 
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const groq = getGroq()
-  const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null }
+  const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base = {
     sessionId: p.sessionId,
     cjsUid: p.cjsUid,
@@ -269,8 +271,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     }
   }
 
-  // Garde-fou : trop de tours d'outils sans réponse finale → escalade suggérée.
+  // Garde-fou : trop de tours d'outils sans réponse finale → escalade conseiller.
   await logAgentEvent({ ...base, typeEvenement: 'erreur', statut: 'partiel', payload: { raison: 'max_tool_rounds' } })
+  await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
   const escalade = "Je n'ai pas réussi à finaliser ta demande. Veux-tu que je te mette en relation avec un conseiller ?"
   return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...blocks], toolsUsed }
 }

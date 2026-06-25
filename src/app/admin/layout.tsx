@@ -16,6 +16,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials =
     `${session.prenom?.[0] ?? ''}${session.nom?.[0] ?? ''}`.toUpperCase() || 'AN'
 
+  // Badge sidebar : escalades Yaye en attente de prise en charge (fail-soft).
+  const escaladeCount = await prisma.escaladeYaye
+    .count({ where: { statut: 'en_attente' } })
+    .catch(() => 0)
+
   // G9/G10 — compteur de publications en attente de modération (brouillons).
   // Alimente le badge rouge de l'item « Modération » (sidebar) ET la cloche du
   // topbar (dans le design Lot 11, le badge 23 de la cloche = la file de modération).
@@ -53,6 +58,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           userName={userName}
           userRole={userRole}
           userInitials={userInitials}
+          escaladeCount={escaladeCount}
           moderationCount={aModerer}
         />
 
