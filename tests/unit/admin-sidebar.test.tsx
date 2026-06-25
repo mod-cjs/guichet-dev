@@ -54,6 +54,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/opportunites')
   })
 
+  // G1 — CRUD types d'opportunité : item de gouvernance.
+  it('rend le lien "Types d’opportunité" vers /admin/types-opportunite', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /types d.opportunit/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/types-opportunite')
+  })
+
   it('rend le lien "Événements" vers /admin/evenements', () => {
     render(<AdminSidebar />)
     const link = screen.getAllByRole('link', { name: /événements/i })[0]

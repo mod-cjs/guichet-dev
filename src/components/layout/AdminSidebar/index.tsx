@@ -56,6 +56,7 @@ const SECTIONS: NavSection[] = [
     title: 'Gouvernance',
     items: [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
+      { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
     ],
