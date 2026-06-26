@@ -88,6 +88,14 @@ describe('GUIC-464 — CRUD centres (DB réelle)', () => {
     await expect(creerCentre({ ...valid, latitude: 999 })).rejects.toThrow()
   })
 
+  // H1 — téléphone E.164 sénégalais obligatoire (CLAUDE.md). Avant : min(1) seulement.
+  it('given téléphone non E.164, when creer, then rejet Zod', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    await expect(creerCentre({ ...valid, telephone: '770000000' })).rejects.toThrow()
+    await expect(creerCentre({ ...valid, telephone: 'abc123' })).rejects.toThrow()
+    await expect(creerCentre({ ...valid, telephone: '+33612345678' })).rejects.toThrow()
+  })
+
   it('given un centre AVEC jeunes/agents, when supprimer, then refus CENTRE_NON_VIDE (row conservée)', async () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const nonEmpty = await prisma.centre.findFirst({

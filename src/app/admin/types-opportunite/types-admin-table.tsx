@@ -270,7 +270,7 @@ export function TypesAdminTable({ types, total }: TypesAdminTableProps) {
 
         </div>
       </div>
-      <TypeFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} type={editType} />
+      <TypeFormModal key={editType?.id ?? 'new'} isOpen={modalOpen} onClose={() => setModalOpen(false)} type={editType} />
     </>
   )
 }

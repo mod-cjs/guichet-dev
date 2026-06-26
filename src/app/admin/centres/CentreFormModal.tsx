@@ -19,6 +19,20 @@ const STATUT_OPTIONS = [
   { value: 'false', label: 'Inactif' },
 ]
 
+// B1 — messages de validation natifs en FRANÇAIS (au lieu des tooltips browser EN).
+function setFrValidity(el: HTMLInputElement) {
+  const v = el.validity
+  if (v.valueMissing) el.setCustomValidity('Ce champ est requis.')
+  else if (v.patternMismatch) el.setCustomValidity('Format attendu : +221 suivi de 9 chiffres.')
+  else if (v.rangeOverflow || v.rangeUnderflow) el.setCustomValidity('Valeur hors des limites autorisées.')
+  else if (v.badInput) el.setCustomValidity('Valeur numérique attendue.')
+  else el.setCustomValidity('')
+}
+const frInval = {
+  onInvalid: (e: React.FormEvent<HTMLInputElement>) => setFrValidity(e.currentTarget),
+  onInput: (e: React.FormEvent<HTMLInputElement>) => e.currentTarget.setCustomValidity(''),
+}
+
 /** Valeurs initiales pour l'édition (sous-ensemble des champs Centre éditables). */
 export interface CentreFormValues {
   id?: string
@@ -38,9 +52,11 @@ export interface CentreFormModalProps {
   onClose: () => void
   /** Présent (avec id) = édition ; absent = création. */
   centre?: CentreFormValues
+  /** Appelé après succès (création/édition) — la liste affiche un toast. */
+  onSuccess?: (action: 'create' | 'update') => void
 }
 
-export function CentreFormModal({ isOpen, onClose, centre }: CentreFormModalProps) {
+export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFormModalProps) {
   const editing = Boolean(centre?.id)
   const [nom, setNom] = useState(centre?.nom ?? '')
   const [region, setRegion] = useState<string>(centre?.region ?? 'Dakar')
@@ -70,11 +86,19 @@ export function CentreFormModal({ isOpen, onClose, centre }: CentreFormModalProp
     }
     startTransition(async () => {
       try {
-        if (editing && centre?.id) await modifierCentre(centre.id, input)
-        else await creerCentre(input)
+        if (editing && centre?.id) {
+          await modifierCentre(centre.id, input)
+          onSuccess?.('update')
+        } else {
+          await creerCentre(input)
+          onSuccess?.('create')
+        }
         onClose()
       } catch {
-        setError('Échec — vérifie les champs requis (latitude/longitude numériques, région valide).')
+        setError(
+          'Échec — vérifie les champs : téléphone au format +221XXXXXXXXX, ' +
+            'latitude (-90 à 90) et longitude (-180 à 180) numériques, région valide.',
+        )
       }
     })
   }
@@ -82,13 +106,13 @@ export function CentreFormModal({ isOpen, onClose, centre }: CentreFormModalProp
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Modifier le centre' : 'Ajouter un centre'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
-        <Input id="centre-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} />
+        <Input id="centre-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} {...frInval} />
         <Select id="centre-region" label="Région" options={REGION_OPTIONS} value={region} onChange={(e) => setRegion(e.target.value)} />
-        <Input id="centre-adresse" label="Adresse" required value={adresse} onChange={(e) => setAdresse(e.target.value)} />
-        <Input id="centre-latitude" label="Latitude" type="number" step="any" required value={latitude} onChange={(e) => setLatitude(e.target.value)} />
-        <Input id="centre-longitude" label="Longitude" type="number" step="any" required value={longitude} onChange={(e) => setLongitude(e.target.value)} />
-        <Input id="centre-telephone" label="Téléphone" required value={telephone} onChange={(e) => setTelephone(e.target.value)} />
-        <Input id="centre-responsable" label="Responsable" required value={responsable} onChange={(e) => setResponsable(e.target.value)} />
+        <Input id="centre-adresse" label="Adresse" required value={adresse} onChange={(e) => setAdresse(e.target.value)} {...frInval} />
+        <Input id="centre-latitude" label="Latitude" type="number" step="any" min={-90} max={90} required value={latitude} onChange={(e) => setLatitude(e.target.value)} {...frInval} />
+        <Input id="centre-longitude" label="Longitude" type="number" step="any" min={-180} max={180} required value={longitude} onChange={(e) => setLongitude(e.target.value)} {...frInval} />
+        <Input id="centre-telephone" label="Téléphone (format +221XXXXXXXXX)" type="tel" inputMode="tel" pattern="\+221[0-9]{9}" placeholder="+221770000000" required value={telephone} onChange={(e) => setTelephone(e.target.value)} {...frInval} />
+        <Input id="centre-responsable" label="Responsable" required value={responsable} onChange={(e) => setResponsable(e.target.value)} {...frInval} />
         <Input id="centre-ville" label="Ville" value={ville ?? ''} onChange={(e) => setVille(e.target.value)} />
         <Select id="centre-statut" label="Statut" options={STATUT_OPTIONS} value={String(estActif)} onChange={(e) => setEstActif(e.target.value === 'true')} />
         {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}

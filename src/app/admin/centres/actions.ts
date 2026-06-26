@@ -21,7 +21,10 @@ const centreSchema = z.object({
   adresse: z.string().trim().min(1, 'Adresse requise'),
   latitude: z.coerce.number().min(-90).max(90),
   longitude: z.coerce.number().min(-180).max(180),
-  telephone: z.string().trim().min(1, 'Téléphone requis'),
+  telephone: z
+    .string()
+    .trim()
+    .regex(/^\+221\d{9}$/, 'Téléphone au format E.164 sénégalais : +221XXXXXXXXX'),
   responsable: z.string().trim().min(1, 'Responsable requis'),
   ville: z.string().trim().max(100).optional().nullable(),
   estActif: z.boolean().optional().default(true),

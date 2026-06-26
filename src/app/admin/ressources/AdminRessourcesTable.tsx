@@ -376,6 +376,7 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
       </div>
       </div>
       <RessourceFormModal
+        key={editRow?.id ?? 'new'}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         ressource={editRow}

@@ -342,6 +342,7 @@ export function AdminEvenementsTable({
       </div>
     </div>
     <EvenementFormModal
+      key={editEvent?.id ?? 'new'}
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
       evenement={editEvent}

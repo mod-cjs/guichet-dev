@@ -106,17 +106,47 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
     expect(screen.getByText('7')).toBeInTheDocument()
   })
 
-  it('affiche "—" pour insertions/mois (pas de champ source)', () => {
+  // M1 — les colonnes « Insertions/mois » et « Taux d'insertion » (jamais alimentées,
+  // affichaient « — » partout) ont été RETIRÉES.
+  it('ne présente plus les colonnes mortes Insertions/mois et Taux d\'insertion', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
-    // au moins une occurrence de "—"
-    const dashes = screen.getAllByText('—')
-    expect(dashes.length).toBeGreaterThan(0)
+    expect(screen.queryByText(/insertions\/mois/i)).toBeNull()
+    expect(screen.queryByText(/taux d.insertion/i)).toBeNull()
   })
 
   it('affiche les boutons d\'action settings et supprimer', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
     expect(screen.getAllByRole('button', { name: /modifier/i }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThan(0)
+  })
+
+  // H2 — les actions Modifier/Supprimer existent AUSSI sur mobile (desktop + carte).
+  it('expose Modifier/Supprimer sur desktop ET mobile (≥ 2 par centre)', () => {
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    expect(screen.getAllByRole('button', { name: /modifier/i }).length).toBeGreaterThanOrEqual(MOCK_CENTRES.length * 2)
+    expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThanOrEqual(MOCK_CENTRES.length * 2)
+  })
+
+  // C2 — la suppression d'un centre non vide échoue : un message d'erreur s'affiche
+  // (avant : échec totalement silencieux).
+  it('affiche un message d\'erreur si la suppression échoue (CENTRE_NON_VIDE)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockRejectedValueOnce(new Error('CENTRE_NON_VIDE'))
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() =>
+      expect(screen.getByText(/jeunes ou agents y sont rattachés/i)).toBeInTheDocument(),
+    )
+    confirmSpy.mockRestore()
+  })
+
+  it('affiche un toast de succès après suppression réussie', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockResolvedValueOnce({ ok: true })
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(screen.getByText(/supprimé/i)).toBeInTheDocument())
+    confirmSpy.mockRestore()
   })
 
   /* ── État vide ──────────────────────────────────────────────────────────── */
