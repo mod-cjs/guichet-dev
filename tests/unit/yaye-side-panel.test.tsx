@@ -76,6 +76,13 @@ describe('<YayeSidePanel />', () => {
 
   // ── Parité avec la page fullscreen (GUIC-259, UX polish) ──────────────────
 
+  it('expose la même barre d’actions que la page fullscreen (pièce jointe · micro · envoi)', () => {
+    render(<YayeSidePanel open onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: /Joindre un fichier/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Dicter au micro/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Envoyer$/i })).toBeInTheDocument()
+  })
+
   it('expose la zone de conversation en aria-live (role=log)', () => {
     render(<YayeSidePanel open onClose={() => {}} />)
     expect(screen.getByRole('log', { name: /Conversation Yaye/i })).toBeInTheDocument()
