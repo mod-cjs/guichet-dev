@@ -23,7 +23,7 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { recordEscalade } from '@/lib/ia/escalade'
+import { recordEscalade, escaladeReference } from '@/lib/ia/escalade'
 
 const base = {
   sessionId: 's-1', cjsUid: 'u-1', role: 'beneficiaire',
@@ -38,13 +38,19 @@ beforeEach(() => {
   mockNotifCreateMany.mockReset()
 })
 
-test('nouvelle escalade : trace event + file + notifie conseillers/directeurs', async () => {
+test('escaladeReference : référence YAYE- stable dérivée du sessionId', () => {
+  expect(escaladeReference('s-1')).toMatch(/^YAYE-/)
+  expect(escaladeReference('abc-123456')).toBe(escaladeReference('abc-123456')) // stable
+})
+
+test('nouvelle escalade : trace event + file + notifie + renvoie référence (alreadyPending=false)', async () => {
   mockFindFirst.mockResolvedValueOnce(null)
   mockCreate.mockResolvedValueOnce({ id: 'e1' })
   mockAgentCentreFindMany.mockResolvedValueOnce([{ cjsUid: 'c1' }, { cjsUid: 'c2' }])
   mockNotifCreateMany.mockResolvedValueOnce({ count: 2 })
 
-  await recordEscalade(base)
+  const r = await recordEscalade(base)
+  expect(r).toEqual({ reference: escaladeReference('s-1'), alreadyPending: false })
 
   expect(mockLogEvent).toHaveBeenCalledWith(
     expect.objectContaining({ typeEvenement: 'escalade_conseiller', sessionId: 's-1' }),
@@ -61,10 +67,11 @@ test('nouvelle escalade : trace event + file + notifie conseillers/directeurs', 
   expect(arg.data[0]).toEqual(expect.objectContaining({ cjsUid: 'c1', type: 'Yaye', lien: '/admin/yaye/escalades' }))
 })
 
-test('escalade déjà en file : pas de doublon ni de notification (mais trace écrite)', async () => {
+test('escalade déjà en file : pas de doublon, alreadyPending=true (mais trace écrite)', async () => {
   mockFindFirst.mockResolvedValueOnce({ id: 'existing' })
 
-  await recordEscalade(base)
+  const r = await recordEscalade(base)
+  expect(r).toEqual({ reference: escaladeReference('s-1'), alreadyPending: true })
 
   expect(mockLogEvent).toHaveBeenCalled() // la trace technique reste écrite à chaque fois
   expect(mockCreate).not.toHaveBeenCalled()
@@ -81,9 +88,12 @@ test('aucun staff : pas de createMany, pas de crash', async () => {
   expect(mockNotifCreateMany).not.toHaveBeenCalled()
 })
 
-test('échec d’écriture file : fail-soft, ne lève pas', async () => {
+test('échec d’écriture file : fail-soft, renvoie quand même la référence', async () => {
   mockFindFirst.mockRejectedValueOnce(new Error('db down'))
-  await expect(recordEscalade(base)).resolves.toBeUndefined()
+  await expect(recordEscalade(base)).resolves.toEqual({
+    reference: escaladeReference('s-1'),
+    alreadyPending: false,
+  })
 })
 
 test('échec de notification : fail-soft, l’escalade reste enregistrée', async () => {
@@ -92,6 +102,8 @@ test('échec de notification : fail-soft, l’escalade reste enregistrée', asyn
   mockAgentCentreFindMany.mockResolvedValueOnce([{ cjsUid: 'c1' }])
   mockNotifCreateMany.mockRejectedValueOnce(new Error('FK violation'))
 
-  await expect(recordEscalade(base)).resolves.toBeUndefined()
+  await expect(recordEscalade(base)).resolves.toEqual(
+    expect.objectContaining({ alreadyPending: false }),
+  )
   expect(mockCreate).toHaveBeenCalled()
 })

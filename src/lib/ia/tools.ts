@@ -20,7 +20,7 @@ import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
-import { recordEscalade } from './escalade'
+import { recordEscalade, escaladeReference } from './escalade'
 import type { YayeBlock, YayeOppItem } from './blocks'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -757,7 +757,7 @@ const escalateToAdvisor: AgentTool = {
       : 'autre'
     const resume = typeof args.resume === 'string' ? args.resume.trim().slice(0, 280) : null
 
-    await recordEscalade({
+    const suivi = await recordEscalade({
       sessionId: ctx.sessionId,
       cjsUid: ctx.cjsUid,
       role: ctx.roles[0] ?? null,
@@ -766,19 +766,30 @@ const escalateToAdvisor: AgentTool = {
       raison: motif,
       stade: resume,
     })
+    // Filet : si recordEscalade est stubbé (tests) → référence dérivée de la session.
+    const reference = suivi?.reference ?? escaladeReference(ctx.sessionId)
+    const alreadyPending = suivi?.alreadyPending ?? false
 
     const base = appUrl()
     return {
       ok: true,
-      // Le LLM confirme avec ses mots ; on lui rappelle juste de rester honnête sur le délai.
+      // Le LLM confirme avec ses mots ; on lui donne la référence à citer et on lui
+      // rappelle de rester honnête sur le délai (suivi sans fausse promesse).
       data: {
         escalated: true,
-        message: "Demande transmise à l'équipe CJS. Confirme-le chaleureusement, sans promettre de délai précis.",
+        reference,
+        alreadyPending,
+        message:
+          `Demande transmise à l'équipe CJS — référence ${reference}. ` +
+          `Confirme-le chaleureusement, DONNE cette référence à la personne pour qu'elle puisse la rappeler, ` +
+          `sans promettre de délai précis.`,
       },
       block: {
         kind: 'action',
-        title: 'Demande transmise à un conseiller',
-        subtitle: 'Un membre de l’équipe CJS prendra le relais. En attendant, tu peux aussi joindre un centre.',
+        title: alreadyPending ? 'Ta demande est déjà entre de bonnes mains' : 'Demande transmise à un conseiller',
+        subtitle:
+          `Référence ${reference}. Un membre de l'équipe CJS va prendre le relais et te répondra ` +
+          `ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.`,
         actions: [],
         buttons: [{ label: 'Trouver un centre CJS', href: `${base}/centres`, primary: true }],
       },

@@ -68,12 +68,33 @@ export interface RecordEscaladeInput {
   stade?: string | null
 }
 
+/** Résultat d'une escalade — porte le SUIVI restitué à l'utilisateur. */
+export interface EscaladeResult {
+  /** Référence humaine stable (`YAYE-XXXXXX`) que la personne peut rappeler. */
+  reference: string
+  /** Vrai si une escalade non résolue existait déjà pour cette session. */
+  alreadyPending: boolean
+}
+
+/**
+ * Référence d'escalade lisible et STABLE par session (`YAYE-XXXXXX`). Dérivée du
+ * sessionId (toujours disponible, même si l'écriture en base échoue) → l'utilisateur
+ * a toujours un repère à citer, et la `EscaladeYaye` se retrouve par son `sessionId`.
+ */
+export function escaladeReference(sessionId: string): string {
+  const slug = sessionId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase()
+  return `YAYE-${slug || 'CONTACT'}`
+}
+
 /**
  * Enregistre une escalade vers un conseiller humain : trace `agent_logs` +
  * ligne dans la file `escalades_yaye` (créée une seule fois par session ouverte).
- * Ne lève jamais.
+ * Ne lève jamais. Renvoie le SUIVI (référence + si déjà en file) pour restitution
+ * à l'utilisateur.
  */
-export async function recordEscalade(input: RecordEscaladeInput): Promise<void> {
+export async function recordEscalade(input: RecordEscaladeInput): Promise<EscaladeResult> {
+  const reference = escaladeReference(input.sessionId)
+
   // 1. Trace événementielle (toujours, pour le transcript technique + métriques).
   await logAgentEvent({
     sessionId: input.sessionId,
@@ -82,7 +103,7 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<void> 
     centreId: input.centreId ?? null,
     canal: input.canal,
     typeEvenement: 'escalade_conseiller',
-    payload: { raison: input.raison ?? null, stade: input.stade ?? null },
+    payload: { raison: input.raison ?? null, stade: input.stade ?? null, reference },
   })
 
   // 2. File de traitement — une seule entrée ouverte par session.
@@ -91,7 +112,7 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<void> 
       where: { sessionId: input.sessionId, statut: { not: 'resolue' } },
       select: { id: true },
     })
-    if (existante) return // déjà en file → pas de doublon, pas de re-notification
+    if (existante) return { reference, alreadyPending: true } // déjà en file → pas de doublon
 
     await prisma.escaladeYaye.create({
       data: {
@@ -111,4 +132,5 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<void> 
     // Fail-soft : ne jamais casser la conversation pour un échec d'écriture de la file.
     logger.warn('[escalade] écriture file échouée', { session: input.sessionId, err: String(err) })
   }
+  return { reference, alreadyPending: false }
 }

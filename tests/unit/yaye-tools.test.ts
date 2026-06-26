@@ -20,7 +20,10 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 const mockRecordEscalade = jest.fn()
-jest.mock('@/lib/ia/escalade', () => ({ recordEscalade: (...a: unknown[]) => mockRecordEscalade(...a) }))
+jest.mock('@/lib/ia/escalade', () => ({
+  recordEscalade: (...a: unknown[]) => mockRecordEscalade(...a),
+  escaladeReference: (s: string) => `YAYE-${s.slice(-6).toUpperCase()}`,
+}))
 jest.mock('@/lib/app-url', () => ({ appUrl: () => 'https://app.test' }))
 
 import { TOOLS } from '@/lib/ia/tools'
@@ -101,8 +104,8 @@ test('search_opportunities : enum invalide ignoré (pas de crash Prisma)', async
 
 // ── escalate_to_advisor (Lot 6) ────────────────────────────────────────────
 
-test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc action', async () => {
-  mockRecordEscalade.mockResolvedValueOnce(undefined)
+test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc action avec référence', async () => {
+  mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-ABC123', alreadyPending: false })
   const r = await TOOLS.escalate_to_advisor.execute(
     { motif: 'sujet_sensible', resume: 'situation personnelle difficile' },
     { ...ctx, sessionId: 's-1', canal: 'web' },
@@ -115,6 +118,18 @@ test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc acti
     }),
   )
   expect(r.block?.kind).toBe('action')
+  // Suivi : la référence est restituée (data + bloc) pour que la personne puisse la rappeler.
+  expect((r.data as { reference?: string })?.reference).toBe('YAYE-ABC123')
+  expect(r.block && 'subtitle' in r.block ? r.block.subtitle : '').toContain('YAYE-ABC123')
+})
+
+test('escalate_to_advisor : escalade déjà en cours → titre adapté', async () => {
+  mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-ABC123', alreadyPending: true })
+  const r = await TOOLS.escalate_to_advisor.execute(
+    { motif: 'demande_explicite' },
+    { ...ctx, sessionId: 's-1', canal: 'web' },
+  )
+  expect(r.block && 'title' in r.block ? r.block.title : '').toMatch(/déjà/i)
 })
 
 test('escalate_to_advisor : sans session/canal → ok:false, aucune trace', async () => {
@@ -124,7 +139,7 @@ test('escalate_to_advisor : sans session/canal → ok:false, aucune trace', asyn
 })
 
 test('escalate_to_advisor : motif inconnu normalisé en "autre"', async () => {
-  mockRecordEscalade.mockResolvedValueOnce(undefined)
+  mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-XYZ789', alreadyPending: false })
   await TOOLS.escalate_to_advisor.execute(
     { motif: 'n_importe_quoi' },
     { ...ctx, sessionId: 's-2', canal: 'whatsapp' },

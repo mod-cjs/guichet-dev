@@ -274,7 +274,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
 
   // Garde-fou : trop de tours d'outils sans réponse finale → escalade conseiller.
   await logAgentEvent({ ...base, typeEvenement: 'erreur', statut: 'partiel', payload: { raison: 'max_tool_rounds' } })
-  await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
-  const escalade = "Je n'ai pas réussi à finaliser ta demande. Veux-tu que je te mette en relation avec un conseiller ?"
+  const suivi = await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
+  const escalade =
+    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS ` +
+    `(référence ${suivi.reference}). Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
   return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...blocks], toolsUsed }
 }
