@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { getOpportuniteDetailForAdmin } from '@/lib/opportunites-loader'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
+import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
 import { Alert } from '@/components/ui/Alert'
 import { Icon } from '@/components/ui/Icon'
 
@@ -44,7 +46,11 @@ export default async function Page({
       </Alert>
 
       <div className="mt-space-3">
-        <OpportuniteDetail detail={detail} viewer={null} />
+        {/* Suspense OBLIGATOIRE : OpportuniteDetail (client) utilise useSearchParams()
+            → sans frontière Suspense, Next throw au prerender (500). */}
+        <Suspense fallback={<OpportuniteDetailSkeleton />}>
+          <OpportuniteDetail detail={detail} viewer={null} />
+        </Suspense>
       </div>
     </div>
   )
