@@ -10,7 +10,7 @@ import { Icon } from '@/components/ui/Icon'
 import { YayeBlocks } from '@/components/yaye/YayeBlocks'
 import { YayeFeedback } from '@/components/yaye/YayeFeedback'
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
-import type { YayeBlock } from '@/lib/ia/blocks'
+import { streamYaye } from '@/lib/ia/yaye-client'
 
 /** Message affiché dans la conversation. `text` est un ReactNode → permet d'y rendre
  *  des blocs riches (texte + cards opportunités cliquables + actions), via YayeBlocks. */
@@ -72,32 +72,48 @@ export function YayeChat() {
       const history = historyRef.current.slice(-HISTORY_MAX)
       historyRef.current.push({ role: 'user', content: trimmed })
 
-      try {
-        const res = await fetch('/api/ia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: trimmed, sessionId: sessionIdRef.current, history }),
-        })
-        const json = await res.json()
-        const reply: string =
-          json?.data?.reply ?? json?.error?.message ?? "Je n'ai pas pu répondre pour le moment."
-        const blocks: YayeBlock[] = json?.data?.blocks ?? [{ kind: 'text', text: reply }]
-        if (json?.data?.sessionId) sessionIdRef.current = json.data.sessionId
-        historyRef.current.push({ role: 'assistant', content: reply })
-        const sid = sessionIdRef.current
-        const tourIndex = botTurnRef.current
-        botTurnRef.current += 1
-        pushBot(
-          <div className="flex flex-col gap-space-2">
-            <YayeBlocks blocks={blocks} onQuickReply={handleQuickReply} />
-            {sid && <YayeFeedback sessionId={sid} tourIndex={tourIndex} />}
-          </div>,
-        )
-      } catch {
-        pushBot('Connexion interrompue. Réessaie dans un instant.')
-      } finally {
-        setIsTyping(false)
+      // Bulle de streaming : on accumule les tokens et on l'affiche dès le premier.
+      const streamId = nextId()
+      let acc = ''
+      let shown = false
+      const renderStream = () => {
+        if (!shown) {
+          shown = true
+          setIsTyping(false) // les tokens remplacent les points de frappe
+          setMessages(prev => [...prev, { id: streamId, kind: 'bubble', from: 'bot', text: acc, timestamp: formatTime() }])
+        } else {
+          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: acc } : m)))
+        }
       }
+
+      await streamYaye(
+        { message: trimmed, sessionId: sessionIdRef.current, history },
+        {
+          onToken: t => { acc += t; renderStream() },
+          onDone: ({ reply, blocks, sessionId }) => {
+            if (sessionId) sessionIdRef.current = sessionId
+            historyRef.current.push({ role: 'assistant', content: reply })
+            const sid = sessionIdRef.current
+            const tourIndex = botTurnRef.current
+            botTurnRef.current += 1
+            setIsTyping(false)
+            const node = (
+              <div className="flex flex-col gap-space-2">
+                <YayeBlocks blocks={blocks} onQuickReply={handleQuickReply} />
+                {sid && <YayeFeedback sessionId={sid} tourIndex={tourIndex} />}
+              </div>
+            )
+            // Remplace la bulle de streaming par le rendu final (cards + feedback),
+            // ou pousse une nouvelle bulle si aucun token n'a été streamé (fallback JSON).
+            if (shown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
+            else pushBot(node)
+          },
+          onError: () => {
+            setIsTyping(false)
+            if (!shown) pushBot('Connexion interrompue. Réessaie dans un instant.')
+          },
+        },
+      )
     },
     [formatTime, pushBot, handleQuickReply],
   )

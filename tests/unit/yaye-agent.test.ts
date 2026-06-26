@@ -24,13 +24,27 @@ jest.mock('@/lib/ia/tools', () => ({
 const mockLog = jest.fn()
 jest.mock('@/lib/ia/agent-logs', () => ({ logAgentEvent: (...a: unknown[]) => mockLog(...a) }))
 
-import { runAgent } from '@/lib/ia/agent'
+import { runAgent, streamAgent, type AgentStreamEvent } from '@/lib/ia/agent'
 
 const base = { cjsUid: 'u-1', roles: ['beneficiaire'], sessionId: 's-1', canal: 'web' as const }
 const final = (content: string) => ({ choices: [{ message: { content, tool_calls: undefined } }] })
 const withToolCall = (name: string, args: string) => ({
   choices: [{ message: { content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name, arguments: args } }] } }],
 })
+
+// ── Helpers streaming (Groq stream:true → flux async de chunks delta) ──────────
+async function* streamOf<T>(chunks: T[]): AsyncGenerator<T> {
+  for (const c of chunks) yield c
+}
+const textDelta = (content: string) => ({ choices: [{ delta: { content } }] })
+const toolDelta = (name: string, args: string) => ({
+  choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name, arguments: args } }] } }],
+})
+async function collect(gen: AsyncGenerator<AgentStreamEvent>): Promise<AgentStreamEvent[]> {
+  const out: AgentStreamEvent[] = []
+  for await (const e of gen) out.push(e)
+  return out
+}
 
 beforeEach(() => {
   mockCreate.mockReset()
@@ -100,4 +114,35 @@ test('garde-fou : trop de tours d’outils → réponse d’escalade + log erreu
   const r = await runAgent({ ...base, message: 'boucle' })
   expect(r.reply).toMatch(/conseiller/i)
   expect(mockLog).toHaveBeenCalledWith(expect.objectContaining({ typeEvenement: 'erreur', statut: 'partiel' }))
+})
+
+// ── streamAgent (SSE, #1) ─────────────────────────────────────────────────────
+
+test('streamAgent : émet les tokens de la réponse puis un done cohérent (sans outil)', async () => {
+  mockCreate.mockResolvedValueOnce(streamOf([textDelta('Bon'), textDelta('jour'), textDelta(' Awa')]))
+  const evs = await collect(streamAgent({ ...base, message: 'salut' }))
+
+  const tokens = evs.filter(e => e.type === 'token').map(e => e.type === 'token' && e.text).join('')
+  expect(tokens).toBe('Bonjour Awa')
+  const done = evs.find(e => e.type === 'done')
+  expect(done).toBeDefined()
+  if (done?.type === 'done') {
+    expect(done.reply).toBe('Bonjour Awa')
+    expect(done.blocks[0]).toEqual({ kind: 'text', text: 'Bonjour Awa' })
+    expect(mockExecute).not.toHaveBeenCalled()
+  }
+})
+
+test('streamAgent : émet un événement tool (progression) puis la réponse finale', async () => {
+  mockCreate
+    .mockResolvedValueOnce(streamOf([toolDelta('test_tool', '{}')]))
+    .mockResolvedValueOnce(streamOf([textDelta('Voici')]))
+  mockExecute.mockResolvedValueOnce({ ok: true, data: {} })
+
+  const evs = await collect(streamAgent({ ...base, message: 'des offres' }))
+
+  expect(evs.some(e => e.type === 'tool' && e.name === 'test_tool')).toBe(true)
+  expect(mockExecute).toHaveBeenCalled()
+  const done = evs.find(e => e.type === 'done')
+  expect(done?.type === 'done' && done.reply).toBe('Voici')
 })

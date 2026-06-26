@@ -127,6 +127,97 @@ export interface RunAgentResult {
   toolsUsed: string[]
 }
 
+/** État mutable de la boucle d'outils, partagé entre runAgent et streamAgent. */
+interface ToolLoopState {
+  toolsUsed: string[]
+  blocks: YayeBlock[]
+  offeredAlternatives: boolean
+}
+type ToolCallLike = { id: string; function: { name: string; arguments: string } }
+type AgentBase = { sessionId: string; cjsUid: string; role: string | null; centreId: string | null; canal: CanalAgent }
+type ToolCtx = { cjsUid: string; roles: string[]; centreId: string | null; sessionId: string; canal: CanalAgent }
+
+/**
+ * Exécute UN appel d'outil : RBAC, journalisation (`api_appelee` + `graph_interroge`),
+ * surfaçage du bloc (cards), garde anti-invention + quick replies. Mute `state`.
+ * Renvoie le message `tool` à réinjecter au modèle. SEULE source de vérité de cette
+ * logique → partagée par `runAgent` (non-stream) et `streamAgent` (SSE).
+ */
+async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase, state: ToolLoopState): Promise<Msg> {
+  const name = call.function.name
+  const tStart = Date.now()
+  const tool = TOOLS[name]
+  let result: { ok: boolean; data?: unknown; error?: string; block?: YayeBlock; graph?: { template: string; nodesReturned: number } }
+
+  if (!tool) {
+    result = { ok: false, error: `Outil inconnu: ${name}` }
+  } else {
+    let args: Record<string, unknown> = {}
+    try { args = JSON.parse(call.function.arguments || '{}') } catch { /* args invalides → {} */ }
+    try {
+      result = await tool.execute(args, ctx)
+    } catch (e) {
+      result = { ok: false, error: String(e) }
+    }
+  }
+
+  state.toolsUsed.push(name)
+  if (result.block) state.blocks.push(result.block) // card cliquable surfacée au frontend
+
+  await logAgentEvent({
+    ...base,
+    typeEvenement: 'api_appelee',
+    toolCalled: name,
+    dureeMs: Date.now() - tStart,
+    statut: result.ok ? 'succes' : 'echec',
+    // `resume` = données métier renvoyées (non-PII, borné) → permet au juge de mesurer
+    // la fidélité/groundedness au lieu de la deviner (GUIC-435, R1).
+    payload: { args: call.function.arguments, resume: summarizeToolResult(name, result) },
+  })
+
+  // Trace dédiée des interrogations du graphe (spec 02 §5 — événement graph_interroge).
+  if (result.graph) {
+    await logAgentEvent({
+      ...base,
+      typeEvenement: 'graph_interroge',
+      toolCalled: name,
+      dureeMs: Date.now() - tStart,
+      statut: result.ok ? 'succes' : 'echec',
+      cypherQuery: result.graph.template,
+      nodesReturned: { count: result.graph.nodesReturned },
+      payload: { args: call.function.arguments },
+    })
+  }
+
+  // On renvoie au LLM les données (ok/data/error), PAS le bloc de rendu (économie de tokens).
+  let toolContent = JSON.stringify({ ok: result.ok, data: result.data, error: result.error }).slice(0, CONFIG.maxToolResultChars)
+
+  // Garde anti-invention (Option C) : un outil de recherche qui n'a produit AUCUNE
+  // card (block absent) n'a rien de réel à présenter. On l'explicite au modèle pour
+  // qu'il le dise franchement au lieu d'inventer des offres.
+  if (result.ok && SEARCH_TOOLS.has(name) && !result.block) {
+    toolContent +=
+      "\n\n[CONSIGNE SYSTÈME] Aucune opportunité à présenter pour ces critères. " +
+      "N'invente AUCUNE offre, titre, organisation ni date : appuie-toi uniquement sur les données ci-dessus. " +
+      'Dis en UNE phrase qu\'il n\'y a rien trouvé ; les pistes de suite sont déjà proposées en boutons, ne les répète pas en texte.'
+
+    // Quick replies (Option D) : boutons tappables au lieu de la prose. Une fois par réponse.
+    if (!state.offeredAlternatives) {
+      state.offeredAlternatives = true
+      state.blocks.push({
+        kind: 'quick_replies',
+        replies: [
+          { label: 'Élargir à tout le Sénégal', value: 'Élargis la recherche à toutes les régions' },
+          { label: 'Voir les formations', value: 'Montre-moi plutôt des formations' },
+          { label: 'Parler à un conseiller', value: 'Je veux parler à un conseiller du CJS' },
+        ],
+      })
+    }
+  }
+
+  return { role: 'tool', tool_call_id: call.id, content: toolContent }
+}
+
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const groq = getGroq()
   const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
@@ -137,9 +228,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     centreId: p.centreId ?? null,
     canal: p.canal,
   }
-  const toolsUsed: string[] = []
-  const blocks: YayeBlock[] = []
-  let offeredAlternatives = false // évite de proposer deux fois les mêmes quick replies
+  // État partagé avec executeToolCall (tableaux mutés en place → alias OK).
+  const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
+  const { toolsUsed, blocks } = state
 
   const messages: Msg[] = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -191,84 +282,8 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     messages.push(choice as Msg)
 
     for (const call of toolCalls) {
-      const name = call.function.name
-      const tStart = Date.now()
-      const tool = TOOLS[name]
-      let result: { ok: boolean; data?: unknown; error?: string; block?: YayeBlock; graph?: { template: string; nodesReturned: number } }
-
-      if (!tool) {
-        result = { ok: false, error: `Outil inconnu: ${name}` }
-      } else {
-        let args: Record<string, unknown> = {}
-        try { args = JSON.parse(call.function.arguments || '{}') } catch { /* args invalides → {} */ }
-        try {
-          result = await tool.execute(args, ctx)
-        } catch (e) {
-          result = { ok: false, error: String(e) }
-        }
-      }
-
-      toolsUsed.push(name)
-      if (result.block) blocks.push(result.block) // card cliquable surfacée au frontend
-
-      await logAgentEvent({
-        ...base,
-        typeEvenement: 'api_appelee',
-        toolCalled: name,
-        dureeMs: Date.now() - tStart,
-        statut: result.ok ? 'succes' : 'echec',
-        // `resume` = données métier renvoyées (non-PII, borné) → permet au juge de mesurer
-        // la fidélité/groundedness au lieu de la deviner (GUIC-435, R1).
-        payload: { args: call.function.arguments, resume: summarizeToolResult(name, result) },
-      })
-
-      // Trace dédiée des interrogations du graphe (spec 02 §5 — événement graph_interroge).
-      if (result.graph) {
-        await logAgentEvent({
-          ...base,
-          typeEvenement: 'graph_interroge',
-          toolCalled: name,
-          dureeMs: Date.now() - tStart,
-          statut: result.ok ? 'succes' : 'echec',
-          cypherQuery: result.graph.template,
-          nodesReturned: { count: result.graph.nodesReturned },
-          payload: { args: call.function.arguments },
-        })
-      }
-
-      // On renvoie au LLM les données (ok/data/error), PAS le bloc de rendu (économie de tokens).
-      let toolContent = JSON.stringify({ ok: result.ok, data: result.data, error: result.error }).slice(0, CONFIG.maxToolResultChars)
-
-      // Garde anti-invention (Option C) : un outil de recherche qui n'a produit
-      // AUCUNE card (block absent) n'a rien de réel à présenter. On l'explicite
-      // au modèle pour qu'il le dise franchement au lieu d'inventer des offres
-      // (llama transgresse sinon la règle 1 du prompt sur résultat vide).
-      if (result.ok && SEARCH_TOOLS.has(name) && !result.block) {
-        toolContent +=
-          "\n\n[CONSIGNE SYSTÈME] Aucune opportunité à présenter pour ces critères. " +
-          "N'invente AUCUNE offre, titre, organisation ni date : appuie-toi uniquement sur les données ci-dessus. " +
-          'Dis en UNE phrase qu\'il n\'y a rien trouvé ; les pistes de suite sont déjà proposées en boutons, ne les répète pas en texte.'
-
-        // Quick replies (Option D) : on remplace la prose « tu peux élargir… » par
-        // des boutons tappables. Une seule fois par réponse.
-        if (!offeredAlternatives) {
-          offeredAlternatives = true
-          blocks.push({
-            kind: 'quick_replies',
-            replies: [
-              { label: 'Élargir à tout le Sénégal', value: 'Élargis la recherche à toutes les régions' },
-              { label: 'Voir les formations', value: 'Montre-moi plutôt des formations' },
-              { label: 'Parler à un conseiller', value: 'Je veux parler à un conseiller du CJS' },
-            ],
-          })
-        }
-      }
-
-      messages.push({
-        role: 'tool',
-        tool_call_id: call.id,
-        content: toolContent,
-      })
+      const toolMsg = await executeToolCall(call, ctx, base, state)
+      messages.push(toolMsg)
     }
   }
 
@@ -279,4 +294,119 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS ` +
     `(référence ${suivi.reference}). Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
   return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...blocks], toolsUsed }
+}
+
+// ── Variante STREAMING (SSE, #1) ──────────────────────────────────────────────
+// Même orchestration que runAgent, mais émet des événements AU FIL DE L'EAU :
+//   { type:'tool', name }  → un outil démarre (progression visible avant la réponse)
+//   { type:'token', text } → fragment de la réponse finale (Groq stream:true)
+//   { type:'done', ... }   → réponse complète + blocs (cards) + outils utilisés
+// La logique d'exécution d'outil est partagée (executeToolCall) → zéro divergence
+// de comportement métier/journalisation avec runAgent ; seul l'appel Groq diffère.
+
+export type AgentStreamEvent =
+  | { type: 'tool'; name: string }
+  | { type: 'token'; text: string }
+  | { type: 'done'; reply: string; blocks: YayeBlock[]; toolsUsed: string[] }
+
+export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStreamEvent> {
+  const groq = getGroq()
+  const ctx: ToolCtx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
+  const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
+  const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
+
+  const messages: Msg[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
+    { role: 'user', content: p.message },
+  ]
+
+  for (let round = 0; round < CONFIG.maxToolRounds; round++) {
+    const t0 = Date.now()
+    const temperature = state.toolsUsed.length > 0 ? CONFIG.temperatureFinal : CONFIG.temperature
+    const stream = await groq.chat.completions.create({
+      model: CONFIG.model,
+      messages,
+      tools: TOOL_DEFINITIONS as unknown as Groq.Chat.ChatCompletionTool[],
+      tool_choice: 'auto',
+      temperature,
+      max_tokens: CONFIG.maxTokens,
+      top_p: CONFIG.topP,
+      frequency_penalty: CONFIG.frequencyPenalty,
+      presence_penalty: CONFIG.presencePenalty,
+      stream: true,
+    })
+
+    let content = ''
+    const toolAcc: Record<number, { id: string; name: string; args: string }> = {}
+    let sawToolCall = false
+
+    for await (const chunk of stream as AsyncIterable<Groq.Chat.ChatCompletionChunk>) {
+      const delta = chunk.choices?.[0]?.delta
+      if (!delta) continue
+      if (delta.tool_calls?.length) {
+        sawToolCall = true
+        for (const tc of delta.tool_calls) {
+          const idx = tc.index ?? 0
+          const acc = (toolAcc[idx] ??= { id: '', name: '', args: '' })
+          if (tc.id) acc.id = tc.id
+          if (tc.function?.name) acc.name = tc.function.name
+          if (tc.function?.arguments) acc.args += tc.function.arguments
+        }
+      }
+      // Contenu = réponse finale en cours (les rounds d'outils n'ont pas de contenu) → on streame.
+      if (delta.content && !sawToolCall) {
+        content += delta.content
+        yield { type: 'token', text: delta.content }
+      }
+    }
+
+    const toolCalls = Object.keys(toolAcc)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(i => toolAcc[i])
+      .filter(c => c.name)
+
+    // Aucun outil → réponse finale (déjà streamée en tokens).
+    if (toolCalls.length === 0) {
+      const reply = content || "Je n'ai pas pu générer de réponse."
+      await logAgentEvent({
+        ...base,
+        typeEvenement: 'reponse_generee',
+        dureeMs: Date.now() - t0,
+        payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
+      })
+      yield { type: 'done', reply, blocks: [{ kind: 'text', text: reply }, ...state.blocks], toolsUsed: state.toolsUsed }
+      return
+    }
+
+    await logAgentEvent({
+      ...base,
+      typeEvenement: 'intention_detectee',
+      dureeMs: Date.now() - t0,
+      payload: { outils: toolCalls.map(c => c.name) },
+    })
+
+    // Message assistant porteur des tool_calls (format OpenAI) à réinjecter au modèle.
+    messages.push({
+      role: 'assistant',
+      content: content || null,
+      tool_calls: toolCalls.map(c => ({ id: c.id, type: 'function' as const, function: { name: c.name, arguments: c.args } })),
+    } as Msg)
+
+    for (const c of toolCalls) {
+      yield { type: 'tool', name: c.name } // progression visible côté client
+      const toolMsg = await executeToolCall({ id: c.id, function: { name: c.name, arguments: c.args } }, ctx, base, state)
+      messages.push(toolMsg)
+    }
+  }
+
+  // Garde-fou max rounds → escalade (parité runAgent).
+  await logAgentEvent({ ...base, typeEvenement: 'erreur', statut: 'partiel', payload: { raison: 'max_tool_rounds' } })
+  const suivi = await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
+  const escalade =
+    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS ` +
+    `(référence ${suivi.reference}). Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
+  yield { type: 'token', text: escalade }
+  yield { type: 'done', reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...state.blocks], toolsUsed: state.toolsUsed }
 }

@@ -39,6 +39,12 @@ export interface YayeSidePanelProps {
   onSend?: (value: string) => void
   /** Vrai pendant l'envoi : désactive le composer et le bouton. */
   sending?: boolean
+  /**
+   * Affiche l'indicateur de frappe. Si absent, on retombe sur `sending` (le panel
+   * en mock l'utilise). En mode streaming, le parent le passe à `false` dès le
+   * premier token pour que les points laissent place au texte qui s'écrit.
+   */
+  typing?: boolean
 }
 
 /**
@@ -100,6 +106,7 @@ export function YayeSidePanel({
   onComposerChange,
   onSend,
   sending = false,
+  typing,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -324,7 +331,7 @@ export function YayeSidePanel({
               />
             </div>
           )}
-          {sending && <YayeTypingIndicator />}
+          {(typing ?? sending) && <YayeTypingIndicator />}
           <div ref={endRef} />
         </div>
 
