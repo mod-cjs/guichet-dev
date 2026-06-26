@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { runAgent } from '@/lib/ia/agent'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
-import { loadContext, saveContext, TTL_WEB } from '@/lib/ia/context'
+import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import type { YayeBlock } from '@/lib/ia/blocks'
 import type { ApiResponse } from '@/types/api'
@@ -50,8 +50,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   const { message } = parsed.data
   const isNewSession = !parsed.data.sessionId
   const sessionId = parsed.data.sessionId ?? randomUUID()
-  // Historique côté SERVEUR (Redis), pas celui fourni par le client (autorité serveur).
-  const history = await loadContext(sessionId)
+  // Mémoire conversationnelle unifiée par utilisateur (continuité cross-canal web↔WhatsApp).
+  // Autorité serveur (Redis), pas l'historique fourni par le client.
+  const ctxKey = userContextKey(session.cjsUid)
+  const history = await loadContext(ctxKey)
   const role = session.roles[0] ?? null
   const logBase = { sessionId, cjsUid: session.cjsUid, role, canal: 'web' as const }
 
@@ -88,11 +90,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       assistantText: result.reply,
     })
 
-    // Persiste le contexte côté serveur (cache chaud Redis, TTL 30 min web).
+    // Persiste la mémoire unifiée (cache chaud Redis, TTL 7 j — suit l'utilisateur entre canaux).
     await saveContext(
-      sessionId,
+      ctxKey,
       [...history, { role: 'user', content: message }, { role: 'assistant', content: result.reply }],
-      TTL_WEB,
+      TTL_USER,
     )
     return NextResponse.json({
       data: { reply: result.reply, blocks: result.blocks, sessionId, toolsUsed: result.toolsUsed },

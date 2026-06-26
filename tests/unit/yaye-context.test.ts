@@ -10,7 +10,7 @@ jest.mock('@/lib/redis', () => ({
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
-import { loadContext, saveContext } from '@/lib/ia/context'
+import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 
 beforeEach(() => {
   mockGet.mockReset()
@@ -42,4 +42,24 @@ test('save : set avec préfixe + TTL', async () => {
 test('save : FAIL-SOFT (ne throw pas)', async () => {
   mockSet.mockRejectedValueOnce(new Error('redis down'))
   await expect(saveContext('s1', [], 10)).resolves.toBeUndefined()
+})
+
+// ── Continuité cross-canal (#3/#4) : clé unifiée par utilisateur ──────────────
+
+test('userContextKey : ancre la mémoire sur le cjsUid (indépendant du canal)', () => {
+  expect(userContextKey('u-1')).toBe('user:u-1')
+  // Web et WhatsApp d'une même personne → MÊME clé → mémoire partagée.
+  expect(userContextKey('u-1')).toBe(userContextKey('u-1'))
+  expect(userContextKey('u-1')).not.toBe(userContextKey('u-2'))
+})
+
+test('continuité : un tour WhatsApp est relu côté web (même clé user)', async () => {
+  const key = userContextKey('u-7')
+  mockSet.mockResolvedValueOnce('OK')
+  await saveContext(key, [{ role: 'user', content: 'depuis whatsapp' }], TTL_USER)
+  expect(mockSet).toHaveBeenCalledWith('yaye:ctx:user:u-7', expect.any(String), 'EX', TTL_USER)
+
+  mockGet.mockResolvedValueOnce(JSON.stringify([{ role: 'user', content: 'depuis whatsapp' }]))
+  expect(await loadContext(key)).toEqual([{ role: 'user', content: 'depuis whatsapp' }])
+  expect(mockGet).toHaveBeenCalledWith('yaye:ctx:user:u-7')
 })

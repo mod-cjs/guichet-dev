@@ -28,6 +28,8 @@ jest.mock('@/lib/ia/agent', () => ({ runAgent: (...a: unknown[]) => mockRun(...a
 jest.mock('@/lib/ia/context', () => ({
   loadContext: jest.fn().mockResolvedValue([]),
   saveContext: jest.fn(),
+  userContextKey: (cjsUid: string) => `user:${cjsUid}`,
+  TTL_USER: 604800,
   TTL_WHATSAPP: 100,
 }))
 

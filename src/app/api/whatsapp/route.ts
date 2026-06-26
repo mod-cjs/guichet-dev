@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { runAgent } from '@/lib/ia/agent'
 import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/lib/ia/format-whatsapp'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
-import { loadContext, saveContext, TTL_WHATSAPP } from '@/lib/ia/context'
+import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 
@@ -50,7 +50,9 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     return
   }
 
-  const ctxKey = `wa:${telephone}`
+  // Mémoire unifiée par utilisateur → la conversation WhatsApp PROLONGE celle du web
+  // (et inversement), au lieu d'un historique cloisonné par téléphone.
+  const ctxKey = userContextKey(conv.cjsUid)
   const history = await loadContext(ctxKey)
   const result = await runAgent({
     message: text,
@@ -73,7 +75,7 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
   await saveContext(
     ctxKey,
     [...history, { role: 'user', content: text }, { role: 'assistant', content: result.reply }],
-    TTL_WHATSAPP,
+    TTL_USER,
   )
 }
 
