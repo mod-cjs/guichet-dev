@@ -3,7 +3,7 @@
  * L'admin supervise (vue globale, stats, export, détection de blocages) ;
  * il NE décide PAS (Retenir/Refuser = rôle recruteur). TDD.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 
 const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
@@ -22,8 +22,10 @@ beforeEach(() => mockPush.mockReset())
 const ROWS: CandidatureRow[] = [
   {
     id: 'c1',
+    candidatCjsUid: 'uid-awa',
     candidatPrenom: 'Awa',
     candidatNom: 'Diop',
+    opportuniteId: 'opp-1',
     opportuniteTitre: 'Développeur full-stack',
     organisation: 'Sonatel',
     statut: 'En_attente',
@@ -32,8 +34,10 @@ const ROWS: CandidatureRow[] = [
   },
   {
     id: 'c2',
+    candidatCjsUid: 'uid-mamadou',
     candidatPrenom: 'Mamadou',
     candidatNom: 'Sow',
+    opportuniteId: 'opp-2',
     opportuniteTitre: 'Bourse mobilité',
     organisation: 'CJS',
     statut: 'Retenue',
@@ -108,6 +112,24 @@ describe('GUIC-462 — AdminCandidaturesTable (supervision)', () => {
     expect(exportLink.getAttribute('href')).toContain('q=Diop')
   })
 
+  // CAND-3 — drill-down : candidat → fiche, opportunité → aperçu admin.
+  it('le candidat est un lien vers sa fiche, l’opportunité vers l’aperçu admin', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    const candidat = screen.getAllByRole('link', { name: /Awa Diop/i })[0]
+    expect(candidat).toHaveAttribute('href', '/admin/utilisateurs/uid-awa')
+    const opp = screen.getAllByRole('link', { name: /Développeur full-stack/i })[0]
+    expect(opp).toHaveAttribute('href', '/admin/opportunites/opp-1/apercu')
+  })
+
+  // CAND-1 — vue mobile en cartes (était un tableau 4 colonnes tassé).
+  it('rend une liste mobile en cartes (md:hidden)', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    const mobile = screen.getByLabelText('Liste des candidatures (vue mobile)')
+    expect(mobile.className).toMatch(/md:hidden/)
+    // chaque carte référence le candidat et l'opportunité (liens drill-down dupliqués)
+    expect(within(mobile).getAllByRole('link', { name: /Awa Diop/i }).length).toBeGreaterThanOrEqual(1)
+  })
+
   it('given une saisie, when submit recherche, then router.push avec ?q=', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
     const input = screen.getByLabelText(/rechercher une candidature/i)
@@ -123,6 +145,7 @@ describe('GUIC-462 — AdminCandidaturesTable (supervision)', () => {
 
   it('affiche un état vide si aucune candidature', () => {
     render(<AdminCandidaturesTable {...defaultProps} rows={[]} total={0} totalPages={0} />)
-    expect(screen.getByText(/aucune candidature/i)).toBeInTheDocument()
+    // Présent côté desktop (table) ET côté mobile (cartes) — au moins une occurrence.
+    expect(screen.getAllByText(/aucune candidature/i).length).toBeGreaterThanOrEqual(1)
   })
 })

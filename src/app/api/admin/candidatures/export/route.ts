@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const q = (searchParams.get('q') ?? '').trim()
-  const statutFilter = searchParams.get('statut') ?? ''
+  // CAND-2 — `statut` validé contre l'enum (un param invalide ferait crasher Prisma → 500).
+  const VALID_STATUTS = new Set<StatutCandidature>(['En_attente', 'Vue', 'Retenue', 'Refusee'])
+  const rawStatut = searchParams.get('statut') ?? ''
+  const statutFilter = VALID_STATUTS.has(rawStatut as StatutCandidature) ? rawStatut : ''
 
   const where: Prisma.CandidatureWhereInput = {
     ...(q

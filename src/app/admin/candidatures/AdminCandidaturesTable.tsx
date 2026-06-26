@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
@@ -11,8 +12,12 @@ import type { StatutCandidature } from '@prisma/client'
 
 export interface CandidatureRow {
   id: string
+  /** Drill-down : fiche du candidat. */
+  candidatCjsUid: string
   candidatPrenom: string
   candidatNom: string
+  /** Drill-down : aperçu de l'opportunité (route admin, tout statut). */
+  opportuniteId: string
   opportuniteTitre: string
   organisation: string
   statut: StatutCandidature
@@ -202,11 +207,10 @@ export function AdminCandidaturesTable({
           })}
         </div>
 
-        {/* ── Table ── */}
-        <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
+        {/* ── Table (desktop uniquement — cartes empilées en mobile, cf plus bas) ── */}
+        <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
           <div
             style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.8fr 1fr 1.2fr', gap: 14, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }}
-            className="hidden md:grid"
           >
             <span>Candidat</span>
             <span>Opportunité</span>
@@ -225,7 +229,6 @@ export function AdminCandidaturesTable({
                 <div
                   key={c.id}
                   style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.8fr 1fr 1.2fr', gap: 14, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center' }}
-                  className="!grid grid-cols-1 md:!grid-cols-[1.6fr_1.8fr_1fr_1.2fr]"
                 >
                   {/* Candidat */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
@@ -233,17 +236,25 @@ export function AdminCandidaturesTable({
                       {initials(c.candidatPrenom, c.candidatNom)}
                     </span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--gj-ink)' }}>
+                      <Link
+                        href={`/admin/utilisateurs/${c.candidatCjsUid}`}
+                        className="hover:underline"
+                        style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--gj-ink)', textDecoration: 'none' }}
+                      >
                         {c.candidatPrenom} {c.candidatNom}
-                      </div>
+                      </Link>
                     </div>
                   </div>
 
                   {/* Opportunité */}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Link
+                      href={`/admin/opportunites/${c.opportuniteId}/apercu`}
+                      className="hover:underline"
+                      style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                    >
                       {c.opportuniteTitre}
-                    </div>
+                    </Link>
                     <div style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{c.organisation}</div>
                   </div>
 
@@ -272,6 +283,48 @@ export function AdminCandidaturesTable({
             })
           )}
         </div>
+
+        {/* ── Cartes mobiles (CAND-1) ── */}
+        {rows.length === 0 ? (
+          <div className="md:hidden" style={{ padding: '40px 18px', textAlign: 'center', color: 'var(--gj-grey)', fontSize: 14, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14 }}>
+            Aucune candidature trouvée.
+          </div>
+        ) : (
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }} aria-label="Liste des candidatures (vue mobile)">
+            {rows.map((c) => {
+              const sc = statutColors(c.statut)
+              return (
+                <div key={`m-${c.id}`} style={{ background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 13, padding: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <span aria-hidden style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))', color: 'var(--gj-surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>
+                      {initials(c.candidatPrenom, c.candidatNom)}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Link href={`/admin/utilisateurs/${c.candidatCjsUid}`} className="hover:underline" style={{ fontSize: 14, fontWeight: 800, color: 'var(--gj-ink)', textDecoration: 'none' }}>
+                        {c.candidatPrenom} {c.candidatNom}
+                      </Link>
+                      <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {relativeDate(c.soumiseA)}
+                        {c.enRetard && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '1px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+                            <Icon name="clock" size={10} /> À relancer
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: sc.bg, color: sc.fg, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {statutLabel(c.statut)}
+                    </span>
+                  </div>
+                  <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)', textDecoration: 'none' }}>
+                    {c.opportuniteTitre}
+                    <span style={{ fontWeight: 400, color: 'var(--gj-grey)' }}> · {c.organisation}</span>
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* ── Pagination ── */}
         {totalPages > 1 && (
