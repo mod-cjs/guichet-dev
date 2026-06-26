@@ -2,7 +2,7 @@
  * GUIC-452 — AdminUsersTable Lot 11 (sombre + doré)
  * Tests RED : assertions sur la page Utilisateurs admin design v3.
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { AdminUsersTable, type AdminUserRow, type StatutCount } from '@/app/admin/utilisateurs/AdminUsersTable'
 
 const mockPush = jest.fn()
@@ -146,6 +146,16 @@ describe('GUIC-452 — AdminUsersTable Lot 11 utilisateurs', () => {
     expect(screen.getAllByText('Bénéficiaire').length).toBeGreaterThanOrEqual(1) // row1 role=null → fallback
     expect(screen.getAllByText('Conseiller').length).toBeGreaterThanOrEqual(1)   // row2 role=conseiller
     expect(screen.getAllByText('Admin').length).toBeGreaterThanOrEqual(1)        // row3 role=admin
+  })
+
+  // U-H1 — les cartes mobiles existent ET sont des liens tappables vers la fiche
+  // (avant : bloc display:none, non navigable sur mobile).
+  it('rend des cartes mobiles tappables vers la fiche de chaque utilisateur', () => {
+    render(<AdminUsersTable {...defaultProps} />)
+    const mobileList = screen.getByLabelText('Liste des utilisateurs (vue mobile)')
+    const links = within(mobileList).getAllByRole('link')
+    expect(links).toHaveLength(MOCK_ROWS.length)
+    expect(links[0]).toHaveAttribute('href', '/admin/utilisateurs/uid-001')
   })
 
   it('affiche la commune ou le centre du premier utilisateur', () => {

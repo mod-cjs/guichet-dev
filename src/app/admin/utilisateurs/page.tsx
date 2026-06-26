@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { deriveRole } from '@/lib/loaders/derive-role'
 import { AdminUsersTable, type AdminUserRow, type StatutCount } from './AdminUsersTable'
 
 export const metadata: Metadata = { title: 'Utilisateurs — Admin CJS' }
@@ -91,6 +92,28 @@ export default async function Page({
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
+  // U-M1 — rôle RÉEL dérivé de signaux fiables (au lieu du cache SSO souvent null) :
+  // 2 requêtes bornées aux cjsUid de la page (pas de N+1).
+  const pageCjsUids = rows.map((u) => u.cjsUid)
+  const [agents, recruteurs] = await Promise.all([
+    pageCjsUids.length
+      ? prisma.agentCentre.findMany({
+          where: { cjsUid: { in: pageCjsUids } },
+          select: { cjsUid: true },
+          distinct: ['cjsUid'],
+        })
+      : Promise.resolve([]),
+    pageCjsUids.length
+      ? prisma.organisation.findMany({
+          where: { cjsUid: { in: pageCjsUids } },
+          select: { cjsUid: true },
+          distinct: ['cjsUid'],
+        })
+      : Promise.resolve([]),
+  ])
+  const agentSet = new Set(agents.map((a) => a.cjsUid))
+  const recruteurSet = new Set(recruteurs.map((o) => o.cjsUid))
+
   // Aplatir les rows pour le client
   const clientRows: AdminUserRow[] = rows.map((u) => ({
     cjsUid:             u.cjsUid,
@@ -99,7 +122,11 @@ export default async function Page({
     email:              u.email,
     commune:            u.commune,
     statut:             u.statut,
-    role:               u.role,
+    role:               deriveRole({
+      cachedRole:  u.role,
+      isAgent:     agentSet.has(u.cjsUid),
+      isRecruteur: recruteurSet.has(u.cjsUid),
+    }),
     createdAt:          u.createdAt,
     centrePrincipalNom: u.profil?.centrePrincipal?.nom ?? null,
   }))
