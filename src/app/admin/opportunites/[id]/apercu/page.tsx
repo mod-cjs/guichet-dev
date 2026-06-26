@@ -7,6 +7,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { getOpportuniteDetailForAdmin } from '@/lib/opportunites-loader'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
+import { FavorisProvider } from '@/components/opportunites/FavorisProvider'
 import { Alert } from '@/components/ui/Alert'
 import { Icon } from '@/components/ui/Icon'
 
@@ -47,9 +48,13 @@ export default async function Page({
 
       <div className="mt-space-3">
         {/* Suspense OBLIGATOIRE : OpportuniteDetail (client) utilise useSearchParams()
-            → sans frontière Suspense, Next throw au prerender (500). */}
+            → sans frontière Suspense, Next throw au prerender (500).
+            FavorisProvider OBLIGATOIRE : OpportuniteDetail appelle useFavoris().
+            isAuthenticated={false} = aucun fetch favoris (aperçu admin, pas un jeune). */}
         <Suspense fallback={<OpportuniteDetailSkeleton />}>
-          <OpportuniteDetail detail={detail} viewer={null} />
+          <FavorisProvider isAuthenticated={false}>
+            <OpportuniteDetail detail={detail} viewer={null} />
+          </FavorisProvider>
         </Suspense>
       </div>
     </div>
