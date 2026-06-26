@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
 import { QuickReplies, type QuickReply } from '@/components/ui/Yaye/QuickReplies'
+import { YayeTypingIndicator } from '@/components/ui/Yaye/YayeTypingIndicator'
 import { Icon } from '@/components/ui/Icon'
 import { YayeBlocks } from '@/components/yaye/YayeBlocks'
 import { YayeFeedback } from '@/components/yaye/YayeFeedback'
@@ -156,18 +157,7 @@ export function YayeChat() {
             {m.text}
           </YayeBubble>
         ))}
-        {isTyping && (
-          <div
-            data-testid="yaye-typing"
-            aria-label="Yaye est en train d'écrire"
-            className="inline-flex items-center gap-1 px-space-3 py-space-2 bg-white border border-gj-line text-gj-grey self-start"
-            style={{ borderRadius: '12px 12px 12px 4px' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-gj-grey animate-pulse" />
-            <span className="w-1.5 h-1.5 rounded-full bg-gj-grey animate-pulse" style={{ animationDelay: '120ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-gj-grey animate-pulse" style={{ animationDelay: '240ms' }} />
-          </div>
-        )}
+        {isTyping && <YayeTypingIndicator />}
         <div ref={listEndRef} />
       </div>
 

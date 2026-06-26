@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
+import { YayeTypingIndicator } from '@/components/ui/Yaye/YayeTypingIndicator'
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
@@ -103,14 +104,33 @@ export function YayeSidePanel({
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null)
 
-  // Esc → close
+  // Esc ferme · Tab piégé dans le dialog (focus trap complet, a11y modale).
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
         onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const panel = panelRef.current
+      if (!panel) return
+      // `a[href]` (pas `[href]` global, qui matcherait les <use href> des icônes SVG).
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
     document.addEventListener('keydown', handler)
@@ -123,6 +143,12 @@ export function YayeSidePanel({
       closeBtnRef.current?.focus()
     }
   }, [open])
+
+  // Auto-scroll vers le dernier message (parité avec la page fullscreen YayeChat) :
+  // nouveau message OU passage en « écrit… » → on garde la fin visible.
+  useEffect(() => {
+    if (open) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [open, resolvedMessages.length, sending])
 
   if (!open) return null
 
@@ -182,7 +208,11 @@ export function YayeSidePanel({
           style={{
             background: 'var(--gj-teal-deep)',
             color: 'var(--gj-surface)',
-            padding: '14px 16px',
+            // Le bandeau coloré déborde sous l'encoche (notch) sur mobile.
+            paddingTop: 'calc(14px + var(--safe-top, 0px))',
+            paddingRight: 16,
+            paddingBottom: 14,
+            paddingLeft: 16,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -251,6 +281,9 @@ export function YayeSidePanel({
 
         {/* Body */}
         <div
+          role="log"
+          aria-live="polite"
+          aria-label="Conversation Yaye"
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -291,6 +324,8 @@ export function YayeSidePanel({
               />
             </div>
           )}
+          {sending && <YayeTypingIndicator />}
+          <div ref={endRef} />
         </div>
 
         {/* Composer — réel si `onSend` fourni, sinon mock non contrôlé. */}

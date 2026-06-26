@@ -5,6 +5,7 @@ import { YayeSidePanel, type YayeSidePanelMessage } from '@/components/ui/Yaye/Y
 import type { QuickReply } from '@/components/ui/Yaye/QuickReplies'
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
 import { YayeBlocks } from './YayeBlocks'
+import { YayeFeedback } from './YayeFeedback'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
 const HISTORY_MAX = 10
@@ -37,6 +38,8 @@ export function YayeConversation({
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const sessionIdRef = useRef<string | undefined>(undefined)
+  // Index de tour bot (aligné sur l'ordre des message_recu) pour le feedback 👍/👎.
+  const botTurnRef = useRef(0)
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
   const messagesRef = useRef(messages)
   messagesRef.current = messages
@@ -76,9 +79,21 @@ export function YayeConversation({
         const blocks: YayeBlock[] = json?.data?.blocks ?? [{ kind: 'text', text: reply }]
         if (json?.data?.sessionId) sessionIdRef.current = json.data.sessionId
         historyRef.current.push({ role: 'assistant', content: reply })
+        const sid = sessionIdRef.current
+        const tourIndex = botTurnRef.current
+        botTurnRef.current += 1
         setMessages(prev => [
           ...prev,
-          { id: nid(), from: 'bot', text: <YayeBlocks blocks={blocks} onNavigate={onClose} onQuickReply={handleQuickReply} /> },
+          {
+            id: nid(),
+            from: 'bot',
+            text: (
+              <div className="flex flex-col gap-space-2">
+                <YayeBlocks blocks={blocks} onNavigate={onClose} onQuickReply={handleQuickReply} />
+                {sid && <YayeFeedback sessionId={sid} tourIndex={tourIndex} />}
+              </div>
+            ),
+          },
         ])
       } catch {
         setMessages(prev => [

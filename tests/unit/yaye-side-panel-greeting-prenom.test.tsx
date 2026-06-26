@@ -10,6 +10,11 @@
 import { render, screen } from '@testing-library/react'
 import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
 
+// scrollIntoView n'est pas implémenté sous JSDOM (auto-scroll du drawer).
+beforeAll(() => {
+  Element.prototype.scrollIntoView = jest.fn()
+})
+
 describe('<YayeSidePanel /> — L2-F-03 greeting personnalisé', () => {
   it('affiche le prénom passé dans le greeting par défaut', () => {
     render(<YayeSidePanel open onClose={() => {}} prenom="Fatou" />)
