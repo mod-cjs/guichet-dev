@@ -120,6 +120,17 @@ describe('GUIC-457 — CentresAdminTable Lot 11', () => {
     expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThan(0)
   })
 
+  // C1 (critique) — la modale d'édition doit s'ouvrir PRÉ-REMPLIE. Sentinelle du fix
+  // `key={editCentre?.id}` : sans remount, le useState resterait figé (champs vides).
+  it('pré-remplit la modale d\'édition avec les valeurs du centre (anti-régression C1)', () => {
+    render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /modifier/i })[0])
+    const nom = screen.getByLabelText(/^nom/i) as HTMLInputElement
+    expect(nom.value).toBe('Centre de Dakar')
+    const tel = screen.getByLabelText(/téléphone/i) as HTMLInputElement
+    expect(tel.value).toBe('+221770000001')
+  })
+
   // H2 — les actions Modifier/Supprimer existent AUSSI sur mobile (desktop + carte).
   it('expose Modifier/Supprimer sur desktop ET mobile (≥ 2 par centre)', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
