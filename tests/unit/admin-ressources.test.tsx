@@ -183,6 +183,31 @@ describe('GUIC-455 — AdminRessourcesTable Lot 11 contenu médiathèque', () =>
     expect(mockSupprimer).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
   })
+
+  // RES-1 — feedback après suppression (était silencieux).
+  it('affiche un toast de succès après suppression réussie', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockResolvedValueOnce({ ok: true })
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(screen.getByText(/supprimée/i)).toBeInTheDocument())
+    confirmSpy.mockRestore()
+  })
+
+  it('affiche un message d\'erreur si la suppression échoue', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockRejectedValueOnce(new Error('boom'))
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(screen.getByText(/a échoué/i)).toBeInTheDocument())
+    confirmSpy.mockRestore()
+  })
+
+  // RES-2 — Supprimer présent AUSSI sur mobile (desktop + carte ≥ 2 par ressource).
+  it('expose Supprimer sur desktop ET mobile (≥ 2 par ressource)', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThanOrEqual(MOCK_RESSOURCES.length * 2)
+  })
 })
 
 describe('GUIC-463 — RessourceFormModal', () => {

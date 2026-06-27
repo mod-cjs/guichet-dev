@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { RessourceFormModal } from './RessourceFormModal'
 import { supprimerRessource } from './actions'
 
@@ -114,12 +115,18 @@ function StatutPill({ estPublic }: StatutPillProps) {
 
 // ─── mobile card ─────────────────────────────────────────────────────────────
 
-function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row: RessourceRow) => void }) {
+function RessourceMobileCard({
+  row,
+  onEdit,
+  onDelete,
+}: {
+  row: RessourceRow
+  onEdit: (row: RessourceRow) => void
+  onDelete: (row: RessourceRow) => void
+}) {
   const categorie = row.categorie ?? row.theme
   return (
-    <div
-      className="flex gap-3 items-start p-[14px] border-b border-gj-line last:border-b-0"
-    >
+    <div className="flex gap-3 items-start p-[14px] border-b border-gj-line last:border-b-0">
       <TypeBadge type={row.type} />
       <div className="flex-1 min-w-0">
         <p className="text-[13.5px] font-black" style={{ color: 'var(--gj-ink)' }}>
@@ -135,21 +142,27 @@ function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row:
           </span>
         </div>
       </div>
-      <button
-        type="button"
-        aria-label="Modifier"
-        onClick={() => onEdit(row)}
-        className="inline-flex items-center justify-center rounded-[8px] shrink-0"
-        style={{
-          width: 32,
-          height: 32,
-          border: '1.5px solid var(--gj-line)',
-          background: 'var(--gj-surface)',
-          color: 'var(--gj-grey)',
-        }}
-      >
-        <Icon name="settings" size={15} />
-      </button>
+      {/* RES-2 — Modifier ET Supprimer sur mobile (le delete manquait) */}
+      <div className="flex flex-col gap-2 shrink-0">
+        <button
+          type="button"
+          aria-label="Modifier"
+          onClick={() => onEdit(row)}
+          className="inline-flex items-center justify-center rounded-[8px]"
+          style={{ width: 32, height: 32, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-grey)' }}
+        >
+          <Icon name="settings" size={15} />
+        </button>
+        <button
+          type="button"
+          aria-label={`Supprimer ${row.titre}`}
+          onClick={() => onDelete(row)}
+          className="inline-flex items-center justify-center rounded-[8px]"
+          style={{ width: 32, height: 32, border: '1.5px solid var(--gj-red)', background: 'var(--gj-surface)', color: 'var(--gj-red-ink)' }}
+        >
+          <Icon name="block" size={15} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -167,6 +180,7 @@ function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row:
 export function AdminRessourcesTable({ ressources, total, currentPage = 1, totalPages = 1 }: AdminRessourcesTableProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editRow, setEditRow] = useState<RessourceRow | undefined>(undefined)
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [, startTransition] = useTransition()
 
   function openCreate() {
@@ -179,7 +193,15 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
   }
   function handleDelete(row: RessourceRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer « ${row.titre} » ?`)) return
-    startTransition(() => { void supprimerRessource(row.id) })
+    startTransition(async () => {
+      try {
+        await supprimerRessource(row.id)
+        setFeedback({ message: `Ressource « ${row.titre} » supprimée.`, variant: 'success' })
+      } catch {
+        // RES-1 — la suppression peut échouer : on le DIT (était silencieux).
+        setFeedback({ message: `La suppression de « ${row.titre} » a échoué.`, variant: 'danger' })
+      }
+    })
   }
 
   return (
@@ -357,7 +379,7 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
             {/* Mobile card list */}
             <div className="md:hidden">
               {ressources.map((row) => (
-                <RessourceMobileCard key={row.id} row={row} onEdit={openEdit} />
+                <RessourceMobileCard key={row.id} row={row} onEdit={openEdit} onDelete={handleDelete} />
               ))}
             </div>
           </div>
@@ -380,7 +402,16 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         ressource={editRow}
+        onSuccess={(action) =>
+          setFeedback({
+            message: action === 'create' ? 'Ressource créée.' : 'Ressource mise à jour.',
+            variant: 'success',
+          })
+        }
       />
+      {feedback && (
+        <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />
+      )}
     </>
   )
 }

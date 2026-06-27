@@ -19,9 +19,11 @@ export interface RessourceFormModalProps {
   onClose: () => void
   /** Présent = édition ; absent = création. */
   ressource?: RessourceRow
+  /** Appelé après succès (création/édition) — la liste affiche un toast. */
+  onSuccess?: (action: 'create' | 'update') => void
 }
 
-export function RessourceFormModal({ isOpen, onClose, ressource }: RessourceFormModalProps) {
+export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: RessourceFormModalProps) {
   const editing = Boolean(ressource)
   const [titre, setTitre] = useState(ressource?.titre ?? '')
   const [description, setDescription] = useState(ressource?.description ?? '')
@@ -47,8 +49,13 @@ export function RessourceFormModal({ isOpen, onClose, ressource }: RessourceForm
     }
     startTransition(async () => {
       try {
-        if (editing && ressource) await modifierRessource(ressource.id, input)
-        else await creerRessource(input)
+        if (editing && ressource) {
+          await modifierRessource(ressource.id, input)
+          onSuccess?.('update')
+        } else {
+          await creerRessource(input)
+          onSuccess?.('create')
+        }
         onClose()
       } catch {
         setError('Échec de l\'enregistrement — vérifie les champs requis et une URL valide.')

@@ -81,12 +81,13 @@ const DASH: DashboardData = {
   secondaires: [],
 }
 
-// ── Modération : Aperçu = lien public ──────────────────────────────────────
+// ── Modération : Aperçu = route admin (brouillon visible, MOD-01) ────────────
 describe('GUIC-461 (F0) — Modération : bouton Aperçu', () => {
-  it('rend "Aperçu" comme lien vers la page publique de l\'offre, nouvel onglet', () => {
+  it('rend "Aperçu" comme lien vers l\'aperçu admin de l\'offre, nouvel onglet', () => {
     render(<AdminModerationList items={MOD_ITEMS} total={1} currentPage={1} totalPages={1} />)
     const apercu = screen.getByRole('link', { name: /aperçu/i })
-    expect(apercu).toHaveAttribute('href', '/opportunites/developpeur-full-stack')
+    // MOD-01 : la page publique 404 pour un brouillon → on pointe la route admin.
+    expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
     expect(apercu).toHaveAttribute('target', '_blank')
     expect(apercu).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })
