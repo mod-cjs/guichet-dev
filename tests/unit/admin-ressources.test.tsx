@@ -10,6 +10,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 // Server actions (prisma/auth) mockées au niveau unitaire — intégration réelle
 // prouvée dans tests/integration/admin-ressources-actions.test.ts.
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/admin/ressources',
+  useRouter: () => ({ push: mockPush, replace: jest.fn() }),
+}))
+
 const mockCreer = jest.fn()
 const mockModifier = jest.fn()
 const mockSupprimer = jest.fn()
@@ -207,6 +213,36 @@ describe('GUIC-455 — AdminRessourcesTable Lot 11 contenu médiathèque', () =>
   it('expose Supprimer sur desktop ET mobile (≥ 2 par ressource)', () => {
     render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
     expect(screen.getAllByRole('button', { name: /supprimer/i }).length).toBeGreaterThanOrEqual(MOCK_RESSOURCES.length * 2)
+  })
+
+  // RES-4 — recherche + filtres statut/type propagés dans l'URL.
+  it('soumet la recherche → router.push avec ?q=', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    const input = screen.getByLabelText(/rechercher une ressource/i)
+    fireEvent.change(input, { target: { value: 'emploi' } })
+    fireEvent.submit(input.closest('form')!)
+    expect(mockPush).toHaveBeenCalledWith('/admin/ressources?q=emploi')
+  })
+
+  it('clic chip "Publié" → router.push avec ?statut=public', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} publishedCount={2} draftCount={1} />)
+    fireEvent.click(screen.getByRole('button', { name: /publié/i }))
+    expect(mockPush).toHaveBeenCalledWith('/admin/ressources?statut=public')
+  })
+
+  it('clic chip type "PDF" → router.push avec ?type=PDF', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    fireEvent.click(screen.getByRole('button', { name: /^PDF$/i }))
+    expect(mockPush).toHaveBeenCalledWith('/admin/ressources?type=PDF')
+  })
+
+  // RES-5 — le titre ouvre l'URL de la ressource (desktop + mobile).
+  it('le titre est un lien vers l\'URL de la ressource', () => {
+    render(<AdminRessourcesTable ressources={MOCK_RESSOURCES} total={3} />)
+    const liens = screen.getAllByRole('link', { name: /Guide de recherche d.emploi/i })
+    expect(liens.length).toBeGreaterThanOrEqual(2) // desktop + mobile
+    expect(liens[0]).toHaveAttribute('href', 'https://example.org/guide.pdf')
+    expect(liens[0]).toHaveAttribute('target', '_blank')
   })
 })
 
