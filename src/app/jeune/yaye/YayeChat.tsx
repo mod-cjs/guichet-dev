@@ -207,14 +207,6 @@ export function YayeChat() {
             className="flex-1 px-space-3 rounded-gj-pill border-[1.5px] border-gj-line bg-white text-[16px] min-h-[var(--tap-input)] focus:outline-none focus:border-gj-teal-deep focus:ring-[3px] focus:ring-[var(--focus-ring-soft)]"
           />
           <button
-            type="button"
-            aria-label="Dicter au micro"
-            className="inline-flex items-center justify-center bg-transparent border-0 cursor-pointer text-gj-grey hover:text-gj-ink"
-            style={{ width: 36, height: 36 }}
-          >
-            <Icon name="mic" size={20} />
-          </button>
-          <button
             type="submit"
             aria-label="Envoyer"
             disabled={input.trim().length === 0}

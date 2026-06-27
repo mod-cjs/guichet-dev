@@ -389,25 +389,6 @@ export function YayeSidePanel({
               fontFamily: 'inherit',
             }}
           />
-          {/* Parité avec la page fullscreen : même barre d'actions (pièce jointe · micro · envoi). */}
-          <button
-            type="button"
-            aria-label="Dicter au micro"
-            style={{
-              width: 38,
-              height: 38,
-              border: 0,
-              background: 'transparent',
-              color: 'var(--gj-grey)',
-              cursor: 'pointer',
-              borderRadius: 8,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="mic" size={18} />
-          </button>
           <button
             type="submit"
             aria-label="Envoyer"
