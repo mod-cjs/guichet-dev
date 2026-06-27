@@ -41,6 +41,15 @@ export async function saveSummary(cjsUid: string, summary: string): Promise<void
   }
 }
 
+/** Efface la fiche mémoire long terme d'un utilisateur (droit à l'oubli CDP). Fail-soft. */
+export async function purgeSummary(cjsUid: string): Promise<void> {
+  try {
+    await redis.del(memoKey(cjsUid))
+  } catch (err) {
+    logger.warn('[yaye-memo] purge échec', { err: String(err) })
+  }
+}
+
 let _groq: Groq | null = null
 function getGroq(): Groq {
   if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })

@@ -51,3 +51,12 @@ export async function saveContext(key: string, turns: ChatTurn[], ttl: number): 
     logger.warn('[yaye-context] save échec', { err: String(err) })
   }
 }
+
+/** Efface la mémoire conversationnelle d'un utilisateur (droit à l'oubli CDP). Fail-soft. */
+export async function purgeUserContext(cjsUid: string): Promise<void> {
+  try {
+    await redis.del(PREFIX + userContextKey(cjsUid))
+  } catch (err) {
+    logger.warn('[yaye-context] purge échec', { err: String(err) })
+  }
+}

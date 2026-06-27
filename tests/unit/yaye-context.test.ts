@@ -5,16 +5,22 @@
  */
 const mockGet = jest.fn()
 const mockSet = jest.fn()
+const mockDel = jest.fn()
 jest.mock('@/lib/redis', () => ({
-  redis: { get: (...a: unknown[]) => mockGet(...a), set: (...a: unknown[]) => mockSet(...a) },
+  redis: {
+    get: (...a: unknown[]) => mockGet(...a),
+    set: (...a: unknown[]) => mockSet(...a),
+    del: (...a: unknown[]) => mockDel(...a),
+  },
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
-import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadContext, saveContext, purgeUserContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 
 beforeEach(() => {
   mockGet.mockReset()
   mockSet.mockReset()
+  mockDel.mockReset()
 })
 
 test('load : parse l’historique JSON', async () => {
@@ -51,6 +57,15 @@ test('userContextKey : ancre la mémoire sur le cjsUid (indépendant du canal)',
   // Web et WhatsApp d'une même personne → MÊME clé → mémoire partagée.
   expect(userContextKey('u-1')).toBe(userContextKey('u-1'))
   expect(userContextKey('u-1')).not.toBe(userContextKey('u-2'))
+})
+
+test('purgeUserContext : efface la clé user (droit à l’oubli)', async () => {
+  mockDel.mockResolvedValueOnce(1)
+  await purgeUserContext('u-9')
+  expect(mockDel).toHaveBeenCalledWith('yaye:ctx:user:u-9')
+
+  mockDel.mockRejectedValueOnce(new Error('redis down'))
+  await expect(purgeUserContext('u-9')).resolves.toBeUndefined() // fail-soft
 })
 
 test('continuité : un tour WhatsApp est relu côté web (même clé user)', async () => {

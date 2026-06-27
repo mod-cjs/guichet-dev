@@ -5,8 +5,13 @@
  */
 const mockGet = jest.fn()
 const mockSet = jest.fn()
+const mockDel = jest.fn()
 jest.mock('@/lib/redis', () => ({
-  redis: { get: (...a: unknown[]) => mockGet(...a), set: (...a: unknown[]) => mockSet(...a) },
+  redis: {
+    get: (...a: unknown[]) => mockGet(...a),
+    set: (...a: unknown[]) => mockSet(...a),
+    del: (...a: unknown[]) => mockDel(...a),
+  },
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
@@ -18,12 +23,13 @@ jest.mock('groq-sdk', () => ({
   })),
 }))
 
-import { loadSummary, saveSummary, updateSummary, memoKey } from '@/lib/ia/memory'
+import { loadSummary, saveSummary, purgeSummary, updateSummary, memoKey } from '@/lib/ia/memory'
 
 const ORIG_KEY = process.env.GROQ_API_KEY
 beforeEach(() => {
   mockGet.mockReset()
   mockSet.mockReset()
+  mockDel.mockReset()
   mockCreate.mockReset()
   delete process.env.GROQ_API_KEY
 })
@@ -52,6 +58,15 @@ test('saveSummary : set préfixé + TTL long', async () => {
   mockSet.mockResolvedValueOnce('OK')
   await saveSummary('u-1', '- vise un stage')
   expect(mockSet).toHaveBeenCalledWith('yaye:memo:u-1', '- vise un stage', 'EX', 90 * 24 * 3600)
+})
+
+test('purgeSummary : efface la fiche (droit à l’oubli)', async () => {
+  mockDel.mockResolvedValueOnce(1)
+  await purgeSummary('u-7')
+  expect(mockDel).toHaveBeenCalledWith('yaye:memo:u-7')
+
+  mockDel.mockRejectedValueOnce(new Error('redis down'))
+  await expect(purgeSummary('u-7')).resolves.toBeUndefined() // fail-soft
 })
 
 test('updateSummary : NO-OP sans clé Groq (pas d’appel LLM)', async () => {

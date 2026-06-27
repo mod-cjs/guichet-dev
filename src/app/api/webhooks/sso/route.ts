@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+import { purgeUserContext } from '@/lib/ia/context'
+import { purgeSummary } from '@/lib/ia/memory'
 import { logger, hashId } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { StatutCompte, type Region } from '@prisma/client'
@@ -156,6 +158,12 @@ async function handleAnonymized(p: Payload): Promise<void> {
   await prisma.emprunt.deleteMany({
     where: { cjsUid: p.cjs_uid, statut: { in: ['rendu', 'annule'] } },
   })
+
+  // CDP / droit à l'oubli (m12-ia) : purge la mémoire Yaye en Redis — contexte
+  // conversationnel unifié (yaye:ctx:user:*) ET fiche mémoire long terme (yaye:memo:*),
+  // toutes deux indexées par cjsUid. Fail-soft : un échec Redis ne casse pas l'effacement.
+  await purgeUserContext(p.cjs_uid)
+  await purgeSummary(p.cjs_uid)
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────
