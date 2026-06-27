@@ -19,6 +19,7 @@ export interface EscaladeRowDTO {
   canal: CanalAgent
   raison: string | null
   stade: string | null
+  signalDanger: string | null
   statut: StatutEscalade
   traitePar: string | null
   traiteA: string | null
@@ -157,8 +158,19 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     </div>
                   </div>
 
-                  {/* Raison / stade */}
+                  {/* Raison / stade (+ badge DANGER prioritaire) */}
                   <div style={{ minWidth: 0 }}>
+                    {e.signalDanger && (
+                      <span
+                        style={{
+                          display: 'inline-block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                          letterSpacing: '.4px', color: 'var(--gj-surface)', background: 'var(--gj-red)',
+                          borderRadius: 999, padding: '1px 8px', marginBottom: 3,
+                        }}
+                      >
+                        Danger · {e.signalDanger}
+                      </span>
+                    )}
                     <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.raison ?? '—'}</div>
                     {e.stade && <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
                   </div>

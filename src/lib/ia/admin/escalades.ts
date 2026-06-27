@@ -20,6 +20,9 @@ export interface EscaladeRow {
   canal: CanalAgent
   raison: string | null
   stade: string | null
+  /** Catégorie de DANGER repérée (violence, harcelement…) — null si escalade normale. */
+  signalDanger: string | null
+  priorite: number
   statut: StatutEscalade
   traitePar: string | null
   traiteA: Date | null
@@ -49,7 +52,8 @@ export async function listEscalades(
   const [rows, total, grouped] = await Promise.all([
     prisma.escaladeYaye.findMany({
       where,
-      orderBy: [{ statut: 'asc' }, { createdAt: 'desc' }], // en_attente d'abord, puis récentes
+      // en_attente d'abord, puis les DANGERS en haut (priorite desc), puis les plus récentes.
+      orderBy: [{ statut: 'asc' }, { priorite: 'desc' }, { createdAt: 'desc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

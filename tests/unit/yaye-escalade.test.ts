@@ -75,9 +75,11 @@ test('signal de danger : raison taguée DANGER + notif urgente + trace du signal
 
   await recordEscalade({ ...base, raison: 'sujet_sensible', dangerSignal: 'violence' })
 
-  // La catégorie est visible dans `raison` (panel admin), en attendant une colonne dédiée.
+  // Phase 2 : catégorie en colonne dédiée + priorité de file (danger en haut).
   expect(mockCreate).toHaveBeenCalledWith(
-    expect.objectContaining({ data: expect.objectContaining({ raison: expect.stringContaining('DANGER:violence') }) }),
+    expect.objectContaining({
+      data: expect.objectContaining({ raison: 'sujet_sensible', signalDanger: 'violence', priorite: 1 }),
+    }),
   )
   // Notification URGENTE distincte.
   const notif = mockNotifCreateMany.mock.calls[0][0].data[0]

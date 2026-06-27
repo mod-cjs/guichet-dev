@@ -115,12 +115,6 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<Escala
     payload: { raison: input.raison ?? null, stade: input.stade ?? null, reference, dangerSignal: input.dangerSignal ?? null },
   })
 
-  // Danger repéré → on l'inscrit dans `raison` pour qu'il soit VISIBLE dans le panel admin
-  // (en attendant une colonne dédiée + tri prioritaire de la file).
-  const raison = input.dangerSignal
-    ? `${input.raison ?? 'sujet_sensible'} · DANGER:${input.dangerSignal}`
-    : input.raison ?? null
-
   // 2. File de traitement — une seule entrée ouverte par session.
   try {
     const existante = await prisma.escaladeYaye.findFirst({
@@ -131,13 +125,16 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<Escala
 
     await prisma.escaladeYaye.create({
       data: {
-        sessionId: input.sessionId,
-        cjsUid:    input.cjsUid ?? null,
-        role:      input.role ?? null,
-        centreId:  input.centreId ?? null,
-        canal:     input.canal,
-        raison,
-        stade:     input.stade ?? null,
+        sessionId:    input.sessionId,
+        cjsUid:       input.cjsUid ?? null,
+        role:         input.role ?? null,
+        centreId:     input.centreId ?? null,
+        canal:        input.canal,
+        raison:       input.raison ?? null,
+        stade:        input.stade ?? null,
+        // Phase 2 : catégorie de danger en colonne dédiée + priorité de file (danger en haut).
+        signalDanger: input.dangerSignal ?? null,
+        priorite:     input.dangerSignal ? 1 : 0,
       },
     })
 
