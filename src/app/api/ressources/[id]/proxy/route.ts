@@ -62,6 +62,18 @@ export async function GET(
   const download = request.nextUrl.searchParams.get('download') === '1'
   const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
 
+  // La visionneuse inline attend un PDF. Si la source ne sert PAS un PDF (lien
+  // périmé, page HTML/portail, redirection consentement…), on renvoie une erreur
+  // plutôt que d'embarquer une page web cassée : le PdfViewer affiche alors son
+  // fallback « télécharger / ouvrir dans un nouvel onglet ». (Le téléchargement
+  // explicite `?download=1` reste autorisé tel quel.)
+  if (!download && ressource.type === 'PDF' && !contentType.toLowerCase().includes('pdf')) {
+    return NextResponse.json(
+      { error: { code: 'NOT_A_PDF', message: 'La source ne fournit pas un fichier PDF affichable.' } },
+      { status: 415 },
+    )
+  }
+
   const headers = new Headers({
     'Content-Type': contentType,
     'Cache-Control': 'public, max-age=3600',
