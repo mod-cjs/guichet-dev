@@ -24,7 +24,7 @@ jest.mock('@/lib/ia/tools', () => ({
 const mockLog = jest.fn()
 jest.mock('@/lib/ia/agent-logs', () => ({ logAgentEvent: (...a: unknown[]) => mockLog(...a) }))
 
-import { runAgent, streamAgent, type AgentStreamEvent } from '@/lib/ia/agent'
+import { runAgent, streamAgent, SYSTEM_PROMPT, type AgentStreamEvent } from '@/lib/ia/agent'
 
 const base = { cjsUid: 'u-1', roles: ['beneficiaire'], sessionId: 's-1', canal: 'web' as const }
 const final = (content: string) => ({ choices: [{ message: { content, tool_calls: undefined } }] })
@@ -59,6 +59,13 @@ test('réponse finale directe (aucun outil)', async () => {
   expect(r.toolsUsed).toEqual([])
   expect(mockExecute).not.toHaveBeenCalled()
   expect(mockLog).toHaveBeenCalledWith(expect.objectContaining({ typeEvenement: 'reponse_generee' }))
+})
+
+test('prompt : la présentation de soi est une réponse directe SANS outil', () => {
+  // Garde-fou (bug terrain) : « présente-toi » ne doit pas relancer une recherche d'offres.
+  expect(SYSTEM_PROMPT).toMatch(/présente-toi/i)
+  expect(SYSTEM_PROMPT).toMatch(/SANS AUCUN outil/i)
+  expect(SYSTEM_PROMPT).toMatch(/ne ressors jamais d'offres pour te présenter/i)
 })
 
 test('injecte la mémoire long terme (memo) dans le contexte système', async () => {
