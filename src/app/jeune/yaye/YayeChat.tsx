@@ -190,14 +190,6 @@ export function YayeChat() {
           className="flex items-center gap-2 px-space-3 py-space-2"
           aria-label="Envoyer un message à Yaye"
         >
-          <button
-            type="button"
-            aria-label="Joindre un fichier"
-            className="inline-flex items-center justify-center bg-transparent border-0 cursor-pointer text-gj-grey hover:text-gj-ink"
-            style={{ width: 36, height: 36 }}
-          >
-            <Icon name="attach" size={20} />
-          </button>
           <input
             type="text"
             value={input}

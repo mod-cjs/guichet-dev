@@ -76,12 +76,12 @@ describe('<YayeSidePanel />', () => {
 
   // ── Parité avec la page fullscreen (GUIC-259, UX polish) ──────────────────
 
-  it('expose la même barre d’actions que la page fullscreen (pièce jointe · envoi)', () => {
+  it('expose la même barre d’actions que la page fullscreen (envoi, sans placeholders)', () => {
     render(<YayeSidePanel open onClose={() => {}} />)
-    expect(screen.getByRole('button', { name: /Joindre un fichier/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Envoyer$/i })).toBeInTheDocument()
-    // Pas de micro : aucune saisie vocale pour l'instant (placeholder retiré).
+    // Placeholders retirés : ni micro (vocal) ni pièce jointe pour l'instant.
     expect(screen.queryByRole('button', { name: /Dicter au micro/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Joindre un fichier/i })).not.toBeInTheDocument()
   })
 
   it('expose la zone de conversation en aria-live (role=log)', () => {

@@ -352,24 +352,6 @@ export function YayeSidePanel({
             flexShrink: 0,
           }}
         >
-          <button
-            type="button"
-            aria-label="Joindre un fichier"
-            style={{
-              width: 38,
-              height: 38,
-              border: 0,
-              background: 'transparent',
-              color: 'var(--gj-grey)',
-              cursor: 'pointer',
-              borderRadius: 8,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="attach" size={18} />
-          </button>
           <input
             type="text"
             placeholder="Demande à Yaye…"
