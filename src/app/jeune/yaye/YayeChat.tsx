@@ -80,19 +80,28 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
       const history = historyRef.current.slice(-HISTORY_MAX)
       historyRef.current.push({ role: 'user', content: trimmed })
 
-      // Bulle de streaming : on accumule les tokens et on l'affiche dès le premier,
-      // rendue par YayeStreamingText (machine à écrire + curseur).
+      // Plancher de réflexion : un petit temps « humain » avant que le texte s'affiche,
+      // proportionnel à la complexité de la question (recherche sur les délais de réponse).
+      const sentAt = Date.now()
+      const floorMs = Math.min(1200, 350 + trimmed.length * 8)
+
+      // Bulle de streaming, rendue par YayeStreamingText (machine à écrire + curseur).
       const streamId = nextId()
       let acc = ''
-      let shown = false
+      let started = false // reveal programmé
+      let bubbleShown = false // bulle présente dans l'état
+      let revealTimer: ReturnType<typeof setTimeout> | undefined
+      const showBubble = () => {
+        bubbleShown = true
+        setIsTyping(false)
+        setMessages(prev => [...prev, { id: streamId, kind: 'bubble', from: 'bot', text: <YayeStreamingText text={acc} />, timestamp: formatTime() }])
+      }
       const renderStream = () => {
-        const node = <YayeStreamingText text={acc} />
-        if (!shown) {
-          shown = true
-          setIsTyping(false) // les tokens remplacent l'indicateur de réflexion
-          setMessages(prev => [...prev, { id: streamId, kind: 'bubble', from: 'bot', text: node, timestamp: formatTime() }])
-        } else {
-          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
+        if (!started) {
+          started = true
+          revealTimer = setTimeout(showBubble, Math.max(0, sentAt + floorMs - Date.now()))
+        } else if (bubbleShown) {
+          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: <YayeStreamingText text={acc} /> } : m)))
         }
       }
 
@@ -102,6 +111,7 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
           onTool: name => { const s = toolStatus(name); setStatus(s.label); setSearching(!!s.searching) },
           onToken: t => { acc += t; renderStream() },
           onDone: ({ reply, blocks, sessionId }) => {
+            if (revealTimer) clearTimeout(revealTimer)
             if (sessionId) sessionIdRef.current = sessionId
             historyRef.current.push({ role: 'assistant', content: reply })
             const sid = sessionIdRef.current
@@ -115,13 +125,15 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
               </div>
             )
             // Remplace la bulle de streaming par le rendu final (cards + feedback),
-            // ou pousse une nouvelle bulle si aucun token n'a été streamé (fallback JSON).
-            if (shown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
+            // ou pousse une nouvelle bulle si elle n'a pas encore paru (réponse rapide / fallback).
+            if (bubbleShown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
             else pushBot(node)
           },
-          onError: () => {
+          onError: msg => {
+            if (revealTimer) clearTimeout(revealTimer)
             setIsTyping(false)
-            if (!shown) pushBot('Connexion interrompue. Réessaie dans un instant.')
+            // Message EN PERSONNAGE (le serveur peut fournir un texte adapté, ex. rate-limit).
+            pushBot(msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi.")
           },
         },
       )

@@ -27,11 +27,11 @@ export interface YayeStreamHandlers {
   onTool?: (name: string) => void
   /** Réponse complète (reply + blocs). Toujours appelé une fois en cas de succès. */
   onDone: (d: YayeDone) => void
-  /** Échec réseau/serveur. */
-  onError?: () => void
+  /** Échec réseau/serveur. `message` = texte EN PERSONNAGE fourni par le serveur (ex. rate-limit). */
+  onError?: (message?: string) => void
 }
 
-const FALLBACK = "Je n'ai pas pu répondre pour le moment."
+const FALLBACK = "Oups, je n'ai pas pu répondre là. Réessaie dans un instant, je reste avec toi."
 
 /** Parse un événement SSE brut (`event: x\ndata: {...}`). */
 function parseSseEvent(raw: string): { event: string; data: unknown } | null {
@@ -80,7 +80,7 @@ export async function streamYaye(body: YayeRequest, h: YayeStreamHandlers): Prom
           if (ev.event === 'token') h.onToken?.((ev.data as { text: string }).text)
           else if (ev.event === 'tool') h.onTool?.((ev.data as { name: string }).name)
           else if (ev.event === 'done') h.onDone(ev.data as YayeDone)
-          else if (ev.event === 'error') h.onError?.()
+          else if (ev.event === 'error') h.onError?.((ev.data as { message?: string }).message)
         }
       }
     } catch {

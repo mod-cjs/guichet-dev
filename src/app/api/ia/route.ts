@@ -30,6 +30,16 @@ export interface IaChatResponse {
   toolsUsed: string[]
 }
 
+/** Message d'erreur EN PERSONNAGE (jamais un message technique). Détecte le rate-limit. */
+function yayeErrorMessage(err: unknown): string {
+  const e = err as { status?: number; message?: string }
+  const sig = `${e?.status ?? ''} ${e?.message ?? String(err)}`
+  if (/429|rate.?limit/i.test(sig)) {
+    return 'Je suis très sollicitée en ce moment — laisse-moi un petit instant et réessaie, je suis là.'
+  }
+  return "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi."
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession(request)
   if (!session) {
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           send('done', { reply, blocks, sessionId, toolsUsed })
         } catch (err) {
           await logAgentEvent({ ...logBase, typeEvenement: 'erreur', statut: 'echec', payload: { err: String(err) } })
-          send('error', { message: "Yaye n'a pas pu traiter ta demande pour le moment." })
+          send('error', { message: yayeErrorMessage(err) })
         } finally {
           controller.close()
         }
@@ -142,7 +152,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch (err) {
     await logAgentEvent({ ...logBase, typeEvenement: 'erreur', statut: 'echec', payload: { err: String(err) } })
     return NextResponse.json(
-      { error: { code: 'AGENT_ERROR', message: "Yaye n'a pas pu traiter ta demande pour le moment." } },
+      { error: { code: 'AGENT_ERROR', message: yayeErrorMessage(err) } },
       { status: 502 },
     )
   }

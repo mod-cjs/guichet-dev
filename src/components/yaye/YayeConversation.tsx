@@ -78,18 +78,27 @@ export function YayeConversation({
       const history = historyRef.current.slice(-HISTORY_MAX)
       historyRef.current.push({ role: 'user', content: trimmed })
 
-      // Bulle de streaming : accumulation des tokens, rendue en machine à écrire.
+      // Plancher de réflexion : pause « humaine » proportionnelle à la complexité.
+      const sentAt = Date.now()
+      const floorMs = Math.min(1200, 350 + trimmed.length * 8)
+
+      // Bulle de streaming, rendue en machine à écrire (curseur + cadence lissée).
       const streamId = nid()
       let acc = ''
-      let shown = false
+      let started = false
+      let bubbleShown = false
+      let revealTimer: ReturnType<typeof setTimeout> | undefined
+      const showBubble = () => {
+        bubbleShown = true
+        setThinking(false)
+        setMessages(prev => [...prev, { id: streamId, from: 'bot', text: <YayeStreamingText text={acc} /> }])
+      }
       const renderStream = () => {
-        const node = <YayeStreamingText text={acc} />
-        if (!shown) {
-          shown = true
-          setThinking(false)
-          setMessages(prev => [...prev, { id: streamId, from: 'bot', text: node }])
-        } else {
-          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
+        if (!started) {
+          started = true
+          revealTimer = setTimeout(showBubble, Math.max(0, sentAt + floorMs - Date.now()))
+        } else if (bubbleShown) {
+          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: <YayeStreamingText text={acc} /> } : m)))
         }
       }
 
@@ -99,6 +108,7 @@ export function YayeConversation({
           onTool: name => { const s = toolStatus(name); setStatus(s.label); setSearching(!!s.searching) },
           onToken: t => { acc += t; renderStream() },
           onDone: ({ reply, blocks, sessionId }) => {
+            if (revealTimer) clearTimeout(revealTimer)
             if (sessionId) sessionIdRef.current = sessionId
             historyRef.current.push({ role: 'assistant', content: reply })
             const sid = sessionIdRef.current
@@ -110,16 +120,15 @@ export function YayeConversation({
                 {sid && <YayeFeedback sessionId={sid} tourIndex={tourIndex} />}
               </div>
             )
-            if (shown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
+            if (bubbleShown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
             else setMessages(prev => [...prev, { id: nid(), from: 'bot', text: node }])
           },
-          onError: () => {
-            if (!shown) {
-              setMessages(prev => [
-                ...prev,
-                { id: nid(), from: 'bot', text: 'Connexion interrompue. Réessaie dans un instant.' },
-              ])
-            }
+          onError: msg => {
+            if (revealTimer) clearTimeout(revealTimer)
+            setMessages(prev => [
+              ...prev,
+              { id: nid(), from: 'bot', text: msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi." },
+            ])
           },
         },
       )

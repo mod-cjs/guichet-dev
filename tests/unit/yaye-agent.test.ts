@@ -68,6 +68,15 @@ test('prompt : la présentation de soi est une réponse directe SANS outil', () 
   expect(SYSTEM_PROMPT).toMatch(/ne ressors jamais d'offres pour te présenter/i)
 })
 
+test('prompt : règles comportementales « sonner juste » (anti-robot)', () => {
+  expect(SYSTEM_PROMPT).toMatch(/Clarifie avant d'agir/i) // grounding
+  expect(SYSTEM_PROMPT).toMatch(/Montre que tu écoutes/i) // écoute active
+  expect(SYSTEM_PROMPT).toMatch(/Accompagne l'émotion/i) // gradient émotionnel
+  expect(SYSTEM_PROMPT).toMatch(/Dose ta certitude/i) // incertitude calibrée
+  expect(SYSTEM_PROMPT).toMatch(/Adapte-toi à la personne/i) // registre
+  expect(SYSTEM_PROMPT).toMatch(/Reste toi-même si ça coince/i) // persona sur erreur
+})
+
 test('injecte la mémoire long terme (memo) dans le contexte système', async () => {
   mockCreate.mockResolvedValueOnce(final('Bonjour'))
   await runAgent({ ...base, message: 'salut', memo: '- vise un stage en agro à Thiès' })
