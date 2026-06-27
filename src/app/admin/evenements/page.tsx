@@ -21,7 +21,10 @@ const dateFmt = new Intl.DateTimeFormat('fr-FR', {
 
 interface SP {
   statut?: string
+  page?: string
 }
+
+const PAGE_SIZE = 20
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   const session = await getSession()
@@ -31,10 +34,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const activeStatut = STATUTS.includes(sp.statut as StatutEvenement)
     ? (sp.statut as StatutEvenement)
     : null
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
+  const where = activeStatut ? { statut: activeStatut } : {}
 
   const [evenements, total, grouped] = await Promise.all([
     prisma.evenement.findMany({
-      where: activeStatut ? { statut: activeStatut } : undefined,
+      where,
       select: {
         id: true,
         titre: true,
@@ -49,11 +54,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         _count: { select: { inscriptions: true } },
       },
       orderBy: { dateDebut: 'desc' },
-      take: 100,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
-    prisma.evenement.count(),
+    // EV-3 — total cohérent avec le filtre courant (était un count global).
+    prisma.evenement.count({ where }),
     prisma.evenement.groupBy({ by: ['statut'], _count: { _all: true } }),
   ])
+
+  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const counts: Partial<Record<StatutEvenement, number>> = {}
   for (const g of grouped) {
@@ -81,6 +90,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       total={total}
       activeStatut={activeStatut}
       counts={counts}
+      currentPage={page}
+      totalPages={totalPages}
     />
   )
 }
