@@ -67,6 +67,32 @@ test('nouvelle escalade : trace event + file + notifie + renvoie référence (al
   expect(arg.data[0]).toEqual(expect.objectContaining({ cjsUid: 'c1', type: 'Yaye', lien: '/admin/yaye/escalades' }))
 })
 
+test('signal de danger : raison taguée DANGER + notif urgente + trace du signal', async () => {
+  mockFindFirst.mockResolvedValueOnce(null)
+  mockCreate.mockResolvedValueOnce({ id: 'e1' })
+  mockAgentCentreFindMany.mockResolvedValueOnce([{ cjsUid: 'c1' }])
+  mockNotifCreateMany.mockResolvedValueOnce({ count: 1 })
+
+  await recordEscalade({ ...base, raison: 'sujet_sensible', dangerSignal: 'violence' })
+
+  // La catégorie est visible dans `raison` (panel admin), en attendant une colonne dédiée.
+  expect(mockCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ raison: expect.stringContaining('DANGER:violence') }) }),
+  )
+  // Notification URGENTE distincte.
+  const notif = mockNotifCreateMany.mock.calls[0][0].data[0]
+  expect(notif.titre).toMatch(/danger.*violence/i)
+  expect(notif.metaPill).toBe('Danger')
+  expect(notif.contenu).toMatch(/URGENT/)
+  // La trace event porte le signal (métriques / transcript).
+  expect(mockLogEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      typeEvenement: 'escalade_conseiller',
+      payload: expect.objectContaining({ dangerSignal: 'violence' }),
+    }),
+  )
+})
+
 test('escalade déjà en file : pas de doublon, alreadyPending=true (mais trace écrite)', async () => {
   mockFindFirst.mockResolvedValueOnce({ id: 'existing' })
 

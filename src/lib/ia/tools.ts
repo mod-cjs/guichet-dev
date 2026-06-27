@@ -718,6 +718,11 @@ const submitApplication: AgentTool = {
 // et alimente la file admin `escalades_yaye` (consultée par le staff). Aucune écriture
 // dans un autre module. La remise temps réel au conseiller (notification) viendra ensuite.
 const ESCALADE_MOTIFS = ['demande_complexe', 'sujet_sensible', 'demande_explicite', 'echec_repete', 'autre'] as const
+// Catégories de DANGER repérées (sécurité). `autre_danger` = fourre-tout pour toute
+// situation dangereuse hors liste → rien ne passe à travers les mailles.
+const DANGER_SIGNALS = [
+  'violence', 'harcelement', 'abus_sexuel', 'exploitation', 'automutilation_suicide', 'discrimination', 'autre_danger',
+] as const
 
 const escalateToAdvisor: AgentTool = {
   definition: {
@@ -742,6 +747,14 @@ const escalateToAdvisor: AgentTool = {
             type: 'string',
             description: 'Résumé court et factuel de la demande à transmettre au conseiller (sans données de tiers).',
           },
+          signal_danger: {
+            type: 'string',
+            enum: [...DANGER_SIGNALS],
+            description:
+              "À RENSEIGNER si tu repères une situation de DANGER pour la personne (violence, " +
+              "harcèlement, abus_sexuel, exploitation, automutilation_suicide, discrimination, ou " +
+              "autre_danger pour tout autre danger). En cas de doute, signale quand même.",
+          },
         },
         required: ['motif'],
       },
@@ -752,9 +765,15 @@ const escalateToAdvisor: AgentTool = {
     if (!ctx.sessionId || !ctx.canal) {
       return { ok: false, error: "Contexte de session indisponible pour l'escalade." }
     }
-    const motif = typeof args.motif === 'string' && (ESCALADE_MOTIFS as readonly string[]).includes(args.motif)
-      ? args.motif
-      : 'autre'
+    const dangerSignal = typeof args.signal_danger === 'string' && (DANGER_SIGNALS as readonly string[]).includes(args.signal_danger)
+      ? args.signal_danger
+      : null
+    // Un danger repéré force la catégorie sensible (priorité sécurité).
+    const motif = dangerSignal
+      ? 'sujet_sensible'
+      : typeof args.motif === 'string' && (ESCALADE_MOTIFS as readonly string[]).includes(args.motif)
+        ? args.motif
+        : 'autre'
     const resume = typeof args.resume === 'string' ? args.resume.trim().slice(0, 280) : null
 
     const suivi = await recordEscalade({
@@ -765,6 +784,7 @@ const escalateToAdvisor: AgentTool = {
       canal: ctx.canal,
       raison: motif,
       stade: resume,
+      dangerSignal,
     })
     // Filet : si recordEscalade est stubbé (tests) → référence dérivée de la session.
     const reference = suivi?.reference ?? escaladeReference(ctx.sessionId)

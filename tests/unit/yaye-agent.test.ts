@@ -77,6 +77,13 @@ test('prompt : règles comportementales « sonner juste » (anti-robot)', () => 
   expect(SYSTEM_PROMPT).toMatch(/Reste toi-même si ça coince/i) // persona sur erreur
 })
 
+test('prompt : repère les situations de danger (sécurité)', () => {
+  expect(SYSTEM_PROMPT).toMatch(/situations de danger/i)
+  expect(SYSTEM_PROMPT).toMatch(/harc[eè]lement/i)
+  expect(SYSTEM_PROMPT).toMatch(/signal_danger/i)
+  expect(SYSTEM_PROMPT).toMatch(/signale quand même/i) // biais de prudence
+})
+
 test('injecte la mémoire long terme (memo) dans le contexte système', async () => {
   mockCreate.mockResolvedValueOnce(final('Bonjour'))
   await runAgent({ ...base, message: 'salut', memo: '- vise un stage en agro à Thiès' })

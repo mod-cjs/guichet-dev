@@ -138,6 +138,26 @@ test('escalate_to_advisor : sans session/canal → ok:false, aucune trace', asyn
   expect(mockRecordEscalade).not.toHaveBeenCalled()
 })
 
+test('escalate_to_advisor : signal_danger → dangerSignal transmis + force sujet_sensible', async () => {
+  mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-DGR001', alreadyPending: false })
+  await TOOLS.escalate_to_advisor.execute(
+    { motif: 'demande_complexe', signal_danger: 'harcelement' },
+    { ...ctx, sessionId: 's-9', canal: 'web' },
+  )
+  expect(mockRecordEscalade).toHaveBeenCalledWith(
+    expect.objectContaining({ dangerSignal: 'harcelement', raison: 'sujet_sensible' }),
+  )
+})
+
+test('escalate_to_advisor : signal_danger inconnu ignoré (dangerSignal=null)', async () => {
+  mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-X', alreadyPending: false })
+  await TOOLS.escalate_to_advisor.execute(
+    { motif: 'sujet_sensible', signal_danger: 'n_importe_quoi' },
+    { ...ctx, sessionId: 's-10', canal: 'web' },
+  )
+  expect(mockRecordEscalade).toHaveBeenCalledWith(expect.objectContaining({ dangerSignal: null }))
+})
+
 test('escalate_to_advisor : motif inconnu normalisé en "autre"', async () => {
   mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-XYZ789', alreadyPending: false })
   await TOOLS.escalate_to_advisor.execute(

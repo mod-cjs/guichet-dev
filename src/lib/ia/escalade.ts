@@ -37,15 +37,22 @@ async function notifyAdvisorsOfEscalade(input: RecordEscaladeInput): Promise<voi
     })
     if (staff.length === 0) return
 
+    // Signalement de DANGER → notification distincte, urgente et explicite sur la catégorie.
+    const danger = input.dangerSignal
+    const titre = danger ? `Signalement de danger Yaye (${danger})` : 'Nouvelle escalade Yaye'
+    const contenu = danger
+      ? `URGENT — un jeune a signalé une situation de type « ${danger} ». À prendre en charge EN PRIORITÉ dans le panel.`
+      : `Une conversation a été transmise à un conseiller${input.raison ? ` (${input.raison})` : ''}. À prendre en charge dans le panel.`
+
     await prisma.notification.createMany({
       data: staff.map((s) => ({
         cjsUid: s.cjsUid,
         type: 'Yaye' as const,
-        titre: 'Nouvelle escalade Yaye',
-        contenu: `Une conversation a été transmise à un conseiller${input.raison ? ` (${input.raison})` : ''}. À prendre en charge dans le panel.`,
+        titre,
+        contenu,
         iconName: 'bell',
         lien: '/admin/yaye/escalades',
-        metaPill: 'Escalade',
+        metaPill: danger ? 'Danger' : 'Escalade',
       })),
       // FK Utilisateur : un cjsUid staff non présent ferait échouer le lot — skipDuplicates
       // ne couvre pas la FK, d'où le catch englobant (fail-soft).
@@ -66,6 +73,8 @@ export interface RecordEscaladeInput {
   raison?: string | null
   /** Stade de la conversation au moment de l'escalade (libre, optionnel). */
   stade?: string | null
+  /** Catégorie de DANGER repérée (violence, harcelement…) — déclenche un signalement urgent. */
+  dangerSignal?: string | null
 }
 
 /** Résultat d'une escalade — porte le SUIVI restitué à l'utilisateur. */
@@ -103,8 +112,14 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<Escala
     centreId: input.centreId ?? null,
     canal: input.canal,
     typeEvenement: 'escalade_conseiller',
-    payload: { raison: input.raison ?? null, stade: input.stade ?? null, reference },
+    payload: { raison: input.raison ?? null, stade: input.stade ?? null, reference, dangerSignal: input.dangerSignal ?? null },
   })
+
+  // Danger repéré → on l'inscrit dans `raison` pour qu'il soit VISIBLE dans le panel admin
+  // (en attendant une colonne dédiée + tri prioritaire de la file).
+  const raison = input.dangerSignal
+    ? `${input.raison ?? 'sujet_sensible'} · DANGER:${input.dangerSignal}`
+    : input.raison ?? null
 
   // 2. File de traitement — une seule entrée ouverte par session.
   try {
@@ -121,7 +136,7 @@ export async function recordEscalade(input: RecordEscaladeInput): Promise<Escala
         role:      input.role ?? null,
         centreId:  input.centreId ?? null,
         canal:     input.canal,
-        raison:    input.raison ?? null,
+        raison,
         stade:     input.stade ?? null,
       },
     })
