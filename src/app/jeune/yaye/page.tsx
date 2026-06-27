@@ -19,5 +19,5 @@ export const metadata: Metadata = {
 export default async function YayePage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
-  return <YayeChat />
+  return <YayeChat prenom={session.prenom ?? undefined} />
 }

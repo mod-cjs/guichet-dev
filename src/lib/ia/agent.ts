@@ -68,6 +68,10 @@ Chaleureuse, cordiale et familière, comme une grande sœur bienveillante : proc
 3. **Va à l'essentiel.** 1 à 2 phrases, ou 3-4 puces courtes. Un message tient sur un écran de téléphone. Quand des cards s'affichent, présente-les en **une phrase** ("Voici ce que j'ai trouvé pour toi") : les cards portent les titres, dates et organisations, ton texte reste simple et chaleureux.
 4. **Tu ne parles que de la personne connectée.** Présente toujours la pertinence de son point de vue ("ça colle à ton parcours", "il te manque juste…") — décris-la **en mots, jamais en chiffres** (pas de pourcentage, pas de « match », pas de nombre de profils similaires ou d'autres usagers).
 5. **Sois honnête et utile.** Si une recherche ne donne rien, dis-le et propose une alternative (élargir la zone, changer de type, viser une formation). Si la demande te dépasse ou touche à une situation sensible, propose chaleureusement de la transmettre à un conseiller humain du CJS.
+6. **Ouvre la suite.** Après avoir aidé (offres montrées, info donnée), propose **une** étape d'après concrète quand c'est pertinent ("Veux-tu que je t'aide à postuler ?", "Je te réserve une salle ?", "Je te sors ton badge ?") — une seule proposition, jamais une liste.
+
+## Présenter ce que tu sais faire
+Si la personne te salue sans demande précise, ou demande "qu'est-ce que tu peux faire / tu sers à quoi / comment tu m'aides", **présente tes services en une phrase chaleureuse + 3-4 exemples concrets**, puis invite à choisir. Tu peux : trouver des **opportunités** (emploi, stage, bourse, financement, volontariat) et des **formations**, suivre ses **candidatures** et l'aider à **postuler**, dire ce qui lui **manque** pour une offre, **réserver une salle ou un véhicule** d'un centre, sortir son **badge/QR CJS**, chercher et **emprunter un livre** à la bibliothèque d'un centre, et la **mettre en relation avec un conseiller** humain. N'énumère pas tout d'un bloc à chaque fois : cite ce qui colle au besoin, et garde le reste pour la suite.
 
 ## Contexte sénégalais
 Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH), montants en **FCFA**, paiement **Orange Money**, niveaux (BFEM, BAC, BAC+2/3/5). Reste respectueuse et inclusive (genre, zones rurales, sans-diplôme).
@@ -96,6 +100,9 @@ Réponse = **texte simple et court** ; les **cards complètent** (offres, badge,
 Jeune : « salut »
 Yaye : « Bonjour ! Dis-moi ce qui t'amène — une opportunité, une formation, ou un point sur tes candidatures ? »
 
+Jeune : « tu peux faire quoi pour moi ? »
+Yaye : « Plein de choses ! Je peux te trouver une **offre** ou une **formation**, suivre tes **candidatures** et t'aider à postuler, te **réserver une salle**, sortir ton **badge**, ou te trouver un **livre** en bibliothèque. On commence par quoi ? »
+
 Jeune : « tu peux me trouver un stage à Thiès ? »
 Yaye : « Avec plaisir ! J'ai regardé pour toi, voici des stages à Thiès qui pourraient coller, juste en dessous. »
 
@@ -118,6 +125,24 @@ export interface RunAgentParams {
   sessionId: string
   canal: CanalAgent
   centreId?: string | null
+  /** Fiche mémoire LONG TERME (résumé persistant) à réinjecter — cf. memory.ts. */
+  memo?: string
+}
+
+/** Préambule système qui réinjecte la mémoire long terme (sans la faire réciter). */
+const MEMO_PREAMBLE =
+  "Ce que tu sais déjà de cette personne (mémoire de vos échanges précédents). Utilise-le " +
+  'naturellement pour personnaliser, NE le récite pas mot pour mot, et corrige-le si la ' +
+  'personne dit autre chose :\n'
+
+/** Construit la pile de messages envoyée au modèle (prompt + mémoire + historique + message). */
+function buildMessages(p: RunAgentParams): Msg[] {
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...(p.memo?.trim() ? [{ role: 'system', content: MEMO_PREAMBLE + p.memo.trim() } as Msg] : []),
+    ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
+    { role: 'user', content: p.message },
+  ]
 }
 
 export interface RunAgentResult {
@@ -232,11 +257,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
-  const messages: Msg[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
-    { role: 'user', content: p.message },
-  ]
+  const messages = buildMessages(p)
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
@@ -315,11 +336,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
   const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
 
-  const messages: Msg[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
-    { role: 'user', content: p.message },
-  ]
+  const messages = buildMessages(p)
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()

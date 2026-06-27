@@ -5,6 +5,7 @@ import { runAgent } from '@/lib/ia/agent'
 import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/lib/ia/format-whatsapp'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
 import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadSummary, updateSummary } from '@/lib/ia/memory'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 
@@ -54,9 +55,11 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
   // (et inversement), au lieu d'un historique cloisonné par téléphone.
   const ctxKey = userContextKey(conv.cjsUid)
   const history = await loadContext(ctxKey)
+  const memo = await loadSummary(conv.cjsUid) // mémoire long terme (cross-canal)
   const result = await runAgent({
     message: text,
     history,
+    memo,
     cjsUid: conv.cjsUid,
     roles: ['beneficiaire'], // WhatsApp = bénéficiaires ; le staff passe par le web
     sessionId: conv.id,
@@ -77,6 +80,8 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     [...history, { role: 'user', content: text }, { role: 'assistant', content: result.reply }],
     TTL_USER,
   )
+  // Met à jour la fiche mémoire long terme — fire-and-forget (cross-canal).
+  void updateSummary(conv.cjsUid, memo, text, result.reply)
 }
 
 // Vérification du webhook Meta

@@ -17,16 +17,16 @@ import { streamYaye } from '@/lib/ia/yaye-client'
 export type YayeMessage = { id: string; kind: 'bubble'; from: 'bot' | 'user'; text: ReactNode; timestamp?: string }
 
 /** Message d'intro varié. `rng` injectable : init SSR déterministe, re-tirage au montage. */
-function buildIntroMessage(rng?: () => number): YayeMessage {
-  return { id: 'm1', kind: 'bubble', from: 'bot', text: pickGreeting(undefined, rng), timestamp: '09:41' }
+function buildIntroMessage(prenom?: string, rng?: () => number): YayeMessage {
+  return { id: 'm1', kind: 'bubble', from: 'bot', text: pickGreeting(prenom, rng), timestamp: '09:41' }
 }
 
 /** Garde les N derniers échanges envoyés à l'agent comme contexte. */
 const HISTORY_MAX = 10
 
-export function YayeChat() {
+export function YayeChat({ prenom }: { prenom?: string } = {}) {
   // Init déterministe (variante 0) pour éviter tout écart d'hydratation SSR↔client.
-  const [messages, setMessages] = useState<YayeMessage[]>(() => [buildIntroMessage(() => 0)])
+  const [messages, setMessages] = useState<YayeMessage[]>(() => [buildIntroMessage(prenom, () => 0)])
   const [replies, setReplies] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -127,9 +127,9 @@ export function YayeChat() {
   // Au montage (côté client → pas de mismatch d'hydratation), on varie la
   // salutation ET les amorces si la conversation n'a pas encore commencé.
   useEffect(() => {
-    setMessages(prev => (prev.length <= 1 ? [buildIntroMessage()] : prev))
+    setMessages(prev => (prev.length <= 1 ? [buildIntroMessage(prenom)] : prev))
     setReplies(pickSuggestions())
-  }, [])
+  }, [prenom])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

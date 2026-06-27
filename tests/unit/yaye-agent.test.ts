@@ -61,6 +61,21 @@ test('réponse finale directe (aucun outil)', async () => {
   expect(mockLog).toHaveBeenCalledWith(expect.objectContaining({ typeEvenement: 'reponse_generee' }))
 })
 
+test('injecte la mémoire long terme (memo) dans le contexte système', async () => {
+  mockCreate.mockResolvedValueOnce(final('Bonjour'))
+  await runAgent({ ...base, message: 'salut', memo: '- vise un stage en agro à Thiès' })
+  const sent = mockCreate.mock.calls[0][0].messages as { role: string; content: string }[]
+  const systemContent = sent.filter(m => m.role === 'system').map(m => m.content).join('\n')
+  expect(systemContent).toContain('vise un stage en agro à Thiès')
+})
+
+test('sans memo : aucun message système supplémentaire', async () => {
+  mockCreate.mockResolvedValueOnce(final('Bonjour'))
+  await runAgent({ ...base, message: 'salut' })
+  const sent = mockCreate.mock.calls[0][0].messages as { role: string; content: string }[]
+  expect(sent.filter(m => m.role === 'system')).toHaveLength(1)
+})
+
 test('appelle un outil avec la portée RBAC (cjsUid) puis répond', async () => {
   mockCreate
     .mockResolvedValueOnce(withToolCall('test_tool', '{"scope":"candidatures"}'))

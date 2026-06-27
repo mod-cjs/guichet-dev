@@ -6,6 +6,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { runAgent, streamAgent } from '@/lib/ia/agent'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
 import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadSummary, updateSummary } from '@/lib/ia/memory'
 import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
@@ -53,6 +54,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Autorité serveur (Redis), pas l'historique fourni par le client.
   const ctxKey = userContextKey(session.cjsUid)
   const history = await loadContext(ctxKey)
+  // Mémoire LONG TERME (résumé persistant) — survit au-delà de la fenêtre de contexte.
+  const memo = await loadSummary(session.cjsUid)
   const role = session.roles[0] ?? null
   const logBase = { sessionId, cjsUid: session.cjsUid, role, canal: 'web' as const }
 
@@ -77,6 +80,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       [...history, { role: 'user', content: message }, { role: 'assistant', content: reply }],
       TTL_USER,
     )
+    // Met à jour la fiche mémoire long terme — fire-and-forget (n'ajoute pas de latence).
+    void updateSummary(session.cjsUid, memo, message, reply)
   }
 
   // ── Mode STREAMING (SSE, #1) ────────────────────────────────────────────────
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           let blocks: YayeBlock[] = []
           let toolsUsed: string[] = []
           for await (const ev of streamAgent({
-            message, history, cjsUid: session.cjsUid, roles: session.roles, sessionId, canal: 'web',
+            message, history, memo, cjsUid: session.cjsUid, roles: session.roles, sessionId, canal: 'web',
           })) {
             if (ev.type === 'tool') send('tool', { name: ev.name })
             else if (ev.type === 'token') send('token', { text: ev.text })
@@ -122,6 +127,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const result = await runAgent({
       message,
       history,
+      memo,
       cjsUid: session.cjsUid,
       roles: session.roles,
       sessionId,
