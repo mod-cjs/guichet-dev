@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { YayeSidePanel, type YayeSidePanelMessage } from '@/components/ui/Yaye/YayeSidePanel'
 import type { QuickReply } from '@/components/ui/Yaye/QuickReplies'
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
+import { toolStatus } from '@/lib/ia/tool-labels'
 import { streamYaye } from '@/lib/ia/yaye-client'
 import { YayeBlocks } from './YayeBlocks'
 import { YayeFeedback } from './YayeFeedback'
+import { YayeStreamingText } from './YayeStreamingText'
 
 const HISTORY_MAX = 10
 let counter = 0
@@ -37,9 +39,11 @@ export function YayeConversation({
   const [suggestions, setSuggestions] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  // `thinking` = points de frappe AVANT le premier token ; passe à false dès que le
-  // texte commence à s'écrire (le streaming remplace les points).
+  // `thinking` = indicateur de réflexion AVANT le premier token ; passe à false dès
+  // que le texte commence à s'écrire. `status`/`searching` = réflexion contextuelle.
   const [thinking, setThinking] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
   const sessionIdRef = useRef<string | undefined>(undefined)
   // Index de tour bot (aligné sur l'ordre des message_recu) pour le feedback 👍/👎.
   const botTurnRef = useRef(0)
@@ -68,27 +72,31 @@ export function YayeConversation({
       setInput('')
       setSending(true)
       setThinking(true)
+      setStatus(null)
+      setSearching(false)
 
       const history = historyRef.current.slice(-HISTORY_MAX)
       historyRef.current.push({ role: 'user', content: trimmed })
 
-      // Bulle de streaming : accumulation des tokens, affichée dès le premier.
+      // Bulle de streaming : accumulation des tokens, rendue en machine à écrire.
       const streamId = nid()
       let acc = ''
       let shown = false
       const renderStream = () => {
+        const node = <YayeStreamingText text={acc} />
         if (!shown) {
           shown = true
           setThinking(false)
-          setMessages(prev => [...prev, { id: streamId, from: 'bot', text: acc }])
+          setMessages(prev => [...prev, { id: streamId, from: 'bot', text: node }])
         } else {
-          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: acc } : m)))
+          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
         }
       }
 
       await streamYaye(
         { message: trimmed, sessionId: sessionIdRef.current, history },
         {
+          onTool: name => { const s = toolStatus(name); setStatus(s.label); setSearching(!!s.searching) },
           onToken: t => { acc += t; renderStream() },
           onDone: ({ reply, blocks, sessionId }) => {
             if (sessionId) sessionIdRef.current = sessionId
@@ -134,6 +142,8 @@ export function YayeConversation({
       onSend={send}
       sending={sending}
       typing={thinking}
+      thinkingLabel={status ?? undefined}
+      thinkingSearching={searching}
     />
   )
 }

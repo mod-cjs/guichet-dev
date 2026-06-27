@@ -28,6 +28,8 @@ export function YayeBlocks({
 
   return (
     <div className="flex flex-col gap-space-2">
+      {/* Apparition en fondu décalé des cards (#réponse interactive). */}
+      <style>{`@keyframes yaye-card-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
       {blocks.map((b, i) => {
         if (b.kind === 'text') {
           return b.text ? <YayeText key={i} text={b.text} /> : null
@@ -40,8 +42,13 @@ export function YayeBlocks({
         if (b.kind === 'opportunites') {
           return (
             <div key={i} className="flex flex-col gap-space-2">
-              {b.items.map(o => (
-                <YayeOppCard key={o.id} opp={o} onNavigate={onNavigate} />
+              {b.items.map((o, j) => (
+                <div
+                  key={o.id}
+                  style={{ animation: `yaye-card-in .32s ease-out ${j * 0.07}s both` }}
+                >
+                  <YayeOppCard opp={o} onNavigate={onNavigate} />
+                </div>
               ))}
             </div>
           )

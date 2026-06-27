@@ -17,3 +17,11 @@ export const Default: Story = {
     </div>
   ),
 }
+
+export const AvecStatutContextuel: Story = {
+  render: () => (
+    <div style={{ minHeight: 120, background: 'var(--gj-bg)', padding: 16 }}>
+      <YayeTypingIndicator label="Yaye cherche des opportunités" />
+    </div>
+  ),
+}

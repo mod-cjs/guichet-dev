@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react'
 import { YayeTypingIndicator } from '@/components/ui/Yaye/YayeTypingIndicator'
+import { YayeSkeletonCards } from '@/components/ui/Yaye/YayeSkeletonCards'
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
@@ -45,6 +46,10 @@ export interface YayeSidePanelProps {
    * premier token pour que les points laissent place au texte qui s'écrit.
    */
   typing?: boolean
+  /** Libellé contextuel de réflexion (« Yaye cherche des opportunités »), piloté par les events tool. */
+  thinkingLabel?: string
+  /** Vrai si l'outil en cours ramène des offres → affiche des skeleton cards. */
+  thinkingSearching?: boolean
 }
 
 /**
@@ -107,6 +112,8 @@ export function YayeSidePanel({
   onSend,
   sending = false,
   typing,
+  thinkingLabel,
+  thinkingSearching = false,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -331,7 +338,12 @@ export function YayeSidePanel({
               />
             </div>
           )}
-          {(typing ?? sending) && <YayeTypingIndicator />}
+          {(typing ?? sending) && (
+            <div className="flex flex-col gap-space-2 self-start w-full">
+              <YayeTypingIndicator label={thinkingLabel} />
+              {thinkingSearching && <YayeSkeletonCards />}
+            </div>
+          )}
           <div ref={endRef} />
         </div>
 

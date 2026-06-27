@@ -6,10 +6,13 @@ import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
 import { QuickReplies, type QuickReply } from '@/components/ui/Yaye/QuickReplies'
 import { YayeTypingIndicator } from '@/components/ui/Yaye/YayeTypingIndicator'
+import { YayeSkeletonCards } from '@/components/ui/Yaye/YayeSkeletonCards'
 import { Icon } from '@/components/ui/Icon'
 import { YayeBlocks } from '@/components/yaye/YayeBlocks'
 import { YayeFeedback } from '@/components/yaye/YayeFeedback'
+import { YayeStreamingText } from '@/components/yaye/YayeStreamingText'
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
+import { toolStatus } from '@/lib/ia/tool-labels'
 import { streamYaye } from '@/lib/ia/yaye-client'
 
 /** Message affiché dans la conversation. `text` est un ReactNode → permet d'y rendre
@@ -30,6 +33,9 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
   const [replies, setReplies] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  // État de réflexion contextuel : libellé de l'outil en cours + skeleton si recherche.
+  const [status, setStatus] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
   const listEndRef = useRef<HTMLDivElement | null>(null)
   const idCounter = useRef(0)
   // Persistance conversation côté agent : id de session + historique envoyé en contexte.
@@ -68,27 +74,32 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
       ])
       setInput('')
       setIsTyping(true)
+      setStatus(null)
+      setSearching(false)
 
       const history = historyRef.current.slice(-HISTORY_MAX)
       historyRef.current.push({ role: 'user', content: trimmed })
 
-      // Bulle de streaming : on accumule les tokens et on l'affiche dès le premier.
+      // Bulle de streaming : on accumule les tokens et on l'affiche dès le premier,
+      // rendue par YayeStreamingText (machine à écrire + curseur).
       const streamId = nextId()
       let acc = ''
       let shown = false
       const renderStream = () => {
+        const node = <YayeStreamingText text={acc} />
         if (!shown) {
           shown = true
-          setIsTyping(false) // les tokens remplacent les points de frappe
-          setMessages(prev => [...prev, { id: streamId, kind: 'bubble', from: 'bot', text: acc, timestamp: formatTime() }])
+          setIsTyping(false) // les tokens remplacent l'indicateur de réflexion
+          setMessages(prev => [...prev, { id: streamId, kind: 'bubble', from: 'bot', text: node, timestamp: formatTime() }])
         } else {
-          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: acc } : m)))
+          setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
         }
       }
 
       await streamYaye(
         { message: trimmed, sessionId: sessionIdRef.current, history },
         {
+          onTool: name => { const s = toolStatus(name); setStatus(s.label); setSearching(!!s.searching) },
           onToken: t => { acc += t; renderStream() },
           onDone: ({ reply, blocks, sessionId }) => {
             if (sessionId) sessionIdRef.current = sessionId
@@ -173,7 +184,12 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
             {m.text}
           </YayeBubble>
         ))}
-        {isTyping && <YayeTypingIndicator />}
+        {isTyping && (
+          <div className="flex flex-col gap-space-2 self-start w-full">
+            <YayeTypingIndicator label={status ?? undefined} />
+            {searching && <YayeSkeletonCards />}
+          </div>
+        )}
         <div ref={listEndRef} />
       </div>
 
