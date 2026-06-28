@@ -10,9 +10,9 @@
 //
 // Stockage : Redis, TTL long (90 j) rafraîchi à chaque écriture. Fail-soft partout.
 
-import Groq from 'groq-sdk'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { getGroq } from './groq-client'
 
 const PREFIX = 'yaye:memo:'
 const TTL_MEMO = 90 * 24 * 3600 // 90 jours, rafraîchi à chaque mise à jour
@@ -48,12 +48,6 @@ export async function purgeSummary(cjsUid: string): Promise<void> {
   } catch (err) {
     logger.warn('[yaye-memo] purge échec', { err: String(err) })
   }
-}
-
-let _groq: Groq | null = null
-function getGroq(): Groq {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  return _groq
 }
 
 const SUMMARY_MODEL = process.env.YAYE_SUMMARY_MODEL ?? process.env.YAYE_MODEL ?? 'llama-3.3-70b-versatile'

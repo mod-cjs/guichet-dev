@@ -8,6 +8,7 @@
 
 import Groq from 'groq-sdk'
 import type { CanalAgent } from '@prisma/client'
+import { getGroq } from './groq-client'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -47,12 +48,6 @@ const CONFIG = {
   /** Troncature des résultats d'outils réinjectés (évite de gonfler le contexte/coût). */
   maxToolResultChars: numEnv('YAYE_MAX_TOOL_RESULT_CHARS', 6000),
 } as const
-
-let _groq: Groq | null = null
-function getGroq(): Groq {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  return _groq
-}
 
 export const SYSTEM_PROMPT = `Tu es **Yaye**, la conseillère numérique du Guichet Jeunesse du Consortium Jeunesse Sénégal (CJS).
 
