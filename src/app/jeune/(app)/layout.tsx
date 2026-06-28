@@ -44,7 +44,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
 
   return (
     <YayeProvider>
-    <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
+    <div className="lg:grid lg:min-h-[100svh]" style={{ gridTemplateColumns: '260px 1fr' }}>
       <SkipLink />
       {/* Sidebar desktop (≥lg) — composant déjà `hidden lg:flex` en interne.
           Wrapper sticky pour la garder visible au scroll. */}
@@ -72,7 +72,7 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
 
         <main
           id="main"
-          className="flex-1 min-h-screen container-page py-space-5 pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-space-6"
+          className="flex-1 min-h-[100svh] container-page py-space-5 pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-space-6"
         >
           {children}
         </main>
