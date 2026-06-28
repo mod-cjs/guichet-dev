@@ -10,7 +10,6 @@
 // affiche « en attente de labels humains »).
 
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
 import { agreementByDimension, type AgreementResult, type DimScores } from './calibration'
 
 /** Préfixe conventionnel du champ `juge` pour un label humain. */
@@ -34,21 +33,27 @@ export interface HumanLabelInput {
  */
 export async function recordHumanLabel(input: HumanLabelInput): Promise<void> {
   const s = input.scores
-  await prisma.yayeEvalScore.create({
-    data: {
-      sessionId: input.sessionId,
-      tourIndex: null,
-      juge: `${HUMAN_JUDGE_PREFIX}${input.raterCjsUid}@${RUBRIC_VERSION}`,
-      fidelite: s.fidelite,
-      pertinence: s.pertinence,
-      utilite: s.utilite,
-      persona: s.persona,
-      conformiteCdp: s.conformiteCdp,
-      langue: s.langue,
-      drapeauRouge: s.fidelite < SEUIL_CRITIQUE || s.conformiteCdp < SEUIL_CRITIQUE,
-      commentaire: input.commentaire ?? null,
-    },
-  })
+  const juge = `${HUMAN_JUDGE_PREFIX}${input.raterCjsUid}@${RUBRIC_VERSION}`
+  // Idempotence : une re-notation par le MÊME conseiller remplace la précédente
+  // (sinon la table accumule des labels et computeCalibration n'en garde qu'un).
+  await prisma.$transaction([
+    prisma.yayeEvalScore.deleteMany({ where: { sessionId: input.sessionId, juge } }),
+    prisma.yayeEvalScore.create({
+      data: {
+        sessionId: input.sessionId,
+        tourIndex: null,
+        juge,
+        fidelite: s.fidelite,
+        pertinence: s.pertinence,
+        utilite: s.utilite,
+        persona: s.persona,
+        conformiteCdp: s.conformiteCdp,
+        langue: s.langue,
+        drapeauRouge: s.fidelite < SEUIL_CRITIQUE || s.conformiteCdp < SEUIL_CRITIQUE,
+        commentaire: input.commentaire ?? null,
+      },
+    }),
+  ])
 }
 
 export interface CalibrationReport extends AgreementResult {
@@ -84,18 +89,12 @@ function toDims(r: ScoreRow): DimScores {
  * label humain et le score juge de la MÊME (sessionId, tourIndex). Renvoie null
  * si aucune session n'est doublement notée.
  */
-export async function computeCalibration(
-  filters: { from?: Date; to?: Date } = {},
-): Promise<CalibrationReport | null> {
-  const where: Prisma.YayeEvalScoreWhereInput = {}
-  if (filters.from || filters.to) {
-    where.createdAt = {}
-    if (filters.from) where.createdAt.gte = filters.from
-    if (filters.to) where.createdAt.lte = filters.to
-  }
-
+export async function computeCalibration(): Promise<CalibrationReport | null> {
+  // PAS de filtre par date : le label humain est saisi des jours après la session
+  // et le score juge la nuit suivante → un filtre `createdAt` les séparerait souvent
+  // et sous-estimerait le kappa. La calibration est une mesure de qualité du juge,
+  // pas une métrique de période — on apparie TOUTES les paires existantes.
   const rows = (await prisma.yayeEvalScore.findMany({
-    where,
     select: {
       sessionId: true, tourIndex: true, juge: true,
       fidelite: true, pertinence: true, utilite: true, persona: true, conformiteCdp: true, langue: true,

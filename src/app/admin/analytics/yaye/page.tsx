@@ -51,7 +51,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     computeOutcomes({ from: filters.from, to: filters.to, canal: filters.canal }),
     computeYqsGlobal(filters),
     peekRegression(filters),
-    computeCalibration({ from: filters.from, to: filters.to }),
+    computeCalibration(),
     computeTopIntentions({ from: filters.from, to: filters.to }),
   ])
 

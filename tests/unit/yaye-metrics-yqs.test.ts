@@ -7,7 +7,7 @@
 
 jest.mock('@/lib/prisma', () => ({ prisma: {} }))
 
-import { computeYqs } from '@/lib/ia/metrics/yqs'
+import { computeYqs, applyGlobalGuard } from '@/lib/ia/metrics/yqs'
 
 const couchesPleines = {
   operationnel: 0.9,
@@ -52,4 +52,13 @@ test('toutes les couches nulles → YQS null', () => {
   )
   expect(r.yqs).toBeNull()
   expect(r.drapeauRouge).toBe(false)
+})
+
+test('garde GLOBALE sur le taux de drapeau rouge (pas la moyenne)', () => {
+  // Sous le seuil (5 % < 10 %) → pas de garde, YQS intact.
+  expect(applyGlobalGuard(85, 0.05)).toEqual({ yqs: 85, drapeauRouge: false, plafonne: false })
+  // Au-dessus du seuil → drapeau + plafond à 50 (une hallucination de masse n'est plus noyée).
+  expect(applyGlobalGuard(85, 0.2)).toEqual({ yqs: 50, drapeauRouge: true, plafonne: true })
+  // Drapeau mais YQS déjà bas → pas de plafonnement supplémentaire.
+  expect(applyGlobalGuard(40, 0.2)).toEqual({ yqs: 40, drapeauRouge: true, plafonne: false })
 })

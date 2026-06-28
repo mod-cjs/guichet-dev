@@ -7,8 +7,17 @@
 
 const mockFindMany = jest.fn()
 const mockCreate = jest.fn()
+const mockDeleteMany = jest.fn()
+const mockTransaction = jest.fn((ops: unknown[]) => Promise.all(ops))
 jest.mock('@/lib/prisma', () => ({
-  prisma: { yayeEvalScore: { findMany: (...a: unknown[]) => mockFindMany(...a), create: (...a: unknown[]) => mockCreate(...a) } },
+  prisma: {
+    yayeEvalScore: {
+      findMany: (...a: unknown[]) => mockFindMany(...a),
+      create: (...a: unknown[]) => mockCreate(...a),
+      deleteMany: (...a: unknown[]) => mockDeleteMany(...a),
+    },
+    $transaction: (ops: unknown[]) => mockTransaction(ops),
+  },
 }))
 
 import { computeCalibration, recordHumanLabel } from '@/lib/ia/metrics/calibration-data'
@@ -46,14 +55,18 @@ it('apparie humain↔juge et calcule le kappa par dimension', async () => {
   expect(report!.global).toBe(1)
 })
 
-it('recordHumanLabel écrit une ligne « humain: » avec drapeau si fidélité/CDP faibles', async () => {
+it('recordHumanLabel remplace le label du même notateur (dédup) et lève le drapeau', async () => {
   mockCreate.mockResolvedValue({})
+  mockDeleteMany.mockResolvedValue({ count: 1 })
   await recordHumanLabel({
     sessionId: 's1',
     raterCjsUid: 'admin-1',
     scores: { fidelite: 0.3, pertinence: 0.8, utilite: 0.8, persona: 0.8, conformiteCdp: 0.9, langue: 0.9 },
     commentaire: 'a inventé une offre',
   })
+  // Supprime d'abord l'éventuel label précédent du même (session, notateur).
+  expect(mockDeleteMany.mock.calls[0][0].where).toMatchObject({ sessionId: 's1' })
+  expect(mockDeleteMany.mock.calls[0][0].where.juge).toMatch(/^humain:admin-1@/)
   const data = mockCreate.mock.calls[0][0].data
   expect(data.juge).toMatch(/^humain:admin-1@/)
   expect(data.drapeauRouge).toBe(true) // fidelite 0.3 < 0.6

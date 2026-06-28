@@ -45,7 +45,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     try {
       const garde = { from: new Date(to.getTime() - FENETRE_GARDE_MS), to }
       regression = await runRegressionGuard(garde)
-      calibration = await computeCalibration(garde)
+      // Calibration : globale (toutes les paires humain↔juge), indépendante de la fenêtre.
+      calibration = await computeCalibration()
     } catch (err) {
       logger.warn('cron/yaye-eval mesures qualité (régression/calibration) échec', { err: String(err) })
     }
