@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -8,12 +9,14 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { intentLabel } from '@/lib/ia/tool-labels'
 import type { RollupResult } from '@/lib/ia/metrics/rollups'
 import type { FeedbackKpis } from '@/lib/ia/metrics/feedback'
 import type { OutcomeResult } from '@/lib/ia/metrics/outcomes'
 import type { YqsGlobal } from '@/lib/ia/metrics/yqs'
 import type { RegressionReport } from '@/lib/ia/metrics/regression-data'
 import type { CalibrationReport } from '@/lib/ia/metrics/calibration-data'
+import type { IntentionCount } from '@/lib/ia/metrics/intentions'
 
 interface Filtres {
   from: string
@@ -28,6 +31,7 @@ interface Props {
   yqs: YqsGlobal
   regression: RegressionReport
   calibration: CalibrationReport | null
+  topIntentions: IntentionCount[]
   filtres: Filtres
 }
 
@@ -63,7 +67,7 @@ function Kpi({
   )
 }
 
-export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression, calibration, filtres }: Props) {
+export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression, calibration, topIntentions, filtres }: Props) {
   const router = useRouter()
   const [from, setFrom] = useState(filtres.from)
   const [to, setTo] = useState(filtres.to)
@@ -112,9 +116,16 @@ export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression
           )}
           <span className="text-fs-100 text-color-text-secondary">
             Fidélité moy. {yqs.qualite.fidelite == null ? '—' : pct(yqs.qualite.fidelite)} · Conformité CDP{' '}
-            {yqs.qualite.conformiteCdp == null ? '—' : pct(yqs.qualite.conformiteCdp)} ·{' '}
-            {yqs.qualite.count} conversation(s) jugée(s)
+            {yqs.qualite.conformiteCdp == null ? '—' : pct(yqs.qualite.conformiteCdp)}
           </span>
+          <span className="text-fs-100 text-color-text-secondary">
+            {yqs.qualite.count} / {rollups.sessions} session(s) jugée(s) par le juge — le web sans verbatim n&apos;est pas noté en qualité.
+          </span>
+          {yqs.qualite.drapeauxRouges > 0 && (
+            <Link href="/admin/yaye/sessions?filtre=drapeau" className="text-fs-100 font-bold text-gj-red-ink no-underline">
+              {yqs.qualite.drapeauxRouges} session(s) drapeau rouge → inspecter
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap gap-space-3 ml-auto text-fs-100 text-color-text-secondary">
           {(
@@ -182,6 +193,30 @@ export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression
         </div>
       </section>
 
+      {/* Couche 3 — Qualité (juge LLM), la plus pondérée */}
+      <section className="flex flex-col gap-space-3">
+        <h2 className="text-fs-400 font-bold">Couche 3 — Qualité (juge LLM)</h2>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-space-3">
+          {(
+            [
+              ['Fidélité', yqs.qualite.fidelite, true],
+              ['Pertinence', yqs.qualite.pertinence, false],
+              ['Utilité', yqs.qualite.utilite, false],
+              ['Persona', yqs.qualite.persona, false],
+              ['Conformité CDP', yqs.qualite.conformiteCdp, true],
+              ['Langue', yqs.qualite.langue, false],
+            ] as const
+          ).map(([label, v, critique]) => (
+            <Kpi
+              key={label}
+              label={critique ? `${label} (critique)` : label}
+              value={v == null ? '—' : pct(v)}
+              ton={v == null ? 'neutre' : critique && v < 0.6 ? 'alerte' : v >= 0.7 ? 'bon' : 'neutre'}
+            />
+          ))}
+        </div>
+      </section>
+
       {/* Couche 4 — Résultat métier */}
       <section className="flex flex-col gap-space-3">
         <h2 className="text-fs-400 font-bold">Couche 4 — Résultat métier</h2>
@@ -207,9 +242,32 @@ export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression
             hint={`${feedback.total} retour${feedback.total > 1 ? 's' : ''}`}
             ton={feedback.csat == null ? 'neutre' : feedback.csat < 0.7 ? 'alerte' : 'bon'}
           />
-          <Kpi label="👍 Utiles" value={String(feedback.positifs)} />
-          <Kpi label="👎 Pas utiles" value={String(feedback.negatifs)} />
+          <Kpi label="Retours positifs" value={String(feedback.positifs)} ton="bon" />
+          <Kpi label="Retours négatifs" value={String(feedback.negatifs)} ton={feedback.negatifs > 0 ? 'alerte' : 'neutre'} />
         </div>
+      </section>
+
+      {/* Top intentions (sujets les plus fréquents) */}
+      <section className="flex flex-col gap-space-3">
+        <h2 className="text-fs-400 font-bold">Top intentions</h2>
+        <Card className="flex flex-col gap-space-2">
+          {topIntentions.length === 0 ? (
+            <span className="text-fs-200 text-color-text-secondary">Aucune session matérialisée sur la période.</span>
+          ) : (
+            (() => {
+              const max = Math.max(1, ...topIntentions.map((i) => i.count))
+              return topIntentions.map((it) => (
+                <div key={it.intention ?? 'conversation'} className="flex items-center gap-space-2">
+                  <span className="w-[180px] text-fs-200 truncate">{intentLabel(it.intention)}</span>
+                  <div className="flex-1 h-[14px] bg-gj-line rounded-gj-sm overflow-hidden">
+                    <div className="h-full bg-gj-teal" style={{ width: `${Math.round((it.count / max) * 100)}%` }} />
+                  </div>
+                  <span className="w-[48px] text-right text-fs-200">{it.count}</span>
+                </div>
+              ))
+            })()
+          )}
+        </Card>
       </section>
 
       {/* Profondeur de boucle */}

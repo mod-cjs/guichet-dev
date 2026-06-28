@@ -7,6 +7,7 @@ import { computeOutcomes } from '@/lib/ia/metrics/outcomes'
 import { computeYqsGlobal } from '@/lib/ia/metrics/yqs'
 import { peekRegression } from '@/lib/ia/metrics/regression-data'
 import { computeCalibration } from '@/lib/ia/metrics/calibration-data'
+import { computeTopIntentions } from '@/lib/ia/metrics/intentions'
 import { YayeMetricsClient } from './yaye-metrics-client'
 import type { CanalAgent } from '@prisma/client'
 
@@ -44,13 +45,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     canal: parseCanal(sp.canal),
   }
 
-  const [rollups, feedback, outcomes, yqs, regression, calibration] = await Promise.all([
+  const [rollups, feedback, outcomes, yqs, regression, calibration, topIntentions] = await Promise.all([
     computeRollups(filters),
     computeFeedbackKpis({ from: filters.from, to: filters.to, canal: filters.canal }),
     computeOutcomes({ from: filters.from, to: filters.to, canal: filters.canal }),
     computeYqsGlobal(filters),
     peekRegression(filters),
     computeCalibration({ from: filters.from, to: filters.to }),
+    computeTopIntentions({ from: filters.from, to: filters.to }),
   ])
 
   return (
@@ -61,6 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       yqs={yqs}
       regression={regression}
       calibration={calibration}
+      topIntentions={topIntentions}
       filtres={{
         from: (filters.from ?? defaultFrom).toISOString().slice(0, 10),
         to: (filters.to ?? now).toISOString().slice(0, 10),
