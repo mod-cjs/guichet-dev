@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { listEscalades, type EscaladeListFilters } from '@/lib/ia/admin/escalades'
 import { EscaladesClient } from './EscaladesClient'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
@@ -16,6 +17,8 @@ interface SP {
   page?: string
   statut?: string
   canal?: string
+  centre?: string
+  danger?: string
 }
 
 function parseStatut(v: string | undefined): StatutEscalade | undefined {
@@ -31,13 +34,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
 
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
+  const centre = (sp.centre ?? '').trim() || undefined
 
   const filters: EscaladeListFilters = {
     statut: parseStatut(sp.statut),
     canal: parseCanal(sp.canal),
+    centreId: centre,
+    dangerOnly: sp.danger === '1',
   }
 
-  const { rows, total, counts } = await listEscalades(filters, page, PAGE_SIZE)
+  const [{ rows, total, counts }, centres] = await Promise.all([
+    listEscalades(filters, page, PAGE_SIZE),
+    prisma.centre.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' } }),
+  ])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
@@ -51,9 +60,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       total={total}
       currentPage={page}
       totalPages={totalPages}
+      centres={centres}
       filtres={{
         statut: parseStatut(sp.statut) ?? '',
         canal: sp.canal === 'web' || sp.canal === 'whatsapp' ? sp.canal : 'tous',
+        centre: centre ?? '',
+        danger: sp.danger === '1',
       }}
     />
   )

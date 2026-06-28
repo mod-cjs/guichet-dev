@@ -9,6 +9,15 @@ export interface EscaladeListFilters {
   statut?: StatutEscalade
   canal?: CanalAgent
   centreId?: string
+  /** Ne garder que les signalements de danger (signal_danger non nul). */
+  dangerOnly?: boolean
+}
+
+/** Identité du bénéficiaire (pour contact, surtout sur un signalement de danger). */
+export interface EscaladeUser {
+  prenom: string
+  nom: string
+  telephone: string | null
 }
 
 export interface EscaladeRow {
@@ -27,6 +36,8 @@ export interface EscaladeRow {
   traitePar: string | null
   traiteA: Date | null
   createdAt: Date
+  /** Bénéficiaire résolu (null si anonyme/non identifié). */
+  user: EscaladeUser | null
 }
 
 export interface EscaladeListResult {
@@ -43,10 +54,17 @@ export async function listEscalades(
   page = 1,
   pageSize = PAGE_SIZE,
 ): Promise<EscaladeListResult> {
-  const where: Prisma.EscaladeYayeWhereInput = {
-    ...(f.statut ? { statut: f.statut } : {}),
+  // Critères hors statut (canal / centre / danger) → partagés par la liste ET les
+  // compteurs de chips, pour que ces derniers reflètent le filtre courant (sauf le
+  // statut, qui est justement ce que les chips sélectionnent).
+  const baseWhere: Prisma.EscaladeYayeWhereInput = {
     ...(f.canal ? { canal: f.canal } : {}),
     ...(f.centreId ? { centreId: f.centreId } : {}),
+    ...(f.dangerOnly ? { signalDanger: { not: null } } : {}),
+  }
+  const where: Prisma.EscaladeYayeWhereInput = {
+    ...baseWhere,
+    ...(f.statut ? { statut: f.statut } : {}),
   }
 
   const [rows, total, grouped] = await Promise.all([
@@ -58,7 +76,8 @@ export async function listEscalades(
       take: pageSize,
     }),
     prisma.escaladeYaye.count({ where }),
-    prisma.escaladeYaye.groupBy({ by: ['statut'], _count: { _all: true } }),
+    // Compteurs par statut respectant le filtre canal/centre/danger (pas le statut).
+    prisma.escaladeYaye.groupBy({ by: ['statut'], where: baseWhere, _count: { _all: true } }),
   ])
 
   const counts: Record<StatutEscalade, number> = {
@@ -68,7 +87,22 @@ export async function listEscalades(
   }
   for (const g of grouped) counts[g.statut] = g._count._all
 
-  return { rows, total, counts }
+  // Résolution des bénéficiaires (prénom/nom/téléphone) pour le contact — une requête.
+  const uids = [...new Set(rows.map((r) => r.cjsUid).filter((u): u is string => !!u))]
+  const users = uids.length
+    ? await prisma.utilisateur.findMany({
+        where: { cjsUid: { in: uids } },
+        select: { cjsUid: true, prenom: true, nom: true, telephone: true },
+      })
+    : []
+  const userByUid = new Map(users.map((u) => [u.cjsUid, u]))
+
+  const enriched: EscaladeRow[] = rows.map((r) => {
+    const u = r.cjsUid ? userByUid.get(r.cjsUid) : undefined
+    return { ...r, user: u ? { prenom: u.prenom, nom: u.nom, telephone: u.telephone } : null }
+  })
+
+  return { rows: enriched, total, counts }
 }
 
 /**

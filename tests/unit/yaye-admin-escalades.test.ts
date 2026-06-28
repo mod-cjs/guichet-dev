@@ -1,0 +1,46 @@
+/**
+ * @jest-environment node
+ *
+ * File d'escalade admin (GUIC-259) : compteurs par statut respectant le filtre
+ * (canal/centre/danger, PAS le statut), filtre danger, enrichissement bénéficiaire.
+ */
+
+const mockFindMany = jest.fn()
+const mockCount = jest.fn()
+const mockGroupBy = jest.fn()
+const mockUserFind = jest.fn()
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    escaladeYaye: {
+      findMany: (...a: unknown[]) => mockFindMany(...a),
+      count: (...a: unknown[]) => mockCount(...a),
+      groupBy: (...a: unknown[]) => mockGroupBy(...a),
+    },
+    utilisateur: { findMany: (...a: unknown[]) => mockUserFind(...a) },
+  },
+}))
+
+import { listEscalades } from '@/lib/ia/admin/escalades'
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockFindMany.mockResolvedValue([
+    { id: 'e1', sessionId: 's1', cjsUid: 'u1', role: 'beneficiaire', centreId: null, canal: 'whatsapp', raison: 'sujet_sensible', stade: null, signalDanger: 'violence', priorite: 1, statut: 'en_attente', traitePar: null, traiteA: null, createdAt: new Date() },
+  ])
+  mockCount.mockResolvedValue(1)
+  mockGroupBy.mockResolvedValue([{ statut: 'en_attente', _count: { _all: 3 } }])
+  mockUserFind.mockResolvedValue([{ cjsUid: 'u1', prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' }])
+})
+
+it('les compteurs de chips ignorent le filtre statut mais respectent le canal', async () => {
+  const res = await listEscalades({ statut: 'en_attente', canal: 'whatsapp' })
+  // groupBy reçoit le filtre SANS statut (sinon les chips seraient faux).
+  expect(mockGroupBy.mock.calls[0][0].where).toEqual({ canal: 'whatsapp' })
+  expect(res.counts.en_attente).toBe(3)
+})
+
+it('le filtre danger borne sur signal_danger non nul et enrichit le bénéficiaire', async () => {
+  const res = await listEscalades({ dangerOnly: true })
+  expect(mockFindMany.mock.calls[0][0].where).toEqual({ signalDanger: { not: null } })
+  expect(res.rows[0].user).toEqual({ prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' })
+})
