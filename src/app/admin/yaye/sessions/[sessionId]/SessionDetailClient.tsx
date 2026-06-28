@@ -3,8 +3,14 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
+import { pseudonymizeText } from '@/lib/ia/metrics/pseudonymize'
 import type { ReconstructedTranscript, TranscriptEvent } from '@/lib/ia/metrics/transcript'
 import type { SessionRef } from '@/lib/ia/admin/session-refs'
+
+/** Masque les PII directes (email/tél/UUID) tant que l'admin n'a pas révélé. */
+function maybeMask(text: string, reveal: boolean): string {
+  return reveal ? text : pseudonymizeText(text)
+}
 
 export interface SessionDetailClientProps {
   transcript: ReconstructedTranscript
@@ -64,6 +70,9 @@ function prettyPayload(p: unknown): string | null {
 
 export function SessionDetailClient({ transcript: t, refs }: SessionDetailClientProps) {
   const [tab, setTab] = useState<'conversation' | 'technique'>('conversation')
+  // CDP : le verbatim et les payloads d'outils peuvent contenir des PII brutes.
+  // Masqués par défaut ; révélés explicitement par l'admin (investigation).
+  const [reveal, setReveal] = useState(false)
 
   const canalLabel = t.canal === 'whatsapp' ? 'WhatsApp' : t.canal === 'web' ? 'Web' : '—'
 
@@ -113,16 +122,34 @@ export function SessionDetailClient({ transcript: t, refs }: SessionDetailClient
           </div>
         )}
 
-        {/* ── Onglets ── */}
-        <div role="tablist" aria-label="Niveau de détail" style={{ display: 'flex', gap: 4, borderBottom: '1.5px solid var(--gj-line)', marginBottom: 16 }}>
-          <TabBtn active={tab === 'conversation'} onClick={() => setTab('conversation')} icon="chat" label="Conversation" />
-          <TabBtn active={tab === 'technique'} onClick={() => setTab('technique')} icon="settings" label="Technique" />
+        {/* ── Onglets + bascule confidentialité ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottom: '1.5px solid var(--gj-line)', marginBottom: 16, flexWrap: 'wrap' }}>
+          <div role="tablist" aria-label="Niveau de détail" style={{ display: 'flex', gap: 4 }}>
+            <TabBtn active={tab === 'conversation'} onClick={() => setTab('conversation')} icon="chat" label="Conversation" />
+            <TabBtn active={tab === 'technique'} onClick={() => setTab('technique')} icon="settings" label="Technique" />
+          </div>
+          <button
+            type="button"
+            onClick={() => setReveal((v) => !v)}
+            aria-pressed={reveal}
+            title="Le verbatim et les arguments d'outils peuvent contenir des données personnelles (CDP)."
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
+              fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+              border: `1.5px solid ${reveal ? 'var(--gj-red-ink)' : 'var(--gj-line)'}`,
+              background: reveal ? 'var(--gj-red-soft)' : 'var(--gj-surface)',
+              color: reveal ? 'var(--gj-red-ink)' : 'var(--gj-grey)',
+            }}
+          >
+            <Icon name={reveal ? 'eye' : 'eye-off'} size={14} />
+            {reveal ? 'Données personnelles affichées' : 'Révéler les données personnelles'}
+          </button>
         </div>
 
         {tab === 'conversation' ? (
-          <ConversationView t={t} />
+          <ConversationView t={t} reveal={reveal} />
         ) : (
-          <TechniqueView events={t.events} />
+          <TechniqueView events={t.events} reveal={reveal} />
         )}
       </div>
     </div>
@@ -161,7 +188,7 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
   )
 }
 
-function ConversationView({ t }: { t: ReconstructedTranscript }) {
+function ConversationView({ t, reveal }: { t: ReconstructedTranscript; reveal: boolean }) {
   if (!t.hasVerbatimText) {
     return (
       <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '20px 18px' }}>
@@ -202,10 +229,10 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
       {t.turns.map((turn) => (
         <div key={turn.index} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {turn.userText && (
-            <Bubble side="user" text={turn.userText} />
+            <Bubble side="user" text={maybeMask(turn.userText, reveal)} />
           )}
           {turn.assistantText && (
-            <Bubble side="yaye" text={turn.assistantText} meta={turn.toolsUsed} />
+            <Bubble side="yaye" text={maybeMask(turn.assistantText, reveal)} meta={turn.toolsUsed} />
           )}
           {turn.escalade && (
             <div style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)', background: 'var(--gj-yellow-soft)', padding: '4px 12px', borderRadius: 999 }}>
@@ -246,7 +273,7 @@ function Tags({ label, items }: { label: string; items: string[] }) {
   )
 }
 
-function TechniqueView({ events }: { events: TranscriptEvent[] }) {
+function TechniqueView({ events, reveal }: { events: TranscriptEvent[]; reveal: boolean }) {
   return (
     <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '64px 1.4fr 1fr 0.7fr 0.7fr', gap: 10, padding: '10px 16px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
@@ -259,7 +286,8 @@ function TechniqueView({ events }: { events: TranscriptEvent[] }) {
       {events.map((ev, i) => {
         const et = eventTone(ev.type)
         const st = statutTone(ev.statut)
-        const payload = prettyPayload(ev.payload)
+        const raw = prettyPayload(ev.payload)
+        const payload = raw == null ? null : maybeMask(raw, reveal)
         return (
           <details key={i} style={{ borderBottom: '1px solid var(--gj-line)' }}>
             <summary style={{ display: 'grid', gridTemplateColumns: '64px 1.4fr 1fr 0.7fr 0.7fr', gap: 10, padding: '10px 16px', alignItems: 'center', cursor: payload ? 'pointer' : 'default', listStyle: 'none' }} className="!grid grid-cols-2 md:!grid-cols-[64px_1.4fr_1fr_0.7fr_0.7fr]">
