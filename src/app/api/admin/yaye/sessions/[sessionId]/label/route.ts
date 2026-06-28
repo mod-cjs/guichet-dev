@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { recordHumanLabel } from '@/lib/ia/metrics/calibration-data'
+import { canManageYaye } from '@/lib/ia/admin/rbac'
 import type { DimScores } from '@/lib/ia/metrics/calibration'
 import type { ApiResponse } from '@/types/api'
 
@@ -26,10 +27,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ): Promise<NextResponse<ApiResponse<{ sessionId: string }>>> {
-  const session = await getSession()
-  if (!session || !session.roles.includes('admin')) {
+  const session = await getSession(request)
+  if (!session || !canManageYaye(session.roles)) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
+      { error: { code: 'FORBIDDEN', message: 'Accès réservé au staff (admin, directeur, conseiller)' } },
       { status: 403 },
     )
   }

@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { reconstructTranscript } from '@/lib/ia/metrics/transcript'
 import { resolveSessionRefs } from '@/lib/ia/admin/session-refs'
+import { canManageYaye } from '@/lib/ia/admin/rbac'
 import { SessionDetailClient } from './SessionDetailClient'
 
 // Panel admin — Détail d'une session Yaye, 2 niveaux (Conversation / Technique).
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: 'Détail session Yaye — Admin CJS' 
 
 export default async function Page({ params }: { params: Promise<{ sessionId: string }> }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !canManageYaye(session.roles)) redirect('/auth/connexion')
 
   const { sessionId } = await params
   const transcript = await reconstructTranscript(sessionId)

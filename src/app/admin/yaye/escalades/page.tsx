@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { listEscalades, type EscaladeListFilters } from '@/lib/ia/admin/escalades'
+import { canManageYaye } from '@/lib/ia/admin/rbac'
 import { EscaladesClient } from './EscaladesClient'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
 
@@ -30,7 +31,7 @@ function parseCanal(v: string | undefined): CanalAgent | undefined {
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) redirect('/auth/connexion')
+  if (!session || !canManageYaye(session.roles)) redirect('/auth/connexion')
 
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
