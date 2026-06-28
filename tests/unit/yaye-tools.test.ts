@@ -104,7 +104,7 @@ test('search_opportunities : enum invalide ignoré (pas de crash Prisma)', async
 
 // ── escalate_to_advisor (Lot 6) ────────────────────────────────────────────
 
-test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc action avec référence', async () => {
+test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc escalade avec référence', async () => {
   mockRecordEscalade.mockResolvedValueOnce({ reference: 'YAYE-ABC123', alreadyPending: false })
   const r = await TOOLS.escalate_to_advisor.execute(
     { motif: 'sujet_sensible', resume: 'situation personnelle difficile' },
@@ -117,10 +117,10 @@ test('escalate_to_advisor : journalise l’escalade (recordEscalade) + bloc acti
       stade: 'situation personnelle difficile',
     }),
   )
-  expect(r.block?.kind).toBe('action')
-  // Suivi : la référence est restituée (data + bloc) pour que la personne puisse la rappeler.
+  expect(r.block?.kind).toBe('escalade')
+  // Suivi : la référence est restituée (data + bloc dédié) pour que la personne puisse la rappeler.
   expect((r.data as { reference?: string })?.reference).toBe('YAYE-ABC123')
-  expect(r.block && 'subtitle' in r.block ? r.block.subtitle : '').toContain('YAYE-ABC123')
+  expect(r.block && 'reference' in r.block ? r.block.reference : '').toBe('YAYE-ABC123')
 })
 
 test('escalate_to_advisor : escalade déjà en cours → titre adapté', async () => {

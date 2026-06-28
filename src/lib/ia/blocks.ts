@@ -23,6 +23,19 @@ export interface YayeQuickReply {
   value: string
 }
 
+/** Accusé de réception d'escalade vers un conseiller humain (carte dédiée). */
+export interface YayeEscaladeBlock {
+  kind: 'escalade'
+  /** Référence à citer (ex. YAYE-AB12CD). */
+  reference: string
+  title: string
+  /** Attente HONNÊTE (aucun délai promis). */
+  message: string
+  /** Vrai si l'escalade provient d'un signal de danger. */
+  danger?: boolean
+  button?: { label: string; href: string }
+}
+
 /** Un bloc de réponse — rendu différemment selon son `kind`. */
 export type YayeBlock =
   | { kind: 'text'; text: string }
@@ -35,3 +48,4 @@ export type YayeBlock =
       actions: { icon: string; label: string }[]
       buttons?: { label: string; href?: string; primary?: boolean }[]
     }
+  | YayeEscaladeBlock

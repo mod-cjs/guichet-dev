@@ -805,13 +805,14 @@ const escalateToAdvisor: AgentTool = {
           `sans promettre de délai précis.`,
       },
       block: {
-        kind: 'action',
+        kind: 'escalade',
+        reference,
+        danger: !!dangerSignal,
         title: alreadyPending ? 'Ta demande est déjà entre de bonnes mains' : 'Demande transmise à un conseiller',
-        subtitle:
-          `Référence ${reference}. Un membre de l'équipe CJS va prendre le relais et te répondra ` +
-          `ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.`,
-        actions: [],
-        buttons: [{ label: 'Trouver un centre CJS', href: `${base}/centres`, primary: true }],
+        message: alreadyPending
+          ? "Un membre de l'équipe CJS s'en occupe déjà et te répondra ici même. Garde cette référence si tu veux la rappeler."
+          : "Un membre de l'équipe CJS va prendre le relais et te répondra ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.",
+        button: { label: 'Trouver un centre CJS', href: `${base}/centres` },
       },
     }
   },

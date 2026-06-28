@@ -260,6 +260,18 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   return { role: 'tool', tool_call_id: call.id, content: toolContent }
 }
 
+/** Bloc d'accusé de réception pour l'escalade de garde-fou (max rounds). */
+function maxRoundsEscaladeBlock(reference: string): YayeBlock {
+  return {
+    kind: 'escalade',
+    reference,
+    title: 'Demande transmise à un conseiller',
+    message:
+      'Un conseiller du CJS va prendre le relais et te répondra ici même. ' +
+      'Garde cette référence si tu veux la rappeler.',
+  }
+}
+
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const groq = getGroq()
   const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
@@ -329,9 +341,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   await logAgentEvent({ ...base, typeEvenement: 'erreur', statut: 'partiel', payload: { raison: 'max_tool_rounds' } })
   const suivi = await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
   const escalade =
-    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS ` +
-    `(référence ${suivi.reference}). Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
-  return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...blocks], toolsUsed }
+    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
+    `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
+  return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...blocks], toolsUsed }
 }
 
 // ── Variante STREAMING (SSE, #1) ──────────────────────────────────────────────
@@ -439,8 +451,8 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   await logAgentEvent({ ...base, typeEvenement: 'erreur', statut: 'partiel', payload: { raison: 'max_tool_rounds' } })
   const suivi = await recordEscalade({ ...base, raison: 'max_tool_rounds', stade: `après ${CONFIG.maxToolRounds} tours d'outils sans réponse` })
   const escalade =
-    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS ` +
-    `(référence ${suivi.reference}). Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
+    `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
+    `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
   yield { type: 'token', text: escalade }
-  yield { type: 'done', reply: escalade, blocks: [{ kind: 'text', text: escalade }, ...state.blocks], toolsUsed: state.toolsUsed }
+  yield { type: 'done', reply: escalade, blocks: [{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...state.blocks], toolsUsed: state.toolsUsed }
 }
