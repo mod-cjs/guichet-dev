@@ -7,16 +7,20 @@
 
 const mockFindMany = jest.fn()
 const mockCreate = jest.fn()
+const mockScoreFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     agentLog: { findMany: (...a: unknown[]) => mockFindMany(...a) },
-    yayeEvalScore: { create: (...a: unknown[]) => mockCreate(...a) },
+    yayeEvalScore: { create: (...a: unknown[]) => mockCreate(...a), findMany: (...a: unknown[]) => mockScoreFindMany(...a) },
   },
 }))
 const mockReconstruct = jest.fn()
 jest.mock('@/lib/ia/metrics/transcript', () => ({ reconstructTranscript: (...a: unknown[]) => mockReconstruct(...a) }))
 const mockJudge = jest.fn()
-jest.mock('@/lib/ia/metrics/judge', () => ({ judgeTranscript: (...a: unknown[]) => mockJudge(...a) }))
+jest.mock('@/lib/ia/metrics/judge', () => ({
+  judgeTranscript: (...a: unknown[]) => mockJudge(...a),
+  judgeId: () => 'groq:test@rubric-v1',
+}))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
 import { runEval } from '@/lib/ia/metrics/eval-run'
@@ -26,6 +30,8 @@ beforeEach(() => {
   mockCreate.mockReset()
   mockReconstruct.mockReset()
   mockJudge.mockReset()
+  mockScoreFindMany.mockReset()
+  mockScoreFindMany.mockResolvedValue([]) // aucune session déjà notée par défaut
 })
 
 test('juge les sessions WhatsApp, ignore le web sans texte, écrit les scores', async () => {
@@ -72,5 +78,20 @@ test('score juge null (échec LLM) → compté en erreur, pas d’écriture', as
   const report = await runEval({ from: new Date('2026-06-21'), to: new Date('2026-06-22') })
   expect(report.evalues).toBe(0)
   expect(report.erreurs).toBe(1)
+  expect(mockCreate).not.toHaveBeenCalled()
+})
+
+test('idempotence : une session déjà notée par ce juge est ignorée (pas de doublon)', async () => {
+  mockFindMany.mockResolvedValueOnce([
+    { sessionId: 'wa1', canal: 'whatsapp', typeEvenement: 'message_recu', statut: 'succes' },
+  ])
+  // wa1 a déjà un score du même juge → skip avant tout jugement.
+  mockScoreFindMany.mockResolvedValue([{ sessionId: 'wa1' }])
+
+  const report = await runEval({ from: new Date('2026-06-21'), to: new Date('2026-06-22') })
+
+  expect(report.ignoresDejaEvalues).toBe(1)
+  expect(report.evalues).toBe(0)
+  expect(mockReconstruct).not.toHaveBeenCalled()
   expect(mockCreate).not.toHaveBeenCalled()
 })
