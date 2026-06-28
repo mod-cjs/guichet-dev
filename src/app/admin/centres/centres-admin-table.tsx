@@ -4,10 +4,16 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { regionLabel } from '@/lib/regions'
 import { Region } from '@prisma/client'
 import { CentreFormModal } from './CentreFormModal'
 import { supprimerCentre } from './actions'
+
+// Grille du tableau desktop : Centre · Jeunes · Agents · Actions.
+// (Les colonnes « Insertions/mois » et « Taux d'insertion » ont été retirées :
+//  aucune source de données ne les alimentait — elles affichaient « — » partout.)
+const GRID = '2fr 1fr 0.7fr 0.9fr'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -76,7 +82,7 @@ export function CentresAdminTableSkeleton() {
               key={i}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1.6fr 1fr 1fr 1.4fr 0.6fr 0.7fr',
+                gridTemplateColumns: GRID,
                 gap: 14,
                 padding: '14px 18px',
                 borderBottom: '1px solid var(--gj-line)',
@@ -91,8 +97,6 @@ export function CentresAdminTableSkeleton() {
                 </div>
               </div>
               <Skeleton height="14px" width="50px" />
-              <Skeleton height="14px" width="30px" />
-              <Skeleton height="7px" width="110px" rounded="4px" />
               <Skeleton height="14px" width="30px" />
               <div style={{ display: 'flex', gap: 6, justifySelf: 'end' }}>
                 <Skeleton height="32px" width="32px" rounded="8px" />
@@ -111,6 +115,7 @@ export function CentresAdminTableSkeleton() {
 export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editCentre, setEditCentre] = useState<CentreRow | undefined>(undefined)
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [, startTransition] = useTransition()
 
   function openCreate() {
@@ -123,7 +128,18 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
   }
   function handleDelete(centre: CentreRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer le centre « ${centre.nom} » ?`)) return
-    startTransition(() => { void supprimerCentre(centre.id) })
+    startTransition(async () => {
+      try {
+        await supprimerCentre(centre.id)
+        setFeedback({ message: `Centre « ${centre.nom} » supprimé.`, variant: 'success' })
+      } catch (e) {
+        // C2 — la suppression échoue si des jeunes/agents sont rattachés : on le DIT.
+        const msg = e instanceof Error && e.message.includes('CENTRE_NON_VIDE')
+          ? `Impossible de supprimer « ${centre.nom} » : des jeunes ou agents y sont rattachés.`
+          : `La suppression de « ${centre.nom} » a échoué.`
+        setFeedback({ message: msg, variant: 'danger' })
+      }
+    })
   }
 
   return (
@@ -210,7 +226,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
             aria-rowindex={1}
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.6fr 1fr 1fr 1.4fr 0.6fr 0.7fr',
+              gridTemplateColumns: GRID,
               gap: 14,
               padding: '12px 18px',
               borderBottom: '1.5px solid var(--gj-line)',
@@ -224,8 +240,6 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
           >
             <span>Centre</span>
             <span>Jeunes</span>
-            <span>Insertions/mois</span>
-            <span>Taux d&apos;insertion</span>
             <span>Agents</span>
             <span>Actions</span>
           </div>
@@ -261,7 +275,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
                 role="row"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1.6fr 1fr 1fr 1.4fr 0.6fr 0.7fr',
+                  gridTemplateColumns: GRID,
                   gap: 14,
                   padding: '13px 18px',
                   borderBottom: '1px solid var(--gj-line)',
@@ -302,16 +316,6 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
                 {/* Jeunes */}
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)' }}>
                   {jeunes.toLocaleString('fr-FR')}
-                </span>
-
-                {/* Insertions/mois — pas de champ source */}
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-grey)' }}>
-                  —
-                </span>
-
-                {/* Taux d'insertion — pas de champ source */}
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gj-grey)' }}>
-                  —
                 </span>
 
                 {/* Agents */}
@@ -425,6 +429,34 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* H2 — actions accessibles aussi sur mobile (était lecture seule) */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(centre)}
+                    style={{
+                      flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      minHeight: 38, borderRadius: 9, border: '1.5px solid var(--gj-line)',
+                      background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)',
+                      fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <Icon name="settings" size={15} /> Modifier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(centre)}
+                    aria-label={`Supprimer ${centre.nom}`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 44, minHeight: 38, borderRadius: 9, border: '1.5px solid var(--gj-line)',
+                      background: 'var(--gj-surface)', color: 'var(--gj-red)', cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <Icon name="block" size={15} />
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -433,10 +465,24 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
       </div>
     </div>
     <CentreFormModal
+      key={editCentre?.id ?? 'new'}
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
       centre={editCentre}
+      onSuccess={(action) =>
+        setFeedback({
+          message: action === 'create' ? 'Centre créé.' : 'Centre mis à jour.',
+          variant: 'success',
+        })
+      }
     />
+    {feedback && (
+      <Toast
+        message={feedback.message}
+        variant={feedback.variant}
+        onClose={() => setFeedback(null)}
+      />
+    )}
     </>
   )
 }

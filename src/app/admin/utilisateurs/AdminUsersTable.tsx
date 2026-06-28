@@ -208,7 +208,7 @@ export function AdminUsersTable({
             <input
               type="search"
               name="q"
-              placeholder="Rechercher… (Entrée)"
+              placeholder="Rechercher un nom, un email… (Entrée)"
               defaultValue={q}
               aria-label="Rechercher un utilisateur"
               style={{
@@ -254,8 +254,9 @@ export function AdminUsersTable({
           })}
         </div>
 
-        {/* ── Table ── */}
+        {/* ── Table (desktop uniquement — cartes empilées en mobile, cf plus bas) ── */}
         <div
+          className="hidden md:block"
           style={{
             background: 'var(--gj-surface)',
             border: '1.5px solid var(--gj-line)',
@@ -427,6 +428,69 @@ export function AdminUsersTable({
           )}
         </div>
 
+        {/* ── Version mobile : cartes empilées TAPPABLES (U-H1) ── */}
+        {rows.length > 0 && (
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }} aria-label="Liste des utilisateurs (vue mobile)">
+            {rows.map((u) => (
+              <Link
+                key={`m-${u.cjsUid}`}
+                href={`/admin/utilisateurs/${u.cjsUid}`}
+                aria-label={`Voir la fiche de ${u.prenom} ${u.nom}`}
+                style={{
+                  textDecoration: 'none',
+                  background: 'var(--gj-surface)',
+                  border: '1px solid var(--gj-line)',
+                  borderRadius: 13,
+                  padding: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
+                    color: 'var(--gj-surface)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  {initials(u.prenom, u.nom)}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--gj-ink)' }}>
+                    {u.prenom} {u.nom}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 2 }}>
+                    {u.centrePrincipalNom ?? u.commune ?? '—'} · {u.statut}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 800,
+                    padding: '3px 9px',
+                    borderRadius: 999,
+                    background: 'var(--gj-teal-soft)',
+                    color: 'var(--gj-teal-deep)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {roleLabel(u.role)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+
         {/* ── Pagination ── */}
         {totalPages > 1 && (
           <div
@@ -445,71 +509,6 @@ export function AdminUsersTable({
           </div>
         )}
 
-        {/* ── Version mobile : cartes ── */}
-        {rows.length > 0 && (
-          <div
-            style={{ display: 'none' }}
-            aria-hidden
-            data-mobile-cards
-          >
-            {rows.map((u) => (
-              <div
-                key={`m-${u.cjsUid}`}
-                style={{
-                  background: 'var(--gj-surface)',
-                  border: '1px solid var(--gj-line)',
-                  borderRadius: 13,
-                  padding: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background:
-                      'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))',
-                    color: 'var(--gj-surface)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 14,
-                    flexShrink: 0,
-                  }}
-                >
-                  {initials(u.prenom, u.nom)}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{ fontSize: 14, fontWeight: 800, color: 'var(--gj-ink)' }}
-                  >
-                    {u.prenom} {u.nom}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 2 }}>
-                    {u.centrePrincipalNom ?? u.commune ?? '—'}
-                  </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 800,
-                    padding: '3px 9px',
-                    borderRadius: 999,
-                    background: 'var(--gj-teal-soft)',
-                    color: 'var(--gj-teal-deep)',
-                  }}
-                >
-                  {roleLabel(u.role)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

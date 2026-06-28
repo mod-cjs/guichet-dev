@@ -31,7 +31,10 @@ export default async function Page({
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
   const q = (sp.q ?? '').trim()
-  const statutFilter = sp.statut ?? ''
+  // CAND-2 — `statut` validé contre l'enum AVANT le cast Prisma : une valeur
+  // invalide (lien périmé, URL forgée) ne doit pas faire crasher la page (500).
+  const VALID_STATUTS = new Set<StatutCandidature>(['En_attente', 'Vue', 'Retenue', 'Refusee'])
+  const statutFilter = VALID_STATUTS.has(sp.statut as StatutCandidature) ? (sp.statut as string) : ''
 
   // Recherche transversale : candidat (nom/prénom) ou opportunité (titre/annonceur).
   const qFilter: Prisma.CandidatureWhereInput = q
@@ -65,8 +68,8 @@ export default async function Page({
         id: true,
         statut: true,
         soumiseA: true,
-        utilisateur: { select: { nom: true, prenom: true } },
-        opportunite: { select: { titre: true, organisation: true, organisationLibelle: true } },
+        utilisateur: { select: { cjsUid: true, nom: true, prenom: true } },
+        opportunite: { select: { id: true, titre: true, organisation: true, organisationLibelle: true } },
       },
     }),
     prisma.candidature.count({ where }),
@@ -86,8 +89,10 @@ export default async function Page({
 
   const rows: CandidatureRow[] = candidatures.map((c) => ({
     id: c.id,
+    candidatCjsUid: c.utilisateur.cjsUid,
     candidatPrenom: c.utilisateur.prenom,
     candidatNom: c.utilisateur.nom,
+    opportuniteId: c.opportunite.id,
     opportuniteTitre: c.opportunite.titre,
     organisation: c.opportunite.organisationLibelle ?? c.opportunite.organisation,
     statut: c.statut,

@@ -34,14 +34,14 @@ function PdfFrame({ url, title, height = 600, className = '' }: {
   const downloadUrl = url.includes('?') ? `${url}&download=1` : `${url}?download=1`
   return (
     <div className={`flex flex-col gap-space-2 ${className}`}>
+      {/* Pas de texte enfant dans l'iframe : un enfant texte provoque un mismatch
+          d'hydratation (React #418). Le vrai fallback est le <p> ci-dessous. */}
       <iframe
         src={url}
         title={title}
         className="w-full rounded-gj-md border border-gj-line bg-gj-surface"
         style={{ height }}
-      >
-        Votre navigateur ne supporte pas l&apos;affichage des PDF.
-      </iframe>
+      />
       <p className="text-fs-200 text-color-text-muted">
         Le PDF ne s&apos;affiche pas&nbsp;?{' '}
         <a

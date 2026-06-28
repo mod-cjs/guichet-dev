@@ -232,6 +232,21 @@ export async function getOpportuniteDetail(slug: string): Promise<OpportuniteDet
 }
 
 /**
+ * Aperçu admin (modération) : charge une opportunité par `id` SANS filtre de
+ * statut — un brouillon en attente de validation n'est pas `publiee`, donc
+ * invisible via `getOpportuniteDetail`. Réservé aux pages admin gardées
+ * (`isAdminRole`), pour permettre de prévisualiser AVANT d'approuver/rejeter.
+ */
+export async function getOpportuniteDetailForAdmin(id: string): Promise<OpportuniteDetail | null> {
+  const o = await prisma.opportunite.findFirst({
+    where: { id, deletedAt: null },
+    include: DETAIL_INCLUDE,
+  })
+  if (!o) return null
+  return toOpportuniteDetailDTO(o as OpportuniteRow)
+}
+
+/**
  * Incrémente le compteur `vues`, best-effort et dédoublonné par IP.
  * Clé Redis `vue:<slug>:<ip>` TTL 30 min — l'incrément n'a lieu qu'à la
  * première vue de cette IP. N'échoue jamais (erreurs avalées).

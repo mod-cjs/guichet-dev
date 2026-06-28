@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Icon, type IconName } from '@/components/ui'
+import { Button, Icon, type IconName, PdfViewer, VideoEmbed } from '@/components/ui'
 import { RessourceShareButton } from '@/components/ressources/RessourceShareButton'
+import { parseVideoEmbedUrl } from '@/lib/parsers/video-url'
 import type { RessourceDetail, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface RessourceDetailClientProps {
@@ -29,14 +30,15 @@ const CTA_ICON: Record<TypeRessourceValue, IconName> = {
 }
 
 /**
- * Bandeau d'actions (Consulter / Partager / Favoris) — GUIC-363.
+ * Visionneuse inline + bandeau d'actions (Consulter / Partager / Favoris).
  *
- * Workflow consultation :
- *  - PDF / Guide → ouverture dans nouvel onglet (le navigateur gère le viewer).
- *  - Video → nouvel onglet vers la source (YouTube/Vimeo embed serait à
- *    ajouter quand le modèle stockera l'identifiant du player).
- *  - Lien externe → nouvel onglet avec rel="noopener noreferrer".
- *  - Outil → nouvel onglet.
+ * Affichage du contenu (GUIC-366, désormais branché) :
+ *  - PDF → `<PdfViewer>` inline via le proxy `/api/ressources/[id]/proxy`
+ *    (contourne `X-Frame-Options` des sources externes) + fallback download/ouvrir.
+ *  - Video → `<VideoEmbed>` inline (YouTube/Vimeo) si l'URL est reconnue, sinon CTA.
+ *  - Guide / Lien / Outil → CTA « ouvrir » (nouvel onglet, rel="noopener noreferrer").
+ *
+ * Le bouton CTA reste affiché dans tous les cas (télécharger / ouvrir la source).
  *
  * Favoris : pattern hérité de `ResourceCard` / `RessourcesClient` (toggle POST,
  * redirige vers /auth/connexion en cas de 401).
@@ -91,11 +93,24 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
   const ctaIcon = CTA_ICON[detail.type]
   const isExternal = /^https?:\/\//.test(detail.url)
 
+  // Visionneuse inline : PDF via proxy (self) ; vidéo embeddable via parser.
+  const videoEmbed = detail.type === 'Video' ? parseVideoEmbedUrl(detail.url) : null
+
   return (
-    <div
-      className="flex flex-wrap items-center gap-space-2"
-      data-testid="ressource-detail-actions"
-    >
+    <div className="flex flex-col gap-space-4">
+      {detail.type === 'PDF' && (
+        <PdfViewer
+          url={`/api/ressources/${detail.id}/proxy`}
+          title={detail.titre}
+          height={640}
+        />
+      )}
+      {videoEmbed && <VideoEmbed embedUrl={videoEmbed.embedUrl} title={detail.titre} />}
+
+      <div
+        className="flex flex-wrap items-center gap-space-2"
+        data-testid="ressource-detail-actions"
+      >
       <a
         href={detail.url}
         target={isExternal ? '_blank' : undefined}
@@ -130,6 +145,7 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
         url={pageUrl}
         testId="ressource-detail-share"
       />
+      </div>
     </div>
   )
 }

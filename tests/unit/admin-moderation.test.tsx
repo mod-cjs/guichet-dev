@@ -70,18 +70,48 @@ describe('GUIC-453 — AdminModerationList (file brouillon, sans verdict IA)', (
     expect(screen.getByText(/Aucune publication en attente/i)).toBeInTheDocument()
   })
 
-  /* ── Câblage des actions (GUIC-462) ───────────────────────────────────────── */
-  it('given une carte, when clic Approuver, then appelle approuverOpportunite(id)', async () => {
+  /* ── Câblage des actions (GUIC-462) — MOD-02 : confirmation requise ────────── */
+  it('given clic Approuver CONFIRMÉ, then appelle approuverOpportunite(id)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
     render(<AdminModerationList items={ITEMS} total={2} />)
     await userEvent.setup().click(screen.getAllByRole('button', { name: /approuver/i })[0])
     expect(mockApprouver).toHaveBeenCalledWith('o1')
     expect(mockRejeter).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
   })
 
-  it('given une carte, when clic Rejeter, then appelle rejeterOpportunite(id)', async () => {
+  // MOD-02 — sans confirmation, l'action irréversible NE part PAS.
+  it('given clic Approuver ANNULÉ, then n\'appelle pas approuverOpportunite', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<AdminModerationList items={ITEMS} total={2} />)
+    await userEvent.setup().click(screen.getAllByRole('button', { name: /approuver/i })[0])
+    expect(mockApprouver).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  // M-M2 — le rejet capture un motif (prompt) transmis à l'action.
+  it('given clic Rejeter avec motif, then appelle rejeterOpportunite(id, motif)', async () => {
+    const promptSpy = jest.spyOn(window, 'prompt').mockReturnValue('Hors charte')
     render(<AdminModerationList items={ITEMS} total={2} />)
     await userEvent.setup().click(screen.getAllByRole('button', { name: /rejeter/i })[0])
-    expect(mockRejeter).toHaveBeenCalledWith('o1')
+    expect(mockRejeter).toHaveBeenCalledWith('o1', 'Hors charte')
     expect(mockApprouver).not.toHaveBeenCalled()
+    promptSpy.mockRestore()
+  })
+
+  it('given clic Rejeter ANNULÉ (prompt null), then n\'appelle pas rejeterOpportunite', async () => {
+    const promptSpy = jest.spyOn(window, 'prompt').mockReturnValue(null)
+    render(<AdminModerationList items={ITEMS} total={2} />)
+    await userEvent.setup().click(screen.getAllByRole('button', { name: /rejeter/i })[0])
+    expect(mockRejeter).not.toHaveBeenCalled()
+    promptSpy.mockRestore()
+  })
+
+  // MOD-01 — l'Aperçu pointe vers la route admin (brouillon visible), pas la page
+  // publique (qui renvoie 404 pour un non-publié).
+  it('le lien Aperçu pointe vers la route admin /admin/opportunites/<id>/apercu', () => {
+    render(<AdminModerationList items={ITEMS} total={2} />)
+    const apercu = screen.getAllByRole('link', { name: /aperçu/i })[0]
+    expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
   })
 })

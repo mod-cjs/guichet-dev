@@ -29,6 +29,7 @@ async function setStatutBrouillon(
   rawId: string,
   statut: StatutOpportunite,
   auditAction: AuditAction,
+  extraMeta?: Record<string, unknown>,
 ): Promise<{ ok: true }> {
   const session = await assertAdmin()
   const id = idSchema.parse(rawId)
@@ -41,11 +42,11 @@ async function setStatutBrouillon(
     throw new Error('NOT_FOUND_OR_NOT_BROUILLON')
   }
 
-  // Traçabilité de la décision de modération (fail-soft).
+  // Traçabilité de la décision de modération (fail-soft) — inclut le motif de rejet.
   await recordAudit(session.cjsUid, auditAction, {
     targetType: 'opportunite',
     targetId: id,
-    meta: { statut },
+    meta: { statut, ...(extraMeta ?? {}) },
   })
 
   revalidatePath('/admin/opportunites')
@@ -57,7 +58,11 @@ export async function approuverOpportunite(id: string): Promise<{ ok: true }> {
   return setStatutBrouillon(id, 'publiee', 'opportunite.approve')
 }
 
-/** Rejeter une publication en attente → `archivee`. */
-export async function rejeterOpportunite(id: string): Promise<{ ok: true }> {
-  return setStatutBrouillon(id, 'archivee', 'opportunite.reject')
+/**
+ * Rejeter une publication en attente → `archivee`.
+ * @param motif raison du rejet (M-M2) — journalisée dans le meta d'audit (non-PII).
+ */
+export async function rejeterOpportunite(id: string, motif?: string): Promise<{ ok: true }> {
+  const reason = motif?.trim()
+  return setStatutBrouillon(id, 'archivee', 'opportunite.reject', reason ? { reason } : undefined)
 }

@@ -78,7 +78,13 @@ export async function modifierRessource(id: string, input: RessourceInput): Prom
 export async function supprimerRessource(id: string): Promise<{ ok: true }> {
   await assertAdmin()
   const rid = idSchema.parse(id)
-  await prisma.ressource.delete({ where: { id: rid } })
+  // RES-3 — la FK RessourceFavorite → Ressource est `Restrict` (défaut) : sans
+  // purge préalable, supprimer une ressource DÉJÀ MISE EN FAVORI échoue (P2003).
+  // On retire les favoris puis la ressource, atomiquement.
+  await prisma.$transaction([
+    prisma.ressourceFavorite.deleteMany({ where: { ressourceId: rid } }),
+    prisma.ressource.delete({ where: { id: rid } }),
+  ])
   revalidate()
   return { ok: true }
 }

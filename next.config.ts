@@ -32,6 +32,10 @@ const CSP = [
   `img-src 'self' data: blob: ${appOrigin} ${ssoOrigin} https://*.public.blob.vercel-storage.com ${GOOGLE_MAPS_IMG}`,
   `font-src 'self' ${GOOGLE_MAPS_FONT}`,
   `connect-src 'self' ${ssoOrigin} ${GOOGLE_MAPS_CONNECT}`,
+  // GUIC-366 — visionneuse ressources : iframe PDF via proxy (self) + embed vidéo
+  // YouTube/Vimeo. Sans `frame-src`, la CSP retombe sur default-src 'self' et bloque
+  // l'embed vidéo.
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -1,9 +1,13 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { RessourceFormModal } from './RessourceFormModal'
 import { supprimerRessource } from './actions'
 
@@ -37,6 +41,15 @@ export interface AdminRessourcesTableProps {
   currentPage?: number
   /** Nombre total de pages — défaut 1 (pas de pagination) */
   totalPages?: number
+  /** Recherche courante (titre/thème/catégorie). */
+  q?: string
+  /** Filtre statut courant : '' | 'public' | 'brouillon'. */
+  statut?: string
+  /** Filtre type courant : '' | TypeRessource. */
+  type?: string
+  /** Compteurs pour les chips de statut. */
+  publishedCount?: number
+  draftCount?: number
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -114,17 +127,30 @@ function StatutPill({ estPublic }: StatutPillProps) {
 
 // ─── mobile card ─────────────────────────────────────────────────────────────
 
-function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row: RessourceRow) => void }) {
+function RessourceMobileCard({
+  row,
+  onEdit,
+  onDelete,
+}: {
+  row: RessourceRow
+  onEdit: (row: RessourceRow) => void
+  onDelete: (row: RessourceRow) => void
+}) {
   const categorie = row.categorie ?? row.theme
   return (
-    <div
-      className="flex gap-3 items-start p-[14px] border-b border-gj-line last:border-b-0"
-    >
+    <div className="flex gap-3 items-start p-[14px] border-b border-gj-line last:border-b-0">
       <TypeBadge type={row.type} />
       <div className="flex-1 min-w-0">
-        <p className="text-[13.5px] font-black" style={{ color: 'var(--gj-ink)' }}>
+        {/* RES-5 — titre ouvre la ressource (PDF/vidéo/lien) pour vérification */}
+        <a
+          href={row.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[13.5px] font-black hover:underline"
+          style={{ color: 'var(--gj-ink)', textDecoration: 'none' }}
+        >
           {row.titre}
-        </p>
+        </a>
         <p className="text-[11.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
           {categorie}
         </p>
@@ -135,21 +161,27 @@ function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row:
           </span>
         </div>
       </div>
-      <button
-        type="button"
-        aria-label="Modifier"
-        onClick={() => onEdit(row)}
-        className="inline-flex items-center justify-center rounded-[8px] shrink-0"
-        style={{
-          width: 32,
-          height: 32,
-          border: '1.5px solid var(--gj-line)',
-          background: 'var(--gj-surface)',
-          color: 'var(--gj-grey)',
-        }}
-      >
-        <Icon name="settings" size={15} />
-      </button>
+      {/* RES-2 — Modifier ET Supprimer sur mobile (le delete manquait) */}
+      <div className="flex flex-col gap-2 shrink-0">
+        <button
+          type="button"
+          aria-label="Modifier"
+          onClick={() => onEdit(row)}
+          className="inline-flex items-center justify-center rounded-[8px]"
+          style={{ width: 32, height: 32, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-grey)' }}
+        >
+          <Icon name="settings" size={15} />
+        </button>
+        <button
+          type="button"
+          aria-label={`Supprimer ${row.titre}`}
+          onClick={() => onDelete(row)}
+          className="inline-flex items-center justify-center rounded-[8px]"
+          style={{ width: 32, height: 32, border: '1.5px solid var(--gj-red)', background: 'var(--gj-surface)', color: 'var(--gj-red-ink)' }}
+        >
+          <Icon name="block" size={15} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -164,10 +196,52 @@ function RessourceMobileCard({ row, onEdit }: { row: RessourceRow; onEdit: (row:
  * - `estPublic`→ statut Publié (true) / Brouillon (false)
  * - `categorie ?? theme` → colonne "Catégorie"
  */
-export function AdminRessourcesTable({ ressources, total, currentPage = 1, totalPages = 1 }: AdminRessourcesTableProps) {
+export function AdminRessourcesTable({
+  ressources,
+  total,
+  currentPage = 1,
+  totalPages = 1,
+  q = '',
+  statut = '',
+  type = '',
+  publishedCount = 0,
+  draftCount = 0,
+}: AdminRessourcesTableProps) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [modalOpen, setModalOpen] = useState(false)
   const [editRow, setEditRow] = useState<RessourceRow | undefined>(undefined)
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [, startTransition] = useTransition()
+
+  // RES-4 — recherche + filtres statut/type, propagés dans l'URL (params validés serveur).
+  function pushWith(next: { q?: string; statut?: string; type?: string }) {
+    const sp = new URLSearchParams()
+    const nq = next.q ?? q
+    const ns = next.statut ?? statut
+    const nt = next.type ?? type
+    if (nq) sp.set('q', nq)
+    if (ns) sp.set('statut', ns)
+    if (nt) sp.set('type', nt)
+    startTransition(() => router.push(sp.toString() ? `${pathname}?${sp}` : pathname))
+  }
+  function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const value = (new FormData(e.currentTarget).get('q')?.toString() ?? '').trim()
+    pushWith({ q: value })
+  }
+  const TYPE_OPTIONS = [
+    { value: '', label: 'Tous les types' },
+    ...(['PDF', 'Video', 'Lien', 'Guide', 'Outil'] as const).map((t) => ({ value: t, label: t })),
+  ]
+  const paginationBase = (() => {
+    const sp = new URLSearchParams()
+    if (q) sp.set('q', q)
+    if (statut) sp.set('statut', statut)
+    if (type) sp.set('type', type)
+    const qs = sp.toString()
+    return qs ? `${pathname}?${qs}` : pathname
+  })()
 
   function openCreate() {
     setEditRow(undefined)
@@ -179,7 +253,15 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
   }
   function handleDelete(row: RessourceRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer « ${row.titre} » ?`)) return
-    startTransition(() => { void supprimerRessource(row.id) })
+    startTransition(async () => {
+      try {
+        await supprimerRessource(row.id)
+        setFeedback({ message: `Ressource « ${row.titre} » supprimée.`, variant: 'success' })
+      } catch {
+        // RES-1 — la suppression peut échouer : on le DIT (était silencieux).
+        setFeedback({ message: `La suppression de « ${row.titre} » a échoué.`, variant: 'danger' })
+      }
+    })
   }
 
   return (
@@ -214,6 +296,44 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
           </Button>
         </div>
 
+        {/* ── Recherche + filtres (RES-4) ─────────────────────────────── */}
+        <div className="flex flex-col gap-3 mb-4">
+          <form onSubmit={handleSearchSubmit} role="search">
+            <input
+              type="search"
+              name="q"
+              defaultValue={q}
+              aria-label="Rechercher une ressource"
+              placeholder="Rechercher un titre, un thème, une catégorie… (Entrée)"
+              className="w-full text-[13px] rounded-[10px] px-[14px] py-[9px]"
+              style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-ink)' }}
+            />
+          </form>
+          <div className="flex gap-2 flex-wrap">
+            <Chip selected={statut === ''} aria-pressed={statut === ''} onClick={() => pushWith({ statut: '' })}>
+              Tous ({publishedCount + draftCount})
+            </Chip>
+            <Chip selected={statut === 'public'} aria-pressed={statut === 'public'} onClick={() => pushWith({ statut: 'public' })}>
+              Publié ({publishedCount})
+            </Chip>
+            <Chip selected={statut === 'brouillon'} aria-pressed={statut === 'brouillon'} onClick={() => pushWith({ statut: 'brouillon' })}>
+              Brouillon ({draftCount})
+            </Chip>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {TYPE_OPTIONS.map((o) => (
+              <Chip
+                key={o.value || 'all'}
+                selected={type === o.value}
+                aria-pressed={type === o.value}
+                onClick={() => pushWith({ type: o.value })}
+              >
+                {o.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
         {/* ── Empty state ─────────────────────────────────────────────── */}
         {ressources.length === 0 && (
           <div
@@ -225,7 +345,9 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
             }}
           >
             <Icon name="resources" size={32} className="mx-auto mb-[10px] opacity-40" />
-            <p className="text-[14px] font-bold">Aucune ressource pour le moment.</p>
+            <p className="text-[14px] font-bold">
+              {q || statut || type ? 'Aucune ressource ne correspond aux filtres.' : 'Aucune ressource pour le moment.'}
+            </p>
           </div>
         )}
 
@@ -282,16 +404,19 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
                         style={{ borderBottom: '1px solid var(--gj-line)' }}
                         className="last:border-b-0"
                       >
-                        {/* Ressource: badge + titre */}
+                        {/* Ressource: badge + titre (RES-5 — titre ouvre l'URL) */}
                         <td className="px-[18px] py-[13px]">
                           <div className="flex items-center gap-[11px]">
                             <TypeBadge type={row.type} />
-                            <span
-                              className="text-[13.5px] font-black"
-                              style={{ color: 'var(--gj-ink)' }}
+                            <a
+                              href={row.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[13.5px] font-black hover:underline"
+                              style={{ color: 'var(--gj-ink)', textDecoration: 'none' }}
                             >
                               {row.titre}
-                            </span>
+                            </a>
                           </div>
                         </td>
                         {/* Catégorie */}
@@ -357,7 +482,7 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
             {/* Mobile card list */}
             <div className="md:hidden">
               {ressources.map((row) => (
-                <RessourceMobileCard key={row.id} row={row} onEdit={openEdit} />
+                <RessourceMobileCard key={row.id} row={row} onEdit={openEdit} onDelete={handleDelete} />
               ))}
             </div>
           </div>
@@ -368,7 +493,7 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              baseUrl="/admin/ressources"
+              baseUrl={paginationBase}
               ariaLabel="Pagination"
             />
           </div>
@@ -376,10 +501,20 @@ export function AdminRessourcesTable({ ressources, total, currentPage = 1, total
       </div>
       </div>
       <RessourceFormModal
+        key={editRow?.id ?? 'new'}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         ressource={editRow}
+        onSuccess={(action) =>
+          setFeedback({
+            message: action === 'create' ? 'Ressource créée.' : 'Ressource mise à jour.',
+            variant: 'success',
+          })
+        }
       />
+      {feedback && (
+        <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />
+      )}
     </>
   )
 }

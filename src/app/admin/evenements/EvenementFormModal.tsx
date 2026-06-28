@@ -38,6 +38,8 @@ export interface EvenementFormModalProps {
   isOpen: boolean
   onClose: () => void
   evenement?: EvenementFormValues
+  /** Appelé après succès (création/édition) — la liste affiche un toast. */
+  onSuccess?: (action: 'create' | 'update') => void
 }
 
 /** ISO → valeur d'un input datetime-local ("YYYY-MM-DDTHH:mm"). */
@@ -49,7 +51,7 @@ function toLocalInput(iso?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function EvenementFormModal({ isOpen, onClose, evenement }: EvenementFormModalProps) {
+export function EvenementFormModal({ isOpen, onClose, evenement, onSuccess }: EvenementFormModalProps) {
   const editing = Boolean(evenement?.id)
   const [titre, setTitre] = useState(evenement?.titre ?? '')
   const [description, setDescription] = useState(evenement?.description ?? '')
@@ -77,8 +79,13 @@ export function EvenementFormModal({ isOpen, onClose, evenement }: EvenementForm
     }
     startTransition(async () => {
       try {
-        if (editing && evenement?.id) await modifierEvenement(evenement.id, input)
-        else await creerEvenement(input)
+        if (editing && evenement?.id) {
+          await modifierEvenement(evenement.id, input)
+          onSuccess?.('update')
+        } else {
+          await creerEvenement(input)
+          onSuccess?.('create')
+        }
         onClose()
       } catch {
         setError('Échec — vérifie les champs requis (date valide, titre, lieu).')

@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
+import { Pagination } from '@/components/ui/Pagination'
 import { EvenementFormModal, type EvenementFormValues } from './EvenementFormModal'
 import { supprimerEvenement } from './actions'
 
@@ -39,6 +41,8 @@ export interface AdminEvenementsTableProps {
   total: number
   activeStatut: StatutEvenement | null
   counts: Partial<Record<StatutEvenement, number>>
+  currentPage?: number
+  totalPages?: number
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -126,14 +130,27 @@ function FilterChips({
   )
 }
 
-function EvenementMobileCard({ row }: { row: EvenementRow }) {
+function EvenementMobileCard({
+  row,
+  onEdit,
+  onDelete,
+}: {
+  row: EvenementRow
+  onEdit: (r: EvenementRow) => void
+  onDelete: (r: EvenementRow) => void
+}) {
   return (
-    <div className="flex gap-3 items-start p-[14px] border-b border-gj-line last:border-b-0">
-      <div className="flex-1 min-w-0">
+    <div className="p-[14px] border-b border-gj-line last:border-b-0">
+      <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-[13.5px] font-black" style={{ color: 'var(--gj-ink)' }}>
+          {/* EV-2 — titre cliquable vers le détail (était inerte sur mobile) */}
+          <Link
+            href={`/admin/evenements/${row.id}`}
+            className="text-[13.5px] font-black hover:underline"
+            style={{ color: 'var(--gj-ink)', textDecoration: 'none' }}
+          >
             {row.titre}
-          </p>
+          </Link>
           <TypePill type={row.type} />
         </div>
         <p className="text-[11.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
@@ -145,6 +162,26 @@ function EvenementMobileCard({ row }: { row: EvenementRow }) {
             {inscritsLabel(row)} inscrits
           </span>
         </div>
+      </div>
+      {/* EV-2 — actions accessibles aussi sur mobile */}
+      <div className="flex gap-2 mt-[11px]">
+        <button
+          type="button"
+          onClick={() => onEdit(row)}
+          className="flex-1 inline-flex items-center justify-center gap-[6px] rounded-[9px] text-[12.5px] font-bold"
+          style={{ minHeight: 40, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)' }}
+        >
+          <Icon name="settings" size={15} /> Modifier
+        </button>
+        <button
+          type="button"
+          aria-label={`Supprimer ${row.titre}`}
+          onClick={() => onDelete(row)}
+          className="inline-flex items-center justify-center rounded-[9px]"
+          style={{ width: 44, minHeight: 40, border: '1.5px solid var(--gj-red)', background: 'var(--gj-surface)', color: 'var(--gj-red-ink)' }}
+        >
+          <Icon name="block" size={15} />
+        </button>
       </div>
     </div>
   )
@@ -162,9 +199,15 @@ export function AdminEvenementsTable({
   total,
   activeStatut,
   counts,
+  currentPage = 1,
+  totalPages = 1,
 }: AdminEvenementsTableProps) {
+  const paginationBase = activeStatut
+    ? `/admin/evenements?statut=${activeStatut}`
+    : '/admin/evenements'
   const [modalOpen, setModalOpen] = useState(false)
   const [editEvent, setEditEvent] = useState<EvenementFormValues | undefined>(undefined)
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [, startTransition] = useTransition()
 
   function openCreate() {
@@ -187,7 +230,18 @@ export function AdminEvenementsTable({
   }
   function handleDelete(row: EvenementRow) {
     if (typeof window !== 'undefined' && !window.confirm(`Supprimer l'événement « ${row.titre} » ?`)) return
-    startTransition(() => { void supprimerEvenement(row.id) })
+    startTransition(async () => {
+      try {
+        await supprimerEvenement(row.id)
+        setFeedback({ message: `Événement « ${row.titre} » supprimé.`, variant: 'success' })
+      } catch (e) {
+        // EV-1 — la suppression échoue si des inscriptions existent : on le DIT.
+        const msg = e instanceof Error && e.message.includes('EVENEMENT_AVEC_INSCRITS')
+          ? `Impossible de supprimer « ${row.titre} » : des inscriptions existent.`
+          : `La suppression de « ${row.titre} » a échoué.`
+        setFeedback({ message: msg, variant: 'danger' })
+      }
+    })
   }
 
   return (
@@ -334,18 +388,39 @@ export function AdminEvenementsTable({
 
             <div className="md:hidden">
               {evenements.map((row) => (
-                <EvenementMobileCard key={row.id} row={row} />
+                <EvenementMobileCard key={row.id} row={row} onEdit={openEdit} onDelete={handleDelete} />
               ))}
             </div>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              baseUrl={paginationBase}
+              ariaLabel="Pagination"
+            />
           </div>
         )}
       </div>
     </div>
     <EvenementFormModal
+      key={editEvent?.id ?? 'new'}
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
       evenement={editEvent}
+      onSuccess={(action) =>
+        setFeedback({
+          message: action === 'create' ? 'Événement créé.' : 'Événement mis à jour.',
+          variant: 'success',
+        })
+      }
     />
+    {feedback && (
+      <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />
+    )}
     </>
   )
 }

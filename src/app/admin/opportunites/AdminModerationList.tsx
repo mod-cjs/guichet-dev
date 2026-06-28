@@ -1,10 +1,13 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { approuverOpportunite, rejeterOpportunite } from './actions'
+
+type ResultHandler = (message: string, variant: ToastVariant) => void
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -32,8 +35,36 @@ export interface AdminModerationListProps {
 
 // ─── card ─────────────────────────────────────────────────────────────────────
 
-function ModerationCard({ item }: { item: ModerationItem }) {
+function ModerationCard({ item, onResult }: { item: ModerationItem; onResult: ResultHandler }) {
   const [pending, startTransition] = useTransition()
+
+  // MOD-02 — confirmation explicite (action irréversible, contenu public) + feedback.
+  function handleApprouver() {
+    if (!window.confirm(`Approuver et PUBLIER « ${item.titre} » ? Elle sera visible publiquement.`)) return
+    startTransition(async () => {
+      try {
+        await approuverOpportunite(item.id)
+        onResult(`« ${item.titre} » publiée.`, 'success')
+      } catch {
+        onResult(`Échec : « ${item.titre} » a peut-être déjà été modérée.`, 'danger')
+      }
+    })
+  }
+
+  // Le prompt sert AUSSI de confirmation : « Annuler » (null) interrompt le rejet.
+  function handleRejeter() {
+    const motif = window.prompt(`Rejeter « ${item.titre} ». Motif (optionnel, journalisé) :`, '')
+    if (motif === null) return
+    startTransition(async () => {
+      try {
+        await rejeterOpportunite(item.id, motif || undefined)
+        onResult(`« ${item.titre} » rejetée.`, 'success')
+      } catch {
+        onResult(`Échec : « ${item.titre} » a peut-être déjà été modérée.`, 'danger')
+      }
+    })
+  }
+
   return (
     <div
       className="rounded-[14px] p-[18px]"
@@ -72,8 +103,8 @@ function ModerationCard({ item }: { item: ModerationItem }) {
           size="sm"
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => { void approuverOpportunite(item.id) })}
-          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60"
+          onClick={handleApprouver}
+          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60 min-h-[44px]"
           style={{ background: 'var(--gj-green)' }}
         >
           <Icon name="check" size={14} />
@@ -82,8 +113,8 @@ function ModerationCard({ item }: { item: ModerationItem }) {
         <button
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => { void rejeterOpportunite(item.id) })}
-          className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60"
+          onClick={handleRejeter}
+          className="inline-flex items-center justify-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] disabled:opacity-60"
           style={{
             background: 'var(--gj-surface)',
             color: 'var(--gj-red-ink)',
@@ -94,10 +125,10 @@ function ModerationCard({ item }: { item: ModerationItem }) {
           Rejeter
         </button>
         <a
-          href={`/opportunites/${item.slug}`}
+          href={`/admin/opportunites/${item.id}/apercu`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px]"
+          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px]"
           style={{
             background: 'var(--gj-surface)',
             color: 'var(--gj-grey)',
@@ -123,6 +154,9 @@ function ModerationCard({ item }: { item: ModerationItem }) {
  * pas une modération) → AUCUN bloc verdict IA n'est rendu.
  */
 export function AdminModerationList({ items, total, currentPage = 1, totalPages = 1 }: AdminModerationListProps) {
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
+  const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
+
   return (
     <div style={{ padding: '22px 28px 40px' }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
@@ -150,7 +184,7 @@ export function AdminModerationList({ items, total, currentPage = 1, totalPages 
         ) : (
           <div className="flex flex-col gap-[12px]">
             {items.map((item) => (
-              <ModerationCard key={item.id} item={item} />
+              <ModerationCard key={item.id} item={item} onResult={onResult} />
             ))}
           </div>
         )}
@@ -166,6 +200,14 @@ export function AdminModerationList({ items, total, currentPage = 1, totalPages 
           </div>
         )}
       </div>
+
+      {feedback && (
+        <Toast
+          message={feedback.message}
+          variant={feedback.variant}
+          onClose={() => setFeedback(null)}
+        />
+      )}
     </div>
   )
 }

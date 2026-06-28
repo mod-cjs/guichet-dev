@@ -116,4 +116,39 @@ describe('GUIC-454 — AdminEvenementsTable (Lot 11)', () => {
     expect(mockSupprimer).not.toHaveBeenCalled()
     confirmSpy.mockRestore()
   })
+
+  // EV-1 — la suppression échouée (inscriptions) affiche un message (était silencieux).
+  it('affiche un message d\'erreur si la suppression échoue (EVENEMENT_AVEC_INSCRITS)', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockRejectedValueOnce(new Error('EVENEMENT_AVEC_INSCRITS'))
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(screen.getByText(/des inscriptions existent/i)).toBeInTheDocument())
+    confirmSpy.mockRestore()
+  })
+
+  it('affiche un toast de succès après suppression réussie', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    mockSupprimer.mockResolvedValueOnce({ ok: true })
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /supprimer/i })[0])
+    await waitFor(() => expect(screen.getByText(/supprimé/i)).toBeInTheDocument())
+    confirmSpy.mockRestore()
+  })
+
+  // EV-2 — sur mobile, la carte est navigable (lien détail) et actionnable.
+  it('expose Modifier/Supprimer sur desktop ET mobile (≥ 2 par événement)', () => {
+    render(<AdminEvenementsTable evenements={ROWS} total={2} activeStatut={null} counts={{}} />)
+    expect(screen.getAllByRole('button', { name: /modifier/i }).length).toBeGreaterThanOrEqual(ROWS.length * 2)
+    // le titre mène au détail (desktop + carte mobile)
+    const liens = screen.getAllByRole('link', { name: /forum emploi dakar/i })
+    expect(liens.length).toBeGreaterThanOrEqual(2)
+    expect(liens[0]).toHaveAttribute('href', '/admin/evenements/e1')
+  })
+
+  // EV-3 — pagination rendue quand il y a plusieurs pages.
+  it('rend la pagination quand totalPages > 1', () => {
+    render(<AdminEvenementsTable evenements={ROWS} total={50} activeStatut={null} counts={{}} currentPage={1} totalPages={3} />)
+    expect(screen.getByLabelText(/pagination/i)).toBeInTheDocument()
+  })
 })

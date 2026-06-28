@@ -36,7 +36,10 @@ export default async function PublicLayout({ children }: { children: React.React
       <YayeProvider>
         <SkipLink />
         <Header />
-        <main id="main" className="min-h-screen">{children}</main>
+        {/* `100svh` (plus petit viewport, STABLE) et non `100vh`/`min-h-screen` :
+            sur mobile, `100vh` inclut la zone derrière la barre d'URL → le shell
+            « s'étire » quand la barre se masque au scroll. `svh` ne bouge pas. */}
+        <main id="main" className="min-h-[100svh]">{children}</main>
         <Footer />
         {/* GUIC-373 — Yaye bubble universel sur les pages publiques.
             GUIC-376 — état partagé via YayeProvider. */}
@@ -55,7 +58,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <YayeProvider>
-    <div className="lg:grid lg:min-h-screen" style={{ gridTemplateColumns: '260px 1fr' }}>
+    <div className="lg:grid lg:min-h-[100svh]" style={{ gridTemplateColumns: '260px 1fr' }}>
       <SkipLink />
       {/* Sidebar desktop (≥lg) — composant `hidden lg:flex` en interne.
           Wrapper sticky pour la garder visible au scroll. */}
@@ -77,7 +80,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
         <main
           id="main"
-          className="flex-1 min-h-screen pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0"
+          className="flex-1 min-h-[100svh] pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0"
         >
           {children}
         </main>

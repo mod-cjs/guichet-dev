@@ -40,6 +40,8 @@ const valid = {
 const created: string[] = []
 afterEach(async () => {
   if (created.length) {
+    // Purge des favoris AVANT les ressources (FK Restrict).
+    await prisma.ressourceFavorite.deleteMany({ where: { ressourceId: { in: created } } })
     await prisma.ressource.deleteMany({ where: { id: { in: created } } })
     created.length = 0
   }
@@ -87,6 +89,25 @@ describe('GUIC-463 — CRUD ressources (DB réelle)', () => {
     const before = await prisma.ressource.count()
     await expect(creerRessource({ ...valid, titre: '' })).rejects.toThrow()
     expect(await prisma.ressource.count()).toBe(before)
+  })
+
+  // RES-3 — la FK RessourceFavorite est Restrict : supprimer une ressource déjà
+  // mise en favori échouait (P2003). La transaction purge les favoris d'abord.
+  it('given une ressource MISE EN FAVORI, when supprimer, then réussit (cascade favoris)', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const r = await creerRessource(valid); created.push(r.id)
+    const u = await prisma.utilisateur.findFirst({ select: { cjsUid: true } })
+    if (!u) { console.warn('Aucun utilisateur en base — RES-3 non exécuté'); return }
+    await prisma.ressourceFavorite.create({ data: { cjsUid: u.cjsUid, ressourceId: r.id } })
+
+    await supprimerRessource(r.id) // ne doit PAS throw (avant : P2003 FK Restrict)
+
+    expect(await prisma.ressource.findUnique({ where: { id: r.id } })).toBeNull()
+    expect(
+      await prisma.ressourceFavorite.findUnique({
+        where: { cjsUid_ressourceId: { cjsUid: u.cjsUid, ressourceId: r.id } },
+      }),
+    ).toBeNull()
   })
 
   it('given NON-admin, when supprimer, then refus ET row conservée', async () => {
