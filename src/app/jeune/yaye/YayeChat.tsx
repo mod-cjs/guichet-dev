@@ -33,6 +33,9 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
   const [replies, setReplies] = useState<QuickReply[]>(() => pickSuggestions(() => 0))
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  // Annonce lecteur d'écran : UNIQUEMENT la réponse finalisée (le streaming token-à-token
+  // n'est pas dans une région live → pas de re-annonce ~60×/s, cf. a11y C1).
+  const [announce, setAnnounce] = useState('')
   // État de réflexion contextuel : libellé de l'outil en cours + skeleton si recherche.
   const [status, setStatus] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
@@ -128,12 +131,15 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
             // ou pousse une nouvelle bulle si elle n'a pas encore paru (réponse rapide / fallback).
             if (bubbleShown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
             else pushBot(node)
+            setAnnounce(reply) // annonce SR une seule fois, réponse complète
           },
           onError: msg => {
             if (revealTimer) clearTimeout(revealTimer)
             setIsTyping(false)
             // Message EN PERSONNAGE (le serveur peut fournir un texte adapté, ex. rate-limit).
-            pushBot(msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi.")
+            const fallback = msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi."
+            pushBot(fallback)
+            setAnnounce(fallback)
           },
         },
       )
@@ -142,9 +148,12 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
   )
   sendRef.current = sendMessage
 
-  // Auto-scroll quand la liste change.
+  // Auto-scroll quand la liste change. `behavior` piloté en JS → on respecte
+  // prefers-reduced-motion (non couvert par scroll-behavior CSS).
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const reduce =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    listEndRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' })
   }, [messages, isTyping])
 
   // Au montage (côté client → pas de mismatch d'hydratation), on varie la
@@ -184,10 +193,13 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
         </div>
       </header>
 
-      {/* Zone messages scrollable */}
+      {/* Annonce SR de la réponse finalisée (le flux token-à-token reste hors région live). */}
+      <p className="sr-only" role="status" aria-live="polite">{announce}</p>
+
+      {/* Zone messages scrollable. aria-live=off : le streaming muterait la région ~60×/s. */}
       <div
         role="log"
-        aria-live="polite"
+        aria-live="off"
         aria-label="Conversation Yaye"
         className="flex-1 overflow-y-auto px-space-3 py-space-3 flex flex-col gap-space-3"
       >

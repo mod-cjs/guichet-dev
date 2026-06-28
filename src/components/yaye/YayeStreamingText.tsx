@@ -11,13 +11,31 @@ import { useEffect, useRef, useState } from 'react'
  *
  * `text` = texte cumulé jusqu'ici (croît à chaque token) ; `done` = flux terminé.
  */
+/** True si l'utilisateur a demandé la réduction des animations (a11y, OS/navigateur). */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduced(mq.matches)
+    const on = () => setReduced(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return reduced
+}
+
 export function YayeStreamingText({ text, done }: { text: string; done?: boolean }) {
+  const reducedMotion = usePrefersReducedMotion()
   const [shown, setShown] = useState(0)
   const textRef = useRef(text)
   textRef.current = text
   const endRef = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => {
+    // Reduced motion : pas d'effet machine à écrire (le timer n'est pas couvert par
+    // les règles CSS reduced-motion) → on révèle tout le texte d'un coup.
+    if (reducedMotion) return
     const id = setInterval(() => {
       setShown(s => {
         const target = textRef.current.length
@@ -27,14 +45,14 @@ export function YayeStreamingText({ text, done }: { text: string; done?: boolean
       })
     }, 16)
     return () => clearInterval(id)
-  }, [])
+  }, [reducedMotion])
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' })
   }, [shown])
 
-  const visible = text.slice(0, shown)
-  const caretVisible = !done || shown < text.length
+  const visible = reducedMotion ? text : text.slice(0, shown)
+  const caretVisible = !reducedMotion && (!done || shown < text.length)
 
   return (
     <span className="whitespace-pre-wrap break-words" data-testid="yaye-streaming">

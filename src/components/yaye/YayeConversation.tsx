@@ -44,6 +44,8 @@ export function YayeConversation({
   const [thinking, setThinking] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
+  // Annonce SR : uniquement la réponse finalisée (pas le streaming token-à-token).
+  const [announce, setAnnounce] = useState('')
   const sessionIdRef = useRef<string | undefined>(undefined)
   // Index de tour bot (aligné sur l'ordre des message_recu) pour le feedback 👍/👎.
   const botTurnRef = useRef(0)
@@ -122,13 +124,13 @@ export function YayeConversation({
             )
             if (bubbleShown) setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, text: node } : m)))
             else setMessages(prev => [...prev, { id: nid(), from: 'bot', text: node }])
+            setAnnounce(reply) // annonce SR une seule fois, réponse complète
           },
           onError: msg => {
             if (revealTimer) clearTimeout(revealTimer)
-            setMessages(prev => [
-              ...prev,
-              { id: nid(), from: 'bot', text: msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi." },
-            ])
+            const fallback = msg ?? "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi."
+            setMessages(prev => [...prev, { id: nid(), from: 'bot', text: fallback }])
+            setAnnounce(fallback)
           },
         },
       )
@@ -153,6 +155,7 @@ export function YayeConversation({
       typing={thinking}
       thinkingLabel={status ?? undefined}
       thinkingSearching={searching}
+      announce={announce}
     />
   )
 }

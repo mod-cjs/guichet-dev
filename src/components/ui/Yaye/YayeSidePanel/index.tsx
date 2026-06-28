@@ -50,6 +50,12 @@ export interface YayeSidePanelProps {
   thinkingLabel?: string
   /** Vrai si l'outil en cours ramène des offres → affiche des skeleton cards. */
   thinkingSearching?: boolean
+  /**
+   * Texte de la réponse FINALISÉE à annoncer aux lecteurs d'écran (région live
+   * dédiée). Le flux token-à-token reste hors région live pour éviter une
+   * re-annonce continue (a11y C1).
+   */
+  announce?: string
 }
 
 /**
@@ -114,6 +120,7 @@ export function YayeSidePanel({
   typing,
   thinkingLabel,
   thinkingSearching = false,
+  announce,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
@@ -161,7 +168,10 @@ export function YayeSidePanel({
   // Auto-scroll vers le dernier message (parité avec la page fullscreen YayeChat) :
   // nouveau message OU passage en « écrit… » → on garde la fin visible.
   useEffect(() => {
-    if (open) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    if (!open) return
+    const reduce =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    endRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' })
   }, [open, resolvedMessages.length, sending])
 
   if (!open) return null
@@ -293,10 +303,13 @@ export function YayeSidePanel({
           />
         </header>
 
-        {/* Body */}
+        {/* Annonce SR de la réponse finalisée (le flux token-à-token reste hors région live). */}
+        <p className="sr-only" role="status" aria-live="polite">{announce}</p>
+
+        {/* Body. aria-live=off : le streaming muterait la région ~60×/s (a11y C1). */}
         <div
           role="log"
-          aria-live="polite"
+          aria-live="off"
           aria-label="Conversation Yaye"
           style={{
             flex: 1,
@@ -375,7 +388,7 @@ export function YayeSidePanel({
               flex: 1,
               border: '1.5px solid var(--gj-line)',
               padding: '10px 14px',
-              fontSize: 13,
+              fontSize: 16, // ≥16px : évite le zoom auto iOS au focus (parité page fullscreen)
               background: 'var(--gj-bg)',
               borderRadius: 999,
               color: 'var(--gj-ink)',

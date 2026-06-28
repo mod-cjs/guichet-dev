@@ -45,7 +45,8 @@ describe('<YayeConversation /> — feedback par tour (parité fullscreen)', () =
     fireEvent.change(screen.getByLabelText(/Message à Yaye/i), { target: { value: 'salut' } })
     fireEvent.click(screen.getByRole('button', { name: /^Envoyer$/i }))
 
-    await waitFor(() => expect(screen.getByText(/Réponse sans session active\./)).toBeInTheDocument())
+    // La réponse apparaît dans la bulle ET dans la région live SR (annonce a11y) → ≥1 nœud.
+    await waitFor(() => expect(screen.getAllByText(/Réponse sans session active\./).length).toBeGreaterThan(0))
     expect(screen.queryByRole('button', { name: /Réponse utile/i })).not.toBeInTheDocument()
   })
 })

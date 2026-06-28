@@ -7,7 +7,7 @@ export function YayeSkeletonCards({ count = 2 }: { count?: number }) {
   return (
     <div className="flex flex-col gap-space-2 self-start w-full" aria-hidden data-testid="yaye-skeleton">
       <style>{`@keyframes yaye-shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
-.yaye-sk{background:linear-gradient(90deg,var(--gj-bg-soft,#eef1f0) 25%,#f6f8f7 37%,var(--gj-bg-soft,#eef1f0) 63%);background-size:400px 100%;animation:yaye-shimmer 1.3s linear infinite;border-radius:6px}`}</style>
+.yaye-sk{background:linear-gradient(90deg,var(--gj-bg-soft,#eef1f0) 25%,var(--gj-surface,#f6f8f7) 37%,var(--gj-bg-soft,#eef1f0) 63%);background-size:400px 100%;animation:yaye-shimmer 1.3s linear infinite;border-radius:6px}`}</style>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}

@@ -45,7 +45,7 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     await ensureConversation(telephone)
     await sendTextMessage(
       from,
-      `Salama 👋 Je suis Yaye, la conseillère du Guichet Jeunesse CJS. Pour t'accompagner ` +
+      `Bonjour, je suis Yaye, la conseillère du Guichet Jeunesse CJS. Pour t'accompagner ` +
         `personnellement (offres, candidatures, badge), connecte ton compte : ${APP_URL}`,
     )
     return
