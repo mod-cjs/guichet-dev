@@ -111,7 +111,7 @@ export function YayeSidePanel({
   messages,
   quickReplies = DEFAULT_REPLIES,
   onQuickReply,
-  dateLabel = "Aujourd'hui · 9:41",
+  dateLabel = "Aujourd'hui",
   prenom,
   composerValue,
   onComposerChange,

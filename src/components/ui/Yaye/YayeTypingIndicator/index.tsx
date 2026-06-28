@@ -11,7 +11,8 @@ export function YayeTypingIndicator({ label }: { label?: string }) {
     <div
       data-testid="yaye-typing"
       aria-label={label ?? "Yaye est en train d'écrire"}
-      aria-live="polite"
+      // Pas d'aria-live ici : l'annonce SR est portée par la région `announce` dédiée
+      // (YayeChat/YayeSidePanel). Doubler la live-region rebavarderait à chaque label.
       className="inline-flex items-center gap-2 px-space-3 py-space-2 bg-white border border-gj-line self-start"
       style={{ borderRadius: '12px 12px 12px 4px' }}
     >

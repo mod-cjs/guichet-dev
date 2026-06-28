@@ -6,7 +6,7 @@ export interface YayeMatchCardProps {
   score?: number
   /** Texte de conseil contextuel ; valeur par défaut pour le mock. */
   conseil?: string
-  /** Lien d'assistance vers le compagnon Yaye. */
+  /** Lien d'assistance vers le compagnon Yaye. Défaut : la page Yaye plein écran. */
   helpHref?: string
 }
 
@@ -23,7 +23,7 @@ export interface YayeMatchCardProps {
 export function YayeMatchCard({
   score = 94,
   conseil = 'Tu remplis 4/5 critères. Ajoute ton projet portfolio pour maximiser tes chances.',
-  helpHref = '#',
+  helpHref = '/jeune/yaye',
 }: YayeMatchCardProps) {
   return (
     <aside

@@ -44,7 +44,7 @@ export function YayeAvatar({ size = 32, withBadge = false, className = '', style
       Y
       {withBadge && (
         <span
-          aria-label="Assistant IA"
+          aria-hidden
           className="absolute"
           style={{
             top: -2,

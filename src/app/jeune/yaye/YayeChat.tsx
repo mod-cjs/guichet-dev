@@ -19,9 +19,10 @@ import { streamYaye } from '@/lib/ia/yaye-client'
  *  des blocs riches (texte + cards opportunités cliquables + actions), via YayeBlocks. */
 export type YayeMessage = { id: string; kind: 'bubble'; from: 'bot' | 'user'; text: ReactNode; timestamp?: string }
 
-/** Message d'intro varié. `rng` injectable : init SSR déterministe, re-tirage au montage. */
+/** Message d'intro varié. `rng` injectable : init SSR déterministe, re-tirage au montage.
+ *  Pas de timestamp figé (un horodatage « 09:41 » de maquette serait faux). */
 function buildIntroMessage(prenom?: string, rng?: () => number): YayeMessage {
-  return { id: 'm1', kind: 'bubble', from: 'bot', text: pickGreeting(prenom, rng), timestamp: '09:41' }
+  return { id: 'm1', kind: 'bubble', from: 'bot', text: pickGreeting(prenom, rng) }
 }
 
 /** Garde les N derniers échanges envoyés à l'agent comme contexte. */
