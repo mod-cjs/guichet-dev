@@ -29,3 +29,27 @@ const MAP: Record<string, ToolStatus> = {
 export function toolStatus(name: string): ToolStatus {
   return MAP[name] ?? { label: 'Yaye réfléchit' }
 }
+
+// Libellé métier court d'une intention (= 1er outil de la session), pour le
+// back-office admin. Distinct des libellés d'attente ci-dessus (verbes → noms).
+const INTENT_MAP: Record<string, string> = {
+  get_user_profile: 'Consultation du profil',
+  get_realtime_data: 'Suivi (candidatures / favoris)',
+  search_opportunities: "Recherche d'opportunités",
+  query_knowledge_graph: 'Conseil / raisonnement',
+  get_recommendations: 'Recommandations',
+  get_reservable_resources: 'Réservation (recherche)',
+  reserve_resource: 'Réservation',
+  get_badge: 'Badge / carte CJS',
+  search_library: 'Bibliothèque (recherche)',
+  borrow_book: 'Emprunt de livre',
+  get_active_loans: 'Emprunts en cours',
+  submit_application: 'Candidature',
+  escalate_to_advisor: 'Escalade conseiller',
+}
+
+/** Libellé métier d'une intention (nom d'outil). « Conversation » si aucun outil. */
+export function intentLabel(name: string | null | undefined): string {
+  if (!name) return 'Conversation'
+  return INTENT_MAP[name] ?? name
+}

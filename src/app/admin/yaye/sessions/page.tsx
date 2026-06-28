@@ -55,6 +55,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     centreId: centre,
     erreurOnly: sp.filtre === 'erreur',
     escaladeOnly: sp.filtre === 'escalade',
+    drapeauOnly: sp.filtre === 'drapeau',
   }
 
   const [{ rows, total }, summary, centres, roleRows] = await Promise.all([
@@ -87,7 +88,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         to: filters.to.toISOString().slice(0, 10),
         canal: sp.canal === 'web' || sp.canal === 'whatsapp' ? sp.canal : 'tous',
         q: filters.q ?? '',
-        filtre: sp.filtre === 'erreur' || sp.filtre === 'escalade' ? sp.filtre : '',
+        filtre: sp.filtre === 'erreur' || sp.filtre === 'escalade' || sp.filtre === 'drapeau' ? sp.filtre : '',
         role: role ?? '',
         centre: centre ?? '',
       }}

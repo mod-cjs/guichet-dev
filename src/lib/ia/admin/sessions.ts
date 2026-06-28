@@ -20,6 +20,8 @@ export interface SessionListFilters {
   erreurOnly?: boolean
   /** Ne garder que les sessions ayant escaladé vers un conseiller. */
   escaladeOnly?: boolean
+  /** Ne garder que les sessions au drapeau rouge qualité (hallucination / CDP). */
+  drapeauOnly?: boolean
 }
 
 export interface SessionRow {
@@ -36,6 +38,18 @@ export interface SessionRow {
   intentionPrincipale: string | null
   hasErreur: boolean
   hasEscalade: boolean
+  /** Bénéficiaire résolu (prénom/nom) — null si anonyme. */
+  user: { prenom: string; nom: string } | null
+  /** Yaye Quality Score de la session (0-100) si déjà matérialisé, sinon null. */
+  yqs: number | null
+  /** Drapeau rouge qualité (hallucination / CDP) matérialisé. */
+  drapeauRouge: boolean
+  /** La session a abouti (réponse jugée résolutive) — depuis le résumé matérialisé. */
+  resolu: boolean
+  /** La session a produit une action métier (candidature / réservation). */
+  converti: boolean
+  /** Solde de feedback utilisateur (somme des notes +1 / -1) ; 0 si aucun retour. */
+  feedback: number
 }
 
 export interface SessionListResult {
@@ -66,7 +80,29 @@ export async function listSessions(
   page = 1,
   pageSize = PAGE_SIZE,
 ): Promise<SessionListResult> {
-  const where = buildWhere(f)
+  const baseWhere = buildWhere(f)
+
+  // Filtres « escaladées » / « avec erreur » appliqués AU NIVEAU REQUÊTE (et non après
+  // pagination) → la page et le total restent cohérents. On pré-calcule les sessionId
+  // qualifiantes puis on borne le where dessus.
+  let where = baseWhere
+  if (f.drapeauOnly) {
+    // Drapeau rouge = propriété du résumé matérialisé (pas d'agent_logs).
+    const flagged = await prisma.yayeSessionSummary.findMany({
+      where: { drapeauRouge: true },
+      select: { sessionId: true },
+    })
+    where = { ...baseWhere, sessionId: { in: flagged.map((s) => s.sessionId) } }
+  } else if (f.escaladeOnly || f.erreurOnly) {
+    const matchWhere: Prisma.AgentLogWhereInput = {
+      ...baseWhere,
+      ...(f.escaladeOnly
+        ? { typeEvenement: 'escalade_conseiller' }
+        : { OR: [{ typeEvenement: 'erreur' }, { statut: 'echec' }] }),
+    }
+    const matching = await prisma.agentLog.groupBy({ by: ['sessionId'], where: matchWhere })
+    where = { ...baseWhere, sessionId: { in: matching.map((m) => m.sessionId) } }
+  }
 
   // Page de sessions : une ligne par (session, canal, user, centre, rôle) — ces champs
   // sont constants au sein d'une session, donc le groupBy rend bien une ligne/session.
@@ -86,14 +122,30 @@ export async function listSessions(
   const total = distinct.length
 
   const sessionIds = groups.map((g) => g.sessionId)
-  // Détail léger des événements de la page → nbTours / statut / intention principale.
-  const detail = sessionIds.length
-    ? await prisma.agentLog.findMany({
-        where: { sessionId: { in: sessionIds } },
-        select: { sessionId: true, typeEvenement: true, statut: true, toolCalled: true },
-        orderBy: [{ tsMs: 'asc' }, { createdAt: 'asc' }],
-      })
-    : []
+  const uids = [...new Set(groups.map((g) => g.cjsUid).filter((u): u is string => !!u))]
+
+  // Détail léger des événements + enrichissements de page (qualité / feedback / identité).
+  const [detail, summaries, feedbacks, users] = await Promise.all([
+    sessionIds.length
+      ? prisma.agentLog.findMany({
+          where: { sessionId: { in: sessionIds } },
+          select: { sessionId: true, typeEvenement: true, statut: true, toolCalled: true },
+          orderBy: [{ tsMs: 'asc' }, { createdAt: 'asc' }],
+        })
+      : Promise.resolve([]),
+    sessionIds.length
+      ? prisma.yayeSessionSummary.findMany({
+          where: { sessionId: { in: sessionIds } },
+          select: { sessionId: true, yqs: true, drapeauRouge: true, resolu: true, converti: true },
+        })
+      : Promise.resolve([]),
+    sessionIds.length
+      ? prisma.yayeFeedback.groupBy({ by: ['sessionId'], where: { sessionId: { in: sessionIds } }, _sum: { note: true } })
+      : Promise.resolve([]),
+    uids.length
+      ? prisma.utilisateur.findMany({ where: { cjsUid: { in: uids } }, select: { cjsUid: true, prenom: true, nom: true } })
+      : Promise.resolve([]),
+  ])
 
   const bySession = new Map<string, typeof detail>()
   for (const d of detail) {
@@ -101,8 +153,11 @@ export async function listSessions(
     list.push(d)
     bySession.set(d.sessionId, list)
   }
+  const summaryBy = new Map(summaries.map((s) => [s.sessionId, s]))
+  const feedbackBy = new Map(feedbacks.map((f) => [f.sessionId, f._sum.note ?? 0]))
+  const userBy = new Map(users.map((u) => [u.cjsUid, u]))
 
-  let rows: SessionRow[] = groups.map((g) => {
+  const rows: SessionRow[] = groups.map((g) => {
     const evs = bySession.get(g.sessionId) ?? []
     const nbTours = evs.filter((e) => e.typeEvenement === 'message_recu').length
     const hasErreur = evs.some((e) => e.statut === 'echec' || e.typeEvenement === 'erreur')
@@ -111,6 +166,8 @@ export async function listSessions(
       evs.find((e) => e.toolCalled)?.toolCalled ?? null
     const minMs = g._min.tsMs != null ? Number(g._min.tsMs) : null
     const maxMs = g._max.tsMs != null ? Number(g._max.tsMs) : null
+    const sum = summaryBy.get(g.sessionId)
+    const u = g.cjsUid ? userBy.get(g.cjsUid) : undefined
     return {
       sessionId: g.sessionId,
       canal: g.canal,
@@ -124,12 +181,14 @@ export async function listSessions(
       intentionPrincipale,
       hasErreur,
       hasEscalade,
+      user: u ? { prenom: u.prenom, nom: u.nom } : null,
+      yqs: sum?.yqs ?? null,
+      drapeauRouge: sum?.drapeauRouge ?? false,
+      resolu: sum?.resolu ?? false,
+      converti: sum?.converti ?? false,
+      feedback: feedbackBy.get(g.sessionId) ?? 0,
     }
   })
-
-  // Filtres post-agrégation (propriétés de session, pas de ligne).
-  if (f.erreurOnly) rows = rows.filter((r) => r.hasErreur)
-  if (f.escaladeOnly) rows = rows.filter((r) => r.hasEscalade)
 
   return { rows, total }
 }
