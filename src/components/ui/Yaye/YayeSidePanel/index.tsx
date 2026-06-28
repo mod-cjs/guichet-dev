@@ -266,7 +266,7 @@ export function YayeSidePanel({
                   background: 'var(--gj-green, #7BE5B5)',
                 }}
               />
-              en ligne · agit sur ton compte
+              Conseillère IA · agit sur ton compte
             </div>
           </div>
           <button

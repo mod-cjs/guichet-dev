@@ -24,3 +24,8 @@ it('le CTA « Yaye m\'aide à postuler » pointe vers la page Yaye (plus de lien
   render(<YayeMatchCard />)
   expect(screen.getByRole('link', { name: /Yaye m.aide à postuler/i })).toHaveAttribute('href', '/jeune/yaye')
 })
+
+it('YayeMatchCard réutilise l\'avatar canonique (identité unifiée)', () => {
+  render(<YayeMatchCard />)
+  expect(screen.getByRole('img', { name: /Assistant IA/i })).toBeInTheDocument()
+})

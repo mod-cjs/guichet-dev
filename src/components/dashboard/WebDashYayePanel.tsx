@@ -1,6 +1,7 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 
 interface Props {
   preview?: string
@@ -24,31 +25,17 @@ export function WebDashYayePanel({
       aria-label="Yaye, ton agent IA"
     >
       <div className="flex items-center gap-space-3">
-        <span
-          aria-hidden
-          className="w-10 h-10 rounded-full inline-flex items-center justify-center
-            font-black text-fs-400 ring-2 ring-white/30
-            bg-gradient-to-br from-gj-teal to-gj-teal-deep-2"
-          style={{ fontFamily: 'Georgia, serif' }}
-        >
-          Y
-        </span>
+        <YayeAvatar size={48} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-space-2">
-            <span
-              className="font-black text-fs-400"
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
-              Yaye
-            </span>
+            <span className="font-black text-fs-400">Yaye</span>
             <span className="bg-gj-yellow text-gj-teal-deep text-fs-100 font-black
               px-space-2 py-space-1 rounded-full uppercase tracking-wider">
               IA
             </span>
           </div>
-          <div className="text-fs-100 opacity-90 mt-space-1 flex items-center gap-space-2">
-            <span aria-hidden className="w-2 h-2 rounded-full bg-gj-green" />
-            en ligne · agit sur ton compte
+          <div className="text-fs-100 opacity-90 mt-space-1">
+            Conseillère IA · agit sur ton compte
           </div>
         </div>
       </div>

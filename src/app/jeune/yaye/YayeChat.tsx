@@ -190,7 +190,7 @@ export function YayeChat({ prenom }: { prenom?: string } = {}) {
         <YayeAvatar size={32} withBadge />
         <div className="flex flex-col leading-tight min-w-0">
           <span className="text-fs-300 font-black text-color-text-primary truncate">Yaye</span>
-          <span className="text-fs-100 text-gj-teal-deep font-bold">En ligne</span>
+          <span className="text-fs-100 text-gj-teal-deep font-bold">Conseillère IA</span>
         </div>
       </header>
 
