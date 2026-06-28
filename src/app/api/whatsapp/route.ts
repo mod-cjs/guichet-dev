@@ -4,7 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { runAgent } from '@/lib/ia/agent'
 import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/lib/ia/format-whatsapp'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
-import { loadContext, saveContext, TTL_WHATSAPP } from '@/lib/ia/context'
+import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadSummary, updateSummary } from '@/lib/ia/memory'
+import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 
@@ -44,17 +46,21 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     await ensureConversation(telephone)
     await sendTextMessage(
       from,
-      `Salama 👋 Je suis Yaye, la conseillère du Guichet Jeunesse CJS. Pour t'accompagner ` +
+      `Bonjour, je suis Yaye, la conseillère du Guichet Jeunesse CJS. Pour t'accompagner ` +
         `personnellement (offres, candidatures, badge), connecte ton compte : ${APP_URL}`,
     )
     return
   }
 
-  const ctxKey = `wa:${telephone}`
+  // Mémoire unifiée par utilisateur → la conversation WhatsApp PROLONGE celle du web
+  // (et inversement), au lieu d'un historique cloisonné par téléphone.
+  const ctxKey = userContextKey(conv.cjsUid)
   const history = await loadContext(ctxKey)
+  const memo = await loadSummary(conv.cjsUid) // mémoire long terme (cross-canal)
   const result = await runAgent({
     message: text,
     history,
+    memo,
     cjsUid: conv.cjsUid,
     roles: ['beneficiaire'], // WhatsApp = bénéficiaires ; le staff passe par le web
     sessionId: conv.id,
@@ -73,8 +79,20 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
   await saveContext(
     ctxKey,
     [...history, { role: 'user', content: text }, { role: 'assistant', content: result.reply }],
-    TTL_WHATSAPP,
+    TTL_USER,
   )
+  // Capture durable du verbatim (pseudonymisé, purgeable) pour rendre la conversation
+  // jugeable par le juge LLM — même store que le web. No-op si le flag est OFF (CDP).
+  await recordWebTurn({
+    sessionId: conv.id,
+    cjsUid: conv.cjsUid,
+    tourIndex: Math.floor(history.length / 2),
+    userText: text,
+    assistantText: result.reply,
+    canal: 'whatsapp',
+  })
+  // Met à jour la fiche mémoire long terme — fire-and-forget (cross-canal).
+  void updateSummary(conv.cjsUid, memo, text, result.reply)
 }
 
 // Vérification du webhook Meta

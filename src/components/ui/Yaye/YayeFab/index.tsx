@@ -33,7 +33,7 @@ export function YayeFab({
       type="button"
       aria-label={ariaLabel}
       className={`fixed flex items-center justify-center rounded-full
-        focus-visible:outline-none ${className}`}
+        focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)] ${className}`}
       style={{
         width: 58,
         height: 58,

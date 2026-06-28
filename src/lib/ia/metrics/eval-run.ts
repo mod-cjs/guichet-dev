@@ -10,7 +10,7 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { reconstructTranscript } from './transcript'
-import { judgeTranscript } from './judge'
+import { judgeTranscript, judgeId } from './judge'
 import type { CanalAgent } from '@prisma/client'
 
 export interface EvalRunOptions {
@@ -28,6 +28,8 @@ export interface EvalRunReport {
   candidats: number
   evalues: number
   ignoresSansTexte: number
+  /** Sessions déjà notées par ce juge (idempotence : rejeu/chevauchement). */
+  ignoresDejaEvalues: number
   drapeauxRouges: number
   erreurs: number
 }
@@ -77,12 +79,29 @@ export async function runEval(opts: EvalRunOptions): Promise<EvalRunReport> {
   const budgetReste = Math.max(0, sampleSize - prioritaires.length)
   const choisis = [...prioritaires, ...reste.slice(0, budgetReste)]
 
+  // Idempotence : sessions DÉJÀ notées par ce juge (même modèle@rubrique). Un rejeu
+  // du cron (retry Vercel, run manuel chevauchant) ne les re-note pas → pas de
+  // doublons dans yaye_eval_scores, donc pas de moyennes globales biaisées.
+  const dejaJuges = new Set(
+    (
+      await prisma.yayeEvalScore.findMany({
+        where: { sessionId: { in: choisis.map((c) => c.sessionId) }, juge: judgeId() },
+        select: { sessionId: true },
+      })
+    ).map((r) => r.sessionId),
+  )
+
   let evalues = 0
   let ignoresSansTexte = 0
+  let ignoresDejaEvalues = 0
   let drapeauxRouges = 0
   let erreurs = 0
 
   for (const c of choisis) {
+    if (dejaJuges.has(c.sessionId)) {
+      ignoresDejaEvalues += 1
+      continue
+    }
     try {
       const transcript = await reconstructTranscript(c.sessionId)
       // La qualité (couche 3) exige le texte verbatim : web sans texte durable → ignoré.
@@ -119,5 +138,5 @@ export async function runEval(opts: EvalRunOptions): Promise<EvalRunReport> {
     if (opts.delayMs && opts.delayMs > 0) await sleep(opts.delayMs)
   }
 
-  return { candidats: candidats.length, evalues, ignoresSansTexte, drapeauxRouges, erreurs }
+  return { candidats: candidats.length, evalues, ignoresSansTexte, ignoresDejaEvalues, drapeauxRouges, erreurs }
 }

@@ -20,7 +20,7 @@ import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
-import { recordEscalade } from './escalade'
+import { recordEscalade, escaladeReference } from './escalade'
 import type { YayeBlock, YayeOppItem } from './blocks'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -718,6 +718,11 @@ const submitApplication: AgentTool = {
 // et alimente la file admin `escalades_yaye` (consultée par le staff). Aucune écriture
 // dans un autre module. La remise temps réel au conseiller (notification) viendra ensuite.
 const ESCALADE_MOTIFS = ['demande_complexe', 'sujet_sensible', 'demande_explicite', 'echec_repete', 'autre'] as const
+// Catégories de DANGER repérées (sécurité). `autre_danger` = fourre-tout pour toute
+// situation dangereuse hors liste → rien ne passe à travers les mailles.
+const DANGER_SIGNALS = [
+  'violence', 'harcelement', 'abus_sexuel', 'exploitation', 'automutilation_suicide', 'discrimination', 'autre_danger',
+] as const
 
 const escalateToAdvisor: AgentTool = {
   definition: {
@@ -742,6 +747,14 @@ const escalateToAdvisor: AgentTool = {
             type: 'string',
             description: 'Résumé court et factuel de la demande à transmettre au conseiller (sans données de tiers).',
           },
+          signal_danger: {
+            type: 'string',
+            enum: [...DANGER_SIGNALS],
+            description:
+              "À RENSEIGNER si tu repères une situation de DANGER pour la personne (violence, " +
+              "harcèlement, abus_sexuel, exploitation, automutilation_suicide, discrimination, ou " +
+              "autre_danger pour tout autre danger). En cas de doute, signale quand même.",
+          },
         },
         required: ['motif'],
       },
@@ -752,12 +765,18 @@ const escalateToAdvisor: AgentTool = {
     if (!ctx.sessionId || !ctx.canal) {
       return { ok: false, error: "Contexte de session indisponible pour l'escalade." }
     }
-    const motif = typeof args.motif === 'string' && (ESCALADE_MOTIFS as readonly string[]).includes(args.motif)
-      ? args.motif
-      : 'autre'
+    const dangerSignal = typeof args.signal_danger === 'string' && (DANGER_SIGNALS as readonly string[]).includes(args.signal_danger)
+      ? args.signal_danger
+      : null
+    // Un danger repéré force la catégorie sensible (priorité sécurité).
+    const motif = dangerSignal
+      ? 'sujet_sensible'
+      : typeof args.motif === 'string' && (ESCALADE_MOTIFS as readonly string[]).includes(args.motif)
+        ? args.motif
+        : 'autre'
     const resume = typeof args.resume === 'string' ? args.resume.trim().slice(0, 280) : null
 
-    await recordEscalade({
+    const suivi = await recordEscalade({
       sessionId: ctx.sessionId,
       cjsUid: ctx.cjsUid,
       role: ctx.roles[0] ?? null,
@@ -765,22 +784,35 @@ const escalateToAdvisor: AgentTool = {
       canal: ctx.canal,
       raison: motif,
       stade: resume,
+      dangerSignal,
     })
+    // Filet : si recordEscalade est stubbé (tests) → référence dérivée de la session.
+    const reference = suivi?.reference ?? escaladeReference(ctx.sessionId)
+    const alreadyPending = suivi?.alreadyPending ?? false
 
     const base = appUrl()
     return {
       ok: true,
-      // Le LLM confirme avec ses mots ; on lui rappelle juste de rester honnête sur le délai.
+      // Le LLM confirme avec ses mots ; on lui donne la référence à citer et on lui
+      // rappelle de rester honnête sur le délai (suivi sans fausse promesse).
       data: {
         escalated: true,
-        message: "Demande transmise à l'équipe CJS. Confirme-le chaleureusement, sans promettre de délai précis.",
+        reference,
+        alreadyPending,
+        message:
+          `Demande transmise à l'équipe CJS — référence ${reference}. ` +
+          `Confirme-le chaleureusement, DONNE cette référence à la personne pour qu'elle puisse la rappeler, ` +
+          `sans promettre de délai précis.`,
       },
       block: {
-        kind: 'action',
-        title: 'Demande transmise à un conseiller',
-        subtitle: 'Un membre de l’équipe CJS prendra le relais. En attendant, tu peux aussi joindre un centre.',
-        actions: [],
-        buttons: [{ label: 'Trouver un centre CJS', href: `${base}/centres`, primary: true }],
+        kind: 'escalade',
+        reference,
+        danger: !!dangerSignal,
+        title: alreadyPending ? 'Ta demande est déjà entre de bonnes mains' : 'Demande transmise à un conseiller',
+        message: alreadyPending
+          ? "Un membre de l'équipe CJS s'en occupe déjà et te répondra ici même. Garde cette référence si tu veux la rappeler."
+          : "Un membre de l'équipe CJS va prendre le relais et te répondra ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.",
+        button: { label: 'Trouver un centre CJS', href: `${base}/centres` },
       },
     }
   },

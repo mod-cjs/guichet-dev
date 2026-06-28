@@ -1,12 +1,13 @@
 'use client'
 import { Icon } from '@/components/ui'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 
 export interface YayeMatchCardProps {
   /** Score de matching 0-100 (mock jusqu'à intégration LLM). */
   score?: number
   /** Texte de conseil contextuel ; valeur par défaut pour le mock. */
   conseil?: string
-  /** Lien d'assistance vers le compagnon Yaye. */
+  /** Lien d'assistance vers le compagnon Yaye. Défaut : la page Yaye plein écran. */
   helpHref?: string
 }
 
@@ -23,7 +24,7 @@ export interface YayeMatchCardProps {
 export function YayeMatchCard({
   score = 94,
   conseil = 'Tu remplis 4/5 critères. Ajoute ton projet portfolio pour maximiser tes chances.',
-  helpHref = '#',
+  helpHref = '/jeune/yaye',
 }: YayeMatchCardProps) {
   return (
     <aside
@@ -32,18 +33,7 @@ export function YayeMatchCard({
       className="flex items-center gap-space-3 rounded-gj-md border-[1.5px] border-gj-line
         p-space-3 bg-[linear-gradient(135deg,var(--gj-teal-soft),#fff)]"
     >
-      <div
-        aria-hidden
-        className="flex-shrink-0 w-[38px] h-[38px] rounded-full text-white font-black
-          inline-flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, var(--gj-green), var(--gj-teal-deep))',
-          fontFamily: 'var(--gj-font-yaye-wordmark)',
-          fontSize: 17,
-        }}
-      >
-        Y
-      </div>
+      <YayeAvatar size={32} className="flex-shrink-0" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-space-1 text-fs-200 font-extrabold text-gj-teal-deep">

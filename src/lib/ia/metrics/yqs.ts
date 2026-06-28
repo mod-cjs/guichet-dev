@@ -11,8 +11,27 @@ import type { CanalAgent, Prisma } from '@prisma/client'
 
 const SEUIL_FIDELITE = Number(process.env.YAYE_SEUIL_FIDELITE ?? 0.6)
 const SEUIL_CDP = Number(process.env.YAYE_SEUIL_CDP ?? 0.6)
+/** Part de sessions au drapeau rouge qui déclenche la garde AU GLOBAL (défaut 10 %). */
+const SEUIL_TAUX_DRAPEAU = Number(process.env.YAYE_SEUIL_TAUX_DRAPEAU ?? 0.1)
 /** Plafond imposé au YQS quand un garde-fou est déclenché. */
 const PLAFOND_DRAPEAU = 50
+
+/**
+ * Garde-fou GLOBAL (fonction pure) : sur une fenêtre, on ne peut pas se fier à la
+ * MOYENNE de fidélité/CDP (une hallucination isolée est noyée). On déclenche donc
+ * la garde sur le TAUX de sessions au drapeau rouge ; si dépassé, le YQS est plafonné.
+ */
+export function applyGlobalGuard(
+  yqs: number | null,
+  tauxDrapeauRouge: number,
+  seuil = SEUIL_TAUX_DRAPEAU,
+): { yqs: number | null; drapeauRouge: boolean; plafonne: boolean } {
+  const drapeauRouge = tauxDrapeauRouge >= seuil
+  if (drapeauRouge && yqs != null && yqs > PLAFOND_DRAPEAU) {
+    return { yqs: PLAFOND_DRAPEAU, drapeauRouge, plafonne: true }
+  }
+  return { yqs, drapeauRouge, plafonne: false }
+}
 
 export interface LayerScores {
   operationnel: number | null
@@ -121,6 +140,8 @@ const moyenne = (...xs: (number | null)[]): number | null => {
 
 export interface YqsGlobal extends YqsResult {
   qualite: QualityAggregates
+  /** Part de sessions jugées au drapeau rouge (0-1) — base de la garde globale. */
+  tauxDrapeauRouge: number
 }
 
 /**
@@ -155,6 +176,16 @@ export async function computeYqsGlobal(filters: RollupFilters = {}): Promise<Yqs
     satisfaction: feedback.csat,
   }
 
-  const result = computeYqs(couches, { fidelite: qualite.fidelite, conformiteCdp: qualite.conformiteCdp })
-  return { ...result, qualite }
+  // Score composite SANS garde par moyenne (la garde globale est basée sur le taux).
+  const base = computeYqs(couches, { fidelite: null, conformiteCdp: null })
+  const tauxDrapeauRouge = qualite.count ? qualite.drapeauxRouges / qualite.count : 0
+  const garde = applyGlobalGuard(base.yqs, tauxDrapeauRouge)
+  return {
+    yqs: garde.yqs,
+    drapeauRouge: garde.drapeauRouge,
+    plafonne: garde.plafonne,
+    couches: base.couches,
+    qualite,
+    tauxDrapeauRouge,
+  }
 }

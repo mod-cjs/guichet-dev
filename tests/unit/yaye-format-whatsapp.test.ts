@@ -30,6 +30,20 @@ test('tronque à 4096 caractères max (contrainte Meta)', () => {
   expect(out.endsWith('…')).toBe(true)
 })
 
+test('bloc escalade → titre + message + référence à citer', () => {
+  const out = formatBlocksForWhatsApp([
+    {
+      kind: 'escalade',
+      reference: 'YAYE-AB12CD',
+      title: 'Demande transmise à un conseiller',
+      message: 'Un membre de l\'équipe CJS va prendre le relais.',
+      button: { label: 'Trouver un centre CJS', href: '/centres' },
+    },
+  ])
+  expect(out).toContain('Demande transmise à un conseiller')
+  expect(out).toContain('Référence : YAYE-AB12CD')
+})
+
 test('aucun bloc → message par défaut', () => {
   expect(formatBlocksForWhatsApp([])).toMatch(/pas de réponse/i)
 })

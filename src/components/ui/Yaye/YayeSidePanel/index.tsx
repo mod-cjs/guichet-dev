@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
+import { YayeTypingIndicator } from '@/components/ui/Yaye/YayeTypingIndicator'
+import { YayeSkeletonCards } from '@/components/ui/Yaye/YayeSkeletonCards'
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { YayeBubble } from '@/components/ui/Yaye/YayeBubble'
@@ -38,6 +40,22 @@ export interface YayeSidePanelProps {
   onSend?: (value: string) => void
   /** Vrai pendant l'envoi : désactive le composer et le bouton. */
   sending?: boolean
+  /**
+   * Affiche l'indicateur de frappe. Si absent, on retombe sur `sending` (le panel
+   * en mock l'utilise). En mode streaming, le parent le passe à `false` dès le
+   * premier token pour que les points laissent place au texte qui s'écrit.
+   */
+  typing?: boolean
+  /** Libellé contextuel de réflexion (« Yaye cherche des opportunités »), piloté par les events tool. */
+  thinkingLabel?: string
+  /** Vrai si l'outil en cours ramène des offres → affiche des skeleton cards. */
+  thinkingSearching?: boolean
+  /**
+   * Texte de la réponse FINALISÉE à annoncer aux lecteurs d'écran (région live
+   * dédiée). Le flux token-à-token reste hors région live pour éviter une
+   * re-annonce continue (a11y C1).
+   */
+  announce?: string
 }
 
 /**
@@ -93,24 +111,47 @@ export function YayeSidePanel({
   messages,
   quickReplies = DEFAULT_REPLIES,
   onQuickReply,
-  dateLabel = "Aujourd'hui · 9:41",
+  dateLabel = "Aujourd'hui",
   prenom,
   composerValue,
   onComposerChange,
   onSend,
   sending = false,
+  typing,
+  thinkingLabel,
+  thinkingSearching = false,
+  announce,
 }: YayeSidePanelProps) {
   const resolvedMessages = messages ?? buildDefaultMessages(prenom)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  const endRef = useRef<HTMLDivElement | null>(null)
 
-  // Esc → close
+  // Esc ferme · Tab piégé dans le dialog (focus trap complet, a11y modale).
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
         onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const panel = panelRef.current
+      if (!panel) return
+      // `a[href]` (pas `[href]` global, qui matcherait les <use href> des icônes SVG).
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusables.length === 0) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
     document.addEventListener('keydown', handler)
@@ -123,6 +164,15 @@ export function YayeSidePanel({
       closeBtnRef.current?.focus()
     }
   }, [open])
+
+  // Auto-scroll vers le dernier message (parité avec la page fullscreen YayeChat) :
+  // nouveau message OU passage en « écrit… » → on garde la fin visible.
+  useEffect(() => {
+    if (!open) return
+    const reduce =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    endRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' })
+  }, [open, resolvedMessages.length, sending])
 
   if (!open) return null
 
@@ -182,7 +232,11 @@ export function YayeSidePanel({
           style={{
             background: 'var(--gj-teal-deep)',
             color: 'var(--gj-surface)',
-            padding: '14px 16px',
+            // Le bandeau coloré déborde sous l'encoche (notch) sur mobile.
+            paddingTop: 'calc(14px + var(--safe-top, 0px))',
+            paddingRight: 16,
+            paddingBottom: 14,
+            paddingLeft: 16,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -212,7 +266,7 @@ export function YayeSidePanel({
                   background: 'var(--gj-green, #7BE5B5)',
                 }}
               />
-              en ligne · agit sur ton compte
+              Conseillère IA · agit sur ton compte
             </div>
           </div>
           <button
@@ -249,8 +303,14 @@ export function YayeSidePanel({
           />
         </header>
 
-        {/* Body */}
+        {/* Annonce SR de la réponse finalisée (le flux token-à-token reste hors région live). */}
+        <p className="sr-only" role="status" aria-live="polite">{announce}</p>
+
+        {/* Body. aria-live=off : le streaming muterait la région ~60×/s (a11y C1). */}
         <div
+          role="log"
+          aria-live="off"
+          aria-label="Conversation Yaye"
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -291,6 +351,13 @@ export function YayeSidePanel({
               />
             </div>
           )}
+          {(typing ?? sending) && (
+            <div className="flex flex-col gap-space-2 self-start w-full">
+              <YayeTypingIndicator label={thinkingLabel} />
+              {thinkingSearching && <YayeSkeletonCards />}
+            </div>
+          )}
+          <div ref={endRef} />
         </div>
 
         {/* Composer — réel si `onSend` fourni, sinon mock non contrôlé. */}
@@ -310,24 +377,6 @@ export function YayeSidePanel({
             flexShrink: 0,
           }}
         >
-          <button
-            type="button"
-            aria-label="Joindre un fichier"
-            style={{
-              width: 38,
-              height: 38,
-              border: 0,
-              background: 'transparent',
-              color: 'var(--gj-grey)',
-              cursor: 'pointer',
-              borderRadius: 8,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="attach" size={18} />
-          </button>
           <input
             type="text"
             placeholder="Demande à Yaye…"
@@ -339,7 +388,7 @@ export function YayeSidePanel({
               flex: 1,
               border: '1.5px solid var(--gj-line)',
               padding: '10px 14px',
-              fontSize: 13,
+              fontSize: 16, // ≥16px : évite le zoom auto iOS au focus (parité page fullscreen)
               background: 'var(--gj-bg)',
               borderRadius: 999,
               color: 'var(--gj-ink)',

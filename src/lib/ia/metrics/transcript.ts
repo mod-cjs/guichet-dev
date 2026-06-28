@@ -199,19 +199,11 @@ export async function reconstructTranscript(sessionId: string): Promise<Reconstr
   const first = logs[0] ?? null
   const canal = first?.canal ?? null
 
-  // Texte verbatim : WhatsApp via MessageWhatsApp ; web via YayeTranscriptTurn (option A,
-  // si la capture durable est activée). Indexé par tour.
+  // Texte verbatim : source unique YayeTranscriptTurn (web ET whatsapp), pseudonymisé
+  // à l'écriture et purgeable au droit à l'oubli. Capture gardée par le flag
+  // YAYE_PERSIST_WEB_TRANSCRIPT (opt-in). Indexé par tour.
   const verbatim: VerbatimTurn[] = []
-  if (canal === 'whatsapp') {
-    const waMessages = await prisma.messageWhatsApp.findMany({
-      where: { conversationId: sessionId },
-      orderBy: { createdAt: 'asc' },
-    })
-    const waIn = waMessages.filter((m) => m.sens === 'entrant').map((m) => m.contenu)
-    const waOut = waMessages.filter((m) => m.sens === 'sortant').map((m) => m.contenu)
-    const n = Math.max(waIn.length, waOut.length)
-    for (let i = 0; i < n; i++) verbatim[i] = { userText: waIn[i] ?? null, assistantText: waOut[i] ?? null }
-  } else if (canal === 'web') {
+  if (canal === 'whatsapp' || canal === 'web') {
     const rows = await prisma.yayeTranscriptTurn.findMany({
       where: { sessionId },
       orderBy: { tourIndex: 'asc' },

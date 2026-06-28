@@ -9,16 +9,21 @@ import { isNeo4jConfigured } from '@/lib/neo4j'
 import { logger } from '@/lib/logger'
 import { Neo4jGraphAdapter } from './neo4j-adapter'
 import { PrismaGraphAdapter } from './prisma-adapter'
+import { ResilientGraphAdapter } from './resilient-adapter'
 import type { GraphPort } from './port'
 
 let _port: GraphPort | undefined
 
-/** Port du graphe (singleton). Neo4j si configuré, sinon fallback Prisma. */
+/**
+ * Port du graphe (singleton). Neo4j si configuré, MAIS enveloppé d'un circuit-breaker
+ * qui bascule à chaud sur Prisma si Neo4j tombe en cours de run (et re-tente après
+ * cooldown). Sinon fallback Prisma direct.
+ */
 export function getGraphPort(): GraphPort {
   if (_port) return _port
   if (isNeo4jConfigured()) {
-    _port = new Neo4jGraphAdapter()
-    logger.info('[graph] adapter actif', { backend: 'neo4j' })
+    _port = new ResilientGraphAdapter(new Neo4jGraphAdapter(), new PrismaGraphAdapter())
+    logger.info('[graph] adapter actif', { backend: 'neo4j', breaker: true })
   } else {
     _port = new PrismaGraphAdapter()
     logger.info('[graph] Neo4j non configuré → fallback Prisma', { backend: 'prisma' })

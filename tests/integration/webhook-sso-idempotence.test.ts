@@ -51,6 +51,12 @@ jest.mock('@/lib/logger', () => ({
   hashId: (s: string) => `hash(${s.slice(0, 4)})`,
 }))
 
+// Droit à l'oubli Yaye (Lot 8) : purge déléguée à un module dédié (testé à part).
+const mockPurgeYaye = jest.fn()
+jest.mock('@/lib/ia/cdp-purge', () => ({
+  purgeYayeUserData: (...args: unknown[]) => mockPurgeYaye(...args),
+}))
+
 // Import après mocks
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { POST } = require('@/app/api/webhooks/sso/route')
@@ -96,6 +102,7 @@ describe('POST /api/webhooks/sso — idempotence & sécurité (GUIC-243)', () =>
     mockUpdate.mockResolvedValue({})
     mockUpsert.mockResolvedValue({})
     mockEmpruntDeleteMany.mockResolvedValue({ count: 0 })
+    mockPurgeYaye.mockResolvedValue({})
   })
 
   it('Redis OK + event neuf → 200 ok, handler exécuté', async () => {

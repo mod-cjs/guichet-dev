@@ -1352,15 +1352,17 @@ model EscaladeYaye {
   cjsUid    String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
   role      String?        @db.VarChar(40)
   centreId  String?        @map("centre_id") @db.VarChar(36)
-  canal     CanalAgent
-  raison    String?        @db.Text // pourquoi l'escalade — peut contenir des PII
-  stade     String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
-  statut    StatutEscalade @default(en_attente)
-  traitePar String?        @map("traite_par") @db.VarChar(36) // cjs_uid du conseiller qui traite
-  traiteA   DateTime?      @map("traite_a")
-  createdAt DateTime       @default(now()) @map("created_at")
+  canal        CanalAgent
+  raison       String?        @db.Text // pourquoi l'escalade — peut contenir des PII
+  stade        String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
+  signalDanger String?        @map("signal_danger") @db.VarChar(40) // catégorie de DANGER repérée (violence, harcelement…) — null sinon
+  priorite     Int            @default(0) // 0 = normal · 1 = danger (remonte en haut de file)
+  statut       StatutEscalade @default(en_attente)
+  traitePar    String?        @map("traite_par") @db.VarChar(36) // cjs_uid du conseiller qui traite
+  traiteA      DateTime?      @map("traite_a")
+  createdAt    DateTime       @default(now()) @map("created_at")
 
-  @@index([statut, createdAt])
+  @@index([statut, priorite, createdAt]) // tri file : statut, puis danger d'abord, puis ancienneté
   @@index([sessionId])
   @@index([centreId, statut])
   @@map("escalades_yaye")

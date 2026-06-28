@@ -47,3 +47,14 @@ test('200 : appelle runAgent et renvoie la réponse + sessionId', async () => {
   expect(typeof json.data.sessionId).toBe('string')
   expect(mockRun).toHaveBeenCalled()
 })
+
+test('502 : message EN PERSONNAGE quand l’agent échoue, avec détection rate-limit', async () => {
+  mockGetSession.mockResolvedValueOnce({ cjsUid: 'u-1', roles: ['beneficiaire'] })
+  mockRun.mockRejectedValueOnce(Object.assign(new Error('Rate limit reached'), { status: 429 }))
+
+  const res = await POST(req({ message: 'Salut' }))
+  expect(res.status).toBe(502)
+  const json = await res.json()
+  // Pas un message technique : Yaye reste en personnage et signale qu'elle est sollicitée.
+  expect(json.error.message).toMatch(/sollicitée/i)
+})

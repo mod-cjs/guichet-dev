@@ -2,13 +2,31 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import type { ReconstructedTranscript, TranscriptEvent } from '@/lib/ia/metrics/transcript'
 import type { SessionRef } from '@/lib/ia/admin/session-refs'
+import type { StatutEscalade } from '@prisma/client'
+
+export interface EvalDetail {
+  juge: string
+  fidelite: number
+  pertinence: number
+  utilite: number
+  persona: number
+  conformiteCdp: number
+  langue: number
+  drapeauRouge: boolean
+  commentaire: string | null
+}
 
 export interface SessionDetailClientProps {
   transcript: ReconstructedTranscript
   refs: SessionRef[]
+  user: { prenom: string; nom: string; telephone: string | null } | null
+  quality: { eval: EvalDetail | null; yqs: number | null; resolu: boolean; converti: boolean }
+  feedback: { note: number; raison: string | null; tourIndex: number | null; createdAt: string }[]
+  escalade: { id: string; statut: StatutEscalade; raison: string | null; signalDanger: string | null; createdAt: string } | null
 }
 
 const REF_ICON: Record<SessionRef['kind'], 'user' | 'employment' | 'pin'> = {
@@ -20,6 +38,21 @@ const REF_LABEL: Record<SessionRef['kind'], string> = {
   beneficiaire: 'Bénéficiaire',
   opportunite: 'Opportunité',
   ressource: 'Ressource',
+}
+
+const DIM_LABELS: Record<keyof Omit<EvalDetail, 'juge' | 'drapeauRouge' | 'commentaire'>, string> = {
+  fidelite: 'Fidélité',
+  pertinence: 'Pertinence',
+  utilite: 'Utilité',
+  persona: 'Persona',
+  conformiteCdp: 'Conformité CDP',
+  langue: 'Langue',
+}
+
+const ESCALADE_LABEL: Record<StatutEscalade, string> = {
+  en_attente: 'En attente',
+  prise_en_charge: 'Prise en charge',
+  resolue: 'Résolue',
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -35,7 +68,6 @@ function dureeMs(ms: number): string {
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`
 }
 
-// Couleur de la pastille par type d'événement (lecture rapide du flux technique).
 function eventTone(type: string): { bg: string; fg: string } {
   if (type === 'erreur') return { bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' }
   if (type === 'escalade_conseiller') return { bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' }
@@ -60,12 +92,17 @@ function prettyPayload(p: unknown): string | null {
   }
 }
 
+function pct(x: number): string {
+  return `${Math.round(x * 100)} %`
+}
+
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function SessionDetailClient({ transcript: t, refs }: SessionDetailClientProps) {
+export function SessionDetailClient({ transcript: t, refs, user, quality, feedback, escalade }: SessionDetailClientProps) {
   const [tab, setTab] = useState<'conversation' | 'technique'>('conversation')
 
   const canalLabel = t.canal === 'whatsapp' ? 'WhatsApp' : t.canal === 'web' ? 'Web' : '—'
+  const userName = user ? `${user.prenom} ${user.nom}`.trim() || 'Bénéficiaire' : t.cjsUid ?? 'Anonyme'
 
   return (
     <div style={{ padding: '22px 28px 40px', flex: 1, overflowY: 'auto' }}>
@@ -78,16 +115,22 @@ export function SessionDetailClient({ transcript: t, refs }: SessionDetailClient
 
         <div style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--gj-ink)' }}>Session Yaye</h1>
-          <p style={{ fontSize: 12.5, color: 'var(--gj-grey)', marginTop: 4, fontFamily: 'monospace' }}>{t.sessionId}</p>
+          <p style={{ fontSize: 12.5, color: 'var(--gj-grey)', marginTop: 4, fontFamily: 'monospace' }}>
+            {t.sessionId}{t.cjsUid ? ` · ${t.cjsUid}` : ''}
+          </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             <Meta label="Canal" value={canalLabel} />
-            <Meta label="Utilisateur" value={t.cjsUid ?? 'Anonyme'} />
+            <Meta label="Utilisateur" value={userName} />
+            {user?.telephone && <Meta label="Tél" value={user.telephone} />}
             <Meta label="Centre" value={t.centreId ?? '—'} />
             <Meta label="Tours" value={String(t.nbTours)} />
             <Meta label="Durée" value={dureeMs(t.dureeMs)} />
             {t.escalade && <Meta label="Escalade" value="Conseiller" tone="warn" />}
           </div>
         </div>
+
+        {/* ── Qualité & résultat ── */}
+        <QualityPanel quality={quality} feedback={feedback} escalade={escalade} />
 
         {/* ── Fiches métier liées (spec §57) ── */}
         {refs.length > 0 && (
@@ -119,11 +162,10 @@ export function SessionDetailClient({ transcript: t, refs }: SessionDetailClient
           <TabBtn active={tab === 'technique'} onClick={() => setTab('technique')} icon="settings" label="Technique" />
         </div>
 
-        {tab === 'conversation' ? (
-          <ConversationView t={t} />
-        ) : (
-          <TechniqueView events={t.events} />
-        )}
+        {tab === 'conversation' ? <ConversationView t={t} /> : <TechniqueView events={t.events} />}
+
+        {/* ── Notation humaine (alimente la calibration juge↔humain) ── */}
+        <LabelForm sessionId={t.sessionId} />
       </div>
     </div>
   )
@@ -137,6 +179,173 @@ function Meta({ label, value, tone }: { label: string; value: string; tone?: 'wa
       <span style={{ color: 'var(--gj-grey)', fontWeight: 700 }}>{label}</span>
       <span style={{ color: tone === 'warn' ? 'var(--gj-yellow-ink)' : 'var(--gj-ink)', fontWeight: 800 }}>{value}</span>
     </span>
+  )
+}
+
+function Pill({ children, tone }: { children: React.ReactNode; tone: 'green' | 'red' | 'yellow' | 'grey' }) {
+  const map = {
+    green: { bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' },
+    red: { bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' },
+    yellow: { bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' },
+    grey: { bg: 'var(--gj-bg)', fg: 'var(--gj-grey)' },
+  }[tone]
+  return (
+    <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: map.bg, color: map.fg, whiteSpace: 'nowrap' }}>{children}</span>
+  )
+}
+
+function QualityPanel({
+  quality,
+  feedback,
+  escalade,
+}: {
+  quality: SessionDetailClientProps['quality']
+  feedback: SessionDetailClientProps['feedback']
+  escalade: SessionDetailClientProps['escalade']
+}) {
+  const { eval: ev, yqs, resolu, converti } = quality
+  const positifs = feedback.filter((f) => f.note > 0).length
+  const negatifs = feedback.filter((f) => f.note < 0).length
+
+  return (
+    <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 10 }}>
+        Qualité &amp; résultat
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {yqs != null && <Pill tone={yqs >= 70 ? 'green' : yqs >= 50 ? 'yellow' : 'red'}>YQS {Math.round(yqs)}/100</Pill>}
+        {ev?.drapeauRouge && <Pill tone="red">Drapeau rouge</Pill>}
+        {resolu && <Pill tone="green">Résolue</Pill>}
+        {converti && <Pill tone="green">Action métier produite</Pill>}
+        {positifs > 0 && <Pill tone="green">{positifs} retour{positifs > 1 ? 's' : ''} positif{positifs > 1 ? 's' : ''}</Pill>}
+        {negatifs > 0 && <Pill tone="red">{negatifs} retour{negatifs > 1 ? 's' : ''} négatif{negatifs > 1 ? 's' : ''}</Pill>}
+        {escalade && (
+          <Link href="/admin/yaye/escalades" style={{ textDecoration: 'none' }}>
+            <Pill tone={escalade.statut === 'resolue' ? 'green' : 'yellow'}>
+              Escalade · {ESCALADE_LABEL[escalade.statut]}{escalade.signalDanger ? ` · danger (${escalade.signalDanger})` : ''}
+            </Pill>
+          </Link>
+        )}
+      </div>
+
+      {/* Détail du juge LLM */}
+      {ev ? (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
+            {(Object.keys(DIM_LABELS) as (keyof typeof DIM_LABELS)[]).map((k) => {
+              const v = ev[k]
+              const critique = (k === 'fidelite' || k === 'conformiteCdp') && v < 0.6
+              return (
+                <div key={k} style={{ border: '1px solid var(--gj-line)', borderRadius: 9, padding: '7px 9px' }}>
+                  <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', fontWeight: 700 }}>{DIM_LABELS[k]}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: critique ? 'var(--gj-red-ink)' : 'var(--gj-ink)' }}>{pct(v)}</div>
+                </div>
+              )
+            })}
+          </div>
+          {ev.commentaire && (
+            <p style={{ fontSize: 12, color: 'var(--gj-ink)', marginTop: 10, fontStyle: 'italic' }}>
+              « {ev.commentaire} »
+            </p>
+          )}
+          <p style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 6 }}>Évaluée par {ev.juge}</p>
+        </div>
+      ) : (
+        <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 10 }}>
+          Pas encore évaluée par le juge (les sessions sont notées par le cron nocturne, sur les conversations avec verbatim).
+        </p>
+      )}
+
+      {/* Raisons de feedback (souvent les 👎 explicités) */}
+      {feedback.some((f) => f.raison) && (
+        <div style={{ marginTop: 10 }}>
+          {feedback.filter((f) => f.raison).map((f, i) => (
+            <p key={i} style={{ fontSize: 11.5, color: 'var(--gj-grey)', margin: '2px 0' }}>
+              {f.note > 0 ? 'positif' : 'négatif'}{f.tourIndex != null ? ` (tour ${f.tourIndex + 1})` : ''} : {f.raison}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Notation humaine d'une session → ligne yaye_eval_scores « humain: » (calibration).
+const NIVEAUX = [
+  { key: 'faible', label: 'Faible', value: 0.2 },
+  { key: 'moyen', label: 'Moyen', value: 0.6 },
+  { key: 'bon', label: 'Bon', value: 0.9 },
+] as const
+
+function LabelForm({ sessionId }: { sessionId: string }) {
+  const router = useRouter()
+  const [scores, setScores] = useState<Record<keyof typeof DIM_LABELS, number>>({
+    fidelite: 0.6, pertinence: 0.6, utilite: 0.6, persona: 0.6, conformiteCdp: 0.6, langue: 0.6,
+  })
+  const [commentaire, setCommentaire] = useState('')
+  const [state, setState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle')
+
+  async function submit() {
+    setState('saving')
+    try {
+      const res = await fetch(`/api/admin/yaye/sessions/${sessionId}/label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...scores, commentaire: commentaire.trim() || undefined }),
+      })
+      if (!res.ok) throw new Error('échec')
+      setState('done')
+      router.refresh()
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <details style={{ marginTop: 20, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '12px 16px' }}>
+      <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>
+        Noter cette conversation (calibration juge↔humain)
+      </summary>
+      <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', margin: '8px 0 12px' }}>
+        Ta note est comparée à celle du juge LLM pour mesurer leur accord. Elle n&apos;altère aucun score automatique.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+        {(Object.keys(DIM_LABELS) as (keyof typeof DIM_LABELS)[]).map((k) => (
+          <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gj-ink)' }}>{DIM_LABELS[k]}</span>
+            <select
+              value={scores[k]}
+              onChange={(e) => setScores((s) => ({ ...s, [k]: Number(e.target.value) }))}
+              style={{ border: '1.5px solid var(--gj-line)', borderRadius: 8, padding: '6px 8px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--gj-bg)', color: 'var(--gj-ink)' }}
+            >
+              {NIVEAUX.map((n) => (
+                <option key={n.key} value={n.value}>{n.label}</option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <textarea
+        value={commentaire}
+        onChange={(e) => setCommentaire(e.target.value)}
+        placeholder="Commentaire (optionnel)"
+        rows={2}
+        style={{ width: '100%', marginTop: 10, border: '1.5px solid var(--gj-line)', borderRadius: 8, padding: '8px 10px', fontSize: 12.5, fontFamily: 'inherit', background: 'var(--gj-bg)', color: 'var(--gj-ink)', resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={state === 'saving' || state === 'done'}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, padding: '8px 14px', borderRadius: 9, border: 'none', cursor: state === 'saving' || state === 'done' ? 'default' : 'pointer', background: 'var(--gj-teal)', color: 'var(--gj-surface)', opacity: state === 'saving' ? 0.6 : 1, fontFamily: 'inherit' }}
+        >
+          <Icon name="check" size={13} />
+          {state === 'done' ? 'Label enregistré' : 'Enregistrer le label'}
+        </button>
+        {state === 'error' && <span style={{ fontSize: 12, color: 'var(--gj-red-ink)', fontWeight: 700 }}>Échec — réessaie.</span>}
+      </div>
+    </details>
   )
 }
 
@@ -167,10 +376,10 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
       <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '20px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--gj-grey)' }}>
           <Icon name="info" size={16} />
-          <span style={{ fontSize: 13, fontWeight: 800 }}>Texte verbatim indisponible (canal web — non persisté par conception CDP)</span>
+          <span style={{ fontSize: 13, fontWeight: 800 }}>Texte verbatim indisponible (canal web — non persisté par conception)</span>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--gj-grey)', marginBottom: 14 }}>
-          On affiche la structure des échanges (intentions, outils, blocs). Le contenu mot-à-mot reste dans l'onglet Technique uniquement sous forme de longueurs.
+          On affiche la structure des échanges (intentions, outils, blocs) et les données métier renvoyées par les outils.
         </p>
         {/* Structure des tours */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -179,14 +388,16 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 6 }}>
                 Tour {turn.index + 1}{turn.userLength != null ? ` · message ~${turn.userLength} car.` : ''}
               </div>
-              {turn.intentions.length > 0 && (
-                <Tags label="Intentions" items={turn.intentions} />
-              )}
-              {turn.toolsUsed.length > 0 && (
-                <Tags label="Outils" items={turn.toolsUsed} />
-              )}
-              {turn.blocs.length > 0 && (
-                <Tags label="Blocs transmis" items={turn.blocs} />
+              {turn.intentions.length > 0 && <Tags label="Intentions" items={turn.intentions} />}
+              {turn.toolsUsed.length > 0 && <Tags label="Outils" items={turn.toolsUsed} />}
+              {turn.blocs.length > 0 && <Tags label="Blocs transmis" items={turn.blocs} />}
+              {turn.toolResults.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 11, color: 'var(--gj-grey)', fontWeight: 700 }}>Données outils :</span>
+                  {turn.toolResults.map((r, i) => (
+                    <p key={i} style={{ fontSize: 11.5, color: 'var(--gj-ink)', margin: '2px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r}</p>
+                  ))}
+                </div>
               )}
               {turn.escalade && <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>↗ Escalade conseiller</span>}
             </div>
@@ -196,17 +407,13 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
     )
   }
 
-  // Transcription verbatim (WhatsApp).
+  // Transcription verbatim (WhatsApp) — affichée en clair (pas d'anonymisation admin).
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {t.turns.map((turn) => (
         <div key={turn.index} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {turn.userText && (
-            <Bubble side="user" text={turn.userText} />
-          )}
-          {turn.assistantText && (
-            <Bubble side="yaye" text={turn.assistantText} meta={turn.toolsUsed} />
-          )}
+          {turn.userText && <Bubble side="user" text={turn.userText} />}
+          {turn.assistantText && <Bubble side="yaye" text={turn.assistantText} meta={turn.toolsUsed} />}
           {turn.escalade && (
             <div style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)', background: 'var(--gj-yellow-soft)', padding: '4px 12px', borderRadius: 999 }}>
               ↗ Escalade vers un conseiller

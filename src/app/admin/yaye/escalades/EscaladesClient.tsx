@@ -19,10 +19,12 @@ export interface EscaladeRowDTO {
   canal: CanalAgent
   raison: string | null
   stade: string | null
+  signalDanger: string | null
   statut: StatutEscalade
   traitePar: string | null
   traiteA: string | null
   createdAt: string
+  user: { prenom: string; nom: string; telephone: string | null } | null
 }
 
 export interface EscaladesClientProps {
@@ -31,7 +33,8 @@ export interface EscaladesClientProps {
   total: number
   currentPage: number
   totalPages: number
-  filtres: { statut: string; canal: string }
+  centres: { id: string; nom: string }[]
+  filtres: { statut: string; canal: string; centre: string; danger: boolean }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -58,11 +61,18 @@ function canalLabel(c: CanalAgent): string {
   return c === 'whatsapp' ? 'WhatsApp' : 'Web'
 }
 
+/** Nom affichable du bénéficiaire (fallback cjs_uid court, puis « Anonyme »). */
+function userLabel(row: EscaladeRowDTO): string {
+  if (row.user) return `${row.user.prenom} ${row.user.nom}`.trim() || 'Bénéficiaire'
+  if (row.cjsUid) return `${row.cjsUid.slice(0, 8)}…`
+  return 'Anonyme'
+}
+
 const GRID = '1.3fr 1.6fr 1fr 1fr 1.4fr'
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function EscaladesClient({ rows, counts, total, currentPage, totalPages, filtres }: EscaladesClientProps) {
+export function EscaladesClient({ rows, counts, total, currentPage, totalPages, centres, filtres }: EscaladesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [, startTransition] = useTransition()
@@ -73,6 +83,8 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     const sp = new URLSearchParams()
     if (merged.statut) sp.set('statut', merged.statut)
     if (merged.canal && merged.canal !== 'tous') sp.set('canal', merged.canal)
+    if (merged.centre) sp.set('centre', merged.centre)
+    if (merged.danger) sp.set('danger', '1')
     const qs = sp.toString()
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
@@ -95,6 +107,8 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     const sp = new URLSearchParams()
     if (filtres.statut) sp.set('statut', filtres.statut)
     if (filtres.canal !== 'tous') sp.set('canal', filtres.canal)
+    if (filtres.centre) sp.set('centre', filtres.centre)
+    if (filtres.danger) sp.set('danger', '1')
     const qs = sp.toString()
     return qs ? `${pathname}?${qs}` : pathname
   })()
@@ -124,8 +138,20 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
             </Chip>
           ))}
           <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--gj-line)', margin: '0 4px' }} aria-hidden />
+          <Chip selected={filtres.danger} aria-pressed={filtres.danger} icon="alert" onClick={() => push({ danger: !filtres.danger })}>Danger</Chip>
           <Chip selected={filtres.canal === 'web'} aria-pressed={filtres.canal === 'web'} icon="desktop" onClick={() => push({ canal: filtres.canal === 'web' ? 'tous' : 'web' })}>Web</Chip>
           <Chip selected={filtres.canal === 'whatsapp'} aria-pressed={filtres.canal === 'whatsapp'} icon="whatsapp" onClick={() => push({ canal: filtres.canal === 'whatsapp' ? 'tous' : 'whatsapp' })}>WhatsApp</Chip>
+          <select
+            value={filtres.centre}
+            onChange={(e) => push({ centre: e.target.value })}
+            aria-label="Filtrer par centre"
+            style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 36, fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)', cursor: 'pointer' }}
+          >
+            <option value="">Tous centres</option>
+            {centres.map((c) => (
+              <option key={c.id} value={c.id}>{c.nom}</option>
+            ))}
+          </select>
         </div>
 
         {/* ── Table ── */}
@@ -147,18 +173,41 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
               const sm = STATUT_META[e.statut]
               return (
                 <div key={e.id} style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center' }} className="!grid grid-cols-1 md:!grid-cols-[1.3fr_1.6fr_1fr_1fr_1.4fr]">
-                  {/* Utilisateur */}
+                  {/* Utilisateur + contact (essentiel sur un signalement de danger) */}
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.cjsUid ?? 'Anonyme'}
+                      {userLabel(e)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--gj-grey)' }}>
                       {canalLabel(e.canal)}{e.centreId ? ` · ${e.centreId}` : ''}
                     </div>
+                    {e.cjsUid && (
+                      <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                        <Link href={`/admin/utilisateurs/${e.cjsUid}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: 'var(--gj-teal-deep)', textDecoration: 'none' }}>
+                          <Icon name="user" size={11} /> Fiche
+                        </Link>
+                        {e.user?.telephone && (
+                          <a href={`tel:${e.user.telephone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: 'var(--gj-teal-deep)', textDecoration: 'none' }}>
+                            <Icon name="phone" size={11} /> {e.user.telephone}
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Raison / stade */}
+                  {/* Raison / stade (+ badge DANGER prioritaire) */}
                   <div style={{ minWidth: 0 }}>
+                    {e.signalDanger && (
+                      <span
+                        style={{
+                          display: 'inline-block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                          letterSpacing: '.4px', color: 'var(--gj-surface)', background: 'var(--gj-red)',
+                          borderRadius: 999, padding: '1px 8px', marginBottom: 3,
+                        }}
+                      >
+                        Danger · {e.signalDanger}
+                      </span>
+                    )}
                     <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.raison ?? '—'}</div>
                     {e.stade && <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
                   </div>
@@ -166,10 +215,20 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                   {/* Signalée */}
                   <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{relative(e.createdAt)}</span>
 
-                  {/* Statut */}
-                  <span>
+                  {/* Statut + qui traite / depuis quand (suivi SLA) */}
+                  <div style={{ minWidth: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sm.bg, color: sm.fg, whiteSpace: 'nowrap' }}>{sm.label}</span>
-                  </span>
+                    {e.statut !== 'en_attente' && e.traitePar && (
+                      <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        par {e.traitePar.slice(0, 8)}…{e.traiteA ? ` · ${relative(e.traiteA)}` : ''}
+                      </div>
+                    )}
+                    {e.statut === 'en_attente' && e.signalDanger && (
+                      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-red-ink)', marginTop: 4 }}>
+                        en attente {relative(e.createdAt)}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Action */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -201,7 +260,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
         )}
 
         <p style={{ marginTop: 16, fontSize: 11.5, color: 'var(--gj-grey)', textAlign: 'center' }}>
-          {total} escalade{total > 1 ? 's' : ''} · la remise au conseiller (notification) sera branchée ensuite
+          {total} escalade{total > 1 ? 's' : ''} · le staff du centre est notifié à chaque escalade
         </p>
       </div>
     </div>

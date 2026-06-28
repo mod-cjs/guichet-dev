@@ -33,6 +33,9 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
       // Pas de boutons en texte brut : on invite à répondre par l'une des options.
       const opts = b.replies.map(r => `• ${r.label}`).join('\n')
       if (opts) parts.push(`Réponds par :\n${opts}`)
+    } else if (b.kind === 'escalade') {
+      // Accusé de réception d'escalade : titre + attente + référence à citer.
+      parts.push([`*${b.title}*`, b.message, `Référence : ${b.reference}`].filter(Boolean).join('\n'))
     } else {
       // action : on résume en texte (les boutons riches n'existent pas en texte brut)
       const head = [b.title, b.subtitle].filter(Boolean).join(' — ')

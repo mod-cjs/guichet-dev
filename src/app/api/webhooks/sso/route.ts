@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
+import { purgeYayeUserData } from '@/lib/ia/cdp-purge'
 import { logger, hashId } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { StatutCompte, type Region } from '@prisma/client'
@@ -156,6 +157,12 @@ async function handleAnonymized(p: Payload): Promise<void> {
   await prisma.emprunt.deleteMany({
     where: { cjsUid: p.cjs_uid, statut: { in: ['rendu', 'annule'] } },
   })
+
+  // CDP / droit à l'oubli (m12-ia, Lot 8) : purge TOUTE la donnée Yaye —
+  // traces agent_logs (PII brutes dans payload.args), transcripts verbatim,
+  // escalades, recommandations, scores du juge ET mémoire Redis (contexte unifié
+  // + fiche long terme), toutes indexées par cjsUid / sessionId de l'utilisateur.
+  await purgeYayeUserData(p.cjs_uid)
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────

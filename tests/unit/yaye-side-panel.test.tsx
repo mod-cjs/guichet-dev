@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { YayeSidePanel } from '@/components/ui/Yaye/YayeSidePanel'
 
+// scrollIntoView n'est pas implémenté sous JSDOM (auto-scroll du drawer).
+beforeAll(() => {
+  Element.prototype.scrollIntoView = jest.fn()
+})
+
 describe('<YayeSidePanel />', () => {
   it('ne rend rien quand open=false', () => {
     render(<YayeSidePanel open={false} onClose={() => {}} />)
@@ -67,5 +72,57 @@ describe('<YayeSidePanel />', () => {
   it('place le focus initial sur le bouton fermer', () => {
     render(<YayeSidePanel open onClose={() => {}} />)
     expect(screen.getByRole('button', { name: /^Fermer$/i })).toHaveFocus()
+  })
+
+  // ── Parité avec la page fullscreen (GUIC-259, UX polish) ──────────────────
+
+  it('expose la même barre d’actions que la page fullscreen (envoi, sans placeholders)', () => {
+    render(<YayeSidePanel open onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: /^Envoyer$/i })).toBeInTheDocument()
+    // Placeholders retirés : ni micro (vocal) ni pièce jointe pour l'instant.
+    expect(screen.queryByRole('button', { name: /Dicter au micro/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Joindre un fichier/i })).not.toBeInTheDocument()
+  })
+
+  it('expose la zone de conversation en aria-live (role=log)', () => {
+    render(<YayeSidePanel open onClose={() => {}} />)
+    expect(screen.getByRole('log', { name: /Conversation Yaye/i })).toBeInTheDocument()
+  })
+
+  it('affiche l’indicateur de frappe quand sending=true', () => {
+    render(<YayeSidePanel open onClose={() => {}} sending />)
+    expect(screen.getByTestId('yaye-typing')).toBeInTheDocument()
+  })
+
+  it('n’affiche pas l’indicateur de frappe quand sending=false', () => {
+    render(<YayeSidePanel open onClose={() => {}} />)
+    expect(screen.queryByTestId('yaye-typing')).not.toBeInTheDocument()
+  })
+
+  it('piège le focus : Tab depuis le dernier focusable revient au premier (bouton Fermer)', () => {
+    render(
+      <YayeSidePanel
+        open
+        onClose={() => {}}
+        quickReplies={[{ label: 'Action', value: 'a' }]}
+        onQuickReply={() => {}}
+      />,
+    )
+    const closeBtn = screen.getByRole('button', { name: /^Fermer$/i })
+    const sendBtn = screen.getByRole('button', { name: /^Envoyer$/i })
+    sendBtn.focus()
+    expect(sendBtn).toHaveFocus()
+    // Tab depuis le dernier élément focusable → on boucle vers le premier (close).
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(closeBtn).toHaveFocus()
+  })
+
+  it('piège le focus : Shift+Tab depuis le premier focusable va au dernier', () => {
+    render(<YayeSidePanel open onClose={() => {}} />)
+    const closeBtn = screen.getByRole('button', { name: /^Fermer$/i })
+    const sendBtn = screen.getByRole('button', { name: /^Envoyer$/i })
+    closeBtn.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(sendBtn).toHaveFocus()
   })
 })

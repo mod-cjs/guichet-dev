@@ -6,6 +6,7 @@ import { useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
+import { intentLabel } from '@/lib/ia/tool-labels'
 import type { CanalAgent } from '@prisma/client'
 
 // ─── Types (sérialisables — `debut` en ISO string) ──────────────────────────
@@ -23,6 +24,12 @@ export interface SessionRowDTO {
   intentionPrincipale: string | null
   hasErreur: boolean
   hasEscalade: boolean
+  user: { prenom: string; nom: string } | null
+  yqs: number | null
+  drapeauRouge: boolean
+  resolu: boolean
+  converti: boolean
+  feedback: number
 }
 
 export interface SessionsClientProps {
@@ -61,6 +68,13 @@ function canalBadge(c: CanalAgent): { label: string; icon: 'whatsapp' | 'desktop
   return c === 'whatsapp'
     ? { label: 'WhatsApp', icon: 'whatsapp', bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' }
     : { label: 'Web', icon: 'desktop', bg: 'var(--gj-blue-soft)', fg: 'var(--gj-blue-ink)' }
+}
+
+/** Nom affichable du bénéficiaire (cjs_uid désormais autorisé, pas d'anonymisation admin). */
+function userLabel(r: SessionRowDTO): string {
+  if (r.user) return `${r.user.prenom} ${r.user.nom}`.trim() || 'Bénéficiaire'
+  if (r.cjsUid) return `${r.cjsUid.slice(0, 8)}…`
+  return 'Anonyme'
 }
 
 const GRID = '1.5fr 0.9fr 1.3fr 0.7fr 0.7fr 1fr'
@@ -202,6 +216,7 @@ export function SessionsClient({
           <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--gj-line)', margin: '0 4px' }} aria-hidden />
           <Chip selected={filtres.filtre === 'escalade'} aria-pressed={filtres.filtre === 'escalade'} icon="bell" onClick={() => push({ filtre: filtres.filtre === 'escalade' ? '' : 'escalade' })}>Escaladées</Chip>
           <Chip selected={filtres.filtre === 'erreur'} aria-pressed={filtres.filtre === 'erreur'} icon="alert" onClick={() => push({ filtre: filtres.filtre === 'erreur' ? '' : 'erreur' })}>Avec erreur</Chip>
+          <Chip selected={filtres.filtre === 'drapeau'} aria-pressed={filtres.filtre === 'drapeau'} icon="flame" onClick={() => push({ filtre: filtres.filtre === 'drapeau' ? '' : 'drapeau' })}>Drapeau rouge</Chip>
         </div>
 
         {/* ── Table ── */}
@@ -235,7 +250,7 @@ export function SessionsClient({
                   {/* Utilisateur */}
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.cjsUid ?? 'Anonyme'}
+                      {userLabel(s)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {s.role ?? '—'}{s.centreId ? ` · ${s.centreId}` : ''}
@@ -250,9 +265,9 @@ export function SessionsClient({
                     </span>
                   </span>
 
-                  {/* Intention */}
+                  {/* Intention (libellé métier) */}
                   <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {s.intentionPrincipale ?? <span style={{ color: 'var(--gj-grey)' }}>conversation</span>}
+                    {intentLabel(s.intentionPrincipale)}
                   </div>
 
                   {/* Tours */}
@@ -261,9 +276,29 @@ export function SessionsClient({
                   {/* Durée */}
                   <span style={{ fontSize: 12.5, color: 'var(--gj-grey)' }}>{formatDuree(s.dureeMs)}</span>
 
-                  {/* Début + état */}
+                  {/* Début + état + qualité/résultat */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{formatHeure(s.debut)}</span>
+                    {s.yqs != null && (
+                      <span title="Yaye Quality Score" style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.yqs >= 70 ? 'var(--gj-green-soft)' : s.yqs >= 50 ? 'var(--gj-yellow-soft)' : 'var(--gj-red-soft)', color: s.yqs >= 70 ? 'var(--gj-green-ink)' : s.yqs >= 50 ? 'var(--gj-yellow-ink)' : 'var(--gj-red-ink)' }}>
+                        {Math.round(s.yqs)}
+                      </span>
+                    )}
+                    {s.drapeauRouge && (
+                      <span title="Drapeau rouge qualité (hallucination / CDP)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+                        <Icon name="flame" size={10} />
+                      </span>
+                    )}
+                    {s.converti && (
+                      <span title="A produit une action métier (candidature / réservation)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)' }}>
+                        <Icon name="check-circle" size={10} />
+                      </span>
+                    )}
+                    {s.feedback !== 0 && (
+                      <span title={`Retour utilisateur : ${s.feedback > 0 ? 'positif' : 'négatif'}`} style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.feedback > 0 ? 'var(--gj-green-soft)' : 'var(--gj-red-soft)', color: s.feedback > 0 ? 'var(--gj-green-ink)' : 'var(--gj-red-ink)' }}>
+                        {s.feedback > 0 ? 'avis +' : 'avis −'}
+                      </span>
+                    )}
                     {s.hasEscalade && (
                       <span title="Escalade conseiller" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>
                         <Icon name="bell" size={10} />

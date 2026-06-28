@@ -1,5 +1,7 @@
 'use client'
 
+import { Icon } from '@/components/ui/Icon'
+
 export interface QuickReply {
   label: string
   value: string
@@ -44,7 +46,7 @@ export function QuickReplies({
             min-h-[40px] cursor-pointer hover:bg-gj-teal-soft transition-colors"
         >
           <span className="flex-1 min-w-0">{r.label}</span>
-          <span aria-hidden="true" className="opacity-55 ml-auto">→</span>
+          <Icon name="arrow-right" size={14} className="opacity-55 ml-auto" />
         </button>
       ))}
     </div>

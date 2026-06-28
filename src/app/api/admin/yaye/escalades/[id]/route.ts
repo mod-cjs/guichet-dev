@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { setEscaladeStatut } from '@/lib/ia/admin/escalades'
+import { canManageYaye } from '@/lib/ia/admin/rbac'
 import type { ApiResponse } from '@/types/api'
 import type { StatutEscalade } from '@prisma/client'
 
@@ -14,9 +15,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse<ApiResponse<{ id: string; statut: StatutEscalade }>>> {
   const session = await getSession()
-  if (!session || !session.roles.includes('admin')) {
+  if (!session || !canManageYaye(session.roles)) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
+      { error: { code: 'FORBIDDEN', message: 'Accès réservé au staff (admin, directeur, conseiller)' } },
       { status: 403 },
     )
   }

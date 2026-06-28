@@ -6,9 +6,9 @@
 // ⚠️ Biais d'auto-complaisance (juge = modèle de Yaye) : prompt ADVERSARIAL + le
 //    golden set (jalon E) reste la garde de déploiement déterministe.
 
-import Groq from 'groq-sdk'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+import { getGroq } from '../groq-client'
 import { pseudonymizeText } from './pseudonymize'
 import type { ReconstructedTranscript } from './transcript'
 
@@ -17,10 +17,10 @@ const RUBRIC_VERSION = 'rubric-v4'
 const SEUIL_FIDELITE = Number(process.env.YAYE_SEUIL_FIDELITE ?? 0.6)
 const SEUIL_CDP = Number(process.env.YAYE_SEUIL_CDP ?? 0.6)
 
-let _groq: Groq | null = null
-function getGroq(): Groq {
-  if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  return _groq
+/** Identifiant du juge (modèle@rubrique) écrit dans `yaye_eval_scores.juge`.
+ *  Sert à l'idempotence du cron : une session déjà notée par CE juge n'est pas re-notée. */
+export function judgeId(): string {
+  return `groq:${JUDGE_MODEL}@${RUBRIC_VERSION}`
 }
 
 const JUDGE_SYSTEM = `Tu es un évaluateur EXIGEANT de l'agent conversationnel "Yaye" (plateforme jeunesse sénégalaise, français/wolof).
@@ -105,7 +105,7 @@ export async function judgeTranscript(t: ReconstructedTranscript): Promise<EvalS
     const fidelite = clamp01(d.fidelite)
     const conformiteCdp = clamp01(d.conformite_cdp)
     return {
-      juge: `groq:${JUDGE_MODEL}@${RUBRIC_VERSION}`,
+      juge: judgeId(),
       fidelite,
       pertinence: clamp01(d.pertinence),
       utilite: clamp01(d.utilite),

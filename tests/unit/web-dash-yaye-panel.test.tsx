@@ -2,10 +2,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { WebDashYayePanel } from '@/components/dashboard/WebDashYayePanel'
 
 describe('<WebDashYayePanel />', () => {
-  it('rend le badge IA et la mention en ligne', () => {
+  it('rend le badge IA et le statut conseillère', () => {
     render(<WebDashYayePanel />)
     expect(screen.getByText('IA')).toBeInTheDocument()
-    expect(screen.getByText(/en ligne/i)).toBeInTheDocument()
+    expect(screen.getByText(/Conseillère IA/i)).toBeInTheDocument()
   })
 
   it('utilise le preview par défaut', () => {
