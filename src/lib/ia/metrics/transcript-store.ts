@@ -1,9 +1,10 @@
-// Capture durable du transcript web Yaye (GUIC-435 — option A).
-// Persiste le texte PSEUDONYMISÉ des tours web pour rendre les conversations web
-// jugeables par le juge LLM (couche 3). Le web ne stocke sinon que des longueurs.
+// Capture durable du transcript Yaye (GUIC-435 — option A).
+// Persiste le texte PSEUDONYMISÉ des tours (web ET WhatsApp, via le champ `canal`)
+// pour rendre les conversations jugeables par le juge LLM (couche 3). Sans capture,
+// on ne stocke que des longueurs et le juge n'a presque rien à noter.
 //
 // ⚠️ Gardé par le flag `YAYE_PERSIST_WEB_TRANSCRIPT` (défaut OFF) : opt-in explicite,
-//    posture CDP par défaut inchangée.
+//    posture CDP par défaut inchangée (vaut pour les deux canaux).
 // ⚠️ CDP : pseudonymisation AVANT écriture + purge au droit à l'oubli (cascade cjs_uid).
 // ⚠️ FAIL-SOFT : ne lève jamais — n'interrompt pas la conversation.
 

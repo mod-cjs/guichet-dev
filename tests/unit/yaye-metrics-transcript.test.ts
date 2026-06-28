@@ -7,12 +7,10 @@
  */
 
 const mockAgentFind = jest.fn()
-const mockWaFind = jest.fn()
 const mockTurnFind = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     agentLog: { findMany: (...a: unknown[]) => mockAgentFind(...a) },
-    messageWhatsApp: { findMany: (...a: unknown[]) => mockWaFind(...a) },
     yayeTranscriptTurn: { findMany: (...a: unknown[]) => mockTurnFind(...a) },
   },
 }))
@@ -44,9 +42,7 @@ function log(tsMs: number, type: string, extra: Row = {}): Row {
 
 beforeEach(() => {
   mockAgentFind.mockReset()
-  mockWaFind.mockReset()
   mockTurnFind.mockReset()
-  mockWaFind.mockResolvedValue([])
   mockTurnFind.mockResolvedValue([])
 })
 
@@ -93,15 +89,14 @@ test('web avec capture (option A) : texte verbatim injecté depuis YayeTranscrip
   expect(t.turns[0].assistantText).toBe('Voici 3 bourses adaptées.')
 })
 
-test('whatsapp : texte verbatim entrant/sortant injecté dans les tours', async () => {
+test('whatsapp : texte verbatim injecté depuis YayeTranscriptTurn (store unifié)', async () => {
   mockAgentFind.mockResolvedValueOnce([
     log(2000, 'message_recu', { canal: 'whatsapp', payload: { longueur: 5 } }),
     log(2100, 'reponse_generee', { canal: 'whatsapp', payload: { longueur: 30, rounds: 0, blocs: ['text'] } }),
     log(2150, 'contenu_transmis', { canal: 'whatsapp', payload: { blocs: ['text'] } }),
   ])
-  mockWaFind.mockResolvedValueOnce([
-    { sens: 'entrant', contenu: 'Bonjour', createdAt: new Date(2000) },
-    { sens: 'sortant', contenu: 'Salut, comment puis-je aider ?', createdAt: new Date(2150) },
+  mockTurnFind.mockResolvedValueOnce([
+    { tourIndex: 0, userText: 'Bonjour', assistantText: 'Salut, comment puis-je aider ?' },
   ])
 
   const t = await reconstructTranscript('s1')

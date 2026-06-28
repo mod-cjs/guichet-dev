@@ -6,6 +6,7 @@ import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/
 import { logAgentEvent } from '@/lib/ia/agent-logs'
 import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 import { loadSummary, updateSummary } from '@/lib/ia/memory'
+import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 
@@ -80,6 +81,16 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     [...history, { role: 'user', content: text }, { role: 'assistant', content: result.reply }],
     TTL_USER,
   )
+  // Capture durable du verbatim (pseudonymisé, purgeable) pour rendre la conversation
+  // jugeable par le juge LLM — même store que le web. No-op si le flag est OFF (CDP).
+  await recordWebTurn({
+    sessionId: conv.id,
+    cjsUid: conv.cjsUid,
+    tourIndex: Math.floor(history.length / 2),
+    userText: text,
+    assistantText: result.reply,
+    canal: 'whatsapp',
+  })
   // Met à jour la fiche mémoire long terme — fire-and-forget (cross-canal).
   void updateSummary(conv.cjsUid, memo, text, result.reply)
 }
