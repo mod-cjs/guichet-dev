@@ -37,7 +37,7 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
   it("rend le header, l'intro (sans pourcentage) et les suggestions", () => {
     render(<YayeChat />)
     expect(screen.getByText('Yaye')).toBeInTheDocument()
-    expect(screen.getByText('En ligne')).toBeInTheDocument()
+    expect(screen.getByText('Conseillère IA')).toBeInTheDocument()
     expect(screen.getByText(/Bonjour/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Une offre pour moi/i })).toBeInTheDocument()
     // Aucune mention de pourcentage de compatibilité dans l'écran initial.
@@ -58,8 +58,9 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
     expect(screen.getByText('Je cherche une formation')).toBeInTheDocument()
     expect(input.value).toBe('')
 
+    // La réponse apparaît dans la bulle visible ET dans la région live SR (a11y) → ≥1.
     await waitFor(() =>
-      expect(screen.getByText('Voici une formation près de chez toi.')).toBeInTheDocument(),
+      expect(screen.getAllByText('Voici une formation près de chez toi.').length).toBeGreaterThan(0),
     )
     expect(mockFetch).toHaveBeenCalledWith('/api/ia', expect.objectContaining({ method: 'POST' }))
   })
@@ -68,7 +69,7 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
     replyOnce('Je regarde tes candidatures.')
     render(<YayeChat />)
     fireEvent.click(screen.getByRole('button', { name: /Mes candidatures/i }))
-    await waitFor(() => expect(screen.getByText('Je regarde tes candidatures.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText('Je regarde tes candidatures.').length).toBeGreaterThan(0))
   })
 
   it("n'envoie rien sur soumission d'un input blanc", () => {
