@@ -6,11 +6,12 @@
  */
 
 const mockFindMany = jest.fn()
+const mockCreate = jest.fn()
 jest.mock('@/lib/prisma', () => ({
-  prisma: { yayeEvalScore: { findMany: (...a: unknown[]) => mockFindMany(...a) } },
+  prisma: { yayeEvalScore: { findMany: (...a: unknown[]) => mockFindMany(...a), create: (...a: unknown[]) => mockCreate(...a) } },
 }))
 
-import { computeCalibration } from '@/lib/ia/metrics/calibration-data'
+import { computeCalibration, recordHumanLabel } from '@/lib/ia/metrics/calibration-data'
 
 const dims = (v: number) => ({
   fidelite: v, pertinence: v, utilite: v, persona: v, conformiteCdp: v, langue: v,
@@ -43,4 +44,18 @@ it('apparie humain↔juge et calcule le kappa par dimension', async () => {
   // Accord parfait sur des bins identiques → kappa = 1 par dimension.
   expect(report!.parDimension.fidelite).toBe(1)
   expect(report!.global).toBe(1)
+})
+
+it('recordHumanLabel écrit une ligne « humain: » avec drapeau si fidélité/CDP faibles', async () => {
+  mockCreate.mockResolvedValue({})
+  await recordHumanLabel({
+    sessionId: 's1',
+    raterCjsUid: 'admin-1',
+    scores: { fidelite: 0.3, pertinence: 0.8, utilite: 0.8, persona: 0.8, conformiteCdp: 0.9, langue: 0.9 },
+    commentaire: 'a inventé une offre',
+  })
+  const data = mockCreate.mock.calls[0][0].data
+  expect(data.juge).toMatch(/^humain:admin-1@/)
+  expect(data.drapeauRouge).toBe(true) // fidelite 0.3 < 0.6
+  expect(data.commentaire).toBe('a inventé une offre')
 })

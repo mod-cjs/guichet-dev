@@ -15,6 +15,41 @@ import { agreementByDimension, type AgreementResult, type DimScores } from './ca
 
 /** Préfixe conventionnel du champ `juge` pour un label humain. */
 export const HUMAN_JUDGE_PREFIX = 'humain:'
+/** Version de rubrique alignée sur le juge LLM (judge.ts) pour un appariement propre. */
+const RUBRIC_VERSION = 'rubric-v4'
+const SEUIL_CRITIQUE = 0.6
+
+export interface HumanLabelInput {
+  sessionId: string
+  /** cjs_uid du conseiller/admin qui note (trace dans le champ `juge`). */
+  raterCjsUid: string
+  scores: DimScores
+  commentaire?: string | null
+}
+
+/**
+ * Enregistre un label HUMAIN d'une session (ligne yaye_eval_scores préfixée
+ * « humain: ») → alimente la calibration juge↔humain. On AJOUTE une ligne, on ne
+ * modifie aucun score du juge.
+ */
+export async function recordHumanLabel(input: HumanLabelInput): Promise<void> {
+  const s = input.scores
+  await prisma.yayeEvalScore.create({
+    data: {
+      sessionId: input.sessionId,
+      tourIndex: null,
+      juge: `${HUMAN_JUDGE_PREFIX}${input.raterCjsUid}@${RUBRIC_VERSION}`,
+      fidelite: s.fidelite,
+      pertinence: s.pertinence,
+      utilite: s.utilite,
+      persona: s.persona,
+      conformiteCdp: s.conformiteCdp,
+      langue: s.langue,
+      drapeauRouge: s.fidelite < SEUIL_CRITIQUE || s.conformiteCdp < SEUIL_CRITIQUE,
+      commentaire: input.commentaire ?? null,
+    },
+  })
+}
 
 export interface CalibrationReport extends AgreementResult {
   /** Nombre de (session, tour) notés à la fois par un humain ET par le juge. */
