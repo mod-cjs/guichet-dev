@@ -3,8 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
-import { purgeUserContext } from '@/lib/ia/context'
-import { purgeSummary } from '@/lib/ia/memory'
+import { purgeYayeUserData } from '@/lib/ia/cdp-purge'
 import { logger, hashId } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { StatutCompte, type Region } from '@prisma/client'
@@ -159,11 +158,11 @@ async function handleAnonymized(p: Payload): Promise<void> {
     where: { cjsUid: p.cjs_uid, statut: { in: ['rendu', 'annule'] } },
   })
 
-  // CDP / droit à l'oubli (m12-ia) : purge la mémoire Yaye en Redis — contexte
-  // conversationnel unifié (yaye:ctx:user:*) ET fiche mémoire long terme (yaye:memo:*),
-  // toutes deux indexées par cjsUid. Fail-soft : un échec Redis ne casse pas l'effacement.
-  await purgeUserContext(p.cjs_uid)
-  await purgeSummary(p.cjs_uid)
+  // CDP / droit à l'oubli (m12-ia, Lot 8) : purge TOUTE la donnée Yaye —
+  // traces agent_logs (PII brutes dans payload.args), transcripts verbatim,
+  // escalades, recommandations, scores du juge ET mémoire Redis (contexte unifié
+  // + fiche long terme), toutes indexées par cjsUid / sessionId de l'utilisateur.
+  await purgeYayeUserData(p.cjs_uid)
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────
