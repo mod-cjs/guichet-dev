@@ -11,12 +11,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { runEval } from '@/lib/ia/metrics/eval-run'
 import { materializeSummaries } from '@/lib/ia/metrics/materialize'
+import { runRegressionGuard } from '@/lib/ia/metrics/regression-data'
+import { computeCalibration } from '@/lib/ia/metrics/calibration-data'
 import type { ApiResponse } from '@/types/api'
 
 // Le jugement LLM séquentiel peut être long ; on borne la durée d'exécution.
 export const maxDuration = 300
 
 const FENETRE_MS = 24 * 3600 * 1000
+/** Fenêtre glissante pour la garde anti-régression et la calibration. */
+const FENETRE_GARDE_MS = 7 * FENETRE_MS
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   const secret = process.env.CRON_SECRET
@@ -33,9 +37,27 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const report = await runEval({ from, to, sampleSize })
     // Matérialise les résumés de session (métriques + YQS) dans yaye_session_summaries.
     const materialisation = await materializeSummaries({ from, to })
-    logger.info('cron/yaye-eval ok', { ...report, materialisation })
 
-    return NextResponse.json({ data: { ...report, materialisation } })
+    // Garde anti-régression + calibration juge↔humain (fenêtre 7 j). Fail-soft :
+    // une erreur de mesure ne doit jamais faire échouer l'évaluation nocturne.
+    let regression = null
+    let calibration = null
+    try {
+      const garde = { from: new Date(to.getTime() - FENETRE_GARDE_MS), to }
+      regression = await runRegressionGuard(garde)
+      calibration = await computeCalibration(garde)
+    } catch (err) {
+      logger.warn('cron/yaye-eval mesures qualité (régression/calibration) échec', { err: String(err) })
+    }
+
+    logger.info('cron/yaye-eval ok', {
+      ...report,
+      materialisation,
+      regression: regression?.baselineInitialisee ? 'baseline-initialisée' : regression?.result?.regressed,
+      calibrationGlobal: calibration?.global ?? null,
+    })
+
+    return NextResponse.json({ data: { ...report, materialisation, regression, calibration } })
   } catch (err) {
     logger.error('cron/yaye-eval échec', { err: String(err) })
     return NextResponse.json(

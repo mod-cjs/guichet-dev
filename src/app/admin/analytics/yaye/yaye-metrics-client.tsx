@@ -12,6 +12,8 @@ import type { RollupResult } from '@/lib/ia/metrics/rollups'
 import type { FeedbackKpis } from '@/lib/ia/metrics/feedback'
 import type { OutcomeResult } from '@/lib/ia/metrics/outcomes'
 import type { YqsGlobal } from '@/lib/ia/metrics/yqs'
+import type { RegressionReport } from '@/lib/ia/metrics/regression-data'
+import type { CalibrationReport } from '@/lib/ia/metrics/calibration-data'
 
 interface Filtres {
   from: string
@@ -24,6 +26,8 @@ interface Props {
   feedback: FeedbackKpis
   outcomes: OutcomeResult
   yqs: YqsGlobal
+  regression: RegressionReport
+  calibration: CalibrationReport | null
   filtres: Filtres
 }
 
@@ -59,7 +63,7 @@ function Kpi({
   )
 }
 
-export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, filtres }: Props) {
+export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression, calibration, filtres }: Props) {
   const router = useRouter()
   const [from, setFrom] = useState(filtres.from)
   const [to, setTo] = useState(filtres.to)
@@ -263,6 +267,100 @@ export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, filtres }:
           </table>
         </Card>
       </section>
+
+      {/* Garde anti-régression (vs baseline figée par le cron nocturne) */}
+      <section className="flex flex-col gap-space-3">
+        <h2 className="text-fs-400 font-bold">Garde anti-régression</h2>
+        <Card className="flex flex-col gap-space-2">
+          {regression.baseline == null ? (
+            <span className="text-fs-200 text-color-text-secondary">
+              Aucune baseline figée pour l'instant — elle sera initialisée au prochain passage du cron <code>yaye-eval</code>.
+            </span>
+          ) : (
+            <>
+              <div className="flex items-center gap-space-2 flex-wrap">
+                {regression.result?.regressed ? (
+                  <Badge variant="red">Régression détectée</Badge>
+                ) : (
+                  <Badge variant="green">Stable vs baseline</Badge>
+                )}
+                <span className="text-fs-100 text-color-text-secondary">
+                  Baseline figée le {new Date(regression.baseline.calculeLe).toLocaleDateString('fr-FR')}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-space-3">
+                <Delta label="YQS" current={regression.current.yqs} base={regression.baseline.yqs} suffix=" pts" />
+                <Delta label="Fidélité" current={regression.current.fidelite} base={regression.baseline.fidelite} ratio />
+                <Delta label="Conformité CDP" current={regression.current.conformiteCdp} base={regression.baseline.conformiteCdp} ratio />
+                <Delta label="Précision d'intention" current={regression.current.intentPrecision} base={regression.baseline.intentPrecision} ratio />
+              </div>
+              {regression.result && regression.result.raisons.length > 0 && (
+                <ul className="text-fs-100 text-gj-red-ink list-disc pl-space-4">
+                  {regression.result.raisons.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              )}
+            </>
+          )}
+        </Card>
+      </section>
+
+      {/* Calibration juge↔humain (Cohen's kappa par dimension) */}
+      <section className="flex flex-col gap-space-3">
+        <h2 className="text-fs-400 font-bold">Calibration juge↔humain</h2>
+        <Card className="flex flex-col gap-space-2">
+          {calibration == null ? (
+            <span className="text-fs-200 text-color-text-secondary">
+              En attente de labels humains. Un conseiller note quelques sessions (ligne <code>yaye_eval_scores</code> avec
+              {' '}<code>juge</code> préfixé <code>humain:</code>) → l'accord par dimension s'affiche ici.
+            </span>
+          ) : (
+            <>
+              <div className="flex items-center gap-space-2 flex-wrap">
+                <Badge variant={calibration.global >= 0.6 ? 'green' : 'red'}>
+                  Kappa global {calibration.global.toFixed(2)}
+                </Badge>
+                <span className="text-fs-100 text-color-text-secondary">
+                  {calibration.pairs} session{calibration.pairs > 1 ? 's' : ''} doublement notée{calibration.pairs > 1 ? 's' : ''}
+                  {calibration.faibles.length > 0 && ` · accord faible : ${calibration.faibles.join(', ')}`}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-space-3">
+                {Object.entries(calibration.parDimension).map(([dim, k]) => (
+                  <Kpi key={dim} label={dim} value={k.toFixed(2)} ton={k >= 0.6 ? 'bon' : 'alerte'} />
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+      </section>
     </div>
+  )
+}
+
+/** Affiche une valeur courante et son écart à la baseline (régression). */
+function Delta({
+  label,
+  current,
+  base,
+  ratio,
+  suffix = '',
+}: {
+  label: string
+  current: number | null
+  base: number | null
+  ratio?: boolean
+  suffix?: string
+}) {
+  const fmt = (x: number | null) => (x == null ? '—' : ratio ? `${(x * 100).toFixed(1)} %` : `${x}${suffix}`)
+  const d = current != null && base != null ? current - base : null
+  const dStr = d == null ? '—' : `${d >= 0 ? '+' : ''}${ratio ? (d * 100).toFixed(1) + ' pts' : d.toFixed(1) + suffix}`
+  return (
+    <Card className="flex flex-col gap-space-1">
+      <span className="text-fs-200 text-color-text-secondary">{label}</span>
+      <span className="text-fs-500 font-bold text-color-text-primary">{fmt(current)}</span>
+      <span className={`text-fs-100 ${d == null ? 'text-color-text-secondary' : d < 0 ? 'text-gj-red-ink' : 'text-gj-green-ink'}`}>
+        {dStr} vs baseline
+      </span>
+    </Card>
   )
 }
