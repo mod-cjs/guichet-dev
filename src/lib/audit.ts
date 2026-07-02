@@ -35,9 +35,10 @@ export type AuditAction =
   | 'opportunite.publish'
   // GUIC-474 — présence à un événement (cours/session) marquée par badge ou admin.
   | 'evenement.presence'
-  // GUIC-510 — gestion des partenaires (organisations recruteurs).
+  // GUIC-510 — gestion des partenaires (= recruteurs : organisation + compte).
   | 'partenaire.verify'
   | 'partenaire.update'
+  | 'recruteur.statut'
 
 interface AuditEntry {
   actorCjsUid: string

@@ -5,12 +5,15 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
+import { RecruteurStatutButton } from '../RecruteurStatutButton'
 
 export const metadata: Metadata = { title: 'Partenaire — Admin CJS' }
 
 const STATUT_LABEL: Record<string, string> = {
   brouillon: 'Brouillon', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
+
+const COMPTE_LABEL: Record<string, string> = { actif: 'Actif', inactif: 'Suspendu', anonymise: 'Anonymisé' }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -20,7 +23,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const org = await prisma.organisation.findUnique({
     where: { id },
     select: {
-      id: true, nom: true, secteur: true, region: true, adresse: true,
+      id: true, cjsUid: true, nom: true, description: true, logoUrl: true,
+      secteur: true, region: true, adresse: true,
       telephone: true, email: true, siteWeb: true, estVerifie: true,
       opportunites: {
         where: { deletedAt: null },
@@ -31,6 +35,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     },
   })
   if (!org) notFound()
+
+  // Partenaire = recruteur : on charge aussi le COMPTE (personne) propriétaire.
+  const recruteur = await prisma.utilisateur.findUnique({
+    where: { cjsUid: org.cjsUid },
+    select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, statut: true },
+  })
 
   const infos = [
     ['Secteur', org.secteur?.replace(/_/g, ' ')],
@@ -48,12 +58,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <Icon name="chevron-left" size={15} /> Retour aux partenaires
         </Link>
 
-        <div className="flex items-center gap-2 flex-wrap mb-4">
+        <div className="flex items-center gap-3 flex-wrap mb-4">
+          {org.logoUrl ? (
+            <img src={org.logoUrl} alt={`Logo ${org.nom}`} width={48} height={48} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', border: '1.5px solid var(--gj-line)', background: '#fff' }} />
+          ) : (
+            <span aria-hidden style={{ width: 48, height: 48, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)', fontWeight: 900 }}>{org.nom.slice(0, 2).toUpperCase()}</span>
+          )}
           <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>{org.nom}</h1>
           <span className="inline-flex items-center gap-[4px] rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={org.estVerifie ? { background: 'var(--gj-green-soft, #e6f6ec)', color: 'var(--gj-green-ink, #1a7a3d)' } : { background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>
             {org.estVerifie ? <><Icon name="check-circle" size={11} /> Vérifié</> : 'Non vérifié'}
           </span>
         </div>
+
+        {org.description && (
+          <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+            <h2 className="text-[14px] font-black mb-[8px]" style={{ color: 'var(--gj-ink)' }}>Présentation</h2>
+            <p className="text-[13.5px] whitespace-pre-line" style={{ color: 'var(--gj-ink)' }}>{org.description}</p>
+          </div>
+        )}
 
         <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
           <h2 className="text-[14px] font-black mb-[10px]" style={{ color: 'var(--gj-ink)' }}>Coordonnées</h2>
@@ -68,6 +90,29 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </div>
               ))}
             </dl>
+          )}
+        </div>
+
+        {/* Compte recruteur (personne) — partenaire = recruteur */}
+        <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+          <h2 className="text-[14px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>Compte recruteur</h2>
+          {!recruteur ? (
+            <p className="text-[13px]" style={{ color: 'var(--gj-grey)' }}>Aucun compte recruteur associé (organisation sans propriétaire).</p>
+          ) : (
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[14px] font-black" style={{ color: 'var(--gj-ink)' }}>{`${recruteur.prenom} ${recruteur.nom}`.trim()}</span>
+                  <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={recruteur.statut === 'actif' ? { background: 'var(--gj-green-soft, #e6f6ec)', color: 'var(--gj-green-ink, #1a7a3d)' } : { background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>
+                    {COMPTE_LABEL[recruteur.statut] ?? recruteur.statut}
+                  </span>
+                </div>
+                <p className="text-[12.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{[recruteur.email, recruteur.telephone].filter(Boolean).join(' · ') || '—'}</p>
+              </div>
+              {recruteur.statut !== 'anonymise' && (
+                <RecruteurStatutButton cjsUid={recruteur.cjsUid} organisationId={org.id} actif={recruteur.statut === 'actif'} nom={`${recruteur.prenom} ${recruteur.nom}`.trim()} />
+              )}
+            </div>
           )}
         </div>
 

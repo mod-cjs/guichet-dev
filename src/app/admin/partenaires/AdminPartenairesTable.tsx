@@ -12,6 +12,8 @@ import { PartenaireFormModal, type PartenaireValues } from './PartenaireFormModa
 export interface PartenaireRow {
   id: string
   nom: string
+  description?: string | null
+  logoUrl?: string | null
   secteur: string | null
   region: string | null
   email: string | null
@@ -56,6 +58,11 @@ function Row({ item, onResult, onEdit }: {
 
   return (
     <div className="rounded-[14px] p-[16px] flex items-start gap-[12px] flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+      {item.logoUrl ? (
+        <img src={item.logoUrl} alt={`Logo ${item.nom}`} width={40} height={40} style={{ width: 40, height: 40, borderRadius: 9, objectFit: 'cover', border: '1.5px solid var(--gj-line)', background: '#fff', flexShrink: 0 }} />
+      ) : (
+        <span aria-hidden style={{ width: 40, height: 40, borderRadius: 9, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)', fontWeight: 900, fontSize: 13 }}>{item.nom.slice(0, 2).toUpperCase()}</span>
+      )}
       <div className="flex-1 min-w-[220px]">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[15px] font-black" style={{ color: 'var(--gj-ink)' }}>{item.nom}</span>
@@ -134,7 +141,7 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
         ) : (
           <div className="flex flex-col gap-[12px]">
             {items.map((item) => (
-              <Row key={item.id} item={item} onResult={(m, v) => setFeedback({ message: m, variant: v })} onEdit={(p) => setEditing({ id: p.id, nom: p.nom, secteur: p.secteur, region: p.region, email: p.email })} />
+              <Row key={item.id} item={item} onResult={(m, v) => setFeedback({ message: m, variant: v })} onEdit={(p) => setEditing({ id: p.id, nom: p.nom, description: p.description ?? null, logoUrl: p.logoUrl ?? null, secteur: p.secteur, region: p.region, email: p.email })} />
             ))}
           </div>
         )}

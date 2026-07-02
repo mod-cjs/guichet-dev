@@ -24,6 +24,8 @@ const idSchema = z.string().min(1, 'id requis')
 // création ni de changement de propriétaire `cjsUid`).
 const partenaireSchema = z.object({
   nom: z.string().trim().min(1, 'Nom requis').max(200),
+  description: z.string().trim().max(4000).optional().nullable(),
+  logoUrl: z.string().trim().max(500).optional().nullable(),
   secteur: z.nativeEnum(Domaine).optional().nullable(),
   region: z.nativeEnum(Region).optional().nullable(),
   adresse: z.string().trim().max(300).optional().nullable(),
@@ -61,6 +63,8 @@ export async function modifierPartenaire(id: string, input: PartenaireInput): Pr
     where: { id: pid },
     data: {
       nom: data.nom,
+      description: data.description?.trim() || null,
+      logoUrl: data.logoUrl?.trim() || null,
       secteur: data.secteur ?? null,
       region: data.region ?? null,
       adresse: data.adresse?.trim() || null,
@@ -74,5 +78,33 @@ export async function modifierPartenaire(id: string, input: PartenaireInput): Pr
     targetId: pid,
   })
   revalidate(pid)
+  return { ok: true }
+}
+
+/**
+ * Activer / suspendre le COMPTE recruteur (personne) propriétaire du partenaire.
+ * Partenaire = recruteur : on gère l'organisation ET son compte au même endroit.
+ * Bascule `Utilisateur.statut` actif ↔ inactif ; ne touche jamais `anonymise`.
+ * Attribution de rôle = SSO (`cjs_auth`).
+ */
+export async function basculerStatutRecruteur(
+  cjsUid: string,
+  actif: boolean,
+  organisationId?: string,
+): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const uid = idSchema.parse(cjsUid)
+
+  const user = await prisma.utilisateur.findUnique({ where: { cjsUid: uid }, select: { statut: true } })
+  if (!user) throw new Error('NOT_FOUND')
+  if (user.statut === 'anonymise') throw new Error('COMPTE_ANONYMISE')
+
+  await prisma.utilisateur.update({ where: { cjsUid: uid }, data: { statut: actif ? 'actif' : 'inactif' } })
+  await recordAudit(session.cjsUid, 'recruteur.statut', {
+    targetType: 'utilisateur',
+    targetId: uid,
+    meta: { statut: actif ? 'actif' : 'inactif' },
+  })
+  revalidate(organisationId)
   return { ok: true }
 }

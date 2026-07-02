@@ -11,7 +11,7 @@ jest.mock('@/lib/prisma', () => ({ prisma: { utilisateur: { findUnique: jest.fn(
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
-import { basculerStatutRecruteur } from '@/app/admin/recruteurs/actions'
+import { basculerStatutRecruteur } from '@/app/admin/partenaires/actions'
 
 const mockSession = getSession as jest.Mock
 const mockAudit = recordAudit as jest.Mock
