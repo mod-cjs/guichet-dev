@@ -255,6 +255,9 @@ model Utilisateur {
   role               String?      @db.VarChar(40)
   commune            String?      @db.VarChar(100)
   onboardingComplete Boolean      @default(false) @map("onboarding_complete")
+  // GUIC-513 — préférences de notification recruteur (Paramètres). Défaut : activées.
+  notifCandidatures  Boolean      @default(true) @map("notif_candidatures")
+  notifMessages      Boolean      @default(true) @map("notif_messages")
   drupalUid          Int?         @unique @map("drupal_uid")
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
