@@ -71,6 +71,15 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
       items: [
         { id: 'offres', href: '/recruteur/mes-offres', icon: 'employment', label: 'Mes offres', badge: offresCount ?? null },
         { id: 'candidatures', href: '/recruteur/candidatures', icon: 'document', label: 'Candidatures', badge: candidaturesCount ?? null },
+        { id: 'entretiens', href: '/recruteur/entretiens', icon: 'calendar', label: 'Entretiens' },
+        { id: 'messagerie', href: '/recruteur/messagerie', icon: 'chat', label: 'Messagerie' },
+      ],
+    },
+    {
+      title: 'Entreprise',
+      items: [
+        { id: 'company', href: '/recruteur/profil-entreprise', icon: 'users', label: 'Profil entreprise' },
+        { id: 'settings', href: '/recruteur/parametres', icon: 'settings', label: 'Paramètres' },
       ],
     },
   ]
