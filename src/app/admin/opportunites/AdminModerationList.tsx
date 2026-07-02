@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
@@ -124,6 +125,20 @@ function ModerationCard({ item, onResult }: { item: ModerationItem; onResult: Re
           <Icon name="close" size={14} />
           Rejeter
         </button>
+        {/* GUIC-471 — éditer directement puis publier (backup recruteur) : le
+            formulaire d'édition permet de corriger ET de basculer le statut en `publiee`. */}
+        <Link
+          href={`/admin/opportunites/${item.id}/modifier`}
+          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px]"
+          style={{
+            background: 'var(--gj-surface)',
+            color: 'var(--gj-teal-deep)',
+            border: '1.5px solid var(--gj-teal)',
+          }}
+        >
+          <Icon name="settings" size={14} />
+          Éditer et publier
+        </Link>
         <a
           href={`/admin/opportunites/${item.id}/apercu`}
           target="_blank"

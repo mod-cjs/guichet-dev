@@ -28,6 +28,10 @@ export type AuditAction =
   | 'ressource_centre.delete'
   // GUIC-476 — accès CDP à un document personnel sensible (CV/diplôme/certificat).
   | 'ressource_sensible.download'
+  | 'opportunite.create'
+  | 'opportunite.update'
+  | 'opportunite.delete'
+  | 'opportunite.publish'
 
 interface AuditEntry {
   actorCjsUid: string

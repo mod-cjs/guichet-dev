@@ -59,6 +59,7 @@ const SECTIONS: NavSection[] = [
     title: 'Gouvernance',
     items: [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
+      { id: 'opportunites-gestion', href: '/admin/opportunites/gestion', icon: 'employment', label: 'Opportunités' },
       { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
@@ -74,6 +75,9 @@ const SECTIONS: NavSection[] = [
     ],
   },
 ]
+
+/** Tous les hrefs de nav — sert à ne garder actif que l'entrée la plus spécifique. */
+const ALL_HREFS = SECTIONS.flatMap((s) => s.items.map((i) => i.href))
 
 const STORAGE_KEY = 'gj-admin-sidebar-collapsed'
 
@@ -170,8 +174,14 @@ export function AdminSidebar({
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + '/')
+  // Un href matche la route s'il en est un préfixe. Mais quand deux entrées se
+  // chevauchent (ex. « Modération » /admin/opportunites et « Opportunités »
+  // /admin/opportunites/gestion), seule la PLUS SPÉCIFIQUE doit s'allumer.
+  const matches = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const isActive = (href: string) => {
+    if (!matches(href)) return false
+    return !ALL_HREFS.some((other) => other !== href && other.startsWith(href + '/') && matches(other))
+  }
 
   const width = collapsed ? 64 : 256
 

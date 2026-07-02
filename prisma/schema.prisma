@@ -421,6 +421,14 @@ model Opportunite {
   lienExterne    String?           @map("lien_externe") @db.VarChar(500)
   statut         StatutOpportunite @default(brouillon)
   recruteurUid   String?           @map("recruteur_uid") @db.VarChar(36)
+
+  // Traçabilité de modération (GUIC-471 — édition/publication directe admin, conformité CDP).
+  // Générique : `moderePar`/`modereLe` renseignés à l'approbation OU au rejet ;
+  // `motifRejet` uniquement au rejet. Tous nullable → rétro-compatible (rows existantes).
+  motifRejet String?   @map("motif_rejet") @db.Text
+  moderePar  String?   @map("modere_par") @db.VarChar(36)
+  modereLe   DateTime? @map("modere_le")
+
   vues           Int               @default(0)
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")

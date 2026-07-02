@@ -1,33 +1,36 @@
-# CURRENT_TASK — GUIC-473 + GUIC-476 · Ressources des centres + audit CDP
+# CURRENT_TASK — GUIC-28 + GUIC-471 · CRUD Opportunités admin + édition/publication directe
 
-**Branche :** `feature/GUIC-473-ressources-centre-audit` (depuis `dev`)
-**Tickets :** GUIC-473 (En cours) + GUIC-476 (En cours) — livraison unique, `Closes` les deux. Comble le volet ressources de GUIC-30.
-**Spec :** `.agent_context/specs/GUIC-473-ressources-centre-audit.md`
+**Branche :** `feature/GUIC-28-admin-crud-opportunites` (depuis `dev`)
+**Tickets :** GUIC-28 (En cours) · GUIC-471 (lié « Relates ») — livraison unique, `Closes` les deux.
+**Spec :** `.agent_context/specs/GUIC-28-admin-crud-opportunites.md`
 
 ## Décisions
-- Admin-only (création réservée admin). Rôle conseiller-sous-validation = ticket de suivi.
-- Audit CDP ciblé sur documents personnels (CV / diplômes / certificats). Photo exclue.
-- Pas de migration : `RessourceCentre` + `AuditLog` existent déjà ; `AuditAction` (type TS) étendu.
+- Livraison unique (une branche/PR). Migration légère. Admin-only (rôle conseiller hors périmètre).
+- Réutilisation de `OpportuniteService` (create/update) — **non réécrit**, seulement câblé.
+- Suppression = **soft-delete** (`deletedAt`), jamais de hard-delete depuis l'UI.
 
-## Piège de vocabulaire (levé)
-« ressource » = 2 entités. `Ressource` (documents globaux) a déjà son CRUD admin. Ce lot vise
-`RessourceCentre` (actifs réservables d'un centre) qui n'avait AUCUN CRUD — le trou « skippé » de GUIC-30.
+## Réalité post-`git pull` (51 commits rattrapés)
+Le rejet-avec-motif de la file de modération existait déjà (GUIC-462, motif en audit seulement) +
+route d'aperçu admin `[id]/apercu`. Net-new livré ici :
+1. **Trace de modération sur l'offre** (colonnes `motifRejet`/`moderePar`/`modereLe`) — GUIC-471.
+2. **CRUD complet** (create/edit/archive/soft-delete) — GUIC-28.
+3. **Édition-depuis-la-file** (« Éditer et publier ») — GUIC-471.
 
 ## Livré
-- **GUIC-476** : `AuditAction` + `ACTION_META` étendus ; instrumentation `auditPiiAccess` (fail-soft)
-  des routes `api/profil/cv/file`, `diplomes/[id]/file`, `certificats/[id]/file` → `ressource_sensible.download`.
-- **GUIC-473** : server actions `src/app/admin/centres/ressources-actions.ts`
-  (creer/modifier/basculerActive/supprimer — refus si réservations) + audit `ressource_centre.*`.
-- **UI** : page `/admin/centres/[id]/ressources`, `AdminCentreRessources` (liste + actions),
-  `RessourceCentreFormModal`, lien « Ressources » par ligne dans la table des centres.
-  (+ primitive `Textarea` recréée à l'identique de la PR #207 pour merge propre.)
+- **Migration** `20260702120000_opportunite_moderation_trace` (appliquée en base locale) + `prisma generate`.
+- **Audit** : actions `opportunite.create/update/delete/publish` (src/lib/audit.ts).
+- **Server actions** (src/app/admin/opportunites/actions.ts) :
+  `creer/modifier/archiver/supprimer/publier` + `approuver/rejeter` tracés sur l'offre.
+- **UI** : primitive `Textarea` (+story), `OpportuniteForm` (10 sous-types), pages `nouveau` /
+  `[id]/modifier` / `gestion` (+client), « Éditer et publier » sur la file, entrée sidebar « Opportunités ».
 
 ## Vérifié
-- `tsc` 0 erreur · `eslint` 0 erreur (fichiers touchés).
-- Unit/component : 259 suites / 1833 verts (0 régression). Nouveaux : audit download (4), actions RessourceCentre (8), liste (5).
-- Intégration DB réelle : CRUD RessourceCentre **1/1** (create→update→delete).
-- Smoke live (dev server) : `/admin/centres`, `/admin/centres/<id>/ressources`, `/admin/journal-audit` → 200.
+- `tsc --noEmit` : **0 erreur** (projet entier). `eslint src` : 0 erreur (warnings pré-existants only).
+- Unit/component : **259 suites / 1841 tests verts** (aucune régression).
+- Intégration DB réelle : modération-trace **7/7**, CRUD end-to-end **2/2**.
+- ⚠️ 3 suites d'intégration hors périmètre rouges (onboarding / whatsapp-webhook / user-detail-guard) =
+  échecs **pré-existants** liés à l'env local (secrets HMAC/WhatsApp, validation onboarding). Non liés.
 
-## Reste
-- [ ] Packaging PR vers `dev` (`Closes GUIC-473`, `Closes GUIC-476`).
-- [ ] (Suivi) Rôle conseiller-sous-validation ; flag `sensible` catalogue global ; audit accès RessourceCentre.
+## Reste à faire
+- [ ] Packaging : commits TDD (RED tests → GREEN impl) + PR vers `dev` (`Closes GUIC-28`, `Closes GUIC-471`).
+- [ ] (Env) Les tests d'intégration exigent `DATABASE_URL` exporté (docker mariadb 3307) — non chargé par jest.
