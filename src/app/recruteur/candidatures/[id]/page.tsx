@@ -7,6 +7,7 @@ import { auditPiiAccess, recordAudit } from '@/lib/audit'
 import { getRecruteurContext, getRecruteurCandidatureDetail } from '@/lib/loaders/recruteur'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { StatutActions } from './StatutActions'
+import { ContacterButton } from './ContacterButton'
 
 export const metadata: Metadata = { title: 'Candidature — Espace Recruteur' }
 
@@ -110,7 +111,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         ) : (
           <span className="text-[12.5px] font-bold" style={{ color: 'var(--gj-grey)' }}>Aucun CV joint</span>
         )}
-        <StatutActions id={id} statut={statut} />
+        <div className="flex items-center gap-[10px] flex-wrap">
+          <ContacterButton candidatureId={id} />
+          <StatutActions id={id} statut={statut} />
+        </div>
       </div>
     </div>
   )

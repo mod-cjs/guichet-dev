@@ -80,6 +80,7 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
     title: 'Mon parcours',
     items: [
       { id: 'candidatures', href: '/jeune/mes-candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'messagerie', href: '/jeune/messagerie', icon: 'chat', label: 'Messagerie' },
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
       { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
       { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },

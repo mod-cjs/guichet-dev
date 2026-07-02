@@ -12,6 +12,7 @@
 - [x] Loaders `messagerie.ts` (inbox / conversation / countUnread)
 - [x] Actions `contacterCandidat` / `envoyerMessage` / `marquerConversationLue` + Notification
 - [x] TDD 8/8 (`messagerie-actions.test.ts`)
-- [ ] UI recruteur : inbox + thread (remplace ComingSoon) + bouton Contacter (fiche candidature)
-- [ ] UI jeune : inbox + thread (`jeune/(app)/messagerie`)
-- [ ] validate → PR → Jira Revue (GUIC-132/133)
+- [x] UI recruteur : inbox + thread (remplace ComingSoon) + bouton Contacter (fiche candidature)
+- [x] UI jeune : inbox + thread (`jeune/(app)/messagerie`) + entrée BenefSidebar
+- [x] tsc 0 · eslint clean · 8/8 tests · requêtes validées (tsc)
+- [ ] PR → Jira Revue (GUIC-132/133)
