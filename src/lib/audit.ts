@@ -39,6 +39,10 @@ export type AuditAction =
   | 'partenaire.verify'
   | 'partenaire.update'
   | 'recruteur.statut'
+  // GUIC-485 / GUIC-230 — examen des candidatures recruteur (pipeline + CV + PII).
+  | 'candidature.statut'
+  | 'candidature.cv.read'
+  | 'candidature.pii.view'
 
 interface AuditEntry {
   actorCjsUid: string
