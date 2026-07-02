@@ -20,6 +20,7 @@ export type AuditAction =
   | 'fiche_beneficiaire.view'
   | 'export.utilisateurs'
   | 'export.opportunites'
+  | 'export.evenements'
   | 'opportunite.approve'
   | 'opportunite.reject'
   | 'opportunite.create'
