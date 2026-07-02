@@ -486,6 +486,11 @@ model Candidature {
   consentAt            DateTime?         @map("consent_at")
   cguVersion           String?           @map("cgu_version") @db.VarChar(20)
   consentIp            String?           @map("consent_ip") @db.VarChar(45)
+  // GUIC-487 (US-5) — score d'adéquation candidat/offre (IA Groq), 0–100. Nullable :
+  // calculé en tâche de fond après soumission ; `null` tant que non calculé.
+  scoreAdequation      Int?              @map("score_adequation")
+  scoreRaison          String?           @map("score_raison") @db.Text
+  scoreCalculeLe       DateTime?         @map("score_calcule_le")
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 

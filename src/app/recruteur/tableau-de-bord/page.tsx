@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { Icon, type IconName } from '@/components/ui/Icon'
-import { getRecruteurContext, getRecruteurDashboard } from '@/lib/loaders/recruteur'
+import { getRecruteurContext, getRecruteurDashboard, scoreColors } from '@/lib/loaders/recruteur'
 
 export const metadata: Metadata = { title: 'Tableau de bord — Espace Recruteur' }
 
@@ -89,15 +89,19 @@ export default async function Page() {
             <p className="text-[13px]" style={{ color: 'var(--gj-grey)' }}>Aucune candidature à examiner.</p>
           ) : (
             <div className="flex flex-col gap-[10px]">
-              {dash.aExaminerListe.map((c) => (
-                <div key={c.id} className="flex items-center gap-3">
+              {dash.aExaminerListe.map((c) => {
+                const sc = scoreColors(c.score)
+                return (
+                <Link key={c.id} href={`/recruteur/candidatures/${c.id}`} className="flex items-center gap-3 no-underline">
                   <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-blue, #1A4ED8), var(--gj-blue-ink, #1A3FA8))', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12.5 }}>{initials(c.prenom, c.nom)}</span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-[13.5px] font-bold truncate" style={{ color: 'var(--gj-ink)' }}>{c.prenom} {c.nom}</div>
                     <div className="text-[11.5px] truncate" style={{ color: 'var(--gj-grey)' }}>{c.offreTitre}</div>
                   </div>
-                </div>
-              ))}
+                  {c.score != null && <span className="shrink-0 rounded-full text-[10px] font-black px-[7px] py-[1px]" style={{ background: sc.bg, color: sc.fg }}>{sc.label}</span>}
+                </Link>
+                )
+              })}
             </div>
           )}
         </div>

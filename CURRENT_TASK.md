@@ -1,20 +1,15 @@
-# CURRENT_TASK — GUIC-492 Responsive mobile recruteur (US-10)
+# CURRENT_TASK — GUIC-487 Score d'adéquation candidat/offre (US-5)
 
-**Branche** : `feature/GUIC-492-responsive-mobile-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/layout-navigation.md` (mis à jour)
+**Branche** : `feature/GUIC-487-score-adequation` (sur #492, dev rouge)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-487-score-adequation.md`
 
-## Décision (arbitrée)
-Bottom-nav recruteur mobile (design v4 + AC), **contre** l'ancienne règle « pas de bottom-nav
-recruteur » → `CLAUDE.md` + `layout-navigation.md` mis à jour.
+## Décision
+Score **IA (Groq)** — réutilise `getGroq()`. Fail-soft, stocké sur Candidature. 0 extraction CV PDF.
 
-## ⚠️ Répare aussi un dev cassé
-Le merge #222 (cloche) × #223 (recherche) a collisionné : layout recruteur utilisait `<Icon>`
-sans import (tsc rouge) + `RecruteurSearch` importé non branché. Ce lot corrige.
-
-## Livrables
-- [x] `RecruteurBottomNav` (5 items : Accueil/Offres/Candidats/Messages/Plus + sheet secondaire)
-- [x] Layout : bottom-nav mobile + cloche mobile + `RecruteurSearch` branché + padding bas + Icon importé
-- [x] `RecruteurSidebar` desktop-only (hamburger masqué)
-- [x] Docs nav (CLAUDE.md + layout-navigation.md)
-- [x] tsc 0 · eslint clean
-- [ ] PR → Jira Revue
+## Avancement
+- [x] Migration `add_score_adequation` (3 champs Candidature) appliquée
+- [x] Service `adequation.ts` : buildMessages + parseScore (purs) + computeScoreAdequation
+- [x] TDD 7/7 (`adequation-score.test.ts`)
+- [ ] Trigger dans `POST /api/candidatures` (after)
+- [ ] Loaders : exposer score ; UI badge % (liste + détail + dashboard)
+- [ ] validate → PR → Jira Revue

@@ -7,6 +7,7 @@ import { CandidatureBodySchema } from '@/lib/validations/candidature'
 import { checkProfilCompletude } from '@/lib/profil-completude'
 import { notifyCandidatureConfirmee } from '@/lib/notifications'
 import { notifyRecruteurNouvelleCandidature } from '@/lib/notifications/recruteur'
+import { computeScoreAdequation } from '@/lib/recruteur/adequation'
 import type { ApiResponse } from '@/types/api'
 import type { CandidatureListItem } from '@/types/candidature'
 
@@ -207,6 +208,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         opportunite.id,
         `${session.prenom ?? ''} ${session.nom ?? ''}`.trim() || 'Un candidat',
       )
+      // GUIC-487 — calcule le score d'adéquation (IA Groq) en tâche de fond.
+      await computeScoreAdequation(created.id)
     } catch (err) {
       logger.error('[candidatures] dispatch des notifications échoué', { err })
     }

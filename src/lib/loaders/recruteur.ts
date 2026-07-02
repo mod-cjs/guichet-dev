@@ -53,6 +53,7 @@ export interface RecruteurCandidatItem {
   nom: string
   statut: string
   offreTitre: string
+  score: number | null
 }
 
 export interface RecruteurDashboard {
@@ -85,7 +86,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
     }),
     prisma.candidature.findMany({
       where: { ...candWhere, statut: 'En_attente' },
-      select: { id: true, statut: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
+      select: { id: true, statut: true, scoreAdequation: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
       orderBy: { soumiseA: 'desc' },
       take: 8,
     }),
@@ -98,7 +99,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
     aExaminer,
     vuesTotales: vues._sum.vues ?? 0,
     offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues })),
-    aExaminerListe: aExaminerListe.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre })),
+    aExaminerListe: aExaminerListe.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre, score: c.scoreAdequation })),
   }
 }
 
@@ -129,11 +130,11 @@ export async function getRecruteurCandidatures(
         ? { utilisateur: { OR: [{ prenom: { contains: terme } }, { nom: { contains: terme } }] } }
         : {}),
     },
-    select: { id: true, statut: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
-    orderBy: { soumiseA: 'desc' },
+    select: { id: true, statut: true, scoreAdequation: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
+    orderBy: [{ scoreAdequation: { sort: 'desc', nulls: 'last' } }, { soumiseA: 'desc' }],
     take: 100,
   })
-  return rows.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre }))
+  return rows.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre, score: c.scoreAdequation }))
 }
 
 export interface RecruteurCandidatureDetail {
@@ -145,6 +146,8 @@ export interface RecruteurCandidatureDetail {
   updatedAt: string
   candidat: { cjsUid: string; prenom: string; nom: string; email: string | null; telephone: string | null }
   offre: { id: string; titre: string }
+  score: number | null
+  scoreRaison: string | null
 }
 
 /**
@@ -160,6 +163,7 @@ export async function getRecruteurCandidatureDetail(
     where: { id, opportunite: offreWhere(cjsUid, organisationId) },
     select: {
       id: true, statut: true, lettreMotivation: true, cvUrl: true, soumiseA: true, updatedAt: true,
+      scoreAdequation: true, scoreRaison: true,
       utilisateur: { select: { cjsUid: true, prenom: true, nom: true, email: true, telephone: true } },
       opportunite: { select: { id: true, titre: true } },
     },
@@ -177,5 +181,15 @@ export async function getRecruteurCandidatureDetail(
       email: row.utilisateur.email, telephone: row.utilisateur.telephone,
     },
     offre: { id: row.opportunite.id, titre: row.opportunite.titre },
+    score: row.scoreAdequation,
+    scoreRaison: row.scoreRaison,
   }
+}
+
+/** Palette du badge de score d'adéquation selon le palier (fort / moyen / faible). */
+export function scoreColors(score: number | null): { bg: string; fg: string; label: string } {
+  if (score == null) return { bg: 'var(--gj-line)', fg: 'var(--gj-grey)', label: '—' }
+  if (score >= 75) return { bg: 'var(--gj-green-soft, #e6f6ec)', fg: 'var(--gj-green-ink, #1a7a3d)', label: `${score}%` }
+  if (score >= 50) return { bg: 'var(--gj-blue-soft, #E8EFFF)', fg: 'var(--gj-blue-ink, #1A3FA8)', label: `${score}%` }
+  return { bg: 'var(--gj-line)', fg: 'var(--gj-grey)', label: `${score}%` }
 }
