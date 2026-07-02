@@ -51,6 +51,7 @@ const SECTIONS: NavSection[] = [
       { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Fréquentation centres' },
       { id: 'analytics-evenements', href: '/admin/analytics/evenements', icon: 'calendar', label: 'Analytics événements' },
       { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
+      { id: 'recruteurs', href: '/admin/recruteurs', icon: 'employment', label: 'Recruteurs' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
       { id: 'onboarding', href: '/admin/onboarding', icon: 'target', label: 'Onboarding' },
       { id: 'stats', href: '/admin/data-hub', icon: 'trending', label: 'Statistiques' },

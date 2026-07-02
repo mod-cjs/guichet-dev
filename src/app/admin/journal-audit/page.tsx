@@ -23,6 +23,7 @@ const ACTION_META: Record<string, { text: string; tone: AuditRow['tone']; icon: 
   'ressource_centre.update': { text: 'a modifié une ressource de centre', tone: 'grey', icon: 'pin' },
   'ressource_centre.delete': { text: 'a supprimé une ressource de centre', tone: 'red', icon: 'block' },
   'ressource_sensible.download': { text: 'a téléchargé un document personnel sensible', tone: 'blue', icon: 'download' },
+  'recruteur.statut': { text: 'a modifié le statut d’un recruteur', tone: 'grey', icon: 'users' },
 }
 
 /** Identifiant court lisible quand le nom n'est pas résolvable. */
