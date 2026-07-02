@@ -1,29 +1,20 @@
-# CURRENT_TASK — GUIC-472 · Découplage analytics événements ↔ fréquentation centres
+# CURRENT_TASK — Plan admin : Partenaires + RBAC conseiller (phase par phase)
 
-**Branche :** `feature/GUIC-472-decouplage-analytics` (depuis `dev`)
-**Ticket :** GUIC-472 (En cours) — `Closes GUIC-472`. GUIC-474 (badge-présence) = suivi, hors périmètre.
-**Spec :** `.agent_context/specs/GUIC-472-decouplage-analytics.md`
+**Contexte :** revue admin du 2026-07-02 — onglets manquants : Partenaires + gestion des rôles/droits conseiller.
+**Vérif SSO (`cjs_auth`) :** rôles attribués côté SSO (GUIC-27/113/115 y vivent) ; le token expose `cjs_roles` mais **pas** de `centre_id`. → l'affiliation conseiller↔centre doit être **locale** (table `AgentCentre`).
 
-## Décisions
-- GUIC-472 seul. Page analytics événements dédiée + export séparé + nav distincte. Admin-only. **Pas de migration.**
+## Plan (4 phases)
+1. **Phase 1 — Partenaires (GUIC-510)** ← *en cours (cette branche)* : CRUD `Organisation` admin.
+2. **Phase 2 — RBAC conseiller** : CRUD `AgentCentre` (rôle lu du SSO + centre local) + middleware isolation (GUIC-271/330/331 ; GUIC-329 re-cadré « centre local »).
+3. **Phase 3 — Espace conseiller** (Epic GUIC-470 : dashboards 493/494, nav 501, notifs 500/320, responsive 502).
+4. **Phase 4 — Droits conseiller sous validation** (GUIC-477 publications / GUIC-478 ressources).
 
-## Constat clé
-Les modèles/loaders étaient DÉJÀ séparés (`CheckIn`/`Reservation` vs `InscriptionEvenement`, aucune requête
-jointe). Le mélange était présentation : pas de destination analytics dédiée aux événements. Le découplage
-livré = deux destinations + deux exports + deux entrées de nav distinctes.
+## Phase 1 — livré (GUIC-510)
+**Branche :** `feature/GUIC-510-partenaires` (depuis dev). **Pas de migration** (`Organisation` existe).
+- **Actions** `src/app/admin/partenaires/actions.ts` : `basculerVerifiePartenaire` (bascule `estVerifie`) + `modifierPartenaire` (champs éditables). Audit `partenaire.verify` / `partenaire.update`.
+- **UI** : page `/admin/partenaires` (liste + filtres vérifié + recherche + pagination), `AdminPartenairesTable` (badge Vérifié, toggle, Éditer modal, Détail), `PartenaireFormModal`, détail `/admin/partenaires/[id]` (coordonnées + opportunités liées).
+- **Nav** : entrée sidebar « Partenaires » (Pilotage).
+- **Vérifié** : tsc 0 · eslint 0 · 269 suites / 1896 tests verts. Nouveaux : actions (4), table (5), sidebar (1).
 
-## Livré
-- **Loader** `src/lib/loaders/evenements-analytics.ts` — agrège événements/inscriptions (total, par type/statut,
-  taux présence = present/confirmés, participants uniques, remplissage, top centres, tendance). Ne lit JAMAIS `CheckIn`.
-- **Page** `/admin/analytics/evenements` + client (KPI, répartitions, filtres période/centre, bouton export).
-- **Export CSV** `/api/admin/analytics/evenements/export` (jeu distinct ; garde admin + rate-limit + CSV-injection guard) → action audit `export.evenements`.
-- **Nav** : « Analytics centres » → **« Fréquentation centres »** (clarification check-ins) + nouvelle entrée **« Analytics événements »**.
-
-## Vérifié
-- `tsc` 0 · `eslint` 0 (touchés). Unit/component : **262 suites / 1855 verts** (0 régression).
-  Nouveaux : loader (4), export (3), client (3), sidebar (renommage + nouvelle entrée).
-- Smoke live : `/admin/analytics/evenements` → 200 ; export → 200 (text/csv + filename).
-
-## Reste
-- [ ] Packaging PR vers `dev` (`Closes GUIC-472`).
-- [ ] (Suivi) GUIC-474 : type cours/session + présence par badge (écrit `InscriptionEvenement.present`).
+## Reste Phase 1
+- [ ] PR vers dev (`Closes GUIC-510`). Puis enchaîner Phase 2.
