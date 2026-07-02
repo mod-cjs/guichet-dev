@@ -363,6 +363,7 @@ model Organisation {
   id         String   @id @default(uuid()) @db.VarChar(36)
   cjsUid     String   @map("cjs_uid") @db.VarChar(36)
   nom        String   @db.VarChar(200)
+  description String?  @db.Text // GUIC-510 — présentation du partenaire (affichée admin/recruteur)
   secteur    Domaine?
   region     Region?
   adresse    String?  @db.VarChar(300)

@@ -36,6 +36,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       select: {
         id: true,
         nom: true,
+        description: true,
+        logoUrl: true,
         secteur: true,
         region: true,
         email: true,
@@ -52,6 +54,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const items: PartenaireRow[] = rows.map((o) => ({
     id: o.id,
     nom: o.nom,
+    description: o.description,
+    logoUrl: o.logoUrl,
     secteur: o.secteur,
     region: o.region,
     email: o.email,
