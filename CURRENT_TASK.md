@@ -13,8 +13,9 @@
 - [x] Fetch + enrichissement ticket GUIC-490 (AC détaillés)
 - [x] Spec validée (Emploi+Stage, form dédié)
 - [x] Branche créée
-- [ ] TDD RED : `tests/unit/recruteur-offre-actions.test.ts`
-- [ ] Action `creerOffreRecruteur` (GREEN)
-- [ ] Form `NouvelleOffreForm` + page `nouvelle`
-- [ ] CTA (sidebar/dashboard/mes-offres) + label « En validation »
-- [ ] `npm run validate` vert → PR vers dev → Jira Revue en cours
+- [x] TDD RED : `tests/unit/recruteur-offre-actions.test.ts` (8 tests)
+- [x] Action `creerOffreRecruteur` (GREEN — 8/8)
+- [x] Form `NouvelleOffreForm` + page `nouvelle`
+- [x] CTA (sidebar/dashboard/mes-offres) + label « En validation » + bandeau succès
+- [x] tsc 0 · eslint clean
+- [ ] PR vers dev → Jira Revue en cours

@@ -7,23 +7,37 @@ import { getRecruteurContext, getRecruteurOffres } from '@/lib/loaders/recruteur
 
 export const metadata: Metadata = { title: 'Mes offres — Espace Recruteur' }
 
+// Côté recruteur, `brouillon` = soumise à la validation CJS (pas un brouillon éditable).
 const STATUT_LABEL: Record<string, string> = {
-  brouillon: 'Brouillon', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
+  brouillon: 'En validation', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ creee?: string }> }) {
   const session = await getSession()
   if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
 
   const ctx = await getRecruteurContext(session.cjsUid)
   const offres = await getRecruteurOffres(session.cjsUid, ctx.organisationId)
+  const creee = (await searchParams).creee === '1'
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-      <div className="mb-6">
-        <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Mes offres</h1>
-        <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{offres.length} offre{offres.length > 1 ? 's' : ''}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Mes offres</h1>
+          <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{offres.length} offre{offres.length > 1 ? 's' : ''}</p>
+        </div>
+        <Link href="/recruteur/mes-offres/nouvelle" className="inline-flex items-center gap-[7px] font-black text-[13px] rounded-[10px] px-[18px] min-h-[44px] no-underline" style={{ background: 'var(--gj-blue, #1A4ED8)', color: '#fff' }}>
+          <Icon name="plus" size={15} /> Nouvelle offre
+        </Link>
       </div>
+
+      {creee && (
+        <div className="flex items-center gap-[10px] rounded-[12px] px-[14px] py-[11px] mb-5" style={{ background: 'var(--gj-green-soft, #E6F6EE)', color: 'var(--gj-green-ink, #0F6B45)', border: '1.5px solid var(--gj-green, #16A34A)' }}>
+          <Icon name="check-circle" size={16} />
+          <span className="text-[12.5px] font-bold">Offre soumise à validation. L&apos;équipe CJS l&apos;examinera avant publication.</span>
+        </div>
+      )}
 
       {offres.length === 0 ? (
         <div className="rounded-[14px] p-[32px] text-center" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
