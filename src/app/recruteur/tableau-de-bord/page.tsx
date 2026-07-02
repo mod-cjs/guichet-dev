@@ -8,21 +8,22 @@ import { getRecruteurContext, getRecruteurDashboard } from '@/lib/loaders/recrut
 export const metadata: Metadata = { title: 'Tableau de bord — Espace Recruteur' }
 
 const STATUT_LABEL: Record<string, string> = {
-  brouillon: 'Brouillon', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
+  brouillon: 'En validation', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
 
 function initials(prenom: string, nom: string): string {
   return ((prenom.trim()[0] ?? '') + (nom.trim()[0] ?? '')).toUpperCase()
 }
 
-function Kpi({ icon, value, label, href }: { icon: IconName; value: number; label: string; href: string }) {
+function Kpi({ icon, value, label, href, hint, accent }: { icon: IconName; value: number; label: string; href: string; hint?: string; accent?: boolean }) {
   return (
-    <Link href={href} className="rounded-[14px] p-[18px] block no-underline" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-      <span className="inline-flex items-center justify-center rounded-[10px]" style={{ width: 40, height: 40, background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)' }}>
+    <Link href={href} className="rounded-[14px] p-[18px] block no-underline" style={{ background: accent ? 'var(--gj-blue-soft, #E8EFFF)' : 'var(--gj-surface)', border: `1.5px solid ${accent ? 'var(--gj-blue, #1A4ED8)' : 'var(--gj-line)'}` }}>
+      <span className="inline-flex items-center justify-center rounded-[10px]" style={{ width: 40, height: 40, background: accent ? 'var(--gj-blue, #1A4ED8)' : 'var(--gj-blue-soft, #E8EFFF)', color: accent ? '#fff' : 'var(--gj-blue-ink, #1A3FA8)' }}>
         <Icon name={icon} size={18} />
       </span>
       <div className="text-[30px] font-black mt-[8px]" style={{ color: 'var(--gj-ink)' }}>{value.toLocaleString('fr-FR')}</div>
       <div className="text-[12.5px] font-bold" style={{ color: 'var(--gj-grey)' }}>{label}</div>
+      {hint && <div className="text-[11.5px] font-bold mt-[2px]" style={{ color: 'var(--gj-green-ink, #0F6B45)' }}>{hint}</div>}
     </Link>
   )
 }
@@ -36,19 +37,25 @@ export default async function Page() {
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-      <header className="mb-6">
-        <h1 className="text-[26px] font-black flex items-center gap-2" style={{ color: 'var(--gj-ink)' }}>
-          Bonjour {ctx.prenom || 'recruteur'} <span aria-hidden>👋</span>
-        </h1>
-        <p className="text-[13.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
-          Voici l&apos;activité de recrutement{ctx.organisationNom ? ` de ${ctx.organisationNom}` : ''} sur le Guichet Jeunesse.
-        </p>
+      <header className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="text-[26px] font-black flex items-center gap-2" style={{ color: 'var(--gj-ink)' }}>
+            Bonjour {ctx.prenom || 'recruteur'} <span aria-hidden>👋</span>
+          </h1>
+          <p className="text-[13.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
+            Voici l&apos;activité de recrutement{ctx.organisationNom ? ` de ${ctx.organisationNom}` : ''} sur le Guichet Jeunesse.
+          </p>
+        </div>
+        <Link href="/recruteur/mes-offres/nouvelle" className="inline-flex items-center gap-[7px] font-black text-[13px] rounded-[10px] px-[18px] min-h-[44px] no-underline" style={{ background: 'var(--gj-blue, #1A4ED8)', color: '#fff' }}>
+          <Icon name="plus" size={15} /> Nouvelle offre
+        </Link>
       </header>
 
       <div className="grid gap-[12px] mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
         <Kpi icon="employment" value={dash.offresActives} label="Offres actives" href="/recruteur/mes-offres" />
-        <Kpi icon="document" value={dash.candidaturesRecues} label="Candidatures reçues" href="/recruteur/candidatures" />
-        <Kpi icon="clock" value={dash.aExaminer} label="À examiner" href="/recruteur/candidatures?statut=En_attente" />
+        <Kpi icon="document" value={dash.candidaturesRecues} label="Candidatures reçues" href="/recruteur/candidatures" hint={dash.candidaturesCetteSemaine > 0 ? `+${dash.candidaturesCetteSemaine} cette semaine` : undefined} />
+        <Kpi icon="clock" value={dash.aExaminer} label="À examiner" href="/recruteur/candidatures?statut=En_attente" accent />
+        <Kpi icon="eye" value={dash.vuesTotales} label="Vues totales" href="/recruteur/mes-offres" />
       </div>
 
       <div className="grid gap-[12px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>

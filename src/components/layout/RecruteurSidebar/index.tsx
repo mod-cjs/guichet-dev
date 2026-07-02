@@ -172,7 +172,7 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
           <div style={{ padding: 12, background: 'var(--gj-blue-soft, #E8EFFF)', borderRadius: 12, marginTop: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--gj-blue-ink, #1A3FA8)' }}>Besoin de profils ?</div>
             <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 3, lineHeight: 1.4 }}>Publie une offre et touche les jeunes du réseau CJS.</div>
-            <Link href="/recruteur/mes-offres" className="no-underline" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 10, background: 'var(--gj-blue, #1A4ED8)', color: '#fff', minHeight: 40, lineHeight: '40px', borderRadius: 9, fontWeight: 800, fontSize: 12.5 }}>+ Nouvelle offre</Link>
+            <Link href="/recruteur/mes-offres/nouvelle" className="no-underline" style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 10, background: 'var(--gj-blue, #1A4ED8)', color: '#fff', minHeight: 40, lineHeight: '40px', borderRadius: 9, fontWeight: 800, fontSize: 12.5 }}>+ Nouvelle offre</Link>
           </div>
         )}
 
