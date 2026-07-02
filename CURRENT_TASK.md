@@ -1,18 +1,20 @@
-# CURRENT_TASK — GUIC-488 Notifications recruteur (US-6)
+# CURRENT_TASK — GUIC-492 Responsive mobile recruteur (US-10)
 
-**Branche** : `feature/GUIC-488-notifications-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-488-notifications-recruteur.md`
+**Branche** : `feature/GUIC-492-responsive-mobile-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/layout-navigation.md` (mis à jour)
 
-## Décision
-Réutilise l'infra notif existante (`Notification`, `loadNotifications`, `NotificationsClient`).
-« Rappel d'entretien » différé (pas de modèle Entretien). Messages déjà notifiés (messagerie).
+## Décision (arbitrée)
+Bottom-nav recruteur mobile (design v4 + AC), **contre** l'ancienne règle « pas de bottom-nav
+recruteur » → `CLAUDE.md` + `layout-navigation.md` mis à jour.
 
-## Avancement
-- [x] Fetch GUIC-488 + branche
-- [x] TDD 5/5 : `notif-recruteur-candidature.test.ts`
-- [x] Helper `notifyRecruteurNouvelleCandidature` (recruteurUid → fallback org.cjsUid)
-- [x] Wire dans `POST /api/candidatures` (after())
-- [x] Page `/recruteur/notifications` (NotificationsClient réutilisé)
-- [x] Cloche + badge non-lus dans le TopBar recruteur
+## ⚠️ Répare aussi un dev cassé
+Le merge #222 (cloche) × #223 (recherche) a collisionné : layout recruteur utilisait `<Icon>`
+sans import (tsc rouge) + `RecruteurSearch` importé non branché. Ce lot corrige.
+
+## Livrables
+- [x] `RecruteurBottomNav` (5 items : Accueil/Offres/Candidats/Messages/Plus + sheet secondaire)
+- [x] Layout : bottom-nav mobile + cloche mobile + `RecruteurSearch` branché + padding bas + Icon importé
+- [x] `RecruteurSidebar` desktop-only (hamburger masqué)
+- [x] Docs nav (CLAUDE.md + layout-navigation.md)
 - [x] tsc 0 · eslint clean
 - [ ] PR → Jira Revue

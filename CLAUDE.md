@@ -43,7 +43,8 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 **Navigation — architecture validée (lire `.agent_context/specs/layout-navigation.md`)**
 - Pages publiques (`/`, `/opportunites`, `/agenda`, `/ressources`, `/centres`, `/auth/*`) → Header marketing seul. Mobile : logo + bouton Se connecter. **Pas de bottom-nav.**
 - App jeune (`/jeune/*`) → `AppTopbar` + `BottomNav` 5 items (SVG) sur mobile. `pb-[calc(56px+env(safe-area-inset-bottom,0px))]` sur le contenu.
-- Admin / Recruteur → Sidebar desktop + drawer hamburger mobile. **Pas de bottom-nav.**
+- Admin → Sidebar desktop + drawer hamburger mobile. **Pas de bottom-nav.**
+- Recruteur (`/recruteur/*`) → `RecruteurSidebar` desktop + **`RecruteurBottomNav` 5 items** sur mobile (Accueil · Offres · Candidats · Messages · Plus) — design v4 `recruteur-mobile.jsx` (GUIC-492). `pb-[calc(64px+env(safe-area-inset-bottom,0px))]` sur le contenu. Les écrans secondaires (Profil entreprise, Entretiens, Paramètres, Notifications, Déconnexion) sont sous « Plus ».
 - **Jamais** `overflow-x-auto` sur un container de navigation
 - **Jamais** d'emojis comme icônes de nav — SVG inline uniquement (`currentColor`)
 

@@ -86,10 +86,10 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
 
   return (
     <>
-      {/* Hamburger mobile */}
+      {/* Hamburger mobile — masqué : la navigation mobile passe par RecruteurBottomNav (GUIC-492). */}
       <button
         type="button"
-        className="md:hidden fixed left-space-3 z-[200] flex flex-col justify-center gap-[4px] w-8 h-8 bg-transparent border-none"
+        className="hidden fixed left-space-3 z-[200] flex-col justify-center gap-[4px] w-8 h-8 bg-transparent border-none"
         style={{ top: 'calc(8px + var(--safe-top))' }}
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
