@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 5 — Événements · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="cjs-card.jsx"></script>
+<script type="text/babel" src="web-dashboard.jsx"></script>
+<script type="text/babel" src="events-data.jsx"></script>
+<script type="text/babel" src="events-web.jsx"></script>
+<script type="text/babel" src="events-mobile.jsx"></script>
+
+<script type="text/babel">
+const WEB_W = 1280;
+const WEB_H = 1180;
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 5 — Événements"
+    subtitle="Présentation · inscription 1-clic · participation (QR carte CJS) · web + mobile"
+  >
+    <DCSection
+      id="web"
+      title="A · Web — Découverte, inscription, participation"
+      subtitle="Sidebar 260 + filtres latéraux · fiche détail · billet & check-in · mes événements · calendrier"
+    >
+      <DCArtboard id="w1" label="Liste · filtres + grille" width={WEB_W} height={WEB_H}>
+        <WebEvents view="list" />
+      </DCArtboard>
+      <DCArtboard id="w2" label="Fiche détail · avant inscription" width={WEB_W} height={WEB_H}>
+        <WebEvents view="detail" />
+      </DCArtboard>
+      <DCArtboard id="w3" label="Inscrit · confirmation + QR check-in" width={WEB_W} height={WEB_H}>
+        <WebEvents view="registered" />
+      </DCArtboard>
+      <DCArtboard id="w4" label="Mes événements · inscrits" width={WEB_W} height={WEB_H}>
+        <WebEvents view="mine" />
+      </DCArtboard>
+      <DCArtboard id="w5" label="Mes événements · passés (attestation + avis)" width={WEB_W} height={WEB_H}>
+        <WebEvents view="minePast" />
+      </DCArtboard>
+      <DCArtboard id="w6" label="Vue calendrier · Juin 2026" width={WEB_W} height={WEB_H}>
+        <WebEvents view="calendar" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection
+      id="mobile"
+      title="B · Mobile — Découverte, inscription, participation"
+      subtitle="Liste + chips · détail · confirmation & billet QR · mes événements · calendrier · avis"
+    >
+      <DCArtboard id="m1" label="Liste · chips de filtre" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="list" />
+      </DCArtboard>
+      <DCArtboard id="m2" label="Fiche détail + S'inscrire" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="detail" />
+      </DCArtboard>
+      <DCArtboard id="m3" label="Confirmation · billet QR check-in" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="confirm" />
+      </DCArtboard>
+      <DCArtboard id="m4" label="Mes événements · inscrits" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="mine" />
+      </DCArtboard>
+      <DCArtboard id="m5" label="Calendrier · Juin 2026" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="calendar" />
+      </DCArtboard>
+      <DCArtboard id="m6" label="Après participation · attestation + avis" width={PHONE_W} height={PHONE_H}>
+        <MobileEventsApp start="feedback" />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="accessibility.js"></script>
+</body>
+</html>
