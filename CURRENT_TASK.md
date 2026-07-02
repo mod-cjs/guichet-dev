@@ -1,14 +1,16 @@
-# CURRENT_TASK — GUIC-484 : 4 KPI dashboard recruteur (US-2)
+# CURRENT_TASK — GUIC-489 Recherche de candidat (US-7)
 
-**Branche** : `feature/GUIC-484-kpi-dashboard-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-484-kpi-dashboard-recruteur.md`
+**Branche** : `feature/GUIC-489-recherche-candidat` (depuis dev)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-489-recherche-candidat.md`
 
-## Décision clé
-4ᵉ KPI = **Vues totales** (réel, conforme design) au lieu de « Entretiens planifiés » (pas de modèle → donnée fabriquée interdite). + variation hebdo sur Candidatures reçues.
+## Décision
+La barre TopBar navigue vers `/recruteur/candidatures?q=` — recherche nom/prénom bornée
+aux candidats de mes offres (`offreWhere`). Réutilise la page Candidatures. 0 migration.
 
 ## Avancement
-- [x] Fetch GUIC-484 + design (v3=v4) ; branche
-- [ ] TDD RED : `tests/unit/recruteur-dashboard.test.ts`
-- [ ] Loader : `vuesTotales` + `candidaturesCetteSemaine`
-- [ ] Dashboard : 4ᵉ KPI + variation hebdo + href À examiner filtré
-- [ ] `npm run validate` vert → PR → Jira Revue + commentaire déviation
+- [x] Fetch GUIC-489 + branche
+- [x] TDD RED : `recruteur-recherche-candidat.test.ts`
+- [ ] Loader : param `q` (prénom/nom contains)
+- [ ] Page Candidatures : lit `?q=` + bandeau résultats
+- [ ] Composant client `RecruteurSearch` (TopBar)
+- [ ] validate → PR → Jira Revue
