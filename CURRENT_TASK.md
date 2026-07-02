@@ -1,32 +1,33 @@
-# CURRENT_TASK — Lot 3 Bibliothèque physique + outils Yaye
+# CURRENT_TASK — GUIC-473 + GUIC-476 · Ressources des centres + audit CDP
 
-**Epic** GUIC-274 · sous-tâches GUIC-341/342/343/344/345
-**Branche** `feature/GUIC-341-bibliotheque-yaye` (depuis `dev`)
-**Spec** `.agent_context/specs/M4-bibliotheque.md`
-**Module** m4-centres (backend) + m12-ia (outils Yaye)
+**Branche :** `feature/GUIC-473-ressources-centre-audit` (depuis `dev`)
+**Tickets :** GUIC-473 (En cours) + GUIC-476 (En cours) — livraison unique, `Closes` les deux. Comble le volet ressources de GUIC-30.
+**Spec :** `.agent_context/specs/GUIC-473-ressources-centre-audit.md`
 
-## Périmètre acté (PO 2026-06-25)
-Backend complet (modèles + routes + UI) **puis** outils Yaye branchés dessus.
-Dérogation assumée à « Yaye ne branche que de l'existant » (le backend biblio n'existe pas).
+## Décisions
+- Admin-only (création réservée admin). Rôle conseiller-sous-validation = ticket de suivi.
+- Audit CDP ciblé sur documents personnels (CV / diplômes / certificats). Photo exclue.
+- Pas de migration : `RessourceCentre` + `AuditLog` existent déjà ; `AuditAction` (type TS) étendu.
 
-## État
-- [x] Branche créée depuis dev
-- [x] Tickets JIRA fetchés (epic + 5 sous-tâches, toutes « À faire »)
-- [x] Spec rédigée + périmètre validé (PO)
-- [x] 341 modèle + migration (`20260625120000_add_bibliotheque`)
-- [x] 342 recherche + fiche (service + routes)
-- [x] 343 emprunt/confirmation (scan badge staff)/retour + RBAC centre
-- [x] Outils Yaye (search_library/borrow_book/get_active_loans) + system prompt
-- [x] Neo4j : nœuds Livre/Exemplaire + CONTIENT/EST_LOCALISE_EN + projecteurs événementiels + reprojectAll
-- [x] 344 front jeune (catalogue/fiche/emprunter/mes-emprunts) + UI staff (dashboard confirmer/retour + CRUD catalogue) + nav
-- [x] 345 tests (service + outils Yaye = 19) + droit à l'oubli (purge historique emprunts webhook SSO)
-- [x] tsc 0 · eslint 0 · tests biblio/graph/tools verts
+## Piège de vocabulaire (levé)
+« ressource » = 2 entités. `Ressource` (documents globaux) a déjà son CRUD admin. Ce lot vise
+`RessourceCentre` (actifs réservables d'un centre) qui n'avait AUCUN CRUD — le trou « skippé » de GUIC-30.
 
-## Reste (ops, hors code)
-- [ ] Appliquer la migration : `prisma migrate deploy` en CI/prod (shadow DB local refusé → migration écrite à la main, validée par tsc/tests)
-- [ ] PR vers dev + MAJ JIRA (GUIC-274/341/342/343/344/345 : À valider)
+## Livré
+- **GUIC-476** : `AuditAction` + `ACTION_META` étendus ; instrumentation `auditPiiAccess` (fail-soft)
+  des routes `api/profil/cv/file`, `diplomes/[id]/file`, `certificats/[id]/file` → `ressource_sensible.download`.
+- **GUIC-473** : server actions `src/app/admin/centres/ressources-actions.ts`
+  (creer/modifier/basculerActive/supprimer — refus si réservations) + audit `ressource_centre.*`.
+- **UI** : page `/admin/centres/[id]/ressources`, `AdminCentreRessources` (liste + actions),
+  `RessourceCentreFormModal`, lien « Ressources » par ligne dans la table des centres.
+  (+ primitive `Textarea` recréée à l'identique de la PR #207 pour merge propre.)
 
-## Décisions actées (PO 2026-06-25)
-1. ✅ Confirmation emprunt : **endpoint staff bibliothécaire réutilisant le scan badge existant** (`/api/cjs-card`).
-2. ✅ Sync Neo4j biblio : **inclure maintenant** (CONTIENT/A_EXEMPLAIRE/EST_LOCALISE_EN + events emprunt_initie/retour_enregistre).
-3. ✅ UI bibliothécaire : **complète** (CRUD catalogue + confirmation/retour) en plus de la page jeune.
+## Vérifié
+- `tsc` 0 erreur · `eslint` 0 erreur (fichiers touchés).
+- Unit/component : 259 suites / 1833 verts (0 régression). Nouveaux : audit download (4), actions RessourceCentre (8), liste (5).
+- Intégration DB réelle : CRUD RessourceCentre **1/1** (create→update→delete).
+- Smoke live (dev server) : `/admin/centres`, `/admin/centres/<id>/ressources`, `/admin/journal-audit` → 200.
+
+## Reste
+- [ ] Packaging PR vers `dev` (`Closes GUIC-473`, `Closes GUIC-476`).
+- [ ] (Suivi) Rôle conseiller-sous-validation ; flag `sensible` catalogue global ; audit accès RessourceCentre.
