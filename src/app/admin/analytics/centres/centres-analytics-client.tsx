@@ -55,11 +55,6 @@ function pct(v: number): string {
   return `${(v * 100).toFixed(1).replace(/\.0$/, '')} %`
 }
 
-function variation(curr: number, prev: number): number | undefined {
-  if (prev <= 0) return undefined
-  return ((curr - prev) / prev) * 100
-}
-
 export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
   const router = useRouter()
   const [preset, setPreset] = useState<RangePreset>('custom')
@@ -106,8 +101,6 @@ export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
       body: JSON.stringify({ type: 'admin_analytics_centres_csv_exported' }),
     }).catch(() => undefined)
   }
-
-  const { kpis } = analytics
 
   return (
     <div className="flex flex-col md:flex-row gap-space-5">
@@ -207,70 +200,41 @@ export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
       <section className="flex-1 min-w-0 flex flex-col gap-space-5">
         <header>
           <h1 className="text-fs-800 font-black text-color-text-primary">
-            Analytics Centres
+            Fréquentation Centres
           </h1>
           <p className="text-fs-300 text-color-text-secondary mt-space-1">
-            Période : {from} → {to}
+            Accès par badge QR (check-in à l&apos;entrée) · Période : {from} → {to}
             {centreId ? ` · ${centres.find((c) => c.id === centreId)?.nom ?? centreId}` : ' · Tous les centres'}
           </p>
         </header>
 
-        {/* KPIs */}
+        {/* KPIs — uniquement les accès par QR code (fréquentation badge) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-3">
-          <CentresKpiCard
-            label="Total réservations"
-            value={kpis.totalReservations.toLocaleString('fr-FR')}
-            variation={variation(kpis.totalReservations, kpis.totalReservationsPrev)}
-            variationLabel="vs période précédente"
-          />
-          <CentresKpiCard label="Taux de check-in" value={pct(kpis.checkinRate)} />
-          <CentresKpiCard label="Taux d'annulation" value={pct(kpis.cancelRate)} />
-          <CentresKpiCard label="Taux no-show" value={pct(kpis.noShowRate)} />
-          <CentresKpiCard label="Accès par QR" value={pct(analytics.accesQr.tauxQr)} />
+          <CentresKpiCard label="Accès par QR" value={analytics.accesQr.parQr.toLocaleString('fr-FR')} />
+          <CentresKpiCard label="Part des accès QR" value={pct(analytics.accesQr.tauxQr)} />
+          <CentresKpiCard label="Accès manuels" value={analytics.accesQr.parManuel.toLocaleString('fr-FR')} />
+          <CentresKpiCard label="Total accès" value={analytics.accesQr.total.toLocaleString('fr-FR')} />
         </div>
 
-        {/* Charts */}
+        {/* Accès par QR par jour (fréquentation badge à l'entrée) */}
         <Card padded>
           <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-            Réservations par jour
+            Accès par QR par jour
           </h2>
-          <CentresChartReservationsByDay data={analytics.reservationsByDay} />
+          <CentresChartReservationsByDay data={analytics.accesQrParJour} />
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
           <Card padded>
             <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-              Top 5 centres
+              Top 5 centres (accès)
             </h2>
             <CentresChartTopCentres data={analytics.topCentres} />
           </Card>
 
           <Card padded>
             <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-              Répartition par type de ressource
-            </h2>
-            <CentresChartPie
-              data={analytics.byType.map((t) => ({ label: t.type, count: t.count }))}
-              variant="pie"
-            />
-          </Card>
-        </div>
-
-        <Card padded>
-          <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-            Statuts des réservations
-          </h2>
-          <CentresChartPie
-            data={analytics.byStatut.map((s) => ({ label: s.statut, count: s.count }))}
-            variant="donut"
-          />
-        </Card>
-
-        {/* Accès au centre par QR code (vs saisie manuelle) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-3">
-          <Card padded>
-            <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-              Accès par QR vs manuel
+              QR vs saisie manuelle
             </h2>
             <CentresChartPie
               data={[
@@ -279,13 +243,6 @@ export function CentresAnalyticsClient({ analytics, centres, filtres }: Props) {
               ]}
               variant="donut"
             />
-          </Card>
-
-          <Card padded>
-            <h2 className="text-fs-400 font-bold text-color-text-primary mb-space-3">
-              Accès par QR par jour
-            </h2>
-            <CentresChartReservationsByDay data={analytics.accesQrParJour} />
           </Card>
         </div>
       </section>
