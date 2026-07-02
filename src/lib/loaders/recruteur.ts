@@ -113,14 +113,22 @@ export async function getRecruteurOffres(cjsUid: string, organisationId: string 
   return rows.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues }))
 }
 
-/** Liste des candidatures reçues (page Candidatures), filtrable par statut. */
+/** Liste des candidatures reçues (page Candidatures), filtrable par statut et recherche nom. */
 export async function getRecruteurCandidatures(
   cjsUid: string,
   organisationId: string | null,
   statut?: StatutCandidature,
+  q?: string,
 ): Promise<RecruteurCandidatItem[]> {
+  const terme = q?.trim()
   const rows = await prisma.candidature.findMany({
-    where: { opportunite: offreWhere(cjsUid, organisationId), ...(statut ? { statut } : {}) },
+    where: {
+      opportunite: offreWhere(cjsUid, organisationId),
+      ...(statut ? { statut } : {}),
+      ...(terme
+        ? { utilisateur: { OR: [{ prenom: { contains: terme } }, { nom: { contains: terme } }] } }
+        : {}),
+    },
     select: { id: true, statut: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
     orderBy: { soumiseA: 'desc' },
     take: 100,

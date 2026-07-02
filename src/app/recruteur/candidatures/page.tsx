@@ -32,15 +32,25 @@ const FILTRES: { value: string; label: string }[] = [
 ]
 const VALID = new Set(['En_attente', 'Vue', 'Retenue', 'Refusee'])
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ statut?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ statut?: string; q?: string }> }) {
   const session = await getSession()
   if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
 
-  const raw = (await searchParams).statut
-  const statut = raw && VALID.has(raw) ? (raw as StatutCandidature) : undefined
+  const sp = await searchParams
+  const statut = sp.statut && VALID.has(sp.statut) ? (sp.statut as StatutCandidature) : undefined
+  const q = sp.q?.trim() || undefined
 
   const ctx = await getRecruteurContext(session.cjsUid)
-  const candidatures = await getRecruteurCandidatures(session.cjsUid, ctx.organisationId, statut)
+  const candidatures = await getRecruteurCandidatures(session.cjsUid, ctx.organisationId, statut, q)
+
+  // Conserve la recherche `q` en changeant de filtre statut.
+  const hrefFor = (statutVal: string) => {
+    const params = new URLSearchParams()
+    if (statutVal) params.set('statut', statutVal)
+    if (q) params.set('q', q)
+    const s = params.toString()
+    return `/recruteur/candidatures${s ? `?${s}` : ''}`
+  }
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
@@ -49,6 +59,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{candidatures.length} candidature{candidatures.length > 1 ? 's' : ''}</p>
       </div>
 
+      {q && (
+        <div className="flex items-center gap-[10px] rounded-[12px] px-[14px] py-[10px] mb-4" style={{ background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)' }}>
+          <Icon name="search" size={15} />
+          <span className="text-[12.5px] font-bold flex-1">Résultats pour « {q} »</span>
+          <Link href={statut ? `/recruteur/candidatures?statut=${statut}` : '/recruteur/candidatures'} className="text-[12px] font-black no-underline inline-flex items-center gap-[4px]" style={{ color: 'var(--gj-blue-ink, #1A3FA8)' }}>
+            <Icon name="close" size={13} /> Effacer
+          </Link>
+        </div>
+      )}
+
       {/* Filtres pipeline */}
       <div className="flex gap-[8px] flex-wrap mb-5">
         {FILTRES.map((f) => {
@@ -56,7 +76,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           return (
             <Link
               key={f.value || 'all'}
-              href={f.value ? `/recruteur/candidatures?statut=${f.value}` : '/recruteur/candidatures'}
+              href={hrefFor(f.value)}
               className="inline-flex items-center font-bold text-[12.5px] rounded-full px-[14px] min-h-[36px] no-underline"
               style={{
                 background: on ? 'var(--gj-blue, #1A4ED8)' : '#fff',
@@ -72,7 +92,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
 
       {candidatures.length === 0 ? (
         <div className="rounded-[14px] p-[32px] text-center" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
-          <p className="text-[14px] font-bold">Aucune candidature{statut ? ' dans ce statut' : ' reçue'}.</p>
+          <p className="text-[14px] font-bold">{q ? `Aucun candidat ne correspond à « ${q} ».` : `Aucune candidature${statut ? ' dans ce statut' : ' reçue'}.`}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-[10px]">
