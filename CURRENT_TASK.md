@@ -1,21 +1,14 @@
-# CURRENT_TASK — GUIC-490 Création d'offre recruteur (US-8)
+# CURRENT_TASK — GUIC-484 : 4 KPI dashboard recruteur (US-2)
 
-**Branche** : `feature/GUIC-490-creation-offre-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Story mère** : GUIC-32 · **Statut Jira** : En cours
-**Spec** : `.agent_context/specs/GUIC-490-creation-offre-recruteur.md`
+**Branche** : `feature/GUIC-484-kpi-dashboard-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-484-kpi-dashboard-recruteur.md`
 
-## Périmètre
-- Types **Emploi + Stage**, formulaire recruteur dédié.
-- Soumission → `brouillon` → file de modération CJS existante (GUIC-471). Jamais publiée directement.
-- Réutilise `OpportuniteService.create` + `generateUniqueSlug`. Aucune migration.
+## Décision clé
+4ᵉ KPI = **Vues totales** (réel, conforme design) au lieu de « Entretiens planifiés » (pas de modèle → donnée fabriquée interdite). + variation hebdo sur Candidatures reçues.
 
 ## Avancement
-- [x] Fetch + enrichissement ticket GUIC-490 (AC détaillés)
-- [x] Spec validée (Emploi+Stage, form dédié)
-- [x] Branche créée
-- [x] TDD RED : `tests/unit/recruteur-offre-actions.test.ts` (8 tests)
-- [x] Action `creerOffreRecruteur` (GREEN — 8/8)
-- [x] Form `NouvelleOffreForm` + page `nouvelle`
-- [x] CTA (sidebar/dashboard/mes-offres) + label « En validation » + bandeau succès
-- [x] tsc 0 · eslint clean
-- [ ] PR vers dev → Jira Revue en cours
+- [x] Fetch GUIC-484 + design (v3=v4) ; branche
+- [ ] TDD RED : `tests/unit/recruteur-dashboard.test.ts`
+- [ ] Loader : `vuesTotales` + `candidaturesCetteSemaine`
+- [ ] Dashboard : 4ᵉ KPI + variation hebdo + href À examiner filtré
+- [ ] `npm run validate` vert → PR → Jira Revue + commentaire déviation
