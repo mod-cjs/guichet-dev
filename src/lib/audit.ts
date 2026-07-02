@@ -33,6 +33,8 @@ export type AuditAction =
   | 'opportunite.update'
   | 'opportunite.delete'
   | 'opportunite.publish'
+  // GUIC-474 — présence à un événement (cours/session) marquée par badge ou admin.
+  | 'evenement.presence'
 
 interface AuditEntry {
   actorCjsUid: string

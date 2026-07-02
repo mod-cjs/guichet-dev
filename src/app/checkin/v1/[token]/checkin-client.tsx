@@ -39,11 +39,19 @@ export interface CheckInCentreOption {
   label: string
 }
 
+/** GUIC-474 — cours/session en cours au centre, pour marquer la présence par badge. */
+export interface CheckInEvenement {
+  id:    string
+  titre: string
+  type:  string
+}
+
 interface Props {
   token:         string
   jeune:         CheckInJeune
   reservations:  CheckInReservation[]
   centres:       CheckInCentreOption[]
+  evenements?:   CheckInEvenement[]
 }
 
 type Status =
@@ -56,10 +64,34 @@ function initials(prenom: string, nom: string): string {
   return `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`
 }
 
-export function CheckInClient({ token, jeune, reservations, centres }: Props) {
+export function CheckInClient({ token, jeune, reservations, centres, evenements = [] }: Props) {
   const [centreId, setCentreId] = useState<string>(() => centres[0]?.id ?? '')
   const [selectedResa, setSelectedResa] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+
+  // GUIC-474 — marque la présence du jeune à un cours/session via son badge.
+  async function submitPresence(evenementId: string) {
+    setSelectedEvent(evenementId)
+    setSelectedResa(null)
+    setStatus({ kind: 'submitting' })
+    try {
+      const res = await fetch(`/api/v1/checkin/${encodeURIComponent(token)}/presence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ evenementId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setStatus({ kind: 'error', message: json?.error?.message ?? `Erreur ${res.status}` })
+        return
+      }
+      const titre = json?.data?.titre ?? 'cours/session'
+      setStatus({ kind: 'success', message: `Présence enregistrée : ${jeune.prenom} — ${titre}` })
+    } catch {
+      setStatus({ kind: 'error', message: 'Erreur réseau, réessayer.' })
+    }
+  }
 
   const visibleReservations = useMemo(
     () => reservations.filter((r) => !centreId || r.centreId === centreId),
@@ -199,6 +231,37 @@ export function CheckInClient({ token, jeune, reservations, centres }: Props) {
             Confirmer présence sans réservation
           </Button>
         </div>
+
+        {/* GUIC-474 — Cours/sessions en cours au centre : présence par badge */}
+        {evenements.length > 0 && (
+          <div className="rounded-gj-lg bg-white p-space-4 shadow-gj-sm flex flex-col gap-space-3">
+            <h2 className="text-fs-400 font-bold text-color-text-primary">
+              Cours / sessions au centre
+            </h2>
+            <ul className="flex flex-col gap-space-2">
+              {evenements.map((ev) => (
+                <li
+                  key={ev.id}
+                  className="rounded-gj-md border border-color-border p-space-3 flex items-center justify-between gap-space-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-fs-300 font-bold text-color-text-primary truncate">{ev.titre}</p>
+                    <p className="text-fs-200 text-color-text-secondary">{ev.type}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    loading={status.kind === 'submitting' && selectedEvent === ev.id}
+                    disabled={status.kind === 'submitting'}
+                    onClick={() => submitPresence(ev.id)}
+                  >
+                    Marquer présent
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Statut */}
         {status.kind === 'success' && (

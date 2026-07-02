@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import type { StatutEvenement, StatutInscription, TypeEvenement } from '@prisma/client'
+import { PresenceToggle } from './PresenceToggle'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface EvenementInscrit {
   id: string
+  cjsUid: string
   prenom: string
   nom: string
   statut: StatutInscription
@@ -146,6 +148,10 @@ export function AdminEvenementDetail({ data }: { data: EvenementDetailData }) {
                   <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: c.bg, color: c.fg, whiteSpace: 'nowrap' }}>
                     {INSCRIT_LABEL[i.statut] ?? i.statut}
                   </span>
+                  {/* GUIC-474 — marquage manuel de présence (fallback du badge). */}
+                  {i.statut !== 'annule' && (
+                    <PresenceToggle evenementId={data.id} cjsUid={i.cjsUid} present={i.statut === 'present'} />
+                  )}
                 </div>
               )
             })

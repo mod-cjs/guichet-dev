@@ -26,6 +26,8 @@ const ROWS: EvenementRow[] = [
     description: 'Forum annuel.',
     lieu: 'Dakar Plateau',
     dateDebutIso: '2026-07-12T09:00:00.000Z',
+    dateFinIso: null,
+    centreId: null,
     estGratuit: true,
   },
   {
@@ -40,6 +42,8 @@ const ROWS: EvenementRow[] = [
     description: 'Atelier pratique.',
     lieu: 'Thiès',
     dateDebutIso: '2026-05-02T14:00:00.000Z',
+    dateFinIso: null,
+    centreId: null,
     estGratuit: false,
   },
 ]

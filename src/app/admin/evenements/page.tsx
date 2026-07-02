@@ -37,7 +37,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
   const where = activeStatut ? { statut: activeStatut } : {}
 
-  const [evenements, total, grouped] = await Promise.all([
+  const [evenements, total, grouped, centres] = await Promise.all([
     prisma.evenement.findMany({
       where,
       select: {
@@ -47,7 +47,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         type: true,
         statut: true,
         dateDebut: true,
+        dateFin: true,
         lieu: true,
+        centreId: true,
         capaciteMax: true,
         estGratuit: true,
         centre: { select: { nom: true } },
@@ -60,6 +62,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     // EV-3 — total cohérent avec le filtre courant (était un count global).
     prisma.evenement.count({ where }),
     prisma.evenement.groupBy({ by: ['statut'], _count: { _all: true } }),
+    prisma.centre.findMany({
+      where: { estActif: true },
+      select: { id: true, nom: true },
+      orderBy: [{ region: 'asc' }, { nom: 'asc' }],
+    }),
   ])
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -81,6 +88,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     description: e.description,
     lieu: e.lieu,
     dateDebutIso: e.dateDebut.toISOString(),
+    dateFinIso: e.dateFin ? e.dateFin.toISOString() : null,
+    centreId: e.centreId,
     estGratuit: e.estGratuit,
   }))
 
@@ -92,6 +101,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       counts={counts}
       currentPage={page}
       totalPages={totalPages}
+      centres={centres}
     />
   )
 }

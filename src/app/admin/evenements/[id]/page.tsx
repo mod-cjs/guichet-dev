@@ -35,6 +35,7 @@ export default async function Page({
       inscriptions: {
         select: {
           id: true,
+          cjsUid: true,
           statut: true,
           inscritA: true,
           utilisateur: { select: { prenom: true, nom: true } },
@@ -64,6 +65,7 @@ export default async function Page({
     .filter((i) => i.statut !== 'annule')
     .map((i) => ({
       id: i.id,
+      cjsUid: i.cjsUid,
       prenom: i.utilisateur.prenom,
       nom: i.utilisateur.nom,
       statut: i.statut,

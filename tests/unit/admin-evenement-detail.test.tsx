@@ -5,7 +5,12 @@
  */
 import { render, screen } from '@testing-library/react'
 
-jest.mock('next/navigation', () => ({ usePathname: () => '/admin/evenements/ev-1' }))
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/admin/evenements/ev-1',
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
+}))
+// GUIC-474 — PresenceToggle importe les server actions ; on les mocke (jsdom).
+jest.mock('@/app/admin/evenements/actions', () => ({ marquerPresenceEvenement: jest.fn() }))
 
 import { AdminEvenementDetail, type EvenementDetailData } from '@/app/admin/evenements/[id]/AdminEvenementDetail'
 
@@ -28,9 +33,9 @@ const DATA: EvenementDetailData = {
     tauxPresence: 40,
   },
   inscrits: [
-    { id: 'i1', prenom: 'Awa', nom: 'Diop', statut: 'present', inscritA: new Date('2026-06-20T10:00:00Z') },
-    { id: 'i2', prenom: 'Mamadou', nom: 'Sow', statut: 'inscrit', inscritA: new Date('2026-06-21T10:00:00Z') },
-    { id: 'i3', prenom: 'Fatou', nom: 'Ba', statut: 'liste_attente', inscritA: new Date('2026-06-22T10:00:00Z') },
+    { id: 'i1', cjsUid: 'u1', prenom: 'Awa', nom: 'Diop', statut: 'present', inscritA: new Date('2026-06-20T10:00:00Z') },
+    { id: 'i2', cjsUid: 'u2', prenom: 'Mamadou', nom: 'Sow', statut: 'inscrit', inscritA: new Date('2026-06-21T10:00:00Z') },
+    { id: 'i3', cjsUid: 'u3', prenom: 'Fatou', nom: 'Ba', statut: 'liste_attente', inscritA: new Date('2026-06-22T10:00:00Z') },
   ],
 }
 
@@ -67,9 +72,11 @@ describe('GUIC-465 — AdminEvenementDetail (supervision)', () => {
     expect(screen.getByText(/liste d.attente/i)).toBeInTheDocument()
   })
 
-  it('NE propose AUCUN bouton de marquage (présence = conseiller)', () => {
+  // GUIC-474 — l'admin peut désormais marquer la présence (fallback du badge).
+  it('propose un bouton de marquage de présence par participant (non annulé)', () => {
     render(<AdminEvenementDetail data={DATA} />)
-    expect(screen.queryByRole('button', { name: /marquer pr[ée]sent|promouvoir|pointer/i })).toBeNull()
+    // Awa (present) → « Absent » ; Mamadou (inscrit) & Fatou (attente) → « Présent ».
+    expect(screen.getAllByRole('button', { name: /présent|absent/i }).length).toBeGreaterThan(0)
   })
 
   it('propose un export des participants', () => {
