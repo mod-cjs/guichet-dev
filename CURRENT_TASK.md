@@ -1,20 +1,20 @@
-# CURRENT_TASK — Plan admin : Partenaires + RBAC conseiller (phase par phase)
+# CURRENT_TASK — GUIC-490 Création d'offre recruteur (US-8)
 
-**Contexte :** revue admin du 2026-07-02 — onglets manquants : Partenaires + gestion des rôles/droits conseiller.
-**Vérif SSO (`cjs_auth`) :** rôles attribués côté SSO (GUIC-27/113/115 y vivent) ; le token expose `cjs_roles` mais **pas** de `centre_id`. → l'affiliation conseiller↔centre doit être **locale** (table `AgentCentre`).
+**Branche** : `feature/GUIC-490-creation-offre-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Story mère** : GUIC-32 · **Statut Jira** : En cours
+**Spec** : `.agent_context/specs/GUIC-490-creation-offre-recruteur.md`
 
-## Plan (4 phases)
-1. **Phase 1 — Partenaires (GUIC-510)** ← *en cours (cette branche)* : CRUD `Organisation` admin.
-2. **Phase 2 — RBAC conseiller** : CRUD `AgentCentre` (rôle lu du SSO + centre local) + middleware isolation (GUIC-271/330/331 ; GUIC-329 re-cadré « centre local »).
-3. **Phase 3 — Espace conseiller** (Epic GUIC-470 : dashboards 493/494, nav 501, notifs 500/320, responsive 502).
-4. **Phase 4 — Droits conseiller sous validation** (GUIC-477 publications / GUIC-478 ressources).
+## Périmètre
+- Types **Emploi + Stage**, formulaire recruteur dédié.
+- Soumission → `brouillon` → file de modération CJS existante (GUIC-471). Jamais publiée directement.
+- Réutilise `OpportuniteService.create` + `generateUniqueSlug`. Aucune migration.
 
-## Phase 1 — livré (GUIC-510)
-**Branche :** `feature/GUIC-510-partenaires` (depuis dev). **Pas de migration** (`Organisation` existe).
-- **Actions** `src/app/admin/partenaires/actions.ts` : `basculerVerifiePartenaire` (bascule `estVerifie`) + `modifierPartenaire` (champs éditables). Audit `partenaire.verify` / `partenaire.update`.
-- **UI** : page `/admin/partenaires` (liste + filtres vérifié + recherche + pagination), `AdminPartenairesTable` (badge Vérifié, toggle, Éditer modal, Détail), `PartenaireFormModal`, détail `/admin/partenaires/[id]` (coordonnées + opportunités liées).
-- **Nav** : entrée sidebar « Partenaires » (Pilotage).
-- **Vérifié** : tsc 0 · eslint 0 · 269 suites / 1896 tests verts. Nouveaux : actions (4), table (5), sidebar (1).
-
-## Reste Phase 1
-- [ ] PR vers dev (`Closes GUIC-510`). Puis enchaîner Phase 2.
+## Avancement
+- [x] Fetch + enrichissement ticket GUIC-490 (AC détaillés)
+- [x] Spec validée (Emploi+Stage, form dédié)
+- [x] Branche créée
+- [ ] TDD RED : `tests/unit/recruteur-offre-actions.test.ts`
+- [ ] Action `creerOffreRecruteur` (GREEN)
+- [ ] Form `NouvelleOffreForm` + page `nouvelle`
+- [ ] CTA (sidebar/dashboard/mes-offres) + label « En validation »
+- [ ] `npm run validate` vert → PR vers dev → Jira Revue en cours
