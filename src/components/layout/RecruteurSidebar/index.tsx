@@ -44,7 +44,14 @@ const STORAGE_KEY = 'gj-recruteur-sidebar-collapsed'
  * - Drawer mobile (hamburger + overlay + ESC pour fermer)
  * - GUIC-402 : collapse desktop (260px ↔ 64px) avec persistance localStorage
  */
-export function RecruteurSidebar() {
+export interface RecruteurSidebarProps {
+  /** Nom de l'organisation (chip entreprise). */
+  companyName?: string | null
+  /** Partenaire vérifié (badge). */
+  verified?: boolean
+}
+
+export function RecruteurSidebar({ companyName, verified }: RecruteurSidebarProps = {}) {
   const pathname = usePathname() ?? ''
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -145,23 +152,29 @@ export function RecruteurSidebar() {
                 style={{
                   fontSize: 13,
                   fontWeight: 900,
-                  color: 'var(--gj-teal-deep)',
+                  color: 'var(--gj-blue-ink, #1A3FA8)',
                   letterSpacing: '.3px',
                 }}
               >
-                Espace Recruteur
+                {companyName || 'Espace Recruteur'}
               </span>
-              <span
-                style={{
-                  fontSize: 9.5,
-                  color: 'var(--gj-grey)',
-                  letterSpacing: '.5px',
-                  textTransform: 'uppercase',
-                  fontWeight: 700,
-                }}
-              >
-                Offres · Candidatures
-              </span>
+              {companyName && verified ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800, color: 'var(--gj-blue-ink, #1A3FA8)' }}>
+                  <Icon name="check-circle" size={11} /> Partenaire vérifié
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    color: 'var(--gj-grey)',
+                    letterSpacing: '.5px',
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                  }}
+                >
+                  Offres · Candidatures
+                </span>
+              )}
             </>
           )}
         </div>
@@ -202,10 +215,10 @@ export function RecruteurSidebar() {
                       padding: collapsed ? '9px 0' : '9px 10px',
                       borderRadius: 8,
                       fontSize: 13,
-                      color: on ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
+                      color: on ? 'var(--gj-blue-ink, #1A3FA8)' : 'var(--gj-grey)',
                       fontWeight: on ? 800 : 600,
                       minHeight: 44,
-                      background: on ? 'var(--gj-teal-soft)' : 'transparent',
+                      background: on ? 'var(--gj-blue-soft, #E8EFFF)' : 'transparent',
                       width: '100%',
                     }}
                   >
