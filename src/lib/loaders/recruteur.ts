@@ -58,7 +58,9 @@ export interface RecruteurCandidatItem {
 export interface RecruteurDashboard {
   offresActives: number
   candidaturesRecues: number
+  candidaturesCetteSemaine: number
   aExaminer: number
+  vuesTotales: number
   offres: RecruteurOffreItem[]
   aExaminerListe: RecruteurCandidatItem[]
 }
@@ -66,11 +68,15 @@ export interface RecruteurDashboard {
 export async function getRecruteurDashboard(cjsUid: string, organisationId: string | null): Promise<RecruteurDashboard> {
   const where = offreWhere(cjsUid, organisationId)
   const candWhere: Prisma.CandidatureWhereInput = { opportunite: where }
+  // Variation hebdomadaire : candidatures reçues sur les 7 derniers jours.
+  const depuis = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
-  const [offresActives, candidaturesRecues, aExaminer, offres, aExaminerListe] = await Promise.all([
+  const [offresActives, candidaturesRecues, candidaturesCetteSemaine, aExaminer, vues, offres, aExaminerListe] = await Promise.all([
     prisma.opportunite.count({ where: { ...where, statut: 'publiee' } }),
     prisma.candidature.count({ where: candWhere }),
+    prisma.candidature.count({ where: { ...candWhere, soumiseA: { gte: depuis } } }),
     prisma.candidature.count({ where: { ...candWhere, statut: 'En_attente' } }),
+    prisma.opportunite.aggregate({ where, _sum: { vues: true } }),
     prisma.opportunite.findMany({
       where,
       select: { id: true, titre: true, statut: true, vues: true, _count: { select: { candidatures: true } } },
@@ -88,7 +94,9 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
   return {
     offresActives,
     candidaturesRecues,
+    candidaturesCetteSemaine,
     aExaminer,
+    vuesTotales: vues._sum.vues ?? 0,
     offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues })),
     aExaminerListe: aExaminerListe.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre })),
   }
