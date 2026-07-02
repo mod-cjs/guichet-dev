@@ -1,23 +1,17 @@
-# CURRENT_TASK — GUIC-485 Détail candidature + lecture CV recruteur (US-3)
+# CURRENT_TASK — GUIC-132/133 Messagerie interne recruteur ↔ candidat
 
-**Branche** : `feature/GUIC-485-detail-candidature-cv` (depuis dev)
-**Épic** : GUIC-9 · **Complète** : GUIC-230 (endpoint CV recruteur, clôturé à tort)
-**Spec** : `.agent_context/specs/GUIC-485-detail-candidature-cv.md`
+**Branche** : `feature/GUIC-132-messagerie-interne` (stackée sur `feature/GUIC-485-…`)
+**Épic** : GUIC-9 / GUIC-32 · **Spec** : `.agent_context/specs/GUIC-132-messagerie-interne.md`
 
-## Périmètre (validé 2026-07-02)
-- Pipeline candidatures filtrable par statut (`?statut=`) + carte « À examiner » → `?statut=En_attente`.
-- Détail candidature `/recruteur/candidatures/[id]` : identité + **coordonnées (email/tél)** + lettre + offre + statut.
-- **CV recruteur** : `GET /api/recruteur/candidatures/[id]/cv` (ownership org + audit CDP + proxyPrivateBlob).
-- **Actions statut** : Vue / Retenue / Refusée (gardée + ownership + audit). Auto-Vue à l'ouverture.
-- CDP : accès coordonnées + CV journalisés (`auditPiiAccess`).
+## Décisions
+- Conversation **ancrée à une candidature** (consentement CDP), 2 côtés complets, pas de WS, notif in-app.
 
 ## Avancement
-- [x] Fetch + enrichissement GUIC-485 ; GUIC-230 rouvert + commenté ; branche créée
-- [x] TDD RED→GREEN : `tests/unit/recruteur-candidature-actions.test.ts` (5/5)
-- [x] AuditAction : `candidature.statut` / `candidature.cv.read` / `candidature.pii.view`
-- [x] Loader `getRecruteurCandidatureDetail` + filtre statut sur la liste
-- [x] Endpoint CV recruteur (ownership org + audit CDP)
-- [x] Action `changerStatutCandidature` (GREEN)
-- [x] Détail page + StatutActions + filtre liste + lien dashboard
-- [x] tsc 0 · eslint clean
-- [ ] PR → dev → Jira Revue
+- [x] Branche + spec
+- [x] Migration `add_messagerie_interne` (Conversation + Message) appliquée + trackée
+- [x] Loaders `messagerie.ts` (inbox / conversation / countUnread)
+- [x] Actions `contacterCandidat` / `envoyerMessage` / `marquerConversationLue` + Notification
+- [x] TDD 8/8 (`messagerie-actions.test.ts`)
+- [ ] UI recruteur : inbox + thread (remplace ComingSoon) + bouton Contacter (fiche candidature)
+- [ ] UI jeune : inbox + thread (`jeune/(app)/messagerie`)
+- [ ] validate → PR → Jira Revue (GUIC-132/133)
