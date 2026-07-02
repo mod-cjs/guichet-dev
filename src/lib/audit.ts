@@ -20,6 +20,7 @@ export type AuditAction =
   | 'fiche_beneficiaire.view'
   | 'export.utilisateurs'
   | 'export.opportunites'
+  | 'export.evenements'
   | 'opportunite.approve'
   | 'opportunite.reject'
   // GUIC-473 — gestion des ressources réservables d'un centre.

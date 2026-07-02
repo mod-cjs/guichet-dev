@@ -48,7 +48,8 @@ const SECTIONS: NavSection[] = [
     items: [
       { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'bibliotheque', href: '/admin/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
-      { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Analytics centres' },
+      { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Fréquentation centres' },
+      { id: 'analytics-evenements', href: '/admin/analytics/evenements', icon: 'calendar', label: 'Analytics événements' },
       { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
       { id: 'onboarding', href: '/admin/onboarding', icon: 'target', label: 'Onboarding' },
