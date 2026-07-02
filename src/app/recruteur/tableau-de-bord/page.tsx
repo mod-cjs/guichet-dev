@@ -8,7 +8,7 @@ import { getRecruteurContext, getRecruteurDashboard } from '@/lib/loaders/recrut
 export const metadata: Metadata = { title: 'Tableau de bord — Espace Recruteur' }
 
 const STATUT_LABEL: Record<string, string> = {
-  brouillon: 'Brouillon', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
+  brouillon: 'En validation', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
 
 function initials(prenom: string, nom: string): string {
@@ -36,13 +36,18 @@ export default async function Page() {
 
   return (
     <div style={{ maxWidth: 1040, margin: '0 auto' }}>
-      <header className="mb-6">
-        <h1 className="text-[26px] font-black flex items-center gap-2" style={{ color: 'var(--gj-ink)' }}>
-          Bonjour {ctx.prenom || 'recruteur'} <span aria-hidden>👋</span>
-        </h1>
-        <p className="text-[13.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
-          Voici l&apos;activité de recrutement{ctx.organisationNom ? ` de ${ctx.organisationNom}` : ''} sur le Guichet Jeunesse.
-        </p>
+      <header className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="text-[26px] font-black flex items-center gap-2" style={{ color: 'var(--gj-ink)' }}>
+            Bonjour {ctx.prenom || 'recruteur'} <span aria-hidden>👋</span>
+          </h1>
+          <p className="text-[13.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
+            Voici l&apos;activité de recrutement{ctx.organisationNom ? ` de ${ctx.organisationNom}` : ''} sur le Guichet Jeunesse.
+          </p>
+        </div>
+        <Link href="/recruteur/mes-offres/nouvelle" className="inline-flex items-center gap-[7px] font-black text-[13px] rounded-[10px] px-[18px] min-h-[44px] no-underline" style={{ background: 'var(--gj-blue, #1A4ED8)', color: '#fff' }}>
+          <Icon name="plus" size={15} /> Nouvelle offre
+        </Link>
       </header>
 
       <div className="grid gap-[12px] mb-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>

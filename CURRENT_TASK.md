@@ -1,23 +1,21 @@
-# CURRENT_TASK — GUIC-485 Détail candidature + lecture CV recruteur (US-3)
+# CURRENT_TASK — GUIC-490 Création d'offre recruteur (US-8)
 
-**Branche** : `feature/GUIC-485-detail-candidature-cv` (depuis dev)
-**Épic** : GUIC-9 · **Complète** : GUIC-230 (endpoint CV recruteur, clôturé à tort)
-**Spec** : `.agent_context/specs/GUIC-485-detail-candidature-cv.md`
+**Branche** : `feature/GUIC-490-creation-offre-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Story mère** : GUIC-32 · **Statut Jira** : En cours
+**Spec** : `.agent_context/specs/GUIC-490-creation-offre-recruteur.md`
 
-## Périmètre (validé 2026-07-02)
-- Pipeline candidatures filtrable par statut (`?statut=`) + carte « À examiner » → `?statut=En_attente`.
-- Détail candidature `/recruteur/candidatures/[id]` : identité + **coordonnées (email/tél)** + lettre + offre + statut.
-- **CV recruteur** : `GET /api/recruteur/candidatures/[id]/cv` (ownership org + audit CDP + proxyPrivateBlob).
-- **Actions statut** : Vue / Retenue / Refusée (gardée + ownership + audit). Auto-Vue à l'ouverture.
-- CDP : accès coordonnées + CV journalisés (`auditPiiAccess`).
+## Périmètre
+- Types **Emploi + Stage**, formulaire recruteur dédié.
+- Soumission → `brouillon` → file de modération CJS existante (GUIC-471). Jamais publiée directement.
+- Réutilise `OpportuniteService.create` + `generateUniqueSlug`. Aucune migration.
 
 ## Avancement
-- [x] Fetch + enrichissement GUIC-485 ; GUIC-230 rouvert + commenté ; branche créée
-- [x] TDD RED→GREEN : `tests/unit/recruteur-candidature-actions.test.ts` (5/5)
-- [x] AuditAction : `candidature.statut` / `candidature.cv.read` / `candidature.pii.view`
-- [x] Loader `getRecruteurCandidatureDetail` + filtre statut sur la liste
-- [x] Endpoint CV recruteur (ownership org + audit CDP)
-- [x] Action `changerStatutCandidature` (GREEN)
-- [x] Détail page + StatutActions + filtre liste + lien dashboard
+- [x] Fetch + enrichissement ticket GUIC-490 (AC détaillés)
+- [x] Spec validée (Emploi+Stage, form dédié)
+- [x] Branche créée
+- [x] TDD RED : `tests/unit/recruteur-offre-actions.test.ts` (8 tests)
+- [x] Action `creerOffreRecruteur` (GREEN — 8/8)
+- [x] Form `NouvelleOffreForm` + page `nouvelle`
+- [x] CTA (sidebar/dashboard/mes-offres) + label « En validation » + bandeau succès
 - [x] tsc 0 · eslint clean
-- [ ] PR → dev → Jira Revue
+- [ ] PR vers dev → Jira Revue en cours
