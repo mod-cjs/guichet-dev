@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { auditPiiAccess, recordAudit } from '@/lib/audit'
-import { getRecruteurContext, getRecruteurCandidatureDetail } from '@/lib/loaders/recruteur'
+import { getRecruteurContext, getRecruteurCandidatureDetail, scoreColors } from '@/lib/loaders/recruteur'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { StatutActions } from './StatutActions'
 import { ContacterButton } from './ContacterButton'
@@ -74,6 +74,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
         <span className="inline-block rounded-full text-[10.5px] font-black px-[10px] py-[3px] uppercase tracking-wide" style={{ background: col.bg, color: col.fg }}>{CAND_LABEL[statut] ?? statut}</span>
       </div>
+
+      {/* Score d'adéquation (IA) */}
+      {(() => {
+        const sc = scoreColors(detail.score)
+        return (
+          <div className="rounded-[14px] p-[16px] mb-4 flex items-center gap-3 flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+            <span className="inline-flex items-center justify-center rounded-[12px] text-[16px] font-black" style={{ minWidth: 60, height: 46, padding: '0 12px', background: sc.bg, color: sc.fg }}>{sc.label}</span>
+            <div className="flex-1 min-w-[200px]">
+              <div className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>Score d&apos;adéquation <span style={{ color: 'var(--gj-grey)', fontWeight: 600 }}>· IA</span></div>
+              <p className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>{detail.scoreRaison ?? (detail.score == null ? 'Analyse en cours…' : 'Correspondance profil candidat / offre.')}</p>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Coordonnées (PII) */}
       <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
