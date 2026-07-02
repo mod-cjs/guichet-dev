@@ -83,7 +83,7 @@ export default async function Page() {
         <div className="rounded-[14px] p-[18px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[14px] font-black" style={{ color: 'var(--gj-ink)' }}>À examiner</h2>
-            <Link href="/recruteur/candidatures" className="text-[12.5px] font-bold" style={{ color: 'var(--gj-blue-ink, #1A3FA8)' }}>Toutes →</Link>
+            <Link href="/recruteur/candidatures?statut=En_attente" className="text-[12.5px] font-bold" style={{ color: 'var(--gj-blue-ink, #1A3FA8)' }}>Toutes →</Link>
           </div>
           {dash.aExaminerListe.length === 0 ? (
             <p className="text-[13px]" style={{ color: 'var(--gj-grey)' }}>Aucune candidature à examiner.</p>

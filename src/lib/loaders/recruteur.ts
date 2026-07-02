@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, StatutCandidature } from '@prisma/client'
 
 /**
  * GUIC-512 — Loaders de l'Espace Recruteur/Partenaire.
@@ -113,13 +113,61 @@ export async function getRecruteurOffres(cjsUid: string, organisationId: string 
   return rows.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues }))
 }
 
-/** Liste des candidatures reçues (page Candidatures). */
-export async function getRecruteurCandidatures(cjsUid: string, organisationId: string | null): Promise<RecruteurCandidatItem[]> {
+/** Liste des candidatures reçues (page Candidatures), filtrable par statut. */
+export async function getRecruteurCandidatures(
+  cjsUid: string,
+  organisationId: string | null,
+  statut?: StatutCandidature,
+): Promise<RecruteurCandidatItem[]> {
   const rows = await prisma.candidature.findMany({
-    where: { opportunite: offreWhere(cjsUid, organisationId) },
+    where: { opportunite: offreWhere(cjsUid, organisationId), ...(statut ? { statut } : {}) },
     select: { id: true, statut: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
     orderBy: { soumiseA: 'desc' },
     take: 100,
   })
   return rows.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre }))
+}
+
+export interface RecruteurCandidatureDetail {
+  id: string
+  statut: StatutCandidature
+  lettreMotivation: string | null
+  hasCv: boolean
+  soumiseA: string
+  updatedAt: string
+  candidat: { cjsUid: string; prenom: string; nom: string; email: string | null; telephone: string | null }
+  offre: { id: string; titre: string }
+}
+
+/**
+ * Détail d'une candidature d'une offre du recruteur (ownership via `offreWhere`).
+ * Retourne `null` si introuvable OU non possédée (→ 404 côté page, pas de fuite).
+ */
+export async function getRecruteurCandidatureDetail(
+  cjsUid: string,
+  organisationId: string | null,
+  id: string,
+): Promise<RecruteurCandidatureDetail | null> {
+  const row = await prisma.candidature.findFirst({
+    where: { id, opportunite: offreWhere(cjsUid, organisationId) },
+    select: {
+      id: true, statut: true, lettreMotivation: true, cvUrl: true, soumiseA: true, updatedAt: true,
+      utilisateur: { select: { cjsUid: true, prenom: true, nom: true, email: true, telephone: true } },
+      opportunite: { select: { id: true, titre: true } },
+    },
+  })
+  if (!row) return null
+  return {
+    id: row.id,
+    statut: row.statut,
+    lettreMotivation: row.lettreMotivation,
+    hasCv: Boolean(row.cvUrl),
+    soumiseA: row.soumiseA.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    candidat: {
+      cjsUid: row.utilisateur.cjsUid, prenom: row.utilisateur.prenom, nom: row.utilisateur.nom,
+      email: row.utilisateur.email, telephone: row.utilisateur.telephone,
+    },
+    offre: { id: row.opportunite.id, titre: row.opportunite.titre },
+  }
 }
