@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { creerEvenement, modifierEvenement } from './actions'
 
-const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference'] as const).map((v) => ({ value: v, label: v }))
+const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference', 'Cours'] as const).map((v) => ({ value: v, label: v }))
 const STATUT_OPTIONS = [
   { value: 'a_venir', label: 'À venir' },
   { value: 'en_cours', label: 'En cours' },
@@ -29,7 +29,11 @@ export interface EvenementFormValues {
   statut?: string
   /** dateDebut au format ISO (sera converti en datetime-local). */
   dateDebut?: string
+  /** dateFin au format ISO (optionnelle). */
+  dateFin?: string | null
   lieu?: string
+  /** Centre de rattachement (GUIC-474 — cours/sessions au centre). */
+  centreId?: string | null
   capaciteMax?: number | null
   estGratuit?: boolean
 }
@@ -38,6 +42,8 @@ export interface EvenementFormModalProps {
   isOpen: boolean
   onClose: () => void
   evenement?: EvenementFormValues
+  /** Centres proposables pour le rattachement (GUIC-474). */
+  centres?: { id: string; nom: string }[]
   /** Appelé après succès (création/édition) — la liste affiche un toast. */
   onSuccess?: (action: 'create' | 'update') => void
 }
@@ -51,18 +57,22 @@ function toLocalInput(iso?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function EvenementFormModal({ isOpen, onClose, evenement, onSuccess }: EvenementFormModalProps) {
+export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], onSuccess }: EvenementFormModalProps) {
   const editing = Boolean(evenement?.id)
   const [titre, setTitre] = useState(evenement?.titre ?? '')
   const [description, setDescription] = useState(evenement?.description ?? '')
   const [type, setType] = useState<string>(evenement?.type ?? TypeEvenement.Atelier)
   const [statut, setStatut] = useState<string>(evenement?.statut ?? StatutEvenement.a_venir)
   const [dateDebut, setDateDebut] = useState(toLocalInput(evenement?.dateDebut))
+  const [dateFin, setDateFin] = useState(toLocalInput(evenement?.dateFin ?? undefined))
   const [lieu, setLieu] = useState(evenement?.lieu ?? '')
+  const [centreId, setCentreId] = useState(evenement?.centreId ?? '')
   const [capaciteMax, setCapaciteMax] = useState(evenement?.capaciteMax != null ? String(evenement.capaciteMax) : '')
   const [estGratuit, setEstGratuit] = useState(evenement?.estGratuit ?? true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  const centreOptions = [{ value: '', label: '— Aucun (hors centre)' }, ...centres.map((c) => ({ value: c.id, label: c.nom }))]
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,7 +83,9 @@ export function EvenementFormModal({ isOpen, onClose, evenement, onSuccess }: Ev
       type: type as TypeEvenement,
       statut: statut as StatutEvenement,
       dateDebut: new Date(dateDebut),
+      dateFin: dateFin.trim() ? new Date(dateFin) : null,
       lieu,
+      centreId: centreId || null,
       capaciteMax: capaciteMax.trim() ? Number(capaciteMax) : null,
       estGratuit,
     }
@@ -100,7 +112,9 @@ export function EvenementFormModal({ isOpen, onClose, evenement, onSuccess }: Ev
         <Input id="ev-description" label="Description" required value={description} onChange={(e) => setDescription(e.target.value)} />
         <Select id="ev-type" label="Type" options={TYPE_OPTIONS} value={type} onChange={(e) => setType(e.target.value)} />
         <Input id="ev-date" label="Date de début" type="datetime-local" required value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
+        <Input id="ev-datefin" label="Date de fin (optionnel)" type="datetime-local" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
         <Input id="ev-lieu" label="Lieu" required value={lieu} onChange={(e) => setLieu(e.target.value)} />
+        <Select id="ev-centre" label="Centre (cours/session au centre)" options={centreOptions} value={centreId} onChange={(e) => setCentreId(e.target.value)} />
         <Input id="ev-capacite" label="Capacité max" type="number" value={capaciteMax} onChange={(e) => setCapaciteMax(e.target.value)} />
         <Select id="ev-gratuit" label="Tarif" options={GRATUIT_OPTIONS} value={String(estGratuit)} onChange={(e) => setEstGratuit(e.target.value === 'true')} />
         <Select id="ev-statut" label="Statut" options={STATUT_OPTIONS} value={statut} onChange={(e) => setStatut(e.target.value)} />

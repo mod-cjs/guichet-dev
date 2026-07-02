@@ -21,7 +21,7 @@ import {
 } from '@/lib/auth/verifyCJSCardToken'
 import { getStaffSession } from '@/lib/auth/staff-session'
 import { Icon } from '@/components/ui/Icon'
-import { CheckInClient, type CheckInJeune, type CheckInReservation, type CheckInCentreOption } from './checkin-client'
+import { CheckInClient, type CheckInJeune, type CheckInReservation, type CheckInCentreOption, type CheckInEvenement } from './checkin-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,7 +97,7 @@ export default async function CheckInPage({
   endOfDay.setHours(23, 59, 59, 999)
 
   // GUIC-389 : on charge UNIQUEMENT le centre du staff (pas les 200).
-  const [utilisateur, centre, reservations] = await Promise.all([
+  const [utilisateur, centre, evenements, reservations] = await Promise.all([
     prisma.utilisateur.findUnique({
       where:  { cjsUid: payload.sub },
       select: { cjsUid: true, nom: true, prenom: true },
@@ -105,6 +105,13 @@ export default async function CheckInPage({
     prisma.centre.findUnique({
       where:  { id: staff.centreId },
       select: { id: true, nom: true, ville: true },
+    }),
+    // GUIC-474 — cours/sessions EN COURS au centre du staff (présence par badge).
+    prisma.evenement.findMany({
+      where:  { centreId: staff.centreId, statut: 'en_cours' },
+      select: { id: true, titre: true, type: true },
+      orderBy: { dateDebut: 'asc' },
+      take:   20,
     }),
     prisma.reservation.findMany({
       where: {
@@ -157,6 +164,12 @@ export default async function CheckInPage({
     ? [{ id: centre.id, label: centre.ville ? `${centre.nom} — ${centre.ville}` : centre.nom }]
     : []
 
+  const evenementsView: CheckInEvenement[] = evenements.map((e) => ({
+    id: e.id,
+    titre: e.titre,
+    type: String(e.type),
+  }))
+
   return (
     <Suspense>
       <CheckInClient
@@ -164,6 +177,7 @@ export default async function CheckInPage({
         jeune={jeune}
         reservations={reservationsView}
         centres={centresOptions}
+        evenements={evenementsView}
       />
     </Suspense>
   )

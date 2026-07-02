@@ -33,6 +33,8 @@ export interface EvenementRow {
   description: string
   lieu: string
   dateDebutIso: string
+  dateFinIso: string | null
+  centreId: string | null
   estGratuit: boolean
 }
 
@@ -43,6 +45,8 @@ export interface AdminEvenementsTableProps {
   counts: Partial<Record<StatutEvenement, number>>
   currentPage?: number
   totalPages?: number
+  /** Centres proposables au rattachement d'un événement (GUIC-474). */
+  centres?: { id: string; nom: string }[]
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -201,6 +205,7 @@ export function AdminEvenementsTable({
   counts,
   currentPage = 1,
   totalPages = 1,
+  centres = [],
 }: AdminEvenementsTableProps) {
   const paginationBase = activeStatut
     ? `/admin/evenements?statut=${activeStatut}`
@@ -222,7 +227,9 @@ export function AdminEvenementsTable({
       type: row.type,
       statut: row.statut,
       dateDebut: row.dateDebutIso,
+      dateFin: row.dateFinIso,
       lieu: row.lieu,
+      centreId: row.centreId,
       capaciteMax: row.capaciteMax,
       estGratuit: row.estGratuit,
     })
@@ -411,6 +418,7 @@ export function AdminEvenementsTable({
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
       evenement={editEvent}
+      centres={centres}
       onSuccess={(action) =>
         setFeedback({
           message: action === 'create' ? 'Événement créé.' : 'Événement mis à jour.',

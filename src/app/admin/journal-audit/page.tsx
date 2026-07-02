@@ -17,6 +17,7 @@ const ACTION_META: Record<string, { text: string; tone: AuditRow['tone']; icon: 
   'export.opportunites': { text: 'a exporté les opportunités', tone: 'blue', icon: 'download' },
   'opportunite.approve': { text: 'a approuvé une publication', tone: 'green', icon: 'check' },
   'opportunite.reject': { text: 'a rejeté une publication', tone: 'red', icon: 'block' },
+  'evenement.presence': { text: 'a marqué une présence à un événement', tone: 'green', icon: 'check-circle' },
 }
 
 /** Identifiant court lisible quand le nom n'est pas résolvable. */

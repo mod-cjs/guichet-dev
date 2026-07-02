@@ -1,36 +1,32 @@
-# CURRENT_TASK — GUIC-28 + GUIC-471 · CRUD Opportunités admin + édition/publication directe
+# CURRENT_TASK — GUIC-474 · Cours/sessions au centre + présence par badge
 
-**Branche :** `feature/GUIC-28-admin-crud-opportunites` (depuis `dev`)
-**Tickets :** GUIC-28 (En cours) · GUIC-471 (lié « Relates ») — livraison unique, `Closes` les deux.
-**Spec :** `.agent_context/specs/GUIC-28-admin-crud-opportunites.md`
+**Branche :** `feature/GUIC-474-presence-badge` (depuis `dev`)
+**Ticket :** GUIC-474 (En cours) — `Closes GUIC-474`. Complète le cluster C (writer du `present` que GUIC-472 lit).
+**Spec :** `.agent_context/specs/GUIC-474-presence-badge.md`
 
 ## Décisions
-- Livraison unique (une branche/PR). Migration légère. Admin-only (rôle conseiller hors périmètre).
-- Réutilisation de `OpportuniteService` (create/update) — **non réécrit**, seulement câblé.
-- Suppression = **soft-delete** (`deletedAt`), jamais de hard-delete depuis l'UI.
+- Étendre le scan badge existant (+ fallback admin manuel). Ajouter `Cours` à `TypeEvenement` (migration). Walk-ins autorisés (upsert).
 
-## Réalité post-`git pull` (51 commits rattrapés)
-Le rejet-avec-motif de la file de modération existait déjà (GUIC-462, motif en audit seulement) +
-route d'aperçu admin `[id]/apercu`. Net-new livré ici :
-1. **Trace de modération sur l'offre** (colonnes `motifRejet`/`moderePar`/`modereLe`) — GUIC-471.
-2. **CRUD complet** (create/edit/archive/soft-delete) — GUIC-28.
-3. **Édition-depuis-la-file** (« Éditer et publier ») — GUIC-471.
+## Constat
+`StatutInscription.present` existait, lu par les analytics GUIC-472, mais AUCUN code ne l'écrivait. Le scan badge créait un `CheckIn` sans notion d'événement. Le form d'événement ne capturait pas `centreId`.
 
 ## Livré
-- **Migration** `20260702120000_opportunite_moderation_trace` (appliquée en base locale) + `prisma generate`.
-- **Audit** : actions `opportunite.create/update/delete/publish` (src/lib/audit.ts).
-- **Server actions** (src/app/admin/opportunites/actions.ts) :
-  `creer/modifier/archiver/supprimer/publier` + `approuver/rejeter` tracés sur l'offre.
-- **UI** : primitive `Textarea` (+story), `OpportuniteForm` (10 sous-types), pages `nouveau` /
-  `[id]/modifier` / `gestion` (+client), « Éditer et publier » sur la file, entrée sidebar « Opportunités ».
+- **Migration** `add_type_cours_evenement` (enum `TypeEvenement` + `Cours`), appliquée en base. `prisma generate`.
+- **Audit** action `evenement.presence` (+ ACTION_META journal-audit).
+- **Création événement** : `centreId` + `dateFin` sur le schema/form + type `Cours` ; centres threadés page → table → modale ; prefill édition (évite de nuller le centre).
+- **Présence — primitives** :
+  - Action admin `marquerPresenceEvenement(evenementId, cjsUid, present)` (upsert `present` / revert `inscrit`).
+  - Endpoint badge `POST /api/v1/checkin/[token]/presence` (staff + garde centre, upsert walk-in).
+- **UI** :
+  - Page de scan : section « Cours/sessions au centre » (événements en cours) + bouton « Marquer présent » → endpoint présence.
+  - Détail événement admin : `PresenceToggle` par participant (Présent ↔ Absent).
 
 ## Vérifié
-- `tsc --noEmit` : **0 erreur** (projet entier). `eslint src` : 0 erreur (warnings pré-existants only).
-- Unit/component : **259 suites / 1841 tests verts** (aucune régression).
-- Intégration DB réelle : modération-trace **7/7**, CRUD end-to-end **2/2**.
-- ⚠️ 3 suites d'intégration hors périmètre rouges (onboarding / whatsapp-webhook / user-detail-guard) =
-  échecs **pré-existants** liés à l'env local (secrets HMAC/WhatsApp, validation onboarding). Non liés.
+- `tsc` 0 · `eslint` 0 (touchés). Unit/component : **261 suites / 1854 verts** (0 régression).
+  Nouveaux : présence action+endpoint (9), form modal (3) ; tests événements existants mis à jour.
+- Intégration DB réelle : Cours + présence upsert/revert **1/1**.
+- Smoke live : `/admin/evenements` + détail → 200 ; endpoint présence sans staff → 401.
 
-## Reste à faire
-- [ ] Packaging : commits TDD (RED tests → GREEN impl) + PR vers `dev` (`Closes GUIC-28`, `Closes GUIC-471`).
-- [ ] (Env) Les tests d'intégration exigent `DATABASE_URL` exporté (docker mariadb 3307) — non chargé par jest.
+## Reste
+- [ ] Packaging PR vers `dev` (`Closes GUIC-474`).
+- [ ] (Suivi) Présence à la sortie / dwell ; scanner caméra in-app ; rôle conseiller SSO.

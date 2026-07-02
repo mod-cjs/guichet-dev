@@ -166,6 +166,7 @@ enum TypeEvenement {
   Forum
   Webinar
   Conference
+  Cours // GUIC-474 — cours/sessions gratuites au centre (présence par badge)
 
   @@map("type_evenement")
 }
