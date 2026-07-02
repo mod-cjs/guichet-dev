@@ -176,4 +176,24 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     render(<AdminSidebar />)
     expect(screen.getByText(/admin national/i)).toBeInTheDocument()
   })
+
+  /* ── GUIC-28 : désambiguïsation de l'état actif (préfixes qui se chevauchent) ── */
+  describe('état actif — le href le plus spécifique gagne', () => {
+    const activeLink = (name: RegExp) =>
+      screen.getAllByRole('link', { name }).find((l) => l.getAttribute('aria-current') === 'page')
+
+    it('sur /admin/opportunites/gestion, seul "Opportunités" est actif (pas "Modération")', () => {
+      mockPathname = '/admin/opportunites/gestion'
+      render(<AdminSidebar />)
+      expect(activeLink(/^opportunités$/i)).toBeTruthy()
+      expect(activeLink(/^modération$/i)).toBeFalsy()
+    })
+
+    it('sur /admin/opportunites, "Modération" est actif (pas "Opportunités")', () => {
+      mockPathname = '/admin/opportunites'
+      render(<AdminSidebar />)
+      expect(activeLink(/^modération$/i)).toBeTruthy()
+      expect(activeLink(/^opportunités$/i)).toBeFalsy()
+    })
+  })
 })

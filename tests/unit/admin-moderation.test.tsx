@@ -114,4 +114,11 @@ describe('GUIC-453 — AdminModerationList (file brouillon, sans verdict IA)', (
     const apercu = screen.getAllByRole('link', { name: /aperçu/i })[0]
     expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
   })
+
+  // GUIC-471 — édition/publication directe depuis la file de modération.
+  it('propose un lien « Éditer et publier » vers le formulaire d\'édition', () => {
+    render(<AdminModerationList items={ITEMS} total={2} />)
+    const edit = screen.getAllByRole('link', { name: /éditer et publier/i })[0]
+    expect(edit).toHaveAttribute('href', '/admin/opportunites/o1/modifier')
+  })
 })

@@ -71,6 +71,30 @@ describe('GUIC-462 — modération approuver/rejeter (DB réelle)', () => {
     expect(row?.statut).toBe('archivee')
   })
 
+  // GUIC-471 — la décision de modération est tracée SUR l'offre (moderePar/modereLe/motifRejet).
+  it('given admin, when approuver, then trace moderePar/modereLe et motifRejet=null', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    await approuverOpportunite(oppId)
+    const row = await prisma.opportunite.findUnique({
+      where: { id: oppId },
+      select: { moderePar: true, modereLe: true, motifRejet: true },
+    })
+    expect(row?.moderePar).toBe('test-admin')
+    expect(row?.modereLe).toBeInstanceOf(Date)
+    expect(row?.motifRejet).toBeNull()
+  })
+
+  it('given admin + motif, when rejeter, then motifRejet persisté sur l\'offre', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    await rejeterOpportunite(oppId, 'Hors charte éditoriale')
+    const row = await prisma.opportunite.findUnique({
+      where: { id: oppId },
+      select: { motifRejet: true, moderePar: true },
+    })
+    expect(row?.motifRejet).toBe('Hors charte éditoriale')
+    expect(row?.moderePar).toBe('test-admin')
+  })
+
   it('given NON-admin, when approuver, then refus (throw) ET row inchangée (brouillon)', async () => {
     mockGetSession.mockResolvedValue(JEUNE)
     await expect(approuverOpportunite(oppId)).rejects.toThrow(/FORBIDDEN/)
