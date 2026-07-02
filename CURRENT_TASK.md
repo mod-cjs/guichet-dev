@@ -1,14 +1,18 @@
-# CURRENT_TASK — GUIC-484 : 4 KPI dashboard recruteur (US-2)
+# CURRENT_TASK — GUIC-488 Notifications recruteur (US-6)
 
-**Branche** : `feature/GUIC-484-kpi-dashboard-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-484-kpi-dashboard-recruteur.md`
+**Branche** : `feature/GUIC-488-notifications-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-488-notifications-recruteur.md`
 
-## Décision clé
-4ᵉ KPI = **Vues totales** (réel, conforme design) au lieu de « Entretiens planifiés » (pas de modèle → donnée fabriquée interdite). + variation hebdo sur Candidatures reçues.
+## Décision
+Réutilise l'infra notif existante (`Notification`, `loadNotifications`, `NotificationsClient`).
+« Rappel d'entretien » différé (pas de modèle Entretien). Messages déjà notifiés (messagerie).
 
 ## Avancement
-- [x] Fetch GUIC-484 + design (v3=v4) ; branche
-- [ ] TDD RED : `tests/unit/recruteur-dashboard.test.ts`
-- [ ] Loader : `vuesTotales` + `candidaturesCetteSemaine`
-- [ ] Dashboard : 4ᵉ KPI + variation hebdo + href À examiner filtré
-- [ ] `npm run validate` vert → PR → Jira Revue + commentaire déviation
+- [x] Fetch GUIC-488 + branche
+- [x] TDD 5/5 : `notif-recruteur-candidature.test.ts`
+- [x] Helper `notifyRecruteurNouvelleCandidature` (recruteurUid → fallback org.cjsUid)
+- [x] Wire dans `POST /api/candidatures` (after())
+- [x] Page `/recruteur/notifications` (NotificationsClient réutilisé)
+- [x] Cloche + badge non-lus dans le TopBar recruteur
+- [x] tsc 0 · eslint clean
+- [ ] PR → Jira Revue

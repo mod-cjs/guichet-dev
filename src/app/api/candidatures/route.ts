@@ -6,6 +6,7 @@ import { logger, hashId } from '@/lib/logger'
 import { CandidatureBodySchema } from '@/lib/validations/candidature'
 import { checkProfilCompletude } from '@/lib/profil-completude'
 import { notifyCandidatureConfirmee } from '@/lib/notifications'
+import { notifyRecruteurNouvelleCandidature } from '@/lib/notifications/recruteur'
 import type { ApiResponse } from '@/types/api'
 import type { CandidatureListItem } from '@/types/candidature'
 
@@ -200,6 +201,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           organisation: opportunite.organisation,
         },
         parsed.data.notificationsConsent,
+      )
+      // GUIC-488 — notifie le recruteur (in-app) de la nouvelle candidature.
+      await notifyRecruteurNouvelleCandidature(
+        opportunite.id,
+        `${session.prenom ?? ''} ${session.nom ?? ''}`.trim() || 'Un candidat',
       )
     } catch (err) {
       logger.error('[candidatures] dispatch des notifications échoué', { err })
