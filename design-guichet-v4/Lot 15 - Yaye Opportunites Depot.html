@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 15 — Yaye · Opportunités · Dépôt de dossier · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+  @keyframes gjbounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+  @keyframes gjpulse2{0%{transform:scale(1);opacity:.4}100%{transform:scale(1.5);opacity:0}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="cjs-card.jsx"></script>
+<script type="text/babel" src="yaye-web.jsx"></script>
+<script type="text/babel" src="yaye-webchat.jsx"></script>
+<script type="text/babel" src="yaye-cjscard.jsx"></script>
+<script type="text/babel" src="yaye-mobile.jsx"></script>
+
+<script type="text/babel">
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 15 — Yaye · Opportunités · Dépôt de dossier"
+    subtitle="Tous les composants de l'assistant IA Yaye + interactions opportunité + dépôt de fichier dans tous ses états (web + mobile)"
+  >
+    <DCSection id="web" title="A · Composants Web" subtitle="Identité Yaye · bulles · cartes d'action · suggestions · opportunités · dépôt de dossier">
+      <DCArtboard id="kit" label="Bibliothèque Yaye — web" width={800} height={2680}>
+        <div style={{ padding: 24, background: "var(--gj-bg)", minHeight: "100%" }}><YayeKitWeb /></div>
+      </DCArtboard>
+      <DCArtboard id="webchat" label="Yaye en panneau latéral (page web)" width={1280} height={820}>
+        <YayeWebChatPage />
+      </DCArtboard>
+      <DCArtboard id="webcjs" label="Carte CJS à la demande (modale)" width={1280} height={820}>
+        <CjsOnDemandWeb />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="mobile" title="B · Écrans Mobile" subtitle="Conversation · accueil/suggestions · opportunités · dépôt de dossier">
+      <DCArtboard id="m-chat" label="Yaye · conversation" width={PHONE_W} height={PHONE_H}>
+        <YayeMobChat />
+      </DCArtboard>
+      <DCArtboard id="m-home" label="Yaye · accueil & suggestions" width={PHONE_W} height={PHONE_H}>
+        <YayeMobHome />
+      </DCArtboard>
+      <DCArtboard id="m-opp" label="Opportunités · reco Yaye" width={PHONE_W} height={PHONE_H}>
+        <OppMobScreen />
+      </DCArtboard>
+      <DCArtboard id="m-file" label="Dépôt de dossier · états" width={PHONE_W} height={PHONE_H}>
+        <FileMobScreen />
+      </DCArtboard>
+      <DCArtboard id="m-form" label="Formulaire de candidature" width={PHONE_W} height={PHONE_H}>
+        <ApplyMobScreen />
+      </DCArtboard>
+      <DCArtboard id="m-cjs" label="Carte CJS à la demande (bottom-sheet)" width={PHONE_W} height={PHONE_H}>
+        <CjsOnDemandMob />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="accessibility.js"></script>
+</body>
+</html>
