@@ -35,11 +35,18 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/utilisateurs')
   })
 
-  // G11 — la page analytics centres n'est plus orpheline : lien de nav présent.
-  it('rend le lien "Analytics centres" vers /admin/analytics/centres', () => {
+  // GUIC-472 — la fréquentation des centres est clarifiée (check-ins) et distincte
+  // des analytics événements.
+  it('rend le lien "Fréquentation centres" vers /admin/analytics/centres', () => {
     render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /analytics centres/i })[0]
+    const link = screen.getAllByRole('link', { name: /fréquentation centres/i })[0]
     expect(link).toHaveAttribute('href', '/admin/analytics/centres')
+  })
+
+  it('rend le lien "Analytics événements" vers /admin/analytics/evenements', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /analytics événements/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/analytics/evenements')
   })
 
   it('rend le lien "Statistiques" vers /admin/data-hub', () => {
@@ -63,7 +70,8 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
 
   it('rend le lien "Événements" vers /admin/evenements', () => {
     render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /événements/i })[0]
+    // Exact : ne pas confondre avec « Analytics événements » (GUIC-472).
+    const link = screen.getAllByRole('link', { name: /^événements$/i })[0]
     expect(link).toHaveAttribute('href', '/admin/evenements')
   })
 
