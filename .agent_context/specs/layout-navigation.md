@@ -16,7 +16,8 @@
 Anonyme         → Header marketing + Footer (toutes routes publiques)
 Authentifié     → AppTopbar + BottomNav mobile  /  BenefSidebar + BenefTopBar desktop (≥lg)
                    (pages publiques ET /jeune/* — GUIC-349)
-Admin/Recruteur → Sidebar dédiée (mobile drawer + desktop fixe)
+Admin           → Sidebar dédiée (mobile drawer + desktop fixe)
+Recruteur       → RecruteurSidebar desktop fixe + RecruteurBottomNav mobile (5 items, GUIC-492)
 Onboarding      → Mini-topbar verrouillé (logo + déconnexion uniquement)
 ```
 
@@ -32,7 +33,9 @@ Onboarding      → Mini-topbar verrouillé (logo + déconnexion uniquement)
 | `Header` (marketing) | `src/components/layout/Header/index.tsx` | `(public)/layout.tsx` et `jeune/(app)/layout.tsx` | Anonyme : toutes tailles. Connecté : desktop uniquement (`md:block hidden`) |
 | `HeaderNav` (client) | `Header/HeaderNav.tsx` | Dans `<Header>` | Desktop. Affiche route active via `usePathname()`. Si session : 2 liens supplémentaires "Mon dashboard / Mon profil" |
 | `Footer` | `Footer/index.tsx` | `(public)/layout.tsx` et `jeune/(app)/layout.tsx` | Anonyme : toutes tailles. Connecté : desktop uniquement |
-| `AdminSidebar` / `RecruteurSidebar` | … | `admin/layout.tsx` et `recruteur/layout.tsx` | Toutes tailles (drawer mobile + fixe desktop) |
+| `AdminSidebar` | … | `admin/layout.tsx` | Toutes tailles (drawer mobile + fixe desktop) |
+| `RecruteurSidebar` | … | `recruteur/layout.tsx` | **Desktop uniquement** (`hidden md:flex`) |
+| `RecruteurBottomNav` | `src/components/layout/RecruteurBottomNav.tsx` | `recruteur/layout.tsx` | **Mobile uniquement** (`md:hidden`, fixé en bas) — 5 items + « Plus » (GUIC-492) |
 | `OnboardingLayout` | `app/jeune/onboarding/layout.tsx` | Auto pour `/jeune/onboarding/*` | Toujours actif. Mini-topbar logo + déconnexion |
 
 ---
