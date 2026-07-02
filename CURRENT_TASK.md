@@ -13,10 +13,11 @@
 
 ## Avancement
 - [x] Fetch + enrichissement GUIC-485 ; GUIC-230 rouvert + commenté ; branche créée
-- [ ] TDD RED : `tests/unit/recruteur-candidature-actions.test.ts`
-- [ ] AuditAction : `candidature.statut` / `candidature.cv.read` / `candidature.pii.view`
-- [ ] Loader `getRecruteurCandidatureDetail` + filtre statut sur la liste
-- [ ] Endpoint CV recruteur
-- [ ] Action `changerStatutCandidature` (GREEN)
-- [ ] Détail page + StatutActions + filtre liste + lien dashboard
-- [ ] `npm run validate` vert → PR → Jira Revue
+- [x] TDD RED→GREEN : `tests/unit/recruteur-candidature-actions.test.ts` (5/5)
+- [x] AuditAction : `candidature.statut` / `candidature.cv.read` / `candidature.pii.view`
+- [x] Loader `getRecruteurCandidatureDetail` + filtre statut sur la liste
+- [x] Endpoint CV recruteur (ownership org + audit CDP)
+- [x] Action `changerStatutCandidature` (GREEN)
+- [x] Détail page + StatutActions + filtre liste + lien dashboard
+- [x] tsc 0 · eslint clean
+- [ ] PR → dev → Jira Revue
