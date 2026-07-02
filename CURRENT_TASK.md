@@ -1,13 +1,15 @@
-# CURRENT_TASK — GUIC-513 Paramètres + Profil entreprise éditable
+# CURRENT_TASK — GUIC-487 Score d'adéquation candidat/offre (US-5)
 
-**Branche** : `feature/GUIC-recruteur-parametres-profil` (sur #492)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-513-parametres-profil.md`
+**Branche** : `feature/GUIC-487-score-adequation` (sur #492, dev rouge)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-487-score-adequation.md`
+
+## Décision
+Score **IA (Groq)** — réutilise `getGroq()`. Fail-soft, stocké sur Candidature. 0 extraction CV PDF.
 
 ## Avancement
-- [x] Migration `add_recruteur_notif_prefs` (2 bool sur Utilisateur) appliquée
-- [x] Actions `modifierPreferencesNotif` + `modifierProfilEntreprise` (garde + ownership) — TDD 6/6
-- [x] Gate notif (candidature + message) sur préférences
-- [x] Page Paramètres (compte SSO + toggles + déconnexion) — remplace ComingSoon
-- [x] Profil entreprise éditable (form) + en-tête admin lecture seule
-- [x] tsc 0 · eslint clean
-- [ ] PR → Jira Revue
+- [x] Migration `add_score_adequation` (3 champs Candidature) appliquée
+- [x] Service `adequation.ts` : buildMessages + parseScore (purs) + computeScoreAdequation
+- [x] TDD 7/7 (`adequation-score.test.ts`)
+- [ ] Trigger dans `POST /api/candidatures` (after)
+- [ ] Loaders : exposer score ; UI badge % (liste + détail + dashboard)
+- [ ] validate → PR → Jira Revue
