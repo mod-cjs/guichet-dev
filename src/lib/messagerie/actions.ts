@@ -85,18 +85,21 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
   ])
 
-  // Notification in-app au destinataire (fail-soft : n'interrompt pas l'envoi).
+  // Notification in-app au destinataire (fail-soft) — respecte sa préférence (GUIC-513).
   try {
-    await prisma.notification.create({
-      data: {
-        cjsUid: destinataire,
-        type: 'Message',
-        titre: 'Nouveau message',
-        contenu: `Vous avez reçu un message au sujet de « ${conv.candidature.opportunite.titre} ».`,
-        iconName: 'chat',
-        lien: destIsCandidat ? `/jeune/messagerie/${conversationId}` : `/recruteur/messagerie/${conversationId}`,
-      },
-    })
+    const pref = await prisma.utilisateur.findUnique({ where: { cjsUid: destinataire }, select: { notifMessages: true } })
+    if (!pref || pref.notifMessages) {
+      await prisma.notification.create({
+        data: {
+          cjsUid: destinataire,
+          type: 'Message',
+          titre: 'Nouveau message',
+          contenu: `Vous avez reçu un message au sujet de « ${conv.candidature.opportunite.titre} ».`,
+          iconName: 'chat',
+          lien: destIsCandidat ? `/jeune/messagerie/${conversationId}` : `/recruteur/messagerie/${conversationId}`,
+        },
+      })
+    }
   } catch { /* noop */ }
 
   await recordAudit(session.cjsUid, 'message.send', { targetType: 'conversation', targetId: conversationId })

@@ -20,6 +20,10 @@ export async function notifyRecruteurNouvelleCandidature(
   const destinataire = opp.recruteurUid ?? opp.org?.cjsUid ?? null
   if (!destinataire) return
 
+  // GUIC-513 — respecte la préférence de notification du recruteur.
+  const pref = await prisma.utilisateur.findUnique({ where: { cjsUid: destinataire }, select: { notifCandidatures: true } })
+  if (pref && !pref.notifCandidatures) return
+
   try {
     await prisma.notification.create({
       data: {
