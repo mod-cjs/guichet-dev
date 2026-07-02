@@ -35,6 +35,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/utilisateurs')
   })
 
+  // GUIC-510 — onglet de gestion des partenaires (organisations recruteurs).
+  it('rend le lien "Partenaires" vers /admin/partenaires', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /^partenaires$/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/partenaires')
+  })
+
   // GUIC-472 — la fréquentation des centres est clarifiée (check-ins) et distincte
   // des analytics événements.
   it('rend le lien "Fréquentation centres" vers /admin/analytics/centres', () => {
