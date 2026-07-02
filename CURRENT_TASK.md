@@ -1,32 +1,36 @@
-# CURRENT_TASK — Lot 3 Bibliothèque physique + outils Yaye
+# CURRENT_TASK — GUIC-28 + GUIC-471 · CRUD Opportunités admin + édition/publication directe
 
-**Epic** GUIC-274 · sous-tâches GUIC-341/342/343/344/345
-**Branche** `feature/GUIC-341-bibliotheque-yaye` (depuis `dev`)
-**Spec** `.agent_context/specs/M4-bibliotheque.md`
-**Module** m4-centres (backend) + m12-ia (outils Yaye)
+**Branche :** `feature/GUIC-28-admin-crud-opportunites` (depuis `dev`)
+**Tickets :** GUIC-28 (En cours) · GUIC-471 (lié « Relates ») — livraison unique, `Closes` les deux.
+**Spec :** `.agent_context/specs/GUIC-28-admin-crud-opportunites.md`
 
-## Périmètre acté (PO 2026-06-25)
-Backend complet (modèles + routes + UI) **puis** outils Yaye branchés dessus.
-Dérogation assumée à « Yaye ne branche que de l'existant » (le backend biblio n'existe pas).
+## Décisions
+- Livraison unique (une branche/PR). Migration légère. Admin-only (rôle conseiller hors périmètre).
+- Réutilisation de `OpportuniteService` (create/update) — **non réécrit**, seulement câblé.
+- Suppression = **soft-delete** (`deletedAt`), jamais de hard-delete depuis l'UI.
 
-## État
-- [x] Branche créée depuis dev
-- [x] Tickets JIRA fetchés (epic + 5 sous-tâches, toutes « À faire »)
-- [x] Spec rédigée + périmètre validé (PO)
-- [x] 341 modèle + migration (`20260625120000_add_bibliotheque`)
-- [x] 342 recherche + fiche (service + routes)
-- [x] 343 emprunt/confirmation (scan badge staff)/retour + RBAC centre
-- [x] Outils Yaye (search_library/borrow_book/get_active_loans) + system prompt
-- [x] Neo4j : nœuds Livre/Exemplaire + CONTIENT/EST_LOCALISE_EN + projecteurs événementiels + reprojectAll
-- [x] 344 front jeune (catalogue/fiche/emprunter/mes-emprunts) + UI staff (dashboard confirmer/retour + CRUD catalogue) + nav
-- [x] 345 tests (service + outils Yaye = 19) + droit à l'oubli (purge historique emprunts webhook SSO)
-- [x] tsc 0 · eslint 0 · tests biblio/graph/tools verts
+## Réalité post-`git pull` (51 commits rattrapés)
+Le rejet-avec-motif de la file de modération existait déjà (GUIC-462, motif en audit seulement) +
+route d'aperçu admin `[id]/apercu`. Net-new livré ici :
+1. **Trace de modération sur l'offre** (colonnes `motifRejet`/`moderePar`/`modereLe`) — GUIC-471.
+2. **CRUD complet** (create/edit/archive/soft-delete) — GUIC-28.
+3. **Édition-depuis-la-file** (« Éditer et publier ») — GUIC-471.
 
-## Reste (ops, hors code)
-- [ ] Appliquer la migration : `prisma migrate deploy` en CI/prod (shadow DB local refusé → migration écrite à la main, validée par tsc/tests)
-- [ ] PR vers dev + MAJ JIRA (GUIC-274/341/342/343/344/345 : À valider)
+## Livré
+- **Migration** `20260702120000_opportunite_moderation_trace` (appliquée en base locale) + `prisma generate`.
+- **Audit** : actions `opportunite.create/update/delete/publish` (src/lib/audit.ts).
+- **Server actions** (src/app/admin/opportunites/actions.ts) :
+  `creer/modifier/archiver/supprimer/publier` + `approuver/rejeter` tracés sur l'offre.
+- **UI** : primitive `Textarea` (+story), `OpportuniteForm` (10 sous-types), pages `nouveau` /
+  `[id]/modifier` / `gestion` (+client), « Éditer et publier » sur la file, entrée sidebar « Opportunités ».
 
-## Décisions actées (PO 2026-06-25)
-1. ✅ Confirmation emprunt : **endpoint staff bibliothécaire réutilisant le scan badge existant** (`/api/cjs-card`).
-2. ✅ Sync Neo4j biblio : **inclure maintenant** (CONTIENT/A_EXEMPLAIRE/EST_LOCALISE_EN + events emprunt_initie/retour_enregistre).
-3. ✅ UI bibliothécaire : **complète** (CRUD catalogue + confirmation/retour) en plus de la page jeune.
+## Vérifié
+- `tsc --noEmit` : **0 erreur** (projet entier). `eslint src` : 0 erreur (warnings pré-existants only).
+- Unit/component : **259 suites / 1841 tests verts** (aucune régression).
+- Intégration DB réelle : modération-trace **7/7**, CRUD end-to-end **2/2**.
+- ⚠️ 3 suites d'intégration hors périmètre rouges (onboarding / whatsapp-webhook / user-detail-guard) =
+  échecs **pré-existants** liés à l'env local (secrets HMAC/WhatsApp, validation onboarding). Non liés.
+
+## Reste à faire
+- [ ] Packaging : commits TDD (RED tests → GREEN impl) + PR vers `dev` (`Closes GUIC-28`, `Closes GUIC-471`).
+- [ ] (Env) Les tests d'intégration exigent `DATABASE_URL` exporté (docker mariadb 3307) — non chargé par jest.

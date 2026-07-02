@@ -22,6 +22,10 @@ export type AuditAction =
   | 'export.opportunites'
   | 'opportunite.approve'
   | 'opportunite.reject'
+  | 'opportunite.create'
+  | 'opportunite.update'
+  | 'opportunite.delete'
+  | 'opportunite.publish'
 
 interface AuditEntry {
   actorCjsUid: string
