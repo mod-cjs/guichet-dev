@@ -1,16 +1,18 @@
-# CURRENT_TASK — GUIC-489 Recherche de candidat (US-7)
+# CURRENT_TASK — GUIC-488 Notifications recruteur (US-6)
 
-**Branche** : `feature/GUIC-489-recherche-candidat` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-489-recherche-candidat.md`
+**Branche** : `feature/GUIC-488-notifications-recruteur` (depuis dev)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-488-notifications-recruteur.md`
 
 ## Décision
-La barre TopBar navigue vers `/recruteur/candidatures?q=` — recherche nom/prénom bornée
-aux candidats de mes offres (`offreWhere`). Réutilise la page Candidatures. 0 migration.
+Réutilise l'infra notif existante (`Notification`, `loadNotifications`, `NotificationsClient`).
+« Rappel d'entretien » différé (pas de modèle Entretien). Messages déjà notifiés (messagerie).
 
 ## Avancement
-- [x] Fetch GUIC-489 + branche
-- [x] TDD RED : `recruteur-recherche-candidat.test.ts`
-- [ ] Loader : param `q` (prénom/nom contains)
-- [ ] Page Candidatures : lit `?q=` + bandeau résultats
-- [ ] Composant client `RecruteurSearch` (TopBar)
-- [ ] validate → PR → Jira Revue
+- [x] Fetch GUIC-488 + branche
+- [x] TDD 5/5 : `notif-recruteur-candidature.test.ts`
+- [x] Helper `notifyRecruteurNouvelleCandidature` (recruteurUid → fallback org.cjsUid)
+- [x] Wire dans `POST /api/candidatures` (after())
+- [x] Page `/recruteur/notifications` (NotificationsClient réutilisé)
+- [x] Cloche + badge non-lus dans le TopBar recruteur
+- [x] tsc 0 · eslint clean
+- [ ] PR → Jira Revue
