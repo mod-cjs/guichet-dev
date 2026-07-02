@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { auditPiiAccess } from '@/lib/audit'
 import { proxyPrivateBlob } from '../../../photo/file/route'
 
 export async function GET(
@@ -41,6 +42,12 @@ export async function GET(
       { status: 404 },
     )
   }
+
+  // GUIC-476 — trace CDP de l'accès à un document personnel sensible (fail-soft).
+  await auditPiiAccess('ressource_sensible.download', session.cjsUid, {
+    targetCjsUid: session.cjsUid,
+    meta: { docType: 'certificat', docId: id },
+  }).catch(() => {})
 
   return await proxyPrivateBlob(certif.fichierUrl)
 }

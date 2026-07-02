@@ -17,6 +17,10 @@ const ACTION_META: Record<string, { text: string; tone: AuditRow['tone']; icon: 
   'export.opportunites': { text: 'a exporté les opportunités', tone: 'blue', icon: 'download' },
   'opportunite.approve': { text: 'a approuvé une publication', tone: 'green', icon: 'check' },
   'opportunite.reject': { text: 'a rejeté une publication', tone: 'red', icon: 'block' },
+  'ressource_centre.create': { text: 'a créé une ressource de centre', tone: 'green', icon: 'pin' },
+  'ressource_centre.update': { text: 'a modifié une ressource de centre', tone: 'grey', icon: 'pin' },
+  'ressource_centre.delete': { text: 'a supprimé une ressource de centre', tone: 'red', icon: 'block' },
+  'ressource_sensible.download': { text: 'a téléchargé un document personnel sensible', tone: 'blue', icon: 'download' },
 }
 
 /** Identifiant court lisible quand le nom n'est pas résolvable. */

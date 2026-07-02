@@ -22,6 +22,12 @@ export type AuditAction =
   | 'export.opportunites'
   | 'opportunite.approve'
   | 'opportunite.reject'
+  // GUIC-473 — gestion des ressources réservables d'un centre.
+  | 'ressource_centre.create'
+  | 'ressource_centre.update'
+  | 'ressource_centre.delete'
+  // GUIC-476 — accès CDP à un document personnel sensible (CV/diplôme/certificat).
+  | 'ressource_sensible.download'
   | 'opportunite.create'
   | 'opportunite.update'
   | 'opportunite.delete'

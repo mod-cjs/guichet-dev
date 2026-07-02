@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -325,6 +326,23 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6, justifySelf: 'end' }}>
+                  <Link
+                    href={`/admin/centres/${centre.id}/ressources`}
+                    aria-label={`Ressources de ${centre.nom}`}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      border: '1.5px solid var(--gj-line)',
+                      background: 'var(--gj-surface)',
+                      color: 'var(--gj-teal-deep)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name="resources" size={15} />
+                  </Link>
                   <button
                     type="button"
                     aria-label="Modifier"
