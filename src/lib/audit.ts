@@ -43,6 +43,9 @@ export type AuditAction =
   | 'candidature.statut'
   | 'candidature.cv.read'
   | 'candidature.pii.view'
+  // GUIC-132/133 — messagerie interne recruteur ↔ candidat.
+  | 'message.conversation'
+  | 'message.send'
 
 interface AuditEntry {
   actorCjsUid: string
