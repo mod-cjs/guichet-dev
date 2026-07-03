@@ -46,10 +46,19 @@
 - **`/conseiller/beneficiaires`** : tableau fidèle `AgentBenefList` (avatar+méta, commune, dernière visite, anneau de complétion, statut) + recherche `?q=`.
 - Barre de recherche du topbar câblée → `/conseiller/beneficiaires?q=` (US-7 fonctionnel).
 
+## Phase 4 — Terrain / mobile ✅
+
+- **US-6** `/conseiller/checkin` : présence du jour (réutilise `CheckIn`) + accès au scan (caméra native → `/checkin/v1/<jeton>`). Loader `getCheckinsDuJour`.
+- **US-10** `ConseillerBottomNav` (Accueil · Résa · Scan · Messages · Plus) mobile, sheet « Plus » (Agenda, Bénéficiaires, Publications, Notifications, Paramètres). Sidebar passée en desktop-only ; `pb` bottom-nav sur le contenu.
+
+## Jira
+
+Épic + US-1/2/3/4/5/7/8/9 passées à **En cours** (2026-07-03) + commentaire de suivi sur GUIC-470.
+
 ## Reste à faire
 
 - **US-4 SMS** : notif app faite, SMS en attente d'un canal transactionnel.
 - « Proposer un créneau » (slots) : nécessite la dispo des ressources.
 - Fiche bénéficiaire détaillée (`AgentBenefDetail`).
-- **Phase 4** : US-6 (check-in QR réutilisé), US-10 (responsive + bottom-nav).
 - Écrans secondaires : agenda complet, messagerie, publications, paramètres.
+- Wiring SSO conseiller sur la route de confirmation `/checkin/v1/[token]` (aujourd'hui cookie staff).

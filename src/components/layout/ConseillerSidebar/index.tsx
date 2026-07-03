@@ -1,7 +1,6 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 interface Item {
@@ -46,18 +45,6 @@ export function ConseillerSidebar({
   messagesBadge,
 }: ConseillerSidebarProps) {
   const pathname = usePathname() ?? ''
-  const [open, setOpen] = useState(false)
-  const close = useCallback(() => setOpen(false), [])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-
-  // Ferme le drawer à chaque changement de route.
-  useEffect(() => { setOpen(false) }, [pathname])
 
   const isActive = (href: string) =>
     href === '/conseiller' ? pathname === '/conseiller' : pathname === href || pathname.startsWith(href + '/')
@@ -88,26 +75,11 @@ export function ConseillerSidebar({
 
   return (
     <>
-      {/* Hamburger mobile */}
-      <button
-        type="button"
-        className="md:hidden fixed left-space-3 z-[200] flex flex-col justify-center gap-[4px] w-9 h-9 rounded-md"
-        style={{ top: 'calc(8px + var(--safe-top, 0px))', background: 'var(--gj-ink-teal)' }}
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu conseiller'}
-        aria-expanded={open}
-      >
-        <span className="block w-5 h-0.5 mx-auto bg-white" />
-        <span className="block w-5 h-0.5 mx-auto bg-white" />
-        <span className="block w-5 h-0.5 mx-auto bg-white" />
-      </button>
-
-      {open && <div className="md:hidden fixed inset-0 bg-black/50 z-[250]" onClick={close} aria-hidden />}
-
+      {/* Desktop uniquement — sur mobile la navigation passe par ConseillerBottomNav (US-10). */}
       <aside
         role="navigation"
         aria-label="Navigation conseiller"
-        className={`fixed md:static inset-y-0 left-0 z-[260] md:z-auto min-h-screen flex flex-col transition-transform duration-200 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        className="hidden md:flex static min-h-screen flex-col"
         style={{ width: 260, flexShrink: 0, background: 'var(--gj-ink-teal)', color: '#fff', borderRight: '1px solid rgba(255,255,255,.08)', padding: 14, overflowY: 'auto' }}
       >
         {/* Marque */}

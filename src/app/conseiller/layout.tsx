@@ -6,6 +6,7 @@ import { getConseillerContext, countReservationsAValider } from '@/lib/loaders/c
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { ConseillerSidebar } from '@/components/layout/ConseillerSidebar'
+import { ConseillerBottomNav } from '@/components/layout/ConseillerBottomNav'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
 
@@ -39,9 +40,9 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
     <>
       <SkipLink />
 
-      {/* Barre mobile — logo décalé du hamburger + cloche */}
+      {/* Barre mobile — marque + cloche (navigation via bottom-nav) */}
       <div
-        className="md:hidden sticky top-0 flex items-center gap-2 pl-[52px] pr-space-3"
+        className="md:hidden sticky top-0 flex items-center gap-2 px-space-4"
         style={{ zIndex: 199, paddingTop: 'var(--safe-top, 0px)', minHeight: 'var(--gj-topbar-h, 56px)', background: 'var(--gj-ink-teal)', color: '#fff' }}
       >
         <span className="font-bold text-fs-300 flex-1 truncate">Espace conseiller</span>
@@ -95,9 +96,11 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
             </Link>
           </div>
 
-          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0">{children}</main>
+          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-space-6">{children}</main>
         </div>
       </div>
+
+      <ConseillerBottomNav reservationsBadge={reservationsBadge} messagesBadge={messagesBadge} />
     </>
   )
 }

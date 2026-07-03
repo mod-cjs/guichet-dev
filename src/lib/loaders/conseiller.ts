@@ -567,3 +567,36 @@ export async function getCentreBeneficiaires(
 
   return { total, items }
 }
+
+// ── Check-in présence du jour (US-6) ──────────────────────────────────────
+
+export interface CheckinDuJour {
+  id: string
+  who: string
+  initials: string
+  time: string
+  via: string
+}
+
+/** Check-ins du jour au centre (présence) — réutilise le modèle CheckIn. */
+export async function getCheckinsDuJour(centreId: string, date: Date = new Date()): Promise<CheckinDuJour[]> {
+  const { start, end } = dayBounds(date)
+  const rows = await prisma.checkIn.findMany({
+    where: { centreId, effectueA: { gte: start, lte: end } },
+    select: {
+      id: true,
+      effectueA: true,
+      via: true,
+      utilisateur: { select: { prenom: true, nom: true } },
+    },
+    orderBy: { effectueA: 'desc' },
+    take: 100,
+  })
+  return rows.map((c) => ({
+    id: c.id,
+    who: `${c.utilisateur.prenom} ${c.utilisateur.nom}`.trim(),
+    initials: buildInitials(c.utilisateur.prenom, c.utilisateur.nom),
+    time: hhmm(c.effectueA),
+    via: String(c.via),
+  }))
+}
