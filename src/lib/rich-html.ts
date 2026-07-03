@@ -26,3 +26,24 @@ export function isRichHtml(value: string | null | undefined): boolean {
   if (!value) return false
   return new RegExp(`<(${RICH_ALLOWED_TAGS.join('|')})\\b[^>]*>`, 'i').test(value)
 }
+
+/**
+ * Convertit un corps riche (ou texte plat) en texte brut — pour les meta SEO
+ * (`description.slice(0, 160)`), aperçus et partages où l'HTML n'a pas sa place.
+ * Retire les balises, décode quelques entités courantes et normalise les espaces.
+ */
+export function htmlToPlainText(value: string | null | undefined): string {
+  if (!value) return ''
+  return value
+    .replace(/<\/(p|h2|h3|li|blockquote)>/gi, ' ') // sauts de bloc → espace
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '') // toutes les balises restantes
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

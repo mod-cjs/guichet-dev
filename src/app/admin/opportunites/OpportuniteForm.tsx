@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { creerOpportunite, modifierOpportunite } from './actions'
@@ -130,6 +131,9 @@ export interface OpportuniteFormBase {
   titre?: string
   slug?: string
   description?: string
+  mission?: string | null
+  profilRecherche?: string | null
+  conditions?: string | null
   organisationLibelle?: string
   domaine?: string
   region?: string | null
@@ -199,6 +203,11 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
     }
     return seed
   })
+  // Sections détaillées optionnelles : montées à la demande (évite 4 éditeurs riches
+  // d'emblée). Auto-ouvertes en édition si au moins une section est déjà remplie.
+  const [showSections, setShowSections] = useState(
+    Boolean(initial?.base?.mission || initial?.base?.profilRecherche || initial?.base?.conditions),
+  )
   const [slugTouched, setSlugTouched] = useState(editing)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -219,6 +228,9 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
       titre: base.titre ?? '',
       slug: base.slug ?? '',
       description: base.description ?? '',
+      mission: base.mission?.trim() || null,
+      profilRecherche: base.profilRecherche?.trim() || null,
+      conditions: base.conditions?.trim() || null,
       organisationLibelle: base.organisationLibelle ?? '',
       domaine: base.domaine ?? 'Autre',
       region: base.region || null,
@@ -284,7 +296,13 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
           disabled={editing}
           onChange={(e) => { setSlugTouched(true); setBaseField('slug', e.target.value) }}
         />
-        <Textarea id="opp-description" label="Description" required rows={5} value={base.description ?? ''} onChange={(e) => setBaseField('description', e.target.value)} />
+        <RichTextEditor
+          id="opp-description"
+          label="Description"
+          hint="Corps principal — titres, gras, italique, listes, liens, images. Style CJS bridé."
+          value={base.description ?? ''}
+          onChange={(html) => setBaseField('description', html)}
+        />
         <Input id="opp-org" label="Organisation" required value={base.organisationLibelle ?? ''} onChange={(e) => setBaseField('organisationLibelle', e.target.value)} />
         <Select id="opp-domaine" label="Domaine" required options={DOMAINES} value={base.domaine ?? ''} onChange={(e) => setBaseField('domaine', e.target.value)} />
         <Select id="opp-region" label="Région (optionnel)" options={[{ value: '', label: '—' }, ...REGIONS]} value={base.region ?? ''} onChange={(e) => setBaseField('region', e.target.value || null)} />
@@ -293,6 +311,36 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
         <Input id="opp-lien" label="Lien externe (optionnel)" type="url" value={base.lienExterne ?? ''} onChange={(e) => setBaseField('lienExterne', e.target.value)} />
         <Select id="opp-niveau" label="Niveau d’étude minimum (optionnel)" options={[{ value: '', label: '—' }, ...NIVEAUX]} value={base.niveauEtudeMin ?? ''} onChange={(e) => setBaseField('niveauEtudeMin', e.target.value || null)} />
         <Select id="opp-statut" label="Statut" options={STATUTS} value={base.statut ?? 'brouillon'} onChange={(e) => setBaseField('statut', e.target.value)} />
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-space-3 border-0 p-0 m-0">
+        <legend className="text-fs-400 font-black text-color-text-primary mb-space-2">Sections détaillées (optionnel)</legend>
+        {showSections ? (
+          <>
+            <RichTextEditor
+              id="opp-mission"
+              label="Mission"
+              value={base.mission ?? ''}
+              onChange={(html) => setBaseField('mission', html)}
+            />
+            <RichTextEditor
+              id="opp-profil"
+              label="Profil recherché"
+              value={base.profilRecherche ?? ''}
+              onChange={(html) => setBaseField('profilRecherche', html)}
+            />
+            <RichTextEditor
+              id="opp-conditions"
+              label="Conditions"
+              value={base.conditions ?? ''}
+              onChange={(html) => setBaseField('conditions', html)}
+            />
+          </>
+        ) : (
+          <Button type="button" variant="secondary" onClick={() => setShowSections(true)}>
+            Ajouter des sections détaillées (mission, profil, conditions)
+          </Button>
+        )}
       </fieldset>
 
       <fieldset className="flex flex-col gap-space-3 border-0 p-0 m-0">

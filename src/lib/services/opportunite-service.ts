@@ -66,6 +66,10 @@ export interface BaseInput {
   titre: string
   slug: string
   description: string
+  /** Sections riches structurées (GUIC-257/503) — HTML sanitisé, distinctes du KG. */
+  mission?: string | null
+  profilRecherche?: string | null
+  conditions?: string | null
   /** Slug du programme sectoriel — résolu en `programmeId` dans la transaction. */
   programmeSlug?: string | null
   organisationId?: string | null
@@ -316,6 +320,9 @@ export class OpportuniteService {
           slug: input.base.slug,
           titre: input.base.titre,
           description: input.base.description,
+          mission: input.base.mission ?? null,
+          profilRecherche: input.base.profilRecherche ?? null,
+          conditions: input.base.conditions ?? null,
           // Legacy column conservée jusqu'en 178d — on dérive la valeur depuis le slug
           type: legacyTypeFromSlug(input.type),
           organisation: input.base.organisationLibelle,
@@ -414,6 +421,9 @@ export class OpportuniteService {
             ...(patch.base.titre !== undefined ? { titre: patch.base.titre } : {}),
             ...(patch.base.slug !== undefined ? { slug: patch.base.slug } : {}),
             ...(patch.base.description !== undefined ? { description: patch.base.description } : {}),
+            ...(patch.base.mission !== undefined ? { mission: patch.base.mission } : {}),
+            ...(patch.base.profilRecherche !== undefined ? { profilRecherche: patch.base.profilRecherche } : {}),
+            ...(patch.base.conditions !== undefined ? { conditions: patch.base.conditions } : {}),
             ...(patch.base.organisationLibelle !== undefined
               ? { organisationLibelle: patch.base.organisationLibelle, organisation: patch.base.organisationLibelle }
               : {}),

@@ -143,11 +143,11 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
 
       <Divider />
 
-      <GlyphButton label="Titre niveau 2" active={editor.isActive('heading', { level: 2 })} disabled={disabled}
+      <GlyphButton label="Intertitre niveau 2" active={editor.isActive('heading', { level: 2 })} disabled={disabled}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
         <span className="text-fs-200 font-bold">H2</span>
       </GlyphButton>
-      <GlyphButton label="Titre niveau 3" active={editor.isActive('heading', { level: 3 })} disabled={disabled}
+      <GlyphButton label="Intertitre niveau 3" active={editor.isActive('heading', { level: 3 })} disabled={disabled}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
         <span className="text-fs-200 font-bold">H3</span>
       </GlyphButton>

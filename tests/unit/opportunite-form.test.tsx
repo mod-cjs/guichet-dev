@@ -41,7 +41,8 @@ describe('GUIC-28 — OpportuniteForm (création)', () => {
     const user = userEvent.setup()
     render(<OpportuniteForm types={TYPES} />)
     await user.type(screen.getByLabelText(/Titre/), 'Bourse mobilité')
-    await user.type(screen.getByLabelText(/Description/), 'Une bourse.')
+    // La description est un éditeur riche (Tiptap) — saisie non simulable en jsdom ;
+    // ce test vérifie le passage type + base + details, pas le corps riche lui-même.
     await user.type(screen.getByLabelText(/^Organisation/), 'CJS')
     await user.selectOptions(screen.getByLabelText(/Domaine/), 'Numerique')
     await user.type(screen.getByLabelText(/Montant total/), '500000')
