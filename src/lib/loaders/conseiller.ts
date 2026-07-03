@@ -630,3 +630,101 @@ export async function getCheckinsDuJour(centreId: string, date: Date = new Date(
     via: String(c.via),
   }))
 }
+
+// ── Fiche bénéficiaire détaillée (US-7) ───────────────────────────────────
+
+export interface BenefReservationHisto {
+  id: string
+  kind: RessourceKind
+  kindIcon: IconName
+  ressourceNom: string
+  dateLabel: string
+  slot: string
+  statutView: StatutView
+  statutLabel: string
+  statutTone: StatutViewDescriptor['tone']
+}
+
+export interface BeneficiaireDetail {
+  cjsUid: string
+  name: string
+  initials: string
+  age: number | null
+  genre: string | null
+  commune: string
+  niveau: string | null
+  tel: string | null
+  memberSince: string
+  completion: number
+  statutLabel: BenefStatutDescriptor['label']
+  statutTone: BenefStatutDescriptor['tone']
+  candidatures: number
+  lastActivity: string
+  reservations: BenefReservationHisto[]
+}
+
+const MONTH_YEAR = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+
+/**
+ * Fiche d'un bénéficiaire — uniquement s'il est rattaché au centre du conseiller
+ * (a fréquenté le centre via check-in ou réservation). Sinon `null` (hors périmètre).
+ */
+export async function getBeneficiaireDetail(centreId: string, cjsUid: string): Promise<BeneficiaireDetail | null> {
+  // Périmètre : le bénéficiaire doit avoir un lien avec ce centre.
+  const [rattache, u, reservations, lastCheckin] = await Promise.all([
+    Promise.all([
+      prisma.checkIn.count({ where: { centreId, cjsUid } }),
+      prisma.reservation.count({ where: { centreId, cjsUid } }),
+    ]).then(([a, b]) => a + b > 0),
+    prisma.utilisateur.findUnique({
+      where: { cjsUid },
+      select: {
+        cjsUid: true, prenom: true, nom: true, telephone: true, region: true,
+        genre: true, dateNaissance: true, createdAt: true,
+        profil: { select: { niveauEtude: true, completionScore: true } },
+        _count: { select: { candidatures: true } },
+      },
+    }),
+    prisma.reservation.findMany({
+      where: { centreId, cjsUid },
+      select: {
+        id: true, dateReservee: true, creneauDebut: true, creneauFin: true, statut: true,
+        ressource: { select: { nom: true, type: true } },
+      },
+      orderBy: { dateReservee: 'desc' },
+      take: 8,
+    }),
+    prisma.checkIn.findFirst({ where: { centreId, cjsUid }, orderBy: { effectueA: 'desc' }, select: { effectueA: true } }),
+  ])
+
+  if (!u || !rattache) return null
+
+  const completion = u.profil?.completionScore ?? 0
+  const st = benefStatut(completion)
+
+  return {
+    cjsUid: u.cjsUid,
+    name: `${u.prenom} ${u.nom}`.trim(),
+    initials: buildInitials(u.prenom, u.nom),
+    age: ageFromBirthdate(u.dateNaissance),
+    genre: u.genre ? String(u.genre) : null,
+    commune: u.region ? String(u.region) : '—',
+    niveau: u.profil?.niveauEtude ?? null,
+    tel: u.telephone ?? null,
+    memberSince: (() => { const s = MONTH_YEAR.format(u.createdAt); return s.charAt(0).toUpperCase() + s.slice(1) })(),
+    completion,
+    statutLabel: st.label,
+    statutTone: st.tone,
+    candidatures: u._count.candidatures,
+    lastActivity: lastCheckin ? ageRelatifLabel(lastCheckin.effectueA) : 'Jamais',
+    reservations: reservations.map((r) => {
+      const k = mapRessourceKind(String(r.ressource.type))
+      const sv = mapStatutView(String(r.statut))
+      return {
+        id: r.id, kind: k.kind, kindIcon: k.icon, ressourceNom: r.ressource.nom,
+        dateLabel: fmtDateLabel(r.dateReservee), slot: `${r.creneauDebut} – ${r.creneauFin}`,
+        statutView: sv.view, statutLabel: sv.label, statutTone: sv.tone,
+      }
+    }),
+  }
+}

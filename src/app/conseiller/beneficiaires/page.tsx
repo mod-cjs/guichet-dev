@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext, getCentreBeneficiaires, type BenefListItem } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ProfilRing } from './profil-ring'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,31 +13,18 @@ export const dynamic = 'force-dynamic'
  * Recherche server-driven via `?q=` (la barre du topbar pointe ici). Rendu
  * fidèle à `design-guichet-v4/agent-web.jsx` (AgentBenefList) : tableau
  * avatar + méta, commune, dernière visite, anneau de complétion, statut.
+ * Chaque ligne ouvre la fiche détaillée du bénéficiaire.
  */
 
-function ProfilRing({ pct }: { pct: number }) {
-  const size = 34
-  const stroke = 3.5
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const dash = (Math.max(0, Math.min(100, pct)) / 100) * c
-  const color = pct >= 70 ? 'var(--gj-green)' : pct >= 40 ? 'var(--gj-yellow-deep, var(--gj-yellow))' : 'var(--gj-red)'
-  return (
-    <span className="relative inline-flex items-center justify-center" style={{ width: size, height: size }} title={`Profil ${pct}%`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--gj-line)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${dash} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      </svg>
-      <span className="absolute font-black" style={{ fontSize: 9, color: 'var(--gj-ink)' }}>{pct}</span>
-    </span>
-  )
-}
-
-const COLS = 'grid-cols-[2.2fr_1.1fr_1.2fr_0.7fr_1fr]'
+const COLS = 'grid-cols-[2.2fr_1.1fr_1.2fr_0.7fr_1fr_0.3fr]'
 
 function BenefRow({ b }: { b: BenefListItem }) {
   return (
-    <div className={`grid ${COLS} gap-space-3 items-center px-space-4 py-space-3`} style={{ borderBottom: '1px solid var(--gj-line)' }}>
+    <Link
+      href={`/conseiller/beneficiaires/${b.cjsUid}`}
+      className={`grid ${COLS} gap-space-3 items-center px-space-4 py-space-3 no-underline hover:bg-gj-bg transition-colors`}
+      style={{ borderBottom: '1px solid var(--gj-line)' }}
+    >
       <div className="flex items-center gap-space-3 min-w-0">
         <span className="inline-flex items-center justify-center shrink-0" style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)', fontWeight: 900, fontSize: 12 }}>
           {b.initials}
@@ -55,7 +44,8 @@ function BenefRow({ b }: { b: BenefListItem }) {
           {b.statutLabel}
         </span>
       </span>
-    </div>
+      <Icon name="chevron-right" size={16} style={{ color: 'var(--gj-grey-2, var(--gj-grey))', justifySelf: 'end' }} />
+    </Link>
   )
 }
 
@@ -100,7 +90,7 @@ export default async function ConseillerBeneficiairesPage({
       ) : (
         <div className="bg-white" style={{ border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
           <div className={`grid ${COLS} gap-space-3 px-space-4 py-space-3`} style={{ borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-            <span>Bénéficiaire</span><span>Commune</span><span>Dernière visite</span><span>Profil</span><span>Statut</span>
+            <span>Bénéficiaire</span><span>Commune</span><span>Dernière visite</span><span>Profil</span><span>Statut</span><span></span>
           </div>
           {items.map((b) => <BenefRow key={b.cjsUid} b={b} />)}
         </div>
