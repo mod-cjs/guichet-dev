@@ -255,6 +255,9 @@ model Utilisateur {
   role               String?      @db.VarChar(40)
   commune            String?      @db.VarChar(100)
   onboardingComplete Boolean      @default(false) @map("onboarding_complete")
+  // GUIC-513 — préférences de notification recruteur (Paramètres). Défaut : activées.
+  notifCandidatures  Boolean      @default(true) @map("notif_candidatures")
+  notifMessages      Boolean      @default(true) @map("notif_messages")
   drupalUid          Int?         @unique @map("drupal_uid")
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
@@ -486,6 +489,11 @@ model Candidature {
   consentAt            DateTime?         @map("consent_at")
   cguVersion           String?           @map("cgu_version") @db.VarChar(20)
   consentIp            String?           @map("consent_ip") @db.VarChar(45)
+  // GUIC-487 (US-5) — score d'adéquation candidat/offre (IA Groq), 0–100. Nullable :
+  // calculé en tâche de fond après soumission ; `null` tant que non calculé.
+  scoreAdequation      Int?              @map("score_adequation")
+  scoreRaison          String?           @map("score_raison") @db.Text
+  scoreCalculeLe       DateTime?         @map("score_calcule_le")
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 

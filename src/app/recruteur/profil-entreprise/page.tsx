@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
+import { ProfilEntrepriseForm } from './ProfilEntrepriseForm'
 
 export const metadata: Metadata = { title: 'Profil entreprise — Espace Recruteur' }
+export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   const session = await getSession()
@@ -21,7 +23,7 @@ export default async function Page() {
 
   if (!org) {
     return (
-      <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto' }}>
         <h1 className="text-[24px] font-black mb-6" style={{ color: 'var(--gj-ink)' }}>Profil entreprise</h1>
         <div className="rounded-[14px] p-[32px] text-center" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
           <p className="text-[14px] font-bold">Aucune organisation associée à votre compte.</p>
@@ -30,17 +32,9 @@ export default async function Page() {
     )
   }
 
-  const infos = [
-    ['Secteur', org.secteur?.replace(/_/g, ' ')],
-    ['Région', org.region?.replace(/_/g, ' ')],
-    ['Adresse', org.adresse],
-    ['Téléphone', org.telephone],
-    ['Email', org.email],
-    ['Site web', org.siteWeb],
-  ].filter(([, v]) => Boolean(v)) as [string, string][]
-
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      {/* En-tête (nom + vérification : gérés par l'admin, lecture seule) */}
       <div className="flex items-center gap-3 flex-wrap mb-6">
         {org.logoUrl ? (
           <img src={org.logoUrl} alt={`Logo ${org.nom}`} width={56} height={56} style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', border: '1.5px solid var(--gj-line)', background: '#fff' }} />
@@ -53,31 +47,18 @@ export default async function Page() {
             {org.estVerifie ? <><Icon name="check-circle" size={11} /> Partenaire vérifié</> : 'Non vérifié'}
           </span>
         </div>
+        <span className="text-[12px] ml-auto" style={{ color: 'var(--gj-grey)' }}>{org._count.opportunites} offre{org._count.opportunites > 1 ? 's' : ''}</span>
       </div>
 
-      {org.description && (
-        <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-          <h2 className="text-[14px] font-black mb-[8px]" style={{ color: 'var(--gj-ink)' }}>Présentation</h2>
-          <p className="text-[13.5px] whitespace-pre-line" style={{ color: 'var(--gj-ink)' }}>{org.description}</p>
-        </div>
-      )}
+      <ProfilEntrepriseForm
+        initial={{
+          description: org.description, secteur: org.secteur, region: org.region,
+          adresse: org.adresse, telephone: org.telephone, email: org.email,
+          siteWeb: org.siteWeb, logoUrl: org.logoUrl,
+        }}
+      />
 
-      <div className="rounded-[14px] p-[18px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-        <h2 className="text-[14px] font-black mb-[10px]" style={{ color: 'var(--gj-ink)' }}>Coordonnées · {org._count.opportunites} offre{org._count.opportunites > 1 ? 's' : ''}</h2>
-        {infos.length === 0 ? (
-          <p className="text-[13px]" style={{ color: 'var(--gj-grey)' }}>Aucune coordonnée renseignée.</p>
-        ) : (
-          <dl className="grid gap-[8px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-            {infos.map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--gj-grey)' }}>{k}</dt>
-                <dd className="text-[13.5px]" style={{ color: 'var(--gj-ink)' }}>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        <p className="text-[11px] mt-[12px]" style={{ color: 'var(--gj-grey)' }}>Les informations de l’entreprise sont gérées par l’administration CJS.</p>
-      </div>
+      <p className="text-[11px] mt-4" style={{ color: 'var(--gj-grey)' }}>Le <strong>nom</strong> et le statut de <strong>vérification</strong> sont gérés par l’administration CJS.</p>
     </div>
   )
 }

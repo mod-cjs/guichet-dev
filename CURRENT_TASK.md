@@ -1,13 +1,15 @@
-# CURRENT_TASK — GUIC-514 Entretiens recruteur
+# CURRENT_TASK — GUIC-487 Score d'adéquation candidat/offre (US-5)
 
-**Branche** : `feature/GUIC-entretiens-recruteur` (sur #492)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-514-entretiens.md`
+**Branche** : `feature/GUIC-487-score-adequation` (sur #492, dev rouge)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-487-score-adequation.md`
+
+## Décision
+Score **IA (Groq)** — réutilise `getGroq()`. Fail-soft, stocké sur Candidature. 0 extraction CV PDF.
 
 ## Avancement
-- [x] Migration `add_entretiens` (modèle + enums Mode/Statut) appliquée
-- [x] AuditAction `entretien.plan` / `entretien.annule`
-- [x] Actions planifier/annuler (garde + ownership + notif candidat) — TDD 8/8
-- [x] Loader `getRecruteurEntretiens`
-- [x] Page Entretiens (remplace ComingSoon) : PlanifierForm + listes À venir/Passés + AnnulerButton
-- [x] tsc 0 · eslint clean
-- [ ] PR → Jira Revue
+- [x] Migration `add_score_adequation` (3 champs Candidature) appliquée
+- [x] Service `adequation.ts` : buildMessages + parseScore (purs) + computeScoreAdequation
+- [x] TDD 7/7 (`adequation-score.test.ts`)
+- [ ] Trigger dans `POST /api/candidatures` (after)
+- [ ] Loaders : exposer score ; UI badge % (liste + détail + dashboard)
+- [ ] validate → PR → Jira Revue

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
-import { getRecruteurContext, getRecruteurCandidatures } from '@/lib/loaders/recruteur'
+import { getRecruteurContext, getRecruteurCandidatures, scoreColors } from '@/lib/loaders/recruteur'
 import { Icon } from '@/components/ui/Icon'
 import type { StatutCandidature } from '@prisma/client'
 
@@ -98,6 +98,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         <div className="flex flex-col gap-[10px]">
           {candidatures.map((c) => {
             const col = candColors(c.statut)
+            const sc = scoreColors(c.score)
             return (
               <Link key={c.id} href={`/recruteur/candidatures/${c.id}`} className="rounded-[14px] p-[14px] flex items-center gap-3 flex-wrap no-underline" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
                 <span aria-hidden style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-blue, #1A4ED8), var(--gj-blue-ink, #1A3FA8))', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13 }}>{initials(c.prenom, c.nom)}</span>
@@ -105,6 +106,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                   <div className="text-[14px] font-black" style={{ color: 'var(--gj-ink)' }}>{c.prenom} {c.nom}</div>
                   <div className="text-[12px]" style={{ color: 'var(--gj-grey)' }}>{c.offreTitre}</div>
                 </div>
+                <span title="Score d'adéquation (IA)" className="inline-flex items-center gap-[3px] rounded-full text-[10.5px] font-black px-[8px] py-[2px]" style={{ background: sc.bg, color: sc.fg }}>
+                  {c.score != null && <Icon name="target" size={11} />}{sc.label}
+                </span>
                 <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: col.bg, color: col.fg }}>{CAND_LABEL[c.statut] ?? c.statut}</span>
                 <Icon name="chevron-right" size={16} />
               </Link>
