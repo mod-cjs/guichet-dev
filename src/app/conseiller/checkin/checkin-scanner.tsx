@@ -8,6 +8,10 @@ import { Icon } from '@/components/ui/Icon'
  * GUIC-498 — Scanner de présence in-app. Utilise l'API native BarcodeDetector
  * + la caméra arrière ; repli en saisie manuelle (URL/jeton) si non supportée.
  * Le QR de la carte CJS encode `/checkin/v1/<jeton>` → on ouvre la confirmation.
+ *
+ * Gestion de l'autorisation caméra : contexte sécurisé requis (HTTPS/localhost),
+ * pré-vérification via l'API Permissions, messages explicites par type d'erreur
+ * (refus, aucune caméra, caméra occupée), et repli sans contrainte `facingMode`.
  */
 
 interface DetectedBarcode { rawValue: string }
@@ -22,6 +26,36 @@ function extractToken(raw: string): string | null {
   return token || null
 }
 
+/** Message + drapeau « refus de permission » selon le type d'erreur getUserMedia. */
+function describeCameraError(err: unknown): { msg: string; denied: boolean } {
+  const name = err instanceof DOMException ? err.name : ''
+  switch (name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return { denied: true, msg: 'Accès à la caméra refusé. Autorisez la caméra pour ce site dans les réglages du navigateur, puis réessayez.' }
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return { denied: false, msg: 'Aucune caméra détectée sur cet appareil. Utilisez la saisie manuelle.' }
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return { denied: false, msg: 'La caméra est déjà utilisée par une autre application. Fermez-la puis réessayez.' }
+    default:
+      return { denied: false, msg: 'Impossible d’ouvrir la caméra. Réessayez ou utilisez la saisie manuelle.' }
+  }
+}
+
+/** Ouvre la caméra arrière si possible, sinon n'importe quelle caméra. */
+async function openCamera(): Promise<MediaStream> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+      return navigator.mediaDevices.getUserMedia({ video: true })
+    }
+    throw e
+  }
+}
+
 export function CheckinScanner() {
   const router = useRouter()
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -29,6 +63,7 @@ export function CheckinScanner() {
   const rafRef = useRef<number | null>(null)
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [denied, setDenied] = useState(false)
   const [manual, setManual] = useState('')
 
   const stop = useCallback(() => {
@@ -41,6 +76,18 @@ export function CheckinScanner() {
 
   useEffect(() => () => stop(), [stop])
 
+  // Pré-vérification de la permission caméra (best-effort) — informe l'utilisateur
+  // en amont si l'accès a déjà été refusé.
+  useEffect(() => {
+    const perms = (navigator as unknown as { permissions?: { query?: (d: { name: string }) => Promise<{ state: string }> } }).permissions
+    if (!perms?.query) return
+    let cancelled = false
+    perms.query({ name: 'camera' })
+      .then((status) => { if (!cancelled && status.state === 'denied') setDenied(true) })
+      .catch(() => { /* certains navigateurs ne connaissent pas 'camera' */ })
+    return () => { cancelled = true }
+  }, [])
+
   const goToken = useCallback((token: string) => {
     stop()
     router.push(`/checkin/v1/${token}`)
@@ -48,13 +95,35 @@ export function CheckinScanner() {
 
   const start = useCallback(async () => {
     setError(null)
-    const Ctor = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector
-    if (!Ctor) {
-      setError("Le scan caméra n'est pas supporté par ce navigateur. Utilisez la saisie manuelle ci-dessous.")
+    setDenied(false)
+
+    // Contexte sécurisé obligatoire pour getUserMedia (HTTPS ou localhost).
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setError('La caméra nécessite une connexion sécurisée (HTTPS). Utilisez la saisie manuelle ci-dessous.')
       return
     }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Ce navigateur ne permet pas l’accès à la caméra ici. Utilisez la saisie manuelle.')
+      return
+    }
+    const Ctor = (window as unknown as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector
+    if (!Ctor) {
+      setError('Le scan n’est pas supporté par ce navigateur. Utilisez l’appareil photo natif sur le QR, ou la saisie manuelle.')
+      return
+    }
+
+    let stream: MediaStream
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      stream = await openCamera()
+    } catch (err) {
+      const { msg, denied: isDenied } = describeCameraError(err)
+      setError(msg)
+      setDenied(isDenied)
+      stop()
+      return
+    }
+
+    try {
       streamRef.current = stream
       setActive(true)
       const video = videoRef.current
@@ -75,7 +144,7 @@ export function CheckinScanner() {
       }
       rafRef.current = requestAnimationFrame(tick)
     } catch {
-      setError("Accès caméra refusé ou indisponible. Autorisez la caméra ou utilisez la saisie manuelle.")
+      setError('Impossible de démarrer l’aperçu caméra. Réessayez.')
       stop()
     }
   }, [goToken, stop])
@@ -105,19 +174,30 @@ export function CheckinScanner() {
         </div>
       </div>
 
-      <div className="flex gap-space-2 flex-wrap">
+      {/* Message d'erreur / d'autorisation */}
+      {error && (
+        <div className="flex items-start gap-space-2 rounded-gj-md" style={{ background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)', padding: '10px 12px', fontSize: 12.5, fontWeight: 600 }}>
+          <Icon name="alert" size={15} className="shrink-0" style={{ marginTop: 1 }} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="flex gap-space-2 flex-wrap items-center">
         {!active ? (
           <button type="button" onClick={start} className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: 'var(--gj-teal-deep)', color: '#fff', border: 0, padding: '11px 18px', borderRadius: 10, fontSize: 14 }}>
-            <Icon name="camera" size={16} /> Ouvrir la caméra
+            <Icon name="camera" size={16} /> {error || denied ? 'Réessayer' : 'Ouvrir la caméra'}
           </button>
         ) : (
           <button type="button" onClick={stop} className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: '#fff', color: 'var(--gj-red)', border: '1.5px solid var(--gj-line)', padding: '11px 18px', borderRadius: 10, fontSize: 14 }}>
             <Icon name="close" size={16} /> Arrêter
           </button>
         )}
+        {denied && (
+          <span className="text-fs-100 text-color-text-secondary">
+            Astuce : touchez l’icône caméra/cadenas dans la barre d’adresse pour réautoriser.
+          </span>
+        )}
       </div>
-
-      {error && <div className="text-fs-200" style={{ color: 'var(--gj-red)' }}>{error}</div>}
 
       {/* Repli : saisie manuelle du lien/jeton */}
       <details>
