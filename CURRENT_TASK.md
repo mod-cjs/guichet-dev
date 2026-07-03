@@ -1,20 +1,13 @@
-# CURRENT_TASK — GUIC-492 Responsive mobile recruteur (US-10)
+# CURRENT_TASK — GUIC-514 Entretiens recruteur
 
-**Branche** : `feature/GUIC-492-responsive-mobile-recruteur` (depuis dev)
-**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/layout-navigation.md` (mis à jour)
+**Branche** : `feature/GUIC-entretiens-recruteur` (sur #492)
+**Épic** : GUIC-9 · **Spec** : `.agent_context/specs/GUIC-514-entretiens.md`
 
-## Décision (arbitrée)
-Bottom-nav recruteur mobile (design v4 + AC), **contre** l'ancienne règle « pas de bottom-nav
-recruteur » → `CLAUDE.md` + `layout-navigation.md` mis à jour.
-
-## ⚠️ Répare aussi un dev cassé
-Le merge #222 (cloche) × #223 (recherche) a collisionné : layout recruteur utilisait `<Icon>`
-sans import (tsc rouge) + `RecruteurSearch` importé non branché. Ce lot corrige.
-
-## Livrables
-- [x] `RecruteurBottomNav` (5 items : Accueil/Offres/Candidats/Messages/Plus + sheet secondaire)
-- [x] Layout : bottom-nav mobile + cloche mobile + `RecruteurSearch` branché + padding bas + Icon importé
-- [x] `RecruteurSidebar` desktop-only (hamburger masqué)
-- [x] Docs nav (CLAUDE.md + layout-navigation.md)
+## Avancement
+- [x] Migration `add_entretiens` (modèle + enums Mode/Statut) appliquée
+- [x] AuditAction `entretien.plan` / `entretien.annule`
+- [x] Actions planifier/annuler (garde + ownership + notif candidat) — TDD 8/8
+- [x] Loader `getRecruteurEntretiens`
+- [x] Page Entretiens (remplace ComingSoon) : PlanifierForm + listes À venir/Passés + AnnulerButton
 - [x] tsc 0 · eslint clean
 - [ ] PR → Jira Revue
