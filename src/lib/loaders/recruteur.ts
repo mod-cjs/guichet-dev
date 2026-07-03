@@ -179,3 +179,35 @@ export async function getRecruteurCandidatureDetail(
     offre: { id: row.opportunite.id, titre: row.opportunite.titre },
   }
 }
+
+export interface RecruteurEntretienItem {
+  id: string
+  dateHeure: string
+  mode: string
+  lieu: string | null
+  statut: string
+  candidatNom: string
+  offreTitre: string
+}
+
+/** Entretiens planifiés par le recruteur (page Entretiens), triés par date. */
+export async function getRecruteurEntretiens(cjsUid: string): Promise<RecruteurEntretienItem[]> {
+  const rows = await prisma.entretien.findMany({
+    where: { recruteurUid: cjsUid },
+    orderBy: { dateHeure: 'asc' },
+    take: 200,
+    select: {
+      id: true, dateHeure: true, mode: true, lieu: true, statut: true,
+      candidature: { select: { utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } } },
+    },
+  })
+  return rows.map((e) => ({
+    id: e.id,
+    dateHeure: e.dateHeure.toISOString(),
+    mode: e.mode,
+    lieu: e.lieu,
+    statut: e.statut,
+    candidatNom: `${e.candidature.utilisateur.prenom} ${e.candidature.utilisateur.nom}`.trim(),
+    offreTitre: e.candidature.opportunite.titre,
+  }))
+}
