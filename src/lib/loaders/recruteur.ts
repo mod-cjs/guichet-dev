@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma, StatutCandidature } from '@prisma/client'
 import { matchCompetences, type CompetencesMatchResult } from '@/lib/recruteur/competences-match'
+import { buildFunnel, type FunnelData } from '@/lib/recruteur/funnel'
+import { countUnreadMessages } from '@/lib/loaders/messagerie'
 
 /**
  * GUIC-512 — Loaders de l'Espace Recruteur/Partenaire.
@@ -60,6 +62,8 @@ export interface RecruteurCandidatItem {
   statut: string
   offreTitre: string
   score: number | null
+  /** Date de soumission (ISO) — sert à afficher l'ancienneté « il y a X j ». */
+  soumiseA?: string
 }
 
 export interface RecruteurDashboard {
@@ -92,7 +96,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
     }),
     prisma.candidature.findMany({
       where: { ...candWhere, pipelineStage: 'Recue' },
-      select: { id: true, statut: true, scoreAdequation: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
+      select: { id: true, statut: true, scoreAdequation: true, soumiseA: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
       orderBy: { soumiseA: 'desc' },
       take: 8,
     }),
@@ -105,7 +109,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
     aExaminer,
     vuesTotales: vues._sum.vues ?? 0,
     offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues })),
-    aExaminerListe: aExaminerListe.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre, score: c.scoreAdequation })),
+    aExaminerListe: aExaminerListe.map((c) => ({ id: c.id, prenom: c.utilisateur.prenom, nom: c.utilisateur.nom, statut: c.statut, offreTitre: c.opportunite.titre, score: c.scoreAdequation, soumiseA: c.soumiseA.toISOString() })),
   }
 }
 
@@ -388,4 +392,56 @@ export async function getRecruteurNavCounts(cjsUid: string, organisationId: stri
     where: { pipelineStage: 'Recue', opportunite: offreWhere(cjsUid, organisationId) },
   })
   return { aExaminer }
+}
+
+/**
+ * GUIC-520 — Funnel de recrutement du dashboard (Reçues → Présélection → Entretien
+ * → Retenues → Refusées). Étapes par `pipelineStage`, issues par `statut`.
+ */
+export async function getRecruteurFunnel(cjsUid: string, organisationId: string | null): Promise<FunnelData> {
+  const base = offreWhere(cjsUid, organisationId)
+  const compter = (extra: Prisma.CandidatureWhereInput) =>
+    prisma.candidature.count({ where: { opportunite: base, ...extra } })
+  const [recue, preselection, entretien, retenue, refusee] = await Promise.all([
+    compter({ pipelineStage: 'Recue' }),
+    compter({ pipelineStage: 'Preselection' }),
+    compter({ pipelineStage: 'Entretien' }),
+    compter({ statut: 'Retenue' }),
+    compter({ statut: 'Refusee' }),
+  ])
+  return buildFunnel({ recue, preselection, entretien, retenue, refusee })
+}
+
+export interface RecruteurUrgences {
+  /** Candidats en attente d'examen (étape Reçue) depuis plus de 7 jours. */
+  candidatsEnRetard: number
+  /** Messages non lus reçus par le recruteur. */
+  messagesNonLus: number
+  /** Entretiens planifiés aujourd'hui. */
+  entretiensAujourdhui: number
+  /** Offres publiées dont la clôture est dans les 7 prochains jours. */
+  offresExpirantBientot: number
+}
+
+/**
+ * GUIC-520 — Urgences à traiter du jour (bande haute du dashboard). Tout est
+ * calculé en base : candidats qui attendent, messages, entretiens du jour,
+ * offres bientôt clôturées.
+ */
+export async function getRecruteurUrgences(cjsUid: string, organisationId: string | null): Promise<RecruteurUrgences> {
+  const base = offreWhere(cjsUid, organisationId)
+  const now = new Date()
+  const il7j = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const debutJour = new Date(now)
+  debutJour.setHours(0, 0, 0, 0)
+  const finJour = new Date(debutJour.getTime() + 24 * 60 * 60 * 1000)
+  const dans7j = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+  const [candidatsEnRetard, messagesNonLus, entretiensAujourdhui, offresExpirantBientot] = await Promise.all([
+    prisma.candidature.count({ where: { opportunite: base, pipelineStage: 'Recue', soumiseA: { lt: il7j } } }),
+    countUnreadMessages(cjsUid),
+    prisma.entretien.count({ where: { recruteurUid: cjsUid, statut: 'Planifie', dateHeure: { gte: debutJour, lt: finJour } } }),
+    prisma.opportunite.count({ where: { ...base, statut: 'publiee', deadline: { gte: now, lte: dans7j } } }),
+  ])
+  return { candidatsEnRetard, messagesNonLus, entretiensAujourdhui, offresExpirantBientot }
 }
