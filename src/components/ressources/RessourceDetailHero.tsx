@@ -1,4 +1,4 @@
-import { Badge, Icon, type IconName } from '@/components/ui'
+import { Badge, Icon, RichContent, type IconName } from '@/components/ui'
 import type { RessourceDetail, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface RessourceDetailHeroProps {
@@ -57,9 +57,7 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
         </div>
       </div>
 
-      <div className="text-fs-300 text-color-text-primary whitespace-pre-line">
-        {detail.description}
-      </div>
+      <RichContent html={detail.description} className="text-fs-300" />
 
       <div className="text-fs-200 text-color-text-muted">
         {detail.vues} vue{detail.vues > 1 ? 's' : ''}

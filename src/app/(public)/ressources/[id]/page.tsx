@@ -10,6 +10,7 @@ import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
 import { Breadcrumbs } from '@/components/ui'
 import { RessourceDetailClient } from './ressource-detail-client'
+import { htmlToPlainText } from '@/lib/rich-html'
 
 /**
  * GUIC-363 — Page détail ressource publique.
@@ -33,7 +34,7 @@ export async function generateMetadata({
   if (!detail) return { title: 'Ressource introuvable' }
   return {
     title: detail.titre,
-    description: detail.description.slice(0, 160),
+    description: htmlToPlainText(detail.description).slice(0, 160),
   }
 }
 

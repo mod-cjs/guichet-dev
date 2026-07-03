@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Card, Icon, Badge, Breadcrumbs } from '@/components/ui'
+import { Card, Icon, Badge, Breadcrumbs, RichContent } from '@/components/ui'
+import { htmlToPlainText } from '@/lib/rich-html'
 import { EvenementDetailHero } from '@/components/evenements/EvenementDetailHero'
 import { EvenementInscriptionCta } from '@/components/evenements/EvenementInscriptionCta'
 import { getEvenementById } from '@/lib/loaders/evenements'
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!ev) return { title: 'Événement introuvable' }
   return {
     title: `${ev.titre} — Agenda CJS`,
-    description: ev.description.slice(0, 160),
+    description: htmlToPlainText(ev.description).slice(0, 160),
   }
 }
 
@@ -90,9 +91,7 @@ export default async function EvenementDetailPage({ params }: PageProps) {
             <h2 id="evt-desc-title" className="text-fs-500 font-black text-color-text-primary mb-space-2">
               À propos
             </h2>
-            <p className="text-fs-300 text-color-text-primary leading-relaxed whitespace-pre-line">
-              {evenement.description}
-            </p>
+            <RichContent html={evenement.description} className="text-fs-300 leading-relaxed" />
           </section>
 
           <Card variant="opportunite" className="flex flex-col gap-space-3">

@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { CJSSession } from '@/types/user'
 
 /** Garde de rôle — fail-closed. Retourne la session (acteur d'audit). */
@@ -43,7 +44,8 @@ function revalidate() {
 function toData(d: z.output<typeof evenementSchema>) {
   return {
     titre: d.titre,
-    description: d.description,
+    // GUIC-506 — corps riche : sanitisation serveur (liste blanche, anti-XSS).
+    description: sanitizeRichHtml(d.description),
     type: d.type,
     statut: d.statut,
     dateDebut: d.dateDebut,

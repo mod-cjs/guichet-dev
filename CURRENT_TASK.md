@@ -18,6 +18,13 @@
 - [x] Barrel `ui` mis à jour · lint 0 erreur · tsc 0 erreur · 16/16 tests nouveaux verts
 - Note : échecs de tests restants = intégration (DATABASE_URL absente) + 3 unit métier, tous **préexistants sur dev**, hors périmètre.
 
-## Suivant
-- Phase B : pilote opportunité admin (description + mission/profil/conditions), puis 3 entités cœur.
-- Phase C : extensions + clôture GUIC-422.
+## Phase B — Pilote + propagation ✅ TERMINÉE
+- [x] Pilote opportunité admin (description + mission/profil/conditions repliables) — sanitisation + rendu + SEO.
+- [x] Offre recruteur : RichTextEditor (hidden input) + sanitisation action (contenu tiers).
+- [x] Événement : Input mono-ligne → éditeur riche + sanitisation + rendu agenda + SEO.
+- [x] Ressource : Input mono-ligne → éditeur riche + sanitisation + rendu hero + SEO.
+- Rendu : tous les `whitespace-pre-line` de ces entités → `RichContent` (fallback texte plat).
+
+## Suivant — Phase C (extensions)
+- Partenaire, profil entreprise recruteur, ressource centre.
+- Clôturer GUIC-422 (couvert comme cas d'usage).
