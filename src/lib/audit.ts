@@ -46,6 +46,9 @@ export type AuditAction =
   // GUIC-132/133 — messagerie interne recruteur ↔ candidat.
   | 'message.conversation'
   | 'message.send'
+  // GUIC-514 — entretiens recruteur.
+  | 'entretien.plan'
+  | 'entretien.annule'
 
 interface AuditEntry {
   actorCjsUid: string

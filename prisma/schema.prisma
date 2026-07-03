@@ -500,11 +500,50 @@ model Candidature {
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
   opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
   conversation Conversation?
+  entretiens   Entretien[]
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
   @@index([opportuniteId])
   @@map("candidatures")
+}
+
+enum ModeEntretien {
+  Presentiel
+  Visio
+  Telephone
+
+  @@map("mode_entretien")
+}
+
+enum StatutEntretien {
+  Planifie
+  Annule
+  Termine
+
+  @@map("statut_entretien")
+}
+
+/// GUIC-514 — Entretien planifié par le recruteur pour une candidature.
+model Entretien {
+  id            String          @id @default(uuid()) @db.VarChar(36)
+  candidatureId String          @map("candidature_id") @db.VarChar(36)
+  recruteurUid  String          @map("recruteur_uid") @db.VarChar(36)
+  candidatUid   String          @map("candidat_uid") @db.VarChar(36)
+  dateHeure     DateTime        @map("date_heure")
+  mode          ModeEntretien   @default(Visio)
+  lieu          String?         @db.VarChar(500) // adresse (présentiel) ou lien (visio)
+  notes         String?         @db.Text
+  statut        StatutEntretien @default(Planifie)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  candidature Candidature @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+
+  @@index([recruteurUid, dateHeure])
+  @@index([candidatUid, dateHeure])
+  @@index([candidatureId])
+  @@map("entretiens")
 }
 
 /// GUIC-132/133 — Messagerie interne recruteur ↔ candidat, ancrée à une candidature.
