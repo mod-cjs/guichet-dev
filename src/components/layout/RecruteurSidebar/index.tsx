@@ -109,8 +109,11 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
         className={`fixed md:static inset-y-0 left-0 z-[260] md:z-auto min-h-screen flex flex-col transition-all duration-200 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ width, background: '#fff', borderRight: '1px solid var(--gj-line)', padding: '14px 12px', overflowY: 'auto' }}
       >
-        {/* Marque */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '4px 6px 13px', borderBottom: '1px solid var(--gj-line)', marginBottom: 10 }}>
+        {/* Marque : logo CJS au-dessus du badge « Espace recruteur » */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: collapsed ? 'center' : 'flex-start', gap: 8, padding: '4px 6px 13px', borderBottom: '1px solid var(--gj-line)', marginBottom: 10 }}>
+          <Link href="/recruteur/tableau-de-bord" onClick={close} className="no-underline inline-flex" aria-label="Guichet Jeunesse — accueil recruteur">
+            <img src="/logo-guichet.png" alt="Guichet Jeunesse.sn" style={{ height: collapsed ? 22 : 30, width: 'auto' }} />
+          </Link>
           <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--gj-blue-ink, #1A3FA8)', letterSpacing: '.5px', textTransform: 'uppercase', lineHeight: 1.2 }}>
             {collapsed ? 'ER' : 'Espace recruteur'}
           </span>
