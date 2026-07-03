@@ -19,7 +19,7 @@ import type { ApiResponse } from '@/types/api'
 export async function deciderReservation(
   reservationId: string,
   decision: 'accept' | 'refuse',
-  motif?: string,
+  note?: string,
 ): Promise<ApiResponse<{ id: string; statut: string }>> {
   const session = await getSession()
   if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
@@ -42,6 +42,10 @@ export async function deciderReservation(
   }
 
   const statut = decision === 'accept' ? 'Acceptee' : 'Refusee'
+  const trimmed = note?.trim() || null
+
+  const contenuAccept = `Votre demande de réservation « ${resa.ressource.nom} » a été acceptée.${trimmed ? ` ${trimmed}` : ''}`
+  const contenuRefus = `Votre demande de réservation « ${resa.ressource.nom} » a été refusée${trimmed ? ` : ${trimmed}` : '.'}`
 
   await prisma.$transaction([
     prisma.reservation.update({
@@ -49,7 +53,8 @@ export async function deciderReservation(
       data: {
         statut,
         decisionA: new Date(),
-        raisonRefusOuAnnul: decision === 'refuse' ? (motif?.trim() || null) : null,
+        // Le motif de refus est tracé ; un message d'acceptation n'altère pas la réservation.
+        raisonRefusOuAnnul: decision === 'refuse' ? trimmed : null,
       },
     }),
     prisma.notification.create({
@@ -57,10 +62,7 @@ export async function deciderReservation(
         cjsUid: resa.cjsUid,
         type: 'System',
         titre: decision === 'accept' ? 'Réservation acceptée' : 'Réservation refusée',
-        contenu:
-          decision === 'accept'
-            ? `Votre demande de réservation « ${resa.ressource.nom} » a été acceptée.`
-            : `Votre demande de réservation « ${resa.ressource.nom} » a été refusée${motif?.trim() ? ` : ${motif.trim()}` : '.'}`,
+        contenu: decision === 'accept' ? contenuAccept : contenuRefus,
         iconName: decision === 'accept' ? 'check-circle' : 'block',
         lien: '/jeune/mes-reservations-centres',
       },

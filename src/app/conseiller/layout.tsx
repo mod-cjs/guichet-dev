@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext, countReservationsAValider } from '@/lib/loaders/conseiller'
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
+import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { ConseillerSidebar } from '@/components/layout/ConseillerSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
@@ -25,9 +26,10 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
   const ctx = await getConseillerContext(session.cjsUid)
   if (!ctx) redirect('/')
 
-  const [reservationsBadge, messagesBadge] = await Promise.all([
+  const [reservationsBadge, messagesBadge, notifsBadge] = await Promise.all([
     countReservationsAValider(ctx.centreId),
     countUnreadMessages(ctx.cjsUid),
+    countUnreadNotifications(ctx.cjsUid),
   ])
 
   const fullName = `${ctx.prenom} ${ctx.nom}`.trim() || 'Conseiller'
@@ -43,8 +45,13 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         style={{ zIndex: 199, paddingTop: 'var(--safe-top, 0px)', minHeight: 'var(--gj-topbar-h, 56px)', background: 'var(--gj-ink-teal)', color: '#fff' }}
       >
         <span className="font-bold text-fs-300 flex-1 truncate">Espace conseiller</span>
-        <Link href="/conseiller/notifications" aria-label="Notifications" className="inline-flex items-center justify-center no-underline text-white" style={{ width: 40, height: 40 }}>
+        <Link href="/conseiller/notifications" aria-label={`Notifications${notifsBadge > 0 ? ` (${notifsBadge} non lues)` : ''}`} className="relative inline-flex items-center justify-center no-underline text-white" style={{ width: 40, height: 40 }}>
           <Icon name="bell" size={20} />
+          {notifsBadge > 0 && (
+            <span aria-hidden style={{ position: 'absolute', top: 2, right: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: 'var(--gj-red)', color: '#fff', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              {notifsBadge > 9 ? '9+' : notifsBadge}
+            </span>
+          )}
         </Link>
       </div>
 
@@ -74,8 +81,13 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
                 style={{ border: 0, color: 'var(--gj-ink)' }}
               />
             </div>
-            <Link href="/conseiller/notifications" aria-label="Notifications" className="relative inline-flex items-center justify-center no-underline" style={{ width: 42, height: 42, borderRadius: 10, border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
+            <Link href="/conseiller/notifications" aria-label={`Notifications${notifsBadge > 0 ? ` (${notifsBadge} non lues)` : ''}`} className="relative inline-flex items-center justify-center no-underline" style={{ width: 42, height: 42, borderRadius: 10, border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
               <Icon name="bell" size={18} />
+              {notifsBadge > 0 && (
+                <span aria-hidden style={{ position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: 'var(--gj-red)', color: '#fff', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {notifsBadge > 9 ? '9+' : notifsBadge}
+                </span>
+              )}
             </Link>
             <Link href="/conseiller/publications" className="inline-flex items-center gap-2 no-underline" style={{ background: 'var(--gj-teal-deep)', color: '#fff', padding: '0 16px', minHeight: 42, borderRadius: 10, fontWeight: 800, fontSize: 13 }}>
               <Icon name="plus" size={15} /> Publier

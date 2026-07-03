@@ -29,8 +29,16 @@
 - **US-4 (cœur)** : action serveur `deciderReservation` (accepter/refuser → statut + `decisionA` + Notification app ; contrôle périmètre centre). SMS = TODO (canal transactionnel à venir).
 - Badges sidebar branchés (réservations à valider + messages non lus).
 
+## Phase 3 — Réservations (écran complet) + Notifications ✅
+
+- **`/conseiller/reservations`** (US-3/US-4) : onglets Toutes/À valider/Acceptées/Refusées (server-driven `?tab=`), lignes détaillées fidèles `ResaActionRow` (ressource, statut, demandeur, méta date/créneau/pers./justif, motif), validation accepter (message facultatif) / refuser (motif) en modale → `deciderReservation`.
+- Loaders : `getReservationsCounts`, `getReservationsListe`, helper pur `mapStatutView` (testé). `ageRelatifLabel` réutilisé.
+- **`/conseiller/notifications`** (US-8) : réutilise `loadNotifications` + `NotificationsClient` ; badge cloche (desktop + mobile) via `countUnreadNotifications`.
+
 ## Reste à faire (phases suivantes)
 
-- **Phase 3** : écran complet Réservations (`/conseiller/reservations`, onglets + « proposer un créneau »/motif), US-7 (recherche bénéf.), US-8 (notifications), SMS US-4.
+- **US-7 recherche bénéficiaire** : l'input topbar est visuel — à câbler sur l'écran Bénéficiaires (`/conseiller/beneficiaires`, à créer).
+- **US-4 SMS** : notif app faite, SMS en attente d'un canal transactionnel.
+- « Proposer un créneau » (slots) : nécessite la dispo des ressources — non implémenté (accepter/refuser couvrent la décision).
 - **Phase 4** : US-6 (check-in QR réutilisé), US-10 (responsive + bottom-nav).
 - Écrans secondaires : agenda complet, bénéficiaires, messagerie, publications, paramètres.

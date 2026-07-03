@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import type { IconName } from '@/components/ui/Icon'
+import { ageRelatifLabel } from '@/lib/loaders/notifications'
 
 /**
  * GUIC-493 / GUIC-501 — Loaders de l'Espace conseiller (Lot 8).
@@ -93,6 +95,35 @@ export function mapRessourceKind(type: string): RessourceKindDescriptor {
 /** Fusionne les items dérivés (réservations + événements) et trie par heure croissante. */
 export function buildAgendaItems(reservations: AgendaItem[], events: AgendaItem[]): AgendaItem[] {
   return [...reservations, ...events].sort((a, b) => a.time.localeCompare(b.time))
+}
+
+export type StatutView = 'attente' | 'acceptee' | 'refusee' | 'annulee' | 'passee' | 'nonhonoree'
+
+export interface StatutViewDescriptor {
+  view: StatutView
+  label: string
+  tone: 'yellow' | 'green' | 'red' | 'grey'
+}
+
+/** Mappe `StatutReservation` (modèle) vers la vue design (pill statut). */
+export function mapStatutView(statut: string): StatutViewDescriptor {
+  switch (statut) {
+    case 'EnAttente':
+      return { view: 'attente', label: 'En attente', tone: 'yellow' }
+    case 'Acceptee':
+      return { view: 'acceptee', label: 'Acceptée', tone: 'green' }
+    case 'Refusee':
+      return { view: 'refusee', label: 'Refusée', tone: 'red' }
+    case 'AnnuleeParJeune':
+    case 'AnnuleeParCentre':
+      return { view: 'annulee', label: 'Annulée', tone: 'grey' }
+    case 'NonHonoree':
+      return { view: 'nonhonoree', label: 'Non honorée', tone: 'red' }
+    case 'Passee':
+      return { view: 'passee', label: 'Passée', tone: 'grey' }
+    default:
+      return { view: 'passee', label: statut, tone: 'grey' }
+  }
 }
 
 /** Initiales (2 lettres max) à partir du prénom/nom, en majuscules. */
@@ -305,4 +336,112 @@ export async function getConseillerKpis(centreId: string, date: Date = new Date(
     { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue' },
     { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green' },
   ]
+}
+
+// ── Écran complet Réservations (US-3/US-4) ────────────────────────────────
+
+export type ReservationTab = 'all' | 'attente' | 'acceptee' | 'refusee'
+
+export interface ReservationCounts {
+  all: number
+  attente: number
+  acceptee: number
+  refusee: number
+}
+
+export interface ReservationListItem {
+  id: string
+  kind: RessourceKind
+  kindLabel: string
+  kindIcon: IconName
+  ressourceNom: string
+  who: string
+  initials: string
+  dateLabel: string
+  slot: string
+  people: number
+  motif: string
+  justif: boolean
+  statutView: StatutView
+  statutLabel: string
+  statutTone: StatutViewDescriptor['tone']
+  asked: string
+  /** Motif de refus / note d'annulation, le cas échéant. */
+  note: string | null
+}
+
+/** Compteurs par onglet (Toutes / À valider / Acceptées / Refusées). */
+export async function getReservationsCounts(centreId: string): Promise<ReservationCounts> {
+  const [all, attente, acceptee, refusee] = await Promise.all([
+    prisma.reservation.count({ where: { centreId } }),
+    prisma.reservation.count({ where: { centreId, statut: 'EnAttente' } }),
+    prisma.reservation.count({ where: { centreId, statut: 'Acceptee' } }),
+    prisma.reservation.count({ where: { centreId, statut: 'Refusee' } }),
+  ])
+  return { all, attente, acceptee, refusee }
+}
+
+function tabStatutFilter(tab: ReservationTab): Prisma.ReservationWhereInput {
+  switch (tab) {
+    case 'attente':
+      return { statut: 'EnAttente' }
+    case 'acceptee':
+      return { statut: 'Acceptee' }
+    case 'refusee':
+      return { statut: 'Refusee' }
+    default:
+      return {}
+  }
+}
+
+/** Liste des réservations du centre pour l'écran complet, filtrée par onglet. */
+export async function getReservationsListe(
+  centreId: string,
+  tab: ReservationTab = 'attente',
+  limit = 50,
+): Promise<ReservationListItem[]> {
+  const rows = await prisma.reservation.findMany({
+    where: { centreId, ...tabStatutFilter(tab) },
+    select: {
+      id: true,
+      dateReservee: true,
+      creneauDebut: true,
+      creneauFin: true,
+      nombrePersonnes: true,
+      motif: true,
+      justifFileUrl: true,
+      statut: true,
+      raisonRefusOuAnnul: true,
+      createdAt: true,
+      utilisateur: { select: { prenom: true, nom: true } },
+      ressource: { select: { nom: true, type: true } },
+    },
+    // À valider d'abord (plus anciennes), sinon les plus récentes.
+    orderBy: tab === 'attente' ? { createdAt: 'asc' } : { createdAt: 'desc' },
+    take: limit,
+  })
+
+  return rows.map((r) => {
+    const k = mapRessourceKind(String(r.ressource.type))
+    const s = mapStatutView(String(r.statut))
+    return {
+      id: r.id,
+      kind: k.kind,
+      kindLabel: k.label,
+      kindIcon: k.icon,
+      ressourceNom: r.ressource.nom,
+      who: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
+      initials: buildInitials(r.utilisateur.prenom, r.utilisateur.nom),
+      dateLabel: fmtDateLabel(r.dateReservee),
+      slot: `${r.creneauDebut} – ${r.creneauFin}`,
+      people: r.nombrePersonnes,
+      motif: r.motif,
+      justif: Boolean(r.justifFileUrl),
+      statutView: s.view,
+      statutLabel: s.label,
+      statutTone: s.tone,
+      asked: ageRelatifLabel(r.createdAt),
+      note: r.raisonRefusOuAnnul ?? null,
+    }
+  })
 }
