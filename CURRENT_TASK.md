@@ -55,10 +55,19 @@
 
 Épic + US-1/2/3/4/5/7/8/9 passées à **En cours** (2026-07-03) + commentaire de suivi sur GUIC-470.
 
-## Reste à faire
+## Corrections des éléments non fonctionnels ✅ (2026-07-03)
 
-- **US-4 SMS** : notif app faite, SMS en attente d'un canal transactionnel.
-- « Proposer un créneau » (slots) : nécessite la dispo des ressources.
-- Fiche bénéficiaire détaillée (`AgentBenefDetail`).
-- Écrans secondaires : agenda complet, messagerie, publications, paramètres.
-- Wiring SSO conseiller sur la route de confirmation `/checkin/v1/[token]` (aujourd'hui cookie staff).
+1. **Fiche bénéficiaire** détaillée + lignes cliquables (`/conseiller/beneficiaires/[cjsUid]`).
+2. **Proposer un créneau** (réservations) — action + modale, refuse avec créneau alternatif notifié.
+3. **Voir le justificatif** — lien vers le fichier joint.
+4. **Filtrer** (statut) + **Exporter** CSV (annuaire bénéficiaires).
+5. **Centre d'aide** — page `/conseiller/aide` + lien sidebar.
+6. **Sélecteur multi-centre** — cookie + `setActiveCentre`, sidebar + paramètres.
+7. **Check-in SSO** — opérateur unifié staff **ou** conseiller sur `/checkin/v1/[token]`.
+8. **Agenda multi-vues** — Jour / Semaine / Mois.
+
+## Reste (hors périmètre — service externe requis)
+
+- **US-4 SMS / WhatsApp proactif** : notif in-app livrée ; le SMS nécessite un fournisseur externe (Orange) ou un template Meta approuvé — non intégré (cf. spec §6a). Point d'insertion : `notifyReservation()`.
+- **Publications** (GUIC-477) : ticket séparé.
+- Réglages avancés paramètres (préférences notifs, disponibilités).

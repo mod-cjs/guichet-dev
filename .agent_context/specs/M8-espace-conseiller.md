@@ -66,6 +66,12 @@ Section active mise en évidence (fond `--gj-teal`). Mobile : bottom-nav 5 items
 
 Toutes les requêtes **filtrent par `centreId`**. Payload/pagination selon règles API (`ApiResponse<T>`, 20/page).
 
+## 6a. Notification US-4 — canaux (décision 2026-07-03)
+
+- **Canal livré : notification in-app** (`Notification`) au bénéficiaire lors d'accepter / refuser / proposer un créneau. C'est fonctionnel et suffisant pour le besoin immédiat.
+- **SMS / WhatsApp proactif : non intégré (hors périmètre)**. Le dispatcher existant (`src/lib/notifications`) n'expose qu'un canal WhatsApp **verrouillé sur un template Meta pré-approuvé** (`candidature_confirmee`) ; `src/lib/notifications/channels/whatsapp.ts` ne sait pas envoyer un message de réservation. Un SMS transactionnel passerait par **Orange Sénégal** (cf. `src/lib/notifications/reservations.ts`, aujourd'hui un mock log).
+- **Ce qu'il faudrait** (décision produit + service externe) : soit un **template Meta « réservation »** approuvé, soit un **fournisseur SMS** (compte Orange + clés). Tant que ce service n'existe pas, on ne peut pas « brancher » l'envoi — d'où le choix de ne pas simuler un SMS. Le point d'insertion est `notifyReservation()`.
+
 ## 6b. Définitions KPI (arrêtées 2026-07-03)
 
 - **Bénéficiaires actifs** : jeunes distincts ayant un check-in au centre sur une **fenêtre glissante de 90 jours** ; delta = distinct ce mois.
