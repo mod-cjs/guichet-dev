@@ -746,3 +746,52 @@ export async function getBeneficiaireDetail(centreId: string, cjsUid: string): P
     }),
   }
 }
+
+// ── Publications du centre (GUIC-477) ─────────────────────────────────────
+
+export interface PublicationItem {
+  id: string
+  titre: string
+  type: string
+  dateLabel: string
+  statut: string
+  statutLabel: string
+  statutTone: 'teal' | 'green' | 'yellow' | 'grey' | 'red'
+  inscriptions: number
+  capacite: number | null
+}
+
+const PUB_DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+const EVT_STATUT: Record<string, { label: string; tone: PublicationItem['statutTone'] }> = {
+  a_venir: { label: 'À venir', tone: 'teal' },
+  en_cours: { label: 'En cours', tone: 'yellow' },
+  termine: { label: 'Terminé', tone: 'grey' },
+  annule: { label: 'Annulé', tone: 'red' },
+}
+
+/** Publications (événements) du centre du conseiller, plus récentes d'abord. */
+export async function getPublicationsCentre(centreId: string, limit = 50): Promise<PublicationItem[]> {
+  const rows = await prisma.evenement.findMany({
+    where: { centreId },
+    select: {
+      id: true, titre: true, type: true, statut: true, dateDebut: true, capaciteMax: true,
+      _count: { select: { inscriptions: true } },
+    },
+    orderBy: { dateDebut: 'desc' },
+    take: limit,
+  })
+  return rows.map((e) => {
+    const s = EVT_STATUT[String(e.statut)] ?? { label: String(e.statut), tone: 'grey' as const }
+    return {
+      id: e.id,
+      titre: e.titre,
+      type: String(e.type),
+      dateLabel: PUB_DATE.format(e.dateDebut),
+      statut: String(e.statut),
+      statutLabel: s.label,
+      statutTone: s.tone,
+      inscriptions: e._count.inscriptions,
+      capacite: e.capaciteMax ?? null,
+    }
+  })
+}
