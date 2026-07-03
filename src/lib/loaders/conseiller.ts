@@ -126,6 +126,30 @@ export function mapStatutView(statut: string): StatutViewDescriptor {
   }
 }
 
+/** Âge révolu à partir de la date de naissance (null si inconnue). */
+export function ageFromBirthdate(birth: Date | null | undefined, now: Date = new Date()): number | null {
+  if (!birth) return null
+  let age = now.getFullYear() - birth.getFullYear()
+  const m = now.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age -= 1
+  return age
+}
+
+export interface BenefStatutDescriptor {
+  label: 'Actif' | 'Profil à compléter'
+  tone: 'green' | 'yellow'
+}
+
+/** Seuil de complétion de profil au-delà duquel un bénéficiaire est « Actif ». */
+const BENEF_STATUT_SEUIL = 50
+
+/** Statut affiché d'un bénéficiaire selon le score de complétion de son profil. */
+export function benefStatut(completionScore: number): BenefStatutDescriptor {
+  return completionScore >= BENEF_STATUT_SEUIL
+    ? { label: 'Actif', tone: 'green' }
+    : { label: 'Profil à compléter', tone: 'yellow' }
+}
+
 /** Initiales (2 lettres max) à partir du prénom/nom, en majuscules. */
 export function buildInitials(prenom?: string | null, nom?: string | null): string {
   const p = (prenom ?? '').trim()
@@ -450,4 +474,96 @@ export async function getReservationsListe(
       note: r.raisonRefusOuAnnul ?? null,
     }
   })
+}
+
+// ── Annuaire des bénéficiaires du centre (US-7/US-9) ──────────────────────
+
+export interface BenefListItem {
+  cjsUid: string
+  name: string
+  initials: string
+  age: number | null
+  niveau: string | null
+  candidatures: number
+  commune: string
+  completion: number
+  statutLabel: BenefStatutDescriptor['label']
+  statutTone: BenefStatutDescriptor['tone']
+  lastVisitLabel: string
+  tel: string | null
+}
+
+export interface CentreBeneficiaires {
+  total: number
+  items: BenefListItem[]
+}
+
+/**
+ * Annuaire des bénéficiaires rattachés au centre (via check-in / réservation),
+ * avec recherche par nom (US-7). Scopé au centre du conseiller.
+ */
+export async function getCentreBeneficiaires(
+  centreId: string,
+  query?: string,
+  limit = 50,
+): Promise<CentreBeneficiaires> {
+  const uids = await getCentreBeneficiaireUids(centreId)
+  if (uids.length === 0) return { total: 0, items: [] }
+
+  const q = query?.trim()
+  const where: Prisma.UtilisateurWhereInput = {
+    cjsUid: { in: uids },
+    ...(q
+      ? { OR: [{ prenom: { contains: q } }, { nom: { contains: q } }] }
+      : {}),
+  }
+
+  const [total, users, lastVisits] = await Promise.all([
+    prisma.utilisateur.count({ where }),
+    prisma.utilisateur.findMany({
+      where,
+      select: {
+        cjsUid: true,
+        prenom: true,
+        nom: true,
+        telephone: true,
+        region: true,
+        dateNaissance: true,
+        profil: { select: { niveauEtude: true, completionScore: true } },
+        _count: { select: { candidatures: true } },
+      },
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+      take: limit,
+    }),
+    prisma.checkIn.groupBy({
+      by: ['cjsUid'],
+      where: { centreId, cjsUid: { in: uids } },
+      _max: { effectueA: true },
+    }),
+  ])
+
+  const lastById = new Map<string, Date | null>()
+  for (const v of lastVisits) lastById.set(v.cjsUid, v._max.effectueA)
+
+  const items: BenefListItem[] = users.map((u) => {
+    const completion = u.profil?.completionScore ?? 0
+    const st = benefStatut(completion)
+    const last = lastById.get(u.cjsUid) ?? null
+    return {
+      cjsUid: u.cjsUid,
+      name: `${u.prenom} ${u.nom}`.trim(),
+      initials: buildInitials(u.prenom, u.nom),
+      age: ageFromBirthdate(u.dateNaissance),
+      niveau: u.profil?.niveauEtude ?? null,
+      candidatures: u._count.candidatures,
+      commune: u.region ? String(u.region) : '—',
+      completion,
+      statutLabel: st.label,
+      statutTone: st.tone,
+      lastVisitLabel: last ? ageRelatifLabel(last) : 'Jamais',
+      tel: u.telephone ?? null,
+    }
+  })
+
+  return { total, items }
 }

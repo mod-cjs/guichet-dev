@@ -35,10 +35,21 @@
 - Loaders : `getReservationsCounts`, `getReservationsListe`, helper pur `mapStatutView` (testé). `ageRelatifLabel` réutilisé.
 - **`/conseiller/notifications`** (US-8) : réutilise `loadNotifications` + `NotificationsClient` ; badge cloche (desktop + mobile) via `countUnreadNotifications`.
 
-## Reste à faire (phases suivantes)
+## Résolutions (2026-07-03)
 
-- **US-7 recherche bénéficiaire** : l'input topbar est visuel — à câbler sur l'écran Bénéficiaires (`/conseiller/beneficiaires`, à créer).
+- **Réservations auto-validées** → politique par type (`src/lib/reservations/statut-initial.ts`) : salle/véhicule/atelier `EnAttente`, poste/équipement `Acceptee`. Appliquée dans `POST /api/reservations`. → la file conseiller se remplit réellement.
+- **Définitions KPI arrêtées** (spec §6b) : bénéficiaires actifs = check-in glissant 90 j.
+
+## US-7 — Recherche + Bénéficiaires ✅
+
+- Loader `getCentreBeneficiaires(centreId, q?)` (annuaire scopé centre, recherche par nom) + helpers purs testés `ageFromBirthdate`, `benefStatut`.
+- **`/conseiller/beneficiaires`** : tableau fidèle `AgentBenefList` (avatar+méta, commune, dernière visite, anneau de complétion, statut) + recherche `?q=`.
+- Barre de recherche du topbar câblée → `/conseiller/beneficiaires?q=` (US-7 fonctionnel).
+
+## Reste à faire
+
 - **US-4 SMS** : notif app faite, SMS en attente d'un canal transactionnel.
-- « Proposer un créneau » (slots) : nécessite la dispo des ressources — non implémenté (accepter/refuser couvrent la décision).
+- « Proposer un créneau » (slots) : nécessite la dispo des ressources.
+- Fiche bénéficiaire détaillée (`AgentBenefDetail`).
 - **Phase 4** : US-6 (check-in QR réutilisé), US-10 (responsive + bottom-nav).
-- Écrans secondaires : agenda complet, bénéficiaires, messagerie, publications, paramètres.
+- Écrans secondaires : agenda complet, messagerie, publications, paramètres.
