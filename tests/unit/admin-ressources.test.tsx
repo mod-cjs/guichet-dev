@@ -25,6 +25,14 @@ jest.mock('@/app/admin/ressources/actions', () => ({
   supprimerRessource: (...a: unknown[]) => mockSupprimer(...a),
 }))
 
+// Éditeur riche (Tiptap) remplacé par un textarea léger (lourd en jsdom, testé ailleurs).
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, name, value, onChange }: any) => (
+    <textarea aria-label={label} name={name} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+  ),
+}))
+
 import { AdminRessourcesTable, type RessourceRow } from '@/app/admin/ressources/AdminRessourcesTable'
 import { RessourceFormModal } from '@/app/admin/ressources/RessourceFormModal'
 

@@ -80,6 +80,32 @@ describe('GUIC-506 — sanitizeRichHtml : anti-XSS', () => {
   })
 })
 
+describe('GUIC-504 — cases à cocher (task list)', () => {
+  const TASK = '<ul data-type="taskList"><li data-type="taskItem" data-checked="true">' +
+    '<label><input type="checkbox" checked="checked"></label><div><p>Étape faite</p></div></li></ul>'
+
+  it('conserve la structure de la task list', () => {
+    const out = sanitizeRichHtml(TASK)
+    expect(out).toContain('data-type="taskList"')
+    expect(out).toContain('data-checked="true"')
+    expect(out).toContain('<input')
+    expect(out).toContain('Étape faite')
+  })
+
+  it('force la case en checkbox désactivée (jamais interactive côté lecteur)', () => {
+    const out = sanitizeRichHtml(TASK)
+    expect(out).toMatch(/type="checkbox"/)
+    expect(out).toMatch(/disabled/)
+  })
+
+  it('neutralise un <input> malveillant (type=text + handler)', () => {
+    const out = sanitizeRichHtml('<input type="text" onfocus="alert(1)" value="x">')
+    expect(out).not.toMatch(/onfocus/i)
+    expect(out).not.toMatch(/type="text"/)
+    expect(out).not.toContain('alert(1)')
+  })
+})
+
 describe('GUIC-505 — isRichHtml : détection HTML vs texte plat (fallback rendu)', () => {
   it('détecte du HTML riche', () => {
     expect(isRichHtml('<p>bonjour</p>')).toBe(true)

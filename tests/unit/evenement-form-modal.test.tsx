@@ -6,6 +6,15 @@ jest.mock('@/app/admin/evenements/actions', () => ({
   modifierEvenement: jest.fn().mockResolvedValue({ ok: true }),
 }))
 
+// Éditeur riche (Tiptap) remplacé par un textarea léger : lourd à monter en jsdom,
+// couvert par ses propres tests. On teste ici la logique du modal.
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, name, value, onChange }: any) => (
+    <textarea aria-label={label} name={name} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+  ),
+}))
+
 import { EvenementFormModal } from '@/app/admin/evenements/EvenementFormModal'
 import { creerEvenement } from '@/app/admin/evenements/actions'
 
