@@ -5,8 +5,11 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
-import { useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
+
+/** MIME images acceptées — miroir de la route /api/upload/image (ALLOWED_PHOTO_MIME). */
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp'
 
 export interface RichTextEditorProps {
   /** HTML initial (déjà sanitisé côté serveur). */
@@ -110,6 +113,9 @@ export function RichTextEditor({
 /* ─── Barre d'outils bridée ─── */
 
 function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
   const setLink = useCallback(() => {
     const previous = editor.getAttributes('link').href as string | undefined
     const url = window.prompt('Lien (https://…)', previous ?? 'https://')
@@ -121,10 +127,38 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }, [editor])
 
-  const addImage = useCallback(() => {
-    const url = window.prompt('URL de l’image (https://…)')
-    if (url) editor.chain().focus().setImage({ src: url }).run()
-  }, [editor])
+  const onImageFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = '' // permet de re-sélectionner le même fichier
+      if (!file) return
+
+      // Texte alternatif OBLIGATOIRE (accessibilité) — demandé avant l'upload.
+      const alt = window.prompt('Texte alternatif de l’image (obligatoire — décrit l’image) :')?.trim()
+      if (!alt) {
+        window.alert('Le texte alternatif est obligatoire pour l’accessibilité. Image non insérée.')
+        return
+      }
+
+      setUploading(true)
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name)
+        const res = await fetch('/api/upload/image', { method: 'POST', body: fd })
+        const body = (await res.json()) as { data?: { url: string }; error?: { message: string } }
+        if (!res.ok || !body.data?.url) {
+          window.alert(body.error?.message ?? 'Échec de l’envoi de l’image.')
+          return
+        }
+        editor.chain().focus().setImage({ src: body.data.url, alt }).run()
+      } catch {
+        window.alert('Échec de l’envoi de l’image (réseau).')
+      } finally {
+        setUploading(false)
+      }
+    },
+    [editor],
+  )
 
   return (
     <div
@@ -132,6 +166,17 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
       role="toolbar"
       aria-label="Mise en forme"
     >
+      <GlyphButton label="Annuler" active={false} disabled={disabled || !editor.can().undo()}
+        onClick={() => editor.chain().focus().undo().run()}>
+        <span aria-hidden className="text-[15px] leading-none">↶</span>
+      </GlyphButton>
+      <GlyphButton label="Rétablir" active={false} disabled={disabled || !editor.can().redo()}
+        onClick={() => editor.chain().focus().redo().run()}>
+        <span aria-hidden className="text-[15px] leading-none">↷</span>
+      </GlyphButton>
+
+      <Divider />
+
       <GlyphButton label="Gras" active={editor.isActive('bold')} disabled={disabled}
         onClick={() => editor.chain().focus().toggleBold().run()}>
         <span className="font-black">B</span>
@@ -169,8 +214,22 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
 
       <IconButton label="Lien" icon="external" active={editor.isActive('link')} disabled={disabled}
         onClick={setLink} />
-      <IconButton label="Image" icon="image" active={false} disabled={disabled}
-        onClick={addImage} />
+      <IconButton
+        label={uploading ? 'Envoi de l’image…' : 'Image'}
+        icon={uploading ? 'clock' : 'image'}
+        active={false}
+        disabled={disabled || uploading}
+        onClick={() => fileInputRef.current?.click()}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={onImageFile}
+      />
     </div>
   )
 }
