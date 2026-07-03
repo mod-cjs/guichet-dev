@@ -17,6 +17,16 @@ jest.mock('@/lib/auth/staff-session', () => ({
   getStaffSession: () => mockGetStaffSession(),
 }))
 
+// GUIC-498 : la page dépend de getCheckinOperator ; on délègue au mock staff.
+jest.mock('@/lib/auth/checkin-operator', () => ({
+  getCheckinOperator: async () => {
+    const s = await mockGetStaffSession()
+    return s
+      ? { kind: 'staff', activeCentreId: s.centreId, centreIds: [s.centreId], email: s.email, label: s.email }
+      : null
+  },
+}))
+
 const mockVerify = jest.fn()
 jest.mock('@/lib/auth/verifyCJSCardToken', () => {
   class CJSCardTokenError extends Error {
@@ -34,11 +44,13 @@ jest.mock('@/lib/auth/verifyCJSCardToken', () => {
 const mockUser = jest.fn()
 const mockCentre = jest.fn()
 const mockResas = jest.fn()
+const mockEvents = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: { findUnique: (...a: unknown[]) => mockUser(...a) },
     centre:      { findUnique: (...a: unknown[]) => mockCentre(...a) },
     reservation: { findMany: (...a: unknown[]) => mockResas(...a) },
+    evenement:   { findMany: (...a: unknown[]) => mockEvents(...a) },
   },
 }))
 
@@ -50,6 +62,7 @@ beforeEach(() => {
   mockUser.mockResolvedValue({ cjsUid: 'user-12345678', nom: 'Diop', prenom: 'Awa' })
   mockCentre.mockResolvedValue({ id: 'c-1', nom: 'CJS Dakar', ville: 'Dakar' })
   mockResas.mockResolvedValue([])
+  mockEvents.mockResolvedValue([])
 })
 
 describe('Page /checkin/v1/[token] — staff auth (GUIC-389)', () => {
