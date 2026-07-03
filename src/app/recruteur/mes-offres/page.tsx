@@ -11,6 +11,14 @@ export const metadata: Metadata = { title: 'Mes offres — Espace Recruteur' }
 const STATUT_LABEL: Record<string, string> = {
   brouillon: 'En validation', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
+function statutTone(s: string): { bg: string; fg: string } {
+  if (s === 'publiee') return { bg: 'var(--gj-green-soft, #E6F6EE)', fg: 'var(--gj-green-ink, #0F6B45)' }
+  if (s === 'brouillon') return { bg: 'var(--gj-yellow-soft, #FCF3D9)', fg: 'var(--gj-yellow-ink, #8a6d0b)' }
+  return { bg: 'var(--gj-line)', fg: 'var(--gj-grey)' }
+}
+function frShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+}
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ creee?: string }> }) {
   const session = await getSession()
@@ -45,20 +53,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         </div>
       ) : (
         <div className="flex flex-col gap-[12px]">
-          {offres.map((o) => (
+          {offres.map((o) => {
+            const tone = statutTone(o.statut)
+            const nouveau = o.nouveau ?? 0
+            const meta = [o.type, o.region?.replace(/_/g, ' '), o.deadline ? `clôture ${frShort(o.deadline)}` : null].filter(Boolean).join(' · ')
+            return (
             <div key={o.id} className="rounded-[14px] p-[16px] flex items-center justify-between gap-3 flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-              <div className="min-w-[220px]">
+              <div className="min-w-[240px] flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)' }}>{STATUT_LABEL[o.statut] ?? o.statut}</span>
+                  <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: tone.bg, color: tone.fg }}>{STATUT_LABEL[o.statut] ?? o.statut}</span>
                   <span className="text-[15px] font-black" style={{ color: 'var(--gj-ink)' }}>{o.titre}</span>
+                  {nouveau > 0 && <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px]" style={{ background: 'var(--gj-blue, #1A4ED8)', color: '#fff' }}>{nouveau} nouveau{nouveau > 1 ? 'x' : ''}</span>}
                 </div>
-                <p className="text-[12.5px] mt-[4px]" style={{ color: 'var(--gj-grey)' }}>{o.candidatures} candidature{o.candidatures > 1 ? 's' : ''} · {o.vues} vues</p>
+                {meta && <p className="text-[12px] mt-[4px]" style={{ color: 'var(--gj-grey)' }}>{meta}</p>}
+                <p className="text-[12.5px] mt-[2px]" style={{ color: 'var(--gj-grey)' }}>{o.candidatures} candidature{o.candidatures > 1 ? 's' : ''} · {o.vues} vues</p>
               </div>
-              <Link href={`/admin/opportunites/${o.id}/apercu`} className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] no-underline" style={{ background: 'var(--gj-surface)', color: 'var(--gj-blue-ink, #1A3FA8)', border: '1.5px solid var(--gj-blue, #1A4ED8)' }}>
-                <Icon name="eye" size={14} /> Aperçu
+              <Link href={`/recruteur/candidatures?offre=${o.id}`} className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] no-underline" style={{ background: 'var(--gj-surface)', color: 'var(--gj-blue-ink, #1A3FA8)', border: '1.5px solid var(--gj-blue, #1A4ED8)' }}>
+                <Icon name="target" size={14} /> Voir le pipeline
               </Link>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

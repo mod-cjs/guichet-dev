@@ -57,3 +57,42 @@ export async function changerStatutCandidature(id: string, statut: StatutCandida
   revalidatePath(`/recruteur/candidatures/${id}`)
   return { ok: true }
 }
+
+const stageSchema = z.enum(['Recue', 'Preselection', 'Entretien', 'Decision'])
+
+/**
+ * GUIC-515 — Déplace une candidature dans le pipeline kanban (drag-and-drop).
+ * @throws FORBIDDEN · ZodError (étape invalide) · NOT_FOUND (non possédée).
+ */
+export async function deplacerPipeline(id: string, stage: string): Promise<{ ok: true }> {
+  const session = await assertRecruteur()
+  const parsed = stageSchema.parse(stage)
+
+  const opportunite = await offreOwnership(session.cjsUid)
+  const res = await prisma.candidature.updateMany({
+    where: { id, opportunite },
+    data: { pipelineStage: parsed },
+  })
+  if (res.count === 0) throw new Error('NOT_FOUND')
+
+  await recordAudit(session.cjsUid, 'candidature.pipeline', {
+    targetType: 'candidature',
+    targetId: id,
+    meta: { stage: parsed },
+  })
+  revalidatePath('/recruteur/candidatures')
+  return { ok: true }
+}
+
+/** GUIC-515 — Bascule le favori recruteur d'une candidature. */
+export async function basculerFavori(id: string): Promise<{ favori: boolean }> {
+  const session = await assertRecruteur()
+  const opportunite = await offreOwnership(session.cjsUid)
+  const cand = await prisma.candidature.findFirst({ where: { id, opportunite }, select: { id: true, favoriRecruteur: true } })
+  if (!cand) throw new Error('NOT_FOUND')
+
+  const favori = !cand.favoriRecruteur
+  await prisma.candidature.update({ where: { id: cand.id }, data: { favoriRecruteur: favori } })
+  revalidatePath('/recruteur/candidatures')
+  return { favori }
+}

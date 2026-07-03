@@ -8,6 +8,7 @@ import { getRecruteurContext, getRecruteurCandidatureDetail, scoreColors } from 
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { StatutActions } from './StatutActions'
 import { ContacterButton } from './ContacterButton'
+import { PlanifierEntretienInline } from './PlanifierEntretienInline'
 
 export const metadata: Metadata = { title: 'Candidature — Espace Recruteur' }
 
@@ -129,6 +130,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <ContacterButton candidatureId={id} />
           <StatutActions id={id} statut={statut} />
         </div>
+      </div>
+
+      {/* Planifier un entretien (design v4 RecCandidate) */}
+      <div className="rounded-[14px] p-[18px] mt-4 flex items-center gap-3 flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+        <div className="flex-1 min-w-[180px]">
+          <h2 className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>Entretien</h2>
+          <p className="text-[12px]" style={{ color: 'var(--gj-grey)' }}>Proposez un créneau — le candidat sera notifié.</p>
+        </div>
+        <PlanifierEntretienInline candidatureId={id} />
       </div>
     </div>
   )
