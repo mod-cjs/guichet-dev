@@ -23,7 +23,8 @@ describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
     const user = userEvent.setup()
     render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} />)
     await user.type(screen.getByLabelText(/^Titre/), 'Préparation BAC')
-    await user.type(screen.getByLabelText(/^Description/), 'Cours de maths')
+    // La description est un éditeur riche (Tiptap) — non simulable en jsdom ;
+    // ce test vérifie le passage de type + centreId, pas le corps riche.
     await user.selectOptions(screen.getByLabelText(/^Type/), 'Cours')
     await user.type(screen.getByLabelText(/Date de début/), '2026-07-10T09:00')
     await user.type(screen.getByLabelText(/^Lieu/), 'Salle 2')

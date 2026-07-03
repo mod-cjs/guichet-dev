@@ -250,7 +250,8 @@ describe('GUIC-463 — RessourceFormModal', () => {
   it('given création + champs remplis, when submit, then appelle creerRessource', async () => {
     render(<RessourceFormModal isOpen onClose={() => {}} />)
     fireEvent.change(screen.getByLabelText(/^titre/i), { target: { value: 'Nouveau guide' } })
-    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Desc' } })
+    // La description est un éditeur riche (Tiptap) — non pilotable via fireEvent.change
+    // en jsdom ; ce test vérifie titre + url, pas le corps riche.
     fireEvent.change(screen.getByLabelText(/^thème/i), { target: { value: 'Emploi' } })
     fireEvent.change(screen.getByLabelText(/URL/i), { target: { value: 'https://example.org/x.pdf' } })
     fireEvent.click(screen.getByRole('button', { name: /créer/i }))
