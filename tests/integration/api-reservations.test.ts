@@ -57,6 +57,7 @@ const RESSOURCE = {
   id: VALID_BODY.ressourceId,
   centreId: 'c1',
   nom: 'Salle A',
+  type: 'Salle',
   capacite: 8,
   requiresJustif: false,
   estActive: true,
@@ -77,7 +78,7 @@ function setupTxOk(reservationOverrides: Record<string, unknown> = {}) {
   mockReservationFindFirst.mockResolvedValue(null)
   mockReservationCreate.mockResolvedValue({
     id: 'res-1',
-    statut: 'Acceptee',
+    statut: 'EnAttente',
     centreId: 'c1',
     ressourceId: VALID_BODY.ressourceId,
     dateReservee: new Date(VALID_BODY.dateReservee),
@@ -94,13 +95,30 @@ beforeEach(() => {
 })
 
 describe('POST /api/reservations', () => {
-  it('201 — crée la réservation et renvoie data.reservation', async () => {
+  it('201 — salle : crée la réservation en attente de validation conseiller', async () => {
     setupTxOk()
     const r = await POST(req(VALID_BODY))
     expect(r.status).toBe(201)
     const body = await r.json()
     expect(body.data.reservation.id).toBe('res-1')
-    expect(body.data.reservation.statut).toBe('Acceptee')
+    expect(body.data.reservation.statut).toBe('EnAttente')
+    // La politique (GUIC-470) doit poser EnAttente + pas de decisionA pour une salle.
+    expect(mockReservationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ statut: 'EnAttente', decisionA: null }),
+      }),
+    )
+  })
+
+  it('201 — poste informatique : auto-validé (Acceptee)', async () => {
+    setupTxOk()
+    mockRessourceFindUnique.mockResolvedValue({ ...RESSOURCE, type: 'Poste_info' })
+    await POST(req(VALID_BODY))
+    expect(mockReservationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ statut: 'Acceptee' }),
+      }),
+    )
   })
 
   it('401 si pas de session', async () => {
