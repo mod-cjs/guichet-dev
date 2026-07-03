@@ -11,6 +11,8 @@ import {
   mapStatutView,
   ageFromBirthdate,
   benefStatut,
+  isoDay,
+  startOfWeek,
   type ConseillerCentre,
   type AgendaItem,
 } from './conseiller'
@@ -74,16 +76,24 @@ describe('mapRessourceKind (GUIC-495 — cohérence Lot 7 salle/véhicule/poste)
 
 describe('buildAgendaItems (GUIC-497 — agenda dérivé Réservation + Événement)', () => {
   const resa: AgendaItem[] = [
-    { id: 'r-b', time: '14:00', label: 'Salle A', sub: 'Awa Diop', atelier: false },
-    { id: 'r-a', time: '09:00', label: 'Poste #3', sub: 'Fatou Ba', atelier: false },
+    { id: 'r-b', date: '2026-07-03', time: '14:00', label: 'Salle A', sub: 'Awa Diop', atelier: false },
+    { id: 'r-a', date: '2026-07-03', time: '09:00', label: 'Poste #3', sub: 'Fatou Ba', atelier: false },
   ]
   const events: AgendaItem[] = [
-    { id: 'e-1', time: '11:30', label: 'Atelier CV', sub: '12 inscrits', atelier: true },
+    { id: 'e-1', date: '2026-07-03', time: '11:30', label: 'Atelier CV', sub: '12 inscrits', atelier: true },
   ]
 
-  it('fusionne réservations et événements triés par heure croissante', () => {
+  it('fusionne réservations et événements triés par jour puis heure', () => {
     const items = buildAgendaItems(resa, events)
     expect(items.map((i) => i.id)).toEqual(['r-a', 'e-1', 'r-b'])
+  })
+
+  it('trie d’abord par jour', () => {
+    const multi: AgendaItem[] = [
+      { id: 'd2', date: '2026-07-04', time: '08:00', label: '', sub: '', atelier: false },
+      { id: 'd1', date: '2026-07-03', time: '23:00', label: '', sub: '', atelier: false },
+    ]
+    expect(buildAgendaItems(multi, []).map((i) => i.id)).toEqual(['d1', 'd2'])
   })
 
   it('distingue les ateliers collectifs des RDV individuels', () => {
@@ -94,6 +104,29 @@ describe('buildAgendaItems (GUIC-497 — agenda dérivé Réservation + Événem
 
   it('retourne un tableau vide quand aucune source', () => {
     expect(buildAgendaItems([], [])).toEqual([])
+  })
+})
+
+describe('isoDay (GUIC-497 — vues agenda)', () => {
+  it('formate en YYYY-MM-DD local', () => {
+    expect(isoDay(new Date(2026, 6, 3))).toBe('2026-07-03')
+    expect(isoDay(new Date(2026, 0, 9))).toBe('2026-01-09')
+  })
+})
+
+describe('startOfWeek (GUIC-497 — semaine lundi→dimanche)', () => {
+  it('renvoie le lundi de la semaine', () => {
+    // 2026-07-03 est un vendredi → lundi = 2026-06-29
+    expect(isoDay(startOfWeek(new Date(2026, 6, 3)))).toBe('2026-06-29')
+  })
+
+  it('un lundi reste inchangé', () => {
+    expect(isoDay(startOfWeek(new Date(2026, 5, 29)))).toBe('2026-06-29')
+  })
+
+  it('un dimanche pointe sur le lundi précédent', () => {
+    // 2026-07-05 est un dimanche → lundi = 2026-06-29
+    expect(isoDay(startOfWeek(new Date(2026, 6, 5)))).toBe('2026-06-29')
   })
 })
 
