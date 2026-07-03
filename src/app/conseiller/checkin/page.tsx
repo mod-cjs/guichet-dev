@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { getConseillerContext, getCheckinsDuJour } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { CheckinScanner } from './checkin-scanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,18 +30,8 @@ export default async function ConseillerCheckinPage() {
         </p>
       </div>
 
-      {/* Accès au scan (design v4 : scan QR plein écran mobile) */}
-      <div className="flex items-center gap-space-3 rounded-gj-lg p-space-4" style={{ background: 'var(--gj-teal-soft)', border: '1.5px solid var(--gj-teal-deep)' }}>
-        <span className="inline-flex items-center justify-center shrink-0 rounded-gj-md" style={{ width: 44, height: 44, background: 'var(--gj-teal-deep)', color: '#fff' }}>
-          <Icon name="target" size={22} />
-        </span>
-        <div className="min-w-0">
-          <div className="font-extrabold text-color-text-primary" style={{ fontSize: 14 }}>Scanner une présence</div>
-          <div className="text-color-text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
-            Ouvrez l&apos;appareil photo sur le QR de la carte CJS du jeune : la page de check-in s&apos;ouvre automatiquement.
-          </div>
-        </div>
-      </div>
+      {/* Scanner QR in-app (caméra + BarcodeDetector, repli saisie manuelle) */}
+      <CheckinScanner />
 
       <div className="bg-white rounded-gj-lg p-space-5" style={{ border: '1.5px solid var(--gj-line)' }}>
         <div className="flex items-center justify-between mb-space-3">
