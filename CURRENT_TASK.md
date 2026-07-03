@@ -1,42 +1,29 @@
-# CURRENT_TASK — GUIC-503 Éditeur de texte riche mutualisé
+# CURRENT_TASK — Espace conseiller · Phase 1 (socle)
 
-**Branche :** `feature/GUIC-504-editeur-riche-contenus` (depuis `dev`)
-**Spec :** `.agent_context/specs/M8-editeur-riche.md`
-**Story :** GUIC-503 · Sous-tâches GUIC-504→509 · englobe GUIC-422
+**Epic :** [GUIC-470](https://consortiumjeunesse.atlassian.net/browse/GUIC-470) · **Branche :** `feature/GUIC-493-espace-conseiller-socle` (depuis `dev`)
+**Spec :** `.agent_context/specs/M8-espace-conseiller.md`
 
-## Décisions PO (2026-07-03)
-- Périmètre : **6 formulaires** (opportunité, offre recruteur, événement, ressource, partenaire, profil entreprise + ressource centre).
-- Stockage : **HTML sanitisé** dans `description` existante — pas de migration.
-- Champs `mission`/`profilRecherche`/`conditions` : **éditables** (pilote opportunité).
+## Périmètre de cette branche
 
-## Phase A — Socle ✅ TERMINÉE
-- [x] Deps Tiptap (react/pm/starter-kit/link/image/placeholder) + `sanitize-html` (isomorphic-dompurify écarté : jsdom casse Jest)
-- [x] `src/lib/rich-html.ts` (pur, client-safe) + `src/lib/sanitize-html.ts` (serveur) + tests anti-XSS 12/12 (GUIC-506/505)
-- [x] `src/components/ui/RichContent/` (rendu HTML + fallback texte plat) + tests 4/4 (GUIC-505)
-- [x] `src/styles/rich-prose.css` — styles bridés `gj-prose` (GUIC-507)
-- [x] `src/components/ui/RichTextEditor/` bridé CJS + story 3 variants (GUIC-504/507)
-- [x] Barrel `ui` mis à jour · lint 0 erreur · tsc 0 erreur · 16/16 tests nouveaux verts
-- Note : échecs de tests restants = intégration (DATABASE_URL absente) + 3 unit métier, tous **préexistants sur dev**, hors périmètre.
+- **US-1** [GUIC-493](https://consortiumjeunesse.atlassian.net/browse/GUIC-493) — Vue d'ensemble à la connexion (nom, date, centre, identité teal foncé)
+- **US-9** [GUIC-501](https://consortiumjeunesse.atlassian.net/browse/GUIC-501) — Navigation latérale (8 sections, actif mis en évidence)
 
-## Phase B — Pilote + propagation ✅ TERMINÉE
-- [x] Pilote opportunité admin (description + mission/profil/conditions repliables) — sanitisation + rendu + SEO.
-- [x] Offre recruteur : RichTextEditor (hidden input) + sanitisation action (contenu tiers).
-- [x] Événement : Input mono-ligne → éditeur riche + sanitisation + rendu agenda + SEO.
-- [x] Ressource : Input mono-ligne → éditeur riche + sanitisation + rendu hero + SEO.
-- Rendu : tous les `whitespace-pre-line` de ces entités → `RichContent` (fallback texte plat).
+## Livré
 
-## Phase C — Extensions + audit affichage ✅ TERMINÉE
-- [x] Partenaire (Organisation.description) : éditeur + sanitisation + rendu admin RichContent.
-- [x] Profil entreprise recruteur : éditeur (contenu tiers) + sanitisation + null-si-vide.
-- [x] Ressource centre : éditeur + sanitisation.
-- [x] **Audit affichage** — richesse prise en compte partout :
-  - Détail (riche) : opportunité, agenda, ressource, partenaire → `RichContent`.
-  - Aperçus/cartes (texte plat) : ResourceCard, RessourceCard → `htmlToPlainText`.
-  - Recherche/filtres : agenda-client, EvenementsClient, agenda public → `htmlToPlainText`.
-  - Partage/ICS/meta SEO : share ressource, export .ics, 3 meta → `htmlToPlainText`.
-  - Canaux WhatsApp + prompt IA adéquation → `htmlToPlainText`.
-  - KG : la projection n'indexe QUE les champs structurés (déjà conforme GUIC-509).
+- `src/lib/loaders/conseiller.ts` — contexte SSO + `AgentCentre` (scopé centre) ; helpers purs `buildInitials` / `pickActiveCentre`.
+- `src/lib/loaders/conseiller.test.ts` — tests unitaires (RED→GREEN).
+- `src/components/layout/ConseillerSidebar/index.tsx` — sidebar `--gj-ink-teal`, 8 items, drawer mobile.
+- `src/app/conseiller/layout.tsx` — guard SSO + AgentCentre + topbar.
+- `src/app/conseiller/page.tsx` — dashboard shell (en-tête US-1 + emplacements KPI/réservations/agenda).
 
-## Reste
-- Clôturer GUIC-422 (couvert comme cas d'usage).
-- PR via /propagate + mise à jour Jira (transitions au merge).
+## Décisions
+
+- Auth = **SSO** (pas de login local) ; autorisation = rattachement `AgentCentre`.
+- Agenda (US-5) = **dérivé** de `Evenement`/`CentreEvent` + `Reservation` (aucun modèle `RendezVous`).
+- `/conseiller` **remplacera** à terme `/centre-staff` (JWT MVP).
+
+## Reste à faire (phases suivantes)
+
+- **Phase 2** : US-2 (KPI temps réel), US-3 (file réservations), US-5 (agenda dérivé).
+- **Phase 3** : US-4 (accepter/refuser + notif), US-7 (recherche bénéf.), US-8 (notifications).
+- **Phase 4** : US-6 (check-in QR réutilisé), US-10 (responsive + bottom-nav).
