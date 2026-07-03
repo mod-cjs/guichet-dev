@@ -200,14 +200,16 @@ export async function getRecruteurCandidatureDetail(
 
 /** Palette du badge de score d'adéquation selon le palier (fort / moyen / faible). */
 export function scoreColors(score: number | null): { bg: string; fg: string; label: string } {
+  // Paliers alignés sur le kanban (design v4) : ≥85 vert, ≥70 teal, sinon gris.
   if (score == null) return { bg: 'var(--gj-line)', fg: 'var(--gj-grey)', label: '—' }
-  if (score >= 75) return { bg: 'var(--gj-green-soft, #e6f6ec)', fg: 'var(--gj-green-ink, #1a7a3d)', label: `${score}%` }
-  if (score >= 50) return { bg: 'var(--gj-blue-soft, #E8EFFF)', fg: 'var(--gj-blue-ink, #1A3FA8)', label: `${score}%` }
-  return { bg: 'var(--gj-line)', fg: 'var(--gj-grey)', label: `${score}%` }
+  if (score >= 85) return { bg: 'var(--gj-green-soft, #e6f6ec)', fg: 'var(--gj-green-ink, #1a7a3d)', label: `${score}%` }
+  if (score >= 70) return { bg: 'var(--gj-teal-soft, #d9f2ee)', fg: 'var(--gj-teal-deep, #0F766E)', label: `${score}%` }
+  return { bg: 'var(--gj-bg, #f6f8fa)', fg: 'var(--gj-grey)', label: `${score}%` }
 }
 
 export interface RecruteurEntretienItem {
   id: string
+  candidatureId: string
   dateHeure: string
   mode: string
   lieu: string | null
@@ -223,12 +225,13 @@ export async function getRecruteurEntretiens(cjsUid: string): Promise<RecruteurE
     orderBy: { dateHeure: 'asc' },
     take: 200,
     select: {
-      id: true, dateHeure: true, mode: true, lieu: true, statut: true,
+      id: true, candidatureId: true, dateHeure: true, mode: true, lieu: true, statut: true,
       candidature: { select: { utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } } },
     },
   })
   return rows.map((e) => ({
     id: e.id,
+    candidatureId: e.candidatureId,
     dateHeure: e.dateHeure.toISOString(),
     mode: e.mode,
     lieu: e.lieu,
@@ -322,4 +325,12 @@ export async function getRecruteurPipeline(
   }
 
   return { offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut })), offreActiveId, colonnes }
+}
+
+/** GUIC-515 — compteurs pour les badges de navigation recruteur (candidats à examiner). */
+export async function getRecruteurNavCounts(cjsUid: string, organisationId: string | null): Promise<{ aExaminer: number }> {
+  const aExaminer = await prisma.candidature.count({
+    where: { pipelineStage: 'Recue', opportunite: offreWhere(cjsUid, organisationId) },
+  })
+  return { aExaminer }
 }

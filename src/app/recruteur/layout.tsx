@@ -6,8 +6,9 @@ import { RecruteurSearch } from '@/components/layout/RecruteurSearch'
 import { RecruteurBottomNav } from '@/components/layout/RecruteurBottomNav'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
-import { getRecruteurContext } from '@/lib/loaders/recruteur'
+import { getRecruteurContext, getRecruteurNavCounts } from '@/lib/loaders/recruteur'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
+import { countUnreadMessages } from '@/lib/loaders/messagerie'
 
 function BellLink({ unread, size, boxed }: { unread: number; size: number; boxed?: boolean }) {
   return (
@@ -34,7 +35,11 @@ export default async function RecruteurLayout({ children }: { children: React.Re
   if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
 
   const ctx = await getRecruteurContext(session.cjsUid)
-  const unread = await countUnreadNotifications(session.cjsUid)
+  const [unread, nav, messagesNonLus] = await Promise.all([
+    countUnreadNotifications(session.cjsUid),
+    getRecruteurNavCounts(session.cjsUid, ctx.organisationId),
+    countUnreadMessages(session.cjsUid),
+  ])
 
   return (
     <>
@@ -51,7 +56,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
       </div>
 
       <div className="flex min-h-screen">
-        <RecruteurSidebar companyName={ctx.organisationNom} verified={ctx.estVerifie} />
+        <RecruteurSidebar companyName={ctx.organisationNom} verified={ctx.estVerifie} candidaturesCount={nav.aExaminer} messagesCount={messagesNonLus} />
         <div className="flex-1 flex flex-col min-w-0">
           {/* TopBar desktop (design v3 Lot 10) : recherche + notifications + avatar */}
           <div
@@ -70,7 +75,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
         </div>
       </div>
 
-      <RecruteurBottomNav />
+      <RecruteurBottomNav candidatsBadge={nav.aExaminer} messagesBadge={messagesNonLus} />
     </>
   )
 }

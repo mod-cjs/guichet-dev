@@ -21,6 +21,7 @@ export type AuditAction =
   | 'export.utilisateurs'
   | 'export.opportunites'
   | 'export.evenements'
+  | 'export.candidatures'
   | 'opportunite.approve'
   | 'opportunite.reject'
   // GUIC-473 — gestion des ressources réservables d'un centre.
@@ -49,6 +50,9 @@ export type AuditAction =
   // GUIC-514 — entretiens recruteur.
   | 'entretien.plan'
   | 'entretien.annule'
+  | 'entretien.termine'
+  // GUIC-515 — pipeline kanban recruteur.
+  | 'candidature.pipeline'
 
 interface AuditEntry {
   actorCjsUid: string

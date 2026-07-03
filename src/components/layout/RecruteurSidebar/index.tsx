@@ -24,9 +24,10 @@ export interface RecruteurSidebarProps {
   companyName?: string | null
   /** Partenaire vérifié (badge). */
   verified?: boolean
-  /** Compteurs de nav (offres, candidatures à examiner). */
+  /** Compteurs de nav (offres, candidatures à examiner, messages non lus). */
   offresCount?: number | null
   candidaturesCount?: number | null
+  messagesCount?: number | null
 }
 
 /**
@@ -34,7 +35,7 @@ export interface RecruteurSidebarProps {
  * Sidebar BLANCHE, accent BLEU, carte entreprise + carte « Besoin de profils ? ».
  * Calquée sur `design-guichet-v3/recruteur-shell.jsx`. Drawer mobile + collapse desktop.
  */
-export function RecruteurSidebar({ companyName, verified, offresCount, candidaturesCount }: RecruteurSidebarProps = {}) {
+export function RecruteurSidebar({ companyName, verified, offresCount, candidaturesCount, messagesCount }: RecruteurSidebarProps = {}) {
   const pathname = usePathname() ?? ''
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -72,7 +73,7 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
         { id: 'offres', href: '/recruteur/mes-offres', icon: 'employment', label: 'Mes offres', badge: offresCount ?? null },
         { id: 'candidatures', href: '/recruteur/candidatures', icon: 'document', label: 'Candidatures', badge: candidaturesCount ?? null },
         { id: 'entretiens', href: '/recruteur/entretiens', icon: 'calendar', label: 'Entretiens' },
-        { id: 'messagerie', href: '/recruteur/messagerie', icon: 'chat', label: 'Messagerie' },
+        { id: 'messagerie', href: '/recruteur/messagerie', icon: 'chat', label: 'Messagerie', badge: messagesCount ?? null },
       ],
     },
     {

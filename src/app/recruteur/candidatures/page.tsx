@@ -20,11 +20,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ o
 
   const total = (Object.values(pipeline.colonnes) as { length: number }[]).reduce((n, c) => n + c.length, 0)
 
+  const exportParams = new URLSearchParams()
+  if (pipeline.offreActiveId) exportParams.set('offre', pipeline.offreActiveId)
+  if (q) exportParams.set('q', q)
+  const exportHref = `/api/recruteur/candidatures/export${exportParams.toString() ? `?${exportParams}` : ''}`
+
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-      <div className="mb-4">
-        <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Candidatures</h1>
-        <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{total} candidat{total > 1 ? 's' : ''} dans le pipeline · glissez une carte pour changer d&apos;étape</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+        <div>
+          <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Candidatures</h1>
+          <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{total} candidat{total > 1 ? 's' : ''} dans le pipeline · glissez une carte pour changer d&apos;étape</p>
+        </div>
+        {total > 0 && (
+          <a href={exportHref} className="inline-flex items-center gap-[7px] font-bold text-[13px] rounded-[10px] px-[16px] min-h-[44px] no-underline" style={{ color: 'var(--gj-blue-ink, #1A3FA8)', border: '1.5px solid var(--gj-blue, #1A4ED8)' }}>
+            <Icon name="download" size={15} /> Exporter (CSV)
+          </a>
+        )}
       </div>
 
       {q && (

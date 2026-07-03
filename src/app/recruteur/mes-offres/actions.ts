@@ -31,6 +31,8 @@ const baseSchema = z.object({
   region: z.enum(REGIONS).nullish(),
   remuneration: z.string().trim().max(100).nullish(),
   deadline: z.string().trim().nullish(),
+  // GUIC-515 — compétences requises (ids Skill) → alimentent le score d'adéquation IA.
+  skills: z.array(z.string().min(1)).max(15).optional(),
 })
 
 const emploiSchema = baseSchema.extend({
@@ -98,6 +100,7 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
     deadline: toDate(parsed.deadline),
     statut: 'brouillon' as const,
     recruteurUid: session.cjsUid,
+    skills: (parsed.skills ?? []).map((skillId) => ({ skillId })),
   }
 
   const input: CreateOpportuniteInput =
