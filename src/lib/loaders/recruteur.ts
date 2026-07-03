@@ -45,6 +45,11 @@ export interface RecruteurOffreItem {
   statut: string
   candidatures: number
   vues: number
+  // GUIC-515 — enrichissement design v4 (optionnels : renseignés par getRecruteurOffres).
+  type?: string | null
+  region?: string | null
+  deadline?: string | null
+  nouveau?: number
 }
 
 export interface RecruteurCandidatItem {
@@ -76,7 +81,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
     prisma.opportunite.count({ where: { ...where, statut: 'publiee' } }),
     prisma.candidature.count({ where: candWhere }),
     prisma.candidature.count({ where: { ...candWhere, soumiseA: { gte: depuis } } }),
-    prisma.candidature.count({ where: { ...candWhere, statut: 'En_attente' } }),
+    prisma.candidature.count({ where: { ...candWhere, pipelineStage: 'Recue' } }),
     prisma.opportunite.aggregate({ where, _sum: { vues: true } }),
     prisma.opportunite.findMany({
       where,
@@ -85,7 +90,7 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
       take: 10,
     }),
     prisma.candidature.findMany({
-      where: { ...candWhere, statut: 'En_attente' },
+      where: { ...candWhere, pipelineStage: 'Recue' },
       select: { id: true, statut: true, scoreAdequation: true, utilisateur: { select: { prenom: true, nom: true } }, opportunite: { select: { titre: true } } },
       orderBy: { soumiseA: 'desc' },
       take: 8,
@@ -107,11 +112,18 @@ export async function getRecruteurDashboard(cjsUid: string, organisationId: stri
 export async function getRecruteurOffres(cjsUid: string, organisationId: string | null): Promise<RecruteurOffreItem[]> {
   const rows = await prisma.opportunite.findMany({
     where: offreWhere(cjsUid, organisationId),
-    select: { id: true, titre: true, statut: true, vues: true, _count: { select: { candidatures: true } } },
+    select: {
+      id: true, titre: true, statut: true, vues: true, type: true, region: true, deadline: true,
+      _count: { select: { candidatures: true } },
+      candidatures: { where: { pipelineStage: 'Recue' }, select: { id: true } },
+    },
     orderBy: { updatedAt: 'desc' },
     take: 100,
   })
-  return rows.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues }))
+  return rows.map((o) => ({
+    id: o.id, titre: o.titre, statut: o.statut, candidatures: o._count.candidatures, vues: o.vues,
+    type: o.type, region: o.region, deadline: o.deadline ? o.deadline.toISOString() : null, nouveau: o.candidatures.length,
+  }))
 }
 
 /** Liste des candidatures reçues (page Candidatures), filtrable par statut et recherche nom. */
@@ -224,4 +236,90 @@ export async function getRecruteurEntretiens(cjsUid: string): Promise<RecruteurE
     candidatNom: `${e.candidature.utilisateur.prenom} ${e.candidature.utilisateur.nom}`.trim(),
     offreTitre: e.candidature.opportunite.titre,
   }))
+}
+
+// ── GUIC-515 — Pipeline kanban recruteur (design v4) ─────────────────────────────
+export type PipelineStageId = 'Recue' | 'Preselection' | 'Entretien' | 'Decision'
+
+export interface PipelineCard {
+  id: string
+  prenom: string
+  nom: string
+  age: number | null
+  commune: string | null
+  niveau: string | null
+  skills: string[]
+  match: number | null
+  favori: boolean
+  soumiseA: string
+  offreTitre: string
+  stage: PipelineStageId
+}
+
+export interface RecruteurPipeline {
+  offres: { id: string; titre: string; statut: string }[]
+  offreActiveId: string | null
+  colonnes: Record<PipelineStageId, PipelineCard[]>
+}
+
+function ageFrom(d: Date | null): number | null {
+  if (!d) return null
+  const a = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000))
+  return a > 0 && a < 120 ? a : null
+}
+
+/** Pipeline kanban des candidatures (optionnellement scopé à une offre). */
+export async function getRecruteurPipeline(
+  cjsUid: string,
+  organisationId: string | null,
+  offreId?: string,
+  q?: string,
+): Promise<RecruteurPipeline> {
+  const base = offreWhere(cjsUid, organisationId)
+  const offres = await prisma.opportunite.findMany({
+    where: base,
+    select: { id: true, titre: true, statut: true },
+    orderBy: { updatedAt: 'desc' },
+    take: 100,
+  })
+  const offreActiveId = offreId && offres.some((o) => o.id === offreId) ? offreId : null
+  const terme = q?.trim()
+
+  const rows = await prisma.candidature.findMany({
+    where: {
+      opportunite: base,
+      ...(offreActiveId ? { opportuniteId: offreActiveId } : {}),
+      ...(terme ? { utilisateur: { OR: [{ prenom: { contains: terme } }, { nom: { contains: terme } }] } } : {}),
+    },
+    select: {
+      id: true, pipelineStage: true, scoreAdequation: true, favoriRecruteur: true, soumiseA: true,
+      utilisateur: { select: { prenom: true, nom: true, dateNaissance: true, commune: true, profil: { select: { niveauEtude: true, competences: true } } } },
+      opportunite: { select: { titre: true } },
+    },
+    orderBy: [{ favoriRecruteur: 'desc' }, { scoreAdequation: { sort: 'desc', nulls: 'last' } }],
+    take: 300,
+  })
+
+  const colonnes: Record<PipelineStageId, PipelineCard[]> = { Recue: [], Preselection: [], Entretien: [], Decision: [] }
+  for (const r of rows) {
+    const comp = Array.isArray(r.utilisateur.profil?.competences)
+      ? (r.utilisateur.profil!.competences as unknown[]).map((x) => String(x)).filter(Boolean)
+      : []
+    colonnes[r.pipelineStage].push({
+      id: r.id,
+      prenom: r.utilisateur.prenom,
+      nom: r.utilisateur.nom,
+      age: ageFrom(r.utilisateur.dateNaissance),
+      commune: r.utilisateur.commune,
+      niveau: r.utilisateur.profil?.niveauEtude ?? null,
+      skills: comp.slice(0, 3),
+      match: r.scoreAdequation,
+      favori: r.favoriRecruteur,
+      soumiseA: r.soumiseA.toISOString(),
+      offreTitre: r.opportunite.titre,
+      stage: r.pipelineStage,
+    })
+  }
+
+  return { offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut })), offreActiveId, colonnes }
 }
