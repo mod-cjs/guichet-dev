@@ -753,12 +753,23 @@ export interface PublicationItem {
   id: string
   titre: string
   type: string
+  /** Tonalité de la pastille type (design v4 MobAgentPublish). */
+  kindTone: 'teal' | 'blue' | 'yellow' | 'green'
   dateLabel: string
   statut: string
   statutLabel: string
   statutTone: 'teal' | 'green' | 'yellow' | 'grey' | 'red'
   inscriptions: number
   capacite: number | null
+}
+
+const EVT_KIND_TONE: Record<string, PublicationItem['kindTone']> = {
+  Atelier: 'teal',
+  Formation: 'green',
+  Forum: 'blue',
+  Conference: 'blue',
+  Webinar: 'yellow',
+  Cours: 'teal',
 }
 
 const PUB_DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -788,6 +799,7 @@ export async function getPublicationsCentre(centreId: string, limit = 50): Promi
       id: e.id,
       titre: e.titre,
       type: String(e.type),
+      kindTone: EVT_KIND_TONE[String(e.type)] ?? 'teal',
       dateLabel: PUB_DATE.format(e.dateDebut),
       statut: String(e.statut),
       statutLabel: s.label,

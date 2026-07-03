@@ -11,25 +11,30 @@ import type { ApiResponse } from '@/types/api'
 
 /**
  * GUIC-477 — Rédaction de publications (événements) par le conseiller.
- * L'événement est créé au centre du conseiller (périmètre forcé). Le corps est
- * sanitisé serveur (anti-XSS). NB : la validation admin préalable (statut « en
-* validé (a_venir) ou refusé (refuse) par l'admin. Corps sanitisé (anti-XSS).
+ * L'événement est créé au centre du conseiller (périmètre forcé), en statut
+ * `en_relecture` : invisible du public tant que l'admin ne l'a pas validé
+ * (→ `a_venir`) ou refusé (→ `refuse`). Corps riche sanitisé serveur (anti-XSS).
  */
 const schema = z.object({
   titre: z.string().trim().min(3, 'Titre requis').max(200),
   description: z.string().trim().min(1, 'Description requise'),
   type: z.nativeEnum(TypeEvenement),
   dateDebut: z.coerce.date(),
+  dateFin: z.coerce.date().optional().nullable(),
   lieu: z.string().trim().min(1, 'Lieu requis').max(200),
   capaciteMax: z.coerce.number().int().positive().max(100000).optional().nullable(),
+  estGratuit: z.boolean().optional().default(true),
 })
+
 export interface PublicationInput {
   titre: string
   type: TypeEvenement
   dateDebut: string
+  dateFin?: string | null
   lieu: string
   description: string
   capaciteMax?: number | null
+  estGratuit?: boolean
 }
 
 export async function creerPublication(input: PublicationInput): Promise<ApiResponse<{ id: string }>> {
@@ -44,6 +49,10 @@ export async function creerPublication(input: PublicationInput): Promise<ApiResp
   }
   const d = parsed.data
 
+  if (d.dateFin && d.dateFin < d.dateDebut) {
+    return { error: { code: 'VALIDATION_ERROR', message: 'La date de fin doit être après la date de début.' } }
+  }
+
   const e = await prisma.evenement.create({
     data: {
       titre: d.titre,
@@ -51,10 +60,11 @@ export async function creerPublication(input: PublicationInput): Promise<ApiResp
       type: d.type,
       statut: StatutEvenement.en_relecture,
       dateDebut: d.dateDebut,
+      dateFin: d.dateFin ?? null,
       lieu: d.lieu,
       centreId: ctx.centreId, // périmètre forcé : le centre du conseiller
       capaciteMax: d.capaciteMax ?? null,
-      estGratuit: true,
+      estGratuit: d.estGratuit,
     },
     select: { id: true },
   })
