@@ -763,10 +763,12 @@ export interface PublicationItem {
 
 const PUB_DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 const EVT_STATUT: Record<string, { label: string; tone: PublicationItem['statutTone'] }> = {
-  a_venir: { label: 'À venir', tone: 'teal' },
-  en_cours: { label: 'En cours', tone: 'yellow' },
+  en_relecture: { label: 'En relecture', tone: 'yellow' },
+  a_venir: { label: 'Publié', tone: 'green' },
+  en_cours: { label: 'En cours', tone: 'teal' },
   termine: { label: 'Terminé', tone: 'grey' },
-  annule: { label: 'Annulé', tone: 'red' },
+  annule: { label: 'Annulé', tone: 'grey' },
+  refuse: { label: 'Refusé', tone: 'red' },
 }
 
 /** Publications (événements) du centre du conseiller, plus récentes d'abord. */

@@ -136,3 +136,31 @@ export async function marquerPresenceEvenement(
   revalidatePath(`/admin/evenements/${eid}`)
   return { ok: true }
 }
+
+/**
+ * GUIC-477 — Validation des publications conseiller (statut `en_relecture`).
+ * Approuver → `a_venir` (publié) ; refuser → `refuse` (masqué du public).
+ */
+export async function validerPublication(id: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const eid = idSchema.parse(id)
+  const e = await prisma.evenement.findUnique({ where: { id: eid }, select: { statut: true } })
+  if (!e || e.statut !== StatutEvenement.en_relecture) throw new Error('PUBLICATION_NON_EN_RELECTURE')
+  await prisma.evenement.update({ where: { id: eid }, data: { statut: StatutEvenement.a_venir } })
+  await recordAudit(session.cjsUid, 'evenement.validation', { targetType: 'evenement', targetId: eid, meta: { decision: 'valide' } })
+  revalidate()
+  revalidatePath('/conseiller/publications')
+  return { ok: true }
+}
+
+export async function refuserPublication(id: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const eid = idSchema.parse(id)
+  const e = await prisma.evenement.findUnique({ where: { id: eid }, select: { statut: true } })
+  if (!e || e.statut !== StatutEvenement.en_relecture) throw new Error('PUBLICATION_NON_EN_RELECTURE')
+  await prisma.evenement.update({ where: { id: eid }, data: { statut: StatutEvenement.refuse } })
+  await recordAudit(session.cjsUid, 'evenement.validation', { targetType: 'evenement', targetId: eid, meta: { decision: 'refuse' } })
+  revalidate()
+  revalidatePath('/conseiller/publications')
+  return { ok: true }
+}

@@ -13,7 +13,7 @@ import type { ApiResponse } from '@/types/api'
  * GUIC-477 — Rédaction de publications (événements) par le conseiller.
  * L'événement est créé au centre du conseiller (périmètre forcé). Le corps est
  * sanitisé serveur (anti-XSS). NB : la validation admin préalable (statut « en
- * relecture ») nécessitera une extension de `StatutEvenement` — non couvert ici.
+* validé (a_venir) ou refusé (refuse) par l'admin. Corps sanitisé (anti-XSS).
  */
 const schema = z.object({
   titre: z.string().trim().min(3, 'Titre requis').max(200),
@@ -49,7 +49,7 @@ export async function creerPublication(input: PublicationInput): Promise<ApiResp
       titre: d.titre,
       description: sanitizeRichHtml(d.description),
       type: d.type,
-      statut: StatutEvenement.a_venir,
+      statut: StatutEvenement.en_relecture,
       dateDebut: d.dateDebut,
       lieu: d.lieu,
       centreId: ctx.centreId, // périmètre forcé : le centre du conseiller

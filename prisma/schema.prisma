@@ -186,6 +186,8 @@ enum StatutEvenement {
   en_cours
   termine
   annule
+  en_relecture // GUIC-477 — en attente de validation admin
+  refuse       // GUIC-477 — refusée par l'admin
 
   @@map("statut_evenement")
 }
