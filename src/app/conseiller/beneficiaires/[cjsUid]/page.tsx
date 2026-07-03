@@ -69,7 +69,7 @@ export default async function BeneficiaireDetailPage({ params }: { params: Promi
         </Link>
       </div>
 
-      <div className="grid gap-space-5" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px', alignItems: 'start' }}>
+      <div className="grid gap-space-5 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
         <div className="flex flex-col gap-space-5" style={{ minWidth: 0 }}>
           {/* Informations */}
           <div className="bg-white rounded-gj-lg p-space-5" style={{ border: '1.5px solid var(--gj-line)' }}>

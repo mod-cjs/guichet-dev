@@ -57,7 +57,7 @@ export default async function ConseillerReservationsPage({
       </div>
 
       {/* Onglets (server-driven via ?tab=) */}
-      <div className="flex gap-space-1 bg-white" style={{ border: '1.5px solid var(--gj-line)', borderRadius: 12, padding: 5, width: 'fit-content' }} role="tablist" aria-label="Filtrer les réservations">
+      <div className="flex flex-wrap gap-space-1 bg-white w-fit max-w-full" style={{ border: '1.5px solid var(--gj-line)', borderRadius: 12, padding: 5 }} role="tablist" aria-label="Filtrer les réservations">
         {TABS.map((t) => {
           const on = t.id === tab
           const n = counts[t.id]

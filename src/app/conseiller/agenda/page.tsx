@@ -112,7 +112,7 @@ export default async function ConseillerAgendaPage({
       </div>
 
       {/* Barre de navigation période */}
-      <div className="flex items-center gap-space-3">
+      <div className="flex items-center gap-space-3 flex-wrap">
         <Link href={navLink(prevDate)} aria-label="Période précédente" className="inline-flex items-center justify-center no-underline" style={{ width: 38, height: 38, borderRadius: 9, border: '1.5px solid var(--gj-line)', color: 'var(--gj-ink)' }}>
           <Icon name="chevron-left" size={18} />
         </Link>
