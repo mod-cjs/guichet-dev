@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
-import { getConseillerContext, getCentreBeneficiaires, type BenefListItem } from '@/lib/loaders/conseiller'
+import { getConseillerContext, getCentreBeneficiaires, type BenefListItem, type BenefStatutFilter } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ProfilRing } from './profil-ring'
@@ -49,10 +49,19 @@ function BenefRow({ b }: { b: BenefListItem }) {
   )
 }
 
+const FILTERS: { id: BenefStatutFilter; label: string }[] = [
+  { id: 'tous', label: 'Tous' },
+  { id: 'actif', label: 'Actifs' },
+  { id: 'incomplet', label: 'À compléter' },
+]
+function parseStatut(v?: string): BenefStatutFilter {
+  return v === 'actif' || v === 'incomplet' ? v : 'tous'
+}
+
 export default async function ConseillerBeneficiairesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string }>
+  searchParams?: Promise<{ q?: string; statut?: string }>
 }) {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
@@ -61,7 +70,16 @@ export default async function ConseillerBeneficiairesPage({
 
   const sp = (await searchParams) ?? {}
   const q = (sp.q ?? '').trim()
-  const { total, items } = await getCentreBeneficiaires(ctx.centreId, q || undefined)
+  const statut = parseStatut(sp.statut)
+  const { total, items } = await getCentreBeneficiaires(ctx.centreId, q || undefined, statut)
+  const qs = (extra: Record<string, string>) => {
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    if (statut !== 'tous') p.set('statut', statut)
+    for (const [k, v] of Object.entries(extra)) { if (v) p.set(k, v); else p.delete(k) }
+    const s = p.toString()
+    return s ? `?${s}` : ''
+  }
 
   return (
     <div className="flex flex-col gap-space-4">
@@ -72,18 +90,39 @@ export default async function ConseillerBeneficiairesPage({
         </p>
       </div>
 
-      {/* Recherche (US-7) — server-driven ?q= */}
-      <form action="/conseiller/beneficiaires" method="get" role="search" className="flex items-center gap-space-2" style={{ background: '#fff', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 14px', minHeight: 44, maxWidth: 420 }}>
-        <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Rechercher un bénéficiaire…"
-          aria-label="Rechercher un bénéficiaire"
-          className="flex-1 bg-transparent outline-none text-fs-300"
-          style={{ border: 0, color: 'var(--gj-ink)' }}
-        />
-      </form>
+      {/* Barre d'outils : recherche + filtre statut + export */}
+      <div className="flex items-center gap-space-3 flex-wrap justify-between">
+        <form action="/conseiller/beneficiaires" method="get" role="search" className="flex items-center gap-space-2" style={{ background: '#fff', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 14px', minHeight: 44, width: 340, maxWidth: '100%' }}>
+          <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Rechercher un bénéficiaire…"
+            aria-label="Rechercher un bénéficiaire"
+            className="flex-1 bg-transparent outline-none text-fs-300"
+            style={{ border: 0, color: 'var(--gj-ink)' }}
+          />
+          {statut !== 'tous' && <input type="hidden" name="statut" value={statut} />}
+        </form>
+
+        <div className="flex items-center gap-space-3 flex-wrap">
+          {/* Filtre statut */}
+          <div className="flex gap-space-1 bg-white" style={{ border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: 4 }} role="group" aria-label="Filtrer par statut">
+            {FILTERS.map((f) => {
+              const on = f.id === statut
+              return (
+                <Link key={f.id} href={`/conseiller/beneficiaires${qs({ statut: f.id === 'tous' ? '' : f.id })}`} aria-pressed={on} className="no-underline font-extrabold" style={{ padding: '7px 12px', borderRadius: 7, fontSize: 12, background: on ? 'var(--gj-teal-deep)' : 'transparent', color: on ? '#fff' : 'var(--gj-grey)' }}>
+                  {f.label}
+                </Link>
+              )
+            })}
+          </div>
+          {/* Export CSV */}
+          <a href={`/conseiller/beneficiaires/export${qs({})}`} className="inline-flex items-center gap-space-2 no-underline font-extrabold" style={{ background: '#fff', border: '1.5px solid var(--gj-line)', color: 'var(--gj-ink)', padding: '9px 14px', borderRadius: 9, fontSize: 12.5 }}>
+            <Icon name="download" size={15} /> Exporter
+          </a>
+        </div>
+      </div>
 
       {items.length === 0 ? (
         <EmptyState icon="users" title={q ? 'Aucun résultat' : 'Aucun bénéficiaire'} description={q ? `Aucun bénéficiaire ne correspond à « ${q} ».` : 'Les jeunes ayant fréquenté le centre apparaîtront ici.'} />

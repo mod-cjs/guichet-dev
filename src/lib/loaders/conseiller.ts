@@ -534,21 +534,23 @@ export interface CentreBeneficiaires {
  * Annuaire des bénéficiaires rattachés au centre (via check-in / réservation),
  * avec recherche par nom (US-7). Scopé au centre du conseiller.
  */
+export type BenefStatutFilter = 'tous' | 'actif' | 'incomplet'
+
 export async function getCentreBeneficiaires(
   centreId: string,
   query?: string,
+  statut: BenefStatutFilter = 'tous',
   limit = 50,
 ): Promise<CentreBeneficiaires> {
   const uids = await getCentreBeneficiaireUids(centreId)
   if (uids.length === 0) return { total: 0, items: [] }
 
   const q = query?.trim()
-  const where: Prisma.UtilisateurWhereInput = {
-    cjsUid: { in: uids },
-    ...(q
-      ? { OR: [{ prenom: { contains: q } }, { nom: { contains: q } }] }
-      : {}),
-  }
+  const and: Prisma.UtilisateurWhereInput[] = [{ cjsUid: { in: uids } }]
+  if (q) and.push({ OR: [{ prenom: { contains: q } }, { nom: { contains: q } }] })
+  if (statut === 'actif') and.push({ profil: { completionScore: { gte: BENEF_STATUT_SEUIL } } })
+  if (statut === 'incomplet') and.push({ OR: [{ profil: { is: null } }, { profil: { completionScore: { lt: BENEF_STATUT_SEUIL } } }] })
+  const where: Prisma.UtilisateurWhereInput = { AND: and }
 
   const [total, users, lastVisits] = await Promise.all([
     prisma.utilisateur.count({ where }),
