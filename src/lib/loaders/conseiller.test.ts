@@ -9,6 +9,8 @@ import {
   mapRessourceKind,
   buildAgendaItems,
   mapStatutView,
+  ageFromBirthdate,
+  benefStatut,
   type ConseillerCentre,
   type AgendaItem,
 } from './conseiller'
@@ -112,5 +114,33 @@ describe('mapStatutView (GUIC-495 — statuts réservation → vue design)', () 
   it('fournit un libellé pour chaque statut', () => {
     expect(mapStatutView('EnAttente').label).toBeTruthy()
     expect(mapStatutView('inconnu').label).toBeTruthy()
+  })
+})
+
+describe('ageFromBirthdate (GUIC-499 — annuaire bénéficiaires)', () => {
+  const now = new Date('2026-07-03T12:00:00Z')
+
+  it('calcule l’âge révolu', () => {
+    expect(ageFromBirthdate(new Date('2004-01-01'), now)).toBe(22)
+  })
+
+  it('ne compte pas un anniversaire à venir dans l’année', () => {
+    expect(ageFromBirthdate(new Date('2004-12-31'), now)).toBe(21)
+  })
+
+  it('retourne null si date inconnue', () => {
+    expect(ageFromBirthdate(null, now)).toBeNull()
+  })
+})
+
+describe('benefStatut (GUIC-499)', () => {
+  it('« Actif » quand le profil est suffisamment complété', () => {
+    expect(benefStatut(72).label).toBe('Actif')
+    expect(benefStatut(50).label).toBe('Actif')
+  })
+
+  it('« Profil à compléter » sous le seuil', () => {
+    expect(benefStatut(45).label).toBe('Profil à compléter')
+    expect(benefStatut(0).label).toBe('Profil à compléter')
   })
 })
