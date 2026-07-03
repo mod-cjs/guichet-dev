@@ -145,10 +145,10 @@ export function ConseillerSidebar({
 
         {/* Footer : aide + déconnexion */}
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ padding: 11, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 9 }}>
+          <Link href="/conseiller/aide" className="no-underline" style={{ padding: 11, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 9 }}>
             <Icon name="info" size={17} className="shrink-0" style={{ color: 'var(--gj-yellow)' }} />
-            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.7)', lineHeight: 1.4 }}>Centre d'aide &amp; guide conseiller</div>
-          </div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.7)', lineHeight: 1.4 }}>Centre d&apos;aide &amp; guide conseiller</div>
+          </Link>
           <Link href="/api/auth/logout" className="no-underline" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 8, fontSize: 12.5, color: 'rgba(255,255,255,.72)', fontWeight: 600, minHeight: 44 }}>
             <Icon name="logout" size={16} className="shrink-0" />
             <span>Se déconnecter</span>
