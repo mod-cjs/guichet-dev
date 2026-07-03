@@ -22,18 +22,25 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
     img: ['src', 'alt'],
+    // Cases à cocher (task list) : structure Tiptap + case NON interactive à l'affichage.
+    ul: ['data-type'],
+    li: ['data-type', 'data-checked'],
+    input: ['type', 'checked', 'disabled'],
   },
   // Liens : http/https/mailto uniquement — bloque javascript:, etc.
   allowedSchemes: ['http', 'https', 'mailto'],
   // Images : https/http uniquement — bloque data:text/html et data: non contrôlé.
   allowedSchemesByTag: { img: ['http', 'https'] },
   allowProtocolRelative: false,
-  // Durcit chaque lien sortant : nouvelle fenêtre + rel sûr.
   transformTags: {
+    // Durcit chaque lien sortant : nouvelle fenêtre + rel sûr.
     a: sanitizeHtml.simpleTransform('a', {
       target: '_blank',
       rel: 'noopener noreferrer',
     }),
+    // Case à cocher : on force type=checkbox + disabled (jamais interactive côté lecteur,
+    // jamais de <input type="text"> ou autre injecté). L'état coché est conservé via data-checked.
+    input: sanitizeHtml.simpleTransform('input', { type: 'checkbox', disabled: 'disabled' }, true),
   },
 }
 

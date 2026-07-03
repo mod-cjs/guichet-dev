@@ -5,6 +5,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
+import CharacterCount from '@tiptap/extension-character-count'
 import { useCallback, useRef, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
@@ -24,6 +27,8 @@ export interface RichTextEditorProps {
   /** Nom du champ hidden synchronisé (pour soumission via FormData sans handler JS). */
   name?: string
   disabled?: boolean
+  /** Limite de caractères (compteur + blocage au-delà). Sans limite : simple compteur. */
+  limit?: number
 }
 
 /**
@@ -46,7 +51,9 @@ export function RichTextEditor({
   id,
   name,
   disabled = false,
+  limit,
 }: RichTextEditorProps) {
+  const [charCount, setCharCount] = useState(0)
   const editor = useEditor({
     // Next.js App Router : éviter le rendu synchrone SSR (hydration mismatch).
     immediatelyRender: false,
@@ -67,6 +74,10 @@ export function RichTextEditor({
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
       }),
       Image.configure({ inline: false, allowBase64: false }),
+      // Cases à cocher (listes de conditions/critères).
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      CharacterCount.configure(limit ? { limit } : {}),
       Placeholder.configure({ placeholder }),
     ],
     content: value,
@@ -78,7 +89,11 @@ export function RichTextEditor({
         ...(label ? { 'aria-label': label } : {}),
       },
     },
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onCreate: ({ editor }) => setCharCount(editor.storage.characterCount.characters()),
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML())
+      setCharCount(editor.storage.characterCount.characters())
+    },
   })
 
   const currentHtml = editor?.getHTML() ?? value
@@ -104,8 +119,18 @@ export function RichTextEditor({
       </div>
 
       {name && <input type="hidden" name={name} value={currentHtml} readOnly />}
-      {hint && !error && <p className="text-fs-200 text-color-text-muted">{hint}</p>}
-      {error && <p className="text-fs-200 text-gj-red">{error}</p>}
+      <div className="flex items-start justify-between gap-space-2">
+        <div className="min-w-0">
+          {hint && !error && <p className="text-fs-200 text-color-text-muted">{hint}</p>}
+          {error && <p className="text-fs-200 text-gj-red">{error}</p>}
+        </div>
+        <span
+          className={`shrink-0 text-fs-200 tabular-nums ${limit && charCount >= limit ? 'text-gj-red font-bold' : 'text-color-text-muted'}`}
+          aria-live="polite"
+        >
+          {charCount}{limit ? ` / ${limit}` : ''} caractères
+        </span>
+      </div>
     </div>
   )
 }
@@ -207,6 +232,8 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
         onClick={() => editor.chain().focus().toggleOrderedList().run()}>
         <span aria-hidden className="text-fs-200 font-bold">1.</span>
       </GlyphButton>
+      <IconButton label="Liste de cases à cocher" icon="check-circle" active={editor.isActive('taskList')} disabled={disabled}
+        onClick={() => editor.chain().focus().toggleTaskList().run()} />
       <IconButton label="Citation" icon="quote" active={editor.isActive('blockquote')} disabled={disabled}
         onClick={() => editor.chain().focus().toggleBlockquote().run()} />
 
@@ -230,6 +257,13 @@ function Toolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
         aria-hidden
         onChange={onImageFile}
       />
+
+      <Divider />
+
+      <GlyphButton label="Effacer la mise en forme" active={false} disabled={disabled}
+        onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+        <span aria-hidden className="text-[15px] leading-none">⌫</span>
+      </GlyphButton>
     </div>
   )
 }

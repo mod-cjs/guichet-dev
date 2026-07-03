@@ -72,6 +72,36 @@
   margin: 0.6em 0;
 }
 
+/* Cases à cocher (task list Tiptap). Puce native retirée, case alignée au texte. */
+.gj-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.gj-prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.25em 0;
+}
+.gj-prose ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.25em;
+  user-select: none;
+}
+.gj-prose ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.gj-prose ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+.gj-prose ul[data-type="taskList"] input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gj-teal, #1f8a8a);
+  cursor: default;
+}
+
 /* Placeholder de la zone d'édition Tiptap vide. */
 .gj-prose[contenteditable] { outline: none; min-height: 8rem; }
 .gj-prose p.is-editor-empty:first-child::before {

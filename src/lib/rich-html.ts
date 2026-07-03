@@ -14,6 +14,8 @@ export const RICH_ALLOWED_TAGS = [
   'ul', 'ol', 'li',
   'a', 'img',
   'blockquote',
+  // Cases à cocher (task list Tiptap) : <ul data-type="taskList"><li><label><input …>…
+  'input', 'label', 'div', 'span',
 ] as const
 
 /**
