@@ -1,5 +1,6 @@
 @import './tokens.css';
 @import './colors_and_type.css';
+@import './rich-prose.css';
 
 @tailwind base;
 @tailwind components;
