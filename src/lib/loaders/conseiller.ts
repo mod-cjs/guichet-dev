@@ -307,21 +307,27 @@ async function getCentreBeneficiaireUids(centreId: string): Promise<string[]> {
   return [...set]
 }
 
+/** Fenêtre glissante définissant un bénéficiaire « actif » (jours). */
+const BENEF_ACTIF_WINDOW_DAYS = 90
+
 /**
  * 4 KPI du dashboard (US-2), scopés centre, calculés à la volée.
- * Définitions (documentées dans la spec) :
- *  - Bénéficiaires actifs : jeunes distincts ayant fréquenté le centre (check-in).
+ * Définitions arrêtées (spec §KPI) :
+ *  - Bénéficiaires actifs : jeunes distincts ayant fréquenté le centre (check-in)
+ *    sur une fenêtre glissante de 90 jours.
  *  - Réservations à valider : réservations en attente (état action).
  *  - RDV aujourd'hui : items d'agenda dérivés du jour.
  *  - Candidatures du mois : candidatures soumises ce mois par les bénéficiaires du centre.
  */
 export async function getConseillerKpis(centreId: string, date: Date = new Date()): Promise<ConseillerKpi[]> {
   const mStart = monthStart(date)
+  const actifSince = new Date(date)
+  actifSince.setDate(actifSince.getDate() - BENEF_ACTIF_WINDOW_DAYS)
 
   const benefUids = await getCentreBeneficiaireUids(centreId)
 
   const [benefActifs, benefMois, resaAValider, agenda, candMois] = await Promise.all([
-    prisma.checkIn.groupBy({ by: ['cjsUid'], where: { centreId } }).then((r) => r.length),
+    prisma.checkIn.groupBy({ by: ['cjsUid'], where: { centreId, effectueA: { gte: actifSince } } }).then((r) => r.length),
     prisma.checkIn.groupBy({ by: ['cjsUid'], where: { centreId, effectueA: { gte: mStart } } }).then((r) => r.length),
     countReservationsAValider(centreId),
     getAgendaDuJour(centreId, date),

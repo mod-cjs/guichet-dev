@@ -6,6 +6,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
 import { notifyReservation } from '@/lib/notifications/reservations'
+import { initialReservationStatut } from '@/lib/reservations/statut-initial'
 import type { ApiResponse } from '@/types/api'
 
 /**
@@ -182,7 +183,10 @@ export async function POST(
           )
         }
 
-        // 3. Création — auto-validée MVP (option c, cf. spec §2)
+        // 3. Création — statut initial selon la politique de validation
+        // (GUIC-470) : salle/véhicule/atelier en attente d'un conseiller,
+        // poste/équipement auto-validés. Alimente la file du dashboard conseiller.
+        const statutInitial = initialReservationStatut(ressource.type)
         const created = await tx.reservation.create({
           data: {
             cjsUid: session.cjsUid,
@@ -194,8 +198,8 @@ export async function POST(
             nombrePersonnes: body.nombrePersonnes,
             motif: body.motif,
             justifFileUrl: body.justifFileUrl ?? null,
-            statut: 'Acceptee',
-            decisionA: new Date(),
+            statut: statutInitial,
+            decisionA: statutInitial === 'Acceptee' ? new Date() : null,
           },
         })
 

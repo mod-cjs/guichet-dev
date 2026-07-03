@@ -20,6 +20,7 @@ C'est un **espace back-office distinct** du bénéficiaire, identité visuelle *
 | **Rôle applicatif** | Accès si l'utilisateur a ≥1 ligne `AgentCentre` (le rôle `Utilisateur.role` n'est pas requis) | `AgentCentre` est la source de vérité conseiller↔centre |
 | **Multi-centre** | Un conseiller peut être rattaché à plusieurs centres → sélection du centre actif (défaut : premier). MVP Phase 1 : premier centre | `findMany` sur AgentCentre |
 | **Réservations** | Réutiliser le modèle **`Reservation`** (statut, decisionA, raisonRefusOuAnnul, index `[centreId, statut, dateReservee]`) | Déjà complet, aucun nouveau modèle |
+| **Politique de validation** (résolu 2026-07-03) | Réactivation du workflow d'approbation **par type de ressource**, sans migration : **salle / véhicule / atelier récurrent → `EnAttente`** (validation conseiller) ; **poste info / équipement → `Acceptee`** (auto). Cf. `src/lib/reservations/statut-initial.ts` | Alimente la file « Réservations à valider » ; le côté jeune gère déjà `EnAttente` (`ReservationCard`) |
 | **Check-in QR** | Réutiliser l'existant **`CheckIn`** + scanner livré ([GUIC-387](https://consortiumjeunesse.atlassian.net/browse/GUIC-387)) | Ne pas recréer |
 | **Agenda / RDV (US-5)** | **Dérivé de l'existant** — `Evenement`/`CentreEvent` (ateliers collectifs) + `Reservation` (créneaux) du jour, **aucun modèle `RendezVous` créé** | Décision produit 2026-07-03 : éviter une migration ; les RDV 1-à-1 formels seront modélisés plus tard si besoin |
 | **`centre-staff`** | Cet espace SSO **remplace à terme** `/centre-staff` (JWT MVP). Migration progressive, pas de suppression en Phase 1 | Éviter la régression sur le scanner en prod |
@@ -64,6 +65,13 @@ Section active mise en évidence (fond `--gj-teal`). Mobile : bottom-nav 5 items
 - Phase 2 : `getConseillerKpis(centreId)`, `getReservationsAValider(centreId)`, `getAgendaDuJour(centreId, date)` (dérivé).
 
 Toutes les requêtes **filtrent par `centreId`**. Payload/pagination selon règles API (`ApiResponse<T>`, 20/page).
+
+## 6b. Définitions KPI (arrêtées 2026-07-03)
+
+- **Bénéficiaires actifs** : jeunes distincts ayant un check-in au centre sur une **fenêtre glissante de 90 jours** ; delta = distinct ce mois.
+- **Réservations à valider** : `Reservation.statut = EnAttente` du centre (exact).
+- **RDV aujourd'hui** : nombre d'items d'agenda dérivés du jour.
+- **Candidatures du mois** : candidatures soumises ce mois par les bénéficiaires rattachés au centre (check-in ou réservation).
 
 ## 7. Sécurité
 
