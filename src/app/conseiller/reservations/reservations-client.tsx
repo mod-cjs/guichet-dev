@@ -196,7 +196,13 @@ function Row({ r }: { r: ReservationListItem }) {
             <Meta icon="calendar">{r.dateLabel}</Meta>
             <Meta icon="clock">{r.slot}</Meta>
             <Meta icon="users">{r.people} pers.</Meta>
-            {r.justif && <Meta icon="document" color="var(--gj-blue-ink)">Justificatif joint</Meta>}
+            {r.justif && (r.justifUrl ? (
+              <a href={r.justifUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-space-1 no-underline" style={{ fontSize: 11.5, color: 'var(--gj-blue-ink)', fontWeight: 700 }}>
+                <Icon name="document" size={14} /> Voir le justificatif
+              </a>
+            ) : (
+              <Meta icon="document" color="var(--gj-blue-ink)">Justificatif joint</Meta>
+            ))}
           </div>
           {r.motif && <div className="text-color-text-secondary" style={{ fontSize: 12.5, marginTop: 8, fontStyle: 'italic' }}>« {r.motif} »</div>}
         </div>

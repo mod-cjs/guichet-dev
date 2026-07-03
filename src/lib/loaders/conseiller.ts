@@ -422,6 +422,7 @@ export interface ReservationListItem {
   people: number
   motif: string
   justif: boolean
+  justifUrl: string | null
   statutView: StatutView
   statutLabel: string
   statutTone: StatutViewDescriptor['tone']
@@ -497,6 +498,7 @@ export async function getReservationsListe(
       people: r.nombrePersonnes,
       motif: r.motif,
       justif: Boolean(r.justifFileUrl),
+      justifUrl: r.justifFileUrl ?? null,
       statutView: s.view,
       statutLabel: s.label,
       statutTone: s.tone,
