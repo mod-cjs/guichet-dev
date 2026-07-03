@@ -6,7 +6,7 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { deciderReservation } from '../actions'
+import { deciderReservation, proposerCreneau } from '../actions'
 import type {
   ReservationListItem,
   ReservationTab,
@@ -110,8 +110,66 @@ function DecisionModal({
   )
 }
 
+function ProposeModal({ row, onClose, onDone }: { row: ReservationListItem; onClose: () => void; onDone: () => void }) {
+  const [date, setDate] = useState('')
+  const [debut, setDebut] = useState('')
+  const [fin, setFin] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(debut) && /^\d{2}:\d{2}$/.test(fin) && fin > debut
+
+  const confirm = () => {
+    if (!valid) { setError('Renseigne une date et un créneau valides (fin après début).'); return }
+    setError(null)
+    startTransition(async () => {
+      const res = await proposerCreneau(row.id, date, debut, fin, message)
+      if (res.error) setError(res.error.message)
+      else onDone()
+    })
+  }
+
+  const field: React.CSSProperties = { border: '1.5px solid var(--gj-line)', borderRadius: 9, padding: '10px 12px', fontSize: 13.5, color: 'var(--gj-ink)', background: 'var(--gj-bg)', outline: 'none', width: '100%', fontFamily: 'inherit' }
+
+  return (
+    <Modal isOpen onClose={onClose} title="Proposer un créneau">
+      <div className="flex flex-col gap-space-4">
+        <p className="text-fs-200 text-color-text-secondary m-0">
+          {row.ressourceNom} · {row.who} — créneau demandé : {row.dateLabel} · {row.slot}
+        </p>
+        <label className="flex flex-col gap-space-1">
+          <span className="font-extrabold" style={{ fontSize: 11, color: 'var(--gj-ink)', textTransform: 'uppercase', letterSpacing: '.4px' }}>Date proposée</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={field} aria-label="Date proposée" />
+        </label>
+        <div className="flex gap-space-3">
+          <label className="flex flex-col gap-space-1 flex-1">
+            <span className="font-extrabold" style={{ fontSize: 11, color: 'var(--gj-ink)', textTransform: 'uppercase', letterSpacing: '.4px' }}>Début</span>
+            <input type="time" value={debut} onChange={(e) => setDebut(e.target.value)} style={field} aria-label="Heure de début" />
+          </label>
+          <label className="flex flex-col gap-space-1 flex-1">
+            <span className="font-extrabold" style={{ fontSize: 11, color: 'var(--gj-ink)', textTransform: 'uppercase', letterSpacing: '.4px' }}>Fin</span>
+            <input type="time" value={fin} onChange={(e) => setFin(e.target.value)} style={field} aria-label="Heure de fin" />
+          </label>
+        </div>
+        <Textarea label="Message (facultatif)" rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ex. La salle est libre à ce créneau." />
+        <div className="flex items-center gap-space-2" style={{ background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)', borderRadius: 9, padding: '10px 12px', fontSize: 12, fontWeight: 600 }}>
+          <Icon name="info" size={14} /> La demande initiale sera refusée et le bénéficiaire notifié du nouveau créneau.
+        </div>
+        {error && <p className="text-fs-200 m-0" style={{ color: 'var(--gj-red)' }}>{error}</p>}
+        <div className="flex justify-end gap-space-2">
+          <button type="button" onClick={onClose} disabled={pending} className="font-extrabold" style={{ background: '#fff', color: 'var(--gj-grey)', border: '1.5px solid var(--gj-line)', padding: '11px 18px', borderRadius: 9, fontSize: 13.5 }}>Annuler</button>
+          <button type="button" onClick={confirm} disabled={pending} className="inline-flex items-center gap-space-2 font-extrabold disabled:opacity-60" style={{ background: 'var(--gj-teal-deep)', color: '#fff', border: 0, padding: '11px 22px', borderRadius: 9, fontSize: 13.5 }}>
+            <Icon name="calendar" size={16} /> Proposer
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function Row({ r }: { r: ReservationListItem }) {
-  const [modal, setModal] = useState<null | 'accept' | 'refuse'>(null)
+  const [modal, setModal] = useState<null | 'accept' | 'refuse' | 'propose'>(null)
   const router = useRouter()
   const kt = KIND_TONE[r.kind]
   const st = STATUT_TONE[r.statutView]
@@ -155,16 +213,29 @@ function Row({ r }: { r: ReservationListItem }) {
           <button type="button" onClick={() => setModal('accept')} className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: 'var(--gj-green)', color: '#fff', border: 0, padding: '10px 18px', borderRadius: 9, fontSize: 13 }}>
             <Icon name="check" size={15} /> Accepter
           </button>
+          <button type="button" onClick={() => setModal('propose')} className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: '#fff', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-line)', padding: '10px 16px', borderRadius: 9, fontSize: 13 }}>
+            <Icon name="calendar" size={15} /> Proposer un créneau
+          </button>
           <button type="button" onClick={() => setModal('refuse')} className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: '#fff', color: 'var(--gj-red)', border: '1.5px solid var(--gj-line)', padding: '10px 16px', borderRadius: 9, fontSize: 13 }}>
             <Icon name="close" size={15} /> Refuser
           </button>
         </div>
       )}
 
-      {modal && (
+      {(modal === 'accept' || modal === 'refuse') && (
         <DecisionModal
           row={r}
           decision={modal}
+          onClose={() => setModal(null)}
+          onDone={() => {
+            setModal(null)
+            router.refresh()
+          }}
+        />
+      )}
+      {modal === 'propose' && (
+        <ProposeModal
+          row={r}
           onClose={() => setModal(null)}
           onDone={() => {
             setModal(null)

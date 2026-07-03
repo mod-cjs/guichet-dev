@@ -73,3 +73,69 @@ export async function deciderReservation(
   revalidatePath('/conseiller/reservations')
   return { data: { id: resa.id, statut } }
 }
+
+const HHMM = /^\d{2}:\d{2}$/
+const YMD = /^\d{4}-\d{2}-\d{2}$/
+const DATE_FR = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+/**
+ * GUIC-496 — US-4 · Proposer un créneau alternatif.
+ *
+ * La demande initiale est refusée (aucun statut « proposé » en base) mais le
+ * créneau alternatif est tracé dans le motif et notifié au bénéficiaire, qui
+ * pourra re-réserver sur le créneau suggéré.
+ */
+export async function proposerCreneau(
+  reservationId: string,
+  date: string,
+  debut: string,
+  fin: string,
+  message?: string,
+): Promise<ApiResponse<{ id: string }>> {
+  if (!YMD.test(date) || !HHMM.test(debut) || !HHMM.test(fin) || fin <= debut) {
+    return { error: { code: 'VALIDATION_ERROR', message: 'Créneau proposé invalide.' } }
+  }
+
+  const session = await getSession()
+  if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
+  const ctx = await getConseillerContext(session.cjsUid)
+  if (!ctx) return { error: { code: 'FORBIDDEN', message: 'Accès conseiller requis.' } }
+
+  const resa = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    select: { id: true, centreId: true, cjsUid: true, statut: true, ressource: { select: { nom: true } } },
+  })
+  if (!resa) return { error: { code: 'NOT_FOUND', message: 'Réservation introuvable.' } }
+  if (!ctx.centres.some((c) => c.id === resa.centreId)) {
+    return { error: { code: 'FORBIDDEN', message: 'Réservation hors de votre périmètre.' } }
+  }
+  if (resa.statut !== 'EnAttente') {
+    return { error: { code: 'CONFLICT', message: 'Réservation déjà traitée.' } }
+  }
+
+  const [y, m, d] = date.split('-').map(Number)
+  const dateLabel = DATE_FR.format(new Date(y, m - 1, d))
+  const creneauLabel = `${dateLabel} de ${debut} à ${fin}`
+  const raison = `Créneau proposé : ${creneauLabel}${message?.trim() ? ` — ${message.trim()}` : ''}`
+
+  await prisma.$transaction([
+    prisma.reservation.update({
+      where: { id: resa.id },
+      data: { statut: 'Refusee', decisionA: new Date(), raisonRefusOuAnnul: raison },
+    }),
+    prisma.notification.create({
+      data: {
+        cjsUid: resa.cjsUid,
+        type: 'System',
+        titre: 'Nouveau créneau proposé',
+        contenu: `Pour « ${resa.ressource.nom} », le conseiller propose : ${creneauLabel}. Vous pouvez réserver ce créneau.`,
+        iconName: 'calendar',
+        lien: '/jeune/mes-reservations-centres',
+      },
+    }),
+  ])
+
+  revalidatePath('/conseiller')
+  revalidatePath('/conseiller/reservations')
+  return { data: { id: resa.id } }
+}
