@@ -22,8 +22,15 @@
 - Agenda (US-5) = **dérivé** de `Evenement`/`CentreEvent` + `Reservation` (aucun modèle `RendezVous`).
 - `/conseiller` **remplacera** à terme `/centre-staff` (JWT MVP).
 
+## Phase 2 — Dashboard lecture (fidèle v4) ✅
+
+- Loaders réels scopés centre : `getConseillerKpis` (US-2), `getReservationsAValider` (US-3), `getAgendaDuJour` **dérivé** Réservation+Événement (US-5), `countReservationsAValider`. Helpers purs testés (`mapRessourceKind`, `buildAgendaItems`).
+- Composants fidèles `agent-web.jsx` : `dashboard-kpis.tsx` (4 cartes, carte urgente ACTION), `reservations-a-valider.tsx`, `agenda-du-jour.tsx` (timeline, ateliers distingués).
+- **US-4 (cœur)** : action serveur `deciderReservation` (accepter/refuser → statut + `decisionA` + Notification app ; contrôle périmètre centre). SMS = TODO (canal transactionnel à venir).
+- Badges sidebar branchés (réservations à valider + messages non lus).
+
 ## Reste à faire (phases suivantes)
 
-- **Phase 2** : US-2 (KPI temps réel), US-3 (file réservations), US-5 (agenda dérivé).
-- **Phase 3** : US-4 (accepter/refuser + notif), US-7 (recherche bénéf.), US-8 (notifications).
+- **Phase 3** : écran complet Réservations (`/conseiller/reservations`, onglets + « proposer un créneau »/motif), US-7 (recherche bénéf.), US-8 (notifications), SMS US-4.
 - **Phase 4** : US-6 (check-in QR réutilisé), US-10 (responsive + bottom-nav).
+- Écrans secondaires : agenda complet, bénéficiaires, messagerie, publications, paramètres.

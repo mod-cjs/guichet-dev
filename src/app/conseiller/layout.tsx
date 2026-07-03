@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getSession } from '@/lib/auth'
-import { getConseillerContext } from '@/lib/loaders/conseiller'
+import { getConseillerContext, countReservationsAValider } from '@/lib/loaders/conseiller'
+import { countUnreadMessages } from '@/lib/loaders/messagerie'
 import { ConseillerSidebar } from '@/components/layout/ConseillerSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
@@ -23,6 +24,11 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
 
   const ctx = await getConseillerContext(session.cjsUid)
   if (!ctx) redirect('/')
+
+  const [reservationsBadge, messagesBadge] = await Promise.all([
+    countReservationsAValider(ctx.centreId),
+    countUnreadMessages(ctx.cjsUid),
+  ])
 
   const fullName = `${ctx.prenom} ${ctx.nom}`.trim() || 'Conseiller'
   const roleLabel = ctx.role === 'conseiller' ? 'Conseiller' : ctx.role
@@ -48,6 +54,8 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
           role={roleLabel}
           centreNom={ctx.centreNom}
           initials={ctx.initials}
+          reservationsBadge={reservationsBadge}
+          messagesBadge={messagesBadge}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
