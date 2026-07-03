@@ -37,14 +37,14 @@ function KpiCard({ kpi }: { kpi: ConseillerKpi }) {
         {kpi.value.toLocaleString('fr-FR')}
       </div>
       <div className="font-bold text-color-text-primary mt-space-2" style={{ fontSize: 12 }}>{kpi.label}</div>
-      <div className="text-color-text-secondary" style={{ fontSize: 11, marginTop: 2 }}>{kpi.delta}</div>
+      <div className="hidden sm:block text-color-text-secondary" style={{ fontSize: 11, marginTop: 2 }}>{kpi.delta}</div>
     </div>
   )
 }
 
 export function DashboardKpis({ kpis }: { kpis: ConseillerKpi[] }) {
   return (
-    <section aria-label="Indicateurs clés" className="grid gap-space-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+    <section aria-label="Indicateurs clés" className="grid gap-space-3 grid-cols-2 xl:grid-cols-4">
       {kpis.map((kpi) =>
         kpi.urgent && kpi.href ? (
           <Link key={kpi.key} href={kpi.href} className="no-underline" aria-label={`${kpi.label} : ${kpi.value}`}>
