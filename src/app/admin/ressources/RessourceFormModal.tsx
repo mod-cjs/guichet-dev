@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { creerRessource, modifierRessource } from './actions'
 import type { RessourceRow } from './AdminRessourcesTable'
@@ -67,7 +68,7 @@ export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: Re
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Modifier la ressource' : 'Ajouter une ressource'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
         <Input id="ress-titre" label="Titre" required value={titre} onChange={(e) => setTitre(e.target.value)} />
-        <Input id="ress-description" label="Description" required value={description} onChange={(e) => setDescription(e.target.value)} />
+        <RichTextEditor id="ress-description" label="Description" value={description} onChange={setDescription} />
         <Select id="ress-type" label="Type" options={TYPE_OPTIONS} value={type} onChange={(e) => setType(e.target.value)} />
         <Input id="ress-theme" label="Thème" required value={theme} onChange={(e) => setTheme(e.target.value)} />
         <Input id="ress-url" label="URL" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} />

@@ -10,6 +10,7 @@ import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
 import { Breadcrumbs } from '@/components/ui'
 import { opportunitesListUrl } from '@/lib/routes'
+import { htmlToPlainText } from '@/lib/rich-html'
 
 // GUIC-21 — Détail d'opportunité en accès direct (SSR, indispensable au SEO).
 
@@ -23,7 +24,7 @@ export async function generateMetadata({
   if (!detail) return { title: 'Opportunité introuvable' }
   return {
     title: detail.titre,
-    description: detail.description.slice(0, 160),
+    description: htmlToPlainText(detail.description).slice(0, 160),
   }
 }
 

@@ -25,6 +25,14 @@ jest.mock('@/app/admin/ressources/actions', () => ({
   supprimerRessource: (...a: unknown[]) => mockSupprimer(...a),
 }))
 
+// Éditeur riche (Tiptap) remplacé par un textarea léger (lourd en jsdom, testé ailleurs).
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, name, value, onChange }: any) => (
+    <textarea aria-label={label} name={name} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+  ),
+}))
+
 import { AdminRessourcesTable, type RessourceRow } from '@/app/admin/ressources/AdminRessourcesTable'
 import { RessourceFormModal } from '@/app/admin/ressources/RessourceFormModal'
 
@@ -250,7 +258,8 @@ describe('GUIC-463 — RessourceFormModal', () => {
   it('given création + champs remplis, when submit, then appelle creerRessource', async () => {
     render(<RessourceFormModal isOpen onClose={() => {}} />)
     fireEvent.change(screen.getByLabelText(/^titre/i), { target: { value: 'Nouveau guide' } })
-    fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Desc' } })
+    // La description est un éditeur riche (Tiptap) — non pilotable via fireEvent.change
+    // en jsdom ; ce test vérifie titre + url, pas le corps riche.
     fireEvent.change(screen.getByLabelText(/^thème/i), { target: { value: 'Emploi' } })
     fireEvent.change(screen.getByLabelText(/URL/i), { target: { value: 'https://example.org/x.pdf' } })
     fireEvent.click(screen.getByRole('button', { name: /créer/i }))

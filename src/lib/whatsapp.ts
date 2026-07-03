@@ -1,6 +1,8 @@
 // Client Meta Cloud API v19 — Agent Yaye (Guichet Jeunesse)
 // Distinct de Fatou (EduPop) — voir docs/metier.md
 
+import { htmlToPlainText } from '@/lib/rich-html'
+
 const WA_API_URL = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}`
 
 export async function sendTextMessage(to: string, text: string): Promise<void> {
@@ -97,7 +99,7 @@ export async function sendInteractiveList(to: string, body: string, buttonLabel:
               rows: rows.slice(0, 10).map(r => ({
                 id: r.id.slice(0, 200),
                 title: r.title.slice(0, 24),
-                ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+                ...(r.description ? { description: htmlToPlainText(r.description).slice(0, 72) } : {}),
               })),
             },
           ],

@@ -8,7 +8,7 @@ import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { modifierProfilEntreprise, type ProfilEntrepriseInput } from './actions'
 
@@ -32,6 +32,7 @@ export function ProfilEntrepriseForm({ initial }: { initial: ProfilInitial }) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [pending, start] = useTransition()
+  const [description, setDescription] = useState(initial.description ?? '')
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
 
   function submit(e: React.FormEvent) {
@@ -65,7 +66,7 @@ export function ProfilEntrepriseForm({ initial }: { initial: ProfilInitial }) {
     <form ref={formRef} onSubmit={submit} className="flex flex-col gap-[16px]">
       <div className="rounded-[14px] p-[18px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
         <h2 className="text-[14px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>Présentation</h2>
-        <Textarea name="description" label="Description de l'entreprise" rows={5} defaultValue={initial.description ?? ''} placeholder="Qui êtes-vous, votre mission, vos métiers…" />
+        <RichTextEditor name="description" label="Description de l'entreprise" value={description} onChange={setDescription} placeholder="Qui êtes-vous, votre mission, vos métiers…" />
       </div>
 
       <div className="rounded-[14px] p-[18px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>

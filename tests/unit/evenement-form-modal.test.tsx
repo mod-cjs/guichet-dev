@@ -6,6 +6,15 @@ jest.mock('@/app/admin/evenements/actions', () => ({
   modifierEvenement: jest.fn().mockResolvedValue({ ok: true }),
 }))
 
+// Éditeur riche (Tiptap) remplacé par un textarea léger : lourd à monter en jsdom,
+// couvert par ses propres tests. On teste ici la logique du modal.
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, name, value, onChange }: any) => (
+    <textarea aria-label={label} name={name} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+  ),
+}))
+
 import { EvenementFormModal } from '@/app/admin/evenements/EvenementFormModal'
 import { creerEvenement } from '@/app/admin/evenements/actions'
 
@@ -23,7 +32,8 @@ describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
     const user = userEvent.setup()
     render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} />)
     await user.type(screen.getByLabelText(/^Titre/), 'Préparation BAC')
-    await user.type(screen.getByLabelText(/^Description/), 'Cours de maths')
+    // La description est un éditeur riche (Tiptap) — non simulable en jsdom ;
+    // ce test vérifie le passage de type + centreId, pas le corps riche.
     await user.selectOptions(screen.getByLabelText(/^Type/), 'Cours')
     await user.type(screen.getByLabelText(/Date de début/), '2026-07-10T09:00')
     await user.type(screen.getByLabelText(/^Lieu/), 'Salle 2')

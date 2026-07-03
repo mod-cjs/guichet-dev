@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { Button, Icon, Toast } from '@/components/ui'
+import { Button, Icon, RichContent, Toast } from '@/components/ui'
 import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
 import { YayeMatchCard } from './YayeMatchCard'
@@ -305,9 +305,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           >
             Description
           </h2>
-          <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
-            {detail.description}
-          </p>
+          <RichContent html={detail.description} className="text-fs-300 leading-loose" />
         </section>
 
         {/* GUIC-257 — sections structurées optionnelles (null si non remplies en BDD). */}
@@ -319,9 +317,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             >
               Profil recherché
             </h2>
-            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
-              {detail.profilRecherche}
-            </p>
+            <RichContent html={detail.profilRecherche} className="text-fs-300 leading-loose" />
           </section>
         )}
         {detail.mission && (
@@ -332,9 +328,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             >
               Mission
             </h2>
-            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
-              {detail.mission}
-            </p>
+            <RichContent html={detail.mission} className="text-fs-300 leading-loose" />
           </section>
         )}
         {detail.conditions && (
@@ -345,9 +339,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             >
               Conditions
             </h2>
-            <p className="text-fs-300 text-color-text-primary leading-loose whitespace-pre-line">
-              {detail.conditions}
-            </p>
+            <RichContent html={detail.conditions} className="text-fs-300 leading-loose" />
           </section>
         )}
 

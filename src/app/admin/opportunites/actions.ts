@@ -7,6 +7,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit, type AuditAction } from '@/lib/audit'
 import { OpportuniteService, type CreateOpportuniteInput, type SousTypeSlug } from '@/lib/services/opportunite-service'
+import { sanitizeOpportuniteRichFields } from '@/lib/opportunite/sanitize-base'
 import type { CJSSession } from '@/types/user'
 import type { Prisma, StatutOpportunite } from '@prisma/client'
 
@@ -146,9 +147,11 @@ export async function creerOpportunite(input: CreateOpportuniteInput): Promise<{
   if (exists) throw new Error('SLUG_EXISTANT')
 
   const publieDirectement = input.base.statut === 'publiee'
+  // GUIC-506 — sanitisation serveur des corps riches (description + sections) avant persistance.
+  const base = sanitizeOpportuniteRichFields({ ...input.base, ...core })
   const created = await service().create({
     ...input,
-    base: { ...input.base, ...core },
+    base,
   } as CreateOpportuniteInput)
 
   await recordAudit(session.cjsUid, 'opportunite.create', {
@@ -188,7 +191,12 @@ export async function modifierOpportunite(
   const oid = idSchema.parse(id)
   if (patch.base?.slug !== undefined) slugSchema.parse(patch.base.slug)
 
-  await service().update(oid, patch)
+  // GUIC-506 — sanitise les corps riches présents dans le patch (les champs
+  // structurés et les clés absentes restent intacts → édition partielle préservée).
+  const safePatch = patch.base
+    ? { ...patch, base: sanitizeOpportuniteRichFields(patch.base) }
+    : patch
+  await service().update(oid, safePatch)
 
   await recordAudit(session.cjsUid, 'opportunite.update', {
     targetType: 'opportunite',

@@ -1,0 +1,113 @@
+/* ─────────────────────────────────────────────────────────────
+   GUIC-507 — Styles bridés CJS du contenu riche (« gj-prose »).
+   Appliqués :
+     - au rendu lecture (`RichContent` → .gj-prose)
+     - à la zone d'édition Tiptap (.gj-prose sur l'éditable)
+   Objectif : mise en forme homogène, identité CJS, PAS de style libre
+   (aucune police/couleur choisie par l'utilisateur — cf. sanitizer).
+   ───────────────────────────────────────────────────────────── */
+
+.gj-prose {
+  color: var(--gj-ink, #1a2b33);
+  font-family: var(--gj-font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.gj-prose > :first-child { margin-top: 0; }
+.gj-prose > :last-child { margin-bottom: 0; }
+
+.gj-prose p { margin: 0 0 0.85em; }
+
+.gj-prose h2 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 1.4em 0 0.5em;
+  color: var(--gj-teal-deep, #0f5b5b);
+}
+
+.gj-prose h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.1em 0 0.4em;
+  color: var(--gj-teal-deep, #0f5b5b);
+}
+
+.gj-prose strong { font-weight: 700; }
+.gj-prose em { font-style: italic; }
+
+.gj-prose ul,
+.gj-prose ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.4em;
+}
+.gj-prose ul { list-style: disc; }
+.gj-prose ol { list-style: decimal; }
+.gj-prose li { margin: 0.25em 0; }
+
+.gj-prose a {
+  color: var(--gj-teal, #1f8a8a);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.gj-prose a:hover { color: var(--gj-teal-deep, #0f5b5b); }
+
+.gj-prose blockquote {
+  margin: 1em 0;
+  padding: 0.4em 1em;
+  border-left: 3px solid var(--gj-teal, #1f8a8a);
+  background: var(--gj-bg, #f4f7f7);
+  border-radius: 0 6px 6px 0;
+  color: var(--gj-grey, #4a5a60);
+  font-style: italic;
+}
+
+.gj-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.6em 0;
+}
+
+/* Cases à cocher (task list Tiptap). Puce native retirée, case alignée au texte. */
+.gj-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.gj-prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.25em 0;
+}
+.gj-prose ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.25em;
+  user-select: none;
+}
+.gj-prose ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.gj-prose ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+.gj-prose ul[data-type="taskList"] input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gj-teal, #1f8a8a);
+  cursor: default;
+}
+
+/* Placeholder de la zone d'édition Tiptap vide. */
+.gj-prose[contenteditable] { outline: none; min-height: 8rem; }
+.gj-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--gj-grey, #9aa7ac);
+}

@@ -10,6 +10,8 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
+import { htmlToPlainText } from '@/lib/rich-html'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
@@ -49,7 +51,12 @@ export async function modifierProfilEntreprise(input: ProfilEntrepriseInput): Pr
 
   const parsed = schema.parse(input)
   const data: Prisma.OrganisationUpdateInput = {}
-  if (parsed.description !== undefined) data.description = norm(parsed.description)
+  if (parsed.description !== undefined) {
+    // GUIC-506 — corps riche saisi par un tiers (recruteur) : sanitisation serveur ;
+    // un corps sans texte (ex. "<p></p>") est normalisé en null.
+    const clean = parsed.description == null ? null : sanitizeRichHtml(parsed.description)
+    data.description = clean && htmlToPlainText(clean).trim() ? clean : null
+  }
   if (parsed.secteur !== undefined) data.secteur = parsed.secteur
   if (parsed.region !== undefined) data.region = parsed.region
   if (parsed.adresse !== undefined) data.adresse = norm(parsed.adresse)

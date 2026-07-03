@@ -10,6 +10,21 @@ const push = jest.fn()
 const refresh = jest.fn()
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }))
 
+// L'éditeur riche (Tiptap) est peu testable en jsdom et lourd à monter : on le
+// remplace par un textarea léger. La logique du formulaire est ce qu'on teste ici ;
+// l'éditeur a sa propre couverture (sanitize-html / rich-content).
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, name, value, onChange }: any) => (
+    <textarea
+      aria-label={label}
+      name={name}
+      value={value ?? ''}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
+  ),
+}))
+
 import { OpportuniteForm } from '@/app/admin/opportunites/OpportuniteForm'
 import { creerOpportunite, modifierOpportunite } from '@/app/admin/opportunites/actions'
 
@@ -41,7 +56,8 @@ describe('GUIC-28 — OpportuniteForm (création)', () => {
     const user = userEvent.setup()
     render(<OpportuniteForm types={TYPES} />)
     await user.type(screen.getByLabelText(/Titre/), 'Bourse mobilité')
-    await user.type(screen.getByLabelText(/Description/), 'Une bourse.')
+    // La description est un éditeur riche (Tiptap) — saisie non simulable en jsdom ;
+    // ce test vérifie le passage type + base + details, pas le corps riche lui-même.
     await user.type(screen.getByLabelText(/^Organisation/), 'CJS')
     await user.selectOptions(screen.getByLabelText(/Domaine/), 'Numerique')
     await user.type(screen.getByLabelText(/Montant total/), '500000')

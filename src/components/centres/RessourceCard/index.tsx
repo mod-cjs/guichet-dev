@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { htmlToPlainText } from '@/lib/rich-html'
 
 export type RessourceCardType =
   | 'Salle'
@@ -128,7 +129,7 @@ export function RessourceCard({
               overflow: 'hidden',
             }}
           >
-            {ressource.description}
+            {htmlToPlainText(ressource.description)}
           </p>
         ) : null}
 

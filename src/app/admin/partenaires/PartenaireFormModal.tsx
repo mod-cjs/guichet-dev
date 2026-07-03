@@ -4,8 +4,9 @@ import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
+import { htmlToPlainText } from '@/lib/rich-html'
 import { modifierPartenaire } from './actions'
 
 const opt = (...v: string[]) => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
@@ -52,7 +53,8 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
       try {
         await modifierPartenaire(partenaire.id, {
           nom,
-          description: description.trim() || null,
+          // Éditeur riche : un corps sans texte (ex. "<p></p>") est traité comme vide.
+          description: htmlToPlainText(description).trim() ? description : null,
           logoUrl: logoUrl.trim() || null,
           secteur: secteur || null,
           region: region || null,
@@ -77,7 +79,7 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
         <Input id="pa-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} />
         <Input id="pa-logo" label="Logo (URL)" type="url" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
-        <Textarea id="pa-description" label="Description" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <RichTextEditor id="pa-description" label="Description" value={description} onChange={setDescription} />
         <Select id="pa-secteur" label="Secteur" options={[{ value: '', label: '—' }, ...DOMAINES]} value={secteur} onChange={(e) => setSecteur(e.target.value)} />
         <Select id="pa-region" label="Région" options={[{ value: '', label: '—' }, ...REGIONS]} value={region} onChange={(e) => setRegion(e.target.value)} />
         <Input id="pa-adresse" label="Adresse" value={adresse} onChange={(e) => setAdresse(e.target.value)} />

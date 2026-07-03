@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
+import { RichContent } from '@/components/ui/RichContent'
 import { RecruteurStatutButton } from '../RecruteurStatutButton'
 
 export const metadata: Metadata = { title: 'Partenaire — Admin CJS' }
@@ -73,7 +74,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {org.description && (
           <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
             <h2 className="text-[14px] font-black mb-[8px]" style={{ color: 'var(--gj-ink)' }}>Présentation</h2>
-            <p className="text-[13.5px] whitespace-pre-line" style={{ color: 'var(--gj-ink)' }}>{org.description}</p>
+            <RichContent html={org.description} className="text-[13.5px]" />
           </div>
         )}
 

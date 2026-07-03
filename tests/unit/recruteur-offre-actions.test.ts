@@ -69,6 +69,15 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     expect(mockAudit).toHaveBeenCalledWith('rec-1', 'opportunite.create', expect.any(Object))
   })
 
+  it('GUIC-508 — sanitise la description riche (contenu tiers) avant création', async () => {
+    mockSession.mockResolvedValue(RECRUTEUR)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await creerOffreRecruteur({ ...EMPLOI, description: '<p>Rejoignez-nous</p><script>alert(1)</script>' } as any)
+    const desc = mockCreate.mock.calls[0][0].base.description as string
+    expect(desc).toContain('<p>Rejoignez-nous</p>')
+    expect(desc).not.toMatch(/<script/i)
+  })
+
   it('GUIC-515 — les compétences requises sont transmises au service (base.skills)', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { OpportuniteService, type CreateOpportuniteInput } from '@/lib/services/opportunite-service'
 import { getRecruteurContext } from '@/lib/loaders/recruteur'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import { generateUniqueSlug } from '@/lib/slug'
 import type { CJSSession } from '@/types/user'
 
@@ -91,7 +92,8 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
   const base = {
     titre: parsed.titre.trim(),
     slug,
-    description: parsed.description.trim(),
+    // GUIC-506 — corps riche saisi par un tiers (recruteur) : sanitisation serveur stricte.
+    description: sanitizeRichHtml(parsed.description),
     organisationId: ctx.organisationId,
     organisationLibelle: ctx.organisationNom,
     domaine: parsed.domaine,

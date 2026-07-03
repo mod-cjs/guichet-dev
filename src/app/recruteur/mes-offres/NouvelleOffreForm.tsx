@@ -9,7 +9,7 @@ import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { creerOffreRecruteur, type CreerOffreRecruteurInput } from './actions'
@@ -40,6 +40,7 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [type, setType] = useState<'emploi' | 'stage'>('emploi')
+  const [desc, setDesc] = useState('')
   const [sel, setSel] = useState<string[]>([])
   const [pending, start] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
@@ -133,7 +134,13 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
         <h2 className="text-[14px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>Informations</h2>
         <div className="flex flex-col gap-[12px]">
           <Input name="titre" label="Titre de l'offre" required maxLength={255} placeholder="Ex. Développeur web junior" />
-          <Textarea name="description" label="Description" required rows={5} placeholder="Missions, profil recherché, conditions…" />
+          <RichTextEditor
+            name="description"
+            label="Description"
+            placeholder="Missions, profil recherché, conditions…"
+            value={desc}
+            onChange={setDesc}
+          />
           <div className="grid gap-[12px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             <Select name="domaine" label="Domaine" required options={DOMAINES} defaultValue="Numerique" />
             <Select name="region" label="Région" options={REGIONS} placeholder="—" />

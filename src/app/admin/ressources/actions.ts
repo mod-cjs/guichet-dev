@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 
 /** Garde de rôle — fail-closed. */
 async function assertAdmin(): Promise<void> {
@@ -40,7 +41,8 @@ export async function creerRessource(input: RessourceInput): Promise<{ id: strin
   const r = await prisma.ressource.create({
     data: {
       titre: data.titre,
-      description: data.description,
+      // GUIC-506 — corps riche : sanitisation serveur (liste blanche, anti-XSS).
+      description: sanitizeRichHtml(data.description),
       type: data.type,
       theme: data.theme,
       url: data.url,
@@ -62,7 +64,8 @@ export async function modifierRessource(id: string, input: RessourceInput): Prom
     where: { id: rid },
     data: {
       titre: data.titre,
-      description: data.description,
+      // GUIC-506 — corps riche : sanitisation serveur (liste blanche, anti-XSS).
+      description: sanitizeRichHtml(data.description),
       type: data.type,
       theme: data.theme,
       url: data.url,

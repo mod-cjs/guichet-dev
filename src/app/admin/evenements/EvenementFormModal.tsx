@@ -5,6 +5,7 @@ import { TypeEvenement, StatutEvenement } from '@prisma/client'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { creerEvenement, modifierEvenement } from './actions'
 
@@ -109,7 +110,7 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
     <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Modifier l\'événement' : 'Ajouter un événement'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
         <Input id="ev-titre" label="Titre" required value={titre} onChange={(e) => setTitre(e.target.value)} />
-        <Input id="ev-description" label="Description" required value={description} onChange={(e) => setDescription(e.target.value)} />
+        <RichTextEditor id="ev-description" label="Description" value={description} onChange={setDescription} />
         <Select id="ev-type" label="Type" options={TYPE_OPTIONS} value={type} onChange={(e) => setType(e.target.value)} />
         <Input id="ev-date" label="Date de début" type="datetime-local" required value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
         <Input id="ev-datefin" label="Date de fin (optionnel)" type="datetime-local" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
