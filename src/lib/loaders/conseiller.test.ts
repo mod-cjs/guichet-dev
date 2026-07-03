@@ -8,6 +8,7 @@ import {
   pickActiveCentre,
   mapRessourceKind,
   buildAgendaItems,
+  mapStatutView,
   type ConseillerCentre,
   type AgendaItem,
 } from './conseiller'
@@ -91,5 +92,25 @@ describe('buildAgendaItems (GUIC-497 — agenda dérivé Réservation + Événem
 
   it('retourne un tableau vide quand aucune source', () => {
     expect(buildAgendaItems([], [])).toEqual([])
+  })
+})
+
+describe('mapStatutView (GUIC-495 — statuts réservation → vue design)', () => {
+  it('mappe les trois statuts principaux', () => {
+    expect(mapStatutView('EnAttente')).toMatchObject({ view: 'attente', tone: 'yellow' })
+    expect(mapStatutView('Acceptee')).toMatchObject({ view: 'acceptee', tone: 'green' })
+    expect(mapStatutView('Refusee')).toMatchObject({ view: 'refusee', tone: 'red' })
+  })
+
+  it('regroupe les annulations et non honorées', () => {
+    expect(mapStatutView('AnnuleeParJeune').view).toBe('annulee')
+    expect(mapStatutView('AnnuleeParCentre').view).toBe('annulee')
+    expect(mapStatutView('NonHonoree').view).toBe('nonhonoree')
+    expect(mapStatutView('Passee').view).toBe('passee')
+  })
+
+  it('fournit un libellé pour chaque statut', () => {
+    expect(mapStatutView('EnAttente').label).toBeTruthy()
+    expect(mapStatutView('inconnu').label).toBeTruthy()
   })
 })
