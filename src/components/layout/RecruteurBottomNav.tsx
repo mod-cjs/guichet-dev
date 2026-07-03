@@ -28,7 +28,9 @@ const SECONDARY: NavItem[] = [
 
 const H = 64
 
-export function RecruteurBottomNav() {
+export function RecruteurBottomNav({ candidatsBadge = 0, messagesBadge = 0 }: { candidatsBadge?: number; messagesBadge?: number } = {}) {
+  const badgeFor = (href: string) =>
+    href === '/recruteur/candidatures' ? candidatsBadge : href === '/recruteur/messagerie' ? messagesBadge : 0
   const pathname = usePathname() ?? ''
   const [plus, setPlus] = useState(false)
   const close = useCallback(() => setPlus(false), [])
@@ -81,9 +83,13 @@ export function RecruteurBottomNav() {
       >
         {PRIMARY.map((it) => {
           const on = isActive(it.href)
+          const badge = badgeFor(it.href)
           return (
-            <Link key={it.href} href={it.href} aria-current={on ? 'page' : undefined} style={itemStyle(on)}>
-              <Icon name={it.icon} size={20} />
+            <Link key={it.href} href={it.href} aria-current={on ? 'page' : undefined} style={{ ...itemStyle(on), position: 'relative' }}>
+              <span style={{ position: 'relative' }}>
+                <Icon name={it.icon} size={20} />
+                {badge > 0 && <span aria-hidden style={{ position: 'absolute', top: -5, right: -9, minWidth: 15, height: 15, padding: '0 3px', borderRadius: 8, background: 'var(--gj-red, #DC2626)', color: '#fff', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{badge > 9 ? '9+' : badge}</span>}
+              </span>
               {it.label}
             </Link>
           )

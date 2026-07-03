@@ -2,9 +2,11 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getRecruteurContext, getRecruteurCandidatures, getRecruteurEntretiens, type RecruteurEntretienItem } from '@/lib/loaders/recruteur'
+import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import { PlanifierForm } from './PlanifierForm'
 import { AnnulerButton } from './AnnulerButton'
+import { TerminerButton } from './TerminerButton'
 
 export const metadata: Metadata = { title: 'Entretiens — Espace Recruteur' }
 export const dynamic = 'force-dynamic'
@@ -21,15 +23,20 @@ function Ligne({ e, annulable }: { e: RecruteurEntretienItem; annulable: boolean
       <span aria-hidden className="inline-flex items-center justify-center rounded-[10px]" style={{ width: 40, height: 40, flexShrink: 0, background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)' }}>
         <Icon name="calendar" size={18} />
       </span>
-      <div className="flex-1 min-w-[200px]">
+      <Link href={`/recruteur/candidatures/${e.candidatureId}`} className="flex-1 min-w-[200px] no-underline">
         <div className="text-[14px] font-black" style={{ color: 'var(--gj-ink)' }}>{e.candidatNom}</div>
         <div className="text-[12px]" style={{ color: 'var(--gj-grey)' }}>{fmt(e.dateHeure)} · {MODE_LABEL[e.mode] ?? e.mode}{e.lieu ? ` · ${e.lieu}` : ''}</div>
         <div className="text-[11.5px]" style={{ color: 'var(--gj-grey)' }}>{e.offreTitre}</div>
-      </div>
+      </Link>
       {annule ? (
         <span className="rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-red-soft, #fdecec)', color: 'var(--gj-red-ink, #B91C1C)' }}>Annulé</span>
+      ) : e.statut === 'Termine' ? (
+        <span className="rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-green-soft, #E6F6EE)', color: 'var(--gj-green-ink, #0F6B45)' }}>Terminé</span>
       ) : annulable ? (
-        <AnnulerButton id={e.id} />
+        <div className="flex items-center gap-[8px] flex-wrap">
+          <TerminerButton id={e.id} />
+          <AnnulerButton id={e.id} />
+        </div>
       ) : (
         <span className="rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>Passé</span>
       )}

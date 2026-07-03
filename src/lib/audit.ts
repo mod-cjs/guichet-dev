@@ -49,6 +49,9 @@ export type AuditAction =
   // GUIC-514 — entretiens recruteur.
   | 'entretien.plan'
   | 'entretien.annule'
+  | 'entretien.termine'
+  // GUIC-515 — pipeline kanban recruteur.
+  | 'candidature.pipeline'
 
 interface AuditEntry {
   actorCjsUid: string

@@ -41,9 +41,11 @@ export async function changerStatutCandidature(id: string, statut: StatutCandida
   const parsed = statutSchema.parse(statut)
 
   const opportunite = await offreOwnership(session.cjsUid)
+  // GUIC-515 — une décision (Retenu/Refusé) déplace la carte en colonne « Décision ».
+  const decision = parsed === 'Retenue' || parsed === 'Refusee'
   const res = await prisma.candidature.updateMany({
     where: { id, opportunite },
-    data: { statut: parsed },
+    data: { statut: parsed, ...(decision ? { pipelineStage: 'Decision' } : {}) },
   })
   if (res.count === 0) throw new Error('NOT_FOUND')
 

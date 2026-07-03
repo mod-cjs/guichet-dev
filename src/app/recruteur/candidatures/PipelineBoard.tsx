@@ -77,7 +77,7 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
                 </div>
                 <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {cards.length === 0 && <p className="text-[12px] text-center py-[10px]" style={{ color: 'var(--gj-grey)' }}>—</p>}
-                  {cards.map((c) => <Card key={c.id} c={c} onDragStart={() => setDragId(c.id)} onFav={(e) => fav(e, c.id)} />)}
+                  {cards.map((c) => <Card key={c.id} c={c} onDragStart={() => setDragId(c.id)} onFav={(e) => fav(e, c.id)} onMove={(stage) => move(c.id, stage)} />)}
                 </div>
               </div>
             )
@@ -88,7 +88,11 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
   )
 }
 
-function Card({ c, onDragStart, onFav }: { c: PipelineCard; onDragStart: () => void; onFav: (e: React.MouseEvent) => void }) {
+function Card({ c, onDragStart, onFav, onMove }: { c: PipelineCard; onDragStart: () => void; onFav: (e: React.MouseEvent) => void; onMove: (stage: PipelineStageId) => void }) {
+  const idx = COLS.findIndex((cc) => cc.id === c.stage)
+  const prev = idx > 0 ? COLS[idx - 1] : null
+  const next = idx < COLS.length - 1 ? COLS[idx + 1] : null
+  const arrow = (e: React.MouseEvent, stage: PipelineStageId) => { e.preventDefault(); e.stopPropagation(); onMove(stage) }
   return (
     <a
       href={`/recruteur/candidatures/${c.id}`}
@@ -116,6 +120,15 @@ function Card({ c, onDragStart, onFav }: { c: PipelineCard; onDragStart: () => v
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--gj-line)', paddingTop: 8 }}>
         {c.match != null ? <span className="text-[10px] font-black" style={{ ...matchStyle(c.match), padding: '2px 8px', borderRadius: 999 }}>{c.match}% match</span> : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
         <span className="text-[10.5px]" style={{ color: 'var(--gj-grey-2, #9aa5b1)' }}>{frDate(c.soumiseA)}</span>
+      </div>
+      {/* Fallback tactile/clavier : déplacer d'une colonne (le drag reste dispo sur desktop). */}
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+        <button type="button" disabled={!prev} onClick={(e) => prev && arrow(e, prev.id)} aria-label={prev ? `Déplacer vers ${prev.label}` : undefined} className="flex-1 inline-flex items-center justify-center rounded-[8px] min-h-[30px]" style={{ border: '1px solid var(--gj-line)', background: '#fff', color: prev ? 'var(--gj-grey)' : 'var(--gj-line)', cursor: prev ? 'pointer' : 'default' }}>
+          <Icon name="chevron-left" size={14} />
+        </button>
+        <button type="button" disabled={!next} onClick={(e) => next && arrow(e, next.id)} aria-label={next ? `Déplacer vers ${next.label}` : undefined} className="flex-1 inline-flex items-center justify-center rounded-[8px] min-h-[30px]" style={{ border: '1px solid var(--gj-line)', background: '#fff', color: next ? 'var(--gj-grey)' : 'var(--gj-line)', cursor: next ? 'pointer' : 'default' }}>
+          <Icon name="chevron-right" size={14} />
+        </button>
       </div>
     </a>
   )

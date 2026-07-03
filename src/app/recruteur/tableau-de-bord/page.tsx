@@ -70,7 +70,7 @@ export default async function Page() {
           ) : (
             <div className="flex flex-col gap-[8px]">
               {dash.offres.slice(0, 6).map((o) => (
-                <Link key={o.id} href={`/admin/opportunites/${o.id}/apercu`} className="flex items-center justify-between gap-3 py-[8px] no-underline" style={{ borderBottom: '1px solid var(--gj-line)' }}>
+                <Link key={o.id} href={`/recruteur/candidatures?offre=${o.id}`} className="flex items-center justify-between gap-3 py-[8px] no-underline" style={{ borderBottom: '1px solid var(--gj-line)' }}>
                   <span className="text-[13.5px] font-bold truncate" style={{ color: 'var(--gj-ink)' }}>{o.titre}</span>
                   <span className="text-[11.5px] font-bold shrink-0" style={{ color: 'var(--gj-grey)' }}>{o.candidatures} cand. · {o.vues} vues · {STATUT_LABEL[o.statut] ?? o.statut}</span>
                 </Link>

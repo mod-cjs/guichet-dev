@@ -36,12 +36,14 @@ function Check({ name, label }: { name: string; label: string }) {
   )
 }
 
-export function NouvelleOffreForm({ companyName }: { companyName: string }) {
+export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: string; skills?: { id: string; libelle: string }[] }) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [type, setType] = useState<'emploi' | 'stage'>('emploi')
+  const [sel, setSel] = useState<string[]>([])
   const [pending, start] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
+  const toggleSkill = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,6 +60,7 @@ export function NouvelleOffreForm({ companyName }: { companyName: string }) {
       remuneration: g('remuneration') ?? null,
       deadline: g('deadline') ?? null,
       niveauEtudeMin: g('niveauEtudeMin') ?? null,
+      skills: sel,
     }
     const payload = (
       type === 'emploi'
@@ -169,6 +172,24 @@ export function NouvelleOffreForm({ companyName }: { companyName: string }) {
           </div>
         )}
       </div>
+
+      {/* Compétences requises (alimentent le score d'adéquation IA) */}
+      {skills.length > 0 && (
+        <div style={card}>
+          <h2 className="text-[14px] font-black mb-[4px]" style={{ color: 'var(--gj-ink)' }}>Compétences requises</h2>
+          <p className="text-[12px] mb-[10px]" style={{ color: 'var(--gj-grey)' }}>Sélectionnez les compétences attendues — elles servent au score d&apos;adéquation des candidats.</p>
+          <div className="flex flex-wrap gap-[8px]">
+            {skills.map((s) => {
+              const on = sel.includes(s.id)
+              return (
+                <button key={s.id} type="button" onClick={() => toggleSkill(s.id)} aria-pressed={on} className="inline-flex items-center gap-[5px] text-[12.5px] font-bold rounded-full px-[12px] min-h-[36px]" style={{ border: `1.5px solid ${on ? 'var(--gj-blue, #1A4ED8)' : 'var(--gj-line)'}`, background: on ? 'var(--gj-blue-soft, #E8EFFF)' : '#fff', color: on ? 'var(--gj-blue-ink, #1A3FA8)' : 'var(--gj-grey)' }}>
+                  {on && <Icon name="check" size={12} />}{s.libelle}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Bandeau validation + actions */}
       <div className="flex items-center gap-[10px] rounded-[12px] px-[14px] py-[11px]" style={{ background: 'var(--gj-blue-soft, #E8EFFF)', color: 'var(--gj-blue-ink, #1A3FA8)' }}>

@@ -69,6 +69,13 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     expect(mockAudit).toHaveBeenCalledWith('rec-1', 'opportunite.create', expect.any(Object))
   })
 
+  it('GUIC-515 — les compétences requises sont transmises au service (base.skills)', async () => {
+    mockSession.mockResolvedValue(RECRUTEUR)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await creerOffreRecruteur({ ...EMPLOI, skills: ['sk-1', 'sk-2'] } as any)
+    expect(mockCreate.mock.calls[0][0].base.skills).toEqual([{ skillId: 'sk-1' }, { skillId: 'sk-2' }])
+  })
+
   it('recruteur sans organisation → NO_ORGANISATION', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     mockCtx.mockResolvedValue({ ...CTX, organisationId: null, organisationNom: null })

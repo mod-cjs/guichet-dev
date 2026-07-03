@@ -82,14 +82,23 @@ export async function planifierEntretien(input: PlanifierEntretienInput): Promis
   return { id: ent.id }
 }
 
-export async function annulerEntretien(id: string): Promise<{ ok: true }> {
+async function majStatutEntretien(id: string, statut: 'Annule' | 'Termine', action: 'entretien.annule' | 'entretien.termine'): Promise<{ ok: true }> {
   const session = await assertRecruteur()
   const res = await prisma.entretien.updateMany({
     where: { id, recruteurUid: session.cjsUid },
-    data: { statut: 'Annule' },
+    data: { statut },
   })
   if (res.count === 0) throw new Error('NOT_FOUND')
-  await recordAudit(session.cjsUid, 'entretien.annule', { targetType: 'entretien', targetId: id })
+  await recordAudit(session.cjsUid, action, { targetType: 'entretien', targetId: id })
   revalidatePath('/recruteur/entretiens')
   return { ok: true }
+}
+
+export async function annulerEntretien(id: string): Promise<{ ok: true }> {
+  return majStatutEntretien(id, 'Annule', 'entretien.annule')
+}
+
+/** GUIC-515 — marque un entretien comme terminé. */
+export async function terminerEntretien(id: string): Promise<{ ok: true }> {
+  return majStatutEntretien(id, 'Termine', 'entretien.termine')
 }

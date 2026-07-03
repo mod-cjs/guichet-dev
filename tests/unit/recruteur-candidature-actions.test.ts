@@ -63,6 +63,17 @@ describe('GUIC-485 — changerStatutCandidature', () => {
     expect(mockAudit).toHaveBeenCalledWith('rec-1', 'candidature.statut', expect.objectContaining({ targetId: 'c1' }))
   })
 
+  it('GUIC-515 — une décision (Retenue/Refusee) déplace la carte en colonne Décision', async () => {
+    mockSession.mockResolvedValue(RECRUTEUR)
+    await changerStatutCandidature('c1', 'Retenue')
+    expect(mockPrisma.candidature.updateMany.mock.calls[0][0].data.pipelineStage).toBe('Decision')
+    jest.clearAllMocks()
+    mockSession.mockResolvedValue(RECRUTEUR)
+    mockPrisma.candidature.updateMany.mockResolvedValue({ count: 1 })
+    await changerStatutCandidature('c1', 'Vue')
+    expect(mockPrisma.candidature.updateMany.mock.calls[0][0].data.pipelineStage).toBeUndefined()
+  })
+
   it('candidature non possédée (count 0) → NOT_FOUND', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     mockPrisma.candidature.updateMany.mockResolvedValue({ count: 0 })
