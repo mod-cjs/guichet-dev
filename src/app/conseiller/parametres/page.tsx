@@ -1,18 +1,24 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { Icon } from '@/components/ui/Icon'
 import { ConseillerCentreSwitcher } from '@/components/layout/ConseillerCentreSwitcher'
+import { ParametresNotifForm } from './ParametresNotifForm'
 
 export const dynamic = 'force-dynamic'
 
-/** Paramètres du conseiller — à venir. Affiche déjà le rattachement centre. */
+/** Paramètres du conseiller : compte, centre actif, préférences de notification. */
 export default async function ConseillerParametresPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
   if (!ctx) redirect('/')
+
+  const prefs = await prisma.utilisateur.findUnique({
+    where: { cjsUid: session.cjsUid },
+    select: { notifCandidatures: true, notifMessages: true },
+  })
 
   return (
     <div className="flex flex-col gap-space-4" style={{ maxWidth: 640, margin: '0 auto' }}>
@@ -42,10 +48,9 @@ export default async function ConseillerParametresPage() {
         <ConseillerCentreSwitcher centres={ctx.centres} activeCentreId={ctx.centreId} variant="light" />
       </div>
 
-      <EmptyState
-        icon="settings"
-        title="Autres réglages à venir"
-        description="La gestion des préférences (notifications, disponibilités) sera disponible prochainement."
+      <ParametresNotifForm
+        notifActivite={prefs?.notifCandidatures ?? true}
+        notifMessages={prefs?.notifMessages ?? true}
       />
     </div>
   )
