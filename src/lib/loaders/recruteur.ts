@@ -156,7 +156,6 @@ export interface RecruteurCandidatureDetail {
   lettreMotivation: string | null
   hasCv: boolean
   soumiseA: string
-  updatedAt: string
   candidat: {
     cjsUid: string
     prenom: string
@@ -192,7 +191,10 @@ export async function getRecruteurCandidatureDetail(
   const row = await prisma.candidature.findFirst({
     where: { id, opportunite: offreWhere(cjsUid, organisationId) },
     select: {
-      id: true, statut: true, lettreMotivation: true, cvUrl: true, soumiseA: true, updatedAt: true,
+      // NB : ne pas sélectionner `updatedAt` — la donnée POC importée contient des
+      // zéro-dates MariaDB (0000-00-00) que Prisma refuse de désérialiser (500).
+      // Champ non affiché sur la fiche → inutile de le charger.
+      id: true, statut: true, lettreMotivation: true, cvUrl: true, soumiseA: true,
       scoreAdequation: true, scoreRaison: true,
       utilisateur: {
         select: {
@@ -226,7 +228,6 @@ export async function getRecruteurCandidatureDetail(
     lettreMotivation: row.lettreMotivation,
     hasCv: Boolean(row.cvUrl),
     soumiseA: row.soumiseA.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
     candidat: {
       cjsUid: row.utilisateur.cjsUid, prenom: row.utilisateur.prenom, nom: row.utilisateur.nom,
       email: row.utilisateur.email, telephone: row.utilisateur.telephone,
