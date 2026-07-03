@@ -8,18 +8,20 @@ import type { AgendaItem } from '@/lib/loaders/conseiller'
  * pastille (dorée pour un atelier collectif, teal pour un RDV) reliée par un
  * trait, puis intitulé + sous-titre.
  */
-export function AgendaDuJour({ items }: { items: AgendaItem[] }) {
+export function AgendaDuJour({ items, title = "Aujourd'hui", showMore = true }: { items: AgendaItem[]; title?: string; showMore?: boolean }) {
   return (
     <div className="bg-white rounded-gj-lg p-space-5" style={{ border: '1.5px solid var(--gj-line)' }}>
       <div className="flex items-center justify-between mb-space-3">
-        <h2 className="font-black text-color-text-primary m-0" style={{ fontSize: 16 }}>Aujourd&apos;hui</h2>
-        <Link href="/conseiller/agenda" className="no-underline font-extrabold" style={{ color: 'var(--gj-teal-deep)', fontSize: 12.5 }}>
-          Agenda →
-        </Link>
+        <h2 className="font-black text-color-text-primary m-0" style={{ fontSize: 16 }}>{title}</h2>
+        {showMore && (
+          <Link href="/conseiller/agenda" className="no-underline font-extrabold" style={{ color: 'var(--gj-teal-deep)', fontSize: 12.5 }}>
+            Agenda →
+          </Link>
+        )}
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon="calendar" title="Rien de prévu aujourd'hui" description="Les réservations et ateliers du jour s'afficheront ici." />
+        <EmptyState icon="calendar" title="Rien de prévu" description="Les réservations et ateliers de ce jour s'afficheront ici." />
       ) : (
         <div className="flex flex-col">
           {items.map((it, i) => {

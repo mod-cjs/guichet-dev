@@ -68,12 +68,31 @@ export interface ReservationAValider {
 
 export interface AgendaItem {
   id: string
-  /** Heure « HH:MM » (clé de tri). */
+  /** Jour local « YYYY-MM-DD » — regroupement semaine/mois. */
+  date: string
+  /** Heure « HH:MM » (clé de tri secondaire). */
   time: string
   label: string
   sub: string
   /** Atelier collectif (vs RDV individuel). */
   atelier: boolean
+}
+
+/** Jour local au format « YYYY-MM-DD ». */
+export function isoDay(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Lundi 00:00 de la semaine contenant `d` (semaine ISO, lundi→dimanche). */
+export function startOfWeek(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  const dow = (x.getDay() + 6) % 7 // lundi=0 … dimanche=6
+  x.setDate(x.getDate() - dow)
+  return x
 }
 
 /** Mappe `TypeRessourceCentre` (modèle) vers les tons/icônes du design v4 (Lot 7/8). */
@@ -92,9 +111,11 @@ export function mapRessourceKind(type: string): RessourceKindDescriptor {
   }
 }
 
-/** Fusionne les items dérivés (réservations + événements) et trie par heure croissante. */
+/** Fusionne les items dérivés (réservations + événements), triés par jour puis heure. */
 export function buildAgendaItems(reservations: AgendaItem[], events: AgendaItem[]): AgendaItem[] {
-  return [...reservations, ...events].sort((a, b) => a.time.localeCompare(b.time))
+  return [...reservations, ...events].sort((a, b) =>
+    a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date),
+  )
 }
 
 export type StatutView = 'attente' | 'acceptee' | 'refusee' | 'annulee' | 'passee' | 'nonhonoree'
@@ -277,32 +298,34 @@ export async function getReservationsAValider(
 }
 
 /**
- * Agenda du jour (US-5) — DÉRIVÉ, aucun modèle RendezVous : réservations
- * (créneaux du centre) + événements du centre du jour. Les ateliers/événements
- * collectifs sont distingués (`atelier: true`). Voir la spec M8-espace-conseiller.
+ * Agenda sur une plage de dates (US-5) — DÉRIVÉ, aucun modèle RendezVous :
+ * réservations (créneaux du centre) + événements du centre. Les ateliers/
+ * événements collectifs sont distingués (`atelier: true`). Chaque item porte son
+ * jour (`date`) pour permettre les vues jour / semaine / mois.
  */
-export async function getAgendaDuJour(centreId: string, date: Date = new Date()): Promise<AgendaItem[]> {
-  const { start, end } = dayBounds(date)
+export async function getAgendaRange(centreId: string, start: Date, end: Date): Promise<AgendaItem[]> {
   const [reservations, events] = await Promise.all([
     prisma.reservation.findMany({
       where: { centreId, dateReservee: { gte: start, lte: end }, statut: { in: ['EnAttente', 'Acceptee'] } },
       select: {
         id: true,
+        dateReservee: true,
         creneauDebut: true,
         utilisateur: { select: { prenom: true, nom: true } },
         ressource: { select: { nom: true } },
       },
-      take: 50,
+      take: 500,
     }),
     prisma.evenement.findMany({
       where: { centreId, dateDebut: { gte: start, lte: end } },
       select: { id: true, titre: true, dateDebut: true, lieu: true },
-      take: 50,
+      take: 500,
     }),
   ])
 
   const resaItems: AgendaItem[] = reservations.map((r) => ({
     id: `resa-${r.id}`,
+    date: isoDay(r.dateReservee),
     time: r.creneauDebut,
     label: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
     sub: `Réservation · ${r.ressource.nom}`,
@@ -310,6 +333,7 @@ export async function getAgendaDuJour(centreId: string, date: Date = new Date())
   }))
   const eventItems: AgendaItem[] = events.map((e) => ({
     id: `evt-${e.id}`,
+    date: isoDay(e.dateDebut),
     time: hhmm(e.dateDebut),
     label: e.titre,
     sub: `Atelier collectif · ${e.lieu}`,
@@ -317,6 +341,12 @@ export async function getAgendaDuJour(centreId: string, date: Date = new Date())
   }))
 
   return buildAgendaItems(resaItems, eventItems)
+}
+
+/** Agenda du jour — cas particulier de `getAgendaRange` sur une journée. */
+export async function getAgendaDuJour(centreId: string, date: Date = new Date()): Promise<AgendaItem[]> {
+  const { start, end } = dayBounds(date)
+  return getAgendaRange(centreId, start, end)
 }
 
 /** Ensemble des bénéficiaires rattachés au centre (via check-ins ou réservations). */
