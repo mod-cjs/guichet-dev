@@ -29,6 +29,11 @@ function initials(prenom: string, nom: string): string {
 function frDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
+/** Humanise un code enum/stocké (DAKAR, en_recherche_emploi) → « Dakar », « En recherche emploi ». */
+function humanize(s: string): string {
+  const t = s.replace(/[_-]+/g, ' ').trim().toLowerCase()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -86,6 +91,93 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <div className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>Score d&apos;adéquation <span style={{ color: 'var(--gj-grey)', fontWeight: 600 }}>· IA</span></div>
               <p className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>{detail.scoreRaison ?? (detail.score == null ? 'Analyse en cours…' : 'Correspondance profil candidat / offre.')}</p>
             </div>
+          </div>
+        )
+      })()}
+
+      {/* Profil du candidat (GUIC-517) */}
+      {(() => {
+        const c = detail.candidat
+        const facts: { label: string; value: string }[] = []
+        if (c.age != null) facts.push({ label: 'Âge', value: `${c.age} ans` })
+        if (c.commune) facts.push({ label: 'Commune', value: c.commune })
+        if (c.region) facts.push({ label: 'Région', value: humanize(c.region) })
+        if (c.niveauEtude) facts.push({ label: "Niveau d'étude", value: humanize(c.niveauEtude) })
+        if (c.situationEmploi) facts.push({ label: 'Situation', value: humanize(c.situationEmploi) })
+        const hasProfil = facts.length > 0 || c.biographie || c.domainesInteret.length > 0
+        if (!hasProfil) return null
+        return (
+          <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+            <h2 className="text-[13px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>Profil du candidat</h2>
+            {facts.length > 0 && (
+              <div className="grid gap-[12px] mb-[4px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                {facts.map((f) => (
+                  <div key={f.label}>
+                    <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--gj-grey)' }}>{f.label}</div>
+                    <div className="text-[14px] font-bold" style={{ color: 'var(--gj-ink)' }}>{f.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {c.biographie && (
+              <div className="mt-[12px] pt-[12px]" style={{ borderTop: '1px solid var(--gj-line)' }}>
+                <div className="text-[11px] font-bold uppercase tracking-wide mb-[4px]" style={{ color: 'var(--gj-grey)' }}>Biographie</div>
+                <p className="text-[13.5px] whitespace-pre-line" style={{ color: 'var(--gj-ink)' }}>{c.biographie}</p>
+              </div>
+            )}
+            {c.domainesInteret.length > 0 && (
+              <div className="mt-[12px] pt-[12px]" style={{ borderTop: '1px solid var(--gj-line)' }}>
+                <div className="text-[11px] font-bold uppercase tracking-wide mb-[8px]" style={{ color: 'var(--gj-grey)' }}>Domaines d&apos;intérêt</div>
+                <div className="flex flex-wrap gap-[7px]">
+                  {c.domainesInteret.map((d) => (
+                    <span key={d} className="inline-block rounded-full text-[12px] font-bold px-[11px] py-[4px]" style={{ background: 'var(--gj-line)', color: 'var(--gj-ink)' }}>{d}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Compétences — rapprochement avec l'offre (GUIC-517) */}
+      {(() => {
+        const m = detail.competencesMatch
+        if (m.requises.length === 0 && m.autres.length === 0) return null
+        const cov = scoreColors(m.requises.length ? m.tauxCouverture : null)
+        return (
+          <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+            <div className="flex items-center gap-2 justify-between flex-wrap mb-[12px]">
+              <h2 className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>Compétences</h2>
+              {m.requises.length > 0 && (
+                <span className="inline-flex items-center gap-[6px] rounded-full text-[12px] font-black px-[11px] py-[4px]" style={{ background: cov.bg, color: cov.fg }}>
+                  <Icon name="check" size={13} /> {m.tauxCouverture}% des compétences requises
+                </span>
+              )}
+            </div>
+            {m.requises.length > 0 && (
+              <div className="flex flex-wrap gap-[8px] mb-[6px]">
+                {m.requises.map((r) => (
+                  <span key={r.libelle} className="inline-flex items-center gap-[6px] rounded-full text-[12.5px] font-bold px-[11px] py-[5px]"
+                    style={r.possede
+                      ? { background: 'var(--gj-green-soft, #e6f6ec)', color: 'var(--gj-green-ink, #1a7a3d)' }
+                      : { background: 'var(--gj-red-soft, #fdecec)', color: 'var(--gj-red-ink)', opacity: 0.9 }}>
+                    <Icon name={r.possede ? 'check' : 'close'} size={13} /> {r.libelle}
+                  </span>
+                ))}
+              </div>
+            )}
+            {m.autres.length > 0 && (
+              <div className="mt-[12px] pt-[12px]" style={{ borderTop: '1px solid var(--gj-line)' }}>
+                <div className="text-[11px] font-bold uppercase tracking-wide mb-[8px]" style={{ color: 'var(--gj-grey)' }}>
+                  {m.requises.length > 0 ? 'Autres compétences' : 'Compétences déclarées'}
+                </div>
+                <div className="flex flex-wrap gap-[7px]">
+                  {m.autres.map((s) => (
+                    <span key={s} className="inline-block rounded-full text-[12px] font-bold px-[11px] py-[4px]" style={{ background: 'var(--gj-line)', color: 'var(--gj-ink)' }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )
       })()}

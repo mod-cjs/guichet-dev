@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma, StatutCandidature } from '@prisma/client'
+import { matchCompetences, type CompetencesMatchResult } from '@/lib/recruteur/competences-match'
 
 /**
  * GUIC-512 — Loaders de l'Espace Recruteur/Partenaire.
@@ -156,10 +157,27 @@ export interface RecruteurCandidatureDetail {
   hasCv: boolean
   soumiseA: string
   updatedAt: string
-  candidat: { cjsUid: string; prenom: string; nom: string; email: string | null; telephone: string | null }
+  candidat: {
+    cjsUid: string
+    prenom: string
+    nom: string
+    email: string | null
+    telephone: string | null
+    photoUrl: string | null
+    age: number | null
+    commune: string | null
+    region: string | null
+    niveauEtude: string | null
+    situationEmploi: string | null
+    biographie: string | null
+    domainesInteret: string[]
+    competences: string[]
+  }
   offre: { id: string; titre: string }
   score: number | null
   scoreRaison: string | null
+  /** Rapprochement compétences candidat ↔ compétences requises de l'offre (GUIC-517). */
+  competencesMatch: CompetencesMatchResult
 }
 
 /**
@@ -176,11 +194,32 @@ export async function getRecruteurCandidatureDetail(
     select: {
       id: true, statut: true, lettreMotivation: true, cvUrl: true, soumiseA: true, updatedAt: true,
       scoreAdequation: true, scoreRaison: true,
-      utilisateur: { select: { cjsUid: true, prenom: true, nom: true, email: true, telephone: true } },
-      opportunite: { select: { id: true, titre: true } },
+      utilisateur: {
+        select: {
+          cjsUid: true, prenom: true, nom: true, email: true, telephone: true,
+          dateNaissance: true, commune: true, region: true,
+          profil: {
+            select: {
+              photoUrl: true, niveauEtude: true, situationEmploi: true, biographie: true,
+              competences: true, domainesInteret: true,
+            },
+          },
+        },
+      },
+      opportunite: {
+        select: {
+          id: true, titre: true,
+          skills: { where: { requise: true }, select: { skill: { select: { libelle: true } } } },
+        },
+      },
     },
   })
   if (!row) return null
+
+  const competences = jsonStringArray(row.utilisateur.profil?.competences)
+  const domainesInteret = jsonStringArray(row.utilisateur.profil?.domainesInteret)
+  const offreSkills = row.opportunite.skills.map((s) => s.skill.libelle)
+
   return {
     id: row.id,
     statut: row.statut,
@@ -191,11 +230,26 @@ export async function getRecruteurCandidatureDetail(
     candidat: {
       cjsUid: row.utilisateur.cjsUid, prenom: row.utilisateur.prenom, nom: row.utilisateur.nom,
       email: row.utilisateur.email, telephone: row.utilisateur.telephone,
+      photoUrl: row.utilisateur.profil?.photoUrl ?? null,
+      age: ageFrom(row.utilisateur.dateNaissance),
+      commune: row.utilisateur.commune,
+      region: row.utilisateur.region ?? null,
+      niveauEtude: row.utilisateur.profil?.niveauEtude ?? null,
+      situationEmploi: row.utilisateur.profil?.situationEmploi ?? null,
+      biographie: row.utilisateur.profil?.biographie ?? null,
+      domainesInteret,
+      competences,
     },
     offre: { id: row.opportunite.id, titre: row.opportunite.titre },
     score: row.scoreAdequation,
     scoreRaison: row.scoreRaison,
+    competencesMatch: matchCompetences(offreSkills, competences),
   }
+}
+
+/** Convertit un champ Json Prisma en tableau de chaînes non vides. */
+function jsonStringArray(v: unknown): string[] {
+  return Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []
 }
 
 /** Palette du badge de score d'adéquation selon le palier (fort / moyen / faible). */
