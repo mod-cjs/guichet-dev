@@ -40,6 +40,17 @@ jest.mock('@/lib/auth/staff-session', () => ({
     ['agent@cjs.sn'].includes(email.toLowerCase()),
 }))
 
+// GUIC-498 : la route dépend désormais de getCheckinOperator (staff OU conseiller).
+// On délègue au mock staff existant pour conserver tous les cas de test.
+jest.mock('@/lib/auth/checkin-operator', () => ({
+  getCheckinOperator: async () => {
+    const s = await mockGetStaffSession()
+    return s
+      ? { kind: 'staff', activeCentreId: s.centreId, centreIds: [s.centreId], email: s.email, label: s.email }
+      : null
+  },
+}))
+
 const mockTrack = jest.fn().mockResolvedValue(undefined)
 jest.mock('@/lib/analytics/centre-events', () => ({
   trackCentreEvent: (...a: unknown[]) => mockTrack(...a),

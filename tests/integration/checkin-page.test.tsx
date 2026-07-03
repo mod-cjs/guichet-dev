@@ -27,6 +27,13 @@ jest.mock('@/lib/auth/staff-session', () => ({
   }),
 }))
 
+// GUIC-498 : la page dépend de getCheckinOperator (staff OU conseiller SSO).
+jest.mock('@/lib/auth/checkin-operator', () => ({
+  getCheckinOperator: jest.fn().mockResolvedValue({
+    kind: 'staff', activeCentreId: 'c-1', centreIds: ['c-1'], email: 'agent@cjs.sn', label: 'agent@cjs.sn',
+  }),
+}))
+
 jest.mock('next/navigation', () => ({
   redirect: jest.fn((url: string) => { throw new Error(`__REDIRECT__:${url}`) }),
 }))
@@ -34,11 +41,13 @@ jest.mock('next/navigation', () => ({
 const mockUser = jest.fn()
 const mockCentre = jest.fn()
 const mockResas = jest.fn()
+const mockEvents = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: { findUnique: (...a: unknown[]) => mockUser(...a) },
     centre:      { findUnique: (...a: unknown[]) => mockCentre(...a) },
     reservation: { findMany: (...a: unknown[]) => mockResas(...a) },
+    evenement:   { findMany: (...a: unknown[]) => mockEvents(...a) },
   },
 }))
 
@@ -50,6 +59,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockCentre.mockResolvedValue({ id: 'c-1', nom: 'CJS Dakar', ville: 'Dakar' })
   mockResas.mockResolvedValue([])
+  mockEvents.mockResolvedValue([])
   mockUser.mockResolvedValue({ cjsUid: 'user-12345678', nom: 'Diop', prenom: 'Awa' })
   global.fetch = jest.fn()
 })
