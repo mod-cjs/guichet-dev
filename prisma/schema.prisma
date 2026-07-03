@@ -160,6 +160,16 @@ enum StatutCandidature {
   @@map("statut_candidature")
 }
 
+/// GUIC-515 — étapes du pipeline recruteur (kanban, design v4 Lot 10).
+enum StatutPipeline {
+  Recue
+  Preselection
+  Entretien
+  Decision
+
+  @@map("statut_pipeline")
+}
+
 enum TypeEvenement {
   Formation
   Atelier
@@ -494,6 +504,9 @@ model Candidature {
   scoreAdequation      Int?              @map("score_adequation")
   scoreRaison          String?           @map("score_raison") @db.Text
   scoreCalculeLe       DateTime?         @map("score_calcule_le")
+  // GUIC-515 — étape du pipeline recruteur (kanban, design v4) + favori recruteur.
+  pipelineStage        StatutPipeline    @default(Recue) @map("pipeline_stage")
+  favoriRecruteur      Boolean           @default(false) @map("favori_recruteur")
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
