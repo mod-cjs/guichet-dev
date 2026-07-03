@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Input, Chip, EmptyState, Icon, Button, Toast } from '@/components/ui'
 import { EventCard } from './EventCard'
 import { AgendaCalendrier } from './AgendaCalendrier'
+import { htmlToPlainText } from '@/lib/rich-html'
 import type { EvenementListItem, TypeEvenementValue } from '@/lib/loaders/evenements'
 
 interface EvenementsClientProps {
@@ -92,7 +93,7 @@ export function EvenementsClient({
       if (!q) return true
       return (
         ev.titre.toLowerCase().includes(q) ||
-        ev.description.toLowerCase().includes(q) ||
+        htmlToPlainText(ev.description).toLowerCase().includes(q) ||
         ev.lieu.toLowerCase().includes(q)
       )
     })

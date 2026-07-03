@@ -4,8 +4,9 @@ import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
+import { htmlToPlainText } from '@/lib/rich-html'
 import { creerRessourceCentre, modifierRessourceCentre } from './ressources-actions'
 
 const TYPE_OPTIONS = [
@@ -62,7 +63,7 @@ export function RessourceCentreFormModal({ isOpen, onClose, centreId, ressource 
     const payload = {
       type,
       nom,
-      description: description.trim() || null,
+      description: htmlToPlainText(description).trim() ? description : null,
       imageUrl: imageUrl.trim() || null,
       capacite: Number(capacite),
       capaciteUnit: capaciteUnit.trim() || null,
@@ -91,7 +92,7 @@ export function RessourceCentreFormModal({ isOpen, onClose, centreId, ressource 
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
         <Select id="rc-type" label="Type" options={TYPE_OPTIONS} value={type} disabled={editing} onChange={(e) => setType(e.target.value)} />
         <Input id="rc-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} />
-        <Textarea id="rc-desc" label="Description" value={description ?? ''} onChange={(e) => setDescription(e.target.value)} />
+        <RichTextEditor id="rc-desc" label="Description" value={description ?? ''} onChange={setDescription} />
         <Input id="rc-image" label="Image (URL, optionnel)" type="url" value={imageUrl ?? ''} onChange={(e) => setImageUrl(e.target.value)} />
         <Input id="rc-capacite" label="Capacité" type="number" min={1} required value={capacite} onChange={(e) => setCapacite(e.target.value)} />
         <Input id="rc-unit" label="Unité de capacité (ex. personnes, postes)" value={capaciteUnit ?? ''} onChange={(e) => setCapaciteUnit(e.target.value)} />

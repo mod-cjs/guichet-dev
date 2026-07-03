@@ -25,6 +25,18 @@
 - [x] Ressource : Input mono-ligne → éditeur riche + sanitisation + rendu hero + SEO.
 - Rendu : tous les `whitespace-pre-line` de ces entités → `RichContent` (fallback texte plat).
 
-## Suivant — Phase C (extensions)
-- Partenaire, profil entreprise recruteur, ressource centre.
+## Phase C — Extensions + audit affichage ✅ TERMINÉE
+- [x] Partenaire (Organisation.description) : éditeur + sanitisation + rendu admin RichContent.
+- [x] Profil entreprise recruteur : éditeur (contenu tiers) + sanitisation + null-si-vide.
+- [x] Ressource centre : éditeur + sanitisation.
+- [x] **Audit affichage** — richesse prise en compte partout :
+  - Détail (riche) : opportunité, agenda, ressource, partenaire → `RichContent`.
+  - Aperçus/cartes (texte plat) : ResourceCard, RessourceCard → `htmlToPlainText`.
+  - Recherche/filtres : agenda-client, EvenementsClient, agenda public → `htmlToPlainText`.
+  - Partage/ICS/meta SEO : share ressource, export .ics, 3 meta → `htmlToPlainText`.
+  - Canaux WhatsApp + prompt IA adéquation → `htmlToPlainText`.
+  - KG : la projection n'indexe QUE les champs structurés (déjà conforme GUIC-509).
+
+## Reste
 - Clôturer GUIC-422 (couvert comme cas d'usage).
+- PR via /propagate + mise à jour Jira (transitions au merge).

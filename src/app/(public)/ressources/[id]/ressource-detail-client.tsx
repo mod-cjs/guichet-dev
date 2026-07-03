@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Icon, type IconName, PdfViewer, VideoEmbed } from '@/components/ui'
 import { RessourceShareButton } from '@/components/ressources/RessourceShareButton'
 import { parseVideoEmbedUrl } from '@/lib/parsers/video-url'
+import { htmlToPlainText } from '@/lib/rich-html'
 import type { RessourceDetail, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface RessourceDetailClientProps {
@@ -141,7 +142,7 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
 
       <RessourceShareButton
         title={detail.titre}
-        text={detail.description.slice(0, 140)}
+        text={htmlToPlainText(detail.description).slice(0, 140)}
         url={pageUrl}
         testId="ressource-detail-share"
       />

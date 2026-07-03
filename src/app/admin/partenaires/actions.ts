@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { CJSSession } from '@/types/user'
 
 /** Garde de rôle — fail-closed : retourne la session (acteur d'audit). */
@@ -63,7 +64,8 @@ export async function modifierPartenaire(id: string, input: PartenaireInput): Pr
     where: { id: pid },
     data: {
       nom: data.nom,
-      description: data.description?.trim() || null,
+      // GUIC-506 — présentation riche (affichée admin/recruteur) : sanitisation serveur.
+      description: data.description ? sanitizeRichHtml(data.description) || null : null,
       logoUrl: data.logoUrl?.trim() || null,
       secteur: data.secteur ?? null,
       region: data.region ?? null,

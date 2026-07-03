@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, Badge, Icon, type IconName } from '@/components/ui'
+import { htmlToPlainText } from '@/lib/rich-html'
 import type { RessourceListItem, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface ResourceCardProps {
@@ -80,7 +81,7 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
         </div>
 
         <p className="text-fs-200 text-color-text-secondary line-clamp-2">
-          {item.description}
+          {htmlToPlainText(item.description)}
         </p>
 
         <div className="flex flex-wrap items-center justify-between gap-space-1 mt-space-1">

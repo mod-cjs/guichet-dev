@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { getGroq } from '@/lib/ia/groq-client'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { htmlToPlainText } from '@/lib/rich-html'
 
 const MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile'
 
@@ -32,7 +33,7 @@ export function buildAdequationMessages(input: AdequationInput): { system: strin
     `Titre: ${input.offre.titre}`,
     `Niveau d'étude minimum: ${input.offre.niveauEtudeMin ?? '—'}`,
     `Compétences requises: ${input.offre.skills.join(', ') || '—'}`,
-    `Description: ${input.offre.description.slice(0, 1500) || '—'}`,
+    `Description: ${htmlToPlainText(input.offre.description).slice(0, 1500) || '—'}`,
     '',
     'CANDIDAT',
     `Niveau d'étude: ${input.candidat.niveauEtude ?? '—'}`,

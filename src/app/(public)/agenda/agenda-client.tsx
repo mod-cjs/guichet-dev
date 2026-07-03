@@ -6,6 +6,7 @@ import { Input, Chip, EmptyState, Icon, Button, Toast } from '@/components/ui'
 import { EvenementCard } from '@/components/evenements/EvenementCard'
 import { EvenementFilters, type QuandFilter } from '@/components/evenements/EvenementFilters'
 import { AgendaCalendrier } from '@/components/evenements/AgendaCalendrier'
+import { htmlToPlainText } from '@/lib/rich-html'
 import type { EvenementListItem, TypeEvenementValue } from '@/lib/loaders/evenements'
 
 interface Props {
@@ -107,7 +108,7 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
       if (!q) return true
       return (
         ev.titre.toLowerCase().includes(q) ||
-        ev.description.toLowerCase().includes(q) ||
+        htmlToPlainText(ev.description).toLowerCase().includes(q) ||
         ev.lieu.toLowerCase().includes(q)
       )
     })
