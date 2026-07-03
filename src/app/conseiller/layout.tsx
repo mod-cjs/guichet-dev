@@ -60,8 +60,9 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         <ConseillerSidebar
           name={fullName}
           role={roleLabel}
-          centreNom={ctx.centreNom}
           initials={ctx.initials}
+          centres={ctx.centres}
+          activeCentreId={ctx.centreId}
           reservationsBadge={reservationsBadge}
           messagesBadge={messagesBadge}
         />

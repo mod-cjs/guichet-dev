@@ -201,10 +201,24 @@ export function pickActiveCentre(
  * Retourne `null` si l'utilisateur n'est rattaché à aucun centre — le layout
  * l'interprète comme « pas conseiller » et redirige.
  */
+/** Cookie portant le centre actif choisi (multi-centre). */
+export const ACTIVE_CENTRE_COOKIE = 'conseiller_centre'
+
 export async function getConseillerContext(
   cjsUid: string,
   preferredCentreId?: string | null,
 ): Promise<ConseillerContext | null> {
+  // Si aucun centre n'est explicitement demandé, on lit le choix persisté (cookie).
+  let preferred = preferredCentreId
+  if (preferred === undefined) {
+    try {
+      const { cookies } = await import('next/headers')
+      preferred = (await cookies()).get(ACTIVE_CENTRE_COOKIE)?.value ?? null
+    } catch {
+      preferred = null
+    }
+  }
+
   const [user, links] = await Promise.all([
     prisma.utilisateur.findUnique({
       where: { cjsUid },
@@ -220,7 +234,7 @@ export async function getConseillerContext(
   if (links.length === 0) return null
 
   const centres: ConseillerCentre[] = links.map((l) => ({ id: l.centre.id, nom: l.centre.nom }))
-  const active = pickActiveCentre(centres, preferredCentreId)
+  const active = pickActiveCentre(centres, preferred)
   // `active` ne peut être null ici (links.length > 0) mais on garde le garde-fou.
   if (!active) return null
 

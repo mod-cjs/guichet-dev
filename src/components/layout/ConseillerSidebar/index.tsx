@@ -2,6 +2,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { ConseillerCentreSwitcher } from '@/components/layout/ConseillerCentreSwitcher'
+import type { ConseillerCentre } from '@/lib/loaders/conseiller'
 
 interface Item {
   id: string
@@ -21,10 +23,12 @@ export interface ConseillerSidebarProps {
   name: string
   /** Rôle affiché (ex. « Conseiller »). */
   role: string
-  /** Centre de rattachement actif. */
-  centreNom: string
   /** Initiales pour l'avatar. */
   initials: string
+  /** Centres de rattachement (sélecteur si > 1). */
+  centres: ConseillerCentre[]
+  /** Centre actif. */
+  activeCentreId: string
   /** Réservations à valider (badge doré). */
   reservationsBadge?: number | null
   /** Messages non lus (badge doré). */
@@ -39,8 +43,9 @@ export interface ConseillerSidebarProps {
 export function ConseillerSidebar({
   name,
   role,
-  centreNom,
   initials,
+  centres,
+  activeCentreId,
   reservationsBadge,
   messagesBadge,
 }: ConseillerSidebarProps) {
@@ -102,9 +107,8 @@ export function ConseillerSidebar({
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.6)', marginTop: 2 }} className="truncate">{role}</div>
           </div>
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.8)', background: 'rgba(255,255,255,.06)', padding: '7px 10px', borderRadius: 8, marginBottom: 4, maxWidth: '100%' }}>
-          <Icon name="pin" size={13} className="shrink-0" style={{ color: 'var(--gj-yellow)' }} />
-          <span className="truncate">{centreNom}</span>
+        <div style={{ marginBottom: 4 }}>
+          <ConseillerCentreSwitcher centres={centres} activeCentreId={activeCentreId} variant="dark" />
         </div>
 
         {/* Sections */}

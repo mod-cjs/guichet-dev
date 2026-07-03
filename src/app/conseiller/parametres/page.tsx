@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Icon } from '@/components/ui/Icon'
+import { ConseillerCentreSwitcher } from '@/components/layout/ConseillerCentreSwitcher'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,15 +26,26 @@ export default async function ConseillerParametresPage() {
           <div className="min-w-0">
             <div className="text-fs-200 text-color-text-secondary">Compte conseiller</div>
             <div className="font-extrabold text-color-text-primary truncate" style={{ fontSize: 15 }}>{ctx.prenom} {ctx.nom}</div>
-            <div className="text-fs-200 text-color-text-secondary truncate">Rattaché à {ctx.centreNom}</div>
+            <div className="text-fs-200 text-color-text-secondary truncate">Rôle : {ctx.role === 'conseiller' ? 'Conseiller' : ctx.role}</div>
           </div>
         </div>
       </div>
 
+      {/* Centre actif (sélecteur si plusieurs rattachements) */}
+      <div className="bg-white rounded-gj-lg p-space-5 flex items-center justify-between gap-space-3 flex-wrap" style={{ border: '1.5px solid var(--gj-line)' }}>
+        <div>
+          <div className="font-extrabold text-color-text-primary" style={{ fontSize: 14 }}>Centre actif</div>
+          <div className="text-fs-200 text-color-text-secondary">
+            {ctx.centres.length > 1 ? 'Vous êtes rattaché·e à plusieurs centres.' : 'Votre centre de rattachement.'}
+          </div>
+        </div>
+        <ConseillerCentreSwitcher centres={ctx.centres} activeCentreId={ctx.centreId} variant="light" />
+      </div>
+
       <EmptyState
         icon="settings"
-        title="Réglages à venir"
-        description="La gestion des préférences (notifications, disponibilités, centre actif) sera disponible prochainement."
+        title="Autres réglages à venir"
+        description="La gestion des préférences (notifications, disponibilités) sera disponible prochainement."
       />
     </div>
   )

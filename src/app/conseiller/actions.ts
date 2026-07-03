@@ -1,10 +1,31 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getConseillerContext } from '@/lib/loaders/conseiller'
+import { getConseillerContext, ACTIVE_CENTRE_COOKIE } from '@/lib/loaders/conseiller'
 import type { ApiResponse } from '@/types/api'
+
+/**
+ * Change le centre actif du conseiller (multi-centre) — persiste le choix dans
+ * un cookie lu par `getConseillerContext`. Vérifie que le centre fait partie des
+ * rattachements du conseiller.
+ */
+export async function setActiveCentre(centreId: string): Promise<ApiResponse<{ centreId: string }>> {
+  const session = await getSession()
+  if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
+  const ctx = await getConseillerContext(session.cjsUid)
+  if (!ctx) return { error: { code: 'FORBIDDEN', message: 'Accès conseiller requis.' } }
+  if (!ctx.centres.some((c) => c.id === centreId)) {
+    return { error: { code: 'FORBIDDEN', message: 'Centre hors de vos rattachements.' } }
+  }
+  ;(await cookies()).set(ACTIVE_CENTRE_COOKIE, centreId, {
+    httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 90,
+  })
+  revalidatePath('/conseiller', 'layout')
+  return { data: { centreId } }
+}
 
 /**
  * GUIC-496 — US-4 · Validation rapide d'une réservation (accepter / refuser).
