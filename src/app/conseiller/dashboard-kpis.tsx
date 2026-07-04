@@ -46,8 +46,8 @@ export function DashboardKpis({ kpis }: { kpis: ConseillerKpi[] }) {
   return (
     <section aria-label="Indicateurs clés" className="grid gap-space-3 grid-cols-2 xl:grid-cols-4">
       {kpis.map((kpi) =>
-        kpi.urgent && kpi.href ? (
-          <Link key={kpi.key} href={kpi.href} className="no-underline" aria-label={`${kpi.label} : ${kpi.value}`}>
+        kpi.href ? (
+          <Link key={kpi.key} href={kpi.href} className="no-underline transition-shadow hover:shadow-gj-md rounded-gj-lg" aria-label={`${kpi.label} : ${kpi.value}`}>
             <KpiCard kpi={kpi} />
           </Link>
         ) : (

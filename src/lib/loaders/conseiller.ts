@@ -405,10 +405,10 @@ export async function getConseillerKpis(centreId: string, date: Date = new Date(
   ])
 
   return [
-    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal' },
+    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal', href: '/conseiller/beneficiaires' },
     { key: 'resa', label: 'Réservations à valider', value: resaAValider, delta: 'à traiter', icon: 'calendar', tone: 'yellow', urgent: true, href: '/conseiller/reservations' },
-    { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue' },
-    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green' },
+    { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue', href: '/conseiller/agenda' },
+    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green', href: '/conseiller/beneficiaires' },
   ]
 }
 
