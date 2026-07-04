@@ -45,6 +45,9 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         className="md:hidden sticky top-0 flex items-center gap-2 px-space-4"
         style={{ zIndex: 199, paddingTop: 'var(--safe-top, 0px)', minHeight: 'var(--gj-topbar-h, 56px)', background: 'var(--gj-ink-teal)', color: '#fff' }}
       >
+        <span aria-hidden className="inline-flex items-center justify-center shrink-0" style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, var(--gj-yellow), #E0A93B)', color: 'var(--gj-ink-teal)', fontWeight: 900, fontSize: 11 }}>
+          {ctx.initials}
+        </span>
         <span className="font-bold text-fs-300 flex-1 truncate">Espace conseiller</span>
         <Link href="/conseiller/notifications" aria-label={`Notifications${notifsBadge > 0 ? ` (${notifsBadge} non lues)` : ''}`} className="relative inline-flex items-center justify-center no-underline text-white" style={{ width: 40, height: 40 }}>
           <Icon name="bell" size={20} />
