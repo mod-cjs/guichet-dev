@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext, getBeneficiaireDetail } from '@/lib/loaders/conseiller'
+import { contacterBeneficiaire } from '../../actions'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ProfilRing } from '../profil-ring'
@@ -64,9 +65,11 @@ export default async function BeneficiaireDetailPage({ params }: { params: Promi
             <Meta icon="calendar">Membre depuis {b.memberSince}</Meta>
           </div>
         </div>
-        <Link href="/conseiller/messagerie" className="inline-flex items-center gap-space-2 no-underline font-extrabold shrink-0" style={{ background: '#fff', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-line)', padding: '10px 15px', borderRadius: 9, fontSize: 13 }}>
-          <Icon name="chat" size={15} /> Message
-        </Link>
+        <form action={contacterBeneficiaire.bind(null, b.cjsUid)} className="shrink-0">
+          <button type="submit" className="inline-flex items-center gap-space-2 font-extrabold" style={{ background: 'var(--gj-teal-deep)', color: '#fff', border: 0, padding: '10px 15px', borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>
+            <Icon name="chat" size={15} /> Message
+          </button>
+        </form>
       </div>
 
       <div className="grid gap-space-5 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] items-start">

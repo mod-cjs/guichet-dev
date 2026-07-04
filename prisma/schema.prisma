@@ -565,13 +565,16 @@ model Entretien {
 /// Le consentement CDP est implicite : le jeune a postulé à l'offre du recruteur.
 model Conversation {
   id            String   @id @default(uuid()) @db.VarChar(36)
-  candidatureId String   @unique @map("candidature_id") @db.VarChar(36)
+  // GUIC-470 — nullable : conversations conseiller<->beneficiaire sans candidature.
+  candidatureId String?  @unique @map("candidature_id") @db.VarChar(36)
+  /// Sujet libre pour les conversations sans candidature (ex. Accompagnement).
+  sujet         String?  @db.VarChar(255)
   recruteurUid  String   @map("recruteur_uid") @db.VarChar(36)
   candidatUid   String   @map("candidat_uid") @db.VarChar(36)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at") // = date du dernier message (tri inbox)
 
-  candidature Candidature @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+  candidature Candidature? @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
   messages    Message[]
 
   @@index([recruteurUid, updatedAt(sort: Desc)])

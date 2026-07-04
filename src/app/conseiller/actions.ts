@@ -1,11 +1,44 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getConseillerContext, ACTIVE_CENTRE_COOKIE } from '@/lib/loaders/conseiller'
 import type { ApiResponse } from '@/types/api'
+
+/**
+ * GUIC-470 — Ouvre (ou crée) une conversation conseiller↔bénéficiaire, puis
+ * redirige vers le fil. Le bénéficiaire doit être rattaché au centre du
+ * conseiller (périmètre : check-in ou réservation au centre). Conversation
+ * sans candidature (`candidatureId` null), le conseiller porte `recruteurUid`.
+ */
+export async function contacterBeneficiaire(beneficiaireUid: string): Promise<void> {
+  const session = await getSession()
+  if (!session) redirect('/auth/connexion')
+  const ctx = await getConseillerContext(session.cjsUid)
+  if (!ctx) redirect('/')
+
+  // Périmètre : le bénéficiaire a fréquenté le centre.
+  const [checkins, resas] = await Promise.all([
+    prisma.checkIn.count({ where: { centreId: ctx.centreId, cjsUid: beneficiaireUid } }),
+    prisma.reservation.count({ where: { centreId: ctx.centreId, cjsUid: beneficiaireUid } }),
+  ])
+  if (checkins + resas === 0) redirect('/conseiller/beneficiaires')
+
+  const existing = await prisma.conversation.findFirst({
+    where: { candidatureId: null, recruteurUid: session.cjsUid, candidatUid: beneficiaireUid },
+    select: { id: true },
+  })
+  const conv = existing ?? (await prisma.conversation.create({
+    data: { recruteurUid: session.cjsUid, candidatUid: beneficiaireUid, candidatureId: null, sujet: 'Accompagnement' },
+    select: { id: true },
+  }))
+
+  revalidatePath('/conseiller/messagerie')
+  redirect(`/conseiller/messagerie/${conv.id}`)
+}
 
 /**
  * Change le centre actif du conseiller (multi-centre) — persiste le choix dans
