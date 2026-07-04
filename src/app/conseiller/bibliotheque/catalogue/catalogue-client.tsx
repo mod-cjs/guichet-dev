@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { BookCard } from '../book-card'
+import { BookCard } from '@/components/bibliotheque/BookCard'
 import type { LivreVue } from '@/lib/bibliotheque/service'
 
 export function CatalogueClient({ livres }: { livres: LivreVue[] }) {

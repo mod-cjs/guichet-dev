@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Card, Modal, Input, Select, Toast, Icon, EmptyState } from '@/components/ui'
 import type { LivreVue } from '@/lib/bibliotheque/service'
+import { BookCover } from '@/components/bibliotheque/BookCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -305,11 +306,8 @@ export function CatalogueClient({ centreId, livres: initialLivres }: Props) {
                       onClick={() => toggleExpand(livre.id)}
                       aria-expanded={isExpanded}
                     >
-                      <div
-                        className="flex-shrink-0 w-10 h-12 rounded-gj-sm flex items-center justify-center"
-                        style={{ background: 'var(--gj-teal-soft)' }}
-                      >
-                        <Icon name="resources" size={20} style={{ color: 'var(--gj-teal-deep)' }} />
+                      <div className="flex-shrink-0" style={{ width: 44, height: 60 }}>
+                        <BookCover titre={livre.titre} auteur={livre.auteur} couvertureUrl={livre.couvertureUrl} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-fs-300 font-bold text-color-text-primary line-clamp-2">

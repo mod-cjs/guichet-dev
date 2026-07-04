@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { BookCard } from '@/components/bibliotheque/BookCard'
 import { getSession } from '@/lib/auth'
 import { searchLivres } from '@/lib/bibliotheque/service'
-import { PageHeader, Card, Icon, EmptyState, Pagination } from '@/components/ui'
+import { PageHeader, EmptyState, Pagination } from '@/components/ui'
 import { BiblioSearchForm } from './biblio-search-form'
 
 export const metadata: Metadata = {
@@ -91,54 +92,23 @@ export default async function BibliothequeJeunePage({
           )}
         </div>
       ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-4 list-none p-0 m-0">
+        <ul className="grid gap-space-4 list-none p-0 m-0" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
           {livres.map((livre) => (
             <li key={livre.id}>
               <Link
                 href={`/jeune/bibliotheque/${livre.id}`}
-                className="no-underline block h-full"
+                className="no-underline block h-full hover:opacity-95 transition-opacity"
               >
-                <Card
-                  variant="opportunite"
-                  className="h-full flex flex-col cursor-pointer hover:shadow-gj-md transition-shadow"
-                >
-                  <div className="flex gap-space-3">
-                    <div className="flex-shrink-0 w-12 h-16 bg-gj-teal-soft rounded-gj-sm flex items-center justify-center">
-                      <Icon name="resources" size={24} style={{ color: 'var(--gj-teal-deep)' }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-fs-300 font-bold text-color-text-primary line-clamp-2 leading-snug">
-                        {livre.titre}
-                      </p>
-                      <p className="text-fs-200 text-color-text-secondary mt-space-1 truncate">
-                        {livre.auteur}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-space-3 flex items-center justify-between gap-space-2">
-                    <span
-                      className="inline-block text-fs-100 font-bold px-space-2 rounded-gj-pill"
-                      style={{
-                        background: 'var(--gj-teal-soft)',
-                        color: 'var(--gj-teal-deep)',
-                        padding: '2px 10px',
-                      }}
-                    >
-                      {livre.theme}
-                    </span>
-                    <span
-                      className={`text-fs-200 font-bold ${
-                        livre.exemplairesDisponibles > 0
-                          ? 'text-gj-green-ink'
-                          : 'text-color-text-muted'
-                      }`}
-                    >
-                      {livre.exemplairesDisponibles > 0
-                        ? `${livre.exemplairesDisponibles} dispo.`
-                        : 'Non disponible'}
-                    </span>
-                  </div>
-                </Card>
+                <BookCard
+                  b={{
+                    titre: livre.titre,
+                    auteur: livre.auteur,
+                    theme: livre.theme,
+                    couvertureUrl: livre.couvertureUrl,
+                    exemplairesDisponibles: livre.exemplairesDisponibles,
+                    exemplairesTotal: livre.exemplairesTotal,
+                  }}
+                />
               </Link>
             </li>
           ))}

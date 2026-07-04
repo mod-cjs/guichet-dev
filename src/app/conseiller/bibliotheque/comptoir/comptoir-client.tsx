@@ -2,9 +2,19 @@
 
 import { useState, useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
+import { Modal } from '@/components/ui/Modal'
+import { BookCard } from '@/components/bibliotheque/BookCard'
 import { CardScanner } from './card-scanner'
 import { identifierParCarte, confirmerRetrait, enregistrerRetour, rechercherLivresPourPret, preterLivre } from '../actions'
 import type { JeuneIdentifie, EmpruntBrief, LivrePret } from '../types'
+
+interface Confirmation {
+  title: string
+  detail: string
+  cta: string
+  tone: 'teal' | 'green'
+  run: () => void
+}
 
 function EmpruntLine({ e, actionLabel, actionIcon, onAction, pending }: {
   e: EmpruntBrief; actionLabel: string; actionIcon: 'check' | 'check-circle'; onAction: () => void; pending: boolean
@@ -33,8 +43,8 @@ export function ComptoirClient() {
   const [jeune, setJeune] = useState<JeuneIdentifie | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<Confirmation | null>(null)
   const [pending, start] = useTransition()
-  // Prêt
   const [q, setQ] = useState('')
   const [results, setResults] = useState<LivrePret[]>([])
   const [searching, startSearch] = useTransition()
@@ -47,13 +57,12 @@ export function ComptoirClient() {
       else { setToken(raw); setJeune(res.data!); setResults([]); setQ('') }
     })
   }
-
   const refresh = () => { if (token) identify(token) }
 
-  const doAction = (fn: (id: string) => Promise<{ error?: { message: string } }>, id: string, done: string) => {
-    setError(null)
+  const runAction = (fn: () => Promise<{ error?: { message: string } }>, done: string) => {
+    setConfirm(null); setError(null)
     start(async () => {
-      const res = await fn(id)
+      const res = await fn()
       if (res.error) setError(res.error.message)
       else { setToast(done); refresh() }
     })
@@ -68,17 +77,7 @@ export function ComptoirClient() {
     })
   }
 
-  const preter = (exemplaireId: string) => {
-    if (!jeune) return
-    setError(null)
-    start(async () => {
-      const res = await preterLivre(exemplaireId, jeune.cjsUid)
-      if (res.error) setError(res.error.message)
-      else { setToast('Prêt enregistré.'); setResults([]); setQ(''); refresh() }
-    })
-  }
-
-  const reset = () => { setJeune(null); setToken(null); setError(null); setToast(null); setResults([]); setQ('') }
+  const reset = () => { setJeune(null); setToken(null); setError(null); setToast(null); setResults([]); setQ(''); setConfirm(null) }
 
   // ── Étape 1 : scan carte ──
   if (!jeune) {
@@ -97,7 +96,6 @@ export function ComptoirClient() {
   // ── Étape 2 : jeune identifié → actions ──
   return (
     <div className="flex flex-col gap-space-4">
-      {/* En-tête jeune */}
       <div className="bg-white rounded-gj-lg p-space-4 flex items-center gap-space-3" style={{ border: '1.5px solid var(--gj-teal-deep)' }}>
         <span className="inline-flex items-center justify-center shrink-0" style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)', fontWeight: 900, fontSize: 16 }}>{jeune.initials}</span>
         <div className="flex-1 min-w-0">
@@ -112,12 +110,13 @@ export function ComptoirClient() {
       {toast && <div className="rounded-gj-md" style={{ background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', padding: '10px 12px', fontSize: 12.5, fontWeight: 700 }}>{toast}</div>}
       {error && <div className="rounded-gj-md" style={{ background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)', padding: '10px 12px', fontSize: 12.5, fontWeight: 700 }}>{error}</div>}
 
-      {/* À retirer (réservés en ligne) */}
+      {/* À retirer */}
       <section className="bg-white rounded-gj-lg p-space-5" style={{ border: '1.5px solid var(--gj-line)' }}>
         <h2 className="font-black text-color-text-primary m-0" style={{ fontSize: 15, marginBottom: 8 }}>À retirer</h2>
         {jeune.aRetirer.length === 0
           ? <p className="text-color-text-secondary m-0" style={{ fontSize: 12.5 }}>Aucune réservation à retirer.</p>
-          : jeune.aRetirer.map((e) => <EmpruntLine key={e.id} e={e} actionLabel="Remettre le livre" actionIcon="check" pending={pending} onAction={() => doAction(confirmerRetrait, e.id, 'Retrait confirmé.')} />)}
+          : jeune.aRetirer.map((e) => <EmpruntLine key={e.id} e={e} actionLabel="Remettre le livre" actionIcon="check" pending={pending}
+              onAction={() => setConfirm({ title: 'Confirmer le retrait', detail: `Remettre « ${e.livreTitre} » à ${jeune.name} ?`, cta: 'Confirmer le retrait', tone: 'teal', run: () => runAction(() => confirmerRetrait(e.id), 'Retrait confirmé.') })} />)}
       </section>
 
       {/* À rendre */}
@@ -125,7 +124,8 @@ export function ComptoirClient() {
         <h2 className="font-black text-color-text-primary m-0" style={{ fontSize: 15, marginBottom: 8 }}>À rendre</h2>
         {jeune.aRendre.length === 0
           ? <p className="text-color-text-secondary m-0" style={{ fontSize: 12.5 }}>Aucun livre en cours.</p>
-          : jeune.aRendre.map((e) => <EmpruntLine key={e.id} e={e} actionLabel="Enregistrer le retour" actionIcon="check-circle" pending={pending} onAction={() => doAction(enregistrerRetour, e.id, 'Retour enregistré.')} />)}
+          : jeune.aRendre.map((e) => <EmpruntLine key={e.id} e={e} actionLabel="Enregistrer le retour" actionIcon="check-circle" pending={pending}
+              onAction={() => setConfirm({ title: 'Confirmer le retour', detail: `Enregistrer le retour de « ${e.livreTitre} » ?`, cta: 'Enregistrer le retour', tone: 'teal', run: () => runAction(() => enregistrerRetour(e.id), 'Retour enregistré.') })} />)}
       </section>
 
       {/* Prêter un livre */}
@@ -137,14 +137,13 @@ export function ComptoirClient() {
         </div>
         {searching && <p className="text-fs-100 text-color-text-secondary" style={{ marginTop: 6 }}>Recherche…</p>}
         {results.length > 0 && (
-          <div className="flex flex-col" style={{ marginTop: 8 }}>
+          <div className="grid gap-space-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', marginTop: 10 }}>
             {results.map((l) => (
-              <div key={l.exemplaireId} className="flex items-center gap-space-3 py-space-2" style={{ borderBottom: '1px solid var(--gj-line)' }}>
-                <div className="flex-1 min-w-0">
-                  <div className="font-extrabold text-color-text-primary truncate" style={{ fontSize: 13 }}>{l.titre}</div>
-                  <div className="text-color-text-secondary truncate" style={{ fontSize: 11 }}>{l.auteur} · {l.emplacement}</div>
-                </div>
-                <button type="button" onClick={() => preter(l.exemplaireId)} disabled={pending} className="inline-flex items-center gap-space-1 font-extrabold shrink-0 disabled:opacity-50" style={{ background: 'var(--gj-green)', color: '#fff', border: 0, padding: '8px 14px', borderRadius: 9, fontSize: 12.5 }}>
+              <div key={l.exemplaireId} className="flex flex-col gap-space-2">
+                <BookCard b={{ titre: l.titre, auteur: l.auteur, couvertureUrl: l.couvertureUrl, exemplairesDisponibles: l.exemplairesDisponibles, exemplairesTotal: l.exemplairesTotal, emplacement: l.emplacement }} />
+                <button type="button" disabled={pending}
+                  onClick={() => setConfirm({ title: 'Confirmer le prêt', detail: `Prêter « ${l.titre} » à ${jeune.name} ?`, cta: 'Prêter', tone: 'green', run: () => runAction(() => preterLivre(l.exemplaireId, jeune.cjsUid), 'Prêt enregistré.') })}
+                  className="inline-flex items-center justify-center gap-space-1 font-extrabold disabled:opacity-50" style={{ background: 'var(--gj-green)', color: '#fff', border: 0, padding: '8px 0', borderRadius: 9, fontSize: 12.5 }}>
                   <Icon name="plus" size={14} /> Prêter
                 </button>
               </div>
@@ -152,6 +151,21 @@ export function ComptoirClient() {
           </div>
         )}
       </section>
+
+      {/* Pop-up de confirmation */}
+      {confirm && (
+        <Modal isOpen onClose={() => setConfirm(null)} title={confirm.title}>
+          <div className="flex flex-col gap-space-4">
+            <p className="text-fs-300 text-color-text-primary m-0">{confirm.detail}</p>
+            <div className="flex justify-end gap-space-2">
+              <button type="button" onClick={() => setConfirm(null)} disabled={pending} className="font-extrabold" style={{ background: '#fff', color: 'var(--gj-grey)', border: '1.5px solid var(--gj-line)', padding: '11px 18px', borderRadius: 9, fontSize: 13.5 }}>Annuler</button>
+              <button type="button" onClick={confirm.run} disabled={pending} className="inline-flex items-center gap-space-2 font-extrabold disabled:opacity-60" style={{ background: confirm.tone === 'green' ? 'var(--gj-green)' : 'var(--gj-teal-deep)', color: '#fff', border: 0, padding: '11px 22px', borderRadius: 9, fontSize: 13.5 }}>
+                <Icon name="check" size={16} /> {confirm.cta}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

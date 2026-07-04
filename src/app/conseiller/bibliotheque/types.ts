@@ -18,4 +18,7 @@ export interface LivrePret {
   titre: string
   auteur: string
   emplacement: string
+  couvertureUrl: string | null
+  exemplairesDisponibles: number
+  exemplairesTotal: number
 }

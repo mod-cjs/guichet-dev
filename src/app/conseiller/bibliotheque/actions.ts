@@ -164,7 +164,7 @@ export async function identifierParCarte(rawQr: string): Promise<ApiResponse<Jeu
 /** Recherche de livres disponibles au centre (pour le prêt au comptoir). */
 export async function rechercherLivresPourPret(
   q: string,
-): Promise<ApiResponse<{ exemplaireId: string; titre: string; auteur: string; emplacement: string }[]>> {
+): Promise<ApiResponse<import('./types').LivrePret[]>> {
   const g = await guard()
   if ('error' in g) return { error: g.error }
   const term = q.trim().toLowerCase()
@@ -175,7 +175,7 @@ export async function rechercherLivresPourPret(
     .slice(0, 8)
     .map((l) => {
       const dispo = l.emplacements.find((e) => e.statut === 'disponible')!
-      return { exemplaireId: dispo.exemplaireId, titre: l.titre, auteur: l.auteur, emplacement: `${dispo.rayon}·${dispo.etagere}·${dispo.position}` }
+      return { exemplaireId: dispo.exemplaireId, titre: l.titre, auteur: l.auteur, emplacement: `${dispo.rayon}·${dispo.etagere}·${dispo.position}`, couvertureUrl: l.couvertureUrl, exemplairesDisponibles: l.exemplairesDisponibles, exemplairesTotal: l.exemplairesTotal }
     })
   return { data: res }
 }
