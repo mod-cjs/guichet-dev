@@ -47,32 +47,19 @@ export default async function ConseillerDashboardPage() {
 
   return (
     <div className="flex flex-col gap-space-4 md:gap-space-5">
-      {/* En-tête desktop (clair) */}
-      <div className="hidden md:block">
-        <PageHeader
-          title={`Bonjour ${ctx.prenom || 'conseiller'}`}
-          subtitle={
-            <span className="inline-flex flex-wrap items-center gap-x-space-3 gap-y-space-1">
-              <span>{dateCap} · voici l&apos;activité du jour</span>
-              <span className="inline-flex items-center gap-space-1 text-gj-teal-deep font-semibold">
-                <Icon name="pin" size={14} />
-                {ctx.centreNom}
-              </span>
+      {/* En-tête (clair, toutes tailles) — l'identité sombre est portée par la topbar mobile (une seule barre foncée). */}
+      <PageHeader
+        title={`Bonjour ${ctx.prenom || 'conseiller'} 👋`}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-x-space-3 gap-y-space-1">
+            <span>{dateCap} · voici l&apos;activité du jour</span>
+            <span className="inline-flex items-center gap-space-1 text-gj-teal-deep font-semibold">
+              <Icon name="pin" size={14} />
+              {ctx.centreNom}
             </span>
-          }
-        />
-      </div>
-
-      {/* En-tête mobile sombre (design v4 `AgentMobHeader`) */}
-      <div className="md:hidden flex items-center gap-space-3 rounded-gj-lg p-space-4" style={{ background: 'var(--gj-ink-teal)', color: '#fff' }}>
-        <div className="flex-1 min-w-0">
-          <div className="font-black" style={{ fontSize: 17, lineHeight: 1.2 }}>Bonjour {ctx.prenom || 'conseiller'} 👋</div>
-          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.65)', marginTop: 2 }}>{ctx.centreNom} · {dateCap}</div>
-        </div>
-        <span className="inline-flex items-center justify-center shrink-0" style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, var(--gj-yellow), #E0A93B)', color: 'var(--gj-ink-teal)', fontWeight: 900, fontSize: 13 }}>
-          {ctx.initials}
-        </span>
-      </div>
+          </span>
+        }
+      />
 
       <DashboardKpis kpis={kpis} />
 

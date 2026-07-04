@@ -71,7 +71,7 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, OR: [{ recruteurUid: session.cjsUid }, { candidatUid: session.cjsUid }] },
     select: {
-      id: true, recruteurUid: true, candidatUid: true,
+      id: true, recruteurUid: true, candidatUid: true, candidatureId: true, sujet: true,
       candidature: { select: { opportunite: { select: { titre: true } } } },
     },
   })
@@ -79,6 +79,9 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
 
   const destinataire = conv.recruteurUid === session.cjsUid ? conv.candidatUid : conv.recruteurUid
   const destIsCandidat = destinataire === conv.candidatUid
+  // Conversation conseiller↔bénéficiaire (hors candidature) : le côté « agent » lit dans /conseiller.
+  const agentPath = conv.candidatureId ? 'recruteur' : 'conseiller'
+  const sujet = conv.candidature?.opportunite.titre ?? conv.sujet ?? null
 
   await prisma.$transaction([
     prisma.message.create({ data: { conversationId, senderUid: session.cjsUid, corps: parsed } }),
@@ -94,9 +97,9 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
           cjsUid: destinataire,
           type: 'Message',
           titre: 'Nouveau message',
-          contenu: `Vous avez reçu un message au sujet de « ${conv.candidature.opportunite.titre} ».`,
+          contenu: sujet ? `Vous avez reçu un message au sujet de « ${sujet} ».` : 'Vous avez reçu un nouveau message.',
           iconName: 'chat',
-          lien: destIsCandidat ? `/jeune/messagerie/${conversationId}` : `/recruteur/messagerie/${conversationId}`,
+          lien: destIsCandidat ? `/jeune/messagerie/${conversationId}` : `/${agentPath}/messagerie/${conversationId}`,
         },
       })
     }
@@ -106,8 +109,10 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
 
   revalidatePath(`/recruteur/messagerie/${conversationId}`)
   revalidatePath(`/jeune/messagerie/${conversationId}`)
+  revalidatePath(`/conseiller/messagerie/${conversationId}`)
   revalidatePath('/recruteur/messagerie')
   revalidatePath('/jeune/messagerie')
+  revalidatePath('/conseiller/messagerie')
   return { ok: true }
 }
 

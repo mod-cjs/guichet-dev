@@ -53,6 +53,8 @@ export interface ConseillerKpi {
   urgent?: boolean
   /** Cible de navigation au clic. */
   href?: string
+  /** Info-bulle expliquant la source/période du KPI (défini pour les heuristiques). */
+  hint?: string
 }
 
 export interface ReservationAValider {
@@ -76,6 +78,8 @@ export interface AgendaItem {
   sub: string
   /** Atelier collectif (vs RDV individuel). */
   atelier: boolean
+  /** Réservation encore en attente de validation (non confirmée). */
+  pending?: boolean
 }
 
 /** Jour local au format « YYYY-MM-DD ». */
@@ -325,6 +329,7 @@ export async function getAgendaRange(centreId: string, start: Date, end: Date): 
         id: true,
         dateReservee: true,
         creneauDebut: true,
+        statut: true,
         utilisateur: { select: { prenom: true, nom: true } },
         ressource: { select: { nom: true } },
       },
@@ -337,14 +342,18 @@ export async function getAgendaRange(centreId: string, start: Date, end: Date): 
     }),
   ])
 
-  const resaItems: AgendaItem[] = reservations.map((r) => ({
-    id: `resa-${r.id}`,
-    date: isoDay(r.dateReservee),
-    time: r.creneauDebut,
-    label: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
-    sub: `Réservation · ${r.ressource.nom}`,
-    atelier: false,
-  }))
+  const resaItems: AgendaItem[] = reservations.map((r) => {
+    const pending = String(r.statut) === 'EnAttente'
+    return {
+      id: `resa-${r.id}`,
+      date: isoDay(r.dateReservee),
+      time: r.creneauDebut,
+      label: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
+      sub: `${pending ? 'Demande' : 'Réservation'} · ${r.ressource.nom}`,
+      atelier: false,
+      pending,
+    }
+  })
   const eventItems: AgendaItem[] = events.map((e) => ({
     id: `evt-${e.id}`,
     date: isoDay(e.dateDebut),
@@ -405,10 +414,10 @@ export async function getConseillerKpis(centreId: string, date: Date = new Date(
   ])
 
   return [
-    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal' },
+    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal', href: '/conseiller/beneficiaires', hint: 'Jeunes distincts ayant fait un check-in au centre sur les 90 derniers jours.' },
     { key: 'resa', label: 'Réservations à valider', value: resaAValider, delta: 'à traiter', icon: 'calendar', tone: 'yellow', urgent: true, href: '/conseiller/reservations' },
-    { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue' },
-    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green' },
+    { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue', href: '/conseiller/agenda' },
+    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green', href: '/conseiller/beneficiaires', hint: 'Candidatures soumises ce mois par les bénéficiaires rattachés au centre.' },
   ]
 }
 

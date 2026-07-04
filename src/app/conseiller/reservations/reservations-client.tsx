@@ -253,16 +253,16 @@ function Row({ r }: { r: ReservationListItem }) {
   )
 }
 
-const EMPTY: Record<ReservationTab, string> = {
-  all: 'Aucune réservation pour ce centre.',
-  attente: 'Aucune réservation en attente de validation.',
-  acceptee: 'Aucune réservation acceptée.',
-  refusee: 'Aucune réservation refusée.',
+const EMPTY: Record<ReservationTab, { title: string; description: string }> = {
+  all: { title: 'Aucune réservation', description: 'Les demandes de ressources du centre apparaîtront ici.' },
+  attente: { title: 'Aucune réservation à valider', description: 'Vous êtes à jour : aucune demande en attente.' },
+  acceptee: { title: 'Aucune réservation acceptée', description: 'Les demandes que vous acceptez apparaîtront ici.' },
+  refusee: { title: 'Aucune réservation refusée', description: 'Les demandes refusées apparaîtront ici.' },
 }
 
 export function ReservationsListe({ rows, tab }: { rows: ReservationListItem[]; tab: ReservationTab }) {
   if (rows.length === 0) {
-    return <EmptyState icon="calendar" title="Rien à afficher" description={EMPTY[tab]} />
+    return <EmptyState icon="calendar" title={EMPTY[tab].title} description={EMPTY[tab].description} />
   }
   return (
     <div className="flex flex-col gap-space-3">

@@ -22,6 +22,7 @@ function KpiCard({ kpi }: { kpi: ConseillerKpi }) {
     <div
       className="bg-white rounded-gj-lg p-space-4 flex flex-col"
       style={{ border: `1.5px solid ${kpi.urgent ? 'var(--gj-yellow)' : 'var(--gj-line)'}`, minHeight: 118 }}
+      title={kpi.hint}
     >
       <div className="flex items-start justify-between">
         <span className="inline-flex items-center justify-center rounded-gj-md shrink-0" style={{ width: 38, height: 38, background: tone.soft, color: tone.ink }}>
@@ -36,7 +37,10 @@ function KpiCard({ kpi }: { kpi: ConseillerKpi }) {
       <div className="font-black text-color-text-primary mt-space-3" style={{ fontSize: 28, lineHeight: 1 }}>
         {kpi.value.toLocaleString('fr-FR')}
       </div>
-      <div className="font-bold text-color-text-primary mt-space-2" style={{ fontSize: 12 }}>{kpi.label}</div>
+      <div className="font-bold text-color-text-primary mt-space-2 inline-flex items-center gap-space-1" style={{ fontSize: 12 }}>
+        {kpi.label}
+        {kpi.hint && <Icon name="info" size={12} title={kpi.hint} style={{ color: 'var(--gj-grey-2, var(--gj-grey))' }} />}
+      </div>
       <div className="hidden sm:block text-color-text-secondary" style={{ fontSize: 11, marginTop: 2 }}>{kpi.delta}</div>
     </div>
   )
@@ -46,8 +50,8 @@ export function DashboardKpis({ kpis }: { kpis: ConseillerKpi[] }) {
   return (
     <section aria-label="Indicateurs clés" className="grid gap-space-3 grid-cols-2 xl:grid-cols-4">
       {kpis.map((kpi) =>
-        kpi.urgent && kpi.href ? (
-          <Link key={kpi.key} href={kpi.href} className="no-underline" aria-label={`${kpi.label} : ${kpi.value}`}>
+        kpi.href ? (
+          <Link key={kpi.key} href={kpi.href} className="no-underline transition-shadow hover:shadow-gj-md rounded-gj-lg" aria-label={`${kpi.label} : ${kpi.value}`}>
             <KpiCard kpi={kpi} />
           </Link>
         ) : (

@@ -68,16 +68,16 @@ function Row({ r }: { r: ReservationAValider }) {
         >
           <Icon name="check" size={16} />
         </button>
-        <button
-          type="button"
-          onClick={() => decide('refuse')}
-          disabled={pending}
-          aria-label={`Refuser la réservation ${r.ressourceNom}`}
-          className="inline-flex items-center justify-center disabled:opacity-50"
+        {/* Refuser = action destructive (notifie le jeune) → passe par l'écran détaillé (motif). */}
+        <Link
+          href="/conseiller/reservations?tab=attente"
+          aria-label={`Refuser la réservation ${r.ressourceNom} (avec motif)`}
+          title="Refuser avec un motif"
+          className="inline-flex items-center justify-center no-underline"
           style={{ width: 34, height: 34, borderRadius: 8, background: '#fff', color: 'var(--gj-red)', border: '1.5px solid var(--gj-line)' }}
         >
           <Icon name="close" size={16} />
-        </button>
+        </Link>
       </div>
     </div>
   )
