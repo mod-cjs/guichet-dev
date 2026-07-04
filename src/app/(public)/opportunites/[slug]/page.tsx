@@ -11,6 +11,8 @@ import { OpportuniteDetailSkeleton } from '@/components/opportunites/Opportunite
 import { Breadcrumbs } from '@/components/ui'
 import { opportunitesListUrl } from '@/lib/routes'
 import { htmlToPlainText } from '@/lib/rich-html'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { getOpportuniteJsonLd } from '@/lib/seo/loaders'
 
 // GUIC-21 — Détail d'opportunité en accès direct (SSR, indispensable au SEO).
 
@@ -21,10 +23,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const detail = await getOpportuniteDetail(slug)
-  if (!detail) return { title: 'Opportunité introuvable' }
+  if (!detail) return { title: 'Opportunité introuvable', robots: { index: false } }
+  const description = htmlToPlainText(detail.description).slice(0, 160)
+  const canonical = `/opportunites/${slug}`
   return {
     title: detail.titre,
-    description: htmlToPlainText(detail.description).slice(0, 160),
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: detail.titre,
+      description,
+      url: canonical,
+      type: 'article',
+    },
   }
 }
 
@@ -50,8 +61,12 @@ export default async function OpportuniteDetailPage({
   // biographie, compétences, etc.
   const viewer = await getViewerInfoForCandidature(session)
 
+  // GUIC-25 (M7 SEO) — données structurées JobPosting
+  const jsonLd = await getOpportuniteJsonLd(slug)
+
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
+      {jsonLd && <JsonLd data={jsonLd} />}
       <Breadcrumbs
         className="mb-space-3"
         items={[

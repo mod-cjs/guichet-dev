@@ -5,8 +5,14 @@ import { WelcomeHeroMobile } from '@/components/home/WelcomeHeroMobile'
 import { WelcomeHeroWeb } from '@/components/home/WelcomeHeroWeb'
 import { Icon } from '@/components/ui/Icon'
 import { getSession } from '@/lib/auth'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/json-ld'
 
-export const metadata: Metadata = { title: 'Accueil' }
+export const metadata: Metadata = {
+  title: 'Accueil',
+  alternates: { canonical: '/' },
+  openGraph: { url: '/' },
+}
 
 const SECTIONS = [
   { href: '/opportunites', icon: 'target',      label: 'Opportunités', desc: 'Emplois, stages, formations, bourses' },
@@ -23,6 +29,9 @@ export default async function Accueil() {
 
   return (
     <>
+      {/* GUIC-25 (M7 SEO) — données structurées Organization + WebSite */}
+      <JsonLd data={[organizationJsonLd(), webSiteJsonLd()]} />
+
       {/* HERO responsive — mobile (< 1024px) vs web (≥ 1024px) */}
       <div className="lg:hidden">
         <WelcomeHeroMobile />

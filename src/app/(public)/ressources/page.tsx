@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: 'Ressources',
   description:
     'Bibliothèque de guides, vidéos et outils pédagogiques pour les jeunes du Sénégal.',
+  alternates: { canonical: '/ressources' },
 }
 
 export const dynamic = 'force-dynamic'

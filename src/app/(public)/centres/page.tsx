@@ -5,7 +5,11 @@ import { EmptyState } from '@/components/ui'
 import { getCentresWithStatusAndHoraires } from '@/lib/loaders/centres'
 import { CentresAllClient } from './centres-all-client'
 
-export const metadata: Metadata = { title: 'Centres CJS' }
+export const metadata: Metadata = {
+  title: 'Centres CJS',
+  description: 'Les centres du Consortium Jeunesse Sénégal — horaires, services et localisation.',
+  alternates: { canonical: '/centres' },
+}
 
 /**
  * `/centres` — vue `all` du Lot 7 W2 (GUIC-353).
