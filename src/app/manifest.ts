@@ -16,6 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: 'ltr',
     categories: ['education', 'government', 'social'],
     icons: [
+      { src: '/images/favicon/cropped-Favicon-CJS-150x150.png', sizes: '150x150', type: 'image/png', purpose: 'any' },
+      { src: '/images/favicon/cropped-Favicon-CJS-300x300.png', sizes: '300x300', type: 'image/png', purpose: 'any' },
       { src: '/logo-guichet.png', sizes: 'any', type: 'image/png', purpose: 'any' },
     ],
   }
