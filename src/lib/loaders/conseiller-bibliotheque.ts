@@ -63,3 +63,87 @@ export async function getBibliothequeCounts(centreId: string): Promise<{ confirm
   ])
   return { confirmer, rendre, retard }
 }
+
+// ── Fiche livre (détail centre) — GUIC-522 ────────────────────────────────
+
+export interface ExemplaireDetail {
+  id: string
+  codeBarre: string
+  emplacement: string
+  statut: string
+  statutLabel: string
+  statutTone: 'green' | 'yellow' | 'blue' | 'grey'
+  emprunteur: string | null
+}
+export interface LivreDetailCentre {
+  id: string
+  titre: string
+  auteur: string
+  theme: string
+  niveau: string | null
+  langue: string
+  isbn: string | null
+  resume: string | null
+  couvertureUrl: string | null
+  disponibles: number
+  total: number
+  exemplaires: ExemplaireDetail[]
+}
+
+const EX_STATUT: Record<string, { label: string; tone: ExemplaireDetail['statutTone'] }> = {
+  disponible: { label: 'Disponible', tone: 'green' },
+  emprunte: { label: 'Emprunté', tone: 'yellow' },
+  reserve: { label: 'Réservé', tone: 'blue' },
+  indisponible: { label: 'Indisponible', tone: 'grey' },
+}
+
+/** Fiche d'un livre limitée aux exemplaires du centre (tous statuts + emprunteur courant). */
+export async function getLivreDetailCentre(centreId: string, livreId: string): Promise<LivreDetailCentre | null> {
+  const livre = await prisma.livre.findUnique({
+    where: { id: livreId },
+    include: {
+      exemplaires: {
+        where: { centreId },
+        include: {
+          emprunts: {
+            where: { statut: { in: ['initie', 'en_cours', 'en_retard'] } },
+            orderBy: { initieA: 'desc' },
+            take: 1,
+            include: { utilisateur: { select: { prenom: true, nom: true } } },
+          },
+        },
+        orderBy: [{ rayon: 'asc' }, { etagere: 'asc' }, { position: 'asc' }],
+      },
+    },
+  })
+  if (!livre || livre.exemplaires.length === 0) return null
+
+  const exemplaires: ExemplaireDetail[] = livre.exemplaires.map((e) => {
+    const s = EX_STATUT[String(e.statut)] ?? { label: String(e.statut), tone: 'grey' as const }
+    const emp = e.emprunts[0]
+    return {
+      id: e.id,
+      codeBarre: e.codeBarre,
+      emplacement: `${e.rayon} · ${e.etagere} · ${e.position}`,
+      statut: String(e.statut),
+      statutLabel: s.label,
+      statutTone: s.tone,
+      emprunteur: emp ? `${emp.utilisateur.prenom} ${emp.utilisateur.nom}`.trim() : null,
+    }
+  })
+
+  return {
+    id: livre.id,
+    titre: livre.titre,
+    auteur: livre.auteur,
+    theme: livre.theme,
+    niveau: livre.niveau,
+    langue: livre.langue,
+    isbn: livre.isbn,
+    resume: livre.resume,
+    couvertureUrl: livre.couvertureUrl,
+    disponibles: exemplaires.filter((e) => e.statut === 'disponible').length,
+    total: exemplaires.length,
+    exemplaires,
+  }
+}

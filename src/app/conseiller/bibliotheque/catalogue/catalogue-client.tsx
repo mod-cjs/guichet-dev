@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { BookCard } from '@/components/bibliotheque/BookCard'
@@ -28,18 +29,19 @@ export function CatalogueClient({ livres }: { livres: LivreVue[] }) {
           {filtered.map((l) => {
             const emp = l.emplacements[0]
             return (
-              <BookCard
-                key={l.id}
-                b={{
-                  titre: l.titre,
-                  auteur: l.auteur,
-                  theme: l.theme,
-                  couvertureUrl: l.couvertureUrl,
-                  exemplairesDisponibles: l.exemplairesDisponibles,
-                  exemplairesTotal: l.exemplairesTotal,
-                  emplacement: emp ? `${emp.rayon} · ${emp.etagere} · ${emp.position}` : null,
-                }}
-              />
+              <Link key={l.id} href={`/conseiller/bibliotheque/livre/${l.id}`} className="no-underline block hover:opacity-95 transition-opacity">
+                <BookCard
+                  b={{
+                    titre: l.titre,
+                    auteur: l.auteur,
+                    theme: l.theme,
+                    couvertureUrl: l.couvertureUrl,
+                    exemplairesDisponibles: l.exemplairesDisponibles,
+                    exemplairesTotal: l.exemplairesTotal,
+                    emplacement: emp ? `${emp.rayon} · ${emp.etagere} · ${emp.position}` : null,
+                  }}
+                />
+              </Link>
             )
           })}
         </div>
