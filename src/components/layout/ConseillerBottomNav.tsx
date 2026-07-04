@@ -22,6 +22,7 @@ const PRIMARY: NavItem[] = [
 const SECONDARY: NavItem[] = [
   { href: '/conseiller/agenda', icon: 'clock', label: 'Agenda & RDV' },
   { href: '/conseiller/beneficiaires', icon: 'users', label: 'Bénéficiaires' },
+  { href: '/conseiller/bibliotheque', icon: 'learning', label: 'Bibliothèque' },
   { href: '/conseiller/publications', icon: 'employment', label: 'Publications' },
   { href: '/conseiller/notifications', icon: 'bell', label: 'Notifications' },
   { href: '/conseiller/parametres', icon: 'settings', label: 'Paramètres' },

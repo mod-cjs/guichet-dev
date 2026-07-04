@@ -10,6 +10,7 @@ import { Toast } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import type { LivreVue } from '@/lib/bibliotheque/service'
+import { BookCover } from '@/components/bibliotheque/BookCard'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -344,20 +345,8 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
                       onClick={() => toggleExpand(livre.id)}
                       aria-expanded={isExpanded}
                     >
-                      <div
-                        style={{
-                          flexShrink: 0,
-                          width: 40,
-                          height: 48,
-                          borderRadius: 8,
-                          background: 'var(--gj-teal-soft)',
-                          color: 'var(--gj-teal-deep)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Icon name="resources" size={20} />
+                      <div style={{ flexShrink: 0, width: 44, height: 60 }}>
+                        <BookCover titre={livre.titre} auteur={livre.auteur} couvertureUrl={livre.couvertureUrl} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p
