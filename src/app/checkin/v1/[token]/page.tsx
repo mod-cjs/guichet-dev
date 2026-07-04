@@ -5,7 +5,7 @@
  *  - Auth staff OBLIGATOIRE (cookie). Redirige `/centre-staff/login?next=...`
  *    si pas de session. Évite la fuite via referer/history du QR scanné.
  *  - On ne charge plus la liste des 200 centres : on restreint au
- *    centre du staff (`staff.centreId`) — réduit l'impression d'avoir
+ *    centre du staff (`operator.activeCentreId`) — réduit l'impression d'avoir
  *    accès au catalogue complet.
  *
  * Server : vérifie JWT (signature + exp), charge utilisateur + réservations
@@ -19,7 +19,7 @@ import {
   CJSCardTokenError,
   verifyCJSCardToken,
 } from '@/lib/auth/verifyCJSCardToken'
-import { getStaffSession } from '@/lib/auth/staff-session'
+import { getCheckinOperator } from '@/lib/auth/checkin-operator'
 import { Icon } from '@/components/ui/Icon'
 import { CheckInClient, type CheckInJeune, type CheckInReservation, type CheckInCentreOption, type CheckInEvenement } from './checkin-client'
 
@@ -52,11 +52,11 @@ export default async function CheckInPage({
 }) {
   const { token } = await params
 
-  // GUIC-389 : auth staff obligatoire. Le token est dans l'URL, donc même
-  // un leak via referer/capture d'écran ne doit pas exposer les données
-  // du jeune à un non-staff.
-  const staff = await getStaffSession()
-  if (!staff) {
+  // GUIC-389 / GUIC-498 : opérateur obligatoire (staff OU conseiller SSO). Le
+  // token est dans l'URL, donc même un leak via referer/capture d'écran ne doit
+  // pas exposer les données du jeune à un non-opérateur.
+  const operator = await getCheckinOperator()
+  if (!operator) {
     const next = encodeURIComponent(`/checkin/v1/${token}`)
     redirect(`/centre-staff/login?next=${next}`)
   }
@@ -103,12 +103,12 @@ export default async function CheckInPage({
       select: { cjsUid: true, nom: true, prenom: true },
     }),
     prisma.centre.findUnique({
-      where:  { id: staff.centreId },
+      where:  { id: operator.activeCentreId },
       select: { id: true, nom: true, ville: true },
     }),
     // GUIC-474 — cours/sessions EN COURS au centre du staff (présence par badge).
     prisma.evenement.findMany({
-      where:  { centreId: staff.centreId, statut: 'en_cours' },
+      where:  { centreId: operator.activeCentreId, statut: 'en_cours' },
       select: { id: true, titre: true, type: true },
       orderBy: { dateDebut: 'asc' },
       take:   20,
@@ -116,7 +116,7 @@ export default async function CheckInPage({
     prisma.reservation.findMany({
       where: {
         cjsUid:       payload.sub,
-        centreId:     staff.centreId,
+        centreId:     operator.activeCentreId,
         dateReservee: { gte: startOfDay, lte: endOfDay },
         statut:       { in: ['Acceptee', 'EnAttente'] },
       },

@@ -3,11 +3,13 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import {
   AdminEvenementsTable,
   type EvenementRow,
   type StatutEvenement,
 } from './AdminEvenementsTable'
+import { PublicationsAValider, type PublicationAValider } from './PublicationsAValider'
 
 export const metadata: Metadata = { title: 'Événements — Admin CJS' }
 
@@ -35,7 +37,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     ? (sp.statut as StatutEvenement)
     : null
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
-  const where = activeStatut ? { statut: activeStatut } : {}
+  // Les publications conseiller en attente/refusées sont traitées dans la
+  // section dédiée « à valider » — exclues du tableau principal par défaut.
+  const where: Prisma.EvenementWhereInput = activeStatut
+    ? { statut: activeStatut }
+    : { statut: { notIn: ['en_relecture', 'refuse'] } }
 
   const [evenements, total, grouped, centres] = await Promise.all([
     prisma.evenement.findMany({
@@ -69,6 +75,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     }),
   ])
 
+  // GUIC-477 — publications conseiller en attente de validation.
+  const enAttente = await prisma.evenement.findMany({
+    where: { statut: 'en_relecture' },
+    select: { id: true, titre: true, type: true, dateDebut: true, lieu: true, centre: { select: { nom: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
+  const publicationsAValider: PublicationAValider[] = enAttente.map((e) => ({
+    id: e.id,
+    titre: e.titre,
+    type: String(e.type),
+    dateLabel: dateFmt.format(e.dateDebut),
+    lieuLabel: e.centre?.nom ?? e.lieu,
+  }))
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const counts: Partial<Record<StatutEvenement, number>> = {}
@@ -94,7 +115,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   }))
 
   return (
-    <AdminEvenementsTable
+    <>
+      <PublicationsAValider items={publicationsAValider} />
+      <AdminEvenementsTable
       evenements={rows}
       total={total}
       activeStatut={activeStatut}
@@ -103,5 +126,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       totalPages={totalPages}
       centres={centres}
     />
+    </>
   )
 }

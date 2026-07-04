@@ -37,7 +37,7 @@ import {
   CJSCardTokenError,
   verifyCJSCardToken,
 } from '@/lib/auth/verifyCJSCardToken'
-import { getStaffSession } from '@/lib/auth/staff-session'
+import { getCheckinOperator } from '@/lib/auth/checkin-operator'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
 import type { ApiResponse } from '@/types/api'
 
@@ -61,11 +61,11 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ token: string }> },
 ) {
-  // 1. Auth staff obligatoire (cookie httpOnly).
-  const staff = await getStaffSession()
-  if (!staff) {
+  // 1. Auth opérateur obligatoire : staff (cookie) OU conseiller SSO (AgentCentre).
+  const operator = await getCheckinOperator()
+  if (!operator) {
     return NextResponse.json<ApiResponse>(
-      { error: { code: 'STAFF_UNAUTHORIZED', message: 'Session staff requise' } },
+      { error: { code: 'STAFF_UNAUTHORIZED', message: 'Session opérateur requise (staff ou conseiller)' } },
       { status: 401 },
     )
   }
@@ -73,7 +73,7 @@ export async function POST(
   const rl = await rateLimit(request, {
     windowMs:  60_000,
     max:       30,
-    keyPrefix: `checkin-staff:${staff.email}`,
+    keyPrefix: `checkin-op:${operator.email}`,
     authenticated: true,
   })
   if (rl) return rl
@@ -128,11 +128,12 @@ export async function POST(
   }
 
   const { centreId, reservationId } = parsed.data
-  // GUIC-389 : la SEULE source d'autorité pour le conseiller est le cookie.
-  const conseillerEmail = staff.email.trim().toLowerCase()
+  // L'identité de l'opérateur vient de la session (jamais du body).
+  const conseillerEmail = operator.email
 
-  // GUIC-389 : le staff ne peut check-in QUE sur son propre centre.
-  if (centreId !== staff.centreId) {
+  // L'opérateur ne peut check-in que sur ses centres (staff : le sien ;
+  // conseiller : ses rattachements AgentCentre).
+  if (!operator.centreIds.includes(centreId)) {
     return NextResponse.json<ApiResponse>(
       { error: { code: 'CENTRE_FORBIDDEN', message: 'Vous ne pouvez confirmer une présence que dans votre centre' } },
       { status: 403 },
@@ -211,7 +212,7 @@ export async function POST(
       via:             'QrCard',
       conseillerEmail,
       jwtNonce:        payload.nonce,
-      meta:            { source: 'staff-scanner-v1' },
+      meta:            { source: operator.kind === 'staff' ? 'staff-scanner-v1' : 'conseiller-scanner-v1' },
     },
     select: { id: true },
   })
