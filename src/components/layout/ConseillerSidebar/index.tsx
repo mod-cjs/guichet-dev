@@ -69,6 +69,7 @@ export function ConseillerSidebar({
       title: 'Gestion',
       items: [
         { id: 'benef', href: '/conseiller/beneficiaires', icon: 'users', label: 'Bénéficiaires' },
+        { id: 'bibliotheque', href: '/conseiller/bibliotheque', icon: 'learning', label: 'Bibliothèque' },
         { id: 'publications', href: '/conseiller/publications', icon: 'employment', label: 'Publications' },
       ],
     },
