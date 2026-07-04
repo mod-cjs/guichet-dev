@@ -32,11 +32,14 @@ export function AgendaDuJour({ items, title = "Aujourd'hui", showMore = true }: 
                   <div className="font-black text-color-text-primary" style={{ fontSize: 13 }}>{it.time}</div>
                 </div>
                 <div className="flex flex-col items-center shrink-0">
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', marginTop: 4, background: it.atelier ? 'var(--gj-yellow-deep, var(--gj-yellow))' : 'var(--gj-teal)' }} />
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', marginTop: 4, background: it.pending ? 'transparent' : it.atelier ? 'var(--gj-yellow-deep, var(--gj-yellow))' : 'var(--gj-teal)', border: it.pending ? '2px solid var(--gj-yellow-deep, var(--gj-yellow))' : undefined }} />
                   {!last && <span style={{ flex: 1, width: 2, background: 'var(--gj-line)', margin: '3px 0' }} />}
                 </div>
                 <div className="flex-1 min-w-0" style={{ paddingBottom: 2 }}>
-                  <div className="font-extrabold text-color-text-primary truncate" style={{ fontSize: 13 }}>{it.label}</div>
+                  <div className="flex items-center gap-space-2">
+                    <span className="font-extrabold text-color-text-primary truncate" style={{ fontSize: 13 }}>{it.label}</span>
+                    {it.pending && <span className="font-extrabold shrink-0" style={{ fontSize: 9, background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)', padding: '1px 6px', borderRadius: 999 }}>À valider</span>}
+                  </div>
                   <div className="text-color-text-secondary truncate" style={{ fontSize: 11.5, marginTop: 1 }}>{it.sub}</div>
                 </div>
               </div>

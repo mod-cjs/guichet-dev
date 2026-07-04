@@ -78,6 +78,8 @@ export interface AgendaItem {
   sub: string
   /** Atelier collectif (vs RDV individuel). */
   atelier: boolean
+  /** Réservation encore en attente de validation (non confirmée). */
+  pending?: boolean
 }
 
 /** Jour local au format « YYYY-MM-DD ». */
@@ -327,6 +329,7 @@ export async function getAgendaRange(centreId: string, start: Date, end: Date): 
         id: true,
         dateReservee: true,
         creneauDebut: true,
+        statut: true,
         utilisateur: { select: { prenom: true, nom: true } },
         ressource: { select: { nom: true } },
       },
@@ -339,14 +342,18 @@ export async function getAgendaRange(centreId: string, start: Date, end: Date): 
     }),
   ])
 
-  const resaItems: AgendaItem[] = reservations.map((r) => ({
-    id: `resa-${r.id}`,
-    date: isoDay(r.dateReservee),
-    time: r.creneauDebut,
-    label: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
-    sub: `Réservation · ${r.ressource.nom}`,
-    atelier: false,
-  }))
+  const resaItems: AgendaItem[] = reservations.map((r) => {
+    const pending = String(r.statut) === 'EnAttente'
+    return {
+      id: `resa-${r.id}`,
+      date: isoDay(r.dateReservee),
+      time: r.creneauDebut,
+      label: `${r.utilisateur.prenom} ${r.utilisateur.nom}`.trim(),
+      sub: `${pending ? 'Demande' : 'Réservation'} · ${r.ressource.nom}`,
+      atelier: false,
+      pending,
+    }
+  })
   const eventItems: AgendaItem[] = events.map((e) => ({
     id: `evt-${e.id}`,
     date: isoDay(e.dateDebut),
