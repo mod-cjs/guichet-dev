@@ -31,10 +31,14 @@ export async function generateMetadata({
 }: RessourceDetailPageProps): Promise<Metadata> {
   const { id } = await params
   const detail = await getRessourceById(id)
-  if (!detail) return { title: 'Ressource introuvable' }
+  if (!detail) return { title: 'Ressource introuvable', robots: { index: false } }
+  const description = htmlToPlainText(detail.description).slice(0, 160)
+  const canonical = `/ressources/${id}`
   return {
     title: detail.titre,
-    description: htmlToPlainText(detail.description).slice(0, 160),
+    description,
+    alternates: { canonical },
+    openGraph: { title: detail.titre, description, url: canonical, type: 'article' },
   }
 }
 

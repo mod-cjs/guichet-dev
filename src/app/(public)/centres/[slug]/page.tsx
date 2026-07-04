@@ -14,12 +14,16 @@ export async function generateMetadata({
 }: RouteParams): Promise<Metadata> {
   const { slug } = await params
   const centre = await getCentreBySlug(slug).catch(() => null)
-  if (!centre) return { title: 'Centre introuvable — Guichet Jeunesse' }
+  if (!centre) return { title: 'Centre introuvable — Guichet Jeunesse', robots: { index: false } }
+  const description =
+    centre.description ??
+    `Découvrez le centre CJS ${centre.nom} (${centre.region}) : horaires, services, ressources réservables.`
+  const canonical = `/centres/${slug}`
   return {
     title: `${centre.nom} — Guichet Jeunesse`,
-    description:
-      centre.description ??
-      `Découvrez le centre CJS ${centre.nom} (${centre.region}) : horaires, services, ressources réservables.`,
+    description,
+    alternates: { canonical },
+    openGraph: { title: `${centre.nom} — Guichet Jeunesse`, description, url: canonical, type: 'article' },
   }
 }
 

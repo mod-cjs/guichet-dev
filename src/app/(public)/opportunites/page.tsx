@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: 'Opportunités',
   description:
     'Emplois, stages, formations, bourses et volontariats pour les jeunes du Sénégal.',
+  alternates: { canonical: '/opportunites' },
 }
 
 export default async function OpportunitesPage() {

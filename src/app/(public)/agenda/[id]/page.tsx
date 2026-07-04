@@ -8,6 +8,8 @@ import { EvenementInscriptionCta } from '@/components/evenements/EvenementInscri
 import { getEvenementById } from '@/lib/loaders/evenements'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { getEvenementJsonLd } from '@/lib/seo/loaders'
 
 // GUIC-362 — Détail événement (refonte design v2). Server component.
 
@@ -20,10 +22,19 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
   const ev = await getEvenementById(id).catch(() => null)
-  if (!ev) return { title: 'Événement introuvable' }
+  if (!ev) return { title: 'Événement introuvable', robots: { index: false } }
+  const description = htmlToPlainText(ev.description).slice(0, 160)
+  const canonical = `/agenda/${id}`
   return {
     title: `${ev.titre} — Agenda CJS`,
-    description: htmlToPlainText(ev.description).slice(0, 160),
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: `${ev.titre} — Agenda CJS`,
+      description,
+      url: canonical,
+      type: 'article',
+    },
   }
 }
 
@@ -39,6 +50,9 @@ export default async function EvenementDetailPage({ params }: PageProps) {
   const { id } = await params
   const [evenement, session] = await Promise.all([getEvenementById(id), getSession()])
   if (!evenement) notFound()
+
+  // GUIC-25 (M7 SEO) — données structurées Event
+  const jsonLd = await getEvenementJsonLd(id)
 
   // Statut d'inscription pour CTA initial (évite un round-trip côté client au mount).
   let initialInscrit = false
@@ -68,6 +82,7 @@ export default async function EvenementDetailPage({ params }: PageProps) {
 
   return (
     <div className="container-page py-space-6 flex flex-col gap-space-5">
+      {jsonLd && <JsonLd data={jsonLd} />}
       <Breadcrumbs
         items={[
           { label: 'Accueil', href: '/' },

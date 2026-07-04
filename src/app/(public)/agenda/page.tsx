@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: 'Agenda — Événements',
   description:
     'Formations, ateliers, forums et webinaires du réseau CJS au Sénégal — agenda public.',
+  alternates: { canonical: '/agenda' },
 }
 
 // Force le rendu dynamique : la liste évolue dans le temps et l'auth conditionne l'UI.
