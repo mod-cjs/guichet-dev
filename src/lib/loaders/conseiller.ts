@@ -53,6 +53,8 @@ export interface ConseillerKpi {
   urgent?: boolean
   /** Cible de navigation au clic. */
   href?: string
+  /** Info-bulle expliquant la source/période du KPI (défini pour les heuristiques). */
+  hint?: string
 }
 
 export interface ReservationAValider {
@@ -405,10 +407,10 @@ export async function getConseillerKpis(centreId: string, date: Date = new Date(
   ])
 
   return [
-    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal', href: '/conseiller/beneficiaires' },
+    { key: 'benef', label: 'Bénéficiaires actifs', value: benefActifs, delta: `+${benefMois} ce mois`, icon: 'users', tone: 'teal', href: '/conseiller/beneficiaires', hint: 'Jeunes distincts ayant fait un check-in au centre sur les 90 derniers jours.' },
     { key: 'resa', label: 'Réservations à valider', value: resaAValider, delta: 'à traiter', icon: 'calendar', tone: 'yellow', urgent: true, href: '/conseiller/reservations' },
     { key: 'rdv', label: "RDV aujourd'hui", value: agenda.length, delta: agenda.length ? 'programmés' : 'aucun', icon: 'clock', tone: 'blue', href: '/conseiller/agenda' },
-    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green', href: '/conseiller/beneficiaires' },
+    { key: 'candidatures', label: 'Candidatures du mois', value: candMois, delta: 'ce mois', icon: 'employment', tone: 'green', href: '/conseiller/beneficiaires', hint: 'Candidatures soumises ce mois par les bénéficiaires rattachés au centre.' },
   ]
 }
 
