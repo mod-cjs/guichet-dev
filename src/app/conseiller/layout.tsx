@@ -7,6 +7,7 @@ import { countUnreadMessages } from '@/lib/loaders/messagerie'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { ConseillerSidebar } from '@/components/layout/ConseillerSidebar'
 import { ConseillerBottomNav } from '@/components/layout/ConseillerBottomNav'
+import { ConseillerSearch } from '@/components/layout/ConseillerSearch'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
 
@@ -77,16 +78,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
             style={{ background: '#fff', borderBottom: '1px solid var(--gj-line)', padding: '0 24px', minHeight: 64 }}
           >
             <div className="flex-1" />
-            <form action="/conseiller/beneficiaires" method="get" role="search" className="flex items-center gap-2" style={{ background: 'var(--gj-bg)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 14px', minHeight: 42, width: 280 }}>
-              <Icon name="search" size={16} style={{ color: 'var(--gj-grey)' }} />
-              <input
-                name="q"
-                placeholder="Rechercher un bénéficiaire…"
-                aria-label="Rechercher un bénéficiaire"
-                className="flex-1 bg-transparent outline-none text-fs-300"
-                style={{ border: 0, color: 'var(--gj-ink)' }}
-              />
-            </form>
+            <ConseillerSearch />
             <Link href="/conseiller/notifications" aria-label={`Notifications${notifsBadge > 0 ? ` (${notifsBadge} non lues)` : ''}`} className="relative inline-flex items-center justify-center no-underline" style={{ width: 42, height: 42, borderRadius: 10, border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
               <Icon name="bell" size={18} />
               {notifsBadge > 0 && (
