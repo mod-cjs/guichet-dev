@@ -2,19 +2,14 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
-import { getLivreDetailCentre, type ExemplaireDetail } from '@/lib/loaders/conseiller-bibliotheque'
+import { getLivreDetailCentre } from '@/lib/loaders/conseiller-bibliotheque'
 import { BookCover } from '@/components/bibliotheque/BookCard'
 import { Icon } from '@/components/ui/Icon'
+import { ExemplairesManager } from './exemplaires-manager'
 
 export const dynamic = 'force-dynamic'
 
 /** GUIC-522 — Fiche livre (détail) côté conseiller : métadonnées + exemplaires du centre. */
-const TONE: Record<ExemplaireDetail['statutTone'], [string, string]> = {
-  green: ['var(--gj-green-soft)', 'var(--gj-green-ink)'],
-  yellow: ['var(--gj-yellow-soft)', 'var(--gj-yellow-ink)'],
-  blue: ['var(--gj-blue-soft)', 'var(--gj-blue-ink)'],
-  grey: ['var(--gj-bg)', 'var(--gj-grey)'],
-}
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -64,26 +59,8 @@ export default async function LivreDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Exemplaires du centre */}
-      <div className="bg-white rounded-gj-lg p-space-5" style={{ border: '1.5px solid var(--gj-line)' }}>
-        <h2 className="font-black text-color-text-primary" style={{ fontSize: 15, marginBottom: 12 }}>Exemplaires à {ctx.centreNom}</h2>
-        <div className="flex flex-col">
-          {livre.exemplaires.map((e) => (
-            <div key={e.id} className="flex items-center gap-space-3 py-space-3" style={{ borderBottom: '1px solid var(--gj-line)' }}>
-              <span className="inline-flex items-center justify-center shrink-0 rounded-gj-md" style={{ width: 38, height: 38, background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)' }}>
-                <Icon name="learning" size={18} />
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="font-extrabold text-color-text-primary truncate" style={{ fontSize: 13 }}>{e.codeBarre}</div>
-                <div className="text-color-text-secondary truncate" style={{ fontSize: 11.5 }}>
-                  {e.emplacement}{e.emprunteur ? ` · ${e.emprunteur}` : ''}
-                </div>
-              </div>
-              <span className="inline-flex font-extrabold shrink-0" style={{ fontSize: 10.5, padding: '3px 10px', borderRadius: 999, background: TONE[e.statutTone][0], color: TONE[e.statutTone][1] }}>{e.statutLabel}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Exemplaires du centre — gestion (ajout / édition / retrait) */}
+      <ExemplairesManager livreId={livre.id} exemplaires={livre.exemplaires} />
     </div>
   )
 }

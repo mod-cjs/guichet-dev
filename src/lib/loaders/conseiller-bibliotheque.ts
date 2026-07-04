@@ -69,10 +69,15 @@ export async function getBibliothequeCounts(centreId: string): Promise<{ confirm
 export interface ExemplaireDetail {
   id: string
   codeBarre: string
+  rayon: string
+  etagere: string
+  position: string
   emplacement: string
   statut: string
   statutLabel: string
   statutTone: 'green' | 'yellow' | 'blue' | 'grey'
+  /** L'exemplaire peut-il etre retire/modifie (pas emprunte/reserve) ? */
+  modifiable: boolean
   emprunteur: string | null
 }
 export interface LivreDetailCentre {
@@ -124,10 +129,14 @@ export async function getLivreDetailCentre(centreId: string, livreId: string): P
     return {
       id: e.id,
       codeBarre: e.codeBarre,
+      rayon: e.rayon,
+      etagere: e.etagere,
+      position: e.position,
       emplacement: `${e.rayon} · ${e.etagere} · ${e.position}`,
       statut: String(e.statut),
       statutLabel: s.label,
       statutTone: s.tone,
+      modifiable: e.statut === 'disponible' || e.statut === 'indisponible',
       emprunteur: emp ? `${emp.utilisateur.prenom} ${emp.utilisateur.nom}`.trim() : null,
     }
   })
@@ -146,4 +155,25 @@ export async function getLivreDetailCentre(centreId: string, livreId: string): P
     total: exemplaires.length,
     exemplaires,
   }
+}
+
+// ── Indicateurs bibliothèque (B4 — GUIC-524) ──────────────────────────────
+
+export interface BiblioStats {
+  titres: number
+  exemplaires: number
+  enCours: number
+  enRetard: number
+  aConfirmer: number
+}
+
+export async function getBibliothequeStats(centreId: string): Promise<BiblioStats> {
+  const [titres, exemplaires, enCours, enRetard, aConfirmer] = await Promise.all([
+    prisma.livre.count({ where: { exemplaires: { some: { centreId } } } }),
+    prisma.exemplaire.count({ where: { centreId } }),
+    prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: { in: ['en_cours', 'en_retard'] } } }),
+    prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'en_retard' } }),
+    prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'initie' } }),
+  ])
+  return { titres, exemplaires, enCours, enRetard, aConfirmer }
 }

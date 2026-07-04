@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { StatutEmprunt } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
-import { getEmpruntsBibliotheque, getBibliothequeCounts } from '@/lib/loaders/conseiller-bibliotheque'
+import { getEmpruntsBibliotheque, getBibliothequeCounts, getBibliothequeStats } from '@/lib/loaders/conseiller-bibliotheque'
 import { Icon } from '@/components/ui/Icon'
 import { BibliothequeEmprunts } from './bibliotheque-client'
 
@@ -33,11 +33,19 @@ export default async function ConseillerBibliothequePage({
   const sp = (await searchParams) ?? {}
   const active = TABS.find((t) => t.id === sp.tab) ?? TABS[0]
 
-  const [items, counts] = await Promise.all([
+  const [items, counts, stats] = await Promise.all([
     getEmpruntsBibliotheque(ctx.centreId, active.statuts),
     getBibliothequeCounts(ctx.centreId),
+    getBibliothequeStats(ctx.centreId),
   ])
   const badge: Record<Tab, number> = { confirmer: counts.confirmer, rendre: counts.rendre + counts.retard, historique: 0 }
+  const STATS: { label: string; value: number; tone: string }[] = [
+    { label: 'Titres', value: stats.titres, tone: 'var(--gj-teal-deep)' },
+    { label: 'Exemplaires', value: stats.exemplaires, tone: 'var(--gj-teal-deep)' },
+    { label: 'En cours', value: stats.enCours, tone: 'var(--gj-blue-ink)' },
+    { label: 'À confirmer', value: stats.aConfirmer, tone: 'var(--gj-yellow-ink)' },
+    { label: 'En retard', value: stats.enRetard, tone: 'var(--gj-red-ink)' },
+  ]
 
   return (
     <div className="flex flex-col gap-space-4" style={{ maxWidth: 880, margin: '0 auto' }}>
@@ -57,6 +65,16 @@ export default async function ConseillerBibliothequePage({
           </Link>
         </div>
       </div>
+
+      {/* Indicateurs bibliothèque du centre (B4) */}
+      <section aria-label="Indicateurs bibliothèque" className="grid gap-space-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
+        {STATS.map((s) => (
+          <div key={s.label} className="bg-white rounded-gj-lg p-space-3" style={{ border: '1.5px solid var(--gj-line)' }}>
+            <div className="font-black" style={{ fontSize: 24, lineHeight: 1, color: s.tone }}>{s.value}</div>
+            <div className="font-bold text-color-text-secondary" style={{ fontSize: 11.5, marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </section>
 
       <div className="flex flex-wrap gap-space-1 bg-white w-fit max-w-full" style={{ border: '1.5px solid var(--gj-line)', borderRadius: 12, padding: 5 }} role="tablist" aria-label="Filtrer les emprunts">
         {TABS.map((t) => {

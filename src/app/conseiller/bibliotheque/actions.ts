@@ -179,3 +179,57 @@ export async function rechercherLivresPourPret(
     })
   return { data: res }
 }
+
+import { createExemplaire, updateExemplaire, deleteExemplaire } from '@/lib/bibliotheque/service'
+
+export interface ExemplaireInputConseiller {
+  codeBarre: string
+  rayon: string
+  etagere: string
+  position: string
+}
+
+export async function ajouterExemplaire(livreId: string, input: ExemplaireInputConseiller): Promise<ApiResponse<{ id: string }>> {
+  const g = await guard()
+  if ('error' in g) return { error: g.error }
+  const codeBarre = input.codeBarre.trim()
+  if (!codeBarre || !input.rayon.trim()) return { error: { code: 'VALIDATION_ERROR', message: 'Code-barre et rayon requis.' } }
+  try {
+    const ex = await createExemplaire({ livreId, centreId: g.ctx.centreId, codeBarre, rayon: input.rayon.trim(), etagere: input.etagere.trim(), position: input.position.trim() })
+    revalidatePath(`/conseiller/bibliotheque/livre/${livreId}`)
+    return { data: ex }
+  } catch (e) {
+    if (e instanceof BiblioDomainError) return { error: { code: e.code, message: 'Ajout impossible (code-barre déjà utilisé ?).' } }
+    throw e
+  }
+}
+
+export async function modifierExemplaire(
+  exemplaireId: string,
+  livreId: string,
+  input: { rayon: string; etagere: string; position: string; statut?: 'disponible' | 'indisponible' },
+): Promise<ApiResponse<{ ok: true }>> {
+  const g = await guard()
+  if ('error' in g) return { error: g.error }
+  try {
+    await updateExemplaire(exemplaireId, g.ctx.centreId, input)
+    revalidatePath(`/conseiller/bibliotheque/livre/${livreId}`)
+    return { data: { ok: true } }
+  } catch (e) {
+    if (e instanceof BiblioDomainError) return { error: { code: e.code, message: 'Modification impossible.' } }
+    throw e
+  }
+}
+
+export async function retirerExemplaire(exemplaireId: string, livreId: string): Promise<ApiResponse<{ ok: true }>> {
+  const g = await guard()
+  if ('error' in g) return { error: g.error }
+  try {
+    await deleteExemplaire(exemplaireId, g.ctx.centreId)
+    revalidatePath(`/conseiller/bibliotheque/livre/${livreId}`)
+    return { data: { ok: true } }
+  } catch (e) {
+    if (e instanceof BiblioDomainError) return { error: { code: e.code, message: 'Retrait impossible (exemplaire emprunté ?).' } }
+    throw e
+  }
+}
