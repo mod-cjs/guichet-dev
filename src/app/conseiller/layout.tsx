@@ -95,7 +95,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
                 </span>
               )}
             </Link>
-            <Link href="/conseiller/publications" className="inline-flex items-center gap-2 no-underline" style={{ background: 'var(--gj-teal-deep)', color: '#fff', padding: '0 16px', minHeight: 42, borderRadius: 10, fontWeight: 800, fontSize: 13 }}>
+            <Link href="/conseiller/publications/nouvelle" className="inline-flex items-center gap-2 no-underline" style={{ background: 'var(--gj-teal-deep)', color: '#fff', padding: '0 16px', minHeight: 42, borderRadius: 10, fontWeight: 800, fontSize: 13 }}>
               <Icon name="plus" size={15} /> Publier
             </Link>
           </div>
