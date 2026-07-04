@@ -243,6 +243,35 @@ export async function POST(
       'created',
     )
 
+    // GUIC-470 — notifie in-app les conseillers du centre d'une demande à valider.
+    if (reservation.statut === 'EnAttente') {
+      void (async () => {
+        try {
+          const agents = await prisma.agentCentre.findMany({
+            where: { centreId: reservation.centreId },
+            select: { cjsUid: true },
+          })
+          if (agents.length === 0) return
+          const dateLabel = new Date(reservation.dateReservee).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })
+          await prisma.notification.createMany({
+            data: agents.map((a) => ({
+              cjsUid: a.cjsUid,
+              type: 'System' as const,
+              titre: 'Nouvelle demande de réservation',
+              contenu: `${session.prenom} ${session.nom} demande « ${reservation.ressourceNom} » le ${dateLabel} (${reservation.creneauDebut}–${reservation.creneauFin}).`,
+              iconName: 'calendar',
+              lien: '/conseiller/reservations',
+              metaPill: 'À valider',
+            })),
+          })
+        } catch (err) {
+          logger.warn('[reservation] notif conseillers échec fail-soft', {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      })()
+    }
+
     return NextResponse.json(
       {
         data: {
