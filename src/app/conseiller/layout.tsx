@@ -10,23 +10,32 @@ import { ConseillerBottomNav } from '@/components/layout/ConseillerBottomNav'
 import { ConseillerSearch } from '@/components/layout/ConseillerSearch'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { Icon } from '@/components/ui/Icon'
+import { resolveConseillerAccess } from '@/lib/auth/espace-roles'
+import { EspaceEnAttente } from '@/components/layout/EspaceEnAttente'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GUIC-493 / GUIC-501 — Layout de l'Espace conseiller (Lot 8).
  *
- * Guard : SSO obligatoire (`getSession`) + rattachement `AgentCentre`
- * (`getConseillerContext`). Aucun login local. Un utilisateur authentifié mais
- * sans rattachement centre est renvoyé à l'accueil. Voir
- * `.agent_context/specs/M8-espace-conseiller.md`.
+ * Guard GUIC-526 (spec M8-roles-sso-conseiller-recruteur, décisions D1/D2) :
+ * SSO obligatoire (`getSession`), puis accès si rattachement `AgentCentre`
+ * (rétrocompat D2) OU rôle SSO `conseiller` — dans ce dernier cas sans
+ * rattachement, écran d'attente (D1) au lieu d'un redirect silencieux.
+ * Aucun login local. Voir `.agent_context/specs/M8-espace-conseiller.md`.
  */
 export default async function ConseillerLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
 
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  const access = resolveConseillerAccess({
+    hasSession: true,
+    roles: session.roles,
+    hasRattachement: !!ctx,
+  })
+  if (access === 'accueil') redirect('/')
+  if (access === 'attente' || !ctx) return <EspaceEnAttente espace="conseiller" />
 
   const [reservationsBadge, messagesBadge, notifsBadge] = await Promise.all([
     countReservationsAValider(ctx.centreId),

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { prisma } from '@/lib/prisma'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
@@ -13,7 +14,7 @@ export default async function ConseillerParametresPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const prefs = await prisma.utilisateur.findUnique({
     where: { cjsUid: session.cjsUid },

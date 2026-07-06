@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { loadNotifications } from '@/lib/loaders/notifications'
 import { NotificationsClient } from '@/components/jeune/NotificationsClient'
@@ -16,7 +17,7 @@ export default async function ConseillerNotificationsPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const { groupes, unreadCount } = await loadNotifications(session.cjsUid)
 

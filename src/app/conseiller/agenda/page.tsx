@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext, getAgendaRange, isoDay, startOfWeek, type AgendaItem } from '@/lib/loaders/conseiller'
 import { AgendaDuJour } from '../agenda-du-jour'
 import { WeekView, MonthView } from './agenda-views'
@@ -45,7 +46,7 @@ export default async function ConseillerAgendaPage({
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const sp = (await searchParams) ?? {}
   const vue = parseVue(sp.vue)

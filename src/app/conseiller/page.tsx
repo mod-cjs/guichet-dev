@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import {
   getConseillerContext,
   getConseillerKpis,
@@ -34,7 +35,7 @@ export default async function ConseillerDashboardPage() {
   if (!session) redirect('/auth/connexion')
 
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const [kpis, reservations, agenda] = await Promise.all([
     getConseillerKpis(ctx.centreId),

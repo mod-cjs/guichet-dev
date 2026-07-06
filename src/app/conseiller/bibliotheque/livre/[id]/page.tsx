@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { getLivreDetailCentre } from '@/lib/loaders/conseiller-bibliotheque'
 import { BookCover } from '@/components/bibliotheque/BookCard'
@@ -24,7 +25,7 @@ export default async function LivreDetailPage({ params }: { params: Promise<{ id
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const { id } = await params
   const livre = await getLivreDetailCentre(ctx.centreId, id)

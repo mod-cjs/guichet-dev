@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { logger, hashId } from '@/lib/logger'
 import { safeReturnTo } from '@/lib/security/safe-return-to'
 import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
+import { isConseillerRole, isRecruteurRole, rolePrincipal } from '@/lib/auth/espace-roles'
 import type { CJSSession } from '@/types/user'
 
 export async function GET(request: NextRequest) {
@@ -57,8 +58,10 @@ export async function GET(request: NextRequest) {
         nom:    claims.family_name ?? undefined,
         prenom: claims.given_name  ?? undefined,
         email:  claims.email       ?? undefined,
-        // GUIC-469 — rôle principal mis en cache depuis le SSO (source de vérité = SSO).
-        role:   roles[0],
+        // GUIC-469/526 — rôle principal mis en cache depuis le SSO (source de
+        // vérité = SSO) : priorité admin > recruteur > conseiller > bénéficiaire,
+        // pas roles[0] positionnel.
+        role:   rolePrincipal(roles),
       },
       create: {
         cjsUid:    claims.sub,
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
         prenom:    claims.given_name  ?? '',
         email:     claims.email       ?? undefined,
         telephone: toE164(claims.phone_number),
-        role:      roles[0],
+        role:      rolePrincipal(roles),
       },
       select: { onboardingComplete: true, region: true, commune: true },
     })
@@ -147,7 +150,10 @@ function toE164(phone: string | null | undefined): string | undefined {
 
 function roleRedirect(session: CJSSession): string {
   if (session.roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
-  if (session.roles.includes('recruteur'))                 return '/recruteur/tableau-de-bord'
+  if (isRecruteurRole(session.roles))                      return '/recruteur/tableau-de-bord'
+  // GUIC-526 — le conseiller atterrit sur son espace ; sans rattachement
+  // AgentCentre, le layout affiche l'écran d'attente (D1).
+  if (isConseillerRole(session.roles))                     return '/conseiller'
   if (session.roles.some(r => BENEFICIAIRE_ROLES.has(r))) {
     return session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding'
   }

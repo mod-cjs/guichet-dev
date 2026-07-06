@@ -16,17 +16,15 @@ import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 export const CONSEILLER_ROLE = 'conseiller'
 export const RECRUTEUR_ROLE = 'recruteur'
 
-/** Rôles bénéficiaires — dupliqués du middleware, à unifier ici (source unique). */
+/** Rôles bénéficiaires — même famille que le middleware (source partagée ici). */
 export const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
 
 export function isConseillerRole(roles: readonly string[] | null | undefined): boolean {
-  void roles
-  throw new Error('TODO GUIC-526')
+  return !!roles && roles.includes(CONSEILLER_ROLE)
 }
 
 export function isRecruteurRole(roles: readonly string[] | null | undefined): boolean {
-  void roles
-  throw new Error('TODO GUIC-526')
+  return !!roles && roles.includes(RECRUTEUR_ROLE)
 }
 
 /**
@@ -36,8 +34,13 @@ export function isRecruteurRole(roles: readonly string[] | null | undefined): bo
  * Retourne le rôle réellement porté (ex. `super_admin`, pas `admin`).
  */
 export function rolePrincipal(roles: readonly string[]): string | null {
-  void roles
-  throw new Error('TODO GUIC-526')
+  const admin = roles.find((r) => ADMIN_ROLES.has(r))
+  if (admin) return admin
+  if (roles.includes(RECRUTEUR_ROLE)) return RECRUTEUR_ROLE
+  if (roles.includes(CONSEILLER_ROLE)) return CONSEILLER_ROLE
+  const benef = roles.find((r) => BENEFICIAIRE_ROLES.has(r))
+  if (benef) return benef
+  return roles[0] ?? null
 }
 
 export type EspaceAccess = 'connexion' | 'accueil' | 'attente' | 'ok'
@@ -54,8 +57,10 @@ export function resolveConseillerAccess(args: {
   roles: readonly string[]
   hasRattachement: boolean
 }): EspaceAccess {
-  void args
-  throw new Error('TODO GUIC-526')
+  if (!args.hasSession) return 'connexion'
+  if (args.hasRattachement) return 'ok'
+  if (isConseillerRole(args.roles)) return 'attente'
+  return 'accueil'
 }
 
 /**
@@ -69,6 +74,6 @@ export function resolveRecruteurAccess(args: {
   roles: readonly string[]
   hasOrganisation: boolean
 }): EspaceAccess {
-  void args
-  throw new Error('TODO GUIC-526')
+  if (!args.hasSession || !isRecruteurRole(args.roles)) return 'connexion'
+  return args.hasOrganisation ? 'ok' : 'attente'
 }
