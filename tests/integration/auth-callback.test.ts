@@ -236,6 +236,28 @@ describe('GET /auth/callback — flux nominal', () => {
     expect(res.headers.get('location')).toContain('/recruteur/tableau-de-bord')
   })
 
+  // GUIC-526 — le rôle conseiller entre dans le routing post-login.
+  it('redirige vers /conseiller pour un conseiller', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['conseiller'] })
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+    const res = await GET(validRequest())
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/conseiller')
+  })
+
+  // GUIC-526 — cache Utilisateur.role : rôle PRINCIPAL (priorité admin >
+  // recruteur > conseiller > bénéficiaire), pas roles[0] positionnel.
+  it('cache le rôle principal en base (admin prioritaire sur conseiller)', async () => {
+    mockGetUserInfo.mockResolvedValue({ ...SSO_CLAIMS, cjs_roles: ['conseiller', 'admin'] })
+    mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
+    await GET(validRequest())
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ role: 'admin' }),
+      })
+    )
+  })
+
   it('respecte le cookie auth_return_to si le chemin est local', async () => {
     mockUpsert.mockResolvedValue({ onboardingComplete: true, region: null, commune: null })
     const res = await GET(validRequest({ auth_return_to: '/jeune/profil' }))
