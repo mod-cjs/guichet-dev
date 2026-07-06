@@ -105,7 +105,7 @@ function Stat({ icon, label, value, hint }: { icon: IconName; label: string; val
 
 // ─── Composant principal (lecture seule — supervision) ──────────────────────
 
-export function AdminUserDetail({ data }: { data: UserDetailData }) {
+export function AdminUserDetail({ data, children }: { data: UserDetailData; children?: React.ReactNode }) {
   const p = data.profil
 
   return (
@@ -197,6 +197,9 @@ export function AdminUserDetail({ data }: { data: UserDetailData }) {
           {p && <Stat icon="document" label="Diplômes" value={p.diplomesCount} />}
           {p && <Stat icon="learning" label="Certificats" value={p.certificatsCount} />}
         </div>
+
+        {/* GUIC-526 — section « Rôles & rattachements » injectée par la page */}
+        {children}
       </div>
     </div>
   )
