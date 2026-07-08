@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
+import { withCanonical } from '@/lib/seo/metadata'
 
 export const metadata: Metadata = {
   title: 'Politique de confidentialité',
   description:
     'Politique de protection des données personnelles du Guichet Jeunesse, conforme à la loi sénégalaise n° 2008-12 sur la protection des données personnelles.',
+  ...withCanonical('/legal/confidentialite'),
 }
 
 export const dynamic = 'force-static'
