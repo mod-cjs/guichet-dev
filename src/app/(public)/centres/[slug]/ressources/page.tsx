@@ -5,6 +5,7 @@ import {
   getRessourcesByCentre,
 } from '@/lib/loaders/centres'
 import { RessourcesListClient } from './ressources-list-client'
+import { withCanonical } from '@/lib/seo/metadata'
 
 interface RouteParams {
   params: Promise<{ slug: string }>
@@ -15,10 +16,11 @@ export async function generateMetadata({
 }: RouteParams): Promise<Metadata> {
   const { slug } = await params
   const centre = await getCentreBySlug(slug).catch(() => null)
-  if (!centre) return { title: 'Centre introuvable — Guichet Jeunesse' }
+  if (!centre) return { title: 'Centre introuvable — Guichet Jeunesse', robots: { index: false } }
   return {
     title: `Ressources — ${centre.nom}`,
     description: `Salles, véhicules et postes informatiques réservables au ${centre.nom}.`,
+    ...withCanonical(`/centres/${slug}/ressources`),
   }
 }
 

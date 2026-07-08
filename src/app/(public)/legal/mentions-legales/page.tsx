@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
+import { withCanonical } from '@/lib/seo/metadata'
 
 export const metadata: Metadata = {
   title: 'Mentions légales',
   description:
     'Mentions légales du Guichet Jeunesse — éditeur Consortium Jeunesse Sénégal, hébergement Vercel.',
+  ...withCanonical('/legal/mentions-legales'),
 }
 
 export const dynamic = 'force-static'

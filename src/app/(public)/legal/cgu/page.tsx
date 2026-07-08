@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
+import { withCanonical } from '@/lib/seo/metadata'
 
 export const metadata: Metadata = {
   title: "Conditions Générales d'Utilisation",
   description:
     "Conditions Générales d'Utilisation du Guichet Jeunesse du Consortium Jeunesse Sénégal.",
+  ...withCanonical('/legal/cgu'),
 }
 
 export const dynamic = 'force-static'
