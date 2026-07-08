@@ -4,6 +4,8 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getCentreBySlug } from '@/lib/loaders/centres'
 import { CentreDetailClient } from './centre-detail-client'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
 
 interface RouteParams {
   params: Promise<{ slug: string }>
@@ -52,11 +54,21 @@ export default async function CentreDetailPage({ params }: RouteParams) {
     userCentrePrincipalId = profil?.centrePrincipalId ?? null
   }
 
+  // GUIC-25 (M7 SEO) — fil d'Ariane structuré
+  const breadcrumb = breadcrumbJsonLd([
+    { name: 'Accueil', path: '/' },
+    { name: 'Centres CJS', path: '/centres' },
+    { name: centre.nom, path: `/centres/${slug}` },
+  ])
+
   return (
-    <CentreDetailClient
-      centre={centre}
-      userCentrePrincipalId={userCentrePrincipalId}
-      userIsConnected={Boolean(session)}
-    />
+    <>
+      <JsonLd data={breadcrumb} />
+      <CentreDetailClient
+        centre={centre}
+        userCentrePrincipalId={userCentrePrincipalId}
+        userIsConnected={Boolean(session)}
+      />
+    </>
   )
 }

@@ -10,6 +10,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { getEvenementJsonLd } from '@/lib/seo/loaders'
+import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
 
 // GUIC-362 — Détail événement (refonte design v2). Server component.
 
@@ -51,8 +52,13 @@ export default async function EvenementDetailPage({ params }: PageProps) {
   const [evenement, session] = await Promise.all([getEvenementById(id), getSession()])
   if (!evenement) notFound()
 
-  // GUIC-25 (M7 SEO) — données structurées Event
+  // GUIC-25 (M7 SEO) — données structurées Event + fil d'Ariane
   const jsonLd = await getEvenementJsonLd(id)
+  const breadcrumb = breadcrumbJsonLd([
+    { name: 'Accueil', path: '/' },
+    { name: 'Agenda', path: '/agenda' },
+    { name: evenement.titre, path: `/agenda/${id}` },
+  ])
 
   // Statut d'inscription pour CTA initial (évite un round-trip côté client au mount).
   let initialInscrit = false
@@ -82,7 +88,7 @@ export default async function EvenementDetailPage({ params }: PageProps) {
 
   return (
     <div className="container-page py-space-6 flex flex-col gap-space-5">
-      {jsonLd && <JsonLd data={jsonLd} />}
+      <JsonLd data={jsonLd ? [jsonLd, breadcrumb] : breadcrumb} />
       <Breadcrumbs
         items={[
           { label: 'Accueil', href: '/' },

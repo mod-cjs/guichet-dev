@@ -11,6 +11,8 @@ import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedLi
 import { Breadcrumbs } from '@/components/ui'
 import { RessourceDetailClient } from './ressource-detail-client'
 import { htmlToPlainText } from '@/lib/rich-html'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
 
 /**
  * GUIC-363 — Page détail ressource publique.
@@ -53,8 +55,16 @@ export default async function RessourceDetailPage({ params }: RessourceDetailPag
 
   const pageUrl = `/ressources/${detail.id}`
 
+  // GUIC-25 (M7 SEO) — fil d'Ariane structuré
+  const breadcrumb = breadcrumbJsonLd([
+    { name: 'Accueil', path: '/' },
+    { name: 'Ressources', path: '/ressources' },
+    { name: detail.titre, path: pageUrl },
+  ])
+
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
+      <JsonLd data={breadcrumb} />
       <Breadcrumbs
         className="mb-space-3"
         items={[

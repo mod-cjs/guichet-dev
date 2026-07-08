@@ -77,6 +77,31 @@ export function webSiteJsonLd(): JsonLdObject {
   })
 }
 
+export interface BreadcrumbItem {
+  name: string
+  /** Chemin relatif (ex. `/opportunites`). Combiné à `appUrl()` en URL absolue. */
+  path: string
+}
+
+/**
+ * BreadcrumbList — fil d'Ariane structuré pour les pages de détail. Réutilise les
+ * mêmes libellés/chemins que le composant `<Breadcrumbs>` visuel. Active
+ * l'affichage du fil d'Ariane dans les résultats Google.
+ */
+export function breadcrumbJsonLd(items: BreadcrumbItem[]): JsonLdObject {
+  const base = appUrl()
+  return prune({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      item: `${base}${it.path}`,
+    })),
+  })
+}
+
 /**
  * Extrait un `baseSalary` Schema.org (MonetaryAmount, devise XOF/FCFA) depuis
  * une rémunération en texte libre. Best-effort : retourne `undefined` si aucun
