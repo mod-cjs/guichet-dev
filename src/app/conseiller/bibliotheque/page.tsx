@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { StatutEmprunt } from '@prisma/client'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { getEmpruntsBibliotheque, getBibliothequeCounts, getBibliothequeStats } from '@/lib/loaders/conseiller-bibliotheque'
 import { Icon } from '@/components/ui/Icon'
@@ -28,7 +29,7 @@ export default async function ConseillerBibliothequePage({
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const sp = (await searchParams) ?? {}
   const active = TABS.find((t) => t.id === sp.tab) ?? TABS[0]

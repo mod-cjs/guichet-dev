@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { ComptoirClient } from './comptoir-client'
@@ -12,7 +13,7 @@ export default async function ComptoirPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   return (
     <div className="flex flex-col gap-space-4" style={{ maxWidth: 680, margin: '0 auto' }}>

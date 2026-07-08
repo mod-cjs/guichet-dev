@@ -9,6 +9,8 @@ import { Icon } from '@/components/ui/Icon'
 import { getRecruteurContext, getRecruteurNavCounts } from '@/lib/loaders/recruteur'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
+import { resolveRecruteurAccess } from '@/lib/auth/espace-roles'
+import { EspaceEnAttente } from '@/components/layout/EspaceEnAttente'
 
 function BellLink({ unread, size, boxed }: { unread: number; size: number; boxed?: boolean }) {
   return (
@@ -32,9 +34,18 @@ function BellLink({ unread, size, boxed }: { unread: number; size: number; boxed
 
 export default async function RecruteurLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
-  if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
+  const ctx = session ? await getRecruteurContext(session.cjsUid) : null
 
-  const ctx = await getRecruteurContext(session.cjsUid)
+  // GUIC-526 (D4) — rôle SSO requis ; rôle sans organisation liée → écran
+  // d'attente (l'admin lie l'organisation depuis la fiche utilisateur).
+  const access = resolveRecruteurAccess({
+    hasSession: !!session,
+    roles: session?.roles ?? [],
+    hasOrganisation: !!ctx?.organisationId,
+  })
+  if (access === 'connexion' || !session || !ctx) redirect('/auth/connexion')
+  if (access === 'attente') return <EspaceEnAttente espace="recruteur" />
+
   const [unread, nav, messagesNonLus] = await Promise.all([
     countUnreadNotifications(session.cjsUid),
     getRecruteurNavCounts(session.cjsUid, ctx.organisationId),

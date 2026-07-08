@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext, getBeneficiaireDetail } from '@/lib/loaders/conseiller'
 import { contacterBeneficiaire } from '../../actions'
 import { Icon, type IconName } from '@/components/ui/Icon'
@@ -37,7 +38,7 @@ export default async function BeneficiaireDetailPage({ params }: { params: Promi
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const { cjsUid } = await params
   const b = await getBeneficiaireDetail(ctx.centreId, cjsUid)

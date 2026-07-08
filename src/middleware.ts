@@ -4,13 +4,18 @@ import { isSessionActive } from '@/lib/session-store'
 import { saveTokens, clearTokens } from '@/lib/token-store'
 import { revokeToken } from '@/lib/sso-client'
 import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
+import { isConseillerRole, isRecruteurRole } from '@/lib/auth/espace-roles'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
 
 const PROTECTED: { pattern: RegExp; check: (roles: string[]) => boolean }[] = [
   { pattern: /^\/jeune\//,     check: roles => roles.some(r => BENEFICIAIRE_ROLES.has(r)) },
-  { pattern: /^\/recruteur\//, check: roles => roles.includes('recruteur')                },
+  { pattern: /^\/recruteur\//, check: roles => isRecruteurRole(roles)                     },
   { pattern: /^\/admin\//,     check: roles => roles.some(r => ADMIN_ROLES.has(r))        },
+  // GUIC-526 — gate authentification seule : pendant la transition D2, l'accès
+  // conseiller vaut « rôle SSO OU rattachement AgentCentre » et seul le layout
+  // peut lire la base. Passage en check strict quand les comptes seront migrés.
+  { pattern: /^\/conseiller(\/|$)/, check: () => true },
 ]
 
 const REFRESH_THRESHOLD = 5 * 60 // secondes
@@ -111,7 +116,8 @@ export async function middleware(request: NextRequest) {
 
 function roleHome(roles: string[]): string | null {
   if (roles.some(r => ADMIN_ROLES.has(r)))        return '/admin/tableau-de-bord'
-  if (roles.includes('recruteur'))                return '/recruteur/tableau-de-bord'
+  if (isRecruteurRole(roles))                     return '/recruteur/tableau-de-bord'
+  if (isConseillerRole(roles))                    return '/conseiller'
   if (roles.some(r => BENEFICIAIRE_ROLES.has(r))) return '/jeune/tableau-de-bord'
   return null
 }

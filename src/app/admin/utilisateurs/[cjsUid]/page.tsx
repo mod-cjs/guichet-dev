@@ -5,6 +5,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { auditPiiAccess } from '@/lib/audit'
 import { AdminUserDetail, type UserDetailData } from './AdminUserDetail'
+import { RolesRattachementsSection } from './RolesRattachementsSection'
 
 export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS' }
 
@@ -21,6 +22,19 @@ export default async function Page({
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const { cjsUid } = await params
+
+  // GUIC-526 — données de la section « Rôles & rattachements » (provisioning
+  // des espaces conseiller/recruteur par l'admin).
+  const [rattachements, organisation, centres, organisations] = await Promise.all([
+    prisma.agentCentre.findMany({
+      where: { cjsUid },
+      select: { id: true, role: true, centre: { select: { nom: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.organisation.findFirst({ where: { cjsUid }, select: { id: true, nom: true } }),
+    prisma.centre.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' } }),
+    prisma.organisation.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' }, take: 200 }),
+  ])
 
   const [u, candidaturesRetenues] = await Promise.all([
     prisma.utilisateur.findUnique({
@@ -107,5 +121,15 @@ export default async function Page({
     },
   }
 
-  return <AdminUserDetail data={data} />
+  return (
+    <AdminUserDetail data={data}>
+      <RolesRattachementsSection
+        cjsUid={u.cjsUid}
+        rattachements={rattachements.map((r) => ({ id: r.id, role: r.role, centreNom: r.centre.nom }))}
+        centres={centres}
+        organisation={organisation}
+        organisations={organisations}
+      />
+    </AdminUserDetail>
+  )
 }

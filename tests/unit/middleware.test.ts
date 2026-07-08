@@ -124,6 +124,33 @@ describe('rôle insuffisant', () => {
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/jeune/tableau-de-bord')
   })
+
+  it('conseiller → /admin/* redirige vers son espace /conseiller', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['conseiller'] }))
+    const res = await middleware(makeRequest('/admin/tableau-de-bord'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/conseiller')
+  })
+})
+
+// ── Espace conseiller (GUIC-526) ──────────────────────────────────────────
+// Gate middleware = authentification seule : le périmètre fin (rôle SSO OU
+// rattachement AgentCentre, décision D2) se joue dans le layout qui, lui,
+// peut lire la base.
+
+describe('espace conseiller — gate authentification', () => {
+  it('session absente → /conseiller/agenda redirige vers /auth/connexion', async () => {
+    mockGetSession.mockResolvedValue(null)
+    const res = await middleware(makeRequest('/conseiller/agenda'))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/auth/connexion')
+  })
+
+  it('session authentifiée sans rôle conseiller → passe (le layout arbitre D2)', async () => {
+    mockGetSession.mockResolvedValue(makeSession({ roles: ['beneficiaire'] }))
+    const res = await middleware(makeRequest('/conseiller/agenda'))
+    expect(res.status).toBe(200)
+  })
 })
 
 // ── Force onboarding ──────────────────────────────────────────────────────

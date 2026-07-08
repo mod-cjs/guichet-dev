@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext, getCentreBeneficiaires, type BenefListItem, type BenefStatutFilter } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -85,7 +86,7 @@ export default async function ConseillerBeneficiairesPage({
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
-  if (!ctx) redirect('/')
+  if (!ctx) return conseillerSansRattachement(session.roles)
 
   const sp = (await searchParams) ?? {}
   const q = (sp.q ?? '').trim()
