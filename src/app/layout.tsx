@@ -30,6 +30,25 @@ export const metadata: Metadata = {
     description: 'Portail numérique du Consortium Jeunesse Sénégal',
     // Image Twitter fournie par `app/twitter-image.tsx`.
   },
+  // Indexation par défaut : autorise les grandes vignettes (met en valeur l'OG
+  // image) et les snippets complets sur les pages publiques. Les espaces privés
+  // restent exclus via robots.ts + le noindex par page.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  // GUIC-106 — vérification Google Search Console : renseigner le token via
+  // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION (émis uniquement s'il est défini).
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+    : {}),
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

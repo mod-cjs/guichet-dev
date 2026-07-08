@@ -4,6 +4,7 @@ import {
   webSiteJsonLd,
   jobPostingJsonLd,
   eventJsonLd,
+  breadcrumbJsonLd,
 } from '@/lib/seo/json-ld'
 
 // appUrl() lit NEXT_PUBLIC_APP_URL ; forcé ici pour des URLs déterministes.
@@ -39,6 +40,29 @@ describe('organizationJsonLd', () => {
   it('utilise une URL absolue pour le logo', () => {
     expect(org.logo).toBe('https://guichetjeunesse.sn/logo-guichet.png')
     expect(org.url).toBe('https://guichetjeunesse.sn')
+  })
+})
+
+describe('breadcrumbJsonLd', () => {
+  const items = [
+    { name: 'Accueil', path: '/' },
+    { name: 'Opportunités', path: '/opportunites' },
+    { name: 'Développeur web', path: '/opportunites/dev-web' },
+  ]
+
+  it('déclare un BreadcrumbList avec positions 1-indexées', () => {
+    const bc = breadcrumbJsonLd(items)
+    expect(bc['@type']).toBe('BreadcrumbList')
+    const el = bc.itemListElement as Array<Record<string, unknown>>
+    expect(el).toHaveLength(3)
+    expect(el.map((e) => e.position)).toEqual([1, 2, 3])
+  })
+
+  it('construit des URLs absolues pour chaque niveau', () => {
+    const el = breadcrumbJsonLd(items).itemListElement as Array<Record<string, unknown>>
+    expect(el[0].item).toBe('https://guichetjeunesse.sn/')
+    expect(el[2].item).toBe('https://guichetjeunesse.sn/opportunites/dev-web')
+    expect(el[1].name).toBe('Opportunités')
   })
 })
 

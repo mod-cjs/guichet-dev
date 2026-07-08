@@ -13,6 +13,7 @@ import { opportunitesListUrl } from '@/lib/routes'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { getOpportuniteJsonLd } from '@/lib/seo/loaders'
+import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
 
 // GUIC-21 — Détail d'opportunité en accès direct (SSR, indispensable au SEO).
 
@@ -61,12 +62,17 @@ export default async function OpportuniteDetailPage({
   // biographie, compétences, etc.
   const viewer = await getViewerInfoForCandidature(session)
 
-  // GUIC-25 (M7 SEO) — données structurées JobPosting
+  // GUIC-25 (M7 SEO) — données structurées JobPosting + fil d'Ariane
   const jsonLd = await getOpportuniteJsonLd(slug)
+  const breadcrumb = breadcrumbJsonLd([
+    { name: 'Accueil', path: '/' },
+    { name: 'Opportunités', path: opportunitesListUrl },
+    { name: detail.titre, path: `/opportunites/${slug}` },
+  ])
 
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
-      {jsonLd && <JsonLd data={jsonLd} />}
+      <JsonLd data={jsonLd ? [jsonLd, breadcrumb] : breadcrumb} />
       <Breadcrumbs
         className="mb-space-3"
         items={[
