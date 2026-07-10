@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyWebhookSignature, sendTextMessage } from '@/lib/whatsapp'
+import {
+  createLinkToken,
+  buildMagicLinkUrl,
+  withinLinkRateLimit,
+  isUnlinkKeyword,
+  unbindWhatsAppNumber,
+  unlinkConfirmationMessage,
+} from '@/lib/whatsapp/magic-link'
 import { prisma } from '@/lib/prisma'
 import { runAgent } from '@/lib/ia/agent'
 import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/lib/ia/format-whatsapp'
@@ -42,12 +50,38 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
     logger.warn('whatsapp: lookup conversation échec', { err: String(err) })
   }
 
+  // GUIC-140 — opt-out self-service (norme Meta « STOP ») : délie le numéro.
+  if (isUnlinkKeyword(text)) {
+    if (conv?.cjsUid) {
+      await unbindWhatsAppNumber(telephone)
+      await sendTextMessage(from, unlinkConfirmationMessage())
+    } else {
+      await sendTextMessage(from, `Aucun compte n'est lié à ce numéro.`)
+    }
+    return
+  }
+
   if (!conv?.cjsUid) {
     await ensureConversation(telephone)
+
+    // GUIC-140 — lien magique de liaison (usage unique, 10 min). Anti-abus :
+    // au-delà du plafond horaire, on invite à réutiliser le dernier lien reçu.
+    if (!(await withinLinkRateLimit(telephone))) {
+      await sendTextMessage(
+        from,
+        `Tu as déjà reçu plusieurs liens de connexion. Ouvre le dernier lien reçu ` +
+          `(valable 10 min) ou réessaie dans un moment.`,
+      )
+      return
+    }
+
+    const token = await createLinkToken(telephone)
+    const lien = buildMagicLinkUrl(APP_URL, token)
     await sendTextMessage(
       from,
       `Bonjour, je suis Yaye, la conseillère du Guichet Jeunesse CJS. Pour t'accompagner ` +
-        `personnellement (offres, candidatures, badge), connecte ton compte : ${APP_URL}`,
+        `personnellement (offres, candidatures, badge), connecte ton compte via ce lien ` +
+        `sécurisé (valable 10 min) : ${lien}`,
     )
     return
   }

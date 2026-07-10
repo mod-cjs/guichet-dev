@@ -828,12 +828,18 @@ model ConversationWhatsApp {
   id        String   @id @default(uuid()) @db.VarChar(36)
   telephone String   @db.VarChar(20)
   cjsUid    String?  @map("cjs_uid") @db.VarChar(36)
+  // Horodatage de la liaison téléphone ↔ compte via lien magique (GUIC-140).
+  // NULL tant que le numéro n'est pas lié à un cjs_uid.
+  linkedAt  DateTime? @map("linked_at")
   // Contexte de conversation sérialisé (historique Groq)
   contexte  Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  utilisateur Utilisateur?      @relation(fields: [cjsUid], references: [cjsUid])
+  // GUIC-140 — droit à l'oubli (CDP) : la suppression d'un compte purge sa
+  // conversation WhatsApp (téléphone + messages = PII) au lieu de la détacher.
+  // Les conversations non liées (cjsUid NULL) ne sont pas concernées.
+  utilisateur Utilisateur?      @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
   messages    MessageWhatsApp[]
 
   @@unique([telephone])
@@ -849,7 +855,8 @@ model MessageWhatsApp {
   type           String   @db.VarChar(20)
   createdAt      DateTime @default(now()) @map("created_at")
 
-  conversation ConversationWhatsApp @relation(fields: [conversationId], references: [id])
+  // Cascade : purger une conversation (droit à l'oubli) purge ses messages.
+  conversation ConversationWhatsApp @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
   @@map("messages_whatsapp")
