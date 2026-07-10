@@ -13,11 +13,13 @@ jest.mock('@/lib/whatsapp', () => ({
 
 const mockFindUnique = jest.fn()
 const mockUpsert = jest.fn()
+const mockUpdate = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     conversationWhatsApp: {
       findUnique: (...a: unknown[]) => mockFindUnique(...a),
       upsert: (...a: unknown[]) => mockUpsert(...a),
+      update: (...a: unknown[]) => mockUpdate(...a),
     },
   },
 }))
@@ -34,7 +36,17 @@ jest.mock('@/lib/ia/context', () => ({
 }))
 
 const mockRedisSet = jest.fn()
-jest.mock('@/lib/redis', () => ({ redis: { set: (...a: unknown[]) => mockRedisSet(...a) } }))
+const mockIncr = jest.fn()
+const mockExpire = jest.fn()
+const mockGetdel = jest.fn()
+jest.mock('@/lib/redis', () => ({
+  redis: {
+    set:    (...a: unknown[]) => mockRedisSet(...a),
+    incr:   (...a: unknown[]) => mockIncr(...a),
+    expire: (...a: unknown[]) => mockExpire(...a),
+    getdel: (...a: unknown[]) => mockGetdel(...a),
+  },
+}))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
 import { POST } from '@/app/api/whatsapp/route'
@@ -48,6 +60,8 @@ const req = (b: string) =>
 beforeEach(() => {
   jest.clearAllMocks()
   mockRedisSet.mockResolvedValue('OK') // pas un doublon
+  mockIncr.mockResolvedValue(1)        // sous le plafond de liens/heure
+  mockExpire.mockResolvedValue(1)
 })
 
 test('compte lié → runAgent (canal whatsapp) + réponse formatée envoyée', async () => {
@@ -63,7 +77,7 @@ test('compte lié → runAgent (canal whatsapp) + réponse formatée envoyée', 
   expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('Voici une offre'))
 })
 
-test('compte non lié → message d’invitation, pas d’agent', async () => {
+test('compte non lié → envoi d’un lien magique de liaison, pas d’agent', async () => {
   mockFindUnique.mockResolvedValueOnce(null)
 
   const res = await POST(req(body('salut')))
@@ -71,7 +85,48 @@ test('compte non lié → message d’invitation, pas d’agent', async () => {
   expect(res.status).toBe(200)
   expect(mockRun).not.toHaveBeenCalled()
   expect(mockUpsert).toHaveBeenCalled()
-  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('connecte ton compte'))
+  // Un token de lien magique est généré (Redis SET du token) puis envoyé.
+  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('/api/whatsapp/link?token='))
+})
+
+test('compte non lié + plafond de liens/heure atteint → invite à réutiliser le dernier lien, pas de nouveau token', async () => {
+  mockFindUnique.mockResolvedValueOnce(null)
+  mockIncr.mockResolvedValueOnce(99) // au-dessus du plafond horaire
+
+  const res = await POST(req(body('encore')))
+
+  expect(res.status).toBe(200)
+  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('dernier lien'))
+  // Aucun token de lien magique n'est stocké dans Redis.
+  expect(mockRedisSet).not.toHaveBeenCalledWith(
+    expect.stringContaining('guichet:whatsapp:link:'),
+    expect.anything(),
+    'EX',
+    expect.anything(),
+  )
+})
+
+test('mot-clé STOP d’un compte lié → déliaison + confirmation, pas d’agent', async () => {
+  mockFindUnique.mockResolvedValueOnce({ id: 'c1', cjsUid: 'u-1' })
+
+  const res = await POST(req(body('STOP')))
+
+  expect(res.status).toBe(200)
+  expect(mockRun).not.toHaveBeenCalled()
+  expect(mockUpdate).toHaveBeenCalledWith(
+    expect.objectContaining({ where: { telephone: `+${FROM}` }, data: { cjsUid: null, linkedAt: null } }),
+  )
+  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('délié'))
+})
+
+test('mot-clé STOP sans compte lié → message informatif, aucune écriture', async () => {
+  mockFindUnique.mockResolvedValueOnce(null)
+
+  const res = await POST(req(body('stop')))
+
+  expect(res.status).toBe(200)
+  expect(mockUpdate).not.toHaveBeenCalled()
+  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('Aucun compte'))
 })
 
 test('doublon (idempotence) → ignoré, aucun traitement', async () => {
