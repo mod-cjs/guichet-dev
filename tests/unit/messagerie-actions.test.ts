@@ -14,6 +14,7 @@ jest.mock('@/lib/prisma', () => ({
     candidature: { findFirst: jest.fn() },
     conversation: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     message: { create: jest.fn(), updateMany: jest.fn() },
+    utilisateur: { findUnique: jest.fn() },
     notification: { create: jest.fn() },
     $transaction: jest.fn(),
   },
@@ -31,6 +32,7 @@ const p = prisma as unknown as {
   candidature: { findFirst: jest.Mock }
   conversation: { findFirst: jest.Mock; findUnique: jest.Mock; create: jest.Mock; update: jest.Mock }
   message: { create: jest.Mock; updateMany: jest.Mock }
+  utilisateur: { findUnique: jest.Mock }
   notification: { create: jest.Mock }
   $transaction: jest.Mock
 }
@@ -42,6 +44,8 @@ const CONV = { id: 'conv-1', recruteurUid: 'rec-1', candidatUid: 'cand-1', candi
 beforeEach(() => {
   jest.clearAllMocks()
   p.$transaction.mockResolvedValue([])
+  // GUIC-513 — pas de préférence enregistrée → notification envoyée par défaut.
+  p.utilisateur.findUnique.mockResolvedValue(null)
   p.notification.create.mockResolvedValue({})
   p.conversation.create.mockResolvedValue({ id: 'conv-new' })
   p.organisation.findFirst.mockResolvedValue({ id: 'org-1' })

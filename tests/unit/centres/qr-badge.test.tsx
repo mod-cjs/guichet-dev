@@ -10,9 +10,13 @@ jest.mock('qrcode', () => ({
 }))
 
 describe('<QRBadge />', () => {
-  it('affiche le skeleton avant que le QR ne soit généré', () => {
+  it('affiche le skeleton avant que le QR ne soit généré', async () => {
     render(<QRBadge url="https://guichetjeunesse.sn/checkin/v1/x" />)
     expect(screen.getByTestId('qr-badge-skeleton')).toBeInTheDocument()
+    // Flush la génération QR async : sans ça, le setState final tombe hors `act`
+    // après la fin du test → warning + update qui fuit et pollue les autres suites
+    // en parallélisation (source de flakiness inter-suites).
+    await screen.findByAltText(/QR code de check-in/i)
   })
 
   it('affiche l\'image QR avec alt explicite après génération', async () => {
@@ -41,7 +45,7 @@ describe('<QRBadge />', () => {
         showCountdown
       />,
     )
-    await waitFor(() => expect(screen.getByText(/Expire dans/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Expire dans/i)).toBeInTheDocument(), { timeout: 4000 })
   })
 
   it('affiche le bouton "Rafraîchir" + appelle onRefreshClick quand expiré', async () => {
@@ -70,6 +74,6 @@ describe('<QRBadge />', () => {
         showCountdown
       />,
     )
-    await waitFor(() => expect(screen.getByText(/Code expiré/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Code expiré/i)).toBeInTheDocument(), { timeout: 4000 })
   })
 })

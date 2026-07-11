@@ -10,6 +10,12 @@ const config: Config = {
   // après la suite ; sans forceExit, le process Jest ne rend pas la main et le
   // job CI tourne jusqu'au hard-limit (6 h) avant d'être annulé.
   forceExit: true,
+  // GUIC-538 — plafonne la parallélisation. À pleine parallélisation (~1 worker
+  // par cœur), les tests jsdom async (userEvent, countdown) sont affamés en CPU
+  // et échouent par intermittence (l'échec « saute » d'une suite à l'autre). La
+  // CI ubuntu (2-4 cœurs) n'est pas touchée ; ce cap protège les runs locaux
+  // multi-cœurs (pre-push) sans coût CI notable.
+  maxWorkers: '50%',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   testMatch: [
