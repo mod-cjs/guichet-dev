@@ -18,8 +18,16 @@ import { createHmac } from 'node:crypto'
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
 const mockRedisSet = jest.fn()
+const mockRedisIncr = jest.fn()
+const mockRedisExpire = jest.fn()
+const mockRedisGetdel = jest.fn()
 jest.mock('@/lib/redis', () => ({
-  redis: { set: (...args: unknown[]) => mockRedisSet(...args) },
+  redis: {
+    set:    (...args: unknown[]) => mockRedisSet(...args),
+    incr:   (...args: unknown[]) => mockRedisIncr(...args),
+    expire: (...args: unknown[]) => mockRedisExpire(...args),
+    getdel: (...args: unknown[]) => mockRedisGetdel(...args),
+  },
 }))
 
 // Moteur Yaye partagé (canal whatsapp) — remplace l'ancien rag.generateAgentResponse.
@@ -32,7 +40,18 @@ jest.mock('@/lib/ia/agent', () => ({
 jest.mock('@/lib/ia/context', () => ({
   loadContext: jest.fn().mockResolvedValue([]),
   saveContext: jest.fn().mockResolvedValue(undefined),
+  userContextKey: (cjsUid: string) => `user:${cjsUid}`,
+  TTL_USER: 7 * 24 * 3600,
   TTL_WHATSAPP: 7 * 24 * 3600,
+}))
+
+// Mémoire long terme + capture verbatim — neutralisées (fail-soft, cross-canal).
+jest.mock('@/lib/ia/memory', () => ({
+  loadSummary: jest.fn().mockResolvedValue(null),
+  updateSummary: jest.fn().mockResolvedValue(undefined),
+}))
+jest.mock('@/lib/ia/metrics/transcript-store', () => ({
+  recordWebTurn: jest.fn().mockResolvedValue(undefined),
 }))
 
 // Formateur multi-canal (Lot 5) : on mocke le dispatcher d'envoi.
@@ -105,6 +124,9 @@ function buildRequest(body: string): NextRequest {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // Rate-limit du lien magique : sous le plafond par défaut.
+  mockRedisIncr.mockResolvedValue(1)
+  mockRedisExpire.mockResolvedValue(1)
   // Conversation LIÉE par défaut → le chemin agent (runAgent) est exercé.
   mockConvFindUnique.mockResolvedValue({ id: 'conv-1', cjsUid: 'u-1' })
   mockConvUpsert.mockResolvedValue({})
@@ -169,7 +191,7 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
     expect(mockRunAgent).toHaveBeenCalledTimes(1)
   })
 
-  it('compte non lié → invite à connecter le compte, NE lance PAS l’agent', async () => {
+  it('compte non lié → envoie un lien magique de liaison, NE lance PAS l’agent', async () => {
     mockRedisSet.mockResolvedValueOnce('OK')
     mockConvFindUnique.mockResolvedValueOnce(null) // pas de binding cjs_uid
 
@@ -177,7 +199,11 @@ describe('POST /api/whatsapp — idempotence sur message.id (GUIC-240)', () => {
 
     expect(res.status).toBe(200)
     expect(mockRunAgent).not.toHaveBeenCalled()
-    expect(mockSendText).toHaveBeenCalledTimes(1) // message d'invitation
+    // GUIC-140 : lien magique (usage unique) au lieu de l'ancienne invitation statique.
+    expect(mockSendText).toHaveBeenCalledWith(
+      '221770000000',
+      expect.stringContaining('/api/whatsapp/link?token='),
+    )
   })
 
   it('refuse une signature HMAC invalide (403) avant tout traitement', async () => {
