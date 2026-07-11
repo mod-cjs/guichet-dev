@@ -6,11 +6,13 @@
  */
 
 const mockCreate = jest.fn()
-jest.mock('groq-sdk', () => {
-  return jest.fn().mockImplementation(() => ({
-    chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } },
-  }))
-})
+jest.mock('@/lib/ia/llm-client', () => ({
+  getLlmClient: () => ({ chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } } }),
+  isLlmConfigured: () => true,
+}))
+jest.mock('@/lib/ia/llm-config', () => ({
+  getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
+}))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
 import { pseudonymizeText } from '@/lib/ia/metrics/pseudonymize'
@@ -91,7 +93,7 @@ test('judgeTranscript parse le JSON, clamp 0-1 et calcule le drapeau rouge', asy
   expect(score!.fidelite).toBe(0.3)
   expect(score!.pertinence).toBe(1) // clampé
   expect(score!.drapeauRouge).toBe(true) // fidélité sous seuil
-  expect(score!.juge).toContain('groq:')
+  expect(score!.juge).toContain('vertex:')
 })
 
 test('judgeTranscript est fail-soft : JSON invalide → null', async () => {

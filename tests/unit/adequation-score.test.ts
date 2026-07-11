@@ -1,10 +1,13 @@
 /**
  * @jest-environment node
  *
- * GUIC-487 (US-5) — Score d'adéquation candidat/offre (IA Groq).
+ * GUIC-487 (US-5) — Score d'adéquation candidat/offre (IA Vertex).
  * On teste les fonctions PURES : construction du prompt + parsing/clamp de la réponse.
- * L'appel Groq lui-même n'est pas testé (I/O réseau, fail-soft côté service).
+ * L'appel LLM lui-même n'est pas testé (I/O réseau, fail-soft côté service) → le client
+ * Vertex est mocké pour isoler ces fonctions du SDK.
  */
+jest.mock('@/lib/ia/llm-client', () => ({ getLlmClient: jest.fn(), isLlmConfigured: () => true }))
+jest.mock('@/lib/ia/llm-config', () => ({ getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash') }))
 import { buildAdequationMessages, parseScore, type AdequationInput } from '@/lib/recruteur/adequation'
 
 const INPUT: AdequationInput = {

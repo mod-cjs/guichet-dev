@@ -19,7 +19,7 @@ jest.mock('@/lib/ia/metrics/transcript', () => ({ reconstructTranscript: (...a: 
 const mockJudge = jest.fn()
 jest.mock('@/lib/ia/metrics/judge', () => ({
   judgeTranscript: (...a: unknown[]) => mockJudge(...a),
-  judgeId: () => 'groq:test@rubric-v1',
+  judgeId: async () => 'vertex:test@rubric-v1',
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
