@@ -1,5 +1,5 @@
 /**
- * GUIC-487 (US-5) — Score d'adéquation candidat / offre via IA (Groq).
+ * GUIC-487 (US-5) — Score d'adéquation candidat / offre via IA (Vertex AI).
  *
  * Le score (0–100) + une raison courte sont calculés par le LLM à partir des signaux
  * structurés (offre : titre/description/skills/niveau ; candidat : niveau/compétences/
@@ -7,12 +7,11 @@
  * Fail-soft : toute erreur laisse le score à `null` (l'UI affiche « — »).
  */
 import { z } from 'zod'
-import { getGroq } from '@/lib/ia/groq-client'
+import { getLlmClient } from '@/lib/ia/llm-client'
+import { getSlotModel } from '@/lib/ia/llm-config'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { htmlToPlainText } from '@/lib/rich-html'
-
-const MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile'
 
 export interface AdequationInput {
   offre: { titre: string; description: string; niveauEtudeMin: string | null; skills: string[] }
@@ -106,8 +105,9 @@ export async function computeScoreAdequation(candidatureId: string): Promise<voi
 
   const { system, user } = buildAdequationMessages(input)
   try {
-    const completion = await getGroq().chat.completions.create({
-      model: MODEL,
+    const model = await getSlotModel('adequation')
+    const completion = await getLlmClient(model).chat.completions.create({
+      model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },

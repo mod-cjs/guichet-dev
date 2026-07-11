@@ -85,7 +85,7 @@ export async function runEval(opts: EvalRunOptions): Promise<EvalRunReport> {
   const dejaJuges = new Set(
     (
       await prisma.yayeEvalScore.findMany({
-        where: { sessionId: { in: choisis.map((c) => c.sessionId) }, juge: judgeId() },
+        where: { sessionId: { in: choisis.map((c) => c.sessionId) }, juge: await judgeId() },
         select: { sessionId: true },
       })
     ).map((r) => r.sessionId),

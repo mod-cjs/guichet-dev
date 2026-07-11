@@ -12,7 +12,8 @@
 
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
-import { getGroq } from './groq-client'
+import { getLlmClient, isLlmConfigured } from './llm-client'
+import { getSlotModel } from './llm-config'
 
 const PREFIX = 'yaye:memo:'
 const TTL_MEMO = 90 * 24 * 3600 // 90 jours, rafraîchi à chaque mise à jour
@@ -50,8 +51,6 @@ export async function purgeSummary(cjsUid: string): Promise<void> {
   }
 }
 
-const SUMMARY_MODEL = process.env.YAYE_SUMMARY_MODEL ?? process.env.YAYE_MODEL ?? 'llama-3.3-70b-versatile'
-
 const MEMO_PROMPT = `Tu maintiens une FICHE MÉMOIRE factuelle et concise sur un jeune du Guichet Jeunesse Sénégal, pour qu'une conseillère (Yaye) se souvienne de lui d'une conversation à l'autre.
 Mets à jour la fiche en intégrant le dernier échange. Garde UNIQUEMENT ce qui est durablement utile : objectif(s) de la personne, domaine ou métier visé, région, contraintes (mobilité, niveau d'étude), démarches en cours (candidatures, réservations, emprunts), préférences exprimées.
 Règles : 3 à 6 puces courtes maximum (« - … »), pas de bavardage, pas de données sensibles (santé, religion, opinions), pas d'invention. Si le dernier échange n'apporte rien de durable, renvoie la fiche inchangée.
@@ -60,7 +59,8 @@ Réponds UNIQUEMENT par la fiche (les puces), sans préambule ni commentaire.`
 /**
  * Met à jour la fiche mémoire à partir de la précédente + du dernier échange.
  * À appeler en FIRE-AND-FORGET (n'ajoute pas de latence à la réponse). Fail-soft.
- * No-op sans clé Groq (tests / environnements sans IA).
+ * No-op si l'IA n'est pas configurée (tests / environnements sans Vertex).
+ * Le résumé suit le modèle du slot `agent` (mémoire de Yaye).
  */
 export async function updateSummary(
   cjsUid: string,
@@ -68,10 +68,11 @@ export async function updateSummary(
   userText: string,
   assistantText: string,
 ): Promise<void> {
-  if (!process.env.GROQ_API_KEY) return
+  if (!isLlmConfigured()) return
   try {
-    const completion = await getGroq().chat.completions.create({
-      model: SUMMARY_MODEL,
+    const model = await getSlotModel('agent')
+    const completion = await getLlmClient(model).chat.completions.create({
+      model,
       temperature: 0.2,
       max_tokens: 240,
       messages: [
