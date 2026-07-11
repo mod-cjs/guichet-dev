@@ -4,14 +4,9 @@
  * GUIC-512 — Loader du dashboard recruteur. Prisma mické : vérifie l'agrégation
  * des KPI (offres actives, candidatures reçues, à examiner) et le mapping listes.
  */
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    utilisateur: { findUnique: jest.fn() },
-    organisation: { findFirst: jest.fn() },
-    opportunite: { count: jest.fn(), findMany: jest.fn(), aggregate: jest.fn() },
-    candidature: { count: jest.fn(), findMany: jest.fn() },
-  },
-}))
+// GUIC-538 — mock Prisma PARTAGÉ : toute méthode est auto-mockée, ce test ne peut
+// plus se désynchroniser quand le loader gagne un nouvel appel Prisma.
+jest.mock('@/lib/prisma')
 
 import { prisma } from '@/lib/prisma'
 import { getRecruteurDashboard } from '@/lib/loaders/recruteur'
