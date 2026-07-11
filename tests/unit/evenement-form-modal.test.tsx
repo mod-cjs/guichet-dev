@@ -29,7 +29,9 @@ describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
   })
 
   it('création : transmet type Cours + centreId à creerEvenement', async () => {
-    const user = userEvent.setup()
+    // delay: null → pas de setTimeout entre frappes ; évite que le remplissage du
+    // formulaire soit affamé en CPU sous forte parallélisation (submit non déclenché).
+    const user = userEvent.setup({ delay: null })
     render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} />)
     await user.type(screen.getByLabelText(/^Titre/), 'Préparation BAC')
     // La description est un éditeur riche (Tiptap) — non simulable en jsdom ;
