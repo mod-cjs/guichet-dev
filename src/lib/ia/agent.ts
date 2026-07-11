@@ -1,14 +1,17 @@
 // Service agent Yaye — orchestration function calling (Lot 0, GUIC-259).
 // Spec : .agent_context/specs/yaye/01-architecture-technique.md
 //
-// Boucle : Groq détecte l'intention ET choisit l'outil en UN appel (R3), on exécute
-// l'outil (portée RBAC par cjsUid), on renvoie le résultat à Groq, jusqu'à la réponse
+// Boucle : le LLM détecte l'intention ET choisit l'outil en UN appel (R3), on exécute
+// l'outil (portée RBAC par cjsUid), on renvoie le résultat au LLM, jusqu'à la réponse
 // finale en français. Chaque étape est journalisée dans agent_logs.
-// Groq ne connaît pas le canal — c'est le formateur (lots suivants) qui adapte.
+// Le LLM ne connaît pas le canal — c'est le formateur (lots suivants) qui adapte.
+// Fournisseur : Vertex AI (OpenAI-compat), modèle résolu au runtime (GUIC-537).
 
-import Groq from 'groq-sdk'
+import type OpenAI from 'openai'
 import type { CanalAgent } from '@prisma/client'
-import { getGroq } from './groq-client'
+import { getLlmClient } from './llm-client'
+import { getSlotModel } from './llm-config'
+import { sanitizeParamsForModel } from './supported-models'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -27,9 +30,7 @@ function numEnv(name: string, def: number): number {
 }
 
 const CONFIG = {
-  /** Modèle Groq. `llama-3.3-70b-versatile` : faible latence (critique WhatsApp), bon function calling. */
-  model: process.env.YAYE_MODEL ?? 'llama-3.3-70b-versatile',
-  /** Température de DÉCISION (rounds où Groq choisit un outil) : basse → choix d'outil
+  /** Température de DÉCISION (rounds où le LLM choisit un outil) : basse → choix d'outil
    *  fiable, peu d'hallucinations. */
   temperature: numEnv('YAYE_TEMPERATURE', 0.4),
   /** Température de SYNTHÈSE (réponse finale en langage naturel, après outils) : plus
@@ -132,7 +133,7 @@ Yaye : « Je n'ai rien trouvé en pêche à Dakar pour l'instant. On élargit à
 // Outils dont l'absence de bloc = aucune opportunité réelle à présenter (garde anti-invention, Option C).
 const SEARCH_TOOLS = new Set(['search_opportunities', 'query_knowledge_graph', 'get_recommendations'])
 
-type Msg = Groq.Chat.ChatCompletionMessageParam
+type Msg = OpenAI.Chat.ChatCompletionMessageParam
 
 export interface RunAgentParams {
   message: string
@@ -273,7 +274,8 @@ function maxRoundsEscaladeBlock(reference: string): YayeBlock {
 }
 
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
-  const groq = getGroq()
+  const model = await getSlotModel('agent')
+  const client = getLlmClient(model)
   const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base = {
     sessionId: p.sessionId,
@@ -294,16 +296,19 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     // synthétise la réponse en langage naturel → température plus haute = ton plus
     // chaleureux et varié. Les rounds de décision (choix d'outil) restent bas.
     const temperature = toolsUsed.length > 0 ? CONFIG.temperatureFinal : CONFIG.temperature
-    const completion = await groq.chat.completions.create({
-      model: CONFIG.model,
-      messages,
-      tools: TOOL_DEFINITIONS as unknown as Groq.Chat.ChatCompletionTool[],
-      tool_choice: 'auto',
+    const tuning = sanitizeParamsForModel(model, {
       temperature,
-      max_tokens: CONFIG.maxTokens,
       top_p: CONFIG.topP,
       frequency_penalty: CONFIG.frequencyPenalty,
       presence_penalty: CONFIG.presencePenalty,
+    })
+    const completion = await client.chat.completions.create({
+      model,
+      messages,
+      tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+      tool_choice: 'auto',
+      max_tokens: CONFIG.maxTokens,
+      ...tuning,
     })
     const choice = completion.choices[0]?.message
     const toolCalls = choice?.tool_calls ?? []
@@ -360,7 +365,8 @@ export type AgentStreamEvent =
   | { type: 'done'; reply: string; blocks: YayeBlock[]; toolsUsed: string[] }
 
 export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStreamEvent> {
-  const groq = getGroq()
+  const model = await getSlotModel('agent')
+  const client = getLlmClient(model)
   const ctx: ToolCtx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
   const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
@@ -370,16 +376,19 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
     const temperature = state.toolsUsed.length > 0 ? CONFIG.temperatureFinal : CONFIG.temperature
-    const stream = await groq.chat.completions.create({
-      model: CONFIG.model,
-      messages,
-      tools: TOOL_DEFINITIONS as unknown as Groq.Chat.ChatCompletionTool[],
-      tool_choice: 'auto',
+    const tuning = sanitizeParamsForModel(model, {
       temperature,
-      max_tokens: CONFIG.maxTokens,
       top_p: CONFIG.topP,
       frequency_penalty: CONFIG.frequencyPenalty,
       presence_penalty: CONFIG.presencePenalty,
+    })
+    const stream = await client.chat.completions.create({
+      model,
+      messages,
+      tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+      tool_choice: 'auto',
+      max_tokens: CONFIG.maxTokens,
+      ...tuning,
       stream: true,
     })
 
@@ -387,7 +396,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
     const toolAcc: Record<number, { id: string; name: string; args: string }> = {}
     let sawToolCall = false
 
-    for await (const chunk of stream as AsyncIterable<Groq.Chat.ChatCompletionChunk>) {
+    for await (const chunk of stream as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>) {
       const delta = chunk.choices?.[0]?.delta
       if (!delta) continue
       if (delta.tool_calls?.length) {

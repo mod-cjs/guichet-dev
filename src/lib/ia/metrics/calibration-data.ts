@@ -2,7 +2,7 @@
 // La fonction PURE `agreementByDimension` (calibration.ts) n'était branchée sur
 // AUCUNE source de labels. Ici on la nourrit avec les sessions DOUBLEMENT notées
 // stockées dans `yaye_eval_scores` :
-//   - score JUGE   : ligne dont `juge` commence par "groq:" (cron yaye-eval),
+//   - score JUGE   : ligne dont `juge` commence par "vertex:" (cron yaye-eval),
 //   - label HUMAIN : ligne dont `juge` commence par "humain:" (ex.
 //     "humain:<conseillerUid>@rubric-v4"), insérée par un conseiller via le même
 //     modèle (on AJOUTE, on ne modifie pas la table).

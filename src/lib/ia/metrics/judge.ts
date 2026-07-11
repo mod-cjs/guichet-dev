@@ -1,5 +1,5 @@
 // Juge LLM Yaye (GUIC-435 — jalon C, couche 3 qualité conversationnelle).
-// Note un transcript reconstruit sur 6 dimensions 0-1 via Groq (même modèle que Yaye).
+// Note un transcript reconstruit sur 6 dimensions 0-1 via Vertex AI (même modèle que Yaye).
 // Garde-fous : fidélité (anti-hallucination) et conformité CDP plafonnent → drapeau rouge.
 //
 // ⚠️ Le texte passé au juge DOIT être pseudonymisé en amont (pseudonymize.ts).
@@ -8,19 +8,24 @@
 
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
-import { getGroq } from '../groq-client'
+import { getLlmClient } from '../llm-client'
+import { getSlotModel } from '../llm-config'
 import { pseudonymizeText } from './pseudonymize'
 import type { ReconstructedTranscript } from './transcript'
 
-const JUDGE_MODEL = process.env.YAYE_JUDGE_MODEL ?? 'llama-3.3-70b-versatile'
 const RUBRIC_VERSION = 'rubric-v4'
 const SEUIL_FIDELITE = Number(process.env.YAYE_SEUIL_FIDELITE ?? 0.6)
 const SEUIL_CDP = Number(process.env.YAYE_SEUIL_CDP ?? 0.6)
 
-/** Identifiant du juge (modèle@rubrique) écrit dans `yaye_eval_scores.juge`.
+/** Identifiant du juge (provider:modèle@rubrique) pour un modèle donné. */
+export function judgeIdFor(model: string): string {
+  return `vertex:${model}@${RUBRIC_VERSION}`
+}
+
+/** Identifiant du juge avec le modèle courant (config admin).
  *  Sert à l'idempotence du cron : une session déjà notée par CE juge n'est pas re-notée. */
-export function judgeId(): string {
-  return `groq:${JUDGE_MODEL}@${RUBRIC_VERSION}`
+export async function judgeId(): Promise<string> {
+  return judgeIdFor(await getSlotModel('judge'))
 }
 
 const JUDGE_SYSTEM = `Tu es un évaluateur EXIGEANT de l'agent conversationnel "Yaye" (plateforme jeunesse sénégalaise, français/wolof).
@@ -84,9 +89,10 @@ export function formatTranscriptForJudge(t: ReconstructedTranscript): string {
  */
 export async function judgeTranscript(t: ReconstructedTranscript): Promise<EvalScore | null> {
   const texte = formatTranscriptForJudge(t)
+  const model = await getSlotModel('judge')
   try {
-    const completion = await getGroq().chat.completions.create({
-      model: JUDGE_MODEL,
+    const completion = await getLlmClient(model).chat.completions.create({
+      model,
       messages: [
         { role: 'system', content: JUDGE_SYSTEM },
         { role: 'user', content: texte },
@@ -105,7 +111,7 @@ export async function judgeTranscript(t: ReconstructedTranscript): Promise<EvalS
     const fidelite = clamp01(d.fidelite)
     const conformiteCdp = clamp01(d.conformite_cdp)
     return {
-      juge: judgeId(),
+      juge: judgeIdFor(model),
       fidelite,
       pertinence: clamp01(d.pertinence),
       utilite: clamp01(d.utilite),

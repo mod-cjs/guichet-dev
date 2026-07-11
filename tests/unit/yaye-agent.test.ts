@@ -2,15 +2,16 @@
  * @jest-environment node
  *
  * Tests de `runAgent` — boucle function-calling de l'agent Yaye (GUIC-259, Lot 0).
- * Groq et les outils sont mockés → testable sans clé API ni DB.
+ * Le client LLM (Vertex) et les outils sont mockés → testable sans GCP ni DB.
  */
 
 const mockCreate = jest.fn()
-jest.mock('groq-sdk', () => ({
-  __esModule: true,
-  default: jest.fn().mockImplementation(() => ({
-    chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } },
-  })),
+jest.mock('@/lib/ia/llm-client', () => ({
+  getLlmClient: () => ({ chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } } }),
+  isLlmConfigured: () => true,
+}))
+jest.mock('@/lib/ia/llm-config', () => ({
+  getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
 }))
 
 const mockExecute = jest.fn()

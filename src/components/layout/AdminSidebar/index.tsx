@@ -74,6 +74,7 @@ const SECTIONS: NavSection[] = [
       { id: 'yaye-metriques', href: '/admin/analytics/yaye', icon: 'chart', label: 'Métriques Yaye' },
       { id: 'yaye-sessions', href: '/admin/yaye/sessions', icon: 'chat', label: 'Sessions Yaye' },
       { id: 'yaye-escalades', href: '/admin/yaye/escalades', icon: 'bell', label: 'Escalades' },
+      { id: 'yaye-modele', href: '/admin/yaye/modele', icon: 'settings', label: 'Modèle IA' },
     ],
   },
 ]

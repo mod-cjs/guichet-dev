@@ -16,26 +16,27 @@ jest.mock('@/lib/redis', () => ({
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
 const mockCreate = jest.fn()
-jest.mock('groq-sdk', () => ({
-  __esModule: true,
-  default: jest.fn().mockImplementation(() => ({
-    chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } },
-  })),
+jest.mock('@/lib/ia/llm-client', () => ({
+  getLlmClient: () => ({ chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } } }),
+  isLlmConfigured: () => Boolean(process.env.GOOGLE_CLOUD_PROJECT),
+}))
+jest.mock('@/lib/ia/llm-config', () => ({
+  getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
 }))
 
 import { loadSummary, saveSummary, purgeSummary, updateSummary, memoKey } from '@/lib/ia/memory'
 
-const ORIG_KEY = process.env.GROQ_API_KEY
+const ORIG_KEY = process.env.GOOGLE_CLOUD_PROJECT
 beforeEach(() => {
   mockGet.mockReset()
   mockSet.mockReset()
   mockDel.mockReset()
   mockCreate.mockReset()
-  delete process.env.GROQ_API_KEY
+  delete process.env.GOOGLE_CLOUD_PROJECT
 })
 afterAll(() => {
-  if (ORIG_KEY === undefined) delete process.env.GROQ_API_KEY
-  else process.env.GROQ_API_KEY = ORIG_KEY
+  if (ORIG_KEY === undefined) delete process.env.GOOGLE_CLOUD_PROJECT
+  else process.env.GOOGLE_CLOUD_PROJECT = ORIG_KEY
 })
 
 test('memoKey : préfixe par utilisateur', () => {
@@ -69,14 +70,14 @@ test('purgeSummary : efface la fiche (droit à l’oubli)', async () => {
   await expect(purgeSummary('u-7')).resolves.toBeUndefined() // fail-soft
 })
 
-test('updateSummary : NO-OP sans clé Groq (pas d’appel LLM)', async () => {
+test('updateSummary : NO-OP si IA non configurée (pas d’appel LLM)', async () => {
   await updateSummary('u-1', 'prior', 'je cherche un stage', 'voici des stages')
   expect(mockCreate).not.toHaveBeenCalled()
   expect(mockSet).not.toHaveBeenCalled()
 })
 
-test('updateSummary : avec clé → met à jour la fiche via le LLM puis la persiste', async () => {
-  process.env.GROQ_API_KEY = 'test-key'
+test('updateSummary : configurée → met à jour la fiche via le LLM puis la persiste', async () => {
+  process.env.GOOGLE_CLOUD_PROJECT = 'cjs-prod'
   mockCreate.mockResolvedValueOnce({ choices: [{ message: { content: '- vise un stage en agro à Thiès' } }] })
   mockSet.mockResolvedValueOnce('OK')
 
@@ -87,8 +88,8 @@ test('updateSummary : avec clé → met à jour la fiche via le LLM puis la pers
 })
 
 test('updateSummary : FAIL-SOFT (LLM throw → ne lève pas, pas de save)', async () => {
-  process.env.GROQ_API_KEY = 'test-key'
-  mockCreate.mockRejectedValueOnce(new Error('groq down'))
+  process.env.GOOGLE_CLOUD_PROJECT = 'cjs-prod'
+  mockCreate.mockRejectedValueOnce(new Error('vertex down'))
   await expect(updateSummary('u-1', 'p', 'q', 'a')).resolves.toBeUndefined()
   expect(mockSet).not.toHaveBeenCalled()
 })
