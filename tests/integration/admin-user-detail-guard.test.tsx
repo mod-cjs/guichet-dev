@@ -12,6 +12,11 @@ jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: { findUnique: (...a: unknown[]) => mockFindUnique(...a) },
     candidature: { count: (...a: unknown[]) => mockCount(...a) },
+    // GUIC-526 — section « Rôles & rattachements » : chargée avant le notFound().
+    // Valeurs vides suffisantes pour ces tests (garde admin + existence).
+    agentCentre: { findMany: jest.fn().mockResolvedValue([]) },
+    organisation: { findFirst: jest.fn().mockResolvedValue(null), findMany: jest.fn().mockResolvedValue([]) },
+    centre: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -52,7 +57,7 @@ describe('GUIC-463 — garde fiche bénéficiaire', () => {
   })
 
   it('given admin + utilisateur existant, then ne redirige pas', async () => {
-    mockGetSession.mockResolvedValue({ roles: ['admin'] })
+    mockGetSession.mockResolvedValue({ cjsUid: 'admin-1', roles: ['admin'] })
     mockFindUnique.mockResolvedValue({
       cjsUid: 'uid-1', prenom: 'Awa', nom: 'Diop', email: null, telephone: null,
       region: null, commune: null, statut: 'actif', role: null, createdAt: new Date(),

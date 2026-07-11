@@ -5,7 +5,11 @@
  * Destinataire = `Opportunite.recruteurUid` en priorité, sinon `org.cjsUid`. Fail-soft.
  */
 jest.mock('@/lib/prisma', () => ({
-  prisma: { opportunite: { findUnique: jest.fn() }, notification: { create: jest.fn() } },
+  prisma: {
+    opportunite: { findUnique: jest.fn() },
+    utilisateur: { findUnique: jest.fn() },
+    notification: { create: jest.fn() },
+  },
 }))
 jest.mock('@/lib/logger', () => ({ logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() } }))
 
@@ -14,12 +18,15 @@ import { notifyRecruteurNouvelleCandidature } from '@/lib/notifications/recruteu
 
 const p = prisma as unknown as {
   opportunite: { findUnique: jest.Mock }
+  utilisateur: { findUnique: jest.Mock }
   notification: { create: jest.Mock }
 }
 
 beforeEach(() => {
   jest.clearAllMocks()
   p.notification.create.mockResolvedValue({})
+  // GUIC-513 — pas de préférence enregistrée → notification envoyée par défaut.
+  p.utilisateur.findUnique.mockResolvedValue(null)
 })
 
 describe('GUIC-488 — notifyRecruteurNouvelleCandidature', () => {

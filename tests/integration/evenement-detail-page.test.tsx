@@ -17,6 +17,10 @@ jest.mock('@/lib/prisma', () => ({
     inscriptionEvenement: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
+    // getEvenementJsonLd (SEO) : null → pas de JSON-LD, hors périmètre de ces tests.
+    evenement: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
   },
 }))
 
