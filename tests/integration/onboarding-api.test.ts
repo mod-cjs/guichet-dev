@@ -201,13 +201,14 @@ describe('PUT /api/v1/onboarding — étape 1 (identité)', () => {
     )
   })
 
-  it('accepte dateNaissance null', async () => {
+  it('refuse dateNaissance null (obligatoire depuis GUIC-431)', async () => {
     mockUpdate.mockResolvedValue({})
     const res = await PUT(makePutRequest({
       step: 1,
       data: { nom: 'Diallo', prenom: 'Fatou', dateNaissance: null, genre: null },
     }))
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(422)
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 
   it('retourne 422 si nom manquant', async () => {
@@ -219,7 +220,7 @@ describe('PUT /api/v1/onboarding — étape 1 (identité)', () => {
     mockUpdate.mockResolvedValue({})
     await PUT(makePutRequest({
       step: 1,
-      data: { nom: 'Sow', prenom: 'Ibrahima', dateNaissance: null, genre: null },
+      data: { nom: 'Sow', prenom: 'Ibrahima', dateNaissance: '1998-03-20', genre: null },
     }))
 
     expect(mockEncodeSession).toHaveBeenCalledWith(

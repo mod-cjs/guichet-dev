@@ -86,14 +86,13 @@ describe('GET /admin/analytics/centres', () => {
     const node = await Page({ searchParams: Promise.resolve({}) })
     render(node as React.ReactElement)
 
-    expect(screen.getByRole('heading', { name: /analytics centres/i, level: 1 })).toBeInTheDocument()
-    expect(screen.getByText(/Total réservations/i)).toBeInTheDocument()
-    expect(screen.getByText(/Taux de check-in/i)).toBeInTheDocument()
-    expect(screen.getByText(/Taux d'annulation/i)).toBeInTheDocument()
-    expect(screen.getByText(/Taux no-show/i)).toBeInTheDocument()
-    expect(screen.getByText(/Réservations par jour/i)).toBeInTheDocument()
-    expect(screen.getByText(/Top 5 centres/i)).toBeInTheDocument()
-    expect(screen.getByText(/Statuts des réservations/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Fréquentation Centres/i, level: 1 })).toBeInTheDocument()
+    expect(screen.getByText(/Part des accès QR/i)).toBeInTheDocument()
+    expect(screen.getByText(/Accès manuels/i)).toBeInTheDocument()
+    expect(screen.getByText(/Total accès/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Accès par QR par jour/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Top 5 centres/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /QR vs saisie manuelle/i })).toBeInTheDocument()
   })
 
   it('affiche le CTA Exporter CSV avec href correct', async () => {
