@@ -43,6 +43,11 @@ describe('Revers léger → consolation, PAS d’escalade (anti sur-escalade)', 
   it('le danger réel prime toujours sur le revers', () => {
     expect(preScreen('j’ai raté mon concours, du coup je veux me suicider')?.action).toBe('escalate')
   })
+  it('trac avant un entretien → conseils directs, PAS d’escalade', () => {
+    const r = preScreen('Je stresse un peu pour mon entretien de demain, tu as des conseils ?')
+    expect(r?.action).toBe('direct')
+    expect(r?.reason).toBe('anxiety')
+  })
 })
 
 describe('Salutations — rotation déterministe (pas de doublon aléatoire)', () => {

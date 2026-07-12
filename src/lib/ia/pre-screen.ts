@@ -173,6 +173,15 @@ const CONSOLATIONS = [
   "Courage, ça arrive et ça ne dit rien de ta valeur. Dis-moi si tu veux qu'on trouve une autre voie ou une formation pour repartir.",
 ]
 
+// Trac / stress AVANT un entretien-examen (émotion ordinaire) → encouragement + conseils directs,
+// JAMAIS une escalade conseiller. Répond à la demande (« des conseils ? ») sans outil ni escalade.
+const RE_ANXIETY = /(stress|trac|anxieu|angois|nerveu|panic|panique|flippe|apprehend|apprehende|pas\s+confiance).{0,30}(entretien|examen|oral|ecrit|concours|test|presentation|rendez-vous|rdv|soutenance)/
+const ADVICE = [
+  "C'est normal d'avoir le trac ! Prépare 2-3 exemples concrets de tes expériences, entraîne-toi à voix haute, et arrive un peu en avance. Tu veux qu'on prépare tes réponses ensemble ?",
+  "Respire, ce stress montre juste que ça compte pour toi. Relis l'offre, prépare une question à poser, et repère bien le lieu à l'avance. Je peux t'aider à t'entraîner si tu veux.",
+  "Le trac, tout le monde connaît ! Mets en avant 2-3 forces, prépare une réponse à « parlez-moi de vous », et dors bien avant. On peut réviser tes points forts ensemble si tu veux.",
+]
+
 /** Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire). */
 const _cursor = new WeakMap<string[], number>()
 function pick(pool: string[]): string {
@@ -201,6 +210,9 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
     return { action: 'refuse', reply: REFUSALS.third, reason: 'third_party' }
   }
 
+  // Trac avant un entretien/examen → encouragement + conseils directs (jamais d'escalade).
+  // Placé avant le revers car « je stresse … tu as des conseils ? » porte une intention actionnable.
+  if (RE_ANXIETY.test(t)) return { action: 'direct', reply: pick(ADVICE), reason: 'anxiety' }
   // Revers ordinaire sans intention actionnable → consolation directe (anti sur-escalade).
   if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS), reason: 'setback' }
 
