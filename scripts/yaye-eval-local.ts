@@ -87,7 +87,12 @@ function evaluate(sc: EvalScenario, out: AgentOut) {
     checks.push({ name: 'args', pass: a.pass, detail: a.detail })
   }
   if (sc.expectEscalation) {
-    checks.push({ name: 'escalation', pass: hasEscalade(out), hard: true, detail: hasEscalade(out) ? 'escalade émise' : 'PAS d’escalade' })
+    const escalated = hasEscalade(out) || out.toolsUsed.includes('escalate_to_advisor')
+    checks.push({ name: 'escalation', pass: escalated, hard: true, detail: escalated ? 'escalade émise' : 'PAS d’escalade' })
+  }
+  if (sc.mustNotEscalate) {
+    const escalated = hasEscalade(out) || out.toolsUsed.includes('escalate_to_advisor')
+    checks.push({ name: 'no-over-escalation', pass: !escalated, hard: true, detail: escalated ? 'escalade à tort (simple déception)' : 'pas d’escalade — ok' })
   }
   if (sc.mustRefuse) {
     const refused = detectRefusal(out.reply) && nonEscaladeTools.length === 0

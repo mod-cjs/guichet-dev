@@ -12,7 +12,17 @@
 // épargne le tutoiement à la 1re personne (« MON badge », « MES candidatures ») via l'appel
 // uniquement sur des marqueurs de tiers explicites.
 
-export type PreScreenAction = 'refuse' | 'direct'
+export type PreScreenAction = 'refuse' | 'direct' | 'escalate'
+
+/** Signaux de danger (alignés sur DANGER_SIGNALS de tools.ts). */
+export type DangerSignal =
+  | 'violence'
+  | 'harcelement'
+  | 'abus_sexuel'
+  | 'exploitation'
+  | 'automutilation_suicide'
+  | 'discrimination'
+  | 'autre_danger'
 
 export interface PreScreenResult {
   action: PreScreenAction
@@ -20,11 +30,41 @@ export interface PreScreenResult {
   reply: string
   /** Motif (journalisation / éval). */
   reason: string
+  /** Renseigné quand action === 'escalate' : signal de danger à transmettre. */
+  dangerSignal?: DangerSignal
 }
 
 function norm(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[''´`]/g, "'") // apostrophes courbes → droite (robustesse des motifs)
 }
+
+// ── DANGER — filet de sécurité déterministe (priorité ABSOLUE) ────────────────
+// Détecte des formulations de danger EXPLICITES pour garantir l'escalade humaine même
+// si le modèle passe à côté. Volontairement HAUTE PRÉCISION (phrases nettes) : on préfère
+// rater une tournure ambiguë (le modèle reste le 1er filet) que sur-signaler à tort.
+// Politique CDP : « en cas de doute, signale » — mais ici on borne pour éviter le bruit.
+
+const DANGER_PATTERNS: readonly (readonly [RegExp, DangerSignal])[] = [
+  [/(me\s+suicider|me\s+tuer|mettre\s+fin\s+a\s+mes\s+jours|je\s+veux\s+mourir|veux\s+en\s+finir|envie\s+d'?en\s+finir|en\s+finir\s+avec\s+(la\s+vie|tout)|plus\s+envie\s+de\s+vivre|disparaitre|me\s+faire\s+du\s+mal|m'?automutil|me\s+mutiler|me\s+scarifi)/, 'automutilation_suicide'],
+  [/((on|il|elle|mon\s+(mari|conjoint|copain|pere|frere|patron))\s+me\s+(frappe|bat|cogne|roue\s+de\s+coups|tabasse)|je\s+suis\s+(frappe|battu|tabasse)|violences?\s+(conjugal|domestique|familial|a\s+la\s+maison))/, 'violence'],
+  [/(attouchement|abus\s+sexuel|on\s+m'?a\s+viol|je\s+me\s+suis\s+fait\s+viol|forc[e]*e?\s+a\s+des\s+(rapport|relation|acte)s?\s+sexuel|rapport\s+sexuel\s+sous\s+contrainte|photos?\s+intimes?\s+sous\s+(la\s+)?contrainte)/, 'abus_sexuel'],
+  [/(harcele|cyberharcel)/, 'harcelement'],
+  [/(travail\s+force|papiers?[^.]{0,15}confisqu|confisqu[^.]{0,15}(mes\s+)?papiers|fait\s+travailler\s+sans\s+(me\s+)?payer|on\s+me\s+force\s+a\s+travailler|mendicite\s+forcee|je\s+suis\s+exploite\s+au\s+travail)/, 'exploitation'],
+]
+
+/** Détecte un signal de danger explicite dans le message, ou null. */
+export function detectDanger(message: string): DangerSignal | null {
+  const t = norm(message)
+  for (const [re, sig] of DANGER_PATTERNS) if (re.test(t)) return sig
+  return null
+}
+
+const DANGER_REPLY =
+  "Merci de m'en avoir parlé, tu as bien fait. Je transmets tout de suite à une personne de confiance du CJS qui va te recontacter — tu n'es pas seul·e."
 
 // ── P0 — refus de sécurité / CDP / injection ─────────────────────────────────
 
@@ -109,7 +149,11 @@ function pick(pool: string[]): string {
 export function preScreen(message: string, firstTurn = true): PreScreenResult | null {
   const t = norm(message)
 
-  // P0 — sécurité d'abord (ordre : injection > export massif > agrégat > tiers).
+  // DANGER — priorité absolue : force l'escalade humaine (filet de sécurité).
+  const danger = detectDanger(message)
+  if (danger) return { action: 'escalate', reply: DANGER_REPLY, reason: `danger:${danger}`, dangerSignal: danger }
+
+  // P0 — sécurité (ordre : injection > export massif > agrégat > tiers).
   if (RE_INJECTION.test(t)) return { action: 'refuse', reply: REFUSALS.injection, reason: 'injection' }
   if (RE_MASS_EXPORT.test(t)) return { action: 'refuse', reply: REFUSALS.mass, reason: 'mass_export' }
   if (RE_AGGREGATE.test(t)) return { action: 'refuse', reply: REFUSALS.aggregate, reason: 'aggregate' }

@@ -73,6 +73,38 @@ d'outils, sorties invalides) ; l'ambigu/underspecified n'est pas clarifié.
 
 ---
 
+## P0.5 — Danger & escalade (sécurité vitale) — *filet livré + pistes*
+
+**Livré** : filet de sécurité DÉTERMINISTE (`pre-screen.ts` → `detectDanger`) qui, sur des
+formulations de danger explicites (suicide/automutilation, violence, harcèlement, abus sexuel,
+exploitation), **force `escalate_to_advisor`** avec le bon `signal_danger` AVANT tout autre outil —
+même si le modèle l'aurait ratée. Dataset : catégorie `danger-escalation` (hard-fail) couvrant les
+7 signaux + la **calibration anti sur-escalade** (une simple déception ne doit PAS escalader).
+
+**Pistes complémentaires :**
+1. **Ressources d'urgence.** Après une escalade danger, joindre un bloc statique « en cas d'urgence
+   immédiate » (numéro vert national, ligne d'écoute) — donnée publique, jamais de tiers.
+2. **Idempotence d'escalade.** Ne pas ré-escalader deux fois dans la même session (déjà partiellement
+   géré par `escalade.ts` / event_id) — vérifier côté danger forcé.
+3. **Couverture discrimination / détresse diffuse.** Ces signaux restent subtils (dépendants du modèle) :
+   les garder au prompt + few-shot, pas au filet déterministe (risque de faux positifs).
+4. **Ton de l'escalade.** Réponse douce, sans jugement, sans demander de détails intimes (déjà au prompt) —
+   à vérifier à l'éval (persona sur les scénarios danger).
+
+## P3 — Robustesse du petit modèle (erreurs moteur)
+
+Le 8B renvoie ~10-15 % d'erreurs moteur (« The model produced output that … » / contexte dépassé).
+1. **Retry ciblé** dans le client : sur erreur de décodage contraint, ré-essayer une fois sans `tools`
+   (réponse directe) ou avec `max_tokens` réduit → évite l'échec sec.
+2. **Résumé** (pas seulement troncature) des résultats d'outils volumineux pour tenir le contexte.
+3. **Fallback modèle** : si le modèle local échoue, basculer sur un modèle plus petit/robuste chargé en secours.
+
+## P4 — Ancrage renforcé (au-delà du prompt)
+
+Post-filtre runtime : si la réponse contient un **specific non ancré** (montant, email, téléphone
+absent des données outils — cf. `containsUngroundedSpecifics`), le retirer / le remplacer par « je ne
+l'ai pas ». Complète la règle de prompt pour les modèles qui hallucinent encore.
+
 ## Boucle d'amélioration (à répéter)
 
 ```

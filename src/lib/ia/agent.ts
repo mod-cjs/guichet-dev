@@ -303,9 +303,16 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     centreId: p.centreId ?? null,
     canal: p.canal,
   }
-  // Garde-fou DÉTERMINISTE avant tout outil (P0 sécurité/CDP/injection + P1 petites interactions).
+  // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
   const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
   if (screen) {
+    if (screen.action === 'escalate') {
+      // Danger repéré → on FORCE l'escalade conseiller (crée la trace + notifie), même si le modèle l'aurait ratée.
+      const gstate: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
+      const call: ToolCallLike = { id: 'guard-danger', function: { name: 'escalate_to_advisor', arguments: JSON.stringify({ motif: 'sujet_sensible', signal_danger: screen.dangerSignal }) } }
+      await executeToolCall(call, ctx, base, gstate)
+      return { reply: screen.reply, blocks: dedupeBlocks([{ kind: 'text', text: screen.reply }, ...gstate.blocks]), toolsUsed: gstate.toolsUsed, toolCalls: gstate.toolCalls }
+    }
     await logAgentEvent({ ...base, typeEvenement: 'reponse_generee', payload: { prescreen: screen.action, motif: screen.reason } })
     return { reply: screen.reply, blocks: [{ kind: 'text', text: screen.reply }], toolsUsed: [], toolCalls: [] }
   }
@@ -396,9 +403,17 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   const ctx: ToolCtx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
 
-  // Garde-fou DÉTERMINISTE avant tout outil (P0 sécurité/CDP/injection + P1 petites interactions).
+  // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
   const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
   if (screen) {
+    if (screen.action === 'escalate') {
+      const gstate: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
+      const call: ToolCallLike = { id: 'guard-danger', function: { name: 'escalate_to_advisor', arguments: JSON.stringify({ motif: 'sujet_sensible', signal_danger: screen.dangerSignal }) } }
+      await executeToolCall(call, ctx, base, gstate)
+      yield { type: 'token', text: screen.reply }
+      yield { type: 'done', reply: screen.reply, blocks: dedupeBlocks([{ kind: 'text', text: screen.reply }, ...gstate.blocks]), toolsUsed: gstate.toolsUsed, toolCalls: gstate.toolCalls }
+      return
+    }
     await logAgentEvent({ ...base, typeEvenement: 'reponse_generee', payload: { prescreen: screen.action, motif: screen.reason } })
     yield { type: 'token', text: screen.reply }
     yield { type: 'done', reply: screen.reply, blocks: [{ kind: 'text', text: screen.reply }], toolsUsed: [], toolCalls: [] }
