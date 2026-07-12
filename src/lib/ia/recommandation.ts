@@ -97,3 +97,42 @@ export async function getRecommandations(cjsUid: string): Promise<Recommandation
   }
   return refreshRecommandations(cjsUid).catch(() => [])
 }
+
+/**
+ * PRÉCALCUL BATCH (spec 02 §0 — « même calcul exécuté en avance ») : recompute + persiste
+ * les recommandations pour les bénéficiaires ACTIFS (≥1 candidature = signal collaboratif),
+ * afin que `get_recommendations` et la contextualisation servent le cache (latence + push
+ * proactif) au lieu de recalculer à la volée. Concurrence bornée. Fail-soft par utilisateur.
+ */
+export async function precomputeRecommandations(
+  opts: { limit?: number; concurrency?: number; wipeStale?: boolean } = {},
+): Promise<{ processed: number; failed: number; purged: number; durationMs: number }> {
+  const started = Date.now()
+  const concurrency = Math.max(1, Math.min(8, opts.concurrency ?? 4))
+  // Purge COMPLÈTE du cache (reconstructible) avant repopulation : élimine les lignes
+  // périmées OU issues d'anciennes versions — dont d'éventuelles `raison` qui divulgueraient
+  // un agrégat d'autres usagers (garde CDP). Les inactifs se réchaufferont à la demande.
+  let purged = 0
+  if (opts.wipeStale !== false) {
+    purged = (await prisma.recommandationIA.deleteMany({})).count
+  }
+  const rows = await prisma.candidature.findMany({
+    distinct: ['cjsUid'],
+    select: { cjsUid: true },
+    orderBy: { soumiseA: 'desc' },
+    ...(opts.limit ? { take: opts.limit } : {}),
+  })
+  const uids = rows.map(r => r.cjsUid)
+  let processed = 0
+  let failed = 0
+  for (let i = 0; i < uids.length; i += concurrency) {
+    await Promise.all(
+      uids.slice(i, i + concurrency).map(uid =>
+        refreshRecommandations(uid)
+          .then(() => { processed++ })
+          .catch(() => { failed++ }),
+      ),
+    )
+  }
+  return { processed, failed, purged, durationMs: Date.now() - started }
+}
