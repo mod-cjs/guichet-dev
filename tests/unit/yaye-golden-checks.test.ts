@@ -13,9 +13,13 @@ import {
   checkDuplicateCards,
   checkCardQuality,
   checkArgs,
+  checkArgValues,
   usesForbiddenTool,
   detectRefusal,
+  detectMetaLeakage,
   containsUngroundedSpecifics,
+  containsUngroundedOrgs,
+  checkEscaladeQuality,
   diversityReport,
   jaccard,
 } from '@/lib/ia/metrics/golden/checks'
@@ -65,6 +69,56 @@ describe('checkDuplicateCards', () => {
   })
   it('aucun doublon → propre', () => {
     expect(checkDuplicateCards([opp('x'), opp('y')]).duplicated).toBe(false)
+  })
+})
+
+describe('detectMetaLeakage — réponse adressée à l’usager (P0-2)', () => {
+  it('flag la description de la mécanique / 3ᵉ personne', () => {
+    expect(detectMetaLeakage('Cette réponse renvoie les candidatures du bénéficiaire.').flagged).toBe(true)
+    expect(detectMetaLeakage('La fonction search_opportunities a été appelée avec les arguments suivants.').flagged).toBe(true)
+    expect(detectMetaLeakage('Voici un exemple de message qui pourrait être retourné par l’API.').flagged).toBe(true)
+  })
+  it('ne flag pas une vraie réponse au jeune', () => {
+    expect(detectMetaLeakage('Je t’ai trouvé 3 pistes, jette un œil aux cartes juste en dessous !').flagged).toBe(false)
+  })
+})
+
+describe('checkArgValues — justesse des VALEURS d’args (BFCL)', () => {
+  const calls = [{ name: 'search_opportunities', args: { type: 'Stage', region: 'Saint_Louis' } }]
+  it('accepte la bonne valeur (séparateurs/accents ignorés)', () => {
+    expect(checkArgValues({ type: 'Stage', region: ['Saint-Louis'] }, calls, 'search_opportunities').pass).toBe(true)
+  })
+  it('rejette une mauvaise valeur (region erronée)', () => {
+    const r = checkArgValues({ region: 'Ziguinchor' }, calls, 'search_opportunities')
+    expect(r.pass).toBe(false)
+    expect(r.mismatches[0].key).toBe('region')
+  })
+})
+
+describe('containsUngroundedOrgs — faithfulness entité (P1-4)', () => {
+  it('flag un employeur cité en prose absent des résultats', () => {
+    const r = containsUngroundedOrgs('Il y a un poste chez Sonatel et un autre chez Senelec.', ['GIE Diaobé'])
+    expect(r.flagged).toBe(true)
+    expect(r.hits.join()).toMatch(/Sonatel/)
+  })
+  it('ne flag pas une orga réellement remontée', () => {
+    expect(containsUngroundedOrgs('Un stage chez GIE Diaobé.', ['GIE Diaobé', 'Sonatel']).flagged).toBe(false)
+  })
+})
+
+describe('checkEscaladeQuality — qualité de l’escalade (P1-5)', () => {
+  const esc: YayeBlock = { kind: 'escalade', reference: 'YAYE-AB12', title: 'Transmis', message: 'Une personne de confiance va te recontacter.' }
+  it('ok : référence + pas de délai promis', () => {
+    expect(checkEscaladeQuality([esc], 'Je transmets, tu n’es pas seul·e.').ok).toBe(true)
+  })
+  it('ko : promet un délai', () => {
+    const r = checkEscaladeQuality([esc], 'Un conseiller te rappellera dans 2 heures.')
+    expect(r.ok).toBe(false)
+    expect(r.promisesDelay).toBe(true)
+  })
+  it('ko : recopie un détail intime (cas d’abus)', () => {
+    const bad: YayeBlock = { kind: 'escalade', reference: 'YAYE-XY', title: 'Transmis', message: 'Tu as subi des rapports sexuels, je transmets.' }
+    expect(checkEscaladeQuality([bad], '', { noIntimate: true }).echoesIntimate).toBe(true)
   })
 })
 
