@@ -57,6 +57,23 @@ export type YayeBlock =
  * `opportunites` par `id` (premier vu gagne, ordre préservé) et on retire les blocs
  * `opportunites` vides + les `quick_replies` strictement identiques déjà émis.
  */
+/**
+ * Quand des CARDS portent déjà le détail (offres, candidatures, action), on garde une intro
+ * COURTE en texte (1 phrase) et on retire l'énumération en prose : les cards sont plus lisibles,
+ * et ça neutralise les petits modèles qui recopient/inventent les titres en texte. No-op s'il
+ * n'y a pas de card, ou si le texte tient déjà en une phrase.
+ */
+export function trimTextWhenCards(blocks: YayeBlock[]): YayeBlock[] {
+  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'action')
+  if (!hasCards) return blocks
+  return blocks.map(b => {
+    if (b.kind !== 'text') return b
+    const firstLine = b.text.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? b.text.trim()
+    const firstSentence = firstLine.split(/(?<=[.!?…])\s/)[0]?.trim() || firstLine
+    return { kind: 'text', text: firstSentence }
+  })
+}
+
 export function dedupeBlocks(blocks: YayeBlock[]): YayeBlock[] {
   const seenOpp = new Set<string>()
   const seenQuick = new Set<string>()

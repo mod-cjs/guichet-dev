@@ -4,7 +4,7 @@
  * Jalon E+ — checks déterministes de qualité conversationnelle + dédup des cards.
  * Modules PURS : aucun mock.
  */
-import { dedupeBlocks, type YayeBlock } from '@/lib/ia/blocks'
+import { dedupeBlocks, trimTextWhenCards, type YayeBlock } from '@/lib/ia/blocks'
 import {
   firstTool,
   countSentences,
@@ -37,6 +37,22 @@ describe('dedupeBlocks — anti cards en double', () => {
     const out = dedupeBlocks([opp('a'), opp('a'), qr, qr])
     expect(out.filter((b) => b.kind === 'opportunites')).toHaveLength(1)
     expect(out.filter((b) => b.kind === 'quick_replies')).toHaveLength(1)
+  })
+})
+
+describe('trimTextWhenCards — cards plutôt que prose', () => {
+  it('avec cards : garde 1 phrase, coupe l’énumération', () => {
+    const out = trimTextWhenCards([
+      { kind: 'text', text: 'Voici tes candidatures :\n- Offre A\n- Offre B\n- Offre C' },
+      opp('a'),
+    ])
+    const txt = (out[0] as { text: string }).text
+    expect(txt).toBe('Voici tes candidatures :')
+    expect(txt).not.toContain('Offre A')
+  })
+  it('sans card : le texte est intact', () => {
+    const blocks: YayeBlock[] = [{ kind: 'text', text: 'Une phrase. Puis une autre.' }]
+    expect(trimTextWhenCards(blocks)).toEqual(blocks)
   })
 })
 

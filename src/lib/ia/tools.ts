@@ -110,8 +110,9 @@ const getRealtimeData: AgentTool = {
     function: {
       name: 'get_realtime_data',
       description:
-        'Données temps réel de l\'utilisateur : état de ses candidatures (nombre, statuts) ' +
-        'et nombre de favoris. Utile pour répondre « où en sont mes candidatures ? ».',
+        'Données temps réel de l\'utilisateur : ses candidatures et son nombre de favoris. ' +
+        'Renvoie les candidatures en CARDS cliquables (le statut est porté par la card) — ' +
+        'présente-les en UNE phrase, ne les énumère jamais en prose. Utile pour « où en sont mes candidatures ? ».',
       parameters: {
         type: 'object',
         properties: {
@@ -128,22 +129,51 @@ const getRealtimeData: AgentTool = {
   async execute(args, ctx) {
     const scope = (args.scope as string) ?? 'tout'
     const out: Record<string, unknown> = {}
+    // Statut lisible affiché SUR la card (jamais d'emoji, cf. règles UI).
+    const STATUT_LABEL: Record<string, string> = {
+      En_attente: 'Candidature envoyée',
+      Vue: 'Vue par le recruteur',
+      Retenue: 'Retenue',
+      Refusee: 'Non retenue',
+    }
+    let block: YayeBlock | undefined
 
     if (scope === 'candidatures' || scope === 'tout') {
-      const grouped = await prisma.candidature.groupBy({
-        by: ['statut'],
-        where: { cjsUid: ctx.cjsUid },
-        _count: { _all: true },
-      })
-      out.candidatures = {
-        total: grouped.reduce((n, g) => n + g._count._all, 0),
-        parStatut: Object.fromEntries(grouped.map(g => [g.statut, g._count._all])),
-      }
+      // Total réel + 5 dernières candidatures affichées en CARDS cliquables (statut en note),
+      // au lieu d'une énumération en prose. On ne renvoie au LLM que le décompte (anti-redondance).
+      const [total, cands] = await Promise.all([
+        prisma.candidature.count({ where: { cjsUid: ctx.cjsUid } }),
+        prisma.candidature.findMany({
+          where: { cjsUid: ctx.cjsUid },
+          orderBy: { soumiseA: 'desc' },
+          take: 5,
+          select: {
+            statut: true,
+            opportunite: {
+              select: { id: true, slug: true, titre: true, type: true, region: true, organisation: true, organisationLibelle: true, deadline: true },
+            },
+          },
+        }),
+      ])
+      out.candidatures = { total }
+      const items: YayeOppItem[] = cands
+        .filter(c => c.opportunite)
+        .map(c => ({
+          id: c.opportunite!.id,
+          slug: c.opportunite!.slug,
+          titre: c.opportunite!.titre,
+          type: String(c.opportunite!.type),
+          organisation: c.opportunite!.organisationLibelle ?? c.opportunite!.organisation ?? null,
+          region: c.opportunite!.region ? String(c.opportunite!.region) : null,
+          deadline: c.opportunite!.deadline ? c.opportunite!.deadline.toISOString() : null,
+          note: STATUT_LABEL[c.statut] ?? String(c.statut),
+        }))
+      if (items.length > 0) block = { kind: 'opportunites', items }
     }
     if (scope === 'favoris' || scope === 'tout') {
       out.favoris = await prisma.opportuniteFavorite.count({ where: { cjsUid: ctx.cjsUid } })
     }
-    return { ok: true, data: out }
+    return { ok: true, data: out, block }
   },
 }
 
