@@ -144,6 +144,16 @@ const PRESENTATIONS = [
   "Yaye, ta grande sœur numérique du CJS. Je cherche offres et formations pour toi, je suis tes démarches, je te réserve une salle ou sors ton badge. Par quoi on attaque ?",
 ]
 
+// Message PUREMENT vague (« aide-moi », « je sais pas quoi faire ») → UNE question de
+// clarification, sans outil (au lieu de deviner un outil ou d'escalader). Ancré : ne matche
+// QUE le message isolé — « aide-moi à trouver un stage » a une intention → laissé à l'agent.
+const RE_VAGUE = /^(aide-?\s*moi|aide|au\s+secours|je\s+(ne\s+)?sais\s+pas\s+(trop\s+)?(quoi\s+faire)?|help)\s*[!.?…]*$/
+const CLARIFY = [
+  "Je suis là pour ça ! Dis-moi : tu cherches plutôt un emploi, une formation, ou un coup de main sur tes démarches ?",
+  "Avec plaisir ! Tu penses à quoi — une offre, une réservation au centre, ou ton badge ?",
+  "On va trouver ensemble ! C'est côté boulot, études, ou autre chose ?",
+]
+
 // Hors-périmètre évident (météo, sport, actu, recette…) → recadrage chaleureux, sans outil.
 const RE_OFFTOPIC = /(quel\s+temps|la\s+meteo|il\s+va\s+(pleuvoir|faire\s+beau)|resultat\s+(du\s+)?match|score\s+du\s+match|qui\s+a\s+gagne\s+le\s+match|recette\s+(de|pour)|comment\s+cuisiner|raconte(-moi)?\s+une\s+blague|capitale\s+d[eu]|qui\s+est\s+le\s+president|les\s+actualites|les\s+news)/
 const OFFTOPIC = [
@@ -179,6 +189,8 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
   if (RE_SELF_PRESENT.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
   if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC), reason: 'offtopic' }
+  // Message purement vague (1er tour) → question de clarification, sans outil.
+  if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY), reason: 'clarify' }
 
   // P1 — petites interactions (1er tour uniquement, et seulement sans intention actionnable).
   if (firstTurn && !RE_HAS_ACTION.test(t)) {

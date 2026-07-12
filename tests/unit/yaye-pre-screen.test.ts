@@ -89,4 +89,10 @@ describe('présentation de soi + hors-sujet → réponse directe (sans outil ni 
     expect(preScreen('le résultat du match d’hier ?')?.reason).toBe('offtopic')
     expect(preScreen('donne-moi une recette de thiéboudienne')?.action).toBe('direct')
   })
+  it('message purement vague (1er tour) → clarification, mais « aide-moi à … » passe à l’agent', () => {
+    expect(preScreen('Aide-moi')?.reason).toBe('clarify')
+    expect(preScreen('je sais pas quoi faire')?.reason).toBe('clarify')
+    expect(preScreen('Aide-moi à trouver un stage à Thiès')).toBeNull() // intention actionnable
+    expect(preScreen('Aide-moi', false)).toBeNull() // pas en cours de conversation
+  })
 })
