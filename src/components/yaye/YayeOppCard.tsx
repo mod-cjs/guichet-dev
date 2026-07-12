@@ -4,7 +4,7 @@ import Link from 'next/link'
 import type { TypeOpportunite } from '@prisma/client'
 import { Icon } from '@/components/ui'
 import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
-import { TYPE_ICON, typeAccentBorder } from '@/components/opportunites/opportunite-type-meta'
+import { TYPE_ICON, typeAccentBorder, actionLabelForType } from '@/components/opportunites/opportunite-type-meta'
 import { buildDeadlineInfo } from '@/components/opportunites/OppCard'
 import { regionLabel } from '@/lib/regions'
 import type { YayeOppItem } from '@/lib/ia/blocks'
@@ -19,6 +19,8 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
   const dl = buildDeadlineInfo(opp.deadline)
   const region = regionLabel(opp.region)
   const type = opp.type as TypeOpportunite
+  // CTA propre au type (design v4) : override admin si fourni, sinon défaut par type.
+  const ctaLabel = opp.actionLabel ?? actionLabelForType(type)
 
   return (
     <article
@@ -73,10 +75,11 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
       <Link
         href={`/opportunites/${opp.slug}?postuler=1`}
         onClick={onNavigate}
+        aria-label={`${ctaLabel} : ${opp.titre}`}
         className="relative z-10 self-start rounded-gj-lg bg-gj-teal-deep text-white
           px-space-3 py-[6px] text-fs-200 font-bold inline-flex items-center gap-1"
       >
-        Candidater
+        {ctaLabel}
         <Icon name="arrow-right" size={13} aria-hidden />
       </Link>
     </article>

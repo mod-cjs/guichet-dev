@@ -53,3 +53,24 @@ export const TONE_ACCENT_BORDER: Record<OpportuniteTone, string> = {
 export function typeAccentBorder(type: TypeOpportunite): string {
   return `border-l-[5px] ${TONE_ACCENT_BORDER[TYPE_TONE[type] ?? 'grey']}`
 }
+
+/**
+ * Libellé d'action (CTA) propre à chaque type — la « carte fortement typée » du design v4
+ * (yaye-web.jsx §Opportunités) : chaque opportunité porte SON action, pas un « Candidater »
+ * générique. On postule à un emploi, on s'inscrit à une formation, on dépose un projet…
+ * `OpportuniteType.actionLabel` (configurable admin) prime quand il est chargé ; sinon on
+ * retombe sur ce défaut déterministe par type.
+ */
+export const TYPE_ACTION_LABEL: Record<TypeOpportunite, string> = {
+  Emploi: 'Postuler',
+  Stage: 'Postuler',
+  Formation: "S'inscrire",
+  Bourse: 'Soumettre un dossier',
+  Volontariat: 'Rejoindre',
+  Appel_a_projets: 'Déposer un projet',
+}
+
+/** CTA à afficher pour un type (défaut déterministe, cf. `TYPE_ACTION_LABEL`). */
+export function actionLabelForType(type: TypeOpportunite): string {
+  return TYPE_ACTION_LABEL[type] ?? 'Candidater'
+}

@@ -15,6 +15,8 @@ export interface YayeOppItem {
   deadline: string | null // ISO 8601
   /** Contexte affiché SUR la card (ex. raison de reco « plébiscitée par… ») — jamais en prose. */
   note?: string | null
+  /** CTA propre au type (« S'inscrire », « Postuler »…) ; override admin. Défaut par type sinon. */
+  actionLabel?: string | null
 }
 
 /** Réponse rapide tappable : `label` affiché, `value` renvoyé comme message. */
