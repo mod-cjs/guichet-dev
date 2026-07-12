@@ -161,9 +161,24 @@ const OFFTOPIC = [
   "Je ne saurais pas t'aider là-dessus, désolée. Mais côté opportunités, formations ou candidatures, dis-moi tout !",
 ]
 
-/** Choix varié sans dépendance externe (évite deux réponses identiques d'affilée). */
+// Revers LÉGER (échec/déception ponctuelle) SANS signal de danger → consolation + rebond,
+// JAMAIS d'escalade. Corrige la sur-escalade des petits modèles (« j'ai raté mon concours »
+// escaladé comme un danger). Le danger réel est déjà intercepté plus haut ; ce garde-fou ne
+// voit donc que des revers ordinaires, et seulement sans intention actionnable.
+const RE_MILD_SETBACK =
+  /(rate|ratee|echoue|echouee|recale|recalee|loupe|loupee|foire|pas\s+eu|pas\s+reussi|pas\s+ete\s+pris)\b.{0,30}(concours|examen|entretien|test|selection|oral|ecrit)|j'?ai\s+(rate|echoue|loupe|foire)\b|je\s+suis\s+(un\s+peu\s+)?(decu|decue|degoute|degoutee|triste|decourage|decouragee|demoralise|demoralisee)\b/
+const CONSOLATIONS = [
+  "Ah, je comprends que ce soit décevant — mais ce n'est pas la fin du parcours. Si tu veux, on regarde d'autres pistes ou une formation pour rebondir ?",
+  "C'est dur sur le moment, mais un revers n'efface pas ton potentiel. On cherche ensemble une nouvelle opportunité quand tu veux.",
+  "Courage, ça arrive et ça ne dit rien de ta valeur. Dis-moi si tu veux qu'on trouve une autre voie ou une formation pour repartir.",
+]
+
+/** Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire). */
+const _cursor = new WeakMap<string[], number>()
 function pick(pool: string[]): string {
-  return pool[Math.floor(Math.random() * pool.length)]
+  const i = _cursor.get(pool) ?? 0
+  _cursor.set(pool, (i + 1) % pool.length)
+  return pool[i]
 }
 
 /**
@@ -185,6 +200,9 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   if (RE_THIRD_PERSON.test(t) || RE_THIRD_NAMED.test(message) || RE_THIRD_CONTACT.test(t)) {
     return { action: 'refuse', reply: REFUSALS.third, reason: 'third_party' }
   }
+
+  // Revers ordinaire sans intention actionnable → consolation directe (anti sur-escalade).
+  if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS), reason: 'setback' }
 
   // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
   if (RE_SELF_PRESENT.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
