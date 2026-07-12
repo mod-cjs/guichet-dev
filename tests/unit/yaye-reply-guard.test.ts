@@ -61,3 +61,21 @@ describe('stripLeadingGreeting / finalizeReply — pas de re-salutation en cours
     expect(finalizeReply('Bonjour !', [opp], false)).toBe('Voici ce que j’ai trouvé pour toi.')
   })
 })
+
+describe('GUIC-540 — anti faux positifs méta (conseils utiles préservés)', () => {
+  const cases = [
+    'Pour cette offre, il faudrait surtout ajouter Excel à ton profil.',
+    'Il faudrait que tu complètes ton CV avant de postuler.',
+    'Prépare ton argument principal et un exemple concret pour l’entretien.',
+    'Ton profil colle bien, mais la réponse est entre les mains du recruteur.',
+  ]
+  it.each(cases)('n’est PAS considéré comme méta : %s', (reply) => {
+    expect(detectMetaLeakage(reply).flagged).toBe(false)
+    expect(repairMetaReply(reply, [opp])).toBe(reply) // aucune réécriture
+  })
+  it('une VRAIE fuite de mécanique reste détectée', () => {
+    expect(detectMetaLeakage(META).flagged).toBe(true)
+    expect(detectMetaLeakage('Voici un exemple de message à afficher.').flagged).toBe(true)
+    expect(detectMetaLeakage('La fonction get_badge a été appelée.').flagged).toBe(true)
+  })
+})

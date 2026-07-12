@@ -76,6 +76,34 @@ export function trimTextWhenCards(blocks: YayeBlock[]): YayeBlock[] {
   })
 }
 
+/**
+ * Nombre MAXIMAL d'opportunités montrées par réponse (décision produit) : au-delà,
+ * l'utilisateur est noyé — 3 offres bien ciblées valent mieux qu'une longue liste.
+ * Plafond GLOBAL (toutes cards « opportunites » confondues : recherche, reco, graphe).
+ */
+export const MAX_OPP_ITEMS = 3
+
+/**
+ * Plafonne le nombre TOTAL d'opportunités affichées à `max` (défaut MAX_OPP_ITEMS), tous
+ * blocs `opportunites` confondus, dans l'ordre. Les items en trop sont retirés ; un bloc
+ * vidé disparaît. À appliquer APRÈS `dedupeBlocks` (pour garder les 3 meilleures, dédoublonnées).
+ */
+export function capOpportunites(blocks: YayeBlock[], max = MAX_OPP_ITEMS): YayeBlock[] {
+  let remaining = max
+  const out: YayeBlock[] = []
+  for (const b of blocks) {
+    if (b.kind === 'opportunites') {
+      if (remaining <= 0) continue
+      const items = b.items.slice(0, remaining)
+      remaining -= items.length
+      if (items.length > 0) out.push({ kind: 'opportunites', items })
+    } else {
+      out.push(b)
+    }
+  }
+  return out
+}
+
 export function dedupeBlocks(blocks: YayeBlock[]): YayeBlock[] {
   const seenOpp = new Set<string>()
   const seenQuick = new Set<string>()

@@ -21,7 +21,7 @@ import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
-import type { YayeBlock, YayeOppItem } from './blocks'
+import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem } from './blocks'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
 async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
@@ -221,7 +221,8 @@ const searchOpportunities: AgentTool = {
         organisation: true, organisationLibelle: true, deadline: true,
       },
       orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
-      take: 5,
+      // Plafond produit : on ne montre que les meilleures offres (cf. MAX_OPP_ITEMS).
+      take: MAX_OPP_ITEMS,
     })
 
     const items: YayeOppItem[] = rows.map(r => ({

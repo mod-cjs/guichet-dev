@@ -9,12 +9,16 @@
 import type { YayeBlock } from './blocks'
 
 /** Marqueurs d'une réponse qui n'est pas adressée à l'utilisateur (fuite de mécanique/raisonnement). */
+// NB : on ne garde ICI que des marqueurs SPÉCIFIQUES à la mécanique (noms d'outils/ids,
+// tournures « la fonction… a été appelée », « voici un exemple de message »). Les locutions
+// FR courantes qui déclenchaient des faux positifs — « il faudrait », « argument », « la
+// réponse est », « paramètre », « json », « api » — ont été retirées : une réponse utile
+// (« il faudrait ajouter Excel », « prépare ton argument ») n'est PAS une fuite de mécanique.
 export const META_MARKERS = [
   'la fonction',
   'cette fonction',
   'appeler la fonction',
   "l'outil",
-  'la réponse est',
   'cette réponse',
   'voici une réponse',
   'voici un exemple',
@@ -23,18 +27,12 @@ export const META_MARKERS = [
   'le message affiché',
   'le message à afficher',
   'réponse possible',
-  'il faudrait',
   'on pourrait dire',
   'je pourrais dire',
-  'paramètre',
   'les arguments suivants',
-  'argument ',
   'opportuniteid',
   'ressourceid',
   'scope=',
-  'json',
-  ' api ',
-  "l'api",
   'search_opportunities',
   'get_realtime_data',
   'get_recommendations',

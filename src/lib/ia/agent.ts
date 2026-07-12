@@ -18,7 +18,7 @@ import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { summarizeToolResult } from './metrics/tool-summary'
-import { dedupeBlocks, trimTextWhenCards, type YayeBlock } from './blocks'
+import { dedupeBlocks, trimTextWhenCards, capOpportunites, type YayeBlock } from './blocks'
 import { finalizeReply } from './reply-guard'
 
 // ── Configuration du modèle ───────────────────────────────────────────────
@@ -374,7 +374,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind) },
       })
       // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: trimTextWhenCards(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks])), toolsUsed, toolCalls: state.toolCalls }
+      return { reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]))), toolsUsed, toolCalls: state.toolCalls }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -503,7 +503,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: trimTextWhenCards(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks])), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
+      yield { type: 'done', reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]))), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
       return
     }
 

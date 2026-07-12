@@ -68,21 +68,32 @@ const DANGER_REPLY =
 
 // ── P0 — refus de sécurité / CDP / injection ─────────────────────────────────
 
+// NB : `administrateur` n'est PAS une alternance nue (sinon « des offres administrateur
+// système » serait refusé comme jailbreak) — il n'est capté qu'après « mode ».
 const RE_INJECTION =
-  /(ignore[rz]?\b[^.!?]{0,30}(instructions?|regles?|consignes)|oublie[rz]?\b[^.!?]{0,20}instructions?|mode\s+admin|administrateur|tu\s+es\s+(maintenant|desormais)|repete[rz]?\b[^.!?]{0,30}(instructions?|prompt|regles?|consignes)|instructions?\s+system|system\s+prompt|montre[rz]?\b[^.!?]{0,15}(regles?|instructions?|consignes))/
+  /(ignore[rz]?\b[^.!?]{0,30}(instructions?|regles?|consignes)|oublie[rz]?\b[^.!?]{0,20}instructions?|mode\s+admin(istrateur)?|tu\s+es\s+(maintenant|desormais)|repete[rz]?\b[^.!?]{0,30}(instructions?|prompt|regles?|consignes)|instructions?\s+system|system\s+prompt|montre[rz]?\b[^.!?]{0,15}(regles?|instructions?|consignes))/
 
+// NB : « toutes les candidatures » retiré du groupe `toutes les …` → « montre toutes
+// les candidatures auxquelles j'ai postulé » (les SIENNES) ne doit pas être refusé.
+// L'export réel reste capté par « exporte … », « tous les candidats », « toute la base ».
 const RE_MASS_EXPORT =
-  /(tous?\s+les\s+(utilisateurs?|candidats?|jeunes|membres|inscrits|dossiers?)|toute\s+la\s+base|liste\s+(complete|de\s+tous)|exporte[rz]?\s|extraire?\s+toutes|toutes\s+les\s+(candidatures|donnees|coordonnees))/
+  /(tous?\s+les\s+(utilisateurs?|candidats?|jeunes|membres|inscrits|dossiers?)|toute\s+la\s+base|liste\s+(complete|de\s+tous)|exporte[rz]?\s|extraire?\s+toutes|toutes\s+les\s+(donnees|coordonnees))/
 
+// NB : `taux de`, `en moyenne`, `moyenne de` retirés → questions métier légitimes
+// (« taux de réussite de cette formation », « en moyenne combien je peux gagner »)
+// ne sont plus refusées. On ne bloque que les agrégats sur la POPULATION d'usagers.
 const RE_AGGREGATE =
-  /(combien\s+(de\s+)?(jeunes|personnes|candidats?|utilisateurs?|gens|inscrits)|nombre\s+(total|de\s+jeunes|de\s+candidat)|au\s+total|en\s+moyenne|moyenne\s+de|statistiques?|taux\s+de|combien\s+ont\s+postule)/
+  /(combien\s+(de\s+)?(jeunes|personnes|candidats?|utilisateurs?|gens|inscrits)|nombre\s+(total|de\s+jeunes|de\s+candidat)|au\s+total|statistiques?|combien\s+ont\s+postule)/
 
 // Donnée d'un tiers : personne explicite, « … de <Prénom> » (majuscule), ou coordonnées
 // d'un recruteur/employeur/organisation (Yaye ne divulgue pas de contacts directs).
 const RE_THIRD_PERSON =
   /(voisin|voisine|ami|amie|copain|copine|camarade|collegue|quelqu'?un\s+d'?autre|une\s+autre\s+personne)/
+// NB : `profil` retiré des porteurs — « le profil de Développeur web » (intitulé de
+// poste capitalisé) n'est PAS une donnée de tiers. Le vrai risque (numéro/email/dossier
+// « de <Prénom> ») reste capté, et l'accès profil est de toute façon borné au cjsUid (RBAC).
 const RE_THIRD_NAMED =
-  /(candidatures?|dossier|profil|numero|telephone|email|e-?mail|coordonnees|donnees|adresse)\s+(de\s+|d'\s*)[A-ZÉÈ][a-zà-ÿ]+/
+  /(candidatures?|dossier|numero|telephone|email|e-?mail|coordonnees|donnees|adresse)\s+(de\s+|d'\s*)[A-ZÉÈ][a-zà-ÿ]+/
 const RE_THIRD_CONTACT =
   /(email|e-?mail|mail|telephone|tel\b|numero|coordonnees|contact|adresse)\s+(du|de\s+l|de\s+la|de\s+l'|d'|de\s+ce|de\s+cet)\s*(recruteur|employeur|entreprise|responsable|contact|organisation|structure|societe)/
 
@@ -107,6 +118,13 @@ const RE_START_BYE = /^(au\s*revoir|a\s*bientot|bye|ciao|a\s*\+|bonne\s+(journee
 const RE_START_SMALLTALK = /^(ca\s+va|comment\s+(tu\s+)?vas|tu\s+vas\s+bien|comment\s+ca\s+va|ca\s+roule)/
 const RE_HAS_ACTION =
   /(offre|stage|emploi|boulot|travail|bourse|financement|volontariat|formation|reserv|salle|vehicule|badge|carte|livre|emprunt|biblio|candidat|postul|cherch|trouv|profil|competenc|conseil|besoin|aide[- ]moi|eligib|manque)/
+
+// Sous-ensemble « TÂCHE outil » (≠ demande de conseil) : sert à ne PAS court-circuiter
+// les pré-screens émotionnels quand la personne demande AUSSI une action concrète
+// (« je stresse pour l'entretien, prépare ma candidature »). Exclut volontairement
+// `conseil`/`aide` qui, eux, sont le déclencheur légitime de l'encouragement direct.
+const RE_TOOL_ACTION =
+  /(offre|stage|emploi|boulot|bourse|financement|volontariat|formation|reserv|salle|vehicule|badge|emprunt|biblio|candidat|postul|cherch|trouv|eligib)/
 
 const GREETINGS = [
   "Bonjour ! Dis-moi ce qui t'amène — une opportunité, une formation, ou un point sur tes candidatures ?",
@@ -212,12 +230,16 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
 
   // Trac avant un entretien/examen → encouragement + conseils directs (jamais d'escalade).
   // Placé avant le revers car « je stresse … tu as des conseils ? » porte une intention actionnable.
-  if (RE_ANXIETY.test(t)) return { action: 'direct', reply: pick(ADVICE), reason: 'anxiety' }
+  // Mais si une TÂCHE outil est aussi demandée (« … prépare ma candidature »), on laisse l'agent
+  // agir plutôt que de servir un conseil tout fait qui l'ignorerait.
+  if (RE_ANXIETY.test(t) && !RE_TOOL_ACTION.test(t)) return { action: 'direct', reply: pick(ADVICE), reason: 'anxiety' }
   // Revers ordinaire sans intention actionnable → consolation directe (anti sur-escalade).
   if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS), reason: 'setback' }
 
   // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
-  if (RE_SELF_PRESENT.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
+  // Gardé par !RE_HAS_ACTION : « tu fais quoi comme recherche pour les bourses ? » porte
+  // une vraie demande → à l'agent, pas à la présentation figée.
+  if (RE_SELF_PRESENT.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
   if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC), reason: 'offtopic' }
   // Message purement vague (1er tour) → question de clarification, sans outil.
   if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY), reason: 'clarify' }
