@@ -137,7 +137,7 @@ const SMALLTALK = [
 ]
 
 // Présentation de soi (« qui es-tu / présente-toi / tu sers à quoi ») → réponse TEXTE, sans outil.
-const RE_SELF_PRESENT = /^(qui\s+es-?\s*tu|tu\s+es\s+qui|presente[-\s]?toi|tu\s+sers\s+a\s+quoi|que\s+(peux|sais)-?\s*tu\s+faire|qu'?est-?\s*ce\s+que\s+tu\s+(peux|sais)\s+faire|c'?est\s+quoi\s+yaye|comment\s+tu\s+m'?aides?)\b/
+const RE_SELF_PRESENT = /^(qui\s+es-?\s*tu|tu\s+es\s+qui|presente[-\s]?toi|parle[-\s]?moi\s+de\s+toi|raconte[-\s]?toi|tu\s+sers\s+a\s+quoi|tu\s+fais\s+quoi|que\s+(peux|sais)-?\s*tu\s+faire|qu'?est-?\s*ce\s+que\s+tu\s+(peux|sais)\s+faire|c'?est\s+quoi\s+yaye|comment\s+tu\s+m'?aides?)\b/
 const PRESENTATIONS = [
   "Moi c'est Yaye, ta conseillère du Guichet Jeunesse du CJS. Je te trouve des offres et des formations, je suis tes candidatures et t'aide à postuler, je réserve une salle, sors ton badge ou te déniche un livre. On commence par quoi ?",
   "Je suis Yaye, du CJS. Je t'accompagne côté opportunités (emploi, stage, bourse), formations, candidatures, réservations et badge. Dis-moi ce dont tu as besoin !",

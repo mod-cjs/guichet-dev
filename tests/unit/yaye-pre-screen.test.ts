@@ -50,6 +50,14 @@ describe('Revers léger → consolation, PAS d’escalade (anti sur-escalade)', 
   })
 })
 
+describe('Présentation de soi — variantes captées (réponse courte, sans outil)', () => {
+  it('« parle-moi de toi » / « tu fais quoi » → présentation directe', () => {
+    expect(preScreen('parle-moi de toi')?.reason).toBe('presentation')
+    expect(preScreen('parle moi de toi')?.reason).toBe('presentation')
+    expect(preScreen('tu fais quoi ?')?.reason).toBe('presentation')
+  })
+})
+
 describe('Salutations — rotation déterministe (pas de doublon aléatoire)', () => {
   it('5 salutations consécutives sont toutes distinctes', () => {
     const rr = Array.from({ length: 5 }, () => preScreen('Salut !')?.reply)

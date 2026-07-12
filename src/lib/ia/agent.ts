@@ -19,7 +19,7 @@ import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, type YayeBlock } from './blocks'
-import { repairMetaReply } from './reply-guard'
+import { finalizeReply } from './reply-guard'
 
 // ── Configuration du modèle ───────────────────────────────────────────────
 // Surchargeable par variables d'environnement → permet de tuner en prod sans
@@ -65,7 +65,7 @@ export const SYSTEM_PROMPT = `Tu es **Yaye**, la conseillère numérique du Guic
 Accompagner les jeunes du Sénégal sur trois axes : l'**insertion professionnelle** (emploi, stage, bourse, financement, volontariat, candidatures), l'**apprentissage** (formations, ressources, bibliothèque des centres) et le **savoir** (procédures, droits, dispositifs). Tu fais de l'orientation active : tu cherches le besoin réel derrière la question, tu anticipes l'étape d'après.
 
 ## Ton ton
-Chaleureuse, cordiale et familière, comme une grande sœur bienveillante : proche et naturelle, jamais administrative. Tu **tutoies** ("ton profil", "je t'ai trouvé"). Phrases courtes et concrètes, zéro jargon. Tu es une alliée, pas un formulaire. Encourage sans survendre. **Ta chaleur passe par les mots, jamais par des emojis.** **Varie tes salutations et tes formulations** d'un message à l'autre (alterne « Bonjour », « Salut », « Coucou », « Ravie de te voir »… selon le moment) : ne démarre jamais deux réponses de la même façon, ne sois pas répétitive.
+Chaleureuse, cordiale et familière, comme une grande sœur bienveillante : proche et naturelle, jamais administrative. Tu **tutoies** ("ton profil", "je t'ai trouvé"). Phrases courtes et concrètes, zéro jargon. Tu es une alliée, pas un formulaire. Encourage sans survendre. **Ta chaleur passe par les mots, jamais par des emojis.** **Salue UNE seule fois, au tout premier message.** Ensuite, ne recommence JAMAIS par « Bonjour », « Salut », « Coucou », « Ravie de te voir » : enchaîne directement sur le fond. **Varie tes formulations** d'un message à l'autre — ne démarre jamais deux réponses pareil, ne sois pas répétitive.
 
 ## Tes principes
 1. **Parle du réel.** Pour les opportunités, dates, profil, statuts, montants, appuie-toi sur tes outils. Si tu n'as pas l'info, dis-le simplement et propose une piste — n'invente rien.
@@ -365,8 +365,8 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
 
     // Pas d'appel d'outil → réponse finale.
     if (!choice || toolCalls.length === 0) {
-      // Garde-fou : neutralise une réponse « méta » (petits modèles) → amorce adressée à l'usager.
-      const reply = repairMetaReply(choice?.content ?? "Je n'ai pas pu générer de réponse.", blocks)
+      // Garde-fou : anti-méta + pas de re-salutation en milieu de conversation.
+      const reply = finalizeReply(choice?.content ?? "Je n'ai pas pu générer de réponse.", blocks, (p.history?.length ?? 0) === 0)
       await logAgentEvent({
         ...base,
         typeEvenement: 'reponse_generee',
@@ -495,8 +495,8 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
     // Aucun outil → réponse finale (déjà streamée en tokens).
     if (toolCalls.length === 0) {
-      // Garde-fou méta (cf. runAgent) — la réponse persistée/`done` reste adressée à l'usager.
-      const reply = repairMetaReply(content || "Je n'ai pas pu générer de réponse.", state.blocks)
+      // Garde-fou méta + pas de re-salutation (cf. runAgent).
+      const reply = finalizeReply(content || "Je n'ai pas pu générer de réponse.", state.blocks, (p.history?.length ?? 0) === 0)
       await logAgentEvent({
         ...base,
         typeEvenement: 'reponse_generee',

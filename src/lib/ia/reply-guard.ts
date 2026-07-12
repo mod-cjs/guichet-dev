@@ -85,3 +85,35 @@ export function repairMetaReply(reply: string, blocks: YayeBlock[]): string {
   }
   return 'Je veux bien t’aider — dis-moi en une phrase ce que tu cherches (une offre, une formation, une démarche) et je m’en occupe.'
 }
+
+// Salutation en TÊTE de réponse : à réserver au 1er message. En milieu de conversation, resaluer
+// (« Salut ! », « Bonjour ! », « Ravie de te voir ») à chaque tour est robotique → on la retire.
+const RE_LEADING_GREETING =
+  /^\s*(re[-\s]?)?(bonjour|bonsoir|salut|coucou|hello|hey|hi|yo|wesh|salam|asalamu?\s*aleykoum|nanga\s*def)\b(\s+[a-zà-ÿ'’-]+)?[\s!,.…—–-]*/i
+const RE_LEADING_WARMOPEN =
+  /^\s*(ravie?|contente?|heureuse?|ravi)\s+de\s+te\s+(voir|revoir|retrouver|avoir|parler|lire)\b[\s!,.…—–-]*/i
+
+/** Retire une salutation d'ouverture (hors 1er message) et remajuscule. '' si la réponse n'était QUE ça. */
+export function stripLeadingGreeting(reply: string): string {
+  let r = reply
+  for (let i = 0; i < 3; i++) {
+    const before = r
+    r = r.replace(RE_LEADING_GREETING, '').replace(RE_LEADING_WARMOPEN, '')
+    if (r === before) break
+  }
+  r = r.trimStart()
+  return r ? r.charAt(0).toUpperCase() + r.slice(1) : ''
+}
+
+/**
+ * Post-traitement final de la réponse : anti-méta PUIS, en milieu de conversation, retrait de la
+ * salutation d'ouverture. Si le retrait vide le texte alors que des cards portent le fond, on met
+ * une amorce neutre ; sinon on garde la réponse d'origine (réponse purement sociale au 1er tour).
+ */
+export function finalizeReply(reply: string, blocks: YayeBlock[], firstTurn: boolean): string {
+  const r = repairMetaReply(reply, blocks)
+  if (firstTurn) return r
+  const stripped = stripLeadingGreeting(r)
+  if (stripped) return stripped
+  return blocks.some((b) => b.kind === 'opportunites' || b.kind === 'action') ? 'Voici ce que j’ai trouvé pour toi.' : r
+}
