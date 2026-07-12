@@ -125,71 +125,9 @@ export function personaCheck(
 }
 
 // ── Réponse adressée à l'utilisateur (anti « méta » / fuite de raisonnement) ───
-
-/**
- * Marqueurs d'une réponse qui N'EST PAS un message adressé à l'utilisateur :
- *  - fuite du raisonnement/outillage (« la fonction … », « appeler », noms d'outils, JSON, API) ;
- *  - méta-commentaire (« cette réponse », « voici un exemple de réponse », « il faudrait ») ;
- *  - description de l'usager à la 3ᵉ personne (« le bénéficiaire », « la personne », « l'utilisateur »).
- * Défaut terrain récurrent des petits modèles : ils DÉCRIVENT la réponse au lieu de PARLER au jeune.
- */
-export const META_MARKERS = [
-  'la fonction',
-  'cette fonction',
-  'appeler la fonction',
-  "l'outil",
-  'la réponse est',
-  'cette réponse',
-  'voici une réponse',
-  'voici un exemple',
-  'un exemple de message',
-  'un exemple de réponse',
-  'le message affiché',
-  'le message à afficher',
-  'réponse possible',
-  'il faudrait',
-  'on pourrait dire',
-  'je pourrais dire',
-  'paramètre',
-  'les arguments suivants',
-  'argument ',
-  'opportuniteid',
-  'ressourceid',
-  'scope=',
-  'json',
-  ' api ',
-  "l'api",
-  'search_opportunities',
-  'get_realtime_data',
-  'get_recommendations',
-  'query_knowledge_graph',
-  'get_user_profile',
-  'get_badge',
-  'reserve_resource',
-  'submit_application',
-  'escalate_to_advisor',
-]
-
-/** Tournures qui parlent DE l'utilisateur (3ᵉ pers.) au lieu de LUI parler (2ᵉ pers.). */
-export const THIRD_PERSON_USER = ['le bénéficiaire', 'la bénéficiaire', "l'utilisateur", "l'utilisatrice", 'la personne qui', 'le jeune ', 'du bénéficiaire', 'la personne a ']
-
-export interface MetaCheck {
-  flagged: boolean
-  hits: string[]
-}
-
-/**
- * Détecte une réponse « méta » (non adressée à l'utilisateur). Utilisé sur TOUT scénario
- * qui produit une réponse texte : une réponse qui décrit la mécanique ou parle du jeune à la
- * 3ᵉ personne est cassée pour l'usager, même si le bon outil a été appelé.
- */
-export function detectMetaLeakage(reply: string): MetaCheck {
-  const t = ' ' + reply.toLowerCase().replace(/\s+/g, ' ') + ' '
-  const hits: string[] = []
-  for (const m of META_MARKERS) if (t.includes(m)) hits.push(m.trim())
-  for (const m of THIRD_PERSON_USER) if (t.includes(m)) hits.push(m.trim())
-  return { flagged: hits.length > 0, hits }
-}
+// Détecteur partagé avec la PROD (`reply-guard.ts`) : l'éval mesure exactement ce que
+// l'agent répare. On réexporte pour ne pas dupliquer la liste de marqueurs.
+export { META_MARKERS, THIRD_PERSON_USER, detectMetaLeakage, type MetaCheck } from '../../reply-guard'
 
 // ── Justesse des arguments d'outil (BFCL) ─────────────────────────────────────
 

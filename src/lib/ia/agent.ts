@@ -19,6 +19,7 @@ import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, type YayeBlock } from './blocks'
+import { repairMetaReply } from './reply-guard'
 
 // ── Configuration du modèle ───────────────────────────────────────────────
 // Surchargeable par variables d'environnement → permet de tuner en prod sans
@@ -364,7 +365,8 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
 
     // Pas d'appel d'outil → réponse finale.
     if (!choice || toolCalls.length === 0) {
-      const reply = choice?.content ?? "Je n'ai pas pu générer de réponse."
+      // Garde-fou : neutralise une réponse « méta » (petits modèles) → amorce adressée à l'usager.
+      const reply = repairMetaReply(choice?.content ?? "Je n'ai pas pu générer de réponse.", blocks)
       await logAgentEvent({
         ...base,
         typeEvenement: 'reponse_generee',
@@ -493,7 +495,8 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
     // Aucun outil → réponse finale (déjà streamée en tokens).
     if (toolCalls.length === 0) {
-      const reply = content || "Je n'ai pas pu générer de réponse."
+      // Garde-fou méta (cf. runAgent) — la réponse persistée/`done` reste adressée à l'usager.
+      const reply = repairMetaReply(content || "Je n'ai pas pu générer de réponse.", state.blocks)
       await logAgentEvent({
         ...base,
         typeEvenement: 'reponse_generee',
