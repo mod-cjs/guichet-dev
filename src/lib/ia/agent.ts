@@ -16,7 +16,7 @@ import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { summarizeToolResult } from './metrics/tool-summary'
-import type { YayeBlock } from './blocks'
+import { dedupeBlocks, type YayeBlock } from './blocks'
 
 // ── Configuration du modèle ───────────────────────────────────────────────
 // Surchargeable par variables d'environnement → permet de tuner en prod sans
@@ -323,7 +323,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind) },
       })
       // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: [{ kind: 'text', text: reply }, ...blocks], toolsUsed }
+      return { reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]), toolsUsed }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -348,7 +348,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const escalade =
     `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
     `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
-  return { reply: escalade, blocks: [{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...blocks], toolsUsed }
+  return { reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...blocks]), toolsUsed }
 }
 
 // ── Variante STREAMING (SSE, #1) ──────────────────────────────────────────────
@@ -431,7 +431,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: [{ kind: 'text', text: reply }, ...state.blocks], toolsUsed: state.toolsUsed }
+      yield { type: 'done', reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]), toolsUsed: state.toolsUsed }
       return
     }
 
@@ -463,5 +463,5 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
     `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
     `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
   yield { type: 'token', text: escalade }
-  yield { type: 'done', reply: escalade, blocks: [{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...state.blocks], toolsUsed: state.toolsUsed }
+  yield { type: 'done', reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...state.blocks]), toolsUsed: state.toolsUsed }
 }

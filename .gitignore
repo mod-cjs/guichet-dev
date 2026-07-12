@@ -57,3 +57,6 @@ storybook-static/
 
 # Sauvegardes locales de .env (secrets)
 .env.local.bak-*
+
+# Sorties d'éval locale (jalon E+) — jetables
+scratch-eval/

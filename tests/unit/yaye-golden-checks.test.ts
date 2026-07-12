@@ -1,0 +1,98 @@
+/**
+ * @jest-environment node
+ *
+ * Jalon E+ — checks déterministes de qualité conversationnelle + dédup des cards.
+ * Modules PURS : aucun mock.
+ */
+import { dedupeBlocks, type YayeBlock } from '@/lib/ia/blocks'
+import {
+  firstTool,
+  countSentences,
+  usesTutoiement,
+  personaCheck,
+  checkDuplicateCards,
+  diversityReport,
+  jaccard,
+} from '@/lib/ia/metrics/golden/checks'
+
+const opp = (id: string, titre = 'Offre ' + id): YayeBlock => ({
+  kind: 'opportunites',
+  items: [{ id, slug: id, titre, type: 'Emploi', organisation: null, region: null, deadline: null }],
+})
+
+describe('dedupeBlocks — anti cards en double', () => {
+  it('fusionne les items opportunités dupliqués (premier vu gagne)', () => {
+    const out = dedupeBlocks([{ kind: 'text', text: 'salut' }, opp('a'), opp('b'), opp('a')])
+    const items = out.filter((b) => b.kind === 'opportunites').flatMap((b) => (b as { items: unknown[] }).items)
+    expect(items).toHaveLength(2)
+  })
+
+  it('retire les blocs opportunités devenus vides + quick_replies identiques', () => {
+    const qr: YayeBlock = { kind: 'quick_replies', replies: [{ label: 'Oui', value: 'oui' }] }
+    const out = dedupeBlocks([opp('a'), opp('a'), qr, qr])
+    expect(out.filter((b) => b.kind === 'opportunites')).toHaveLength(1)
+    expect(out.filter((b) => b.kind === 'quick_replies')).toHaveLength(1)
+  })
+})
+
+describe('checkDuplicateCards', () => {
+  it('détecte un id dupliqué', () => {
+    const r = checkDuplicateCards([opp('x'), opp('y'), opp('x')])
+    expect(r.duplicated).toBe(true)
+    expect(r.duplicateIds).toContain('x')
+    expect(r.uniqueOppItems).toBe(2)
+  })
+  it('aucun doublon → propre', () => {
+    expect(checkDuplicateCards([opp('x'), opp('y')]).duplicated).toBe(false)
+  })
+})
+
+describe('persona — naturalité', () => {
+  it('firstTool', () => {
+    expect(firstTool(['search_opportunities', 'x'])).toBe('search_opportunities')
+    expect(firstTool([])).toBeNull()
+  })
+  it('countSentences / tutoiement', () => {
+    expect(countSentences('Salut. Ça va ? Super !')).toBe(3)
+    expect(usesTutoiement('je t’ai trouvé ton offre')).toBe(true)
+    expect(usesTutoiement('voici les résultats')).toBe(false)
+  })
+  it('pénalise vouvoiement + formules creuses + pavé', () => {
+    const p = personaCheck(
+      "Bonjour, comment puis-je vous aider aujourd'hui ? N'hésitez pas à revenir vers moi. Je reste à votre disposition pour toute question. Voici plein de choses.",
+      { maxSentences: 2 },
+    )
+    expect(p.vouvoiement).toBe(true)
+    expect(p.fillers.length).toBeGreaterThan(0)
+    expect(p.flags.length).toBeGreaterThan(0)
+    expect(p.score).toBeLessThan(0.7)
+  })
+  it('réponse concise et tutoyante → bon score', () => {
+    const p = personaCheck('Je t’ai trouvé quelques pistes, jette un œil aux cartes !', { maxSentences: 2 })
+    expect(p.score).toBeGreaterThan(0.8)
+  })
+  it('détecte l’énumération d’offres en prose', () => {
+    const p = personaCheck('Voici un Stage de développement web chez Wafabu à Dakar.', {
+      offerTitles: ['Stage de développement web'],
+    })
+    expect(p.enumeratesOffers).toBe(true)
+  })
+})
+
+describe('diversité / anti-répétition', () => {
+  it('jaccard identiques = 1, disjoints = 0', () => {
+    expect(jaccard('bonjour toi', 'bonjour toi')).toBe(1)
+    expect(jaccard('chat noir', 'avion rouge')).toBe(0)
+  })
+  it('repère doublons exacts et ouvertures répétées', () => {
+    const r = diversityReport(['Bonjour ! Je peux t’aider ?', 'Bonjour ! Je peux t’aider ?', 'Salut, on regarde ça ensemble ?'])
+    expect(r.exactDuplicates).toBeGreaterThanOrEqual(1)
+    expect(r.nearDuplicatePairs.length).toBeGreaterThanOrEqual(1)
+    expect(r.score).toBeLessThan(1)
+  })
+  it('réponses toutes distinctes → score haut', () => {
+    const r = diversityReport(['Coucou, dis-moi tout', 'Ravie de te voir, on commence par quoi', 'Hello ! Quel est ton objectif'])
+    expect(r.exactDuplicates).toBe(0)
+    expect(r.score).toBeGreaterThan(0.8)
+  })
+})
