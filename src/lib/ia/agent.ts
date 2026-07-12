@@ -13,6 +13,7 @@ import { getLlmClient } from './llm-client'
 import { getSlotModel } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
+import { buildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -154,6 +155,8 @@ export interface RunAgentParams {
   centreId?: string | null
   /** Fiche mémoire LONG TERME (résumé persistant) à réinjecter — cf. memory.ts. */
   memo?: string
+  /** Contexte dérivé du graphe (profil × opportunités) — cf. graph-context.ts. Calculé au 1er tour si absent. */
+  graphContext?: string
 }
 
 /** Préambule système qui réinjecte la mémoire long terme (sans la faire réciter). */
@@ -167,6 +170,7 @@ function buildMessages(p: RunAgentParams): Msg[] {
   return [
     { role: 'system', content: SYSTEM_PROMPT },
     ...(p.memo?.trim() ? [{ role: 'system', content: MEMO_PREAMBLE + p.memo.trim() } as Msg] : []),
+    ...(p.graphContext?.trim() ? [{ role: 'system', content: GRAPH_PREAMBLE + p.graphContext.trim() } as Msg] : []),
     ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
     { role: 'user', content: p.message },
   ]
@@ -321,7 +325,9 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
-  const messages = buildMessages(p)
+  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
+  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  const messages = buildMessages({ ...p, graphContext })
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
@@ -422,7 +428,9 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
 
-  const messages = buildMessages(p)
+  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
+  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  const messages = buildMessages({ ...p, graphContext })
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()

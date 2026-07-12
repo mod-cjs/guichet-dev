@@ -13,6 +13,8 @@ jest.mock('@/lib/ia/llm-client', () => ({
 jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
 }))
+// La contextualisation graphe est testée séparément ; ici on l'isole (pas de DB/graphe).
+jest.mock('@/lib/ia/graph-context', () => ({ buildGraphContext: async () => '', GRAPH_PREAMBLE: '' }))
 
 const mockExecute = jest.fn()
 jest.mock('@/lib/ia/tools', () => ({
