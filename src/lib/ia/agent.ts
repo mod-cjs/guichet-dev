@@ -163,16 +163,25 @@ function buildMessages(p: RunAgentParams): Msg[] {
   ]
 }
 
+/** Appel d'outil observé (nom + arguments décodés) — pour l'observabilité et l'éval. */
+export interface ObservedToolCall {
+  name: string
+  args: Record<string, unknown>
+}
+
 export interface RunAgentResult {
   reply: string
   /** Réponse normalisée en blocs (texte + cards cliquables) pour le rendu frontend. */
   blocks: YayeBlock[]
   toolsUsed: string[]
+  /** Appels d'outils avec leurs arguments (ordre d'appel) — utile à l'évaluation. */
+  toolCalls: ObservedToolCall[]
 }
 
 /** État mutable de la boucle d'outils, partagé entre runAgent et streamAgent. */
 interface ToolLoopState {
   toolsUsed: string[]
+  toolCalls: ObservedToolCall[]
   blocks: YayeBlock[]
   offeredAlternatives: boolean
 }
@@ -188,6 +197,9 @@ type ToolCtx = { cjsUid: string; roles: string[]; centreId: string | null; sessi
  */
 async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase, state: ToolLoopState): Promise<Msg> {
   const name = call.function.name
+  let args: Record<string, unknown> = {}
+  try { args = JSON.parse(call.function.arguments || '{}') } catch { /* args invalides → {} */ }
+  state.toolCalls.push({ name, args })
   const tStart = Date.now()
   const tool = TOOLS[name]
   let result: { ok: boolean; data?: unknown; error?: string; block?: YayeBlock; graph?: { template: string; nodesReturned: number } }
@@ -195,8 +207,6 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   if (!tool) {
     result = { ok: false, error: `Outil inconnu: ${name}` }
   } else {
-    let args: Record<string, unknown> = {}
-    try { args = JSON.parse(call.function.arguments || '{}') } catch { /* args invalides → {} */ }
     try {
       result = await tool.execute(args, ctx)
     } catch (e) {
@@ -285,7 +295,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     canal: p.canal,
   }
   // État partagé avec executeToolCall (tableaux mutés en place → alias OK).
-  const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
+  const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
   const messages = buildMessages(p)
@@ -323,7 +333,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind) },
       })
       // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]), toolsUsed }
+      return { reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]), toolsUsed, toolCalls: state.toolCalls }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -348,7 +358,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const escalade =
     `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
     `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
-  return { reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...blocks]), toolsUsed }
+  return { reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...blocks]), toolsUsed, toolCalls: state.toolCalls }
 }
 
 // ── Variante STREAMING (SSE, #1) ──────────────────────────────────────────────
@@ -362,14 +372,14 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
 export type AgentStreamEvent =
   | { type: 'tool'; name: string }
   | { type: 'token'; text: string }
-  | { type: 'done'; reply: string; blocks: YayeBlock[]; toolsUsed: string[] }
+  | { type: 'done'; reply: string; blocks: YayeBlock[]; toolsUsed: string[]; toolCalls: ObservedToolCall[] }
 
 export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStreamEvent> {
   const model = await getSlotModel('agent')
   const client = getLlmClient(model)
   const ctx: ToolCtx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
-  const state: ToolLoopState = { toolsUsed: [], blocks: [], offeredAlternatives: false }
+  const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
 
   const messages = buildMessages(p)
 
@@ -431,7 +441,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]), toolsUsed: state.toolsUsed }
+      yield { type: 'done', reply, blocks: dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
       return
     }
 
@@ -463,5 +473,5 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
     `Je n'ai pas réussi à finaliser ta demande, alors je la transmets à un conseiller du CJS. ` +
     `Tu peux la rappeler si besoin — veux-tu autre chose en attendant ?`
   yield { type: 'token', text: escalade }
-  yield { type: 'done', reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...state.blocks]), toolsUsed: state.toolsUsed }
+  yield { type: 'done', reply: escalade, blocks: dedupeBlocks([{ kind: 'text', text: escalade }, maxRoundsEscaladeBlock(suivi.reference), ...state.blocks]), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
 }

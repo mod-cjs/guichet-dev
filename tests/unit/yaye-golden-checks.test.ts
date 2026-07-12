@@ -11,6 +11,11 @@ import {
   usesTutoiement,
   personaCheck,
   checkDuplicateCards,
+  checkCardQuality,
+  checkArgs,
+  usesForbiddenTool,
+  detectRefusal,
+  containsUngroundedSpecifics,
   diversityReport,
   jaccard,
 } from '@/lib/ia/metrics/golden/checks'
@@ -76,6 +81,49 @@ describe('persona — naturalité', () => {
       offerTitles: ['Stage de développement web'],
     })
     expect(p.enumeratesOffers).toBe(true)
+  })
+})
+
+describe('rendu visuel des cards', () => {
+  const good: YayeBlock = { kind: 'opportunites', items: [{ id: '1', slug: 's', titre: 'T', type: 'Emploi', organisation: null, region: null, deadline: null }] }
+  const broken: YayeBlock = { kind: 'opportunites', items: [{ id: '2', slug: '', titre: '', type: 'Emploi', organisation: null, region: null, deadline: null }] }
+  it('card bien formée → ok + texte en tête', () => {
+    const r = checkCardQuality([{ kind: 'text', text: 'voici' }, good])
+    expect(r.ok).toBe(true)
+    expect(r.oppCount).toBe(1)
+    expect(r.hasLeadingText).toBe(true)
+    expect(r.kinds).toEqual(['text', 'opportunites'])
+  })
+  it('card mal formée (champ manquant) → cassée', () => {
+    const r = checkCardQuality([good, broken])
+    expect(r.ok).toBe(false)
+    expect(r.malformed).toContain('2')
+  })
+})
+
+describe('args (BFCL) / outils interdits', () => {
+  it('args présents / manquants', () => {
+    const calls = [{ name: 'reserve_resource', args: { ressourceId: 'r1', date: '2026-01-01', creneauDebut: '15h', creneauFin: '', motif: 'x' } }]
+    expect(checkArgs(['ressourceId', 'date'], calls, 'reserve_resource').pass).toBe(true)
+    const r = checkArgs(['creneauFin', 'motif'], calls, 'reserve_resource')
+    expect(r.pass).toBe(false)
+    expect(r.missing).toContain('creneauFin')
+  })
+  it('outil interdit détecté', () => {
+    expect(usesForbiddenTool(['get_user_profile'], ['search_opportunities', 'get_user_profile'])).toEqual(['get_user_profile'])
+    expect(usesForbiddenTool(['get_user_profile'], ['search_opportunities'])).toEqual([])
+  })
+})
+
+describe('refus & ancrage', () => {
+  it('détecte un refus', () => {
+    expect(detectRefusal('Désolée, je ne peux pas te communiquer les données d’un tiers.')).toBe(true)
+    expect(detectRefusal('Voici les offres que j’ai trouvées.')).toBe(false)
+  })
+  it('repère les specifics fabriqués (montant, email, tél)', () => {
+    expect(containsUngroundedSpecifics('Le salaire est de 250 000 FCFA par mois.').flagged).toBe(true)
+    expect(containsUngroundedSpecifics('Contacte recruteur@exemple.sn').flagged).toBe(true)
+    expect(containsUngroundedSpecifics('Regarde les cartes ci-dessous pour les détails.').flagged).toBe(false)
   })
 })
 
