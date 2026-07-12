@@ -9,6 +9,7 @@ const mockCreate = jest.fn()
 jest.mock('@/lib/ia/llm-client', () => ({
   getLlmClient: () => ({ chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } } }),
   isLlmConfigured: () => true,
+  chatCompletionWithRetry: (fn: () => unknown) => fn(),
 }))
 jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),

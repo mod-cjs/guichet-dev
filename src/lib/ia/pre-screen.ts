@@ -136,6 +136,21 @@ const SMALLTALK = [
   "Bien, merci de demander ! Tu cherches une offre, une formation ?",
 ]
 
+// Présentation de soi (« qui es-tu / présente-toi / tu sers à quoi ») → réponse TEXTE, sans outil.
+const RE_SELF_PRESENT = /^(qui\s+es-?\s*tu|tu\s+es\s+qui|presente[-\s]?toi|tu\s+sers\s+a\s+quoi|que\s+(peux|sais)-?\s*tu\s+faire|qu'?est-?\s*ce\s+que\s+tu\s+(peux|sais)\s+faire|c'?est\s+quoi\s+yaye|comment\s+tu\s+m'?aides?)\b/
+const PRESENTATIONS = [
+  "Moi c'est Yaye, ta conseillère du Guichet Jeunesse du CJS. Je te trouve des offres et des formations, je suis tes candidatures et t'aide à postuler, je réserve une salle, sors ton badge ou te déniche un livre. On commence par quoi ?",
+  "Je suis Yaye, du CJS. Je t'accompagne côté opportunités (emploi, stage, bourse), formations, candidatures, réservations et badge. Dis-moi ce dont tu as besoin !",
+  "Yaye, ta grande sœur numérique du CJS. Je cherche offres et formations pour toi, je suis tes démarches, je te réserve une salle ou sors ton badge. Par quoi on attaque ?",
+]
+
+// Hors-périmètre évident (météo, sport, actu, recette…) → recadrage chaleureux, sans outil.
+const RE_OFFTOPIC = /(quel\s+temps|la\s+meteo|il\s+va\s+(pleuvoir|faire\s+beau)|resultat\s+(du\s+)?match|score\s+du\s+match|qui\s+a\s+gagne\s+le\s+match|recette\s+(de|pour)|comment\s+cuisiner|raconte(-moi)?\s+une\s+blague|capitale\s+d[eu]|qui\s+est\s+le\s+president|les\s+actualites|les\s+news)/
+const OFFTOPIC = [
+  "Ça, ce n'est pas trop mon domaine ! Par contre, pour une offre, une formation ou tes démarches au CJS, je suis là. Je te cherche quelque chose ?",
+  "Je ne saurais pas t'aider là-dessus, désolée. Mais côté opportunités, formations ou candidatures, dis-moi tout !",
+]
+
 /** Choix varié sans dépendance externe (évite deux réponses identiques d'affilée). */
 function pick(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)]
@@ -160,6 +175,10 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   if (RE_THIRD_PERSON.test(t) || RE_THIRD_NAMED.test(message) || RE_THIRD_CONTACT.test(t)) {
     return { action: 'refuse', reply: REFUSALS.third, reason: 'third_party' }
   }
+
+  // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
+  if (RE_SELF_PRESENT.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
+  if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC), reason: 'offtopic' }
 
   // P1 — petites interactions (1er tour uniquement, et seulement sans intention actionnable).
   if (firstTurn && !RE_HAS_ACTION.test(t)) {

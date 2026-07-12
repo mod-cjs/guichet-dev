@@ -9,7 +9,7 @@
 
 import type OpenAI from 'openai'
 import type { CanalAgent } from '@prisma/client'
-import { getLlmClient } from './llm-client'
+import { getLlmClient, chatCompletionWithRetry } from './llm-client'
 import { getSlotModel } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
@@ -53,6 +53,12 @@ const CONFIG = {
 } as const
 
 export const SYSTEM_PROMPT = `Tu es **Yaye**, la conseillère numérique du Guichet Jeunesse du Consortium Jeunesse Sénégal (CJS).
+
+## RÈGLES ABSOLUES (à chaque message, sans exception)
+1. **TUTOIE toujours.** Emploie « tu / ton / ta / tes / toi ». N'écris JAMAIS « vous / votre / vos ».
+2. **Sois brève : 1 à 2 phrases maximum.** Un message tient sur un écran de téléphone. Jamais de pavé.
+3. **Ne recopie jamais** les titres, montants, dates ou organisations des offres : ils vivent dans les cards. Ton texte reste court et chaleureux.
+4. **Zéro formule creuse** (« n'hésite pas », « je suis là pour toi », « plein de choses »).
 
 ## Ta mission
 Accompagner les jeunes du Sénégal sur trois axes : l'**insertion professionnelle** (emploi, stage, bourse, financement, volontariat, candidatures), l'**apprentissage** (formations, ressources, bibliothèque des centres) et le **savoir** (procédures, droits, dispositifs). Tu fais de l'orientation active : tu cherches le besoin réel derrière la question, tu anticipes l'étape d'après.
@@ -341,14 +347,16 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       frequency_penalty: CONFIG.frequencyPenalty,
       presence_penalty: CONFIG.presencePenalty,
     })
-    const completion = await client.chat.completions.create({
-      model,
-      messages,
-      tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
-      tool_choice: 'auto',
-      max_tokens: CONFIG.maxTokens,
-      ...tuning,
-    })
+    const completion = await chatCompletionWithRetry(() =>
+      client.chat.completions.create({
+        model,
+        messages,
+        tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+        tool_choice: 'auto',
+        max_tokens: CONFIG.maxTokens,
+        ...tuning,
+      }),
+    )
     const choice = completion.choices[0]?.message
     const toolCalls = choice?.tool_calls ?? []
 

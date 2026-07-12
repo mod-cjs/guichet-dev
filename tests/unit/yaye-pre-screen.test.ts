@@ -76,3 +76,17 @@ describe('P1 — petites interactions (1er tour) → réponse directe sans outil
     expect(preScreen('Salut, trouve-moi un emploi à Thiès')).toBeNull()
   })
 })
+
+describe('présentation de soi + hors-sujet → réponse directe (sans outil ni appel modèle)', () => {
+  it('« qui es-tu / présente-toi / tu sers à quoi » → présentation', () => {
+    expect(preScreen('Qui es-tu ?')?.reason).toBe('presentation')
+    expect(preScreen('présente-toi')?.action).toBe('direct')
+    expect(preScreen('tu sers à quoi ?')?.reason).toBe('presentation')
+    expect(preScreen('Présente-moi cette offre')).toBeNull() // ≠ présentation de soi
+  })
+  it('hors-sujet évident (météo/foot/recette) → recadrage', () => {
+    expect(preScreen('Quel temps fera-t-il demain ?')?.reason).toBe('offtopic')
+    expect(preScreen('le résultat du match d’hier ?')?.reason).toBe('offtopic')
+    expect(preScreen('donne-moi une recette de thiéboudienne')?.action).toBe('direct')
+  })
+})

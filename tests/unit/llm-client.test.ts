@@ -137,3 +137,31 @@ describe('Fournisseur local LMStudio (LLM_PROVIDER=lmstudio)', () => {
     expect(localModel()).toBe('qwen2.5-7b-instruct')
   })
 })
+
+describe('retry sur erreur de décodage transitoire (petits modèles)', () => {
+  it('isTransientDecodeError reconnaît les erreurs LMStudio/vLLM', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { isTransientDecodeError } = require('@/lib/ia/llm-client')
+    expect(isTransientDecodeError(new Error('400 The model produced output that did not match'))).toBe(true)
+    expect(isTransientDecodeError(new Error('Engine protocol predict stream returned an error'))).toBe(true)
+    expect(isTransientDecodeError(new Error('Unauthorized'))).toBe(false)
+  })
+  it('chatCompletionWithRetry rejoue une erreur transitoire puis réussit', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatCompletionWithRetry } = require('@/lib/ia/llm-client')
+    let n = 0
+    expect(await chatCompletionWithRetry(async () => {
+      n++
+      if (n < 2) throw new Error('The model produced output that failed')
+      return 'ok'
+    })).toBe('ok')
+    expect(n).toBe(2)
+  })
+  it('ne rejoue PAS une erreur non transitoire', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatCompletionWithRetry } = require('@/lib/ia/llm-client')
+    let n = 0
+    await expect(chatCompletionWithRetry(async () => { n++; throw new Error('Unauthorized') })).rejects.toThrow('Unauthorized')
+    expect(n).toBe(1)
+  })
+})
