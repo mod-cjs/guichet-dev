@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import { DEFAULT_MODEL, assertSlotModel, type LlmSlot } from './supported-models'
+import { isLocalProvider, localModel } from './llm-client'
 
 export interface LlmConfigValues {
   agent: string
@@ -76,8 +77,11 @@ export async function getLlmConfig(): Promise<LlmConfigValues> {
   return cfg
 }
 
-/** Modèle effectif pour un slot donné. */
+/** Modèle effectif pour un slot donné. En dev local (LMStudio), tous les slots
+ *  utilisent le modèle chargé localement (`LMSTUDIO_MODEL`) — l'allowlist Vertex et
+ *  la config admin ne s'appliquent pas. */
 export async function getSlotModel(slot: LlmSlot): Promise<string> {
+  if (isLocalProvider()) return localModel()
   return (await getLlmConfig())[slot]
 }
 

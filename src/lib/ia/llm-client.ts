@@ -1,20 +1,44 @@
-// GUIC-537 — Client LLM partagé et résilient, pointé sur Vertex AI (GCP).
+// GUIC-537 — Client LLM partagé et résilient (interface OpenAI-compatible).
 //
-// Vertex expose un endpoint OpenAI-COMPATIBLE :
-//   https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/{LOCATION}/endpoints/openapi
-// On réutilise donc le SDK `openai` (interface `.chat.completions.create`) → les
-// consommateurs (agent / judge / adequation / memory) changent à peine.
+// Deux fournisseurs, sélectionnés par `LLM_PROVIDER` :
+//  - `vertex` (DÉFAUT, prod) : Vertex AI expose un endpoint OpenAI-COMPATIBLE
+//      https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/{LOCATION}/endpoints/openapi
+//    Auth : jeton OAuth GCP (service account / ADC) injecté PAR REQUÊTE via un `fetch`
+//    maison → toujours frais, `getLlmClient()` reste synchrone.
+//  - `lmstudio` (DEV LOCAL) : serveur LMStudio local (OpenAI-compatible), aucune auth,
+//    aucune dépendance GCP → Yaye tourne 100% en local. Base URL `LMSTUDIO_BASE_URL`.
 //
-// Auth : jeton OAuth GCP (service account / ADC) injecté PAR REQUÊTE via un `fetch`
-// maison → le jeton est toujours frais (google-auth-library gère le cache/refresh),
-// et `getLlmClient()` reste synchrone.
-//
-// Robustesse prod (héritée de l'ancien client Groq) : `timeout` + `maxRetries`,
-// surchargeables sans redéploiement.
+// On réutilise le SDK `openai` (interface `.chat.completions.create`) → les
+// consommateurs (agent / judge / adequation / memory) sont agnostiques du fournisseur.
+// Robustesse : `timeout` + `maxRetries`, surchargeables sans redéploiement.
 
 import OpenAI from 'openai'
 import { GoogleAuth } from 'google-auth-library'
 import { getModelMeta } from './supported-models'
+
+/** Fournisseur LLM actif. `vertex` par défaut ; `lmstudio` pour le dev local. */
+export type ActiveProvider = 'vertex' | 'lmstudio'
+
+export function activeProvider(): ActiveProvider {
+  const p = (process.env.LLM_PROVIDER ?? '').trim().toLowerCase()
+  return p === 'lmstudio' || p === 'lm-studio' || p === 'local' ? 'lmstudio' : 'vertex'
+}
+
+/** True si Yaye doit taper LMStudio en local plutôt que Vertex. */
+export function isLocalProvider(): boolean {
+  return activeProvider() === 'lmstudio'
+}
+
+/** Base URL du serveur LMStudio local (OpenAI-compatible). */
+const LMSTUDIO_DEFAULT_URL = 'http://localhost:1234/v1'
+function lmstudioBaseUrl(): string {
+  return process.env.LMSTUDIO_BASE_URL?.trim() || LMSTUDIO_DEFAULT_URL
+}
+
+/** Modèle utilisé en mode local (id du modèle chargé dans LMStudio). */
+export function localModel(): string {
+  return process.env.LMSTUDIO_MODEL?.trim() || 'local-model'
+}
 
 function numEnv(name: string, def: number): number {
   const raw = process.env[name]
@@ -45,16 +69,20 @@ export function getVertexBaseUrl(): string {
 
 /** L'IA est-elle configurée ? (remplace l'ancien garde `GROQ_API_KEY`). */
 export function isLlmConfigured(): boolean {
+  // Mode local : LMStudio ne requiert aucune config GCP.
+  if (isLocalProvider()) return true
   return Boolean(process.env.GOOGLE_CLOUD_PROJECT)
 }
 
 /**
  * Base URL à utiliser pour un modèle donné :
- *  - modèle MaaS/Gemini (défaut) → endpoint `endpoints/openapi` partagé ;
+ *  - fournisseur `lmstudio` → serveur LMStudio local ;
+ *  - modèle MaaS/Gemini (Vertex, défaut) → endpoint `endpoints/openapi` partagé ;
  *  - modèle self-deployed (Gemma, `deployed: true`) → endpoint dédié provisionné
  *    (`VERTEX_DEDICATED_ENDPOINT_URL`), sinon on lève (évite un appel silencieusement cassé).
  */
 export function baseUrlForModel(model?: string): string {
+  if (isLocalProvider()) return lmstudioBaseUrl()
   const meta = model ? getModelMeta(model) : undefined
   if (meta?.deployed) {
     const url = process.env.VERTEX_DEDICATED_ENDPOINT_URL?.trim()
@@ -86,20 +114,30 @@ export function getLlmClient(model?: string): OpenAI {
   const baseURL = baseUrlForModel(model)
   let client = _clients.get(baseURL)
   if (!client) {
-    const auth = getAuth()
-    client = new OpenAI({
-      // Placeholder : l'auth réelle passe par l'en-tête Authorization (fetch ci-dessous).
-      apiKey: 'vertex-oauth',
-      baseURL,
-      timeout: TIMEOUT_MS,
-      maxRetries: MAX_RETRIES,
-      fetch: async (url: RequestInfo | URL, init?: RequestInit) => {
-        const token = await auth.getAccessToken()
-        const headers = new Headers(init?.headers)
-        if (token) headers.set('Authorization', `Bearer ${token}`)
-        return fetch(url, { ...init, headers })
-      },
-    })
+    if (isLocalProvider()) {
+      // LMStudio : aucune auth GCP, clé factice acceptée par le serveur local.
+      client = new OpenAI({
+        apiKey: process.env.LMSTUDIO_API_KEY?.trim() || 'lm-studio',
+        baseURL,
+        timeout: TIMEOUT_MS,
+        maxRetries: MAX_RETRIES,
+      })
+    } else {
+      const auth = getAuth()
+      client = new OpenAI({
+        // Placeholder : l'auth réelle passe par l'en-tête Authorization (fetch ci-dessous).
+        apiKey: 'vertex-oauth',
+        baseURL,
+        timeout: TIMEOUT_MS,
+        maxRetries: MAX_RETRIES,
+        fetch: async (url: RequestInfo | URL, init?: RequestInit) => {
+          const token = await auth.getAccessToken()
+          const headers = new Headers(init?.headers)
+          if (token) headers.set('Authorization', `Bearer ${token}`)
+          return fetch(url, { ...init, headers })
+        },
+      })
+    }
     _clients.set(baseURL, client)
   }
   return client
