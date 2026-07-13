@@ -37,6 +37,18 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
         return `${i + 1}. *${e.titre}*\n   ${meta}\n   ${APP_URL}/agenda/${e.id}`
       })
       if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'ressources') {
+      const lines = b.items.slice(0, MAX_ITEMS).map((r, i) => `${i + 1}. *${r.titre}* (${r.type} · ${r.theme})\n   ${APP_URL}/ressources/${r.id}`)
+      if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'centres') {
+      const lines = b.items.slice(0, MAX_ITEMS).map((c, i) => {
+        const lieu = [c.ville, c.adresse].filter(Boolean).join(' · ')
+        return `${i + 1}. *${c.nom}*\n   ${lieu}` + (c.telephone ? `\n   ${c.telephone}` : '') + (c.slug ? `\n   ${APP_URL}/centres/${c.slug}` : '')
+      })
+      if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'notifications') {
+      const lines = b.items.slice(0, MAX_ITEMS).map(n => `${n.lu ? '•' : '»'} *${n.titre}* — ${n.contenu}` + (n.lien ? `\n   ${n.lien.startsWith('http') ? n.lien : APP_URL + n.lien}` : ''))
+      if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'quick_replies') {
       // Pas de boutons en texte brut : on invite à répondre par l'une des options.
       const opts = b.replies.map(r => `• ${r.label}`).join('\n')

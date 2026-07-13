@@ -35,6 +35,38 @@ export interface YayeEvenementItem {
   estGratuit: boolean
 }
 
+/** Ressource numérique (bibliothèque en ligne) → card cliquable (/ressources/[id]). */
+export interface YayeRessourceItem {
+  id: string
+  titre: string
+  type: string // TypeRessource (PDF, Video, Lien, Guide, Outil)
+  theme: string
+  niveau?: string | null
+}
+
+/** Fiche centre CJS → card cliquable (/centres/[slug]). */
+export interface YayeCentreItem {
+  id: string
+  slug: string | null
+  nom: string
+  ville: string | null
+  region: string | null
+  adresse: string
+  telephone: string | null
+  services: string[]
+}
+
+/** Notification du bénéficiaire (rendue en ligne cliquable si `lien`). */
+export interface YayeNotificationItem {
+  id: string
+  type: string // TypeNotification (Deadline, Candidature, Message, Yaye, System)
+  titre: string
+  contenu: string
+  lien?: string | null
+  metaPill?: string | null
+  lu: boolean
+}
+
 /** Réponse rapide tappable : `label` affiché, `value` renvoyé comme message. */
 export interface YayeQuickReply {
   label: string
@@ -78,6 +110,9 @@ export type YayeBlock =
   | { kind: 'text'; text: string }
   | { kind: 'opportunites'; items: YayeOppItem[] }
   | { kind: 'evenements'; items: YayeEvenementItem[] }
+  | { kind: 'ressources'; items: YayeRessourceItem[] }
+  | { kind: 'centres'; items: YayeCentreItem[] }
+  | { kind: 'notifications'; items: YayeNotificationItem[] }
   | YayeCarteCjsBlock
   | { kind: 'quick_replies'; replies: YayeQuickReply[] }
   | {
@@ -103,7 +138,7 @@ export type YayeBlock =
  * n'y a pas de card, ou si le texte tient déjà en une phrase.
  */
 export function trimTextWhenCards(blocks: YayeBlock[]): YayeBlock[] {
-  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'evenements' || b.kind === 'action' || b.kind === 'carte_cjs')
+  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'evenements' || b.kind === 'ressources' || b.kind === 'centres' || b.kind === 'notifications' || b.kind === 'action' || b.kind === 'carte_cjs')
   if (!hasCards) return blocks
   return blocks.map(b => {
     if (b.kind !== 'text') return b

@@ -6,7 +6,7 @@
 // les 9 autres (query_knowledge_graph, reserve_resource…) viendront aux lots suivants.
 
 import { prisma } from '@/lib/prisma'
-import { Domaine, Region, TypeOpportunite, TypeEvenement, TypeRessourceCentre } from '@prisma/client'
+import { Domaine, Region, TypeOpportunite, TypeEvenement, TypeRessource, TypeRessourceCentre } from '@prisma/client'
 import type { CanalAgent, Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
 import { appUrl } from '@/lib/app-url'
@@ -21,7 +21,7 @@ import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
-import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem } from './blocks'
+import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem, type YayeRessourceItem, type YayeCentreItem, type YayeNotificationItem } from './blocks'
 import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -1174,11 +1174,124 @@ const searchEvents: AgentTool = {
   },
 }
 
+// ── search_resources (bibliothèque numérique) ───────────────────────────────
+const searchResources: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'search_resources',
+      description:
+        "Recherche des RESSOURCES numériques (guides PDF, vidéos, liens, outils) de la bibliothèque " +
+        "en ligne du CJS. À utiliser pour « un guide sur… », « une vidéo pour… », « des ressources sur " +
+        "le CV / l'entrepreneuriat », « comment faire… ». Différent des LIVRES physiques (search_library).",
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: Object.values(TypeRessource), description: 'Type de ressource' },
+          q: { type: 'string', description: 'Mots-clés (titre ou thème)' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.RessourceWhereInput = { estPublic: true }
+    if (inEnum(TypeRessource, args.type)) where.type = args.type as TypeRessource
+    if (typeof args.q === 'string' && args.q.trim()) {
+      const q = args.q.trim()
+      where.OR = [{ titre: { contains: q } }, { theme: { contains: q } }, { categorie: { contains: q } }]
+    }
+    const rows = await prisma.ressource.findMany({
+      where,
+      select: { id: true, titre: true, type: true, theme: true, niveau: true },
+      orderBy: { vues: 'desc' },
+      take: MAX_OPP_ITEMS,
+    })
+    const items: YayeRessourceItem[] = rows.map(r => ({
+      id: r.id, titre: r.titre, type: String(r.type), theme: r.theme, niveau: r.niveau ? String(r.niveau) : null,
+    }))
+    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'ressources', items } : undefined }
+  },
+}
+
+// ── find_centres (fiche centre) ─────────────────────────────────────────────
+const findCentres: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'find_centres',
+      description:
+        "Trouve les CENTRES CJS (adresse, services, contact) — pour « où est le centre de… », " +
+        "« quels services au centre », « le CJS le plus proche », « les centres à Dakar ». Renvoie des fiches cliquables.",
+      parameters: {
+        type: 'object',
+        properties: {
+          region: { type: 'string', enum: Object.values(Region), description: 'Région ciblée' },
+          q: { type: 'string', description: 'Nom ou ville du centre' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.CentreWhereInput = { estActif: true }
+    if (inEnum(Region, args.region)) where.region = args.region as Region
+    if (typeof args.q === 'string' && args.q.trim()) {
+      const q = args.q.trim()
+      where.OR = [{ nom: { contains: q } }, { ville: { contains: q } }]
+    }
+    const rows = await prisma.centre.findMany({
+      where,
+      select: { id: true, slug: true, nom: true, ville: true, region: true, adresse: true, telephone: true, services: true },
+      orderBy: { nom: 'asc' },
+      take: MAX_OPP_ITEMS,
+    })
+    const items: YayeCentreItem[] = rows.map(r => ({
+      id: r.id, slug: r.slug ?? null, nom: r.nom,
+      ville: r.ville ?? null, region: r.region ? String(r.region) : null,
+      adresse: r.adresse, telephone: r.telephone ?? null,
+      services: Array.isArray(r.services) ? (r.services as unknown[]).map(String) : [],
+    }))
+    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'centres', items } : undefined }
+  },
+}
+
+// ── get_notifications ────────────────────────────────────────────────────────
+const getNotifications: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'get_notifications',
+      description:
+        "Liste les NOTIFICATIONS du bénéficiaire connecté (échéances, réponses à candidatures, messages, " +
+        "rappels). À utiliser pour « mes notifications », « quoi de neuf », « j'ai des nouvelles ? ».",
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  async execute(_args, ctx) {
+    const rows = await prisma.notification.findMany({
+      where: { cjsUid: ctx.cjsUid },
+      select: { id: true, type: true, titre: true, contenu: true, lien: true, metaPill: true, luA: true },
+      orderBy: [{ luA: { sort: 'asc', nulls: 'first' } }, { createdAt: 'desc' }],
+      take: MAX_OPP_ITEMS,
+    })
+    const unread = rows.filter(r => r.luA == null).length
+    const items: YayeNotificationItem[] = rows.map(r => ({
+      id: r.id, type: String(r.type), titre: r.titre, contenu: r.contenu,
+      lien: r.lien ?? null, metaPill: r.metaPill ?? null, lu: r.luA != null,
+    }))
+    return { ok: true, data: { count: items.length, nonLues: unread }, block: items.length > 0 ? { kind: 'notifications', items } : undefined }
+  },
+}
+
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
   get_realtime_data: getRealtimeData,
   search_opportunities: searchOpportunities,
   search_events: searchEvents,
+  search_resources: searchResources,
+  find_centres: findCentres,
+  get_notifications: getNotifications,
   get_recommendations: getRecommendations,
   query_knowledge_graph: queryKnowledgeGraph,
   get_reservable_resources: getReservableResources,

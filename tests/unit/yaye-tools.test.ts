@@ -14,6 +14,9 @@ const mockCandFindMany = jest.fn()
 const mockCount = jest.fn()
 const mockFindMany = jest.fn()
 const mockEvtFindMany = jest.fn()
+const mockResFindMany = jest.fn()
+const mockCentreFindMany = jest.fn()
+const mockNotifFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     candidature: {
@@ -24,6 +27,9 @@ jest.mock('@/lib/prisma', () => ({
     opportuniteFavorite: { count: (...a: unknown[]) => mockCount(...a) },
     opportunite: { findMany: (...a: unknown[]) => mockFindMany(...a) },
     evenement: { findMany: (...a: unknown[]) => mockEvtFindMany(...a) },
+    ressource: { findMany: (...a: unknown[]) => mockResFindMany(...a) },
+    centre: { findMany: (...a: unknown[]) => mockCentreFindMany(...a) },
+    notification: { findMany: (...a: unknown[]) => mockNotifFindMany(...a) },
   },
 }))
 
@@ -46,6 +52,9 @@ beforeEach(() => {
   mockCount.mockReset()
   mockFindMany.mockReset()
   mockEvtFindMany.mockReset()
+  mockResFindMany.mockReset()
+  mockCentreFindMany.mockReset()
+  mockNotifFindMany.mockReset()
   mockRecordEscalade.mockReset()
 })
 
@@ -225,4 +234,49 @@ test('search_events : aucun événement → pas de bloc', async () => {
   const r = await TOOLS.search_events.execute({}, ctx)
   expect(r.ok).toBe(true)
   expect(r.block).toBeUndefined()
+})
+
+test('search_resources : ressources publiques → bloc ressources', async () => {
+  mockResFindMany.mockResolvedValueOnce([
+    { id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null },
+  ])
+  const r = await TOOLS.search_resources.execute({ q: 'CV' }, ctx)
+  expect(r.ok).toBe(true)
+  expect(r.block?.kind).toBe('ressources')
+  if (r.block?.kind === 'ressources') expect(r.block.items[0].id).toBe('r1')
+  expect(mockResFindMany).toHaveBeenCalledWith(expect.objectContaining({
+    where: expect.objectContaining({ estPublic: true }),
+  }))
+})
+
+test('find_centres : centres actifs → bloc centres (services mappés)', async () => {
+  mockCentreFindMany.mockResolvedValueOnce([
+    { id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar', adresse: 'Rue 1', telephone: '+221...', services: ['WiFi', 'Conseiller'] },
+  ])
+  const r = await TOOLS.find_centres.execute({ region: 'Dakar' }, ctx)
+  expect(r.ok).toBe(true)
+  expect(r.block?.kind).toBe('centres')
+  if (r.block?.kind === 'centres') {
+    expect(r.block.items[0].slug).toBe('cjs-dakar')
+    expect(r.block.items[0].services).toEqual(['WiFi', 'Conseiller'])
+  }
+  expect(mockCentreFindMany).toHaveBeenCalledWith(expect.objectContaining({
+    where: expect.objectContaining({ estActif: true, region: 'Dakar' }),
+  }))
+})
+
+test('get_notifications : scope cjsUid + non-lues comptées + bloc notifications', async () => {
+  mockNotifFindMany.mockResolvedValueOnce([
+    { id: 'n1', type: 'Deadline', titre: 'Échéance proche', contenu: 'Offre X ferme demain', lien: '/opportunites/x', metaPill: 'J-1', luA: null },
+    { id: 'n2', type: 'Candidature', titre: 'Vue', contenu: 'Ta candidature a été vue', lien: null, metaPill: null, luA: new Date() },
+  ])
+  const r = await TOOLS.get_notifications.execute({}, ctx)
+  expect(r.ok).toBe(true)
+  expect((r.data as { nonLues: number }).nonLues).toBe(1)
+  expect(r.block?.kind).toBe('notifications')
+  if (r.block?.kind === 'notifications') {
+    expect(r.block.items[0].lu).toBe(false)
+    expect(r.block.items[1].lu).toBe(true)
+  }
+  expect(mockNotifFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { cjsUid: 'u-1' } }))
 })

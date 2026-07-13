@@ -67,3 +67,27 @@ test('événements → liste avec date + lieu + deep link agenda', () => {
   expect(out).toContain('CJS Thiès')
   expect(out).toContain('/agenda/ev1')
 })
+
+test('ressources → liste PDF/guide + lien', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'ressources', items: [
+    { id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null },
+  ] }])
+  expect(out).toContain('Guide CV')
+  expect(out).toContain('/ressources/r1')
+})
+
+test('centres → nom + adresse + lien slug', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'centres', items: [
+    { id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar', adresse: 'Rue 1', telephone: '+221990000000', services: ['WiFi'] },
+  ] }])
+  expect(out).toContain('CJS Dakar')
+  expect(out).toContain('/centres/cjs-dakar')
+})
+
+test('notifications → titres + contenu', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Deadline', titre: 'Échéance', contenu: 'Offre X ferme demain', lien: '/opportunites/x', metaPill: 'J-1', lu: false },
+  ] }])
+  expect(out).toContain('Échéance')
+  expect(out).toContain('Offre X ferme demain')
+})

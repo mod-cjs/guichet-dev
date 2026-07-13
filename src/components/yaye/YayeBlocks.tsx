@@ -7,6 +7,8 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { CJSCardFlip } from '@/components/centres/CJSCardFlip'
 import { YayeOppCard } from './YayeOppCard'
 import { YayeEventCard } from './YayeEventCard'
+import { YayeResourceCard } from './YayeResourceCard'
+import { YayeCentreCard } from './YayeCentreCard'
 import { YayeText } from './YayeText'
 import type { YayeBlock, YayeEscaladeBlock } from '@/lib/ia/blocks'
 
@@ -93,6 +95,51 @@ export function YayeBlocks({
                   <YayeEventCard ev={ev} onNavigate={onNavigate} />
                 </div>
               ))}
+            </div>
+          )
+        }
+        if (b.kind === 'ressources') {
+          return (
+            <div key={i} className="flex flex-col gap-space-2">
+              {b.items.map((res, j) => (
+                <div key={res.id} style={{ animation: `yaye-card-in .32s ease-out ${j * 0.07}s both` }}>
+                  <YayeResourceCard res={res} onNavigate={onNavigate} />
+                </div>
+              ))}
+            </div>
+          )
+        }
+        if (b.kind === 'centres') {
+          return (
+            <div key={i} className="flex flex-col gap-space-2">
+              {b.items.map((centre, j) => (
+                <div key={centre.id} style={{ animation: `yaye-card-in .32s ease-out ${j * 0.07}s both` }}>
+                  <YayeCentreCard centre={centre} onNavigate={onNavigate} />
+                </div>
+              ))}
+            </div>
+          )
+        }
+        if (b.kind === 'notifications') {
+          return (
+            <div key={i} className="flex flex-col gap-space-2">
+              {b.items.map((n) => {
+                const row = (
+                  <div className={`flex items-start gap-space-2 rounded-gj-md border-[1.5px] p-space-2 ${n.lu ? 'border-gj-line bg-gj-surface' : 'border-gj-teal-deep/30 bg-gj-teal-soft'}`}>
+                    {!n.lu && <span aria-hidden className="w-2 h-2 rounded-full bg-gj-teal-deep mt-[6px] shrink-0" />}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-bold text-fs-200 text-gj-ink leading-snug">{n.titre}</span>
+                      <span className="text-fs-100 text-gj-grey leading-snug">{n.contenu}</span>
+                    </div>
+                    {n.metaPill && <span className="text-fs-100 font-bold text-gj-teal-deep shrink-0">{n.metaPill}</span>}
+                  </div>
+                )
+                return n.lien ? (
+                  <button key={n.id} type="button" onClick={() => { onNavigate?.(); router.push(n.lien!) }} className="text-left">{row}</button>
+                ) : (
+                  <div key={n.id}>{row}</div>
+                )
+              })}
             </div>
           )
         }
