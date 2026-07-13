@@ -143,6 +143,33 @@ export function getLlmClient(model?: string): OpenAI {
   return client
 }
 
+/**
+ * Erreur TRANSITOIRE de décodage contraint des petits modèles locaux (LMStudio/vLLM) :
+ * « The model produced output that … », « Engine protocol predict … », « Compute error ».
+ * Survient surtout quand des `tools` sont fournis et que le modèle produit un appel malformé.
+ */
+export function isTransientDecodeError(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e)
+  return /produced output that|Engine protocol|predict (stream|request)|Compute error|failed to parse/i.test(m)
+}
+
+/**
+ * Rejoue une complétion sur erreur de décodage transitoire (petits modèles). N'affecte PAS
+ * Vertex/Gemini (ces erreurs ne s'y produisent pas) ; borne le nombre de tentatives.
+ */
+export async function chatCompletionWithRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  let last: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (e) {
+      last = e
+      if (!isTransientDecodeError(e) || attempt === retries) throw e
+    }
+  }
+  throw last
+}
+
 /** Réinitialise les singletons (tests). */
 export function __resetLlmClient(): void {
   _clients.clear()

@@ -9,10 +9,13 @@ const mockCreate = jest.fn()
 jest.mock('@/lib/ia/llm-client', () => ({
   getLlmClient: () => ({ chat: { completions: { create: (...a: unknown[]) => mockCreate(...a) } } }),
   isLlmConfigured: () => true,
+  chatCompletionWithRetry: (fn: () => unknown) => fn(),
 }))
 jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
 }))
+// La contextualisation graphe est testée séparément ; ici on l'isole (pas de DB/graphe).
+jest.mock('@/lib/ia/graph-context', () => ({ buildGraphContext: async () => '', GRAPH_PREAMBLE: '' }))
 
 const mockExecute = jest.fn()
 jest.mock('@/lib/ia/tools', () => ({
@@ -55,7 +58,7 @@ beforeEach(() => {
 
 test('réponse finale directe (aucun outil)', async () => {
   mockCreate.mockResolvedValueOnce(final('Bonjour Awa'))
-  const r = await runAgent({ ...base, message: 'Salut' })
+  const r = await runAgent({ ...base, message: 'Explique-moi le programme YEAH' })
   expect(r.reply).toBe('Bonjour Awa')
   expect(r.toolsUsed).toEqual([])
   expect(mockExecute).not.toHaveBeenCalled()
@@ -87,7 +90,7 @@ test('prompt : repère les situations de danger (sécurité)', () => {
 
 test('injecte la mémoire long terme (memo) dans le contexte système', async () => {
   mockCreate.mockResolvedValueOnce(final('Bonjour'))
-  await runAgent({ ...base, message: 'salut', memo: '- vise un stage en agro à Thiès' })
+  await runAgent({ ...base, message: 'Explique-moi le programme YEAH', memo: '- vise un stage en agro à Thiès' })
   const sent = mockCreate.mock.calls[0][0].messages as { role: string; content: string }[]
   const systemContent = sent.filter(m => m.role === 'system').map(m => m.content).join('\n')
   expect(systemContent).toContain('vise un stage en agro à Thiès')
@@ -95,7 +98,7 @@ test('injecte la mémoire long terme (memo) dans le contexte système', async ()
 
 test('sans memo : aucun message système supplémentaire', async () => {
   mockCreate.mockResolvedValueOnce(final('Bonjour'))
-  await runAgent({ ...base, message: 'salut' })
+  await runAgent({ ...base, message: 'Explique-moi le programme YEAH' })
   const sent = mockCreate.mock.calls[0][0].messages as { role: string; content: string }[]
   expect(sent.filter(m => m.role === 'system')).toHaveLength(1)
 })
@@ -159,7 +162,7 @@ test('garde-fou : trop de tours d’outils → réponse d’escalade + log erreu
 
 test('streamAgent : émet les tokens de la réponse puis un done cohérent (sans outil)', async () => {
   mockCreate.mockResolvedValueOnce(streamOf([textDelta('Bon'), textDelta('jour'), textDelta(' Awa')]))
-  const evs = await collect(streamAgent({ ...base, message: 'salut' }))
+  const evs = await collect(streamAgent({ ...base, message: 'Explique-moi le programme YEAH' }))
 
   const tokens = evs.filter(e => e.type === 'token').map(e => e.type === 'token' && e.text).join('')
   expect(tokens).toBe('Bonjour Awa')

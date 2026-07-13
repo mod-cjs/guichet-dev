@@ -23,6 +23,11 @@ services:
       NEO4J_DATABASE: enriched
       # Connexion de test SANS SSO (dev/login) — local uniquement, jamais en prod.
       ALLOW_DEV_LOGIN: "true"
+      # LMStudio tourne sur l'HÔTE (Mac) : depuis le conteneur, localhost = le conteneur.
+      # On pointe donc le serveur local via host.docker.internal (cf. extra_hosts).
+      LMSTUDIO_BASE_URL: http://host.docker.internal:1234/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mariadb:
         condition: service_healthy

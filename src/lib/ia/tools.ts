@@ -6,7 +6,7 @@
 // les 9 autres (query_knowledge_graph, reserve_resource…) viendront aux lots suivants.
 
 import { prisma } from '@/lib/prisma'
-import { Domaine, Region, TypeOpportunite, TypeRessourceCentre } from '@prisma/client'
+import { Domaine, Region, TypeOpportunite, TypeEvenement, TypeRessource, TypeRessourceCentre } from '@prisma/client'
 import type { CanalAgent, Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
 import { appUrl } from '@/lib/app-url'
@@ -21,7 +21,8 @@ import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
-import type { YayeBlock, YayeOppItem } from './blocks'
+import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem, type YayeRessourceItem, type YayeCentreItem, type YayeNotificationItem } from './blocks'
+import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
 async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
@@ -31,6 +32,7 @@ async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
     select: {
       id: true, slug: true, titre: true, type: true, region: true,
       organisation: true, organisationLibelle: true, deadline: true,
+      typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
     },
   })
   const byId = new Map(rows.map(r => [r.id, r]))
@@ -39,12 +41,39 @@ async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
     return r
       ? [{
           id: r.id, slug: r.slug, titre: r.titre, type: String(r.type),
+          typeSlug: r.typeRef?.slug ?? null,
+          typeLabel: r.typeRef?.libelle ?? null,
+          actionLabel: r.typeRef?.actionLabel ?? null,
           organisation: r.organisationLibelle ?? r.organisation ?? null,
           region: r.region ? String(r.region) : null,
           deadline: r.deadline ? r.deadline.toISOString() : null,
         }]
       : []
   })
+}
+
+/**
+ * Entrelace des lignes par `type` (round-robin) pour un mix de sous-catégories, en préservant
+ * l'ordre interne (échéance) de chaque type. Évite qu'une recherche sans type précis ne renvoie
+ * que des emplois (type majoritaire du dataset). No-op si un seul type présent.
+ */
+export function diversifyByType<T extends { type: unknown }>(rows: T[], limit: number): T[] {
+  const queues = new Map<string, T[]>()
+  for (const r of rows) {
+    const k = String(r.type)
+    const q = queues.get(k) ?? []
+    q.push(r)
+    queues.set(k, q)
+  }
+  const lists = [...queues.values()]
+  if (lists.length <= 1) return rows.slice(0, limit)
+  const out: T[] = []
+  for (let i = 0; out.length < limit && lists.some(q => q.length); i++) {
+    const q = lists[i % lists.length]
+    const item = q.shift()
+    if (item) out.push(item)
+  }
+  return out
 }
 
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
@@ -110,8 +139,9 @@ const getRealtimeData: AgentTool = {
     function: {
       name: 'get_realtime_data',
       description:
-        'Données temps réel de l\'utilisateur : état de ses candidatures (nombre, statuts) ' +
-        'et nombre de favoris. Utile pour répondre « où en sont mes candidatures ? ».',
+        'Données temps réel de l\'utilisateur : ses candidatures et son nombre de favoris. ' +
+        'Renvoie les candidatures en CARDS cliquables (le statut est porté par la card) — ' +
+        'présente-les en UNE phrase, ne les énumère jamais en prose. Utile pour « où en sont mes candidatures ? ».',
       parameters: {
         type: 'object',
         properties: {
@@ -128,22 +158,54 @@ const getRealtimeData: AgentTool = {
   async execute(args, ctx) {
     const scope = (args.scope as string) ?? 'tout'
     const out: Record<string, unknown> = {}
+    // Statut lisible affiché SUR la card (jamais d'emoji, cf. règles UI).
+    const STATUT_LABEL: Record<string, string> = {
+      En_attente: 'Candidature envoyée',
+      Vue: 'Vue par le recruteur',
+      Retenue: 'Retenue',
+      Refusee: 'Non retenue',
+    }
+    let block: YayeBlock | undefined
 
     if (scope === 'candidatures' || scope === 'tout') {
-      const grouped = await prisma.candidature.groupBy({
-        by: ['statut'],
-        where: { cjsUid: ctx.cjsUid },
-        _count: { _all: true },
-      })
-      out.candidatures = {
-        total: grouped.reduce((n, g) => n + g._count._all, 0),
-        parStatut: Object.fromEntries(grouped.map(g => [g.statut, g._count._all])),
-      }
+      // Total réel + 5 dernières candidatures affichées en CARDS cliquables (statut en note),
+      // au lieu d'une énumération en prose. On ne renvoie au LLM que le décompte (anti-redondance).
+      const [total, cands] = await Promise.all([
+        prisma.candidature.count({ where: { cjsUid: ctx.cjsUid } }),
+        prisma.candidature.findMany({
+          where: { cjsUid: ctx.cjsUid },
+          orderBy: { soumiseA: 'desc' },
+          take: 5,
+          select: {
+            statut: true,
+            opportunite: {
+              select: { id: true, slug: true, titre: true, type: true, region: true, organisation: true, organisationLibelle: true, deadline: true, typeRef: { select: { slug: true, libelle: true, actionLabel: true } } },
+            },
+          },
+        }),
+      ])
+      out.candidatures = { total }
+      const items: YayeOppItem[] = cands
+        .filter(c => c.opportunite)
+        .map(c => ({
+          id: c.opportunite!.id,
+          slug: c.opportunite!.slug,
+          titre: c.opportunite!.titre,
+          type: String(c.opportunite!.type),
+          typeSlug: c.opportunite!.typeRef?.slug ?? null,
+          typeLabel: c.opportunite!.typeRef?.libelle ?? null,
+          actionLabel: c.opportunite!.typeRef?.actionLabel ?? null,
+          organisation: c.opportunite!.organisationLibelle ?? c.opportunite!.organisation ?? null,
+          region: c.opportunite!.region ? String(c.opportunite!.region) : null,
+          deadline: c.opportunite!.deadline ? c.opportunite!.deadline.toISOString() : null,
+          note: STATUT_LABEL[c.statut] ?? String(c.statut),
+        }))
+      if (items.length > 0) block = { kind: 'opportunites', items }
     }
     if (scope === 'favoris' || scope === 'tout') {
       out.favoris = await prisma.opportuniteFavorite.count({ where: { cjsUid: ctx.cjsUid } })
     }
-    return { ok: true, data: out }
+    return { ok: true, data: out, block }
   },
 }
 
@@ -181,7 +243,8 @@ const searchOpportunities: AgentTool = {
     }
     if (inEnum(Domaine, args.domaine)) where.domaine = args.domaine
     if (inEnum(Region, args.region)) where.region = args.region
-    if (inEnum(TypeOpportunite, args.type)) where.type = args.type
+    const typeSpecified = inEnum(TypeOpportunite, args.type)
+    if (typeSpecified) where.type = args.type as TypeOpportunite
     if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
 
     const rows = await prisma.opportunite.findMany({
@@ -189,16 +252,24 @@ const searchOpportunities: AgentTool = {
       select: {
         id: true, slug: true, titre: true, type: true, region: true,
         organisation: true, organisationLibelle: true, deadline: true,
+        typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
       },
       orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
-      take: 5,
+      // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
+      // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », cf. dataset ~38%).
+      take: typeSpecified ? MAX_OPP_ITEMS : 60,
     })
 
-    const items: YayeOppItem[] = rows.map(r => ({
+    const selected = typeSpecified ? rows : diversifyByType(rows, MAX_OPP_ITEMS)
+
+    const items: YayeOppItem[] = selected.map(r => ({
       id: r.id,
       slug: r.slug,
       titre: r.titre,
       type: String(r.type),
+      typeSlug: r.typeRef?.slug ?? null,
+      typeLabel: r.typeRef?.libelle ?? null,
+      actionLabel: r.typeRef?.actionLabel ?? null,
       organisation: r.organisationLibelle ?? r.organisation ?? null,
       region: r.region ? String(r.region) : null,
       deadline: r.deadline ? r.deadline.toISOString() : null,
@@ -569,12 +640,22 @@ const getBadge: AgentTool = {
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
-  async execute() {
+  async execute(_args, ctx) {
     const base = appUrl()
     const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token' })
     const data = r.json.data as { expiresAt?: string; token?: string } | undefined
 
     if (r.ok && data?.token) {
+      // Carte CJS INLINE (recto/verso + QR) — design v4 `yaye-cjscard.jsx`. Fallback lien si
+      // l'assemblage de la carte échoue (utilisateur introuvable).
+      const user = await buildCjsCardUser(ctx.cjsUid).catch(() => null)
+      if (user) {
+        return {
+          ok: true,
+          data: { expiresAt: data.expiresAt ?? null },
+          block: { kind: 'carte_cjs', cjsUid: ctx.cjsUid, user, qrToken: data.token },
+        }
+      }
       return {
         ok: true,
         data: { expiresAt: data.expiresAt ?? null },
@@ -1036,10 +1117,181 @@ const getActiveLoans: AgentTool = {
   },
 }
 
+// ── search_events (agenda) ──────────────────────────────────────────────────
+// Événements À VENIR (ateliers, forums, formations, webinaires, conférences, cours)
+// prêts à afficher en CARDS cliquables (→ /agenda/[id]).
+const searchEvents: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'search_events',
+      description:
+        "Recherche les ÉVÉNEMENTS à venir de l'agenda CJS (ateliers CV, forums emploi, formations, " +
+        'webinaires, conférences, cours). Renvoie des cards cliquables. À utiliser quand la personne ' +
+        "demande « quels événements / ateliers / forums », « qu'est-ce qui se passe au centre », l'agenda.",
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: Object.values(TypeEvenement), description: "Type d'événement" },
+          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.EvenementWhereInput = { statut: 'a_venir' }
+    if (inEnum(TypeEvenement, args.type)) where.type = args.type as TypeEvenement
+    if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
+
+    const rows = await prisma.evenement.findMany({
+      where,
+      select: {
+        id: true, titre: true, type: true, dateDebut: true, dateFin: true, lieu: true, estGratuit: true,
+        centre: { select: { nom: true } },
+      },
+      orderBy: { dateDebut: 'asc' },
+      take: MAX_OPP_ITEMS,
+    })
+
+    const items: YayeEvenementItem[] = rows.map(r => ({
+      id: r.id,
+      titre: r.titre,
+      type: String(r.type),
+      dateDebut: r.dateDebut.toISOString(),
+      dateFin: r.dateFin ? r.dateFin.toISOString() : null,
+      lieu: r.lieu,
+      centre: r.centre?.nom ?? null,
+      estGratuit: r.estGratuit,
+    }))
+
+    return {
+      ok: true,
+      // Décompte seul au LLM (les détails vivent sur les cards) — anti ré-énumération en prose.
+      data: { count: items.length },
+      block: items.length > 0 ? { kind: 'evenements', items } : undefined,
+    }
+  },
+}
+
+// ── search_resources (bibliothèque numérique) ───────────────────────────────
+const searchResources: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'search_resources',
+      description:
+        "Recherche des RESSOURCES numériques (guides PDF, vidéos, liens, outils) de la bibliothèque " +
+        "en ligne du CJS. À utiliser pour « un guide sur… », « une vidéo pour… », « des ressources sur " +
+        "le CV / l'entrepreneuriat », « comment faire… ». Différent des LIVRES physiques (search_library).",
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: Object.values(TypeRessource), description: 'Type de ressource' },
+          q: { type: 'string', description: 'Mots-clés (titre ou thème)' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.RessourceWhereInput = { estPublic: true }
+    if (inEnum(TypeRessource, args.type)) where.type = args.type as TypeRessource
+    if (typeof args.q === 'string' && args.q.trim()) {
+      const q = args.q.trim()
+      where.OR = [{ titre: { contains: q } }, { theme: { contains: q } }, { categorie: { contains: q } }]
+    }
+    const rows = await prisma.ressource.findMany({
+      where,
+      select: { id: true, titre: true, type: true, theme: true, niveau: true },
+      orderBy: { vues: 'desc' },
+      take: MAX_OPP_ITEMS,
+    })
+    const items: YayeRessourceItem[] = rows.map(r => ({
+      id: r.id, titre: r.titre, type: String(r.type), theme: r.theme, niveau: r.niveau ? String(r.niveau) : null,
+    }))
+    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'ressources', items } : undefined }
+  },
+}
+
+// ── find_centres (fiche centre) ─────────────────────────────────────────────
+const findCentres: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'find_centres',
+      description:
+        "Trouve les CENTRES CJS (adresse, services, contact) — pour « où est le centre de… », " +
+        "« quels services au centre », « le CJS le plus proche », « les centres à Dakar ». Renvoie des fiches cliquables.",
+      parameters: {
+        type: 'object',
+        properties: {
+          region: { type: 'string', enum: Object.values(Region), description: 'Région ciblée' },
+          q: { type: 'string', description: 'Nom ou ville du centre' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.CentreWhereInput = { estActif: true }
+    if (inEnum(Region, args.region)) where.region = args.region as Region
+    if (typeof args.q === 'string' && args.q.trim()) {
+      const q = args.q.trim()
+      where.OR = [{ nom: { contains: q } }, { ville: { contains: q } }]
+    }
+    const rows = await prisma.centre.findMany({
+      where,
+      select: { id: true, slug: true, nom: true, ville: true, region: true, adresse: true, telephone: true, services: true },
+      orderBy: { nom: 'asc' },
+      take: MAX_OPP_ITEMS,
+    })
+    const items: YayeCentreItem[] = rows.map(r => ({
+      id: r.id, slug: r.slug ?? null, nom: r.nom,
+      ville: r.ville ?? null, region: r.region ? String(r.region) : null,
+      adresse: r.adresse, telephone: r.telephone ?? null,
+      services: Array.isArray(r.services) ? (r.services as unknown[]).map(String) : [],
+    }))
+    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'centres', items } : undefined }
+  },
+}
+
+// ── get_notifications ────────────────────────────────────────────────────────
+const getNotifications: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'get_notifications',
+      description:
+        "Liste les NOTIFICATIONS du bénéficiaire connecté (échéances, réponses à candidatures, messages, " +
+        "rappels). À utiliser pour « mes notifications », « quoi de neuf », « j'ai des nouvelles ? ».",
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  async execute(_args, ctx) {
+    const rows = await prisma.notification.findMany({
+      where: { cjsUid: ctx.cjsUid },
+      select: { id: true, type: true, titre: true, contenu: true, lien: true, metaPill: true, luA: true },
+      orderBy: [{ luA: { sort: 'asc', nulls: 'first' } }, { createdAt: 'desc' }],
+      take: MAX_OPP_ITEMS,
+    })
+    const unread = rows.filter(r => r.luA == null).length
+    const items: YayeNotificationItem[] = rows.map(r => ({
+      id: r.id, type: String(r.type), titre: r.titre, contenu: r.contenu,
+      lien: r.lien ?? null, metaPill: r.metaPill ?? null, lu: r.luA != null,
+    }))
+    return { ok: true, data: { count: items.length, nonLues: unread }, block: items.length > 0 ? { kind: 'notifications', items } : undefined }
+  },
+}
+
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
   get_realtime_data: getRealtimeData,
   search_opportunities: searchOpportunities,
+  search_events: searchEvents,
+  search_resources: searchResources,
+  find_centres: findCentres,
+  get_notifications: getNotifications,
   get_recommendations: getRecommendations,
   query_knowledge_graph: queryKnowledgeGraph,
   get_reservable_resources: getReservableResources,

@@ -44,10 +44,10 @@ export const GOLDEN_SCENARIOS: GoldenScenario[] = [
   },
   { id: 'badge', message: 'Montre-moi mon badge', expectedTool: 'get_badge' },
   {
-    id: 'profil',
+    id: 'profil-consultation',
     message: 'Qu’est-ce que tu sais de mon profil ?',
     expectedTool: 'get_user_profile',
-    note: 'Consultation du profil',
+    note: 'Consultation du profil (id distinct de « profil » reco)',
   },
   {
     id: 'reservation-confirme',
