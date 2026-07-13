@@ -52,6 +52,30 @@ async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
   })
 }
 
+/**
+ * Entrelace des lignes par `type` (round-robin) pour un mix de sous-catégories, en préservant
+ * l'ordre interne (échéance) de chaque type. Évite qu'une recherche sans type précis ne renvoie
+ * que des emplois (type majoritaire du dataset). No-op si un seul type présent.
+ */
+export function diversifyByType<T extends { type: unknown }>(rows: T[], limit: number): T[] {
+  const queues = new Map<string, T[]>()
+  for (const r of rows) {
+    const k = String(r.type)
+    const q = queues.get(k) ?? []
+    q.push(r)
+    queues.set(k, q)
+  }
+  const lists = [...queues.values()]
+  if (lists.length <= 1) return rows.slice(0, limit)
+  const out: T[] = []
+  for (let i = 0; out.length < limit && lists.some(q => q.length); i++) {
+    const q = lists[i % lists.length]
+    const item = q.shift()
+    if (item) out.push(item)
+  }
+  return out
+}
+
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
 export interface ToolDefinition {
   type: 'function'
@@ -219,7 +243,8 @@ const searchOpportunities: AgentTool = {
     }
     if (inEnum(Domaine, args.domaine)) where.domaine = args.domaine
     if (inEnum(Region, args.region)) where.region = args.region
-    if (inEnum(TypeOpportunite, args.type)) where.type = args.type
+    const typeSpecified = inEnum(TypeOpportunite, args.type)
+    if (typeSpecified) where.type = args.type as TypeOpportunite
     if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
 
     const rows = await prisma.opportunite.findMany({
@@ -230,11 +255,14 @@ const searchOpportunities: AgentTool = {
         typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
       },
       orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
-      // Plafond produit : on ne montre que les meilleures offres (cf. MAX_OPP_ITEMS).
-      take: MAX_OPP_ITEMS,
+      // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
+      // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », cf. dataset ~38%).
+      take: typeSpecified ? MAX_OPP_ITEMS : 60,
     })
 
-    const items: YayeOppItem[] = rows.map(r => ({
+    const selected = typeSpecified ? rows : diversifyByType(rows, MAX_OPP_ITEMS)
+
+    const items: YayeOppItem[] = selected.map(r => ({
       id: r.id,
       slug: r.slug,
       titre: r.titre,

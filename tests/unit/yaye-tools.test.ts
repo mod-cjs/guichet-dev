@@ -9,11 +9,17 @@ const mockLoad = jest.fn()
 jest.mock('@/lib/profil-loader', () => ({ loadProfilComplet: (...a: unknown[]) => mockLoad(...a) }))
 
 const mockGroupBy = jest.fn()
+const mockCandCount = jest.fn()
+const mockCandFindMany = jest.fn()
 const mockCount = jest.fn()
 const mockFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
-    candidature: { groupBy: (...a: unknown[]) => mockGroupBy(...a) },
+    candidature: {
+      groupBy: (...a: unknown[]) => mockGroupBy(...a),
+      count: (...a: unknown[]) => mockCandCount(...a),
+      findMany: (...a: unknown[]) => mockCandFindMany(...a),
+    },
     opportuniteFavorite: { count: (...a: unknown[]) => mockCount(...a) },
     opportunite: { findMany: (...a: unknown[]) => mockFindMany(...a) },
   },
@@ -26,13 +32,15 @@ jest.mock('@/lib/ia/escalade', () => ({
 }))
 jest.mock('@/lib/app-url', () => ({ appUrl: () => 'https://app.test' }))
 
-import { TOOLS } from '@/lib/ia/tools'
+import { TOOLS, diversifyByType } from '@/lib/ia/tools'
 
 const ctx = { cjsUid: 'u-1', roles: ['beneficiaire'] }
 
 beforeEach(() => {
   mockLoad.mockReset()
   mockGroupBy.mockReset()
+  mockCandCount.mockReset()
+  mockCandFindMany.mockReset()
   mockCount.mockReset()
   mockFindMany.mockReset()
   mockRecordEscalade.mockReset()
@@ -51,21 +59,29 @@ test('get_user_profile : profil introuvable → ok:false', async () => {
   expect(r.ok).toBe(false)
 })
 
-test('get_realtime_data : agrège candidatures (par statut) + favoris', async () => {
-  mockGroupBy.mockResolvedValueOnce([
-    { statut: 'En_attente', _count: { _all: 2 } },
-    { statut: 'Vue', _count: { _all: 1 } },
+test('get_realtime_data : total candidatures + favoris + cards (statut en note)', async () => {
+  mockCandCount.mockResolvedValueOnce(3)
+  mockCandFindMany.mockResolvedValueOnce([
+    {
+      statut: 'En_attente',
+      opportunite: { id: 'o1', slug: 'dev-web', titre: 'Développeur web', type: 'Emploi', region: 'Dakar', organisation: 'ACME', organisationLibelle: null, deadline: null, typeRef: null },
+    },
   ])
   mockCount.mockResolvedValueOnce(5)
 
   const r = await TOOLS.get_realtime_data.execute({ scope: 'tout' }, ctx)
 
   expect(r.ok).toBe(true)
-  const data = r.data as { candidatures: { total: number; parStatut: Record<string, number> }; favoris: number }
+  const data = r.data as { candidatures: { total: number }; favoris: number }
   expect(data.candidatures.total).toBe(3)
-  expect(data.candidatures.parStatut.En_attente).toBe(2)
   expect(data.favoris).toBe(5)
-  expect(mockGroupBy).toHaveBeenCalledWith(expect.objectContaining({ where: { cjsUid: 'u-1' } }))
+  // Les candidatures sortent en CARDS (statut porté sur la card via note), pas en prose.
+  expect(r.block?.kind).toBe('opportunites')
+  if (r.block?.kind === 'opportunites') {
+    expect(r.block.items[0].slug).toBe('dev-web')
+    expect(r.block.items[0].note).toBe('Candidature envoyée')
+  }
+  expect(mockCandCount).toHaveBeenCalledWith(expect.objectContaining({ where: { cjsUid: 'u-1' } }))
 })
 
 test('search_opportunities : renvoie un bloc opportunites cliquable', async () => {
@@ -165,4 +181,21 @@ test('escalate_to_advisor : motif inconnu normalisé en "autre"', async () => {
     { ...ctx, sessionId: 's-2', canal: 'whatsapp' },
   )
   expect(mockRecordEscalade).toHaveBeenCalledWith(expect.objectContaining({ raison: 'autre' }))
+})
+
+describe('diversifyByType — mix de sous-catégories (anti « tout emploi »)', () => {
+  it('entrelace les types au lieu de prendre 3 emplois', () => {
+    const rows = [
+      { type: 'Emploi', id: 'e1' }, { type: 'Emploi', id: 'e2' }, { type: 'Emploi', id: 'e3' },
+      { type: 'Formation', id: 'f1' }, { type: 'Bourse', id: 'b1' },
+    ]
+    const out = diversifyByType(rows, 3)
+    expect(out).toHaveLength(3)
+    expect(new Set(out.map(r => r.type)).size).toBe(3) // 3 types distincts
+    expect(out[0]).toEqual({ type: 'Emploi', id: 'e1' }) // ordre interne préservé
+  })
+  it('un seul type disponible → simple troncature', () => {
+    const rows = [{ type: 'Emploi', id: 'e1' }, { type: 'Emploi', id: 'e2' }]
+    expect(diversifyByType(rows, 3)).toHaveLength(2)
+  })
 })
