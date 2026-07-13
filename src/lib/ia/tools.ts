@@ -22,6 +22,7 @@ import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
 import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem } from './blocks'
+import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
 async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
@@ -31,6 +32,7 @@ async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
     select: {
       id: true, slug: true, titre: true, type: true, region: true,
       organisation: true, organisationLibelle: true, deadline: true,
+      typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
     },
   })
   const byId = new Map(rows.map(r => [r.id, r]))
@@ -39,6 +41,9 @@ async function loadOppItems(ids: string[]): Promise<YayeOppItem[]> {
     return r
       ? [{
           id: r.id, slug: r.slug, titre: r.titre, type: String(r.type),
+          typeSlug: r.typeRef?.slug ?? null,
+          typeLabel: r.typeRef?.libelle ?? null,
+          actionLabel: r.typeRef?.actionLabel ?? null,
           organisation: r.organisationLibelle ?? r.organisation ?? null,
           region: r.region ? String(r.region) : null,
           deadline: r.deadline ? r.deadline.toISOString() : null,
@@ -150,7 +155,7 @@ const getRealtimeData: AgentTool = {
           select: {
             statut: true,
             opportunite: {
-              select: { id: true, slug: true, titre: true, type: true, region: true, organisation: true, organisationLibelle: true, deadline: true },
+              select: { id: true, slug: true, titre: true, type: true, region: true, organisation: true, organisationLibelle: true, deadline: true, typeRef: { select: { slug: true, libelle: true, actionLabel: true } } },
             },
           },
         }),
@@ -163,6 +168,9 @@ const getRealtimeData: AgentTool = {
           slug: c.opportunite!.slug,
           titre: c.opportunite!.titre,
           type: String(c.opportunite!.type),
+          typeSlug: c.opportunite!.typeRef?.slug ?? null,
+          typeLabel: c.opportunite!.typeRef?.libelle ?? null,
+          actionLabel: c.opportunite!.typeRef?.actionLabel ?? null,
           organisation: c.opportunite!.organisationLibelle ?? c.opportunite!.organisation ?? null,
           region: c.opportunite!.region ? String(c.opportunite!.region) : null,
           deadline: c.opportunite!.deadline ? c.opportunite!.deadline.toISOString() : null,
@@ -219,6 +227,7 @@ const searchOpportunities: AgentTool = {
       select: {
         id: true, slug: true, titre: true, type: true, region: true,
         organisation: true, organisationLibelle: true, deadline: true,
+        typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
       },
       orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
       // Plafond produit : on ne montre que les meilleures offres (cf. MAX_OPP_ITEMS).
@@ -230,6 +239,9 @@ const searchOpportunities: AgentTool = {
       slug: r.slug,
       titre: r.titre,
       type: String(r.type),
+      typeSlug: r.typeRef?.slug ?? null,
+      typeLabel: r.typeRef?.libelle ?? null,
+      actionLabel: r.typeRef?.actionLabel ?? null,
       organisation: r.organisationLibelle ?? r.organisation ?? null,
       region: r.region ? String(r.region) : null,
       deadline: r.deadline ? r.deadline.toISOString() : null,
@@ -600,12 +612,22 @@ const getBadge: AgentTool = {
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
-  async execute() {
+  async execute(_args, ctx) {
     const base = appUrl()
     const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token' })
     const data = r.json.data as { expiresAt?: string; token?: string } | undefined
 
     if (r.ok && data?.token) {
+      // Carte CJS INLINE (recto/verso + QR) — design v4 `yaye-cjscard.jsx`. Fallback lien si
+      // l'assemblage de la carte échoue (utilisateur introuvable).
+      const user = await buildCjsCardUser(ctx.cjsUid).catch(() => null)
+      if (user) {
+        return {
+          ok: true,
+          data: { expiresAt: data.expiresAt ?? null },
+          block: { kind: 'carte_cjs', cjsUid: ctx.cjsUid, user, qrToken: data.token },
+        }
+      }
       return {
         ok: true,
         data: { expiresAt: data.expiresAt ?? null },

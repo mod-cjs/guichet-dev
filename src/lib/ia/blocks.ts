@@ -9,7 +9,11 @@ export interface YayeOppItem {
   id: string
   slug: string
   titre: string
-  type: string // TypeOpportunite (libellé enum)
+  type: string // TypeOpportunite (libellé enum) — repli
+  /** Slug de `OpportuniteType` (10 sous-catégories : financement, concours, mentorat, mobilite…). */
+  typeSlug?: string | null
+  /** Libellé fin du type (ex. « Financement », « Mentorat ») — affiché sur la card. */
+  typeLabel?: string | null
   organisation: string | null
   region: string | null
   deadline: string | null // ISO 8601
@@ -38,10 +42,30 @@ export interface YayeEscaladeBlock {
   button?: { label: string; href: string }
 }
 
+/** Données minimales de la carte membre CJS (données de l'utilisateur LUI-MÊME — OK CDP). */
+export interface YayeCarteCjsUser {
+  prenom: string
+  nom: string
+  matricule: string
+  membreDepuis: string
+  photoUrl?: string
+  centrePrincipal?: { nom: string; region: string }
+}
+
+/** Carte membre CJS affichée dans la conversation (recto/verso + QR). Design v4 `yaye-cjscard.jsx`. */
+export interface YayeCarteCjsBlock {
+  kind: 'carte_cjs'
+  cjsUid: string
+  user: YayeCarteCjsUser
+  /** QR signé (Phase 4) ; si absent, la card retombe sur un QR démo dérivé de `cjsUid`. */
+  qrToken?: string | null
+}
+
 /** Un bloc de réponse — rendu différemment selon son `kind`. */
 export type YayeBlock =
   | { kind: 'text'; text: string }
   | { kind: 'opportunites'; items: YayeOppItem[] }
+  | YayeCarteCjsBlock
   | { kind: 'quick_replies'; replies: YayeQuickReply[] }
   | {
       kind: 'action'
@@ -66,7 +90,7 @@ export type YayeBlock =
  * n'y a pas de card, ou si le texte tient déjà en une phrase.
  */
 export function trimTextWhenCards(blocks: YayeBlock[]): YayeBlock[] {
-  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'action')
+  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'action' || b.kind === 'carte_cjs')
   if (!hasCards) return blocks
   return blocks.map(b => {
     if (b.kind !== 'text') return b
