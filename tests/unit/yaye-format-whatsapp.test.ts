@@ -47,3 +47,12 @@ test('bloc escalade → titre + message + référence à citer', () => {
 test('aucun bloc → message par défaut', () => {
   expect(formatBlocksForWhatsApp([])).toMatch(/pas de réponse/i)
 })
+
+test('carte CJS → fallback texte + lien (WhatsApp ne rend pas la carte visuelle)', () => {
+  const out = formatBlocksForWhatsApp([
+    { kind: 'carte_cjs', cjsUid: 'abc123', user: { prenom: 'Awa', nom: 'Diop', matricule: 'GJS · AD · ABC123', membreDepuis: '03/2025' } },
+  ])
+  expect(out).toContain('Ta carte CJS')
+  expect(out).toContain('GJS · AD · ABC123')
+  expect(out).toContain('/jeune/ma-carte')
+})

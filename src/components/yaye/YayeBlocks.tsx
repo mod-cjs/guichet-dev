@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { YayeActionCard } from '@/components/ui/Yaye/YayeActionCard'
 import { QuickReplies } from '@/components/ui/Yaye/QuickReplies'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { CJSCardFlip } from '@/components/centres/CJSCardFlip'
 import { YayeOppCard } from './YayeOppCard'
 import { YayeText } from './YayeText'
 import type { YayeBlock, YayeEscaladeBlock } from '@/lib/ia/blocks'
@@ -80,6 +81,14 @@ export function YayeBlocks({
                   <YayeOppCard opp={o} onNavigate={onNavigate} />
                 </div>
               ))}
+            </div>
+          )
+        }
+        if (b.kind === 'carte_cjs') {
+          // Carte membre CJS inline (recto/verso + QR) — design v4 `yaye-cjscard.jsx`.
+          return (
+            <div key={i} style={{ animation: 'yaye-card-in .32s ease-out both' }}>
+              <CJSCardFlip user={b.user} cjsUid={b.cjsUid} qrToken={b.qrToken ?? null} maxWidth={340} />
             </div>
           )
         }

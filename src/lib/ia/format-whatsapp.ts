@@ -36,6 +36,9 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
     } else if (b.kind === 'escalade') {
       // Accusé de réception d'escalade : titre + attente + référence à citer.
       parts.push([`*${b.title}*`, b.message, `Référence : ${b.reference}`].filter(Boolean).join('\n'))
+    } else if (b.kind === 'carte_cjs') {
+      // La carte visuelle ne se rend pas sur WhatsApp → texte + lien vers la carte web.
+      parts.push([`*Ta carte CJS* — ${b.user.matricule}`, `Ouvre-la ici : ${APP_URL}/jeune/ma-carte`].join('\n'))
     } else {
       // action : on résume en texte (les boutons riches n'existent pas en texte brut)
       const head = [b.title, b.subtitle].filter(Boolean).join(' — ')
