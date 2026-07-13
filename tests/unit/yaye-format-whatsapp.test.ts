@@ -56,3 +56,14 @@ test('carte CJS → fallback texte + lien (WhatsApp ne rend pas la carte visuell
   expect(out).toContain('GJS · AD · ABC123')
   expect(out).toContain('/jeune/ma-carte')
 })
+
+test('événements → liste avec date + lieu + deep link agenda', () => {
+  const out = formatBlocksForWhatsApp([
+    { kind: 'evenements', items: [
+      { id: 'ev1', titre: 'Forum emploi', type: 'Forum', dateDebut: '2026-09-10T14:00:00Z', dateFin: null, lieu: 'Grand Hall', centre: 'CJS Thiès', estGratuit: true },
+    ] },
+  ])
+  expect(out).toContain('Forum emploi')
+  expect(out).toContain('CJS Thiès')
+  expect(out).toContain('/agenda/ev1')
+})

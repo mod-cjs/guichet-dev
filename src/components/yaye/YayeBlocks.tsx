@@ -6,6 +6,7 @@ import { QuickReplies } from '@/components/ui/Yaye/QuickReplies'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { CJSCardFlip } from '@/components/centres/CJSCardFlip'
 import { YayeOppCard } from './YayeOppCard'
+import { YayeEventCard } from './YayeEventCard'
 import { YayeText } from './YayeText'
 import type { YayeBlock, YayeEscaladeBlock } from '@/lib/ia/blocks'
 
@@ -79,6 +80,17 @@ export function YayeBlocks({
                   style={{ animation: `yaye-card-in .32s ease-out ${j * 0.07}s both` }}
                 >
                   <YayeOppCard opp={o} onNavigate={onNavigate} />
+                </div>
+              ))}
+            </div>
+          )
+        }
+        if (b.kind === 'evenements') {
+          return (
+            <div key={i} className="flex flex-col gap-space-2">
+              {b.items.map((ev, j) => (
+                <div key={ev.id} style={{ animation: `yaye-card-in .32s ease-out ${j * 0.07}s both` }}>
+                  <YayeEventCard ev={ev} onNavigate={onNavigate} />
                 </div>
               ))}
             </div>

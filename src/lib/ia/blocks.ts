@@ -23,6 +23,18 @@ export interface YayeOppItem {
   actionLabel?: string | null
 }
 
+/** Événement (agenda) prêt à afficher en card cliquable (→ /agenda/[id]). */
+export interface YayeEvenementItem {
+  id: string
+  titre: string
+  type: string // TypeEvenement (Atelier, Forum, Formation, Webinar, Conference, Cours)
+  dateDebut: string // ISO 8601
+  dateFin?: string | null
+  lieu: string
+  centre?: string | null
+  estGratuit: boolean
+}
+
 /** Réponse rapide tappable : `label` affiché, `value` renvoyé comme message. */
 export interface YayeQuickReply {
   label: string
@@ -65,6 +77,7 @@ export interface YayeCarteCjsBlock {
 export type YayeBlock =
   | { kind: 'text'; text: string }
   | { kind: 'opportunites'; items: YayeOppItem[] }
+  | { kind: 'evenements'; items: YayeEvenementItem[] }
   | YayeCarteCjsBlock
   | { kind: 'quick_replies'; replies: YayeQuickReply[] }
   | {
@@ -90,7 +103,7 @@ export type YayeBlock =
  * n'y a pas de card, ou si le texte tient déjà en une phrase.
  */
 export function trimTextWhenCards(blocks: YayeBlock[]): YayeBlock[] {
-  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'action' || b.kind === 'carte_cjs')
+  const hasCards = blocks.some(b => b.kind === 'opportunites' || b.kind === 'evenements' || b.kind === 'action' || b.kind === 'carte_cjs')
   if (!hasCards) return blocks
   return blocks.map(b => {
     if (b.kind !== 'text') return b

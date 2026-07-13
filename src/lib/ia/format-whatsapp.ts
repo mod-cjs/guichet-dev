@@ -29,6 +29,14 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
           (o.note ? `\n   ${o.note}` : '') + `\n   ${APP_URL}/opportunites/${o.slug}`
       })
       if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'evenements') {
+      const dfmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      const lines = b.items.slice(0, MAX_ITEMS).map((e, i) => {
+        const quand = dfmt.format(new Date(e.dateDebut))
+        const meta = [quand, e.centre ?? e.lieu].filter(Boolean).join(' · ')
+        return `${i + 1}. *${e.titre}*\n   ${meta}\n   ${APP_URL}/agenda/${e.id}`
+      })
+      if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'quick_replies') {
       // Pas de boutons en texte brut : on invite à répondre par l'une des options.
       const opts = b.replies.map(r => `• ${r.label}`).join('\n')

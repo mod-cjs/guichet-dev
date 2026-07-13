@@ -13,6 +13,7 @@ const mockCandCount = jest.fn()
 const mockCandFindMany = jest.fn()
 const mockCount = jest.fn()
 const mockFindMany = jest.fn()
+const mockEvtFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     candidature: {
@@ -22,6 +23,7 @@ jest.mock('@/lib/prisma', () => ({
     },
     opportuniteFavorite: { count: (...a: unknown[]) => mockCount(...a) },
     opportunite: { findMany: (...a: unknown[]) => mockFindMany(...a) },
+    evenement: { findMany: (...a: unknown[]) => mockEvtFindMany(...a) },
   },
 }))
 
@@ -43,6 +45,7 @@ beforeEach(() => {
   mockCandFindMany.mockReset()
   mockCount.mockReset()
   mockFindMany.mockReset()
+  mockEvtFindMany.mockReset()
   mockRecordEscalade.mockReset()
 })
 
@@ -198,4 +201,28 @@ describe('diversifyByType — mix de sous-catégories (anti « tout emploi »)',
     const rows = [{ type: 'Emploi', id: 'e1' }, { type: 'Emploi', id: 'e2' }]
     expect(diversifyByType(rows, 3)).toHaveLength(2)
   })
+})
+
+test('search_events : événements à venir → bloc evenements cliquable', async () => {
+  mockEvtFindMany.mockResolvedValueOnce([
+    { id: 'ev1', titre: 'Atelier CV', type: 'Atelier', dateDebut: new Date('2026-09-10T14:00:00Z'), dateFin: null, lieu: 'Salle A', estGratuit: true, centre: { nom: 'CJS Dakar' } },
+  ])
+  const r = await TOOLS.search_events.execute({ type: 'Atelier' }, ctx)
+  expect(r.ok).toBe(true)
+  expect(r.block?.kind).toBe('evenements')
+  if (r.block?.kind === 'evenements') {
+    expect(r.block.items[0].id).toBe('ev1')
+    expect(r.block.items[0].centre).toBe('CJS Dakar')
+  }
+  // filtre statut a_venir appliqué
+  expect(mockEvtFindMany).toHaveBeenCalledWith(expect.objectContaining({
+    where: expect.objectContaining({ statut: 'a_venir', type: 'Atelier' }),
+  }))
+})
+
+test('search_events : aucun événement → pas de bloc', async () => {
+  mockEvtFindMany.mockResolvedValueOnce([])
+  const r = await TOOLS.search_events.execute({}, ctx)
+  expect(r.ok).toBe(true)
+  expect(r.block).toBeUndefined()
 })

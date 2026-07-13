@@ -6,7 +6,7 @@
 // les 9 autres (query_knowledge_graph, reserve_resource…) viendront aux lots suivants.
 
 import { prisma } from '@/lib/prisma'
-import { Domaine, Region, TypeOpportunite, TypeRessourceCentre } from '@prisma/client'
+import { Domaine, Region, TypeOpportunite, TypeEvenement, TypeRessourceCentre } from '@prisma/client'
 import type { CanalAgent, Prisma } from '@prisma/client'
 import { loadProfilComplet } from '@/lib/profil-loader'
 import { appUrl } from '@/lib/app-url'
@@ -21,7 +21,7 @@ import { getGraphPort } from './graph'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
-import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem } from './blocks'
+import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem } from './blocks'
 import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
 /** Charge les cards opportunités (ordre des `ids` préservé) — mutualisé entre outils. */
@@ -1117,10 +1117,68 @@ const getActiveLoans: AgentTool = {
   },
 }
 
+// ── search_events (agenda) ──────────────────────────────────────────────────
+// Événements À VENIR (ateliers, forums, formations, webinaires, conférences, cours)
+// prêts à afficher en CARDS cliquables (→ /agenda/[id]).
+const searchEvents: AgentTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'search_events',
+      description:
+        "Recherche les ÉVÉNEMENTS à venir de l'agenda CJS (ateliers CV, forums emploi, formations, " +
+        'webinaires, conférences, cours). Renvoie des cards cliquables. À utiliser quand la personne ' +
+        "demande « quels événements / ateliers / forums », « qu'est-ce qui se passe au centre », l'agenda.",
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: Object.values(TypeEvenement), description: "Type d'événement" },
+          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+        },
+        required: [],
+      },
+    },
+  },
+  async execute(args) {
+    const where: Prisma.EvenementWhereInput = { statut: 'a_venir' }
+    if (inEnum(TypeEvenement, args.type)) where.type = args.type as TypeEvenement
+    if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
+
+    const rows = await prisma.evenement.findMany({
+      where,
+      select: {
+        id: true, titre: true, type: true, dateDebut: true, dateFin: true, lieu: true, estGratuit: true,
+        centre: { select: { nom: true } },
+      },
+      orderBy: { dateDebut: 'asc' },
+      take: MAX_OPP_ITEMS,
+    })
+
+    const items: YayeEvenementItem[] = rows.map(r => ({
+      id: r.id,
+      titre: r.titre,
+      type: String(r.type),
+      dateDebut: r.dateDebut.toISOString(),
+      dateFin: r.dateFin ? r.dateFin.toISOString() : null,
+      lieu: r.lieu,
+      centre: r.centre?.nom ?? null,
+      estGratuit: r.estGratuit,
+    }))
+
+    return {
+      ok: true,
+      // Décompte seul au LLM (les détails vivent sur les cards) — anti ré-énumération en prose.
+      data: { count: items.length },
+      block: items.length > 0 ? { kind: 'evenements', items } : undefined,
+    }
+  },
+}
+
 export const TOOLS: Record<string, AgentTool> = {
   get_user_profile: getUserProfile,
   get_realtime_data: getRealtimeData,
   search_opportunities: searchOpportunities,
+  search_events: searchEvents,
   get_recommendations: getRecommendations,
   query_knowledge_graph: queryKnowledgeGraph,
   get_reservable_resources: getReservableResources,
