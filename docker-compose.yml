@@ -43,19 +43,28 @@ services:
     #   - /app/.next
     # command: npm run dev
 
-  # ── MariaDB 11 LTS ────────────────────────────────────────
+  # ── MariaDB 10.11 LTS — MÊME VERSION QUE LA PRODUCTION ────
+  # GUIC-563 : la prod tourne sur l'instance MariaDB 10.11 de Plesk. Le dev et la CI
+  # s'alignent dessus, jamais l'inverse — sinon on valide du code contre un moteur qui
+  # n'est pas celui des 22 000 utilisateurs (cf. GUIC-562 : la collation par défaut
+  # d'utf8mb4 diffère entre 10.11 et 11, ce qui cassait une migration en prod seulement).
+  #
+  # ⚠️ MIGRATION DEPUIS UN VOLUME MariaDB 11 : MariaDB ne sait pas rétrograder un
+  # répertoire de données. Un volume créé par la 11.x fera échouer le démarrage de la 10.11.
+  # Recréer le volume local (données de dev, reconstructibles) :
+  #     docker compose down -v && docker compose up -d mariadb
+  #     npx prisma migrate deploy && npm run seed
   mariadb:
-    image: mariadb:11.8
+    image: mariadb:10.11
     container_name: guichet_mariadb
     restart: unless-stopped
-    # Les tables existantes sont en utf8mb4_unicode_ci. Depuis MariaDB 11.4, la collation
-    # par défaut de utf8mb4 est utf8mb4_uca1400_ai_ci : sans ces options, une table créée
-    # par une migration naît avec une collation différente de celles qu'elle référence et
-    # ses clés étrangères sont rejetées (errno 150).
+    # Le contournement serveur précédent (--character-set-collations=utf8mb4=utf8mb4_unicode_ci,
+    # option MariaDB 11.4+ INEXISTANTE en 10.11) n'a plus lieu d'être : depuis GUIC-562, CHAQUE
+    # migration déclare sa collation explicitement, donc plus aucune table ne dépend du défaut
+    # du serveur. La sentinelle `tests/unit/migrations-collation.test.ts` empêche la régression.
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
-      --character-set-collations=utf8mb4=utf8mb4_unicode_ci
     environment:
       MARIADB_DATABASE: guichet_jeunesse
       MARIADB_USER: guichet

@@ -12,8 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      # GUIC-563 — La CI DOIT tourner sur la version de la PRODUCTION (MariaDB 10.11 LTS,
+      # instance Plesk), jamais sur une version plus récente. Règle : on aligne la CI sur la
+      # prod, jamais l'inverse — sinon on valide du code contre un moteur qui n'est pas celui
+      # des 22 000 utilisateurs.
+      # Cas réel (GUIC-562) : MariaDB a changé la collation par défaut d'utf8mb4 entre 10.11
+      # (general_ci) et 11 (unicode_ci). Une migration sans COLLATE explicite passait en CI
+      # sur MariaDB 11 et échouait en production sur 10.11 (clé étrangère refusée, errno 150).
       mariadb:
-        image: mariadb:11
+        image: mariadb:10.11
         env:
           MARIADB_DATABASE: guichet_test
           MARIADB_USER: guichet
@@ -45,7 +52,11 @@ jobs:
         env:
           DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
 
-      - name: Appliquer les migrations
+      # Sentinelle prod (GUIC-563) : la base du service est VIERGE et créée avec la collation
+      # par défaut du serveur — exactement comme le sera la base Plesk. Toute migration qui ne
+      # s'applique pas à froid sur MariaDB 10.11 fait échouer la CI, au lieu d'exploser en
+      # plein go-live avec une base à moitié migrée.
+      - name: Migrations à froid (base vierge, MariaDB 10.11 — sentinelle production)
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
