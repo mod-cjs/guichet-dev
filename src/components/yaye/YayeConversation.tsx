@@ -5,7 +5,7 @@ import { YayeSidePanel, type YayeSidePanelMessage } from '@/components/ui/Yaye/Y
 import type { QuickReply } from '@/components/ui/Yaye/QuickReplies'
 import { pickGreeting, pickSuggestions } from '@/lib/ia/greetings'
 import { toolStatus } from '@/lib/ia/tool-labels'
-import { streamYaye } from '@/lib/ia/yaye-client'
+import { streamYaye, fetchYayeHistory } from '@/lib/ia/yaye-client'
 import { YayeBlocks } from './YayeBlocks'
 import { YayeFeedback } from './YayeFeedback'
 import { YayeStreamingText } from './YayeStreamingText'
@@ -52,6 +52,12 @@ export function YayeConversation({
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([])
   const messagesRef = useRef(messages)
   messagesRef.current = messages
+  // On ne restaure la conversation précédente qu'une seule fois (à la 1re ouverture).
+  const hydratedRef = useRef(false)
+
+  // Handler stable pour les quick replies (évite la dépendance circulaire de `send` sur lui-même).
+  const sendRef = useRef<(t: string) => void>(() => {})
+  const handleQuickReply = useCallback((value: string) => sendRef.current(value), [])
 
   // À chaque ouverture du drawer, si la conversation n'a pas commencé, on varie
   // la salutation ET les amorces (côté client → pas de mismatch d'hydratation).
@@ -62,9 +68,49 @@ export function YayeConversation({
     }
   }, [open, prenom])
 
-  // Handler stable pour les quick replies (évite la dépendance circulaire de `send` sur lui-même).
-  const sendRef = useRef<(t: string) => void>(() => {})
-  const handleQuickReply = useCallback((value: string) => sendRef.current(value), [])
+  // À la 1re ouverture, restauration de la conversation précédente (texte + cards).
+  // Remplace l'intro si un historique existe ; rejoue l'historique LLM, la session et
+  // l'index de tour pour une continuité sans couture (feedback inclus).
+  useEffect(() => {
+    if (!open || hydratedRef.current) return
+    hydratedRef.current = true
+    let cancelled = false
+    void fetchYayeHistory().then(turns => {
+      if (cancelled || turns.length === 0) return
+      const restored: YayeSidePanelMessage[] = []
+      let lastSession: string | undefined
+      let maxTour = -1
+      for (const t of turns) {
+        if (t.role === 'user') {
+          restored.push({ id: nid(), from: 'user', text: t.text })
+          historyRef.current.push({ role: 'user', content: t.text })
+        } else {
+          const blocks = t.blocks?.length ? t.blocks : [{ kind: 'text' as const, text: t.text }]
+          const sid = t.sessionId
+          if (sid) lastSession = sid
+          if (typeof t.tourIndex === 'number') maxTour = Math.max(maxTour, t.tourIndex)
+          restored.push({
+            id: nid(),
+            from: 'bot',
+            text: (
+              <div className="flex flex-col gap-space-2">
+                <YayeBlocks blocks={blocks} onNavigate={onClose} onQuickReply={handleQuickReply} />
+                {sid && <YayeFeedback sessionId={sid} tourIndex={t.tourIndex ?? 0} />}
+              </div>
+            ),
+          })
+          historyRef.current.push({ role: 'assistant', content: t.text })
+        }
+      }
+      if (lastSession) sessionIdRef.current = lastSession
+      botTurnRef.current = maxTour + 1
+      setMessages(restored)
+      setSuggestions([])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, onClose, handleQuickReply])
 
   const send = useCallback(
     async (text: string) => {

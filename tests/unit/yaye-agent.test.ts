@@ -73,7 +73,7 @@ test('prompt : la présentation de soi est une réponse directe SANS outil', () 
 })
 
 test('prompt : règles comportementales « sonner juste » (anti-robot)', () => {
-  expect(SYSTEM_PROMPT).toMatch(/Clarifie avant d'agir/i) // grounding
+  expect(SYSTEM_PROMPT).toMatch(/Montre d'abord, affine ensuite/i) // montrer des résultats avant de clarifier
   expect(SYSTEM_PROMPT).toMatch(/Montre que tu écoutes/i) // écoute active
   expect(SYSTEM_PROMPT).toMatch(/Accompagne l'émotion/i) // gradient émotionnel
   expect(SYSTEM_PROMPT).toMatch(/Dose ta certitude/i) // incertitude calibrée

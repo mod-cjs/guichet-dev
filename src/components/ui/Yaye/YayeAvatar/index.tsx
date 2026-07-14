@@ -19,7 +19,9 @@ export interface YayeAvatarProps {
  * Conforme à l'identité visuelle du design v2 (`screens.jsx` #10).
  */
 export function YayeAvatar({ size = 32, withBadge = false, className = '', style }: YayeAvatarProps) {
-  const fontSize = Math.round(size * 0.55)
+  // Design v4 : la lettre « Y » est en empattement (Georgia serif) — détail signature de
+  // l'identité Yaye, repris à l'identique sur l'avatar, le wordmark et le bouton flottant.
+  const fontSize = Math.round(size * 0.5)
   const badgeFs = Math.max(8, Math.round(size * 0.28))
 
   return (
@@ -33,6 +35,7 @@ export function YayeAvatar({ size = 32, withBadge = false, className = '', style
         borderRadius: '50%',
         backgroundImage: 'var(--gj-yaye-gradient)',
         color: 'var(--gj-surface)',
+        fontFamily: 'Georgia, "Times New Roman", serif',
         fontWeight: 900,
         fontSize,
         lineHeight: 1,
