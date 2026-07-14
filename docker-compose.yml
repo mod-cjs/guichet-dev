@@ -45,9 +45,17 @@ services:
 
   # ── MariaDB 11 LTS ────────────────────────────────────────
   mariadb:
-    image: mariadb:11
+    image: mariadb:11.8
     container_name: guichet_mariadb
     restart: unless-stopped
+    # Les tables existantes sont en utf8mb4_unicode_ci. Depuis MariaDB 11.4, la collation
+    # par défaut de utf8mb4 est utf8mb4_uca1400_ai_ci : sans ces options, une table créée
+    # par une migration naît avec une collation différente de celles qu'elle référence et
+    # ses clés étrangères sont rejetées (errno 150).
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --character-set-collations=utf8mb4=utf8mb4_unicode_ci
     environment:
       MARIADB_DATABASE: guichet_jeunesse
       MARIADB_USER: guichet

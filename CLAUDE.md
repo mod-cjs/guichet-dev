@@ -4,7 +4,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 
 **Stack :** Next.js 16 (App Router) · TypeScript 5 · Prisma 7 · MariaDB 11 · Redis 7
 **Auth :** SSO CJS OAuth2/OIDC (Laravel Passport) · next-auth v5
-**IA :** Groq llama-3.3-70b · **WhatsApp :** Meta Cloud API v19 · **Agent :** Yaye
+**IA :** Vertex AI (endpoint OpenAI-compatible) · modèle par défaut `gemini-2.5-flash`, pilotable par l'admin (`LlmConfig`) · **WhatsApp :** Meta Cloud API v19 · **Agent :** Yaye
 
 ---
 
@@ -36,6 +36,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 - Tokens couleur : préfixe `gj-*` (`gj-teal`, `gj-yellow`, `gj-red`...) — jamais de hex en dur
 - Police : stack système (`"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, "Noto Sans", sans-serif`) — variable CSS `--gj-font-sans` injectée par `src/styles/tokens.css`
 - **`design-guichet-v3/`** = **source de vérité visuelle** (livraison PO finale 2026-06-16, 14 lots + Bibliothèque Composants). Lire `public/design-v3/Note de design - Lots ajoutes.html` pour les principes (cohérence, identité par rôle, inclusion native) et les codes couleur par espace (jeune teal / conseiller teal-foncé / recruteur bleu / admin sombre+doré).
+- **`design-guichet-v4/`** = livraisons **partielles** postérieures à v3, écran par écran (ex. `recruteur-mobile.jsx` — GUIC-492). Fait foi **uniquement** sur les écrans qu'elle couvre ; pour tout le reste, v3 reste la référence. Toujours vérifier si l'écran visé existe dans v4 avant de partir de v3.
 - **`design-guichet-v2/`** = archive (livraison 2026-06-15) — conservée pour comparaison/rollback. Ne PAS utiliser comme référence d'implémentation. `design/html.archive/` = ancien prototype, lecture seule.
 - **Storybook** = catalogue UI vivant. Lancer `npm run storybook` (port 6006) pour explorer les primitives et leurs variants. Toute nouvelle primitive doit venir avec sa story `*.stories.tsx` à côté du composant.
 - **Icônes** : sprite SVG global servi depuis `/icons.svg`. Toujours utiliser `<Icon name="..." />` (jamais d'`<svg>` inline manuel ni d'emoji comme icône).
