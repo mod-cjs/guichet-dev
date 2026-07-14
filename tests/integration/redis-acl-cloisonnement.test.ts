@@ -57,12 +57,22 @@ describe('GUIC-566 — cloisonnement Redis par préfixe (vrai serveur, vraie ACL
     client.disconnect()
   })
 
-  it('notre client préfixe automatiquement TOUTES ses clés (keyPrefix)', async () => {
+  /**
+   * Recharge le module client. Hors production, il se met en cache sur `globalThis` (pour
+   * survivre au hot-reload de Next) — `jest.resetModules()` ne suffit donc PAS : il faut aussi
+   * vider ce cache, sinon on récupère l'instance déconnectée par le test précédent.
+   */
+  async function clientNeuf() {
     jest.resetModules()
+    delete (globalThis as unknown as { redis?: unknown }).redis
     process.env.REDIS_URL = `redis://${UTILISATEUR}:${MOT_DE_PASSE}@${HOTE}:${PORT}`
     process.env.REDIS_KEY_PREFIX = PREFIXE
-
     const { redis } = await import('@/lib/redis')
+    return redis
+  }
+
+  it('notre client préfixe automatiquement TOUTES ses clés (keyPrefix)', async () => {
+    const redis = await clientNeuf()
     await redis.set('sonde', 'ok', 'EX', 30)
 
     // La clé BRUTE vue par le serveur doit porter le préfixe.
@@ -73,11 +83,7 @@ describe('GUIC-566 — cloisonnement Redis par préfixe (vrai serveur, vraie ACL
   })
 
   it('le rate-limiting (INCR + EXPIRE dans un multi) fonctionne sous ACL', async () => {
-    jest.resetModules()
-    process.env.REDIS_URL = `redis://${UTILISATEUR}:${MOT_DE_PASSE}@${HOTE}:${PORT}`
-    process.env.REDIS_KEY_PREFIX = PREFIXE
-
-    const { redis } = await import('@/lib/redis')
+    const redis = await clientNeuf()
     // Le `multi()` doit lui aussi être préfixé — sinon le rate-limiting saute en silence.
     const res = await redis.multi().incr('rl:sonde').expire('rl:sonde', 30).exec()
     expect(res?.[0]?.[0]).toBeNull() // pas d'erreur sur l'INCR
