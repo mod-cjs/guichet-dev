@@ -13,6 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { purgeUserContext } from './context'
 import { purgeSummary } from './memory'
+import { purgeViewTranscript } from './transcript-view'
 
 export interface YayePurgeResult {
   sessions: number
@@ -65,9 +66,11 @@ export async function purgeYayeUserData(cjsUid: string): Promise<YayePurgeResult
     prisma.yayeSessionSummary.deleteMany({ where: { sessionId: { in: sessionIds } } }),
   ])
 
-  // 3. Mémoire conversationnelle Redis (fail-soft en interne).
+  // 3. Mémoire conversationnelle Redis (fail-soft en interne) : contexte LLM,
+  //    fiche long terme, ET transcript d'affichage (texte + cards visibles).
   await purgeUserContext(cjsUid)
   await purgeSummary(cjsUid)
+  await purgeViewTranscript(cjsUid)
 
   const result: YayePurgeResult = {
     sessions: sessionIds.length,

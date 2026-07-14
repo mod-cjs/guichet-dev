@@ -244,29 +244,40 @@ export function YayeSidePanel({
             flexShrink: 0,
           }}
         >
-          <YayeAvatar size={32} withBadge />
-          <div style={{ flex: 1, lineHeight: 1.2 }}>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>Yaye</div>
-            <div
-              style={{
-                fontSize: 11,
-                opacity: 0.9,
-                marginTop: 2,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
+          <YayeAvatar size={32} />
+          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {/* Wordmark v4 : Georgia serif, dégradé blanc→jaune. */}
+              <span
+                style={{
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  fontWeight: 900,
+                  fontSize: 18,
+                  backgroundImage: 'linear-gradient(135deg, var(--gj-surface), var(--gj-yellow))',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
+                Yaye
+              </span>
               <span
                 aria-hidden
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: 'var(--gj-green, #7BE5B5)',
+                  background: 'var(--gj-yellow)',
+                  color: 'var(--gj-teal-deep)',
+                  fontSize: 9,
+                  fontWeight: 900,
+                  padding: '2px 7px',
+                  borderRadius: 999,
+                  letterSpacing: '.4px',
                 }}
-              />
-              Conseillère IA · agit sur ton compte
+              >
+                IA
+              </span>
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.8, marginTop: 2 }}>
+              En ligne · répond en quelques secondes
             </div>
           </div>
           <button
@@ -275,10 +286,10 @@ export function YayeSidePanel({
             onClick={onClose}
             aria-label="Fermer"
             style={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               border: 0,
-              background: 'transparent',
+              background: 'rgba(255,255,255,.12)',
               color: 'var(--gj-surface)',
               cursor: 'pointer',
               display: 'inline-flex',
@@ -287,20 +298,8 @@ export function YayeSidePanel({
               borderRadius: 8,
             }}
           >
-            <Icon name="close" size={20} />
+            <Icon name="close" size={18} />
           </button>
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 3,
-              background:
-                'linear-gradient(90deg, var(--gj-yellow) 0%, var(--gj-yellow) 25%, transparent 25%)',
-            }}
-          />
         </header>
 
         {/* Annonce SR de la réponse finalisée (le flux token-à-token reste hors région live). */}
@@ -315,7 +314,8 @@ export function YayeSidePanel({
             flex: 1,
             overflowY: 'auto',
             padding: '14px 14px 8px',
-            background: 'var(--gj-bg)',
+            // Design v4 : zone de chat sur fond très clair teinté teal.
+            background: 'var(--gj-bg-teal-soft)',
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
@@ -405,8 +405,8 @@ export function YayeSidePanel({
               color: 'var(--gj-surface)',
               border: 0,
               borderRadius: '50%',
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               cursor: sending ? 'default' : 'pointer',
               opacity: sending || (onSend && !(composerValue ?? '').trim()) ? 0.55 : 1,
               display: 'inline-flex',
@@ -415,7 +415,7 @@ export function YayeSidePanel({
               flexShrink: 0,
             }}
           >
-            <Icon name="arrow-up" size={16} />
+            <Icon name="arrow-right" size={18} />
           </button>
         </form>
       </aside>

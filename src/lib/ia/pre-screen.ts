@@ -244,8 +244,11 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   // Message purement vague (1er tour) → question de clarification, sans outil.
   if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY), reason: 'clarify' }
 
-  // P1 — petites interactions (1er tour uniquement, et seulement sans intention actionnable).
-  if (firstTurn && !RE_HAS_ACTION.test(t)) {
+  // P1 — petites interactions PUREMENT sociales (sans intention actionnable), à TOUT tour.
+  // Gardées déterministes même en cours de conversation : un simple « bonjour » / « merci »
+  // ne doit jamais partir vers le LLM (un petit modèle y répond souvent à côté — présentation
+  // hors-sujet, méta…). La reformulation reste variée via la rotation `pick`.
+  if (!RE_HAS_ACTION.test(t)) {
     if (RE_START_GREETING.test(t)) return { action: 'direct', reply: pick(GREETINGS), reason: 'greeting' }
     if (RE_START_THANKS.test(t)) return { action: 'direct', reply: pick(THANKS), reason: 'thanks' }
     if (RE_START_BYE.test(t)) return { action: 'direct', reply: pick(BYES), reason: 'bye' }

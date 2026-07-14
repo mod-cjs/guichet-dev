@@ -19,7 +19,7 @@ export interface QuickRepliesProps {
  * QuickReplies — boutons de réponses rapides proposés par Yaye.
  *
  * - Liste de boutons outlined teal-deep, radius pill
- * - Min-height 40px, alignement left, flèche `→` à droite
+ * - Min-height 40px, alignement left, icône `sparkle` en tête (affordance « suggestion IA », design v4)
  * - Wrap responsive
  * - Callback `onSelect(value)` au clic ou Entrée
  */
@@ -45,8 +45,8 @@ export function QuickReplies({
             px-space-3 py-space-2 text-fs-300 font-bold text-left
             min-h-[40px] cursor-pointer hover:bg-gj-teal-soft transition-colors"
         >
+          <Icon name="sparkle" size={13} className="shrink-0" aria-hidden />
           <span className="flex-1 min-w-0">{r.label}</span>
-          <Icon name="arrow-right" size={14} className="opacity-55 ml-auto" />
         </button>
       ))}
     </div>

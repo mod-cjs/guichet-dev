@@ -107,11 +107,15 @@ describe('P1 — petites interactions (1er tour) → réponse directe sans outil
     expect(preScreen('Au revoir')?.reason).toBe('bye')
     expect(preScreen('ça va ?')?.reason).toBe('smalltalk')
   })
-  it('mais PAS en cours de conversation (contexte)', () => {
-    expect(preScreen('Bonjour', false)).toBeNull()
+  it('AUSSI en cours de conversation : un « bonjour » pur reste géré en local (jamais au LLM)', () => {
+    // Auparavant renvoyé au LLM (qui, sur petit modèle, répondait à côté). Désormais capté
+    // à tout tour tant qu'il n'y a pas d'intention actionnable.
+    expect(preScreen('Bonjour', false)?.reason).toBe('greeting')
+    expect(preScreen('Merci !', false)?.reason).toBe('thanks')
   })
   it('une salutation avec une vraie demande n’est pas court-circuitée', () => {
     expect(preScreen('Salut, trouve-moi un emploi à Thiès')).toBeNull()
+    expect(preScreen('Salut, trouve-moi un emploi à Thiès', false)).toBeNull()
   })
 })
 

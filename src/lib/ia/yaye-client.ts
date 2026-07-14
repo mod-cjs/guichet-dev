@@ -20,6 +20,31 @@ export interface YayeDone {
   toolsUsed?: string[]
 }
 
+/** Un tour restauré depuis le serveur (conversation VISIBLE, texte + cards). */
+export interface YayeHistoryTurn {
+  role: 'user' | 'assistant'
+  text: string
+  blocks?: YayeBlock[]
+  sessionId?: string
+  tourIndex?: number
+  ts?: number
+}
+
+/**
+ * Récupère la conversation Yaye précédente de l'utilisateur (GET /api/ia) pour la
+ * réafficher au montage. Fail-soft : renvoie [] si non authentifié / erreur / vide.
+ */
+export async function fetchYayeHistory(): Promise<YayeHistoryTurn[]> {
+  try {
+    const res = await fetch('/api/ia', { method: 'GET', headers: { Accept: 'application/json' } })
+    if (!res.ok) return []
+    const json = (await res.json().catch(() => null)) as { data?: { turns?: YayeHistoryTurn[] } } | null
+    return json?.data?.turns ?? []
+  } catch {
+    return []
+  }
+}
+
 export interface YayeStreamHandlers {
   /** Fragment de texte de la réponse finale (streaming). */
   onToken?: (text: string) => void

@@ -8,6 +8,7 @@ import { logAgentEvent } from '@/lib/ia/agent-logs'
 import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
 import { loadSummary, updateSummary } from '@/lib/ia/memory'
 import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
+import { loadViewTranscript, appendViewTurn } from '@/lib/ia/transcript-view'
 import type { YayeBlock } from '@/lib/ia/blocks'
 
 // M12 — IA · Agent Yaye (chat web) — Lot 0 (GUIC-259).
@@ -38,6 +39,20 @@ function yayeErrorMessage(err: unknown): string {
     return 'Je suis très sollicitée en ce moment — laisse-moi un petit instant et réessaie, je suis là.'
   }
   return "Oups, j'ai eu un souci de mon côté. Réessaie dans un instant, je reste avec toi."
+}
+
+/**
+ * Restaure la conversation VISIBLE de l'utilisateur (texte + cards) pour réafficher son
+ * écran d'une session à l'autre. Lit le transcript d'affichage Redis (7 j). L'agent, lui,
+ * garde sa propre mémoire (contexte) ; ici on ne sert QUE le rendu.
+ */
+export async function GET(request: NextRequest): Promise<Response> {
+  const session = await getSession(request)
+  if (!session) {
+    return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
+  }
+  const turns = await loadViewTranscript(session.cjsUid)
+  return NextResponse.json({ data: { turns } })
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -89,6 +104,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       ctxKey,
       [...history, { role: 'user', content: message }, { role: 'assistant', content: reply }],
       TTL_USER,
+    )
+    // Transcript d'AFFICHAGE (texte + cards) → permet de réafficher la conversation
+    // au rechargement (GET ci-dessus). Distinct du contexte LLM (texte seul).
+    await appendViewTurn(
+      session.cjsUid,
+      message,
+      { text: reply, blocks: blocks ?? [], sessionId, tourIndex: Math.floor(history.length / 2) },
+      Date.now(),
     )
     // Met à jour la fiche mémoire long terme — fire-and-forget (n'ajoute pas de latence).
     void updateSummary(session.cjsUid, memo, message, reply)
