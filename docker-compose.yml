@@ -22,6 +22,11 @@ services:
       NEO4J_PASSWORD: yaye_dev_password
       NEO4J_DATABASE: enriched
       # Connexion de test SANS SSO (dev/login) — local uniquement, jamais en prod.
+      # GUIC-564 : l'image est bâtie en NODE_ENV=production ; la connexion sans SSO exige donc
+      # désormais DEUX variables délibérées. Et même ainsi, l'application REFUSE DE DÉMARRER si
+      # l'URL publique n'est pas locale — ce qui neutralise le scénario « ce compose déployé sur
+      # le serveur ». La production utilise docker-compose.prod.yml, qui n'a ni l'une ni l'autre.
+      APP_ENV: "local"
       ALLOW_DEV_LOGIN: "true"
       # LMStudio tourne sur l'HÔTE (Mac) : depuis le conteneur, localhost = le conteneur.
       # On pointe donc le serveur local via host.docker.internal (cf. extra_hosts).
