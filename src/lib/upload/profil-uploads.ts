@@ -13,8 +13,7 @@
  * Aucune des trois routes profil ne doit dupliquer cette logique.
  */
 
-import { put } from '@vercel/blob'
-import type { PutBlobResult } from '@vercel/blob'
+import { stockage } from '@/lib/storage'
 
 /** Magic-bytes minimaux pour images + PDF. */
 const SIGNATURES: Record<string, ReadonlyArray<readonly number[]>> = {
@@ -130,21 +129,40 @@ export interface UploadToBlobOptions {
   cacheControlMaxAge?: number
 }
 
-/** Cache CDN court (24h) — limite l'exposition des blobs orphelins. */
+/** Cache court (24h) — limite l'exposition des fichiers orphelins. */
 const DEFAULT_BLOB_CACHE_MAX_AGE_SEC = 60 * 60 * 24
 
-/** Upload `file` sur Vercel Blob et retourne le résultat brut (`url`, …). */
-export async function uploadToBlob(opts: UploadToBlobOptions): Promise<PutBlobResult> {
+/** Résultat d'un dépôt : `url` est la RÉFÉRENCE à persister en base. */
+export interface ResultatUpload {
+  /** Référence persistée (`s3://bucket/clé` en production, URL Vercel sur le miroir de dev). */
+  url: string
+  /** Chemin logique dans le bucket. */
+  pathname: string
+}
+
+/**
+ * GUIC-565 — Dépose `file` sur le stockage objet ACTIF (MinIO en production OVH, Vercel Blob
+ * sur le miroir de dev) et renvoie la référence à persister.
+ *
+ * Le nom `url` est conservé pour ne pas toucher aux 4 appelants ni aux colonnes existantes —
+ * mais ce n'est plus une URL publique en production : les CV, photos et diplômes sont des
+ * DONNÉES PERSONNELLES, servies par l'application après vérification de l'autorisation.
+ */
+export async function uploadToBlob(opts: UploadToBlobOptions): Promise<ResultatUpload> {
   const ext = opts.file.name.includes('.') ? opts.file.name.split('.').pop() : 'bin'
   const safeName = sanitizeFilename(opts.file.name, `${opts.prefix}.${ext}`)
   const sub = opts.subKey ? `${opts.subKey}/` : ''
-  const pathname = `${opts.prefix}/${opts.cjsUid}/${sub}${safeName}`
-  return put(pathname, opts.file, {
-    access: 'public',
-    addRandomSuffix: true,
-    contentType: opts.file.type,
-    cacheControlMaxAge: opts.cacheControlMaxAge ?? DEFAULT_BLOB_CACHE_MAX_AGE_SEC,
+  const chemin = `${opts.prefix}/${opts.cjsUid}/${sub}${safeName}`
+
+  const depose = await stockage().televerser({
+    chemin,
+    fichier: opts.file,
+    cacheMaxAgeSec: opts.cacheControlMaxAge ?? DEFAULT_BLOB_CACHE_MAX_AGE_SEC,
+    // Comportement d'origine préservé (photos, diplômes, certificats étaient déposés en
+    // `public`). Sujet CDP à trancher séparément — pas à changer en douce dans ce ticket.
+    acces: 'public',
   })
+  return { url: depose.reference, pathname: depose.chemin }
 }
 
 // ─── Constantes partagées profil ────────────────────────────────────────────
