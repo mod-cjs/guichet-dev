@@ -19,4 +19,7 @@ CREATE TABLE IF NOT EXISTS `candidature_drafts` (
     FOREIGN KEY (`cjs_uid`) REFERENCES `utilisateurs`(`cjs_uid`) ON DELETE CASCADE,
   CONSTRAINT `candidature_drafts_opportunite_id_fkey`
     FOREIGN KEY (`opportunite_id`) REFERENCES `opportunites`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- GUIC-562 — COLLATE explicite : obligatoire, sinon la table hérite de la collation par
+-- défaut du jeu de caractères (utf8mb4_general_ci en MariaDB 10.11, utf8mb4_unicode_ci en 11),
+-- et les clés étrangères ci-dessus sont refusées en production (errno 150).
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
