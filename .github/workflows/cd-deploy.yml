@@ -69,7 +69,9 @@ jobs:
           script: |
             set -Eeuo pipefail
             cd /opt/guichet-jeunesse
-            git fetch --quiet origin
+            # F4 (GUIC-568) : --tags obligatoire — `git fetch origin` seul ne récupère pas de
+            # façon fiable un tag léger `v*`, et le checkout du tag échouerait.
+            git fetch --tags --force --quiet origin
             git checkout --quiet "${{ github.ref_name }}"
             export GUICHET_IMAGE="${{ needs.build-push.outputs.image }}"
             export COMPOSE_PROJECT_NAME="guichet" # namespace prod, distinct du staging
