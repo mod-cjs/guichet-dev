@@ -99,7 +99,12 @@ migrate() {
 
 # ── 3. Bascule + smoke test, avec rollback automatique ──────────────────────
 current_image() {
-  docker inspect --format '{{.Config.Image}}' guichet_app 2>/dev/null || true
+  # Le conteneur n'a plus de nom figé (GUIC-569 : cohabitation staging/prod) — on le retrouve
+  # via compose, qui le namespace par COMPOSE_PROJECT_NAME. Robuste pour prod ET staging.
+  local cid
+  cid="$(docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_ENV_FILE" ps -q app 2>/dev/null || true)"
+  [[ -z "$cid" ]] && return 0
+  docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null || true
 }
 
 smoke_test() {
