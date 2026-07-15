@@ -35,17 +35,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # C-CD1 — GHCR exige un nom d'image en minuscules ; github.repository contient …-CJS/…
+      - name: Nom d'image GHCR en minuscules
+        id: img
+        run: |
+          repo="$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "base=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
+
       - name: Construire et pousser
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:dev-${{ github.sha }}
+          tags: ${{ steps.img.outputs.base }}:dev-${{ github.sha }}
 
       - name: Référence par empreinte (digest)
         id: digest
-        run: echo "ref=ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+        run: echo "ref=${{ steps.img.outputs.base }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
   deploy:
     name: Déployer sur le staging
