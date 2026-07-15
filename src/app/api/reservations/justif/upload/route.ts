@@ -16,7 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
+import { stockage } from '@/lib/storage'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import type { ApiResponse } from '@/types/api'
@@ -109,11 +109,9 @@ export async function POST(
   const pathname = `reservation-justif/${session.cjsUid}/${ressourceId}/${Date.now()}-${safeName}`
 
   try {
-    const blob = await put(pathname, file, {
-      access: 'private',
-      contentType: file.type,
-    })
-    return NextResponse.json({ data: { url: blob.url } })
+    // GUIC-565 — stockage objet actif (MinIO en prod OVH, Vercel Blob sur le miroir de dev).
+    const depose = await stockage().televerser({ chemin: pathname, fichier: file })
+    return NextResponse.json({ data: { url: depose.reference } })
   } catch {
     return NextResponse.json(
       {

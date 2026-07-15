@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
+import { stockage } from '@/lib/storage'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
@@ -126,17 +126,20 @@ export async function POST(
   const pathname = `profil-cv/${session.cjsUid}/${safeName}`
 
   try {
-    const blob = await put(pathname, file, {
-      access: 'public',
-      addRandomSuffix: true,
-      contentType: file.type,
-      cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
+    // GUIC-565 — stockage objet actif (MinIO en prod OVH, Vercel Blob sur le miroir de dev).
+    const depose = await stockage().televerser({
+      chemin: pathname,
+      fichier: file,
+      cacheMaxAgeSec: BLOB_CACHE_MAX_AGE_SEC,
+      // Comportement d'origine préservé (cf. GUIC-565) — mais un CV en `public` est
+      // accessible à qui connaît son URL : sujet CDP à trancher, pas à changer en douce ici.
+      acces: 'public',
     })
 
     const updated = await prisma.profilJeune.upsert({
       where:  { cjsUid: session.cjsUid },
-      create: { cjsUid: session.cjsUid, cvUrl: blob.url, cvUploadedAt: new Date() },
-      update: { cvUrl: blob.url, cvUploadedAt: new Date() },
+      create: { cjsUid: session.cjsUid, cvUrl: depose.reference, cvUploadedAt: new Date() },
+      update: { cvUrl: depose.reference, cvUploadedAt: new Date() },
       select: { cvUrl: true, cvUploadedAt: true },
     })
 

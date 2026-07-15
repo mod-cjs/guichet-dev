@@ -15,7 +15,7 @@
  *   - `src/app/api/cron/cleanup-cv/route.ts` (cron Vercel)
  */
 
-import { del, list } from '@vercel/blob'
+import { stockage, stockagePour } from '@/lib/storage'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 
@@ -27,8 +27,6 @@ export interface CleanupOptions {
   apply?: boolean
   /** Âge minimum (ms) avant qu'un orphelin soit considéré supprimable. */
   minAgeMs?: number
-  /** Token Vercel Blob (sinon lu depuis BLOB_READ_WRITE_TOKEN). */
-  token?: string
 }
 
 export interface CleanupResult {
@@ -64,7 +62,6 @@ export async function cleanupCvOrphans(
 ): Promise<CleanupResult> {
   const apply = opts.apply ?? false
   const minAgeMs = opts.minAgeMs ?? DEFAULT_MIN_AGE_MS
-  const token = opts.token ?? process.env.BLOB_READ_WRITE_TOKEN
 
   const start = Date.now()
   const result: CleanupResult = {
@@ -81,38 +78,38 @@ export async function cleanupCvOrphans(
 
   let cursor: string | undefined
   do {
-    const page = await list({ prefix: CV_PREFIX, cursor, token })
+    // GUIC-565 — listage via le stockage ACTIF ; la suppression, elle, est résolue sur la
+    // forme de chaque référence : un CV orphelin encore hébergé sur Vercel doit être purgé
+    // par Vercel, même quand le pilote actif est MinIO. Sans cela, la purge CDP laisserait
+    // derrière elle tous les fichiers antérieurs à la bascule.
+    const page = await stockage().lister({ prefixe: CV_PREFIX, curseur: cursor })
 
-    for (const blob of page.blobs) {
+    for (const objet of page.objets) {
       result.scanned += 1
 
-      // Ne considérer que les blobs assez vieux (laisse le temps au submit).
-      const uploadedAt = blob.uploadedAt instanceof Date
-        ? blob.uploadedAt.getTime()
-        : new Date(blob.uploadedAt).getTime()
+      // Ne considérer que les fichiers assez vieux (laisse le temps au submit).
+      if (objet.deposeLe.getTime() > cutoff) continue
 
-      if (uploadedAt > cutoff) continue
-
-      if (referenced.has(blob.url)) continue
+      if (referenced.has(objet.reference)) continue
 
       result.orphans += 1
-      result.orphanUrls.push(blob.url)
+      result.orphanUrls.push(objet.reference)
 
       if (!apply) continue
 
       try {
-        await del(blob.url, { token })
+        await stockagePour(objet.reference).supprimer(objet.reference)
         result.deleted += 1
       } catch (err) {
         result.errors += 1
-        logger.error('cleanup-cv-orphans: del failed', {
-          url: blob.url,
+        logger.error('cleanup-cv-orphans: suppression échouée', {
+          reference: objet.reference,
           error: err instanceof Error ? err.message : String(err),
         })
       }
     }
 
-    cursor = page.hasMore ? page.cursor : undefined
+    cursor = page.curseur
   } while (cursor)
 
   result.durationMs = Date.now() - start
