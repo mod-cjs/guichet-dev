@@ -1,0 +1,82 @@
+# GUIC-589 — Tests E2E Playwright en CI.
+#
+# Les E2E existaient (tests/e2e/*.spec.ts) mais ne tournaient NULLE PART automatiquement → les
+# régressions sur les parcours critiques (auth, routing, réservation) n'étaient pas attrapées.
+# Preuve directe de l'intérêt : le challenge a montré que nos pires bugs ne se voient qu'en LIVE
+# (C1 : une vraie 500 non loguée). Ce job exécute les parcours en conditions réelles à chaque PR.
+name: E2E
+
+on:
+  pull_request:
+    branches: [dev, develop, main]
+
+jobs:
+  e2e:
+    name: Playwright (parcours critiques)
+    runs-on: ubuntu-latest
+
+    services:
+      # MariaDB 10.11 = version de la PRODUCTION (GUIC-563), pas une plus récente.
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: guichet_test
+          MARIADB_USER: guichet
+          MARIADB_PASSWORD: guichet_test
+          MARIADB_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mariadb-admin ping -h localhost -u guichet -pguichet_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+      REDIS_URL: redis://localhost:6379
+      # Secrets de test (signature des cookies de session pour setAuthCookies).
+      SESSION_SECRET: e2e_session_secret_ci
+      NEXTAUTH_SECRET: e2e_session_secret_ci
+      NEXTAUTH_URL: http://localhost:3000
+      SSO_BASE_URL: http://localhost:19999
+      SSO_CLIENT_ID: guichet-e2e
+      SSO_CLIENT_SECRET: test
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Générer le client Prisma
+        run: npx prisma generate
+
+      - name: Migrations à froid (base vierge)
+        run: npx prisma migrate deploy
+
+      - name: Seed (données de test des parcours)
+        run: npx prisma db seed
+
+      - name: Installer le navigateur Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Lancer les E2E (chromium)
+        # La config Playwright démarre l'app (`npm run dev`) et attend localhost:3000.
+        run: npx playwright test --project=chromium
+
+      - name: Publier le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
