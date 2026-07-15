@@ -18,7 +18,9 @@ services:
 
   app:
     image: ${GUICHET_IMAGE:?renseigner GUICHET_IMAGE (image du registre, référencée par son empreinte)}
-    container_name: guichet_app
+    # Pas de container_name figé (GUIC-569) : staging et prod cohabitent sur le même serveur.
+    # Compose dérive le nom du conteneur du COMPOSE_PROJECT_NAME (`guichet` en prod,
+    # `guichet-staging` au staging) → aucune collision. Un nom figé les mettrait en conflit.
     restart: unless-stopped
 
     # Secrets et configuration : fichier hors dépôt, permissions strictes, propriétaire dédié.
