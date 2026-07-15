@@ -201,8 +201,12 @@ export function ReservationCard({
 
       {fichierJustifUrl ? (
         <p className="text-fs-200">
+          {/* GUIC-565 (F1) — le justificatif est un document personnel : on passe par le proxy
+              autorisé /api/reservations/[id]/justif, jamais par la référence de stockage brute
+              (blob privé Vercel = 403, ou référence s3:// non chargeable par le navigateur).
+              Résout aussi le TODO(GUIC-384). */}
           <a
-            href={fichierJustifUrl}
+            href={`/api/reservations/${id}/justif`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1"
@@ -212,7 +216,6 @@ export function ReservationCard({
             <span>Justificatif joint</span>
             <Icon name="external" size={12} />
           </a>
-          {/* TODO(GUIC-384) — Si Blob privé, exposer via proxy authentifié. */}
         </p>
       ) : null}
 
