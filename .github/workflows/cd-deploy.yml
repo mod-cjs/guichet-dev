@@ -72,5 +72,6 @@ jobs:
             git fetch --quiet origin
             git checkout --quiet "${{ github.ref_name }}"
             export GUICHET_IMAGE="${{ needs.build-push.outputs.image }}"
+            export COMPOSE_PROJECT_NAME="guichet" # namespace prod, distinct du staging
             echo "${{ github.ref_name }}" > /var/lib/guichet/deploy-stamp
             bash scripts/deploy/deploy.sh
