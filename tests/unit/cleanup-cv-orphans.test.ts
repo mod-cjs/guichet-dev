@@ -1,16 +1,24 @@
 /**
  * @jest-environment node
  *
- * Tests unitaires de la routine cleanupCvOrphans (GUIC-231).
+ * Tests unitaires de la routine cleanupCvOrphans (GUIC-231, GUIC-565).
+ *
+ * GUIC-565 — le nettoyage passe désormais par l'abstraction `@/lib/storage` (et non plus
+ * `@vercel/blob`). On mocke DONC `@/lib/storage`, pas un détail d'implémentation. Point clé de la
+ * purge CDP : la SUPPRESSION est routée par la FORME de chaque référence (`stockagePour`) —
+ * un orphelin encore sur Vercel doit être supprimé par Vercel, un s3:// par MinIO. Le test des
+ * références mixtes le garantit.
  */
 
-export {} // fichier traité comme module (évite la collision de scope global avec d'autres tests)
+export {} // module isolé (évite la collision de scope global)
 
-const mockList = jest.fn()
-const mockDel = jest.fn()
-jest.mock('@vercel/blob', () => ({
-  list: (...a: unknown[]) => mockList(...a),
-  del: (...a: unknown[]) => mockDel(...a),
+const mockLister = jest.fn()
+const mockSupprimer = jest.fn()
+// `stockagePour` enregistre la référence reçue → on vérifie le routage par référence.
+const mockStockagePour = jest.fn((..._a: unknown[]) => ({ supprimer: mockSupprimer }))
+jest.mock('@/lib/storage', () => ({
+  stockage: () => ({ lister: (...a: unknown[]) => mockLister(...a) }),
+  stockagePour: (...a: unknown[]) => mockStockagePour(...a),
 }))
 
 const mockFindMany = jest.fn()
@@ -23,84 +31,88 @@ jest.mock('@/lib/prisma', () => ({
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { cleanupCvOrphans } = require('@/lib/cleanup-cv-orphans')
 
-function makeBlob(url: string, ageMs: number) {
+const HOUR = 60 * 60 * 1000
+
+/** Objet tel que renvoyé par `stockage().lister()` (nouvelle forme du port). */
+function makeObjet(reference: string, ageMs: number) {
   return {
-    url,
-    pathname: url.replace(/^https?:\/\/[^/]+\//, ''),
-    uploadedAt: new Date(Date.now() - ageMs),
-    size: 1024,
+    reference,
+    chemin: reference.replace(/^(https?:\/\/[^/]+\/|s3:\/\/[^/]+\/)/, ''),
+    taille: 1024,
+    deposeLe: new Date(Date.now() - ageMs),
   }
 }
 
-const HOUR = 60 * 60 * 1000
-
 beforeEach(() => {
   jest.clearAllMocks()
-  process.env.BLOB_READ_WRITE_TOKEN = 'token-test'
 })
 
 describe('cleanupCvOrphans', () => {
-  it('retourne 0 orphelin si tous les blobs sont référencés', async () => {
-    mockList.mockResolvedValueOnce({
-      blobs: [
-        makeBlob('https://blob.vercel/cv/a.pdf', 48 * HOUR),
-        makeBlob('https://blob.vercel/cv/b.pdf', 48 * HOUR),
-      ],
-      hasMore: false,
+  it('retourne 0 orphelin si tous les objets sont référencés', async () => {
+    mockLister.mockResolvedValueOnce({
+      objets: [makeObjet('s3://guichet/cv/a.pdf', 48 * HOUR), makeObjet('s3://guichet/cv/b.pdf', 48 * HOUR)],
     })
-    mockFindMany.mockResolvedValueOnce([
-      { cvUrl: 'https://blob.vercel/cv/a.pdf' },
-      { cvUrl: 'https://blob.vercel/cv/b.pdf' },
-    ])
+    mockFindMany.mockResolvedValueOnce([{ cvUrl: 's3://guichet/cv/a.pdf' }, { cvUrl: 's3://guichet/cv/b.pdf' }])
 
     const r = await cleanupCvOrphans({ apply: true })
     expect(r.scanned).toBe(2)
     expect(r.orphans).toBe(0)
     expect(r.deleted).toBe(0)
-    expect(mockDel).not.toHaveBeenCalled()
+    expect(mockSupprimer).not.toHaveBeenCalled()
   })
 
-  it('détecte les orphelins et appelle del() en mode apply', async () => {
-    mockList.mockResolvedValueOnce({
-      blobs: [
-        makeBlob('https://blob.vercel/cv/a.pdf', 48 * HOUR), // orphelin
-        makeBlob('https://blob.vercel/cv/b.pdf', 48 * HOUR), // référencé
-        makeBlob('https://blob.vercel/cv/c.pdf', 48 * HOUR), // orphelin
+  it('détecte les orphelins et les supprime en mode apply', async () => {
+    mockLister.mockResolvedValueOnce({
+      objets: [
+        makeObjet('s3://guichet/cv/a.pdf', 48 * HOUR), // orphelin
+        makeObjet('s3://guichet/cv/b.pdf', 48 * HOUR), // référencé
+        makeObjet('s3://guichet/cv/c.pdf', 48 * HOUR), // orphelin
       ],
-      hasMore: false,
     })
-    mockFindMany.mockResolvedValueOnce([{ cvUrl: 'https://blob.vercel/cv/b.pdf' }])
+    mockFindMany.mockResolvedValueOnce([{ cvUrl: 's3://guichet/cv/b.pdf' }])
 
     const r = await cleanupCvOrphans({ apply: true })
     expect(r.scanned).toBe(3)
     expect(r.orphans).toBe(2)
     expect(r.deleted).toBe(2)
-    expect(mockDel).toHaveBeenCalledTimes(2)
-    expect(mockDel).toHaveBeenCalledWith('https://blob.vercel/cv/a.pdf', { token: 'token-test' })
-    expect(mockDel).toHaveBeenCalledWith('https://blob.vercel/cv/c.pdf', { token: 'token-test' })
+    expect(mockSupprimer).toHaveBeenCalledTimes(2)
+    expect(mockSupprimer).toHaveBeenCalledWith('s3://guichet/cv/a.pdf')
+    expect(mockSupprimer).toHaveBeenCalledWith('s3://guichet/cv/c.pdf')
+  })
+
+  it('route la suppression par la FORME de chaque référence (mixte s3:// + Vercel hérité)', async () => {
+    mockLister.mockResolvedValueOnce({
+      objets: [
+        makeObjet('s3://guichet/cv/neuf.pdf', 48 * HOUR),
+        makeObjet('https://abc.vercel-storage.com/cv/herite.pdf', 48 * HOUR),
+      ],
+    })
+    mockFindMany.mockResolvedValueOnce([]) // les deux sont orphelins
+
+    const r = await cleanupCvOrphans({ apply: true })
+    expect(r.deleted).toBe(2)
+    // Chaque référence est passée à stockagePour → chacune est routée vers SON fournisseur.
+    expect(mockStockagePour).toHaveBeenCalledWith('s3://guichet/cv/neuf.pdf')
+    expect(mockStockagePour).toHaveBeenCalledWith('https://abc.vercel-storage.com/cv/herite.pdf')
   })
 
   it('en dry-run, ne supprime rien mais liste les orphelins', async () => {
-    mockList.mockResolvedValueOnce({
-      blobs: [makeBlob('https://blob.vercel/cv/x.pdf', 48 * HOUR)],
-      hasMore: false,
-    })
+    mockLister.mockResolvedValueOnce({ objets: [makeObjet('s3://guichet/cv/x.pdf', 48 * HOUR)] })
     mockFindMany.mockResolvedValueOnce([])
 
     const r = await cleanupCvOrphans({ apply: false })
     expect(r.orphans).toBe(1)
     expect(r.deleted).toBe(0)
-    expect(r.orphanUrls).toEqual(['https://blob.vercel/cv/x.pdf'])
-    expect(mockDel).not.toHaveBeenCalled()
+    expect(r.orphanUrls).toEqual(['s3://guichet/cv/x.pdf'])
+    expect(mockSupprimer).not.toHaveBeenCalled()
   })
 
-  it('ignore les blobs trop récents (< 24 h)', async () => {
-    mockList.mockResolvedValueOnce({
-      blobs: [
-        makeBlob('https://blob.vercel/cv/fresh.pdf', 2 * HOUR), // trop récent
-        makeBlob('https://blob.vercel/cv/old.pdf', 48 * HOUR), // assez vieux
+  it('ignore les objets trop récents (< 24 h)', async () => {
+    mockLister.mockResolvedValueOnce({
+      objets: [
+        makeObjet('s3://guichet/cv/fresh.pdf', 2 * HOUR), // trop récent
+        makeObjet('s3://guichet/cv/old.pdf', 48 * HOUR), // assez vieux
       ],
-      hasMore: false,
     })
     mockFindMany.mockResolvedValueOnce([])
 
@@ -108,19 +120,15 @@ describe('cleanupCvOrphans', () => {
     expect(r.scanned).toBe(2)
     expect(r.orphans).toBe(1)
     expect(r.deleted).toBe(1)
-    expect(mockDel).toHaveBeenCalledWith('https://blob.vercel/cv/old.pdf', { token: 'token-test' })
+    expect(mockSupprimer).toHaveBeenCalledWith('s3://guichet/cv/old.pdf')
   })
 
-  it('comptabilise les erreurs de del() sans interrompre la boucle', async () => {
-    mockList.mockResolvedValueOnce({
-      blobs: [
-        makeBlob('https://blob.vercel/cv/a.pdf', 48 * HOUR),
-        makeBlob('https://blob.vercel/cv/b.pdf', 48 * HOUR),
-      ],
-      hasMore: false,
+  it('comptabilise les erreurs de suppression sans interrompre la boucle', async () => {
+    mockLister.mockResolvedValueOnce({
+      objets: [makeObjet('s3://guichet/cv/a.pdf', 48 * HOUR), makeObjet('s3://guichet/cv/b.pdf', 48 * HOUR)],
     })
     mockFindMany.mockResolvedValueOnce([])
-    mockDel.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined)
+    mockSupprimer.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(undefined)
 
     const r = await cleanupCvOrphans({ apply: true })
     expect(r.orphans).toBe(2)
@@ -128,24 +136,15 @@ describe('cleanupCvOrphans', () => {
     expect(r.errors).toBe(1)
   })
 
-  it('parcourt toutes les pages via cursor', async () => {
-    mockList
-      .mockResolvedValueOnce({
-        blobs: [makeBlob('https://blob.vercel/cv/p1.pdf', 48 * HOUR)],
-        hasMore: true,
-        cursor: 'next-cursor',
-      })
-      .mockResolvedValueOnce({
-        blobs: [makeBlob('https://blob.vercel/cv/p2.pdf', 48 * HOUR)],
-        hasMore: false,
-      })
+  it('parcourt toutes les pages via le curseur', async () => {
+    mockLister
+      .mockResolvedValueOnce({ objets: [makeObjet('s3://guichet/cv/p1.pdf', 48 * HOUR)], curseur: 'next-cursor' })
+      .mockResolvedValueOnce({ objets: [makeObjet('s3://guichet/cv/p2.pdf', 48 * HOUR)] })
     mockFindMany.mockResolvedValueOnce([])
 
     const r = await cleanupCvOrphans({ apply: false })
-    expect(mockList).toHaveBeenCalledTimes(2)
-    expect(mockList).toHaveBeenLastCalledWith(
-      expect.objectContaining({ cursor: 'next-cursor' }),
-    )
+    expect(mockLister).toHaveBeenCalledTimes(2)
+    expect(mockLister).toHaveBeenLastCalledWith(expect.objectContaining({ curseur: 'next-cursor' }))
     expect(r.scanned).toBe(2)
     expect(r.orphans).toBe(2)
   })
