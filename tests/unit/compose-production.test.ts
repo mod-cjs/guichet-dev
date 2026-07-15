@@ -72,4 +72,12 @@ describe('GUIC-564 — compose de production', () => {
     expect(utile).not.toMatch(/image:\s*redis/)
     expect(utile).not.toMatch(/image:\s*neo4j/)
   })
+
+  it('donne aux conteneurs une route vers l’hôte (MariaDB Plesk + MinIO en 127.0.0.1)', () => {
+    // F2 — Depuis un conteneur, 127.0.0.1 = le conteneur, pas l'hôte. MariaDB (Plesk) et MinIO
+    // écoutent sur la boucle locale de l'HÔTE. Sans host-gateway, l'app ne peut joindre ni la
+    // base ni le stockage → déploiement mort au démarrage.
+    expect(utile).toMatch(/extra_hosts:/)
+    expect(utile).toMatch(/host\.docker\.internal:host-gateway/)
+  })
 })
