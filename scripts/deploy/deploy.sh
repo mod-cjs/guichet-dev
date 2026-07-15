@@ -59,7 +59,8 @@ require() {
 backup_db() {
   log "Sauvegarde de la base avant migration…"
   local url stamp dump
-  url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
+  # `|| true` : sous set -e+pipefail, un grep sans correspondance renverrait 1 et tuerait le script.
+  url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"' || true)"
   if [[ -z "$url" ]]; then
     err "DATABASE_URL absent de $GUICHET_ENV_FILE : sauvegarde impossible."
     exit 2

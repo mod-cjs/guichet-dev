@@ -16,6 +16,9 @@ GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 STATE_DIR="${STATE_DIR:-/var/lib/guichet}"
 PREVIOUS_IMAGE_FILE="${STATE_DIR}/previous-image"
+# Fenêtre du contrôle de santé (surchargeables, comme deploy.sh — cohérence + testabilité).
+SMOKE_RETRIES="${SMOKE_RETRIES:-30}"
+SMOKE_DELAY="${SMOKE_DELAY:-5}"
 
 log() { printf '\n\033[1m[rollback]\033[0m %s\n' "$*"; }
 err() { printf '\n\033[1;31m[rollback:erreur]\033[0m %s\n' "$*" >&2; }
@@ -53,12 +56,12 @@ GUICHET_IMAGE="$target" docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_E
   up -d --no-deps app
 
 log "Vérification de santé (état du conteneur)…"
-for i in $(seq 1 30); do
+for ((i = 1; i <= SMOKE_RETRIES; i++)); do
   status="$(app_health)"
   case "$status" in
     healthy)   log "Rollback vers $target confirmé sain — conteneur healthy (tentative $i)."; exit 0 ;;
     unhealthy) err "Conteneur 'unhealthy' après rollback."; break ;;
-    *)         sleep 5 ;;
+    *)         sleep "$SMOKE_DELAY" ;;
   esac
 done
 
