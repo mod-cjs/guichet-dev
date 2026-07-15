@@ -17,6 +17,10 @@
 # est pire que pas de sauvegarde.
 set -Eeuo pipefail
 
+# Parseur DATABASE_URL partagé et testé.
+# shellcheck source=../lib/db-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/db-url.sh"
+
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guichet}"
 NETWORK="${BACKUP_NETWORK:-${COMPOSE_PROJECT_NAME}_guichet}"
@@ -29,27 +33,23 @@ STAMP="${BACKUP_STAMP:-$(date '+%Y%m%d-%H%M%S')}"
 log() { printf '\n\033[1m[backup]\033[0m %s\n' "$*"; }
 err() { printf '\n\033[1;31m[backup:erreur]\033[0m %s\n' "$*" >&2; }
 
-# mysql://user:pass@host:port/db → composants (découpe au DERNIER @ / PREMIER : ; cf. deploy.sh).
-declare user pass host port db
-parse_database_url() {
-  local url rest creds hostport
+# Lit DATABASE_URL depuis le fichier de secrets et remplit DB_USER/DB_PASS/DB_HOST/DB_PORT/DB_NAME
+# via le parseur partagé et testé (scripts/lib/db-url.sh).
+load_db_url() {
+  local url
   url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
   [[ -z "$url" ]] && { err "DATABASE_URL absent de $GUICHET_ENV_FILE"; exit 2; }
-  rest="${url#mysql://}"
-  creds="${rest%@*}"; hostport="${rest##*@}"
-  user="${creds%%:*}"; pass="${creds#*:}"
-  db="${hostport##*/}"; hostport="${hostport%%/*}"
-  host="${hostport%%:*}"; port="${hostport#*:}"; [[ "$port" == "$host" ]] && port=3306
+  parse_db_url "$url"
 }
 
 backup_mariadb() {
-  log "Sauvegarde MariaDB ($db @ $host:$port)…"
+  log "Sauvegarde MariaDB ($DB_NAME @ $DB_HOST:$DB_PORT)…"
   local dump="${BACKUP_DIR}/mariadb-${STAMP}.sql.gz"
   # Dump DANS un conteneur sur le réseau du Guichet (mêmes route/host-gateway que l'app).
   if docker run --rm --network "$NETWORK" --add-host host.docker.internal:host-gateway \
-      -e MYSQL_PWD="$pass" "$MARIADB_IMAGE" \
+      -e MYSQL_PWD="$DB_PASS" "$MARIADB_IMAGE" \
       mariadb-dump --single-transaction --quick --no-tablespaces \
-        -h "$host" -P "$port" -u "$user" "$db" 2>/dev/null | gzip > "$dump"; then
+        -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME" 2>/dev/null | gzip > "$dump"; then
     # Un dump vide = échec masqué : on vérifie une taille plausible.
     if [[ "$(gzip -dc "$dump" 2>/dev/null | head -c 100 | wc -c)" -lt 20 ]]; then
       err "Dump MariaDB suspicieusement vide → échec."
@@ -109,7 +109,7 @@ offsite() {
 main() {
   [[ -f "$GUICHET_ENV_FILE" ]] || { err "Fichier de secrets introuvable : $GUICHET_ENV_FILE"; exit 2; }
   mkdir -p "$BACKUP_DIR"
-  parse_database_url
+  load_db_url
   backup_mariadb
   backup_minio
   prune

@@ -9,6 +9,10 @@
 # NE TOUCHE JAMAIS À LA BASE DE PRODUCTION : il crée une base `guichet_restore_drill_<stamp>`.
 set -Eeuo pipefail
 
+# Parseur DATABASE_URL partagé et testé.
+# shellcheck source=../lib/db-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/db-url.sh"
+
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guichet}"
 NETWORK="${BACKUP_NETWORK:-${COMPOSE_PROJECT_NAME}_guichet}"
@@ -25,17 +29,16 @@ if [[ -z "$DUMP" ]]; then
 fi
 [[ -z "$DUMP" || ! -f "$DUMP" ]] && { err "Aucun dump trouvé (${BACKUP_DIR}/mariadb-*.sql.gz)."; exit 2; }
 
-# Connexion (perspective conteneur, comme la sauvegarde).
+# Connexion (perspective conteneur, comme la sauvegarde) — parseur partagé et testé.
 url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
-rest="${url#mysql://}"; creds="${rest%@*}"; hostport="${rest##*@}"
-user="${creds%%:*}"; pass="${creds#*:}"
-host="${hostport%%/*}"; port="${host#*:}"; host="${host%%:*}"; [[ "$port" == "$host" ]] && port=3306
+[[ -z "$url" ]] && { err "DATABASE_URL absent de $GUICHET_ENV_FILE"; exit 2; }
+parse_db_url "$url"
 
 DRILL_DB="guichet_restore_drill_$(date '+%Y%m%d%H%M%S')"
 
 mysql_in_container() {
   docker run --rm -i --network "$NETWORK" --add-host host.docker.internal:host-gateway \
-    -e MYSQL_PWD="$pass" "$MARIADB_IMAGE" mariadb -h "$host" -P "$port" -u "$user" "$@"
+    -e MYSQL_PWD="$DB_PASS" "$MARIADB_IMAGE" mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$@"
 }
 
 cleanup() {
