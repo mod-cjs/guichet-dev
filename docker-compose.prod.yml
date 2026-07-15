@@ -44,6 +44,16 @@ services:
       - guichet
       - services_partages
 
+    # F2 (GUIC-564) — Route vers l'HÔTE. Depuis un conteneur, 127.0.0.1 désigne le conteneur.
+    # MariaDB (Plesk) et MinIO écoutent sur la boucle locale de l'HÔTE : sans cette entrée, l'app
+    # ne peut joindre ni la base ni le stockage. Dans le fichier de secrets, DATABASE_URL et
+    # S3_ENDPOINT doivent alors viser `host.docker.internal` (pas 127.0.0.1). Redis (redis_cjs) et
+    # Neo4j (DNS public) ne sont pas concernés.
+    # ⚠️ NÉCESSAIRE MAIS PAS SUFFISANT : côté serveur, MariaDB et MinIO doivent ÉCOUTER sur une
+    # interface joignable depuis le bridge Docker (pas uniquement 127.0.0.1). Action lead/infra.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     # GUIC-543 — Serveur MUTUALISÉ avec le SSO et le BRM : un Guichet emballé ne doit JAMAIS
     # pouvoir saturer la machine et emporter les deux autres plateformes avec lui.
     deploy:
