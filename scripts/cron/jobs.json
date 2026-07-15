@@ -1,0 +1,13 @@
+{
+  "_comment": "GUIC-570 — Source unique des tâches planifiées du Guichet sur OVH. Doit couvrir EXACTEMENT les crons de vercel.json (sentinelle tests/unit/cron-jobs-parity.test.ts). Le crontab est généré depuis ce fichier (generate-crontab.sh) : les horaires vivent ICI, pas en double.",
+  "jobs": [
+    { "path": "/api/internal/notifications-dlq", "schedule": "*/10 * * * *", "desc": "Rejoue les notifications en échec (DLQ)" },
+    { "path": "/api/cron/cleanup-cv", "schedule": "0 3 * * *", "desc": "Purge des CV orphelins (rétention CDP)" },
+    { "path": "/api/cron/cleanup-centre-events", "schedule": "0 3 * * *", "desc": "Purge des événements de centre expirés" },
+    { "path": "/api/cron/cleanup-checkins", "schedule": "0 3 * * *", "desc": "Purge des check-ins expirés" },
+    { "path": "/api/cron/reservations-batch", "schedule": "0 4 * * *", "desc": "Traitement batch des réservations" },
+    { "path": "/api/cron/yaye-graph-sync", "schedule": "30 2 * * *", "desc": "Synchronisation du graphe Yaye" },
+    { "path": "/api/cron/yaye-reco-precompute", "schedule": "45 2 * * *", "desc": "Précalcul des recommandations Yaye" },
+    { "path": "/api/cron/yaye-eval", "schedule": "15 3 * * *", "desc": "Évaluation qualité Yaye" }
+  ]
+}
