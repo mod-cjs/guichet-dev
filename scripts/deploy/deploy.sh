@@ -76,8 +76,19 @@ backup_db() {
   db="${hostport##*/}"; hostport="${hostport%%/*}"
   host="${hostport%%:*}"; port="${hostport#*:}"; [[ "$port" == "$host" ]] && port=3306
 
-  if MYSQL_PWD="$pass" mysqldump --single-transaction --quick --no-tablespaces \
-      -h "$host" -P "$port" -u "$user" "$db" 2>/dev/null | gzip > "$dump"; then
+  # F2 — le dump tourne DANS un conteneur sur le réseau du Guichet (avec host-gateway), pas sur
+  # l'hôte : `host` vaut host.docker.internal (perspective conteneur, comme l'app) et ne
+  # résoudrait pas sur l'hôte. Cohérent avec scripts/backup/backup.sh (GUIC-571).
+  if docker run --rm --network "${SERVICES_NETWORK:-cjs_services}" \
+      --add-host host.docker.internal:host-gateway \
+      -e MYSQL_PWD="$pass" "${MARIADB_IMAGE:-mariadb:10.11}" \
+      mariadb-dump --single-transaction --quick --no-tablespaces \
+        -h "$host" -P "$port" -u "$user" "$db" 2>/dev/null | gzip > "$dump"; then
+    # Un dump vide = échec masqué : on refuse de migrer sur une fausse sauvegarde.
+    if [[ "$(gzip -dc "$dump" 2>/dev/null | head -c 100 | wc -c)" -lt 20 ]]; then
+      err "Dump suspicieusement vide → sauvegarde invalide, déploiement interrompu."
+      rm -f "$dump"; exit 3
+    fi
     log "Sauvegarde écrite : $dump ($(du -h "$dump" | cut -f1))"
   else
     err "La sauvegarde de la base a échoué — déploiement interrompu (aucune migration sans point de restauration)."
