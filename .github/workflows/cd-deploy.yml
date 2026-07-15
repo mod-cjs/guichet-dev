@@ -1,29 +1,76 @@
+# GUIC-568 — Déploiement continu du Guichet sur OVH.
+#
+# Principe directeur : ON CONSTRUIT L'IMAGE UNE SEULE FOIS, ET C'EST EXACTEMENT CELLE-LÀ QUI
+# VA EN PRODUCTION. Le CD précédent construisait une image jetée aussitôt, puis le serveur
+# faisait `git pull origin main` + rebuild → c'est le HEAD de main qui partait, pas le tag.
+#
+# Ici : build → push vers GHCR → le serveur déploie l'image PAR SON EMPREINTE (digest). Le
+# binaire déployé est bit-à-bit celui qui a passé la CI. Le serveur ne reconstruit rien.
 name: Deploy
 
 on:
   push:
     tags: ['v*']
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # ne jamais interrompre un déploiement en cours
+
 jobs:
-  deploy:
-    name: Déployer sur OVH
+  build-push:
+    name: Construire et pousser l'image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # pousser vers GHCR
+    outputs:
+      image: ${{ steps.digest.outputs.ref }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image Docker
-        run: docker build -t guichet-jeunesse:${{ github.ref_name }} .
+      - name: Connexion à GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Déployer sur le serveur OVH
+      - name: Construire et pousser
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+
+      - name: Référence par empreinte (digest)
+        id: digest
+        run: |
+          # On déploie par digest, jamais par tag mutable : garantit que le serveur reçoit
+          # EXACTEMENT l'image construite ici, même si le tag est repoussé plus tard.
+          echo "ref=ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Déployer sur OVH
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment: production # permet une approbation manuelle si configurée côté repo
+    steps:
+      - name: Déploiement distant (sauvegarde → migrations → bascule → smoke test → rollback si échec)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.OVH_HOST }}
           username: ${{ secrets.OVH_USER }}
           key: ${{ secrets.OVH_SSH_KEY }}
+          # Le script de déploiement est VERSIONNÉ dans le dépôt cloné côté serveur : on tire
+          # sa dernière version, puis on l'exécute avec l'image à déployer (par digest).
           script: |
+            set -Eeuo pipefail
             cd /opt/guichet-jeunesse
-            git pull origin main
-            docker compose pull
-            docker compose up -d --no-deps --build app
-            docker compose exec app npx prisma migrate deploy
-            echo "Déploiement ${{ github.ref_name }} terminé"
+            git fetch --quiet origin
+            git checkout --quiet "${{ github.ref_name }}"
+            export GUICHET_IMAGE="${{ needs.build-push.outputs.image }}"
+            echo "${{ github.ref_name }}" > /var/lib/guichet/deploy-stamp
+            bash scripts/deploy/deploy.sh
