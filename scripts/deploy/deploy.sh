@@ -22,6 +22,10 @@
 #   BACKUP_DIR         répertoire des sauvegardes (défaut /var/backups/guichet)
 set -Eeuo pipefail
 
+# Parseur DATABASE_URL partagé et testé (fournit parse_db_url).
+# shellcheck source=../lib/db-url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/db-url.sh"
+
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/guichet}"
@@ -63,27 +67,17 @@ backup_db() {
   stamp="$(cat "${STATE_DIR}/deploy-stamp" 2>/dev/null || echo "manual")"
   dump="${BACKUP_DIR}/guichet-${stamp}.sql.gz"
 
-  # mysql://user:pass@host:port/db → composants (sans exposer le mot de passe en argv).
-  # Découpe au DERNIER `@` et au PREMIER `:` : un mot de passe contenant `@` ou `:` (fréquent)
-  # est ainsi correctement préservé. NB : les caractères %-encodés ne sont pas décodés — si le
-  # mot de passe en contient, le stocker en clair dans DATABASE_URL (Prisma l'accepte).
-  local rest creds hostport user pass host port db
-  rest="${url#mysql://}"
-  creds="${rest%@*}"      # tout ce qui précède le dernier @
-  hostport="${rest##*@}"  # tout ce qui suit le dernier @
-  user="${creds%%:*}"     # avant le premier :
-  pass="${creds#*:}"      # après le premier : (conserve un éventuel : dans le mot de passe)
-  db="${hostport##*/}"; hostport="${hostport%%/*}"
-  host="${hostport%%:*}"; port="${hostport#*:}"; [[ "$port" == "$host" ]] && port=3306
+  # Découpe robuste de DATABASE_URL (lib partagée, testée — cf. tests/unit/db-url-parser.test.ts).
+  parse_db_url "$url"
 
   # F2 — le dump tourne DANS un conteneur sur le réseau du Guichet (avec host-gateway), pas sur
-  # l'hôte : `host` vaut host.docker.internal (perspective conteneur, comme l'app) et ne
+  # l'hôte : DB_HOST vaut host.docker.internal (perspective conteneur, comme l'app) et ne
   # résoudrait pas sur l'hôte. Cohérent avec scripts/backup/backup.sh (GUIC-571).
   if docker run --rm --network "${SERVICES_NETWORK:-cjs_services}" \
       --add-host host.docker.internal:host-gateway \
-      -e MYSQL_PWD="$pass" "${MARIADB_IMAGE:-mariadb:10.11}" \
+      -e MYSQL_PWD="$DB_PASS" "${MARIADB_IMAGE:-mariadb:10.11}" \
       mariadb-dump --single-transaction --quick --no-tablespaces \
-        -h "$host" -P "$port" -u "$user" "$db" 2>/dev/null | gzip > "$dump"; then
+        -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME" 2>/dev/null | gzip > "$dump"; then
     # Un dump vide = échec masqué : on refuse de migrer sur une fausse sauvegarde.
     if [[ "$(gzip -dc "$dump" 2>/dev/null | head -c 100 | wc -c)" -lt 20 ]]; then
       err "Dump suspicieusement vide → sauvegarde invalide, déploiement interrompu."
