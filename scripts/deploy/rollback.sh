@@ -14,12 +14,19 @@ set -Eeuo pipefail
 
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 STATE_DIR="${STATE_DIR:-/var/lib/guichet}"
 PREVIOUS_IMAGE_FILE="${STATE_DIR}/previous-image"
 
 log() { printf '\n\033[1m[rollback]\033[0m %s\n' "$*"; }
 err() { printf '\n\033[1;31m[rollback:erreur]\033[0m %s\n' "$*" >&2; }
+
+# F3 — santé via l'état du conteneur (pas de port hôte), comme deploy.sh.
+app_health() {
+  local cid
+  cid="$(docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_ENV_FILE" ps -q app 2>/dev/null || true)"
+  [[ -z "$cid" ]] && return 0
+  docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$cid" 2>/dev/null || true
+}
 
 target="${1:-}"
 if [[ -z "$target" ]]; then
@@ -45,13 +52,14 @@ docker pull "$target"
 GUICHET_IMAGE="$target" docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_ENV_FILE" \
   up -d --no-deps app
 
-log "Vérification de santé…"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
-    log "Rollback vers $target confirmé sain (tentative $i)."
-    exit 0
-  fi
-  sleep 3
+log "Vérification de santé (état du conteneur)…"
+for i in $(seq 1 30); do
+  status="$(app_health)"
+  case "$status" in
+    healthy)   log "Rollback vers $target confirmé sain — conteneur healthy (tentative $i)."; exit 0 ;;
+    unhealthy) err "Conteneur 'unhealthy' après rollback."; break ;;
+    *)         sleep 5 ;;
+  esac
 done
 
 err "Le service ne répond pas après le rollback — intervention manuelle requise (runbook GUIC-159)."

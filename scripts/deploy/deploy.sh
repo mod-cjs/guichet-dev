@@ -19,18 +19,19 @@
 #                      (ex. ghcr.io/cjs/guichet@sha256:abc…)
 #   GUICHET_ENV_FILE   fichier de secrets hors dépôt (défaut /etc/guichet/prod.env)
 #   COMPOSE_FILE       compose de production (défaut docker-compose.prod.yml)
-#   HEALTH_URL         URL du smoke test (défaut http://127.0.0.1:3000/api/health)
 #   BACKUP_DIR         répertoire des sauvegardes (défaut /var/backups/guichet)
 set -Eeuo pipefail
 
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/guichet}"
 STATE_DIR="${STATE_DIR:-/var/lib/guichet}"
 PREVIOUS_IMAGE_FILE="${STATE_DIR}/previous-image"
-SMOKE_RETRIES="${SMOKE_RETRIES:-10}"
-SMOKE_DELAY="${SMOKE_DELAY:-3}"
+# Smoke test via l'état de santé du conteneur (F3) : le healthcheck du compose a un
+# start_period de 20 s + un interval de 30 s → laisser le temps au 1er verdict.
+# 30 × 5 s = 150 s de fenêtre, largement suffisant.
+SMOKE_RETRIES="${SMOKE_RETRIES:-30}"
+SMOKE_DELAY="${SMOKE_DELAY:-5}"
 
 log() { printf '\n\033[1m[deploy]\033[0m %s\n' "$*"; }
 err() { printf '\n\033[1;31m[deploy:erreur]\033[0m %s\n' "$*" >&2; }
@@ -109,17 +110,29 @@ current_image() {
   docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null || true
 }
 
+# État de santé du conteneur `app` (`healthy` / `unhealthy` / `starting` / vide).
+app_health() {
+  local cid
+  cid="$(docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_ENV_FILE" ps -q app 2>/dev/null || true)"
+  [[ -z "$cid" ]] && return 0
+  docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$cid" 2>/dev/null || true
+}
+
+# F3 (GUIC-568) — Smoke test SANS port publié : on interroge l'état de santé du CONTENEUR.
+# Le healthcheck du compose teste déjà `/api/health` EN INTERNE (127.0.0.1:3000 dans le
+# conteneur → DB + Redis). On ne dépend donc ni d'un port hôte ni du proxy (GUIC-158).
 smoke_test() {
-  log "Smoke test sur $HEALTH_URL …"
-  local i
+  log "Smoke test : attente de l'état 'healthy' du conteneur…"
+  local i status
   for ((i = 1; i <= SMOKE_RETRIES; i++)); do
-    if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
-      log "Smoke test OK (tentative $i)."
-      return 0
-    fi
-    sleep "$SMOKE_DELAY"
+    status="$(app_health)"
+    case "$status" in
+      healthy)   log "Smoke test OK — conteneur healthy (tentative $i)."; return 0 ;;
+      unhealthy) err "Conteneur 'unhealthy' — l'app démarre mais /api/health échoue."; return 1 ;;
+      *)         sleep "$SMOKE_DELAY" ;; # starting / vide : on patiente
+    esac
   done
-  err "Smoke test échoué après $SMOKE_RETRIES tentatives."
+  err "Smoke test échoué : conteneur pas 'healthy' après $SMOKE_RETRIES tentatives (dernier état : ${status:-inconnu})."
   return 1
 }
 

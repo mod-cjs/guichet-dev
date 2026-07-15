@@ -74,7 +74,6 @@ jobs:
             # (Prérequis : docker-compose.prod.yml ne doit PAS figer container_name — sinon
             # collision. Cf. note dans le compose.)
             export COMPOSE_PROJECT_NAME="guichet-staging"
-            export HEALTH_URL="http://127.0.0.1:3100/api/health"
             export BACKUP_DIR="/var/backups/guichet-staging"
             export STATE_DIR="/var/lib/guichet-staging"
             echo "dev-${{ github.sha }}" > "$STATE_DIR/deploy-stamp"
