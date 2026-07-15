@@ -9,6 +9,25 @@
 export const REQUEST_ID_HEADER = 'x-request-id'
 
 /**
+ * Sacs d'en-têtes acceptés : un `Headers` Web (route handlers) OU un objet simple
+ * `{ [key]: string | string[] }` — c'est CE que Next passe au hook `onRequestError`
+ * (NodeJS.Dict), et un `Headers.get()` planterait dessus (bug C1).
+ */
+export type HeaderBag = Headers | Record<string, string | string[] | undefined>
+
+/** Lit un en-tête quelle que soit la forme du sac (Headers ou objet simple, casse ignorée). */
+export function readHeader(bag: HeaderBag, name: string): string | undefined {
+  if (typeof (bag as Headers).get === 'function') {
+    return (bag as Headers).get(name) ?? undefined
+  }
+  const obj = bag as Record<string, string | string[] | undefined>
+  const lower = name.toLowerCase()
+  // Les clés d'un dict Node sont deja en minuscules, mais on reste tolérant.
+  const value = obj[lower] ?? obj[name]
+  return Array.isArray(value) ? value[0] : value
+}
+
+/**
  * Un requestId propre : caractères de token (alphanumérique, tiret, underscore), borné.
  * On REFUSE tout le reste — un en-tête client hostile ne doit pas injecter de sauts de ligne
  * ni de contenu arbitraire dans les logs (log injection).
@@ -19,10 +38,11 @@ export function isValidRequestId(value: string): boolean {
 
 /**
  * requestId de la requête : l'en-tête `x-request-id` s'il est présent ET valide, sinon un UUID
- * neuf. Un en-tête aberrant est ignoré (régénéré), jamais propagé tel quel.
+ * neuf. Un en-tête aberrant est ignoré (régénéré), jamais propagé tel quel. Accepte un `Headers`
+ * ou un objet simple (forme du hook `onRequestError`).
  */
-export function resolveRequestId(headers: Headers): string {
-  const incoming = headers.get(REQUEST_ID_HEADER)
+export function resolveRequestId(headers: HeaderBag): string {
+  const incoming = readHeader(headers, REQUEST_ID_HEADER)
   if (incoming && isValidRequestId(incoming)) return incoming
   return crypto.randomUUID()
 }

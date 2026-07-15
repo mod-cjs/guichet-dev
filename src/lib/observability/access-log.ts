@@ -9,6 +9,7 @@
 
 import { logger, hashId } from '@/lib/logger'
 import { resolveRequestId } from './request-id'
+import { scrubPath } from './scrub'
 
 /** Un handler de route App Router : reçoit la requête (+ contexte de params), renvoie une réponse. */
 type RouteHandler = (request: Request, context?: unknown) => Promise<Response> | Response
@@ -32,17 +33,21 @@ export function withObservability(handler: RouteHandler, opts: ObservabilityOpti
     const base = {
       requestId,
       method: request.method,
-      path: pathname,
+      path: scrubPath(pathname), // CDP (C2) : neutraliser un cjs_uid embarqué dans le chemin
       ...(uidRaw ? { uid: hashId(uidRaw) } : {}),
     }
 
     try {
       const res = await handler(request, context)
       logger.info('access', { ...base, status: res.status, durationMs: Date.now() - start })
-      // Écho du requestId : le client et le proxy partagent la même corrélation.
-      const headers = new Headers(res.headers)
-      if (!headers.has('x-request-id')) headers.set('x-request-id', requestId)
-      return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+      // Écho du requestId : mutation EN PLACE (C3) — pas de reconstruction de Response, qui
+      // risquerait de perturber un flux (streaming) et ferait perdre les specificites NextResponse.
+      try {
+        if (!res.headers.has('x-request-id')) res.headers.set('x-request-id', requestId)
+      } catch {
+        /* en-têtes immuables (réponse figée) : on n'echoue pas le log pour ça */
+      }
+      return res
     } catch (err) {
       logger.info('access', { ...base, status: 500, durationMs: Date.now() - start })
       throw err
