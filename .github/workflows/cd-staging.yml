@@ -1,0 +1,87 @@
+# GUIC-569 — Déploiement automatique du staging.
+#
+# À chaque merge sur `dev`, on construit l'image, on la pousse sur GHCR, et on la déploie sur
+# le STAGING (même serveur OVH, sous-domaine et base séparés, limites de ressources réduites).
+# Coût 0 € : la RAM est là. C'est la répétition générale du go-live, et le lieu où l'on valide
+# l'image AVANT de la promouvoir en production (un tag `v*` déclenche alors cd-deploy.yml).
+#
+# Même principe qu'en production : on déploie l'image PAR SON EMPREINTE, jamais un tag mutable.
+name: Deploy staging
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true # un déploiement staging peut annuler le précédent (contrairement à la prod)
+
+jobs:
+  build-push:
+    name: Construire et pousser l'image (staging)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.digest.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connexion à GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # C-CD1 — GHCR exige un nom d'image en minuscules ; github.repository contient …-CJS/…
+      - name: Nom d'image GHCR en minuscules
+        id: img
+        run: |
+          repo="$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "base=ghcr.io/${repo}" >> "$GITHUB_OUTPUT"
+
+      - name: Construire et pousser
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.img.outputs.base }}:dev-${{ github.sha }}
+
+      - name: Référence par empreinte (digest)
+        id: digest
+        run: echo "ref=${{ steps.img.outputs.base }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Déployer sur le staging
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déploiement distant (mêmes étapes qu'en prod, base et env de staging)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OVH_HOST }}
+          username: ${{ secrets.OVH_USER }}
+          key: ${{ secrets.OVH_SSH_KEY }}
+          # Le staging réutilise EXACTEMENT le même script de déploiement que la production,
+          # avec sa propre configuration (fichier de secrets, compose et URL de staging) : c'est
+          # ce qui en fait une répétition fidèle. Une base DISTINCTE — aucun risque de croisement.
+          script: |
+            set -Eeuo pipefail
+            cd /opt/guichet-staging
+            git fetch --quiet origin
+            git checkout --quiet dev
+            git reset --hard --quiet origin/dev
+            export GUICHET_IMAGE="${{ needs.build-push.outputs.image }}"
+            export GUICHET_ENV_FILE="/etc/guichet/staging.env"
+            export COMPOSE_FILE="docker-compose.prod.yml"
+            # Namespace distinct de la prod : staging et prod cohabitent sur le même serveur.
+            # (Prérequis : docker-compose.prod.yml ne doit PAS figer container_name — sinon
+            # collision. Cf. note dans le compose.)
+            export COMPOSE_PROJECT_NAME="guichet-staging"
+            export BACKUP_DIR="/var/backups/guichet-staging"
+            export STATE_DIR="/var/lib/guichet-staging"
+            echo "dev-${{ github.sha }}" > "$STATE_DIR/deploy-stamp"
+            bash scripts/deploy/deploy.sh

@@ -1,0 +1,89 @@
+# GUIC-564 — Compose de PRODUCTION (OVH / Plesk).
+#
+# À n'utiliser QUE sur le serveur :
+#     docker compose -f docker-compose.prod.yml up -d
+#
+# Ce fichier est volontairement le contraire du compose de développement :
+#   - il ne déclare AUCUNE base : MariaDB (Plesk), Redis (redis_cjs), Neo4j (neo4j-cjs) et
+#     MinIO sont fournis par le serveur, mutualisés avec le SSO et le BRM ;
+#   - il ne publie AUCUN port : Plesk possède 443 et fait le reverse proxy ;
+#   - il ne contient AUCUN secret : ils vivent dans un fichier hors dépôt (`--env-file`) ;
+#   - il n'active JAMAIS la connexion sans SSO.
+#
+# Les services partagés sont des CONTENEURS : depuis notre conteneur, `127.0.0.1` désigne
+# NOTRE conteneur, pas l'hôte. On rejoint donc leur réseau et on les appelle par leur nom
+# (`redis_cjs:6379`, `neo4j-cjs:7687`). Piège classique, panne difficile à diagnostiquer.
+
+services:
+
+  app:
+    image: ${GUICHET_IMAGE:?renseigner GUICHET_IMAGE (image du registre, référencée par son empreinte)}
+    # Pas de container_name figé (GUIC-569) : staging et prod cohabitent sur le même serveur.
+    # Compose dérive le nom du conteneur du COMPOSE_PROJECT_NAME (`guichet` en prod,
+    # `guichet-staging` au staging) → aucune collision. Un nom figé les mettrait en conflit.
+    restart: unless-stopped
+
+    # Secrets et configuration : fichier hors dépôt, permissions strictes, propriétaire dédié.
+    #     docker compose -f docker-compose.prod.yml --env-file /etc/guichet/prod.env up -d
+    environment:
+      NODE_ENV: production
+      # Marqueur explicite : verrouille /api/dev/login quoi qu'il arrive (cf. prod-guards.ts).
+      APP_ENV: production
+      # ALLOW_DEV_LOGIN : ABSENT, et doit le rester. La sentinelle
+      # tests/unit/compose-production.test.ts échoue si on le réintroduit ici.
+
+    env_file:
+      - ${GUICHET_ENV_FILE:?renseigner GUICHET_ENV_FILE (ex. /etc/guichet/prod.env, chmod 600)}
+
+    # L'app écoute sur la boucle locale ; Plesk (443) fait le reverse proxy vers le proxy
+    # applicatif, qui répartit vers ce conteneur. Aucun port publié sur 0.0.0.0.
+    expose:
+      - "3000"
+
+    networks:
+      - guichet
+      - services_partages
+
+    # F2 (GUIC-564) — Route vers l'HÔTE. Depuis un conteneur, 127.0.0.1 désigne le conteneur.
+    # MariaDB (Plesk) et MinIO écoutent sur la boucle locale de l'HÔTE : sans cette entrée, l'app
+    # ne peut joindre ni la base ni le stockage. Dans le fichier de secrets, DATABASE_URL et
+    # S3_ENDPOINT doivent alors viser `host.docker.internal` (pas 127.0.0.1). Redis (redis_cjs) et
+    # Neo4j (DNS public) ne sont pas concernés.
+    # ⚠️ NÉCESSAIRE MAIS PAS SUFFISANT : côté serveur, MariaDB et MinIO doivent ÉCOUTER sur une
+    # interface joignable depuis le bridge Docker (pas uniquement 127.0.0.1). Action lead/infra.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # GUIC-543 — Serveur MUTUALISÉ avec le SSO et le BRM : un Guichet emballé ne doit JAMAIS
+    # pouvoir saturer la machine et emporter les deux autres plateformes avec lui.
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+    # GUIC-544 — Logs bornés : sans cela, le disque finit par saturer, et un disque plein
+    # arrête les trois plateformes.
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '5'
+
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  guichet:
+    driver: bridge
+  # Réseau des services partagés (redis_cjs, neo4j-cjs, MinIO), créé côté serveur.
+  services_partages:
+    external: true
+    name: ${SERVICES_NETWORK:-cjs_services}
