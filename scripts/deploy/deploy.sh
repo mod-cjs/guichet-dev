@@ -88,13 +88,15 @@ backup_db() {
 # ── 2. Migrations AVANT la bascule ──────────────────────────────────────────
 # Conteneur ÉPHÉMÈRE bâti sur la NOUVELLE image. Le schéma est prêt avant que le nouveau
 # code ne serve la moindre requête → jamais de code neuf sur ancien schéma.
+#
+# F2 (GUIC-564) : on passe par `docker compose run` (et non un `docker run` brut) pour que le
+# conteneur de migration HÉRITE de la config du service `app` — réseaux, `extra_hosts`
+# (host.docker.internal → MariaDB Plesk) et `env_file`. Un `docker run` manuel ne verrait pas
+# `extra_hosts` et ne pourrait pas joindre la base sur l'hôte.
 migrate() {
   log "Application des migrations (conteneur éphémère, nouvelle image)…"
-  docker run --rm \
-    --env-file "$GUICHET_ENV_FILE" \
-    --network "${SERVICES_NETWORK:-cjs_services}" \
-    "$GUICHET_IMAGE" \
-    npx prisma migrate deploy
+  GUICHET_IMAGE="$GUICHET_IMAGE" docker compose -f "$COMPOSE_FILE" --env-file "$GUICHET_ENV_FILE" \
+    run --rm --no-deps app npx prisma migrate deploy
 }
 
 # ── 3. Bascule + smoke test, avec rollback automatique ──────────────────────
