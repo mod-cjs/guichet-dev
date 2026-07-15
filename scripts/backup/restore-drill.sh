@@ -30,7 +30,8 @@ fi
 [[ -z "$DUMP" || ! -f "$DUMP" ]] && { err "Aucun dump trouvé (${BACKUP_DIR}/mariadb-*.sql.gz)."; exit 2; }
 
 # Connexion (perspective conteneur, comme la sauvegarde) — parseur partagé et testé.
-url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
+# `|| true` : sous set -e, un grep sans correspondance renverrait 1 et tuerait le script.
+url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"' || true)"
 [[ -z "$url" ]] && { err "DATABASE_URL absent de $GUICHET_ENV_FILE"; exit 2; }
 parse_db_url "$url"
 
@@ -42,7 +43,7 @@ mysql_in_container() {
 }
 
 cleanup() {
-  log "Nettoyage de la base d'exercice $DRILL_DB…"
+  log "Nettoyage de la base d'exercice ${DRILL_DB}…"
   echo "DROP DATABASE IF EXISTS \`$DRILL_DB\`;" | mysql_in_container 2>/dev/null || \
     err "Impossible de supprimer $DRILL_DB — À NETTOYER MANUELLEMENT."
 }

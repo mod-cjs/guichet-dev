@@ -25,5 +25,8 @@ parse_db_url() {
   hostport="${hostport%%/*}"
   DB_HOST="${hostport%%:*}"
   DB_PORT="${hostport#*:}"
-  [ "$DB_PORT" = "$DB_HOST" ] && DB_PORT=3306
+  # `if` et non `[ … ] && …` : sous `set -e`, un `&&` dont le test est faux (port présent, le
+  # cas prod `:3306`) renvoie 1 en dernière instruction et TUE le script appelant. Bug attrapé
+  # par le harnais de test des scripts (GUIC-571).
+  if [ "$DB_PORT" = "$DB_HOST" ]; then DB_PORT=3306; fi
 }

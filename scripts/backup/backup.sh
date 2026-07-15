@@ -37,7 +37,7 @@ err() { printf '\n\033[1;31m[backup:erreur]\033[0m %s\n' "$*" >&2; }
 # via le parseur partagé et testé (scripts/lib/db-url.sh).
 load_db_url() {
   local url
-  url="$(grep -E '^DATABASE_URL=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
+  url="$(read_env DATABASE_URL)"
   [[ -z "$url" ]] && { err "DATABASE_URL absent de $GUICHET_ENV_FILE"; exit 2; }
   parse_db_url "$url"
 }
@@ -62,12 +62,17 @@ backup_mariadb() {
   fi
 }
 
+  # `|| true` : sous `set -e -o pipefail`, un grep sans correspondance (variable absente) renvoie
+  # 1 et tuerait le script — or l'absence de config MinIO est un cas NORMAL (skip). Bug attrapé
+  # par le harnais de test (GUIC-571).
+read_env() { grep -E "^$1=" "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"' || true; }
+
 backup_minio() {
   local endpoint bucket key secret
-  endpoint="$(grep -E '^S3_ENDPOINT=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
-  bucket="$(grep -E '^S3_BUCKET=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
-  key="$(grep -E '^S3_ACCESS_KEY_ID=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
-  secret="$(grep -E '^S3_SECRET_ACCESS_KEY=' "$GUICHET_ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
+  endpoint="$(read_env S3_ENDPOINT)"
+  bucket="$(read_env S3_BUCKET)"
+  key="$(read_env S3_ACCESS_KEY_ID)"
+  secret="$(read_env S3_SECRET_ACCESS_KEY)"
 
   if [[ -z "$endpoint" || -z "$bucket" ]]; then
     log "MinIO non configuré (S3_ENDPOINT/S3_BUCKET absents) → sauvegarde objet ignorée."
