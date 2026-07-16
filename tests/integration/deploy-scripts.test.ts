@@ -172,3 +172,23 @@ describe('GUIC-568 — rollback.sh', () => {
     expect(r.code).toBe(1)
   })
 })
+
+describe('GUIC-621 — deploy.sh appelle le preflight EN PREMIER', () => {
+  it('le preflight passe AVANT la sauvegarde : un échec ne doit laisser AUCUN effet de bord', () => {
+    // L'ordre est la seule chose qui compte ici. Un preflight lancé après la sauvegarde (ou pire,
+    // après la migration) ne protège plus de rien : le mal est fait. On force son échec et on
+    // vérifie qu'aucun dump n'a été tenté.
+    const r = run('scripts/deploy/deploy.sh', {
+      env: { GUICHET_IMAGE: 'img@sha256:new', PREFLIGHT_FAIL: '1' },
+    })
+    expect(r.code).not.toBe(0)
+    expect(r.calls).not.toMatch(/mariadb-dump/) // aucune sauvegarde tentée
+    expect(r.calls).not.toMatch(/migrate deploy/) // aucune migration tentée
+  })
+
+  it('déploiement nominal : le preflight est bien invoqué', () => {
+    const r = run('scripts/deploy/deploy.sh', { env: { GUICHET_IMAGE: 'img@sha256:new' } })
+    expect(r.code).toBe(0)
+    expect(r.stdout).toMatch(/preflight/i)
+  })
+})
