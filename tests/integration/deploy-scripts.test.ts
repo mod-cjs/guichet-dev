@@ -27,6 +27,17 @@ case "$1" in
       [ -n "$FAKE_EMPTY_DUMP" ] && exit 0
       printf -- '-- fake dump\\nCREATE TABLE t (id INT);\\n'; exit 0
     fi
+    # GUIC-621 — deploy.sh appelle désormais preflight.sh en premier : ce shim doit répondre à
+    # ses sondes, sinon TOUT déploiement échoue ici pour une raison étrangère au test.
+    # $FAIL_DB force l'échec de la sonde MariaDB (utilisé pour tester l'ORDRE des étapes).
+    if printf '%s\\n' "$@" | grep -q 'redis-cli'; then echo "OK"; exit 0; fi
+    if printf '%s\\n' "$@" | grep -q 'curl'; then
+      printf '%s' '<?xml version="1.0"?><Error><Code>AccessDenied</Code></Error>'; exit 0
+    fi
+    if printf '%s\\n' "$@" | grep -q 'SELECT 1'; then
+      [ -n "$FAIL_DB" ] && exit 1
+      echo "1"; exit 0
+    fi
     exit 0 ;;
   compose)
     case " $* " in
@@ -63,7 +74,18 @@ function run(script: string, opts: { env?: Record<string, string>; health?: stri
   mkdirSync(join(sandbox, 'backups'))
   mkdirSync(join(sandbox, 'state'))
   const envFile = join(sandbox, 'prod.env')
-  writeFileSync(envFile, 'DATABASE_URL="mysql://guichet:secret@host.docker.internal:3306/guichet_jeunesse"\n')
+  // GUIC-621 — config COMPLÈTE : deploy.sh lance le preflight en premier, qui exige toutes les
+  // variables. Un env minimal ferait échouer chaque test pour une raison étrangère à son objet.
+  writeFileSync(envFile, [
+    'DATABASE_URL="mysql://guichet:secret@host.docker.internal:3306/guichet_jeunesse"',
+    'REDIS_URL="redis://guichet:secret@redis-cjs:6379"',
+    'S3_ENDPOINT="http://minio:9000"',
+    'S3_BUCKET="guichet"',
+    'S3_ACCESS_KEY="AAA"',
+    'S3_SECRET_KEY="BBB"',
+    'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+  ].join('\n') + '\n')
+  chmodSync(envFile, 0o600)
 
   const callLog = join(sandbox, 'calls.log')
   writeFileSync(callLog, '')
@@ -176,13 +198,18 @@ describe('GUIC-568 — rollback.sh', () => {
 describe('GUIC-621 — deploy.sh appelle le preflight EN PREMIER', () => {
   it('le preflight passe AVANT la sauvegarde : un échec ne doit laisser AUCUN effet de bord', () => {
     // L'ordre est la seule chose qui compte ici. Un preflight lancé après la sauvegarde (ou pire,
-    // après la migration) ne protège plus de rien : le mal est fait. On force son échec et on
-    // vérifie qu'aucun dump n'a été tenté.
+    // après la migration) ne protège plus de rien : le mal est fait.
+    //
+    // On force un échec RÉEL (MariaDB injoignable), pas un drapeau de test : `FAIL_DB` pilote le
+    // shim docker, donc la sonde échoue exactement comme sur un vrai serveur mal configuré.
+    // (Une première version utilisait un `PREFLIGHT_FAIL` inexistant : le test passait parce que
+    // le preflight échouait pour une AUTRE raison — un faux-vert.)
     const r = run('scripts/deploy/deploy.sh', {
-      env: { GUICHET_IMAGE: 'img@sha256:new', PREFLIGHT_FAIL: '1' },
+      env: { GUICHET_IMAGE: 'img@sha256:new', FAIL_DB: '1' },
     })
     expect(r.code).not.toBe(0)
-    expect(r.calls).not.toMatch(/mariadb-dump/) // aucune sauvegarde tentée
+    expect(r.stdout).toMatch(/MariaDB/i)         // il a échoué pour LA bonne raison
+    expect(r.calls).not.toMatch(/mariadb-dump/)  // aucune sauvegarde tentée
     expect(r.calls).not.toMatch(/migrate deploy/) // aucune migration tentée
   })
 

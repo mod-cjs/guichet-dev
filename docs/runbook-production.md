@@ -32,7 +32,24 @@ existent déjà — c'est l'argument qui a tranché.
 
 ## 1. Go / No-Go — avant de lancer quoi que ce soit
 
-Une seule case non cochée = **No-Go**. Il n'y a pas de « presque ».
+**Commencer par ça — une commande, dix secondes, aucun effet de bord :**
+
+```bash
+./scripts/deploy/preflight.sh
+```
+
+Il vérifie les **faits** contre le serveur réel (secrets et permissions, variables, garde
+dev-login, MariaDB joignable **depuis un conteneur**, écriture Redis sous le préfixe ACL,
+endpoint S3 qui parle vraiment S3). Il **refuse bruyamment** en disant quoi corriger — plutôt que
+de laisser l'app démarrer avec une mauvaise valeur et échouer **en silence** (§5, piège B5).
+
+`deploy.sh` le lance **automatiquement en premier** : il n'y a rien à penser. Le lancer à la main
+sert au **diagnostic** — notamment pour obtenir les valeurs d'infra encore inconnues (§9).
+Il n'a **aucune variable d'échappement**, volontairement : s'il refuse, c'est qu'il a trouvé
+quelque chose. On ne désarme pas un garde-fou.
+
+Le reste de la checklist couvre ce qu'aucun script ne peut vérifier. Une seule case non cochée
+= **No-Go**. Il n'y a pas de « presque ».
 
 - [ ] **CI verte sur le commit exact déployé** — pas « la CI d'hier », pas « ça passait en local ».
 - [ ] **Staging tourne la même image**, par empreinte (`…@sha256:…`), et a été utilisé pour de vrai.
@@ -241,8 +258,17 @@ Honnêteté sur les trous, plutôt qu'une fausse impression de complétude :
 - **Sonde de disponibilité externe** → **GUIC-575**. Un monitoring hébergé sur la machine qu'il
   surveille ne détecte pas sa propre panne.
 - **Agrégation des logs** (Loki/Grafana) → **GUIC-544** · **supervision** → **GUIC-545**.
-- **Valeurs d'infra encore dues** (bloquent le §2 sur le serveur réel) : nom du conteneur **MinIO**
-  (`S3_ENDPOINT=http://<nom>:9000`), **motif de clés ACL Redis** (`ACL GETUSER GUICHET` → ligne `keys`),
-  et confirmation que **MariaDB écoute sur une interface joignable depuis le bridge Docker**.
+- **Valeurs d'infra encore dues** : nom du conteneur **MinIO** (`S3_ENDPOINT=http://<nom>:9000`),
+  **motif de clés ACL Redis** (`ACL GETUSER GUICHET` → ligne `keys`), et confirmation que **MariaDB
+  écoute sur une interface joignable depuis le bridge Docker**.
+  → **`./scripts/deploy/preflight.sh` répond aux trois en une commande** (§1) : chaque contrôle en
+  échec nomme la cause et le correctif. Ces valeurs sont **déjà des variables**
+  (`S3_ENDPOINT`, `REDIS_KEY_PREFIX`, `SERVICES_NETWORK`) — ce qui manquait n'était pas le
+  mécanisme, c'était la valeur.
+  ⚠️ **Si le conteneur MinIO porte un underscore** (`minio_cjs`…, la convention CJS l'utilise —
+  `redis_cjs`), **MinIO refusera toutes les requêtes** (HTTP 400, « invalid hostname ») : les
+  uploads seront cassés. Correctif non destructif — un alias réseau :
+  `docker network connect --alias minio <réseau> <conteneur-minio>` puis
+  `S3_ENDPOINT=http://minio:9000`. Le préflight détecte ce cas et le dit (**GUIC-620**).
 - **Rotation des secrets** : tout secret ayant transité par un canal non sûr (chat, e-mail) est
   **compromis** et doit être tourné avant le go-live.

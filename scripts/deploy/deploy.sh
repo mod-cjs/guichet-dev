@@ -177,8 +177,19 @@ switch_and_verify() {
   return 1
 }
 
+# ── 0. Preflight — AVANT tout effet de bord ─────────────────────────────────
+# GUIC-621 — vérifie les faits d'infra contre le serveur réel (secrets, MariaDB joignable depuis
+# un conteneur, ACL Redis, endpoint S3). Placé EN PREMIER délibérément : un preflight lancé après
+# la sauvegarde — pire, après la migration — ne protège plus de rien, le mal est fait.
+#
+# Pas de variable d'échappement : s'il refuse, c'est qu'il a trouvé quelque chose.
+preflight() {
+  "$(dirname "${BASH_SOURCE[0]}")/preflight.sh"
+}
+
 main() {
   require
+  preflight
   backup_db
   migrate
   switch_and_verify
