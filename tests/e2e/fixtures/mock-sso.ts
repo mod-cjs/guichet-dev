@@ -77,6 +77,13 @@ export function startMockSsoServer(
         return
       }
 
+      // GUIC-604 — sonde de démarrage : Playwright attend cette URL avant de lancer les tests
+      // (`webServer.url`). Sans elle, impossible d'orchestrer le mock comme process séparé.
+      if (req.method === 'GET' && req.url === '/health') {
+        res.end(JSON.stringify({ status: 'ok' }))
+        return
+      }
+
       // Endpoint d'autorisation — redirige vers le callback avec un code fictif
       if (req.method === 'GET' && req.url?.startsWith('/oauth/authorize')) {
         const params   = new URL(req.url, 'http://localhost').searchParams
