@@ -64,15 +64,21 @@ export async function seedCentreWithRessource(
   const nom = opts.nom ?? `Centre E2E ${stamp}`
   const cjsUid = opts.cjsUid ?? `e2e-uid-${stamp}`
 
-  // Utilisateur de test (idempotent)
+  // Utilisateur de test (idempotent).
+  //
+  // GUIC-604 — `onboardingComplete: true` est INDISPENSABLE : le champ vaut `false` par défaut,
+  // et le middleware redirige alors TOUTE route `/jeune/*` vers `/jeune/onboarding`. Les
+  // parcours réservation/check-in n'atteignaient donc jamais `/jeune/mes-reservations-centres`.
+  // `update` le force aussi : l'utilisateur peut préexister d'un run précédent.
   await prisma.utilisateur.upsert({
     where:  { cjsUid },
-    update: {},
+    update: { onboardingComplete: true },
     create: {
       cjsUid,
-      email:    `${cjsUid}@example.sn`,
-      nom:      'E2E',
-      prenom:   'Tester',
+      email:              `${cjsUid}@example.sn`,
+      nom:                'E2E',
+      prenom:             'Tester',
+      onboardingComplete: true,
     },
   })
 

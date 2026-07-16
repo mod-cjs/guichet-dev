@@ -51,10 +51,9 @@ test.describe('flow réservation centre jeune (E2E)', () => {
   test('jeune réserve → voit la résa → annule', async ({ page }) => {
     // 1. Login SSO mock
     await page.goto('/auth/connexion')
-    await page
-      .getByRole('link', { name: /se connecter/i })
-      .first()
-      .click()
+    // GUIC-604 — cibler le lien SSO par son CONTRAT (href) : aucun « Se connecter » n'existe
+    // sur /auth/connexion (le Header marketing n'y est pas monté).
+    await page.locator('a[href="/api/auth/login"]').click()
     await page.waitForURL(/\/(jeune|onboarding)/, { timeout: 15_000 })
 
     // 2. Naviguer vers /centres puis sur notre centre seedé
@@ -79,11 +78,12 @@ test.describe('flow réservation centre jeune (E2E)', () => {
       .slice(0, 10)
     await page.locator('input[type="date"]').fill(demain)
 
-    // Créneau : prendre le premier bouton créneau disponible
-    const slotBtn = page
-      .locator('button')
-      .filter({ hasText: /\d{2}:\d{2}/ })
-      .first()
+    // Créneau : premier créneau SÉLECTIONNABLE.
+    // GUIC-604 — l'ancien locator cherchait /\d{2}:\d{2}/ (deux-points) alors que l'UI rend
+    // le format français « 08h00 – 10h00 » → aucun match, 30 s d'attente dans le vide. On
+    // s'appuie désormais sur la STRUCTURE ARIA (radiogroup « Créneau horaire »), et on exclut
+    // les créneaux désactivés (hors horaires d'ouverture du centre).
+    const slotBtn = page.locator('button[role="radio"]:not([disabled])').first()
     await slotBtn.click()
 
     // Motif (>= 20 chars)
@@ -92,8 +92,9 @@ test.describe('flow réservation centre jeune (E2E)', () => {
       .first()
       .fill('Réservation E2E pour test automatisé du flow complet bout en bout.')
 
-    // Submit
-    await page.getByRole('button', { name: /réserver|valider|confirmer/i }).click()
+    // Submit — le bouton s'appelle « Envoyer la demande » (GUIC-604 : l'ancien locator
+    // /réserver|valider|confirmer/ ne matchait rien).
+    await page.getByRole('button', { name: /envoyer la demande/i }).click()
 
     // 6. Redirect attendu vers /jeune/mes-reservations-centres?created=...
     await page.waitForURL(/\/jeune\/mes-reservations-centres\?created=/, { timeout: 10_000 })
@@ -102,10 +103,18 @@ test.describe('flow réservation centre jeune (E2E)', () => {
     await page.goto('/jeune/mes-reservations-centres')
     await expect(page.getByText(/Salle E2E/i).first()).toBeVisible({ timeout: 5_000 })
 
-    // 8. Annuler la réservation
-    await page.getByRole('button', { name: /annuler/i }).first().click()
-    // Modal de confirmation
-    await page.getByRole('button', { name: /confirmer|oui/i }).first().click()
+    // 8. Annuler la réservation.
+    // GUIC-604 — la confirmation est un `window.confirm` NATIF (cf. ReservationCard), pas une
+    // modale applicative. Playwright REJETTE automatiquement les dialogues natifs : sans ce
+    // handler, l'annulation n'avait jamais lieu et le « Confirmer » attendu n'existait pas.
+    // `visible: true` : la page rend les variantes MOBILE et DESKTOP → `.first()` tombait sur
+    // l'exemplaire CACHÉ (non cliquable) et attendait 30 s. On ne cible que le visible.
+    page.once('dialog', (d) => void d.accept())
+    await page
+      .getByRole('button', { name: /^annuler$/i })
+      .filter({ visible: true })
+      .first()
+      .click()
 
     // Tab "Toutes" : la résa doit apparaître avec statut annulé
     await page.getByRole('tab', { name: /toutes/i }).click().catch(() => {})
