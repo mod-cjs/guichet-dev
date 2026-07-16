@@ -1,32 +1,32 @@
-// GUIC-578 — Instrumentation Next : capture centrale des erreurs de requête.
+// Instrumentation Next — DEUX hooks indépendants, tous deux indispensables en production.
 //
-// Next appelle `onRequestError` pour toute erreur non gérée d'un handler (route/page). C'est le
-// seul point global où une erreur 500 est capturée de façon fiable → on la journalise de façon
-// structurée, corrélée par requestId, exploitable par Grafana (`level=error`).
+//   register()        (GUIC-564) : refuse le DÉMARRAGE sur une configuration dangereuse
+//                                  (ex. connexion sans SSO activable sur une URL publique).
+//   onRequestError()  (GUIC-578) : capture CENTRALE des erreurs — toute 500 non gérée devient
+//                                  une entrée de log structurée, corrélée par requestId.
 //
-// ⚠️ COORDINATION DE MERGE : la PR #250 (GUIC-564) ajoute aussi ce fichier avec un `register()`
-// qui refuse le démarrage sur une config dangereuse. Au merge, CONSERVER LES DEUX exports —
-// `register` (GUIC-564) ET `onRequestError` (GUIC-578). Ils sont indépendants.
+// ⚠️ Ce fichier a DÉJÀ été cassé par un merge (#250 + #254 : le corps de l'un inséré DANS la
+// fonction de l'autre → accolade manquante → module non parsable → les DEUX garde-fous morts
+// EN SILENCE, et CI rouge). Si tu résous un conflit ici : garde les DEUX exports, imports EN
+// TÊTE, et vérifie avec `npx tsc --noEmit` SANS filtrer la sortie.
 
-import { captureRequestError, type RequestErrorInfo, type ErrorRoutingContext } from '@/lib/observability/error-capture'
+import { assertConfigurationProduction } from '@/lib/security/prod-guards'
+import {
+  captureRequestError,
+  type RequestErrorInfo,
+  type ErrorRoutingContext,
+} from '@/lib/observability/error-capture'
 
+/** GUIC-564 — Appelé une fois au boot. Lève si la config exposerait la connexion sans SSO. */
+export function register(): void {
+  assertConfigurationProduction(process.env)
+}
+
+/** GUIC-578 — Appelé par Next pour toute erreur non gérée d'un handler (route/page). */
 export function onRequestError(
   error: unknown,
   request: RequestErrorInfo,
   context: ErrorRoutingContext,
 ): void {
   captureRequestError(error, request, context)
-// GUIC-564 — Vérifications au démarrage de l'application.
-//
-// Next appelle `register()` une fois, au boot du serveur. C'est le seul endroit où l'on peut
-// refuser de démarrer sur une configuration dangereuse — plutôt que de servir des requêtes avec
-// une porte d'authentification ouverte et de s'en apercevoir trop tard.
-//
-// (GUIC-578 étendra ce fichier avec le hook `onRequestError` — capture centrale des erreurs.)
-
-import { assertConfigurationProduction } from '@/lib/security/prod-guards'
-
-export function register(): void {
-  // Lève si la connexion sans SSO est activable alors que l'URL publique n'est pas locale.
-  assertConfigurationProduction(process.env)
 }
