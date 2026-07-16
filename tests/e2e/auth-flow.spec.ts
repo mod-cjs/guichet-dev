@@ -132,7 +132,11 @@ test.describe('flux PKCE complet', () => {
     })
 
     // Cliquer sur le bouton de connexion SSO
-    const connectBtn = page.getByRole('link', { name: /se connecter/i }).first()
+    // GUIC-604 — cibler le lien SSO par son CONTRAT (href), pas par un texte flou : il n'existe
+    // aucun « Se connecter » sur /auth/connexion (le Header marketing n'y est pas monté), le
+    // bouton s'appelle « Continuer avec mon compte CJS ». Le locator d'origine attendait 30 s
+    // dans le vide — jamais vu, car ce test n'avait jamais été exécuté (toujours skippé).
+    const connectBtn = page.locator('a[href="/api/auth/login"]')
     await connectBtn.click()
 
     // Le SSO mock reçoit /oauth/authorize et redirige vers /auth/callback?code=...&state=...
@@ -153,16 +157,16 @@ test.describe('flux PKCE complet', () => {
     page,
     context,
   }) => {
-    // Placer des cookies valides mais le code sera rejeté par le mock SSO
-    // (simulé en mettant une valeur de code qui force l'erreur côté mock)
+    // Cookies valides, mais le code sera rejeté par le mock SSO : par convention, un code
+    // contenant « bad » → 401 (cf. fixtures/mock-sso.ts).
+    //
+    // GUIC-604 — l'interception `context.route('**/oauth/token')` a été RETIRÉE : elle ne
+    // pouvait pas fonctionner. L'échange de jetons est SERVEUR-À-SERVEUR (Next → mock) ;
+    // `context.route` n'intercepte que le trafic du NAVIGATEUR. C'est le mock qui doit
+    // simuler l'échec.
     const state    = 'test-state-fail'
     const verifier = 'test-verifier-fail'
     await setAuthCookies(context, state, verifier)
-
-    // Intercepter la requête /oauth/token et retourner une erreur
-    await context.route('**/oauth/token', route => {
-      route.fulfill({ status: 401, body: '{"error":"invalid_client"}' })
-    })
 
     await page.goto(`/auth/callback?code=bad-code&state=${state}`)
     await expect(page).toHaveURL(/error=auth_failed/)
@@ -172,7 +176,11 @@ test.describe('flux PKCE complet', () => {
     // Naviguer vers l'onboarding (nécessite session valide établie par test précédent
     // ou injection de session via context)
     await page.goto('/auth/connexion')
-    const connectBtn = page.getByRole('link', { name: /se connecter/i }).first()
+    // GUIC-604 — cibler le lien SSO par son CONTRAT (href), pas par un texte flou : il n'existe
+    // aucun « Se connecter » sur /auth/connexion (le Header marketing n'y est pas monté), le
+    // bouton s'appelle « Continuer avec mon compte CJS ». Le locator d'origine attendait 30 s
+    // dans le vide — jamais vu, car ce test n'avait jamais été exécuté (toujours skippé).
+    const connectBtn = page.locator('a[href="/api/auth/login"]')
     await connectBtn.click()
 
     await page.waitForURL(/onboarding/, { timeout: 10_000 })

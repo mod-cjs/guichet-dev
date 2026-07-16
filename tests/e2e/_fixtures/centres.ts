@@ -11,10 +11,22 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 
 let _prisma: PrismaClient | null = null
+
+/**
+ * GUIC-604 — Prisma 7 exige un ADAPTATEUR : `new PrismaClient()` nu lève
+ * « PrismaClient needs to be constructed with a non-empty, valid PrismaClientOptions ».
+ * On monte donc le client comme l'application (cf. src/lib/prisma.ts). Jamais vu jusqu'ici :
+ * ces tests étaient skippés depuis leur création, donc cette fixture n'avait jamais tourné.
+ */
 function getPrisma(): PrismaClient {
-  if (!_prisma) _prisma = new PrismaClient()
+  if (!_prisma) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error('DATABASE_URL manquante (fixtures E2E centres)')
+    _prisma = new PrismaClient({ adapter: new PrismaMariaDb(url) })
+  }
   return _prisma
 }
 

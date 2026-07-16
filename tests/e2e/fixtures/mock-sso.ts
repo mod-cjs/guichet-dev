@@ -52,13 +52,34 @@ export function startMockSsoServer(
       res.setHeader('Content-Type', 'application/json')
 
       if (req.method === 'POST' && req.url === '/oauth/token') {
-        res.end(JSON.stringify({
-          access_token:  'e2e-access-token',
-          refresh_token: 'e2e-refresh-token',
-          id_token:      'e2e-id-token',
-          expires_in:    3600,
-          token_type:    'Bearer',
-        }))
+        // GUIC-604 — le mock doit savoir simuler un ÉCHEC d'échange. L'échange se fait
+        // SERVEUR-À-SERVEUR (Next → ici) : le test ne peut PAS l'intercepter depuis le
+        // navigateur (`context.route` ne voit que le trafic du navigateur). Convention :
+        // un code contenant « bad » → 401, comme un vrai SSO refusant un code invalide.
+        let corps = ''
+        req.on('data', (c) => { corps += c })
+        req.on('end', () => {
+          // Le vrai client SSO poste du JSON (cf. src/lib/sso-client.ts) ; on tolère aussi
+          // le form-urlencoded pour rester fidèle à ce qu'un serveur OAuth accepte.
+          let code = ''
+          try {
+            code = String((JSON.parse(corps) as { code?: unknown }).code ?? '')
+          } catch {
+            code = new URLSearchParams(corps).get('code') ?? ''
+          }
+          if (code.includes('bad')) {
+            res.writeHead(401)
+            res.end(JSON.stringify({ error: 'invalid_client' }))
+            return
+          }
+          res.end(JSON.stringify({
+            access_token:  'e2e-access-token',
+            refresh_token: 'e2e-refresh-token',
+            id_token:      'e2e-id-token',
+            expires_in:    3600,
+            token_type:    'Bearer',
+          }))
+        })
         return
       }
 
