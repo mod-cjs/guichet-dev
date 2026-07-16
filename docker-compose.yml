@@ -125,8 +125,42 @@ services:
       timeout: 5s
       retries: 10
 
+  # ── MinIO — stockage objet S3 (CV, photos, justificatifs) ──
+  # GUIC-617 — MinIO manquait ici ET dans la CI : le test d'intégration stockage-objet
+  # (GUIC-565) échouait en ECONNREFUSED 127.0.0.1:9100 chez tout le monde, ce qui rendait
+  # `npm run validate` rouge en permanence et le `--no-verify` routinier. Le test avait raison
+  # d'exiger un VRAI MinIO (on parle le S3 que MinIO attend, pas celui d'un mock) : c'est
+  # l'environnement local qui était incomplet.
+  #
+  # Port 9100 côté hôte (9000 dans le conteneur) : correspond au défaut de `S3_TEST_ENDPOINT`
+  # et laisse 9000 libre pour un MinIO déjà installé sur la machine.
+  # Identifiants alignés sur le test (`minioadmin` / `minioadmin123`) — usage DEV LOCAL
+  # uniquement : en production, les secrets vivent dans /etc/guichet/prod.env (chmod 600).
+  minio:
+    image: minio/minio:latest
+    container_name: guichet_minio
+    restart: unless-stopped
+    # L'image standard n'a pas de commande par défaut : sans `server /data`, le conteneur sort
+    # aussitôt. (En CI, où les `services:` n'acceptent pas de commande, on utilise la balise
+    # `edge-cicd` qui l'embarque — cf. .github/workflows/ci.yml.)
+    command: server /data --console-address ":9001"
+    ports:
+      - "9100:9000"   # API S3
+      - "9101:9001"   # console web (http://localhost:9101)
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mariadb_data:
   redis_data:
   neo4j_data:
   neo4j_logs:
+  minio_data:

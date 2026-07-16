@@ -34,6 +34,30 @@ jobs:
         ports: ['6379:6379']
         options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
+      # GUIC-617 — MinIO manquait ICI et dans le docker-compose local : le test d'intégration
+      # stockage-objet (GUIC-565) ne pouvait donc passer NULLE PART (ECONNREFUSED 127.0.0.1:9100).
+      # Il avait raison d'exiger un VRAI MinIO — on parle le S3 que MinIO attend, pas celui d'un
+      # mock. C'est l'environnement qui était incomplet, pas le test.
+      #
+      # ⚠️ Balise `edge-cicd` OBLIGATOIRE. `minio/minio` standard exige la commande `server /data`,
+      # or les `services:` GitHub ne permettent PAS de passer une commande : le conteneur sort
+      # aussitôt (Exited (0)) et tous les tests échouent en ECONNREFUSED. `edge-cicd` embarque
+      # cette commande par défaut — c'est la variante prévue pour l'intégration continue.
+      # (`bitnami/minio`, l'autre contournement répandu, n'existe plus sur Docker Hub.)
+      # Vérifié en local : conteneur vivant en ~6 s, API S3 qui répond, 7/7 tests verts.
+      #
+      # Port 9100 côté hôte (et non 9000) : laisse le port par défaut libre pour un MinIO déjà
+      # monté sur la machine, et correspond au défaut du test (`S3_TEST_ENDPOINT`).
+      minio:
+        image: minio/minio:edge-cicd
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        ports: ['9100:9000']
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 

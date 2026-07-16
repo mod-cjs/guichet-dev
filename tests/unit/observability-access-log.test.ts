@@ -10,9 +10,20 @@
  */
 const mockInfo = jest.fn()
 const mockError = jest.fn()
+
+/**
+ * GUIC-617 — Le faux hash ne DOIT PAS recopier son entrée.
+ *
+ * L'ancien mock était `(s) => \`h(${s})\`` : le faux « haché » CONTENAIT l'uid en clair, ce qui
+ * contredisait l'assertion du test lui-même (« l'uid n'apparaît jamais en clair ») et le rendait
+ * rouge en permanence. Un test de conformité CDP rouge par construction est pire qu'absent : le
+ * jour où il a raison, plus personne ne l'écoute. Le vrai `hashId` hache bien : il n'y a jamais
+ * eu de fuite. Ici on imite un VRAI hash — sortie stable, sans lien lisible avec l'entrée.
+ */
+const mockHashId = jest.fn((s: string) => `sha256:${s.length}`)
 jest.mock('@/lib/logger', () => ({
   logger: { info: (...a: unknown[]) => mockInfo(...a), error: (...a: unknown[]) => mockError(...a) },
-  hashId: (s: string) => `h(${s})`,
+  hashId: (s: string) => mockHashId(s),
 }))
 
 import { withObservability } from '@/lib/observability/access-log'
@@ -61,7 +72,18 @@ describe('GUIC-578 — withObservability', () => {
     const handler = withObservability(async () => new Response('ok'), { cjsUid: () => 'uid-secret' })
     await handler(req())
     const ctx = mockInfo.mock.calls[0][1]
-    expect(ctx.uid).toBe('h(uid-secret)')
+    // 1. l'uid brut est bien passé à la fonction de hachage…
+    expect(mockHashId).toHaveBeenCalledWith('uid-secret')
+    // 2. …et c'est le RÉSULTAT du hachage qui est journalisé…
+    expect(ctx.uid).toBe('sha256:10')
+    // 3. …l'uid brut n'apparaît nulle part dans la ligne de log (l'assertion qui compte).
     expect(JSON.stringify(ctx)).not.toContain('uid-secret')
+  })
+
+  it('CDP : sans extracteur cjsUid, aucun champ uid n’est journalisé', async () => {
+    const handler = withObservability(async () => new Response('ok'))
+    await handler(req())
+    expect(mockInfo.mock.calls[0][1]).not.toHaveProperty('uid')
+    expect(mockHashId).not.toHaveBeenCalled()
   })
 })
