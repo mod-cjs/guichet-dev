@@ -10,23 +10,30 @@
 // EN SILENCE, et CI rouge). Si tu résous un conflit ici : garde les DEUX exports, imports EN
 // TÊTE, et vérifie avec `npx tsc --noEmit` SANS filtrer la sortie.
 
-import { assertConfigurationProduction } from '@/lib/security/prod-guards'
-import {
-  captureRequestError,
-  type RequestErrorInfo,
-  type ErrorRoutingContext,
-} from '@/lib/observability/error-capture'
+import type { RequestErrorInfo, ErrorRoutingContext } from '@/lib/observability/error-capture'
+
+// ⚠️ Next compile CE FICHIER POUR LES DEUX RUNTIMES (Node ET Edge). Nos modules tirent
+// `logger` → `import { createHash } from 'crypto'`, un builtin Node INDISPONIBLE en Edge
+// (« A Node.js module is loaded ('crypto') which is not supported in the Edge Runtime »).
+// D'où les imports DYNAMIQUES gardés par `NEXT_RUNTIME` : le bundle Edge ne les embarque pas.
 
 /** GUIC-564 — Appelé une fois au boot. Lève si la config exposerait la connexion sans SSO. */
-export function register(): void {
+export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return
+  const { assertConfigurationProduction } = await import('@/lib/security/prod-guards')
   assertConfigurationProduction(process.env)
 }
 
 /** GUIC-578 — Appelé par Next pour toute erreur non gérée d'un handler (route/page). */
-export function onRequestError(
+export async function onRequestError(
   error: unknown,
   request: RequestErrorInfo,
   context: ErrorRoutingContext,
-): void {
+): Promise<void> {
+  // Edge : on ne peut pas charger le logger (crypto). On laisse Next journaliser l'erreur
+  // nativement plutôt que de casser le bundle — la capture structurée couvre le runtime Node,
+  // où vivent les routes API et le rendu serveur (l'essentiel des 500).
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return
+  const { captureRequestError } = await import('@/lib/observability/error-capture')
   captureRequestError(error, request, context)
 }

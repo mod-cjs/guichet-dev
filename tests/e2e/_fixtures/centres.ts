@@ -10,13 +10,12 @@
  * un test plante avant `cleanup`.
  */
 
-import { PrismaClient } from '@prisma/client'
+// GUIC-604/616 — le client Prisma (avec l'adaptateur exigé par Prisma 7) vit désormais dans
+// `_fixtures/prisma.ts`, partagé avec les autres fixtures. `disconnectPrisma` est ré-exporté
+// pour ne pas casser les specs qui l'importent depuis ici.
+import { getPrisma, disconnectPrisma } from './prisma'
 
-let _prisma: PrismaClient | null = null
-function getPrisma(): PrismaClient {
-  if (!_prisma) _prisma = new PrismaClient()
-  return _prisma
-}
+export { disconnectPrisma }
 
 export interface SeedCentreOptions {
   /** Slug stable du centre (défaut : auto-généré). */
@@ -52,15 +51,21 @@ export async function seedCentreWithRessource(
   const nom = opts.nom ?? `Centre E2E ${stamp}`
   const cjsUid = opts.cjsUid ?? `e2e-uid-${stamp}`
 
-  // Utilisateur de test (idempotent)
+  // Utilisateur de test (idempotent).
+  //
+  // GUIC-604 — `onboardingComplete: true` est INDISPENSABLE : le champ vaut `false` par défaut,
+  // et le middleware redirige alors TOUTE route `/jeune/*` vers `/jeune/onboarding`. Les
+  // parcours réservation/check-in n'atteignaient donc jamais `/jeune/mes-reservations-centres`.
+  // `update` le force aussi : l'utilisateur peut préexister d'un run précédent.
   await prisma.utilisateur.upsert({
     where:  { cjsUid },
-    update: {},
+    update: { onboardingComplete: true },
     create: {
       cjsUid,
-      email:    `${cjsUid}@example.sn`,
-      nom:      'E2E',
-      prenom:   'Tester',
+      email:              `${cjsUid}@example.sn`,
+      nom:                'E2E',
+      prenom:             'Tester',
+      onboardingComplete: true,
     },
   })
 
@@ -150,12 +155,4 @@ export async function seedReservation(params: {
     },
   })
   return { reservationId: r.id }
-}
-
-/** Ferme la connexion Prisma (`afterAll`). */
-export async function disconnectPrisma(): Promise<void> {
-  if (_prisma) {
-    await _prisma.$disconnect()
-    _prisma = null
-  }
 }

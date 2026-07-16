@@ -46,6 +46,21 @@ jobs:
       SSO_CLIENT_SECRET: test
       PLAYWRIGHT_BASE_URL: http://localhost:3000
 
+      # GUIC-604 — GATES : sans elles, les parcours MÉTIER restaient skippés (le job passait au
+      # vert en ne testant que l'auth/routing — un faux-vert de couverture).
+      PLAYWRIGHT_SSO_MOCK: '1' # flux OAuth/PKCE complet (le mock est démarré par playwright.config)
+      PLAYWRIGHT_E2E_DB: '1' # parcours réservation + check-in (seed Prisma par les fixtures)
+
+      # Secrets PARTAGÉS entre le process Playwright (qui SIGNE cookie staff / jeton QR dans les
+      # fixtures) et le serveur Next (qui les VÉRIFIE). S'ils divergent, le check-in échoue.
+      STAFF_SESSION_SECRET: e2e-staff-secret-ci
+      JWT_CJS_CARD_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      CONSEILLER_STAFF_EMAILS: staff.e2e@cjs.sn
+
+      # Sert le BUILD DE PROD plutôt qu'un `next dev` (plus représentatif, et le build valide
+      # aussi que l'app compile). Le build se fait à l'étape dédiée ci-dessous.
+      PLAYWRIGHT_WEBSERVER_CMD: npm run start
+
     steps:
       - uses: actions/checkout@v4
 
@@ -69,9 +84,20 @@ jobs:
       - name: Installer le navigateur Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Build de production (servi par `npm run start` aux E2E)
+        run: npm run build
+
       - name: Lancer les E2E (chromium)
-        # La config Playwright démarre l'app (`npm run dev`) et attend localhost:3000.
+        # La config Playwright démarre DEUX serveurs : le SSO mock (19999) puis l'app (3000),
+        # pointée sur le mock. Les gates ci-dessus activent les parcours métier.
         run: npx playwright test --project=chromium
+
+      - name: Garde-fou — aucun parcours métier ne doit être SKIPPÉ
+        # Leçon C-CD1 : un pipeline « vert » qui ne teste rien est pire que pas de test. Les 6
+        # skips des specs sont TOUS pilotés par les gates ci-dessus : si l'un réapparaît (gate
+        # perdue, mock non démarré), c'est que la couverture a régressé → on échoue ICI.
+        if: always()
+        run: node scripts/ci/assert-no-skipped-e2e.mjs playwright-results.json
 
       - name: Publier le rapport en cas d'échec
         if: failure()
