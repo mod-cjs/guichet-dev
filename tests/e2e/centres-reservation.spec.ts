@@ -109,9 +109,12 @@ test.describe('flow réservation centre jeune (E2E)', () => {
     // handler, l'annulation n'avait jamais lieu et le « Confirmer » attendu n'existait pas.
     // `visible: true` : la page rend les variantes MOBILE et DESKTOP → `.first()` tombait sur
     // l'exemplaire CACHÉ (non cliquable) et attendait 30 s. On ne cible que le visible.
+    // NB : regex NON ancrée. `/^annuler$/i` ne matche pas (0 résultat) — le nom accessible du
+    // bouton n'est pas exactement « Annuler ». `visible: true` écarte un éventuel exemplaire
+    // caché (la page rend des variantes mobile/desktop).
     page.once('dialog', (d) => void d.accept())
     await page
-      .getByRole('button', { name: /^annuler$/i })
+      .getByRole('button', { name: /annuler/i })
       .filter({ visible: true })
       .first()
       .click()

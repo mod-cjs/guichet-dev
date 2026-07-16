@@ -10,25 +10,12 @@
  * un test plante avant `cleanup`.
  */
 
-import { PrismaClient } from '@prisma/client'
-import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+// GUIC-604/616 — le client Prisma (avec l'adaptateur exigé par Prisma 7) vit désormais dans
+// `_fixtures/prisma.ts`, partagé avec les autres fixtures. `disconnectPrisma` est ré-exporté
+// pour ne pas casser les specs qui l'importent depuis ici.
+import { getPrisma, disconnectPrisma } from './prisma'
 
-let _prisma: PrismaClient | null = null
-
-/**
- * GUIC-604 — Prisma 7 exige un ADAPTATEUR : `new PrismaClient()` nu lève
- * « PrismaClient needs to be constructed with a non-empty, valid PrismaClientOptions ».
- * On monte donc le client comme l'application (cf. src/lib/prisma.ts). Jamais vu jusqu'ici :
- * ces tests étaient skippés depuis leur création, donc cette fixture n'avait jamais tourné.
- */
-function getPrisma(): PrismaClient {
-  if (!_prisma) {
-    const url = process.env.DATABASE_URL
-    if (!url) throw new Error('DATABASE_URL manquante (fixtures E2E centres)')
-    _prisma = new PrismaClient({ adapter: new PrismaMariaDb(url) })
-  }
-  return _prisma
-}
+export { disconnectPrisma }
 
 export interface SeedCentreOptions {
   /** Slug stable du centre (défaut : auto-généré). */
@@ -168,12 +155,4 @@ export async function seedReservation(params: {
     },
   })
   return { reservationId: r.id }
-}
-
-/** Ferme la connexion Prisma (`afterAll`). */
-export async function disconnectPrisma(): Promise<void> {
-  if (_prisma) {
-    await _prisma.$disconnect()
-    _prisma = null
-  }
 }

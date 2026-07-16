@@ -26,6 +26,7 @@
 import { test, expect } from '@playwright/test'
 import { SignJWT } from 'jose'
 import { PrismaClient } from '@prisma/client'
+import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import {
   seedCentreWithRessource,
   seedReservation,
@@ -42,7 +43,10 @@ async function signQrToken(cjsUid: string): Promise<string> {
   if (!secret) {
     throw new Error('JWT_CJS_CARD_SECRET manquant côté Playwright')
   }
-  const key = new Uint8Array(Buffer.from(secret, 'hex'))
+  // GUIC-616 — la clé DOIT être dérivée comme l'application : `getCJSCardSecret()` fait
+  // `new TextEncoder().encode(raw)` (le secret tel quel), PAS un décodage hex. Le test
+  // décodait en hex → clé différente → signature invalide → page « QR invalide ».
+  const key = new TextEncoder().encode(secret)
   const now = Math.floor(Date.now() / 1000)
   return await new SignJWT({ scope: 'checkin', nonce: `e2e-${now}` })
     .setProtectedHeader({ alg: 'HS256', kid: 'cjs-checkin-v1' })
@@ -97,8 +101,10 @@ test.describe('flow check-in staff (E2E)', () => {
     // Message de succès
     await expect(page.getByText(/présent confirmé/i)).toBeVisible({ timeout: 5_000 })
 
-    // Vérif DB : statut passe à Passee
-    const prisma = new PrismaClient()
+    // Vérif DB : statut passe à Passee.
+    // GUIC-616 — Prisma 7 exige un ADAPTATEUR (cf. src/lib/prisma.ts) : `new PrismaClient()`
+    // nu lève « needs a valid PrismaClientOptions ».
+    const prisma = new PrismaClient({ adapter: new PrismaMariaDb(process.env.DATABASE_URL!) })
     try {
       const resa = await prisma.reservation.findUnique({
         where:  { id: reservationId },
