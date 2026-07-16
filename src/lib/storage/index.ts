@@ -21,19 +21,33 @@ export function estReferenceVercel(reference: string): boolean {
   return /^https?:\/\//i.test(reference)
 }
 
-function configS3(): ConfigS3 {
-  const endpoint = process.env.S3_ENDPOINT
-  const bucket = process.env.S3_BUCKET
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY
+/**
+ * Config S3 depuis un environnement donné (injectable → testable).
+ *
+ * Tolère DEUX nommages des clés, car l'infra les fournit sous la convention MinIO/mc alors que
+ * le SDK AWS emploie la sienne. Un `prod.env` rempli avec les noms de l'infra ferait autrement
+ * lever « Stockage S3 incomplet » AU DÉMARRAGE :
+ *   - AWS   : S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY   (prioritaire)
+ *   - MinIO : S3_ACCESS_KEY    / S3_SECRET_KEY
+ */
+export function configS3Pour(env: NodeJS.ProcessEnv): ConfigS3 {
+  const endpoint = env.S3_ENDPOINT
+  const bucket = env.S3_BUCKET
+  const accessKeyId = env.S3_ACCESS_KEY_ID || env.S3_ACCESS_KEY
+  const secretAccessKey = env.S3_SECRET_ACCESS_KEY || env.S3_SECRET_KEY
 
   if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      'Stockage S3 incomplet : renseigner S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID et ' +
-        'S3_SECRET_ACCESS_KEY (identifiants MinIO du serveur).',
+      'Stockage S3 incomplet : renseigner S3_ENDPOINT, S3_BUCKET, ' +
+        'S3_ACCESS_KEY_ID (ou S3_ACCESS_KEY) et S3_SECRET_ACCESS_KEY (ou S3_SECRET_KEY) — ' +
+        'identifiants MinIO du serveur.',
     )
   }
-  return { endpoint, bucket, accessKeyId, secretAccessKey, region: process.env.S3_REGION ?? 'us-east-1' }
+  return { endpoint, bucket, accessKeyId, secretAccessKey, region: env.S3_REGION ?? 'us-east-1' }
+}
+
+function configS3(): ConfigS3 {
+  return configS3Pour(process.env)
 }
 
 /** Pilote actif : `s3` dès que l'endpoint est configuré, `vercel` sinon (miroir de dev). */
