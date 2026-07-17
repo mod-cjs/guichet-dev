@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { YayeConversation } from '@/components/yaye/YayeConversation'
+import { routeYayeFetch } from './_helpers/yaye-fetch'
 
 // YayeBlocks (rendu dans les bulles bot) appelle useRouter.
 jest.mock('next/navigation', () => ({
@@ -16,10 +17,15 @@ const mockFetch = jest.fn()
 beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
+  routeYayeFetch(mockFetch)
 })
 
+/**
+ * GUIC-617 — routage par méthode (cf. `_helpers/yaye-fetch`) : le composant fait un GET au
+ * montage (historique, GUIC-540) qui consommait le `mockResolvedValueOnce` destiné au POST.
+ */
 function replyOnce(data: Record<string, unknown>) {
-  mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data }) })
+  routeYayeFetch(mockFetch, { reply: data })
 }
 
 describe('<YayeConversation /> — feedback par tour (parité fullscreen)', () => {
