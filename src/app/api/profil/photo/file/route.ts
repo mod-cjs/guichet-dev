@@ -12,6 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logger } from '@/lib/logger'
+import { stockagePour, type ContenuObjet } from '@/lib/storage'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -46,44 +48,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * Stream le contenu d'un Blob privé Vercel au client en injectant le token.
+ * GUIC-565 — Stream au client le contenu d'un fichier privé, quel que soit le stockage.
+ *
+ * Le fournisseur est résolu sur la FORME de la référence, jamais sur le pilote actif :
+ * une URL `https://…` est lue par Vercel Blob, une référence `s3://…` par MinIO. C'est ce
+ * qui garantit que les CV, photos et diplômes DÉJÀ déposés sur Vercel restent lisibles
+ * après la bascule du serveur — sans quoi on rendrait inaccessibles les pièces jointes de
+ * milliers de jeunes.
+ *
+ * L'application reste le gardien : elle a vérifié l'autorisation avant d'arriver ici, et le
+ * client ne voit jamais ni jeton ni URL de stockage (CDP).
  */
-async function proxyPrivateBlob(blobUrl: string): Promise<NextResponse> {
-  const token = process.env.BLOB_READ_WRITE_TOKEN
-  if (!token) {
+async function proxyPrivateBlob(reference: string): Promise<NextResponse> {
+  let contenu: ContenuObjet
+  try {
+    contenu = await stockagePour(reference).lire(reference)
+  } catch (err) {
+    logger.error('lecture du fichier privé échouée', {
+      reference: reference.slice(0, 60),
+      error: err instanceof Error ? err.message : String(err),
+    })
     return NextResponse.json(
-      { error: { code: 'SERVER_ERROR', message: 'Token Blob manquant' } },
-      { status: 500 },
-    )
-  }
-
-  const upstream = await fetch(blobUrl, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-  if (!upstream.ok) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'UPSTREAM_ERROR',
-          message: `Blob fetch ${upstream.status}`,
-        },
-      },
+      { error: { code: 'UPSTREAM_ERROR', message: 'Fichier illisible' } },
       { status: 502 },
     )
   }
 
-  const contentType =
-    upstream.headers.get('content-type') ?? 'application/octet-stream'
-  const contentLength = upstream.headers.get('content-length')
-
   const headers = new Headers({
-    'Content-Type': contentType,
+    'Content-Type': contenu.contentType,
     'Cache-Control': 'private, max-age=300',
   })
-  if (contentLength) headers.set('Content-Length', contentLength)
+  if (contenu.taille) headers.set('Content-Length', String(contenu.taille))
 
-  return new NextResponse(upstream.body, { status: 200, headers })
+  return new NextResponse(contenu.corps, { status: 200, headers })
 }
 
 export { proxyPrivateBlob }

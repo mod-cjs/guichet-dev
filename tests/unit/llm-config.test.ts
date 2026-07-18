@@ -26,12 +26,18 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 jest.mock('@/lib/logger', () => ({ logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() } }))
+const mockIsLocal = jest.fn(() => false)
+jest.mock('@/lib/ia/llm-client', () => ({
+  isLocalProvider: () => mockIsLocal(),
+  localModel: () => 'qwen-local',
+}))
 
 import { getLlmConfig, getSlotModel, setLlmConfig } from '@/lib/ia/llm-config'
 import { DEFAULT_MODEL } from '@/lib/ia/supported-models'
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockIsLocal.mockReturnValue(false)
   mockRedisGet.mockResolvedValue(null)
   mockRedisSet.mockResolvedValue('OK')
   mockRedisDel.mockResolvedValue(1)
@@ -87,6 +93,13 @@ describe('GUIC-537 — getSlotModel', () => {
   it('renvoie le modèle du slot', async () => {
     mockFindUnique.mockResolvedValue(null)
     expect(await getSlotModel('judge')).toBe(DEFAULT_MODEL)
+  })
+
+  it('mode local (LMStudio) → modèle local pour tous les slots, sans toucher la base', async () => {
+    mockIsLocal.mockReturnValue(true)
+    expect(await getSlotModel('agent')).toBe('qwen-local')
+    expect(await getSlotModel('judge')).toBe('qwen-local')
+    expect(mockFindUnique).not.toHaveBeenCalled()
   })
 })
 

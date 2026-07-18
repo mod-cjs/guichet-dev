@@ -47,3 +47,47 @@ test('bloc escalade → titre + message + référence à citer', () => {
 test('aucun bloc → message par défaut', () => {
   expect(formatBlocksForWhatsApp([])).toMatch(/pas de réponse/i)
 })
+
+test('carte CJS → fallback texte + lien (WhatsApp ne rend pas la carte visuelle)', () => {
+  const out = formatBlocksForWhatsApp([
+    { kind: 'carte_cjs', cjsUid: 'abc123', user: { prenom: 'Awa', nom: 'Diop', matricule: 'GJS · AD · ABC123', membreDepuis: '03/2025' } },
+  ])
+  expect(out).toContain('Ta carte CJS')
+  expect(out).toContain('GJS · AD · ABC123')
+  expect(out).toContain('/jeune/ma-carte')
+})
+
+test('événements → liste avec date + lieu + deep link agenda', () => {
+  const out = formatBlocksForWhatsApp([
+    { kind: 'evenements', items: [
+      { id: 'ev1', titre: 'Forum emploi', type: 'Forum', dateDebut: '2026-09-10T14:00:00Z', dateFin: null, lieu: 'Grand Hall', centre: 'CJS Thiès', estGratuit: true },
+    ] },
+  ])
+  expect(out).toContain('Forum emploi')
+  expect(out).toContain('CJS Thiès')
+  expect(out).toContain('/agenda/ev1')
+})
+
+test('ressources → liste PDF/guide + lien', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'ressources', items: [
+    { id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null },
+  ] }])
+  expect(out).toContain('Guide CV')
+  expect(out).toContain('/ressources/r1')
+})
+
+test('centres → nom + adresse + lien slug', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'centres', items: [
+    { id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar', adresse: 'Rue 1', telephone: '+221990000000', services: ['WiFi'] },
+  ] }])
+  expect(out).toContain('CJS Dakar')
+  expect(out).toContain('/centres/cjs-dakar')
+})
+
+test('notifications → titres + contenu', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Deadline', titre: 'Échéance', contenu: 'Offre X ferme demain', lien: '/opportunites/x', metaPill: 'J-1', lu: false },
+  ] }])
+  expect(out).toContain('Échéance')
+  expect(out).toContain('Offre X ferme demain')
+})

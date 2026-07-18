@@ -24,13 +24,14 @@ export function YayeBubble({ from, children, timestamp, className = '' }: YayeBu
   return (
     <div className={`flex flex-col gap-1 ${isBot ? 'items-start' : 'items-end'} ${className}`}>
       <div
-        className={`text-fs-300 leading-snug px-space-3 py-space-2 max-w-[75%] md:max-w-[60%]
+        className={`text-fs-300 leading-snug px-space-3 py-space-2 max-w-[86%] md:max-w-[80%]
           ${isBot
             ? 'bg-white border border-gj-line text-color-text-primary'
             : 'bg-gj-teal-deep text-white'}
         `}
         style={{
-          borderRadius: isBot ? '12px 12px 12px 4px' : '12px 12px 4px 12px',
+          // Design v4 : coins plus arrondis (16px), pointe réduite côté émetteur.
+          borderRadius: isBot ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
           boxShadow: isBot ? 'none' : '0 2px 6px rgba(0,122,92,.18)',
         }}
       >

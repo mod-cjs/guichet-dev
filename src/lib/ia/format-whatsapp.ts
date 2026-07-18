@@ -29,6 +29,26 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
           (o.note ? `\n   ${o.note}` : '') + `\n   ${APP_URL}/opportunites/${o.slug}`
       })
       if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'evenements') {
+      const dfmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      const lines = b.items.slice(0, MAX_ITEMS).map((e, i) => {
+        const quand = dfmt.format(new Date(e.dateDebut))
+        const meta = [quand, e.centre ?? e.lieu].filter(Boolean).join(' · ')
+        return `${i + 1}. *${e.titre}*\n   ${meta}\n   ${APP_URL}/agenda/${e.id}`
+      })
+      if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'ressources') {
+      const lines = b.items.slice(0, MAX_ITEMS).map((r, i) => `${i + 1}. *${r.titre}* (${r.type} · ${r.theme})\n   ${APP_URL}/ressources/${r.id}`)
+      if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'centres') {
+      const lines = b.items.slice(0, MAX_ITEMS).map((c, i) => {
+        const lieu = [c.ville, c.adresse].filter(Boolean).join(' · ')
+        return `${i + 1}. *${c.nom}*\n   ${lieu}` + (c.telephone ? `\n   ${c.telephone}` : '') + (c.slug ? `\n   ${APP_URL}/centres/${c.slug}` : '')
+      })
+      if (lines.length) parts.push(lines.join('\n'))
+    } else if (b.kind === 'notifications') {
+      const lines = b.items.slice(0, MAX_ITEMS).map(n => `${n.lu ? '•' : '»'} *${n.titre}* — ${n.contenu}` + (n.lien ? `\n   ${n.lien.startsWith('http') ? n.lien : APP_URL + n.lien}` : ''))
+      if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'quick_replies') {
       // Pas de boutons en texte brut : on invite à répondre par l'une des options.
       const opts = b.replies.map(r => `• ${r.label}`).join('\n')
@@ -36,6 +56,9 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
     } else if (b.kind === 'escalade') {
       // Accusé de réception d'escalade : titre + attente + référence à citer.
       parts.push([`*${b.title}*`, b.message, `Référence : ${b.reference}`].filter(Boolean).join('\n'))
+    } else if (b.kind === 'carte_cjs') {
+      // La carte visuelle ne se rend pas sur WhatsApp → texte + lien vers la carte web.
+      parts.push([`*Ta carte CJS* — ${b.user.matricule}`, `Ouvre-la ici : ${APP_URL}/jeune/ma-carte`].join('\n'))
     } else {
       // action : on résume en texte (les boutons riches n'existent pas en texte brut)
       const head = [b.title, b.subtitle].filter(Boolean).join(' — ')

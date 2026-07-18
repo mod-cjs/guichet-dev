@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from '../../Icon'
+import { YayeAvatar } from '../YayeAvatar'
 
 export interface YayeAction {
   icon: IconName
@@ -27,9 +28,9 @@ export interface YayeActionCardProps {
 /**
  * YayeActionCard — carte "Yaye a agi pour toi" dans la conversation IA.
  *
- * Conforme `screens.jsx` #10 (Action card) :
- * - Header avec icône check-circle vert + titre (uppercase, teal-deep)
- * - Liste de rows actions (icon + label avec dot vert)
+ * Design v4 (yaye-web.jsx §Carte d'action) :
+ * - Header avec **avatar Yaye (Y)** + titre en casse normale (teal-deep) → « c'est Yaye qui a agi »
+ * - Liste de rows actions (icon + label avec pastille verte)
  * - Grid 2 boutons (primary teal-deep + secondary outlined)
  */
 export function YayeActionCard({
@@ -47,14 +48,9 @@ export function YayeActionCard({
         className="flex items-center gap-space-2 px-space-3 py-space-2 border-b border-gj-line"
         style={{ backgroundImage: 'linear-gradient(135deg, var(--gj-teal-soft), var(--gj-surface))' }}
       >
-        <span
-          className="w-7 h-7 rounded-gj-md bg-gj-teal text-white inline-flex items-center justify-center flex-shrink-0"
-          aria-hidden="true"
-        >
-          <Icon name="check-circle" size={16} />
-        </span>
+        <YayeAvatar size={24} />
         <div className="flex-1 min-w-0">
-          <div className="text-fs-200 font-black text-gj-teal-deep uppercase tracking-wide">{title}</div>
+          <div className="text-fs-200 font-bold text-gj-teal-deep">{title}</div>
           {subtitle && <div className="text-fs-100 text-gj-grey">{subtitle}</div>}
         </div>
       </div>

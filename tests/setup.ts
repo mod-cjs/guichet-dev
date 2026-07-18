@@ -1,4 +1,25 @@
 import '@testing-library/jest-dom'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// Les suites « DB réelle » lisent DATABASE_URL dans process.env. En CI la variable est
+// injectée par l'environnement ; en local elle ne vit que dans .env.local, que Jest ne
+// charge pas — d'où 40 échecs « DATABASE_URL manquante » et un hook pre-push bloqué.
+//
+// On ne charge QUE cette variable, et seulement si elle est absente : sourcer tout le
+// .env.local écraserait NEXT_PUBLIC_APP_URL avec l'URL locale, ce qui fait échouer les
+// tests SEO (json-ld) qui attendent l'URL de production.
+if (!process.env.DATABASE_URL) {
+  const envFile = resolve(__dirname, '..', '.env.local')
+  if (existsSync(envFile)) {
+    const line = readFileSync(envFile, 'utf8')
+      .split('\n')
+      .find((l) => l.startsWith('DATABASE_URL='))
+    if (line) {
+      process.env.DATABASE_URL = line.slice('DATABASE_URL='.length).trim().replace(/^["']|["']$/g, '')
+    }
+  }
+}
 
 // Polyfill TextEncoder/TextDecoder pour jsdom sous Node récent (≥ 20/24).
 // Certains modules (undici via @vercel/blob, génération QR, etc.) les importent au

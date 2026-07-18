@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
+import { devLoginAutorise } from '@/lib/security/prod-guards'
 import type { CJSSession } from '@/types/user'
 
 /**
@@ -15,9 +16,10 @@ import type { CJSSession } from '@/types/user'
 const DEFAULT_UID = '00116efd-3740-4ad2-9512-7d639df65524'
 
 export async function GET(request: NextRequest) {
-  // Autorisé hors production, OU explicitement via ALLOW_DEV_LOGIN=true (container de
-  // test local en image prod). En prod réelle, ce flag n'est jamais positionné → 404.
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_LOGIN !== 'true') {
+  // GUIC-564 — La garde ne repose plus sur ALLOW_DEV_LOGIN seul : en production, la connexion
+  // sans SSO exige DEUX variables délibérées (APP_ENV=local + ALLOW_DEV_LOGIN=true). Toute
+  // configuration incomplète ou ambiguë refuse. Cf. `src/lib/security/prod-guards.ts`.
+  if (!devLoginAutorise(process.env)) {
     return new NextResponse('Not found', { status: 404 })
   }
 

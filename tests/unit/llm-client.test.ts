@@ -90,3 +90,78 @@ describe('baseUrlForModel — routage MaaS partagé vs endpoint dédié', () => 
     delete process.env.VERTEX_DEDICATED_ENDPOINT_URL
   })
 })
+
+describe('Fournisseur local LMStudio (LLM_PROVIDER=lmstudio)', () => {
+  beforeEach(() => {
+    process.env.LLM_PROVIDER = 'lmstudio'
+    delete process.env.GOOGLE_CLOUD_PROJECT // aucune conf GCP requise en local
+  })
+  afterEach(() => {
+    delete process.env.LLM_PROVIDER
+    delete process.env.LMSTUDIO_BASE_URL
+    delete process.env.LMSTUDIO_MODEL
+  })
+
+  it('isLocalProvider + isLlmConfigured vrais sans GCP', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const m = require('@/lib/ia/llm-client')
+    expect(m.isLocalProvider()).toBe(true)
+    expect(m.isLlmConfigured()).toBe(true)
+  })
+
+  it('baseUrlForModel pointe sur LMStudio (défaut, puis surcharge)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    let m = require('@/lib/ia/llm-client')
+    expect(m.baseUrlForModel()).toBe('http://localhost:1234/v1')
+    jest.resetModules()
+    process.env.LMSTUDIO_BASE_URL = 'http://127.0.0.1:4321/v1'
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    m = require('@/lib/ia/llm-client')
+    expect(m.baseUrlForModel()).toBe('http://127.0.0.1:4321/v1')
+  })
+
+  it('construit le client LMStudio sans auth GCP (pas de fetch maison)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getLlmClient } = require('@/lib/ia/llm-client')
+    getLlmClient('local-model')
+    expect(ctorCalls).toHaveLength(1)
+    expect(ctorCalls[0].baseURL).toBe('http://localhost:1234/v1')
+    expect(ctorCalls[0].apiKey).toBe('lm-studio')
+    expect(ctorCalls[0].fetch).toBeUndefined() // pas d'injection de jeton GCP
+  })
+
+  it('localModel suit LMSTUDIO_MODEL', () => {
+    process.env.LMSTUDIO_MODEL = 'qwen2.5-7b-instruct'
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { localModel } = require('@/lib/ia/llm-client')
+    expect(localModel()).toBe('qwen2.5-7b-instruct')
+  })
+})
+
+describe('retry sur erreur de décodage transitoire (petits modèles)', () => {
+  it('isTransientDecodeError reconnaît les erreurs LMStudio/vLLM', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { isTransientDecodeError } = require('@/lib/ia/llm-client')
+    expect(isTransientDecodeError(new Error('400 The model produced output that did not match'))).toBe(true)
+    expect(isTransientDecodeError(new Error('Engine protocol predict stream returned an error'))).toBe(true)
+    expect(isTransientDecodeError(new Error('Unauthorized'))).toBe(false)
+  })
+  it('chatCompletionWithRetry rejoue une erreur transitoire puis réussit', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatCompletionWithRetry } = require('@/lib/ia/llm-client')
+    let n = 0
+    expect(await chatCompletionWithRetry(async () => {
+      n++
+      if (n < 2) throw new Error('The model produced output that failed')
+      return 'ok'
+    })).toBe('ok')
+    expect(n).toBe(2)
+  })
+  it('ne rejoue PAS une erreur non transitoire', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chatCompletionWithRetry } = require('@/lib/ia/llm-client')
+    let n = 0
+    await expect(chatCompletionWithRetry(async () => { n++; throw new Error('Unauthorized') })).rejects.toThrow('Unauthorized')
+    expect(n).toBe(1)
+  })
+})

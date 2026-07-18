@@ -23,7 +23,7 @@
  *     casser la lecture pendant le parcours utilisateur.
  */
 
-import { put } from '@vercel/blob'
+import { stockage } from '@/lib/storage'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
@@ -139,11 +139,11 @@ export async function POST(
 
   // 6. Upload serveur → Vercel Blob.
   try {
-    const blob = await put(pathname, file, {
-      access: 'private',
-      addRandomSuffix: true,
-      contentType: file.type,
-      cacheControlMaxAge: BLOB_CACHE_MAX_AGE_SEC,
+    // GUIC-565 — stockage objet actif (MinIO en prod OVH, Vercel Blob sur le miroir de dev).
+    const blob = await stockage().televerser({
+      chemin: pathname,
+      fichier: file,
+      cacheMaxAgeSec: BLOB_CACHE_MAX_AGE_SEC,
     })
     const sizeKb = Math.round(file.size / 1024)
     logger.info('[upload/cv] terminé', {
@@ -151,7 +151,7 @@ export async function POST(
       sizeBytes: file.size,
     })
     return NextResponse.json(
-      { data: { url: blob.url, name: safeName, sizeKb } },
+      { data: { url: blob.reference, name: safeName, sizeKb } },
       { status: 200 },
     )
   } catch (err) {

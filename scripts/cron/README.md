@@ -109,3 +109,42 @@ pas lancé.
 Pour des tâches qui nécessitent du raisonnement (ex : trier les PRs et décider
 lesquelles fermer), un agent via `CronCreate` serait plus adapté. Pas pour le
 moment.
+
+---
+
+# Ordonnanceur des tâches planifiées applicatives — OVH (GUIC-570)
+
+Distinct des scripts ci-dessus (qui automatisent le dev). Ici : sur OVH, **Vercel Cron
+n'existe plus** → ces pièces déclenchent les 8 tâches planifiées de l'APPLICATION via le
+crontab système. Oublier une tâche ne casse rien visiblement mais laisse les données de
+rétention s'accumuler (ex. `cleanup-cv` = purge CDP des CV orphelins).
+
+| Fichier | Rôle |
+|---|---|
+| `jobs.json` | **Source unique** (chemin + horaire). Alignée sur `vercel.json` par la sentinelle `tests/unit/cron-jobs-parity.test.ts` (CI en échec si divergence). |
+| `run-job.sh` | Exécute UNE tâche via `docker compose exec app` → tape `127.0.0.1:3000<path>` **de l'intérieur** du conteneur. Aucun port publié requis ; le `CRON_SECRET` reste dans le conteneur. |
+| `generate-crontab.sh` | Génère les lignes crontab depuis `jobs.json` (horaires jamais dupliqués). |
+
+## Installation (manuelle, côté serveur)
+
+```bash
+cd /opt/guichet-jeunesse
+mkdir -p /var/log/guichet
+scripts/cron/generate-crontab.sh > /tmp/guichet.cron
+( crontab -l 2>/dev/null | grep -v 'GUICHET-CRON' || true ; cat /tmp/guichet.cron ) | crontab -
+crontab -l | grep GUICHET-CRON
+```
+
+Prérequis : `jq`, `docker compose`, `/etc/guichet/prod.env` (avec `CRON_SECRET`), conteneur `app` en marche.
+
+## Test manuel
+
+```bash
+bash scripts/cron/run-job.sh /api/cron/cleanup-cv   # attendu : "HTTP 200" puis "✓ … OK"
+```
+
+## Observabilité
+
+Chaque exécution est journalisée dans `/var/log/guichet/cron.log` (horodatage, tâche, code HTTP, ✓/✗).
+L'alerting (GUIC-576) surveille ce log. ⚠️ Un cron installé mais **jamais vérifié** n'est pas une
+garantie : après le go-live, confirmer qu'une purge s'est réellement exécutée (`✓ /api/cron/cleanup-cv OK`).
