@@ -52,6 +52,44 @@ export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormMo
   const [config, setConfig] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [apercu, setApercu] = useState<{ champs: Record<string, string>; score: number } | null>(null)
+  const [apercuErr, setApercuErr] = useState<string | null>(null)
+  const [apercuPending, startApercu] = useTransition()
+
+  function testerExtraction() {
+    setApercu(null)
+    setApercuErr(null)
+    let champs: Record<string, unknown> | undefined
+    if (config.trim()) {
+      try {
+        const c = JSON.parse(config) as { champs?: Record<string, unknown> }
+        champs = c.champs
+      } catch {
+        setApercuErr('Configuration JSON invalide.')
+        return
+      }
+    }
+    startApercu(async () => {
+      try {
+        const res = await fetch('/api/admin/sources-veille/apercu', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url, ...(champs ? { champs } : {}) }),
+        })
+        const body = (await res.json().catch(() => null)) as {
+          data?: { champs: Record<string, string>; scoreCompletude: number }
+          error?: { message?: string }
+        } | null
+        if (!res.ok || !body?.data) {
+          setApercuErr(body?.error?.message ?? 'Extraction impossible.')
+          return
+        }
+        setApercu({ champs: body.data.champs, score: body.data.scoreCompletude })
+      } catch {
+        setApercuErr('Réseau indisponible — réessaie.')
+      }
+    })
+  }
 
   const typeOptions = [
     { value: '', label: '— Aucun (déterminé à l’extraction)' },
@@ -68,6 +106,8 @@ export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormMo
     setTypeDefautId(source?.typeDefautId ?? '')
     setConfig(source?.configExtraction ? JSON.stringify(source.configExtraction, null, 2) : '')
     setError(null)
+    setApercu(null)
+    setApercuErr(null)
   }, [isOpen, source])
 
   const configRequise = METHODES_AVEC_CONFIG.includes(methode)
@@ -185,6 +225,54 @@ export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormMo
           onChange={(e) => setConfig(e.target.value)}
           placeholder='{ "liste": ".offres article", "titre": "h3 a", "lien": "h3 a@href" }'
         />
+
+        {/* Aperçu d'extraction (GUIC-598) : coller une URL, voir les champs avant d'activer. */}
+        <div className="flex items-center justify-between gap-space-2">
+          <span className="text-fs-200 text-gj-grey">
+            Teste l’extraction sur l’URL saisie avant d’activer la source.
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={testerExtraction}
+            disabled={apercuPending || !url}
+          >
+            {apercuPending ? 'Test…' : 'Tester l’extraction'}
+          </Button>
+        </div>
+        {apercuErr && (
+          <p role="alert" className="text-fs-200 text-gj-red font-bold">
+            {apercuErr}
+          </p>
+        )}
+        {apercu && (
+          <div
+            className="text-fs-200"
+            style={{
+              border: '1px solid var(--gj-border)',
+              borderRadius: 10,
+              padding: '10px 12px',
+              background: 'var(--gj-surface)',
+            }}
+          >
+            <div className="font-bold" style={{ marginBottom: 6 }}>
+              Complétude : {apercu.score}%
+            </div>
+            {Object.entries(apercu.champs)
+              .filter(([, v]) => v && typeof v === 'string')
+              .map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', gap: 8, marginBottom: 2 }}>
+                  <span className="text-gj-grey" style={{ minWidth: 96 }}>
+                    {k}
+                  </span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {String(v)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+
         {error && (
           <p role="alert" className="text-fs-200 text-gj-red font-bold">
             {error}

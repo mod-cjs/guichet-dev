@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { logger } from '@/lib/logger'
 import { executerVeille } from '@/lib/curation/robot/run'
+import { executerExtraction } from '@/lib/curation/extraction/run'
 import { clientHttpReel } from '@/lib/curation/robot/http-client'
 import type { ApiResponse } from '@/types/api'
 
@@ -32,9 +33,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 
   try {
-    const rapport = await executerVeille({ client: clientHttpReel() })
-    logger.info('cron/veille-sources ok', { ...rapport })
-    return NextResponse.json({ data: rapport })
+    const client = clientHttpReel()
+    // Phase 1 : découverte des liens candidats (US-2).
+    const decouverte = await executerVeille({ client })
+    // Phase 2 : extraction déterministe d'un lot borné d'items découverts (US-3).
+    const extraction = await executerExtraction({ client })
+    logger.info('cron/veille-sources ok', { ...decouverte, ...extraction })
+    return NextResponse.json({ data: { decouverte, extraction } })
   } catch (err) {
     logger.error('cron/veille-sources failed', {
       error: err instanceof Error ? err.message : String(err),
