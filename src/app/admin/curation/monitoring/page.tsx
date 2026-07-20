@@ -12,7 +12,9 @@ export default async function Page() {
   const session = await getSession()
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
-  const [stats, resume] = await Promise.all([statsParSource(), resumeCuration()])
+  // Une seule exécution du pipeline (N+1) : on dérive le résumé des stats déjà calculées.
+  const stats = await statsParSource()
+  const resume = await resumeCuration(stats)
 
   return (
     <MonitoringVue

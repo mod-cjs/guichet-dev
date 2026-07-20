@@ -33,7 +33,7 @@ async function exec(sourceId: string, statut: 'ok' | 'partiel' | 'erreur', nbLie
   })
 }
 
-async function item(sourceId: string, statut: 'a_valider' | 'approuvee' | 'rejetee') {
+async function item(sourceId: string, statut: 'a_valider' | 'approuvee' | 'rejetee' | 'en_attente') {
   const url = `https://veille-${RUN}.sn/o/${Math.random().toString(36).slice(2, 10)}`
   return prisma.itemCuration.create({
     data: { sourceId, urlCanonique: url, empreinte: createHash('sha256').update(url).digest('hex'), titre: 'x', statut },
@@ -108,6 +108,44 @@ describe('GUIC-602 — statsParSource', () => {
     await exec(s.id, 'partiel', 0, t(10))
     const st = (await statsParSource()).find((x) => x.sourceId === s.id)
     expect(st?.alerte).toBeNull() // n'a jamais produit → pas une "chute"
+  })
+
+  it('moins de 3 exécutions → aucune alerte (fenêtre incomplète)', async () => {
+    const s = await source()
+    await exec(s.id, 'erreur', 0, t(20))
+    await exec(s.id, 'erreur', 0, t(10)) // 2 erreurs seulement
+    const st = (await statsParSource()).find((x) => x.sourceId === s.id)
+    expect(st?.alerte).toBeNull()
+    expect(st?.nbErreursRecentes).toBe(2)
+  })
+
+  it('un run OK RÉCENT dans la fenêtre casse l’alerte erreur', async () => {
+    const s = await source()
+    await exec(s.id, 'erreur', 0, t(30))
+    await exec(s.id, 'erreur', 0, t(20))
+    await exec(s.id, 'ok', 5, t(10)) // le plus récent est OK
+    const st = (await statsParSource()).find((x) => x.sourceId === s.id)
+    expect(st?.alerte).toBeNull() // pas 3 erreurs consécutives dans la fenêtre
+    expect(st?.nbErreursRecentes).toBe(2)
+  })
+
+  it('taux null par division par zéro (aucun item décidé)', async () => {
+    const s = await source()
+    await item(s.id, 'a_valider')
+    await item(s.id, 'en_attente')
+    const st = (await statsParSource()).find((x) => x.sourceId === s.id)
+    expect(st?.tauxApprobation).toBeNull()
+    expect(st?.tauxRejet).toBeNull()
+    expect(st?.nbRapportees).toBe(2)
+  })
+
+  it('chute_zero détectée MÊME si la production est ANCIENNE (hors fenêtre de 3)', async () => {
+    const s = await source()
+    // Production ancienne (bien avant les 3 derniers runs) puis longue série de zéros.
+    await exec(s.id, 'ok', 20, t(120))
+    for (let i = 6; i >= 1; i--) await exec(s.id, 'partiel', 0, t(i * 5))
+    const st = (await statsParSource()).find((x) => x.sourceId === s.id)
+    expect(st?.alerte).toBe('chute_zero') // la baseline non bornée garde l'alerte vivante
   })
 })
 

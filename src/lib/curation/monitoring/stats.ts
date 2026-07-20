@@ -65,17 +65,26 @@ export async function statsParSource(): Promise<StatSource[]> {
   for (const g of parItem) compte.set(`${g.sourceId}|${g.statut}`, g._count._all)
   const compteFor = (sid: string, s: StatutItemCuration) => compte.get(`${sid}|${s}`) ?? 0
 
+  // Baseline « a déjà produit » NON bornée par la fenêtre (sinon l'alerte chute_zero
+  // s'éteindrait après quelques runs alors que la panne persiste). Une seule requête.
+  const maxLiens = await prisma.executionVeille.groupBy({
+    by: ['sourceId'],
+    _max: { nbLiensDecouverts: true },
+  })
+  const aDejaProduit = new Map<string, boolean>()
+  for (const g of maxLiens) aDejaProduit.set(g.sourceId, (g._max.nbLiensDecouverts ?? 0) > 0)
+
   const stats: StatSource[] = []
   for (const src of sources) {
-    // N+1 borné : quelques exécutions récentes par source (fenêtre d'alerte + baseline).
+    // Fenêtre d'alerte : uniquement les N dernières exécutions (baseline calculée à part).
+    // Tie-break sur `id` : ordre stable si deux exécutions partagent le même `createdAt`.
     const execs = await prisma.executionVeille.findMany({
       where: { sourceId: src.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: FENETRE_ALERTE,
       select: { statut: true, nbLiensDecouverts: true },
     })
-    const aProduitAvant = execs.some((e) => e.nbLiensDecouverts > 0)
-    const alerte = evaluerAlerte(execs, aProduitAvant)
+    const alerte = evaluerAlerte(execs, aDejaProduit.get(src.id) ?? false)
 
     const nbApprouvees = compteFor(src.id, 'approuvee')
     const nbRejetees = compteFor(src.id, 'rejetee')
@@ -98,21 +107,22 @@ export async function statsParSource(): Promise<StatSource[]> {
       tauxApprobation: pourcent(nbApprouvees, decides),
       tauxRejet: pourcent(nbRejetees, decides),
       derniereVerif: src.derniereVerifLe,
-      nbErreursRecentes: execs.slice(0, FENETRE_ALERTE).filter((e) => e.statut === 'erreur').length,
+      nbErreursRecentes: execs.filter((e) => e.statut === 'erreur').length,
       alerte,
     })
   }
   return stats
 }
 
-export async function resumeCuration(): Promise<ResumeCuration> {
-  const stats = await statsParSource()
+/** `stats` optionnel : évite de recalculer tout le pipeline quand l'appelant l'a déjà. */
+export async function resumeCuration(stats?: StatSource[]): Promise<ResumeCuration> {
+  const lignes = stats ?? (await statsParSource())
   const parItem = await prisma.itemCuration.groupBy({ by: ['statut'], _count: { _all: true } })
   const parStatut: Record<string, number> = {}
   for (const g of parItem) parStatut[g.statut] = g._count._all
   return {
-    nbSources: stats.length,
-    nbEnAlerte: stats.filter((s) => s.alerte !== null).length,
+    nbSources: lignes.length,
+    nbEnAlerte: lignes.filter((s) => s.alerte !== null).length,
     parStatut,
   }
 }
