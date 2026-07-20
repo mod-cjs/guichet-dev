@@ -4,11 +4,12 @@
 **Branche** : `feature/GUIC-597-robot-decouverte` (worktree `.claude/worktrees/curation-597`, **stackée sur GUIC-596**)
 **JIRA** : GUIC-597 En cours
 
-## État — GREEN committé, passe adverse en cours
-- RED `d290d0c` → GREEN `e958b9d`. 36/36 tests verts (2 runs), intégration MariaDB réelle 3307 (transport HTTP injecté).
-- Suite complète : 4 suites préexistantes rouges (observability + yaye, = origin/dev) + qr-badge flaky préexistant. tsc baseline 12, lint clean, build exit 0.
-- Sentinelle GUIC-570 (parité vercel.json ↔ scripts/cron/jobs.json) : les DEUX ordonnanceurs mis à jour.
-- **Deux reviewers adverses lancés** (sécurité SSRF/DNS-rebinding/TOCTOU + métier/contrat) — fixes à venir avant push/PR.
+## État — LIVRÉE + DURCIE, PR #272 (En review)
+- RED `d290d0c` → GREEN `e958b9d` (base) → durcissement post double revue adverse. 54/54 verts (2 runs), intégration MariaDB réelle.
+- PR #272 basée sur la branche GUIC-596 (stackée) → retarget vers dev après merge US-1 (#269).
+- Findings adverses corrigés : ReDoS, SSRF/DNS-rebinding (épinglage IP undici), OOM streaming, IPv6 fail-closed, Crawl-delay plafonné, verrou Redis, CRON_SECRET timing-safe, `auto`↔`<link>` HTML (CRITIQUE), politesse intra-hôte, chute-à-zéro (nbLiensDecouverts+partiel), redirections, retry, URLs >500.
+- Sentinelle GUIC-570 : vercel.json + scripts/cron/jobs.json (les deux).
+- **US-3 devra** appliquer `ssrf-guard.ipPubliqueValidee` au fetch de CHAQUE item (US-2 ne fetch que les listings).
 
 ## Décisions lead (2026-07-20)
 - ItemCuration dès US-2 (statut `decouvert`, empreinte URL @unique) + ExecutionVeille.
