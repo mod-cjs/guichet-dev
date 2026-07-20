@@ -1744,8 +1744,80 @@ model SourceVeille {
 
   typeDefaut OpportuniteType? @relation(fields: [typeDefautId], references: [id], onDelete: SetNull)
 
+  executions ExecutionVeille[]
+  items      ItemCuration[]
+
   @@index([actif, prochaineVerifLe])
   @@index([deletedAt])
   @@index([typeDefautId])
   @@map("sources_veille")
+}
+
+enum StatutExecution {
+  ok
+  partiel
+  erreur
+
+  @@map("statut_execution")
+}
+
+enum StatutItemCuration {
+  decouvert
+  a_valider
+  approuvee
+  rejetee
+  en_attente
+  doublon
+
+  @@map("statut_item_curation")
+}
+
+/// Journal d'une exécution du robot de découverte sur une source (GUIC-597, US-2).
+/// Alimente le monitoring US-7 (nb rapporté, erreurs, durée, dernière vérif).
+model ExecutionVeille {
+  id           String          @id @default(uuid()) @db.VarChar(36)
+  sourceId     String          @map("source_id") @db.VarChar(36)
+  demarreLe    DateTime        @map("demarre_le")
+  dureeMs      Int             @map("duree_ms")
+  nbNouveautes Int             @default(0) @map("nb_nouveautes")
+  nbErreurs    Int             @default(0) @map("nb_erreurs")
+  statut       StatutExecution
+  messageErreur String?        @map("message_erreur") @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  source SourceVeille   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  items  ItemCuration[]
+
+  @@index([sourceId, createdAt])
+  @@map("executions_veille")
+}
+
+/// Opportunité candidate détectée par le robot (GUIC-597, US-2 : statut `decouvert`).
+/// `empreinte` = sha256 de l'URL canonique normalisée → dédup URL native (une URL déjà
+/// vue n'est jamais resoumise). Les champs extraits/modération sont posés nullable et
+/// remplis par les US suivantes (US-3 extraction, US-5 validation). `opportuniteId`
+/// (US-6 publication) sera ajouté plus tard pour ne pas coupler `Opportunite` ici.
+model ItemCuration {
+  id             String             @id @default(uuid()) @db.VarChar(36)
+  sourceId       String             @map("source_id") @db.VarChar(36)
+  executionId    String?            @map("execution_id") @db.VarChar(36)
+  urlCanonique   String             @map("url_canonique") @db.VarChar(500)
+  empreinte      String             @unique @db.VarChar(64)
+  titre          String?            @db.VarChar(300)
+  payloadExtrait Json?              @map("payload_extrait")
+  scoreCompletude Int?              @map("score_completude")
+  statut         StatutItemCuration @default(decouvert)
+  motifRejet     String?            @map("motif_rejet") @db.Text
+  modereePar     String?            @map("moderee_par") @db.VarChar(36)
+  modereeLe      DateTime?          @map("moderee_le")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  source    SourceVeille     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  execution ExecutionVeille? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId, statut])
+  @@index([statut, createdAt])
+  @@index([executionId])
+  @@map("items_curation")
 }

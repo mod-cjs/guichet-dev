@@ -106,6 +106,25 @@ describe('GUIC-597 — executerVeille (DB réelle, HTTP injecté)', () => {
     expect(await prisma.executionVeille.count({ where: { sourceId: pasDue.id } })).toBe(0)
   })
 
+  it('applique un délai de politesse entre sources (et honore le Crawl-delay)', async () => {
+    await creerSource()
+    await creerSource()
+    const attentes: number[] = []
+    const attendre = async (ms: number) => {
+      attentes.push(ms)
+    }
+    // robots.txt avec Crawl-delay 3 s > défaut 2 s → l'attente doit valoir au moins 3000.
+    const client: ClientHttp = async (url) => {
+      if (url.endsWith('/robots.txt'))
+        return { statut: 200, corps: 'User-agent: *\nCrawl-delay: 3\n', contentType: 'text/plain' }
+      return { statut: 200, corps: '<rss><channel></channel></rss>', contentType: 'application/rss+xml' }
+    }
+    await executerVeille({ client, attendre, delaiPolitesseParDefautMs: 2000 })
+    // 2 sources → au moins une attente entre elles, dimensionnée au Crawl-delay.
+    expect(attentes.length).toBeGreaterThanOrEqual(1)
+    expect(Math.max(...attentes)).toBeGreaterThanOrEqual(3000)
+  })
+
   it('respecte robots.txt : un listing interdit → 0 item, exécution journalisée', async () => {
     const src = await creerSource()
     const clientBloque: ClientHttp = async (url) => {

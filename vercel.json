@@ -11,6 +11,7 @@
     { "path": "/api/cron/reservations-batch", "schedule": "0 4 * * *" },
     { "path": "/api/cron/yaye-graph-sync", "schedule": "30 2 * * *" },
     { "path": "/api/cron/yaye-reco-precompute", "schedule": "45 2 * * *" },
-    { "path": "/api/cron/yaye-eval", "schedule": "15 3 * * *" }
+    { "path": "/api/cron/yaye-eval", "schedule": "15 3 * * *" },
+    { "path": "/api/cron/veille-sources", "schedule": "0 * * * *" }
   ]
 }
