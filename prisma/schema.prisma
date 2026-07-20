@@ -1808,6 +1808,10 @@ model ItemCuration {
   payloadExtrait Json?              @map("payload_extrait")
   scoreCompletude Int?              @map("score_completude")
   nbTentatives   Int                @default(0) @map("nb_tentatives")
+  // GUIC-599 — dédup CONTENU : sha256(titre+org normalisés). Distinct de `empreinte`
+  // (clé URL). Indexé pour la recherche de doublon exact.
+  empreinteContenu String?          @map("empreinte_contenu") @db.VarChar(64)
+  doublonDeId    String?            @map("doublon_de_id") @db.VarChar(36)
   statut         StatutItemCuration @default(decouvert)
   motifRejet     String?            @map("motif_rejet") @db.Text
   modereePar     String?            @map("moderee_par") @db.VarChar(36)
@@ -1817,9 +1821,12 @@ model ItemCuration {
 
   source    SourceVeille     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   execution ExecutionVeille? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+  doublonDe ItemCuration?    @relation("Doublons", fields: [doublonDeId], references: [id], onDelete: SetNull)
+  doublons  ItemCuration[]   @relation("Doublons")
 
   @@index([sourceId, statut])
   @@index([statut, createdAt])
   @@index([executionId])
+  @@index([empreinteContenu])
   @@map("items_curation")
 }

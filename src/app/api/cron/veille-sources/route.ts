@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { logger } from '@/lib/logger'
 import { executerVeille } from '@/lib/curation/robot/run'
 import { executerExtraction } from '@/lib/curation/extraction/run'
+import { executerDedup } from '@/lib/curation/dedup/run'
 import { clientHttpReel } from '@/lib/curation/robot/http-client'
 import { avecVerrouVeille } from '@/lib/curation/robot/verrou'
 import type { ApiResponse } from '@/types/api'
@@ -40,7 +41,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       const client = clientHttpReel()
       const decouverte = await executerVeille({ client, sansVerrou: true })
       const extraction = await executerExtraction({ client })
-      return { decouverte, extraction }
+      const dedup = await executerDedup()
+      return { decouverte, extraction, dedup }
     })
     if ('ignore' in resultat) {
       logger.info('cron/veille-sources ignore (run concurrent)')
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     logger.info('cron/veille-sources ok', {
       ...resultat.decouverte,
       ...resultat.extraction,
+      ...resultat.dedup,
     })
     return NextResponse.json({ data: resultat })
   } catch (err) {
