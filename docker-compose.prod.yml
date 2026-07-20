@@ -90,4 +90,4 @@ networks:
   # Réseau des services partagés (redis_cjs, neo4j-cjs, MinIO), créé côté serveur.
   services_partages:
     external: true
-    name: ${SERVICES_NETWORK:-cjs_services}
+    name: ${SERVICES_NETWORK:-cjs-net}
