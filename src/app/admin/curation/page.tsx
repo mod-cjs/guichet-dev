@@ -72,6 +72,7 @@ export default async function Page({
       typeLabel: typeof p.typeId === 'string' ? (typeLabels.get(p.typeId) ?? '—') : '—',
       score: it.scoreCompletude ?? 0,
       dateLabel: it.createdAt.toLocaleDateString('fr-FR'),
+      opportuniteId: it.opportuniteId,
     }
   })
 

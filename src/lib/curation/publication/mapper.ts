@@ -54,7 +54,15 @@ export interface DonneesItem {
   region?: string
   domaine?: string
   deadline?: string
-  lienSource: string
+  /** URL source (http(s) déjà validée côté appelant). Undefined si non exploitable. */
+  lienSource?: string
+}
+
+/** Parse défensif : une deadline non-ISO issue de l'extraction ne doit pas faire planter create. */
+export function deadlineOuNull(v: string | undefined): Date | null {
+  if (!v) return null
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d
 }
 
 /**
@@ -72,8 +80,9 @@ export function construireInputPublication(
     organisationLibelle: d.organisation?.trim() || '—',
     domaine: domaineOuAutre(d.domaine),
     region: regionOuNull(d.region),
-    deadline: d.deadline ? new Date(d.deadline) : null,
-    lienExterne: d.lienSource, // traçabilité vers la source d'origine
+    deadline: deadlineOuNull(d.deadline),
+    // Traçabilité : uniquement une URL http(s) (défense en profondeur avec l'appelant).
+    lienExterne: d.lienSource && /^https?:\/\//i.test(d.lienSource) ? d.lienSource : null,
     statut: 'brouillon' as const,
   }
   const org = base.organisationLibelle

@@ -15,6 +15,7 @@ export interface CurationRow {
   typeLabel: string
   score: number
   dateLabel: string
+  opportuniteId?: string | null
 }
 
 interface CurationListProps {
@@ -176,7 +177,24 @@ export function CurationList({
                 minHeight: 'var(--tap-min)',
               }}
             >
-              <span style={{ fontWeight: 700, color: 'var(--gj-ink)' }}>{r.titre}</span>
+              <span style={{ fontWeight: 700, color: 'var(--gj-ink)' }}>
+                {r.titre}
+                {onglet === 'approuvee' && r.opportuniteId && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: 'var(--gj-teal-deep)',
+                      border: '1px solid var(--gj-teal-deep)',
+                      borderRadius: 6,
+                      padding: '1px 6px',
+                    }}
+                  >
+                    Publiée
+                  </span>
+                )}
+              </span>
               <span style={{ color: 'var(--gj-grey)' }}>{r.sourceNom}</span>
               <span>{r.organisation}</span>
               <span>{r.typeLabel}</span>

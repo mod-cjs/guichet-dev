@@ -83,11 +83,23 @@ describe('GUIC-601 — publierItem', () => {
     await expect(publierItem('x')).rejects.toThrow(/FORBIDDEN/)
   })
 
+  it('refuse un rôle authentifié non-admin (escalade de privilège)', async () => {
+    mockGetSession.mockResolvedValue({ cjsUid: 'u', roles: ['jeune'] })
+    await expect(publierItem('x')).rejects.toThrow(/FORBIDDEN/)
+  })
+
   it('refuse un item NON approuvé', async () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const s = await source()
     const it = await itemApprouve(s.id, {}, 'a_valider')
     await expect(publierItem(it.id)).rejects.toThrow(/CONFLIT_STATUT|approuv/i)
+  })
+
+  it('refuse un item sans type valide', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const s = await source()
+    const it = await itemApprouve(s.id, { typeId: undefined })
+    await expect(publierItem(it.id)).rejects.toThrow(/[Tt]ype/)
   })
 
   it('publie un approuvé → Opportunite brouillon + lien de traçabilité', async () => {
@@ -114,7 +126,10 @@ describe('GUIC-601 — publierItem', () => {
     // Lien de traçabilité côté item.
     const apres = await prisma.itemCuration.findUnique({ where: { id: it.id } })
     expect(apres?.opportuniteId).toBe(opportuniteId)
-    const audit = await prisma.auditLog.findFirst({ where: { action: 'opportunite.publish' } })
+    // Audit HONNÊTE : création de brouillon issue de curation (pas 'publish' — statut brouillon).
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: 'opportunite.create', targetId: opportuniteId },
+    })
     expect(audit).not.toBeNull()
   })
 
@@ -134,5 +149,43 @@ describe('GUIC-601 — publierItem', () => {
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId } })
     expect(opp?.domaine).toBe('Autre')
     expect(opp?.region).toBeNull() // région non mappable → null
+  })
+
+  it('deadline non-ISO → deadline null (pas de crash de create)', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const s = await source()
+    const it = await itemApprouve(s.id, { deadline: 'bientôt' })
+    const { opportuniteId } = await publierItem(it.id)
+    const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId } })
+    expect(opp?.deadline).toBeNull()
+  })
+
+  it('sous-type bourse : détails plancher créés (montant 0, organisme = source)', async () => {
+    const typeBourse = await prisma.opportuniteType.findUnique({ where: { slug: 'bourse' } })
+    if (!typeBourse) return // seed absent → skip
+    mockGetSession.mockResolvedValue(ADMIN)
+    const s = await source()
+    const it = await itemApprouve(s.id, { typeId: typeBourse.id })
+    const { opportuniteId } = await publierItem(it.id)
+    const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, include: { bourse: true, typeRef: true } })
+    expect(opp?.typeRef?.slug).toBe('bourse')
+    expect(opp?.bourse).not.toBeNull()
+    expect(opp?.bourse?.montantTotalFcfa).toBe(0)
+  })
+
+  it('CONCURRENCE : deux publications simultanées → UNE seule Opportunite (claim atomique)', async () => {
+    mockGetSession.mockResolvedValue(ADMIN)
+    const s = await source()
+    const it = await itemApprouve(s.id)
+
+    const resultats = await Promise.allSettled([publierItem(it.id), publierItem(it.id)])
+    const ok = resultats.filter((r) => r.status === 'fulfilled')
+    const ko = resultats.filter((r) => r.status === 'rejected')
+    expect(ok).toHaveLength(1) // exactement une réussit
+    expect(ko).toHaveLength(1) // l'autre est rejetée (DEJA_PUBLIE)
+
+    // Une seule Opportunite persiste (le perdant a supprimé la sienne — compensation).
+    const opps = await prisma.opportunite.findMany({ where: { titre: { startsWith: PREFIX } } })
+    expect(opps).toHaveLength(1)
   })
 })

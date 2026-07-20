@@ -14,7 +14,11 @@ import type { CJSSession } from '@/types/user'
  * GUIC-601 — US-6 : publier un item `approuvee` vers le catalogue via le workflow existant
  * (`OpportuniteService.create`). Crée une `Opportunite` en `brouillon` (l'admin complète les
  * détails sous-type dans l'éditeur existant), lie `opportuniteId` (traçabilité + idempotence).
- * Le Knowledge Graph Yaye est alimenté par le cron `yaye-graph-sync` existant (prochain tick).
+ *
+ * KG Yaye : `OpportuniteService.create` projette déjà le nœud dans le graphe, MAIS les
+ * requêtes de reco Yaye filtrent `statut = publiee` — un brouillon curé n'est donc recommandé
+ * qu'APRÈS complétion + passage `publiee` par l'admin dans l'éditeur. Le critère JIRA « KG
+ * alimenté » est ainsi porté par le flux éditeur existant, pas par cette action.
  */
 
 async function assertAdmin(): Promise<CJSSession> {
@@ -49,7 +53,8 @@ export async function publierItem(id: string): Promise<{ opportuniteId: string }
     region: typeof p.region === 'string' ? p.region : undefined,
     domaine: typeof p.domaine === 'string' ? p.domaine : undefined,
     deadline: typeof p.deadline === 'string' ? p.deadline : undefined,
-    lienSource: item.urlCanonique,
+    // lienExterne = contenu tiers (crawlé) : n'accepter que http(s) (anti-XSS `javascript:`).
+    lienSource: /^https?:\/\//i.test(item.urlCanonique) ? item.urlCanonique : undefined,
   }
 
   const input = construireInputPublication(type.slug, donnees)
@@ -62,18 +67,24 @@ export async function publierItem(id: string): Promise<{ opportuniteId: string }
   const service = new OpportuniteService(prisma)
   const created = await service.create(input)
 
-  // Lien de traçabilité + idempotence (empêche une republication).
-  await prisma.itemCuration.update({ where: { id }, data: { opportuniteId: created.id } })
+  // Revendication ATOMIQUE : un seul appel concurrent peut lier l'item (opportuniteId null
+  // + statut approuvee). Le perdant supprime l'Opportunite qu'il vient de créer (compensation)
+  // → jamais deux entrées catalogue ni d'orphelin pour un item déjà publié.
+  const claim = await prisma.itemCuration.updateMany({
+    where: { id, opportuniteId: null, statut: 'approuvee' },
+    data: { opportuniteId: created.id },
+  })
+  if (claim.count === 0) {
+    await prisma.opportunite.delete({ where: { id: created.id } }).catch(() => {})
+    throw new Error('DEJA_PUBLIE')
+  }
 
+  // Audit honnête : c'est une CRÉATION de brouillon issue de la curation, pas une publication
+  // (statut brouillon ; la publication réelle a lieu dans l'éditeur → 'opportunite.publish' là-bas).
   await recordAudit(session.cjsUid, 'opportunite.create', {
     targetType: 'opportunite',
     targetId: created.id,
-    meta: { origine: 'curation', itemId: id, source: item.source.nom },
-  })
-  await recordAudit(session.cjsUid, 'opportunite.publish', {
-    targetType: 'opportunite',
-    targetId: created.id,
-    meta: { statut: 'brouillon', origine: 'curation' },
+    meta: { origine: 'curation', itemId: id, source: item.source.nom, statut: 'brouillon' },
   })
 
   revalidatePath('/admin/curation')
