@@ -19,6 +19,9 @@ async function source(over: Record<string, unknown> = {}) {
       url: `https://veille-${RUN}-${Math.random().toString(36).slice(2, 8)}.sn/l`,
       methode: 'rss',
       frequence: 'quotidienne',
+      // NON due (verif dans le futur) : un executerVeille global d'un autre fichier de test
+      // tournant en parallèle ne doit pas ramasser ces sources (isolation).
+      prochaineVerifLe: new Date(Date.now() + 3600_000),
       ...over,
     },
   })

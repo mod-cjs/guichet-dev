@@ -65,6 +65,7 @@ const SECTIONS: NavSection[] = [
       { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
       { id: 'sources-veille', href: '/admin/sources-veille', icon: 'trending', label: 'Sources de veille' },
       { id: 'curation', href: '/admin/curation', icon: 'check-circle', label: 'File de curation' },
+      { id: 'curation-monitoring', href: '/admin/curation/monitoring', icon: 'chart', label: 'Monitoring veille' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
       { id: 'audit', href: '/admin/journal-audit', icon: 'document', label: 'Journal d’audit' },
