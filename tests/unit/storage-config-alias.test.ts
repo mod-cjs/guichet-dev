@@ -40,4 +40,31 @@ describe('GUIC-565 — noms de variables S3 (alias infra)', () => {
   it('lève un message actionnable si une clé manque, quel que soit le nommage', () => {
     expect(() => configS3Pour({ ...base })).toThrow(/S3_ACCESS_KEY/)
   })
+
+  /**
+   * GUIC-622 — sentinelle sur la FORME RÉELLE DE L'APPELANT.
+   *
+   * En production, l'unique appel est `configS3Pour(process.env)` : un environnement complet,
+   * porteur de dizaines de variables étrangères à S3. Le paramètre avait été typé
+   * `NodeJS.ProcessEnv`, ce qui exigeait `NODE_ENV` sur tout littéral de test (Next le déclare
+   * obligatoire) → 6 erreurs tsc, `npm run validate` rouge sur dev, hook pre-push bloquant
+   * toute branche, `--no-verify` routinier.
+   *
+   * Ce test fige les deux extrémités du contrat : la fonction accepte un environnement réel
+   * (variables surnuméraires incluses) ET ne lit que ses clés `S3_*`.
+   */
+  it('accepte un environnement RÉEL (process.env) sans se laisser troubler par les variables étrangères', () => {
+    const envReel = {
+      ...process.env,
+      ...base,
+      S3_ACCESS_KEY: 'AK',
+      S3_SECRET_KEY: 'SK',
+    }
+    expect(configS3Pour(envReel)).toMatchObject({
+      accessKeyId:     'AK',
+      secretAccessKey: 'SK',
+      bucket:          'guichet',
+      endpoint:        'http://minio:9000',
+    })
+  })
 })
