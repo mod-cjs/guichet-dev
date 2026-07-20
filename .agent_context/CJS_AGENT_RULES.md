@@ -64,7 +64,7 @@ Voir `.agent_context/specs/layout-navigation.md` pour le détail.
 3. Jamais regrouper RED+GREEN
 4. `pre-commit` = lint+tsc · `pre-push` = tests+build
 
-**`--no-verify` toléré** uniquement si erreurs tsc préexistantes hors périmètre, mention explicite dans le commit. Erreurs préexistantes à éliminer en Vague 0 : `@vercel/blob`, `qrcode`, `@googlemaps/js-api-loader`, `prisma.candidatureDraft`, `tests/unit/benef-topbar.test.tsx`.
+**Ne JAMAIS désarmer un garde-fou soi-même** (`--no-verify`, `GUIC_HOOKS_OFF=1`, skip d'un test). Si un hook bloque : diagnostiquer, **classer** (préexistant vs introduit par moi · bug de test vs bug produit vs environnement) et le **prouver** (rejouer sur `HEAD~1`, `git diff origin/dev`). Puis exposer constat + coût + options et **laisser l'humain trancher** — c'est lui qui exécute le contournement s'il le valide. Une suite rouge en permanence rend `--no-verify` routinier : la barrière meurt d'usure, pas d'une décision. Toute dette de ce type → **ticket immédiat** (jamais « on verra »).
 
 ## Git workflow
 
@@ -128,11 +128,22 @@ Pour activer un nouveau MCP : éditer `.claude/settings.json` → `mcpServers` �
 - Messagerie (Lot 12, Sprint+1)
 - i18n langues nationales (Sprint+2)
 
+## Vert ≠ prouvé — attaquer la chance (GUIC-604/616)
+
+Une suite verte peut l'être **par chance**. Cas réels : parcours E2E **jamais exécutés** (gate jamais activée en CI → verts car ils ne testaient rien) · verts **seulement sur base fraîche** (état survivant au run, masqué par la CI qui recrée la base) · verts **seulement en `workers: 1`** (course cachée). Dans les 3 cas, regarder un run vert de plus ne révèle RIEN.
+
+- **2 runs d'affilée sur la base DÉJÀ polluée** (sans reset entre les deux) = la preuve d'indépendance à l'état. Un run sur base neuve ne prouve rien.
+- **Rejouer en parallèle** (`workers > 1`) même si la CI est à 1.
+- **Commande EXACTE de la CI** — un flag de confort (`--reporter=line`) écrase le config et fausse la conclusion.
+- **Ne jamais filtrer la sortie d'un validateur** (`tsc | grep <fichier>` masque les erreurs → « 0 erreur » sur du code cassé). Lire tout, ou `| wc -l` + `tail`.
+- **`0 cas exécuté` = ÉCHEC.** Un test skippé pourrit en silence (péremption invisible). Garde-fou : `scripts/ci/assert-no-skipped-e2e.mjs`.
+- **Vérifier avant de s'alarmer** : un test de conformité rouge n'est pas une preuve de non-conformité — vérifier son mock avant d'alerter (un mock de `hashId` en `x => h(x)` ré-expose l'uid et fait échouer un test CDP alors que le code hache bien).
+
 ## Quality gate avant clôture branche
 
 1. Tests ciblés verts (`npx jest <fichiers touchés>`)
 2. Lint clean sur fichiers touchés
-3. tsc clean (ou `--no-verify` justifié)
+3. tsc clean — sortie **complète**, jamais filtrée
 4. Pas de `console.log` / `debugger` / TODO sans ticket
 5. Format commit respecté
 6. Rapport final structuré (chemins absolus, tests, décisions, hors-périmètre)
@@ -141,10 +152,10 @@ Pour activer un nouveau MCP : éditer `.claude/settings.json` → `mcpServers` �
 ## Ressources
 
 - `.agent_context/specs/layout-navigation.md` · `WORKFLOW.md` · `DECISIONS.md` · `checklist-code-review-tdd.md`
-- Memory : `~/.claude/projects/-Users-macbook-Desktop-cjs-guichet/memory/`
+- Memory : `~/.claude/projects/-Users-mouhamed-Projets-cjs-guichet/memory/` (le repo a déménagé vers `~/Projets/`)
 - SSO source lecture seule : `../cjs_auth/`
 - Specs modules : `.agent_context/specs/MX-<module>.md`
 
 ## Interdits absolus
 
-❌ login local · ❌ hex hors design-* · ❌ push dev/main/staging · ❌ commit sans `[GUIC-NNN]` · ❌ mention IA · ❌ toucher centres Wave 7 · ❌ 2 agents même fichier · ❌ régression "pour avancer" · ❌ SQL brut hors DECISIONS · ❌ doc .md auto-générée non demandée
+❌ login local · ❌ hex hors design-* · ❌ push dev/main/staging · ❌ commit sans `[GUIC-NNN]` · ❌ mention IA · ❌ toucher centres Wave 7 · ❌ 2 agents même fichier · ❌ régression "pour avancer" · ❌ SQL brut hors DECISIONS · ❌ doc .md auto-générée non demandée · ❌ **désarmer un garde-fou soi-même** (`--no-verify`, `GUIC_HOOKS_OFF`, skip) · ❌ **filtrer la sortie d'un validateur** pour en tirer une conclusion
