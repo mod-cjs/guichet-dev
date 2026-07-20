@@ -11,9 +11,11 @@
 - Journal d'audit sur create/update/delete
 - AUCUN fetch réseau (robot = US-2 GUIC-597)
 
-## TDD
-1. Commit RED : `test(m3-opportunites): [GUIC-596] RED gestion des sources de veille` — unitaires zod + intégration MariaDB réelle (3307) + chemins de refus ; stubs 501 pour compiler
-2. Commit GREEN : `feat(m3-opportunites): [GUIC-596] GREEN gestion des sources de veille`
+## État (2026-07-20)
+**LIVRÉ sur la branche — en attente de push/PR (décision lead).**
+- RED `c902e89` (échec vérifié : modules absents) → GREEN `490f528` : 18/18 tests verts ×2 runs (intégration MariaDB réelle 3307), tsc = baseline 12 (GUIC-622 uniquement), lint clean, `npm run build` OK (routes présentes).
+- Migration `20260720120000_add_sources_veille` appliquée en local via `migrate deploy` (le drift préexistant de la base locale fait échouer `migrate dev` qui exige un reset).
+- Suivant : PR vers dev, puis US-2 GUIC-597 (robot) dans un nouveau worktree.
 
 ## Garde-fous
 - Baseline tsc = 12 erreurs (GUIC-622 storage-config-alias) — ne pas en ajouter
