@@ -122,6 +122,67 @@ L'application scrube déjà (`hashId`, `scrubPath`, `scrubMessage`). Promtail ra
 ligne ce qui aurait échappé — e-mails, téléphones E.164, IP dans les logs nginx. Deux filets
 valent mieux qu'un : ce qui entre dans Loki y reste 30 jours.
 
+## 6. Mise en service côté serveur (OVH / Plesk)
+
+Deux configurations à poser sur la machine. **Une seule passe par Plesk** — et c'est celle qui
+comporte un piège.
+
+### a) Le secret Grafana — pas de Plesk, un simple fichier
+
+```bash
+openssl rand -base64 24                       # mot de passe solide
+sudo sh -c 'echo "GRAFANA_ADMIN_PASSWORD=<mot-de-passe>" >> /etc/guichet/prod.env'
+sudo chmod 600 /etc/guichet/prod.env
+```
+
+Sans cette variable, Grafana **refuse de démarrer** — voulu : mieux vaut un service absent qu'un
+Grafana ouvert avec le mot de passe `admin` bien connu, donnant accès à 30 jours de logs.
+
+### b) La corrélation nginx — Plesk, en DEUX endroits
+
+⚠️ **Le piège :** `log_format` est une directive de contexte **`http`**. Or le champ « Directives
+nginx additionnelles » de Plesk injecte dans le bloc **`server`**. Y coller le `log_format` fait
+**échouer le rechargement de nginx**. D'où la séparation :
+
+**1. Le format → fichier de contexte `http`** (Plesk le lit et ne l'écrase pas) :
+
+```bash
+sudo tee /etc/nginx/conf.d/guichet-log-format.conf > /dev/null <<'EOF'
+log_format guichet '$remote_addr $request_method $uri $status '
+                   '${request_time}s req=$request_id';
+EOF
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**2. L'usage → interface Plesk**, *Sites web & Domaines → `guichet.<domaine>` → Paramètres Apache
+et nginx → **Directives nginx additionnelles*** :
+
+```nginx
+access_log /var/log/nginx/guichet.access.log guichet;
+proxy_set_header X-Request-Id $request_id;
+```
+
+**Passer par l'interface, jamais par une édition manuelle du vhost** : Plesk régénère
+`/var/www/vhosts/system/<domaine>/conf/nginx.conf` à chaque modification du domaine et écraserait
+le fichier. Ce champ-là est persisté (`vhost_nginx.conf`).
+
+### Vérifier — le même identifiant des deux côtés
+
+```bash
+nginx -v   # $request_id exige nginx >= 1.11
+
+RID=$(curl -sI https://guichet.<domaine>/api/health | grep -i x-request-id | tr -d '\r' | awk '{print $2}')
+grep "$RID" /var/log/nginx/guichet.access.log
+```
+
+Le `req=` doit apparaître **et** correspondre à l'en-tête renvoyé par l'application. S'il est vide
+ou absent, les directives ne s'appliquent pas au bon `location` — celui qui fait le `proxy_pass`
+vers `127.0.0.1:8080`.
+
+**Sans cette étape, la moitié de la valeur de GUIC-544 est perdue** : Promtail collectera bien les
+deux sources, mais rien ne reliera une ligne du proxy à une ligne applicative. La question « que
+s'est-il passé pour cette requête ? » restera sans réponse.
+
 ## Modules
 
 | Fichier | Rôle |
