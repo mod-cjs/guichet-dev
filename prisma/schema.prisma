@@ -1698,3 +1698,50 @@ model LlmConfig {
 
   @@map("llm_config")
 }
+
+/// Curation automatisée d'opportunités (GUIC-595). Méthode d'extraction déterministe
+/// SANS LLM, en cascade : `auto` essaie jsonld → rss → html_selecteurs → article_regex.
+enum MethodeExtraction {
+  auto
+  jsonld
+  rss
+  api
+  html_selecteurs
+  article_regex
+
+  @@map("methode_extraction")
+}
+
+enum FrequenceVeille {
+  horaire
+  six_heures
+  quotidienne
+  hebdomadaire
+
+  @@map("frequence_veille")
+}
+
+/// Site-source surveillé par le robot de veille (GUIC-596, US-1).
+/// `configExtraction` : sélecteurs CSS / paramètres API — requis pour les méthodes
+/// `api` et `html_selecteurs` (invariant appliqué par la validation zod).
+/// `prochaineVerifLe`/`derniereVerifLe` : pilotage du robot (US-2 GUIC-597) — le cron
+/// horaire ne traite que les sources actives dues (`prochaineVerifLe <= now`).
+model SourceVeille {
+  id               String            @id @default(uuid()) @db.VarChar(36)
+  nom              String            @db.VarChar(120)
+  url              String            @unique @db.VarChar(500)
+  methode          MethodeExtraction @default(auto)
+  frequence        FrequenceVeille   @default(quotidienne)
+  actif            Boolean           @default(true)
+  configExtraction Json?             @map("config_extraction")
+  typeDefaut       TypeOpportunite?  @map("type_defaut")
+  prochaineVerifLe DateTime?         @map("prochaine_verif_le")
+  derniereVerifLe  DateTime?         @map("derniere_verif_le")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+
+  @@index([actif, prochaineVerifLe])
+  @@index([deletedAt])
+  @@map("sources_veille")
+}

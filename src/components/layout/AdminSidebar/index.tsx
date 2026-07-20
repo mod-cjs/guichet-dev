@@ -63,6 +63,7 @@ const SECTIONS: NavSection[] = [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
       { id: 'opportunites-gestion', href: '/admin/opportunites/gestion', icon: 'employment', label: 'Opportunités' },
       { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
+      { id: 'sources-veille', href: '/admin/sources-veille', icon: 'trending', label: 'Sources de veille' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
       { id: 'audit', href: '/admin/journal-audit', icon: 'document', label: 'Journal d’audit' },
