@@ -80,6 +80,41 @@ Le robot lui-même (US-2), tout fetch réseau, l'extraction, la file de curation
 - **Intégration MariaDB réelle** (base test 3307, pattern suites d'intégration existantes) : CRUD complet via les routes API, pagination, soft-delete, **chemins de refus** (non-admin → 401/403, payload invalide → 400, id inconnu → 404).
 - Pas de mock Prisma dans les tests d'intégration (un vert contre un mock ne protège de rien).
 
+## 4bis. US-2 — Robot de découverte planifié (GUIC-597) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-596 (dépend du modèle `SourceVeille`).
+
+**En tant que système, je vérifie régulièrement chaque source active et je détecte le contenu nouveau, pour alimenter la curation.**
+
+### Architecture d'exécution
+- Route `GET /api/cron/veille-sources`, protégée `Authorization: Bearer CRON_SECRET`, `maxDuration = 300` (pattern exact `yaye-graph-sync`/`cleanup-cv`).
+- Entrée cron **horaire** dans `vercel.json` (`0 * * * *`) — union préservée avec les crons existants. Prod Plesk = crontab (M14, hors périmètre, juste documenté).
+- À chaque tick : sélection des sources **dues** = `actif = true AND deletedAt = null AND (prochaineVerifLe IS NULL OR prochaineVerifLe <= now)`. Traitées **séquentiellement** avec délai de politesse. Après traitement : `derniereVerifLe = now`, `prochaineVerifLe = now + intervalle(frequence)`.
+- Logique métier dans `src/lib/curation/robot/*` (testable hors route), la route n'est qu'un adaptateur HTTP + garde CRON_SECRET.
+
+### Découverte (SANS extraction — l'extraction de champs est US-3)
+- Par source, **une** requête sur l'URL déclarée (+ `robots.txt`) → récupère une **liste d'URLs candidates** :
+  - `rss` : parse RSS/Atom → `<item><link>` / `<entry>`.
+  - méthode `auto` : tente RSS/Atom puis sitemap.xml puis listing HTML.
+  - `html_selecteurs` : `configExtraction.liste` (sélecteur CSS des liens de la liste).
+- Le robot **ne fetch PAS** chaque URL candidate (c'est US-3). Il enregistre les URLs découvertes non déjà vues.
+
+### Sécurité réseau (durcissement US-1 → à ENFORCER ici)
+- **Anti-SSRF au fetch** : avant toute requête, résolution DNS (`dns.lookup`) + rejet si l'IP résolue est privée/loopback/link-local/ULA (parade DNS-rebinding que la validation d'URL d'US-1 ne peut pas couvrir). Idéalement pinning IP.
+- **robots.txt** respecté (chemin + `Crawl-delay` si présent), **délai de politesse** entre requêtes au même hôte (défaut proposé : 2 s), **timeout** (défaut 10 s), **1 retry** sur erreur transitoire.
+- **User-agent** : `CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)`.
+- Taille de réponse bornée (défaut 2 Mo) pour éviter le gonflage mémoire.
+
+### Modèle de données introduit ici (décisions lead 2026-07-20)
+- `ExecutionVeille` : journal par exécution (`sourceId`, `demarreLe`, `dureeMs`, `nbNouveautes`, `nbErreurs`, `statut ok|partiel|erreur`, `messageErreur?`). Alimente le monitoring US-7.
+- `ItemCuration` **introduit ici** (Q1 tranché) en mode « découvert » : `id`, `sourceId` FK, `executionId` FK?, `urlCanonique`, `empreinte` (sha256 URL normalisée) `@unique`, `titre?`, `statut` (enum `decouvert|a_valider|approuvee|rejetee|en_attente|doublon`, défaut `decouvert`), + champs nullable posés pour les US suivantes (`payloadExtrait` Json, `scoreCompletude`, `motifRejet`, `modereePar`, `modereeLe` — remplis en US-3/US-5). `opportuniteId` (US-6) ajouté plus tard pour ne pas coupler `Opportunite` maintenant.
+- Décisions confirmées : **découverte = listing seul** (1 requête/source/run, pas de fetch des items = US-3) · **UA** `CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)` · **politesse** 2 s/hôte, timeout 10 s, `Crawl-delay` de robots.txt respecté s'il est supérieur.
+
+### Tests (TDD strict, charte robustesse)
+- **Seam HTTP injectable** : le vrai `fetch` en prod, des **fixtures d'octets réels** (RSS/sitemap/HTML) en test — on teste le VRAI parsing, on ne mocke que le transport réseau.
+- Unitaires : parsing RSS/Atom/sitemap/listing HTML sur fixtures, respect robots.txt (autorisé/interdit), calcul de `prochaineVerifLe` par fréquence, garde anti-SSRF (IP privée résolue → refus).
+- **Intégration MariaDB réelle** : une exécution complète crée `ExecutionVeille`, ne re-soumet pas une URL déjà vue, met à jour `derniereVerifLe`/`prochaineVerifLe`, saute les sources inactives, route 401 sans `CRON_SECRET`.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |
