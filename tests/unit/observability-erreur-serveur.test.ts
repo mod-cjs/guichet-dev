@@ -55,9 +55,15 @@ describe('GUIC-574 — erreurServeur', () => {
   })
 
   it('CDP : un cjs_uid dans le chemin est neutralisé avant journalisation', () => {
-    erreurServeur({ code: 'X', route: '/api/jeune/abc123def456789/profil' })
+    // FORME RÉELLE, vérifiée en base : les `cjs_uid` comme les ids Prisma sont des UUID de 36
+    // caractères (`@default(uuid()) @db.VarChar(36)`). Une première version de ce test employait
+    // « abc123def456789 » — une forme qui n'existe nulle part dans le système. Il échouait, et
+    // m'aurait conduit à « corriger » scrub.ts contre une menace imaginaire.
+    const uidReel = '000016dd-3ec7-4d17-aa8c-7dcc58cd0835'
+    erreurServeur({ code: 'X', route: `/api/jeune/${uidReel}/profil` })
     const ctx = mockError.mock.calls[0][1]
-    expect(ctx.path).not.toContain('abc123def456789')
+    expect(ctx.path).not.toContain(uidReel)
+    expect(ctx.path).toBe('/api/jeune/:id/profil')
   })
 
   it('propage le requestId pour corréler avec le log du proxy', () => {

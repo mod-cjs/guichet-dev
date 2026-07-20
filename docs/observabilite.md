@@ -51,6 +51,43 @@ export const POST = withObservability(
 
 Statut, latence, requestId sont journalisés ; le requestId est renvoyé en en-tête de réponse.
 
+## 3 bis. Réponses 5xx retournées sans exception (GUIC-574)
+
+`onRequestError` (§2) ne voit que les erreurs **levées**. Un `return NextResponse.json(…,
+{ status: 500 })` dans un `catch` ne lève pas : il était **invisible**. Le proxy comptait bien le
+statut — l'incident était donc détecté — mais **sans la cause** : impossible à diagnostiquer.
+
+Pire cas rencontré : un `catch { }` qui jetait l'erreur **sans même la lier**. Un MinIO
+injoignable, un bucket absent et une clé invalide produisaient le même 502 muet.
+
+**`erreurServeur()` rend le log inséparable de la réponse** — on ne peut plus renvoyer un 5xx
+muet :
+
+```ts
+import { erreurServeur } from '@/lib/observability/erreur-serveur'
+
+} catch (err) {
+  return erreurServeur({
+    code:   'UPLOAD_FAILED',
+    status: 502,                  // défaut 500 ; refuse tout statut hors 5xx
+    cause:  err,                  // → LOG uniquement, jamais au client
+    route:  '/api/…',             // identifiants neutralisés avant journalisation
+  })
+}
+```
+
+Deux règles portées par le helper :
+
+- **La cause va au log, jamais au client.** Une chaîne comme `connect ECONNREFUSED 10.0.0.5:3306
+  — user guichet` renseigne un attaquant sur la topologie interne. Le client reçoit un message
+  générique.
+- **Refus de tout statut hors 5xx.** L'employer pour un 4xx rendrait le taux d'erreur
+  ininterprétable : un 404 ou un 403 est un fonctionnement normal, pas un incident.
+
+**Ce qu'on ne convertit PAS** : les `501 NOT_IMPLEMENTED` (stubs délibérés — `POST /api/centres`,
+`/api/evenements`, `/api/ressources`) et `/api/ia`, déjà tracé par `logAgentEvent`. Les compter
+comme des pannes fausserait le signal.
+
 ## 4. CDP — règles strictes
 
 - **Jamais de PII brute** dans les logs : les `cjs_uid` passent par `hashId` (SHA tronqué).

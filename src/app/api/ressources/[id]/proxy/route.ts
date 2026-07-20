@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { erreurServeur } from '@/lib/observability/erreur-serveur'
 
 /**
  * GUIC-374 — Proxy de fichier ressource (PDF principalement).
@@ -45,18 +46,28 @@ export async function GET(
       headers: { 'User-Agent': 'Mozilla/5.0 GuichetJeunesseProxy/1.0' },
       redirect: 'follow',
     })
-  } catch {
-    return NextResponse.json(
-      { error: { code: 'UPSTREAM', message: 'Source distante injoignable.' } },
-      { status: 502 },
-    )
+  } catch (err) {
+    // GUIC-574 — le `catch {}` d'origine jetait la cause SANS MÊME LA LIER : une source distante
+    // injoignable produisait un 502 totalement muet. On la journalise désormais (jamais au client).
+    return erreurServeur({
+      code:    'UPSTREAM',
+      status:  502,
+      message: 'Source distante injoignable.',
+      cause:   err,
+      route:   request.nextUrl.pathname,
+    })
   }
 
   if (!upstream.ok || !upstream.body) {
-    return NextResponse.json(
-      { error: { code: 'UPSTREAM', message: 'Source distante en erreur.' } },
-      { status: 502 },
-    )
+    return erreurServeur({
+      code:    'UPSTREAM',
+      status:  502,
+      message: 'Source distante en erreur.',
+      // Le statut amont est LA donnée de diagnostic : 404 (lien mort) et 403 (accès refusé)
+      // appellent des corrections très différentes.
+      cause:   `amont ${upstream.status} ${upstream.statusText} sur ${ressource.url}`,
+      route:   request.nextUrl.pathname,
+    })
   }
 
   const download = request.nextUrl.searchParams.get('download') === '1'
