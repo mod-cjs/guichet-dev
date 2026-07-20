@@ -71,6 +71,10 @@ function run(script: string, opts: RunOpts = {}): RunResult {
         'S3_ACCESS_KEY="AAA"',
         'S3_SECRET_KEY="BBB"',
         'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+        // GUIC-634 — le SSO est la SEULE porte d'entrée : le preflight l'exige désormais.
+        'SSO_BASE_URL="https://sso.consortiumjeunessesenegal.org"',
+        'SSO_CLIENT_ID="guichet"',
+        'SESSION_SECRET="secret-de-session"',
       ].join('\n') + '\n'
     : opts.envFile
   if (contenu !== null) {
@@ -102,6 +106,22 @@ function run(script: string, opts: RunOpts = {}): RunResult {
   return { code, out, calls: readFileSync(callLog, 'utf8') }
 }
 
+/**
+ * GUIC-634 — N'examine QUE les lignes d'ÉCHEC (marqueur « ✗ »).
+ *
+ * Les assertions précédentes cherchaient un mot dans TOUTE la sortie — or `info()` imprime
+ * l'en-tête de chaque section dans TOUS les cas, y compris quand tout passe. Vérifié en
+ * rejouant un run tout-vert : /MariaDB/i, /redis/i, /permission|600/i, /NOPERM|ACL|préfixe/i
+ * et /dev.?login|sans SSO/i matchaient les cinq. Elles ne prouvaient donc RIEN sur la raison
+ * du refus — exactement le défaut que l'en-tête de ce fichier prétend interdire.
+ */
+function echecs(sortie: string): string {
+  return sortie
+    .split('\n')
+    .filter((l) => l.includes('✗'))
+    .join('\n')
+}
+
 const PREFLIGHT = 'scripts/deploy/preflight.sh'
 
 describe('GUIC-621 — preflight : configuration', () => {
@@ -120,7 +140,7 @@ describe('GUIC-621 — preflight : configuration', () => {
   it('refuse si le fichier de secrets est lisible par tous (fuite de secrets)', () => {
     const r = run(PREFLIGHT, { mode: 0o644 })
     expect(r.code).not.toBe(0)
-    expect(r.out).toMatch(/permission|600/i)
+    expect(echecs(r.out)).toMatch(/permission|600/i)
   })
 
   it('refuse si une variable requise manque, et NOMME la variable', () => {
@@ -148,7 +168,7 @@ describe('GUIC-621 — preflight : garde dev-login (miroir de prod-guards)', () 
       ].join('\n') + '\n',
     })
     expect(r.code).not.toBe(0)
-    expect(r.out).toMatch(/dev.?login|sans SSO/i)
+    expect(echecs(r.out)).toMatch(/dev.?login|sans SSO/i)
   })
 
   it('tolère les deux variables si l’URL publique est locale (image de prod sur un poste)', () => {
@@ -161,6 +181,9 @@ describe('GUIC-621 — preflight : garde dev-login (miroir de prod-guards)', () 
         'S3_ACCESS_KEY="A"',
         'S3_SECRET_KEY="B"',
         'NEXTAUTH_URL="http://localhost:3000"',
+        'SSO_BASE_URL="http://localhost:19999"',
+        'SSO_CLIENT_ID="guichet-local"',
+        'SESSION_SECRET="secret"',
         'APP_ENV="local"',
         'ALLOW_DEV_LOGIN="true"',
       ].join('\n') + '\n',
@@ -172,26 +195,30 @@ describe('GUIC-621 — preflight : garde dev-login (miroir de prod-guards)', () 
 describe('GUIC-621 — preflight : sondes contre le serveur réel', () => {
   it('MariaDB est sondée DEPUIS UN CONTENEUR sur le réseau partagé, pas depuis l’hôte', () => {
     const r = run(PREFLIGHT)
-    expect(r.calls).toMatch(/--network/)
-    expect(r.calls).toMatch(/host\.docker\.internal:host-gateway/)
+    // GUIC-634 — on filtre sur la ligne de la sonde MARIADB. Chercher `--network` dans le
+    // journal GLOBAL était tautologique : les lignes redis et curl le contiennent aussi, donc
+    // réécrire `verifier_mariadb` pour sonder depuis l'hôte aurait laissé le test vert.
+    const ligneMariadb = r.calls.split('\n').find((l) => l.includes('mariadb')) ?? ''
+    expect(ligneMariadb).toMatch(/--network/)
+    expect(ligneMariadb).toMatch(/host\.docker\.internal:host-gateway/)
   })
 
   it('refuse si MariaDB est injoignable depuis le conteneur', () => {
     const r = run(PREFLIGHT, { env: { FAIL_DB: '1' } })
     expect(r.code).not.toBe(0)
-    expect(r.out).toMatch(/MariaDB/i)
+    expect(echecs(r.out)).toMatch(/MariaDB/i)
   })
 
   it('refuse si Redis répond NOPERM — le refus d’ACL est SILENCIEUX en prod (constat B5)', () => {
     const r = run(PREFLIGHT, { env: { FAIL_REDIS_PERM: '1' } })
     expect(r.code).not.toBe(0)
-    expect(r.out).toMatch(/NOPERM|ACL|préfixe/i)
+    expect(echecs(r.out)).toMatch(/NOPERM|ACL|préfixe/i)
   })
 
   it('refuse si Redis est injoignable', () => {
     const r = run(PREFLIGHT, { env: { FAIL_REDIS: '1' } })
     expect(r.code).not.toBe(0)
-    expect(r.out).toMatch(/redis/i)
+    expect(echecs(r.out)).toMatch(/redis/i)
   })
 
   it('écrit la clé Redis SOUS le préfixe configuré (REDIS_KEY_PREFIX)', () => {
@@ -220,6 +247,82 @@ describe('GUIC-621 — preflight : S3/MinIO, les deux pièges déjà rencontrés
   it('accepte une API S3 saine (403 AccessDenied = elle parle S3 et exige une auth)', () => {
     const r = run(PREFLIGHT, {
       env: { S3_BODY: '<?xml version="1.0"?><Error><Code>AccessDenied</Code></Error>' },
+    })
+    expect(r.code).toBe(0)
+  })
+})
+
+describe('GUIC-634 — SSO : la seule porte d’entrée', () => {
+  const sansSso = [
+    'DATABASE_URL="mysql://u:p@h:3306/d"',
+    'REDIS_URL="redis://h:6379"',
+    'S3_ENDPOINT="http://minio:9000"',
+    'S3_BUCKET="guichet"',
+    'S3_ACCESS_KEY="A"',
+    'S3_SECRET_KEY="B"',
+    'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+    'SESSION_SECRET="s"',
+  ].join('\n') + '\n'
+
+  it('refuse si SSO_BASE_URL et SSO_CLIENT_ID manquent — personne ne pourrait se connecter', () => {
+    const r = run(PREFLIGHT, { envFile: sansSso })
+    expect(r.code).not.toBe(0)
+    // Sur la LIGNE D'ÉCHEC, pas dans l'en-tête de section.
+    expect(echecs(r.out)).toMatch(/SSO_BASE_URL/)
+    expect(echecs(r.out)).toMatch(/SSO_CLIENT_ID/)
+  })
+
+  it('refuse si AUCUN secret de session n’est défini (ni SESSION_SECRET ni NEXTAUTH_SECRET)', () => {
+    const r = run(PREFLIGHT, {
+      envFile: sansSso.replace('SESSION_SECRET="s"\n', '') +
+        'SSO_BASE_URL="https://sso.sn"\nSSO_CLIENT_ID="guichet"\n',
+    })
+    expect(r.code).not.toBe(0)
+    expect(echecs(r.out)).toMatch(/SESSION_SECRET/)
+  })
+
+  it('accepte NEXTAUTH_SECRET comme repli de SESSION_SECRET (cf. src/lib/auth.ts)', () => {
+    const r = run(PREFLIGHT, {
+      envFile: sansSso.replace('SESSION_SECRET="s"', 'NEXTAUTH_SECRET="s"') +
+        'SSO_BASE_URL="https://sso.sn"\nSSO_CLIENT_ID="guichet"\n',
+    })
+    expect(r.code).toBe(0)
+  })
+})
+
+describe('GUIC-634 — WhatsApp : la configuration PARTIELLE est le cas dangereux', () => {
+  const base = [
+    'DATABASE_URL="mysql://u:p@h:3306/d"',
+    'REDIS_URL="redis://h:6379"',
+    'S3_ENDPOINT="http://minio:9000"',
+    'S3_BUCKET="guichet"',
+    'S3_ACCESS_KEY="A"',
+    'S3_SECRET_KEY="B"',
+    'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+    'SSO_BASE_URL="https://sso.sn"',
+    'SSO_CLIENT_ID="guichet"',
+    'SESSION_SECRET="s"',
+  ].join('\n') + '\n'
+
+  it('accepte l’absence TOTALE de configuration WhatsApp (canal désactivé délibérément)', () => {
+    expect(run(PREFLIGHT, { envFile: base }).code).toBe(0)
+  })
+
+  it('REFUSE une configuration partielle — WHATSAPP_APP_SECRET manquante tue la réception', () => {
+    // Le cas réel : l'envoi fonctionne, la réception non. Meta retente puis DÉSACTIVE
+    // l'abonnement, et on croit le canal opérationnel.
+    const r = run(PREFLIGHT, {
+      envFile: base + 'WHATSAPP_TOKEN="t"\nWHATSAPP_PHONE_NUMBER_ID="123"\n',
+    })
+    expect(r.code).not.toBe(0)
+    expect(echecs(r.out)).toMatch(/WHATSAPP_APP_SECRET/)
+  })
+
+  it('accepte une configuration WhatsApp complète', () => {
+    const r = run(PREFLIGHT, {
+      envFile: base +
+        'WHATSAPP_TOKEN="t"\nWHATSAPP_PHONE_NUMBER_ID="123"\n' +
+        'WHATSAPP_APP_SECRET="s"\nWHATSAPP_VERIFY_TOKEN="v"\n',
     })
     expect(r.code).toBe(0)
   })

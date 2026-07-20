@@ -94,6 +94,75 @@ verifier_variables() {
   fi
 }
 
+# ── 2 bis. SSO — sans lui, PERSONNE ne peut se connecter ────────────────────
+# GUIC-634 — il n'y a AUCUN login local sur cette plateforme : le SSO est la seule porte
+# d'entrée. `sso-client.ts` lit `SSO_BASE_URL!` et `SSO_CLIENT_ID!` avec l'assertion non-nulle,
+# donc SANS validation : une variable absente ne lève pas au démarrage, elle produit une URL
+# « undefined/oauth/token » au premier clic sur « Se connecter ».
+#
+# Constaté : ces deux variables sont VIDES dans .env.prod. Le déploiement passerait au vert et
+# les 22 000 utilisateurs seraient devant une porte close, sans qu'aucune sonde ne le voie —
+# /api/health ne teste que MariaDB et Redis.
+verifier_sso() {
+  info "SSO (seule porte d'entrée — aucun login local)"
+  local manquantes=()
+  local v
+  for v in SSO_BASE_URL SSO_CLIENT_ID; do
+    [[ -z "$(lire "$v")" ]] && manquantes+=("$v")
+  done
+
+  # La session est signée par SESSION_SECRET, avec NEXTAUTH_SECRET en repli (cf. src/lib/auth.ts).
+  # L'une des deux suffit ; aucune des deux et l'application lève « SESSION_SECRET manquant ».
+  if [[ -z "$(lire SESSION_SECRET)" && -z "$(lire NEXTAUTH_SECRET)" ]]; then
+    manquantes+=("SESSION_SECRET (ou NEXTAUTH_SECRET)")
+  fi
+
+  if ((${#manquantes[@]} > 0)); then
+    ko "SSO inutilisable — manquant : ${manquantes[*]}
+      Sans SSO_BASE_URL/SSO_CLIENT_ID, l'URL d'autorisation devient « undefined/oauth/token » :
+      AUCUN utilisateur ne peut se connecter, et /api/health n'en verra rien."
+  else
+    ok "SSO configuré"
+  fi
+
+  # HMAC sortant vers le SSO : dégradation, pas panne totale — d'où un avertissement.
+  if [[ -z "$(lire SSO_API_KEY)" || -z "$(lire SSO_API_SECRET)" ]]; then
+    printf '  \033[33m!\033[0m %s\n' "SSO_API_KEY / SSO_API_SECRET absentes : les appels machine signés vers le SSO échoueront (le login interactif, lui, fonctionnera)."
+  fi
+}
+
+# ── 2 ter. WhatsApp — une configuration PARTIELLE est le cas dangereux ──────
+# GUIC-634 — `WHATSAPP_APP_SECRET` est absente de .env.example, .env.prod et de toute la doc.
+# Le code la lit en fail-closed : sans elle, la vérification de signature refuse chaque webhook.
+# Meta retente, puis DÉSACTIVE l'abonnement. Tout le canal entrant meurt en silence.
+#
+# On ne l'exige pas inconditionnellement : WhatsApp peut légitimement être désactivé. Mais une
+# configuration PARTIELLE est pire que pas de configuration — l'envoi marche, la réception non,
+# et on croit le canal opérationnel.
+verifier_whatsapp() {
+  info "WhatsApp (cohérence de la configuration)"
+  local presentes=() manquantes=()
+  local v
+  for v in WHATSAPP_TOKEN WHATSAPP_PHONE_NUMBER_ID WHATSAPP_APP_SECRET WHATSAPP_VERIFY_TOKEN; do
+    if [[ -n "$(lire "$v")" ]]; then presentes+=("$v"); else manquantes+=("$v"); fi
+  done
+
+  if ((${#presentes[@]} == 0)); then
+    ok "WhatsApp non configuré (canal désactivé — délibéré)"
+    return 0
+  fi
+  if ((${#manquantes[@]} == 0)); then
+    ok "WhatsApp complet"
+    return 0
+  fi
+
+  ko "Configuration WhatsApp PARTIELLE — manquant : ${manquantes[*]}
+      Le danger est là : l'envoi fonctionne, la RÉCEPTION non. Sans WHATSAPP_APP_SECRET, la
+      vérification de signature refuse chaque webhook entrant ; Meta retente puis DÉSACTIVE
+      l'abonnement. Le canal meurt en silence, et on le croit opérationnel.
+      Soit compléter la configuration, soit la retirer entièrement."
+}
+
 # ── 3. Garde dev-login (miroir de src/lib/security/prod-guards.ts) ──────────
 # `/api/dev/login` pose une session SANS SSO. L'app refuse déjà de démarrer dans ce cas ; on le
 # dit ICI, avant la sauvegarde et la migration, plutôt que de le découvrir après la bascule.
@@ -205,6 +274,8 @@ main() {
 
   verifier_fichier || { printf '\n\033[1;31m[preflight] REFUS\033[0m — fichier de secrets absent.\n' >&2; exit 2; }
   verifier_variables
+  verifier_sso
+  verifier_whatsapp
   verifier_dev_login
   verifier_mariadb
   verifier_redis
