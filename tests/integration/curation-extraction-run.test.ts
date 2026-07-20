@@ -68,7 +68,9 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
     expect(apres?.scoreCompletude).toBeGreaterThan(0)
     const payload = apres?.payloadExtrait as Record<string, unknown> | null
     expect(payload?.organisation).toBe('ONG Teranga')
-    expect(payload?.region).toBe('Thiès')
+    // Région mappée sur l'enum Guichet (Thiès → Thies), texte brut conservé.
+    expect(payload?.region).toBe('Thies')
+    expect(payload?.regionTexte).toBe('Thiès')
   })
 
   it('ne ré-extrait pas un item déjà a_valider', async () => {
@@ -78,5 +80,37 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
     // Statut inchangé, pas d'écrasement (titre resté null).
     expect(apres?.statut).toBe('a_valider')
     expect(apres?.titre).toBeNull()
+  })
+
+  it('anti-famine : un item en échec incrémente nbTentatives puis escalade en_attente', async () => {
+    const { item } = await creerSourceEtItem('decouvert')
+    const client404: ClientHttp = async (url) =>
+      url.endsWith('/robots.txt')
+        ? { statut: 200, corps: 'User-agent: *\nDisallow:\n', contentType: 'text/plain' }
+        : { statut: 404, corps: '', contentType: null }
+
+    // 3 passages : tentatives 1, 2, 3 → escalade au 3e.
+    for (let i = 0; i < 3; i++) {
+      await executerExtraction({ client: client404, attendre: async () => {} })
+    }
+    const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
+    expect(apres?.nbTentatives).toBe(3)
+    expect(apres?.statut).toBe('en_attente') // sorti de la file decouvert (anti-famine)
+
+    // Un 4e passage ne le re-sélectionne plus (nbTentatives >= max).
+    const rapport = await executerExtraction({ client: client404, attendre: async () => {} })
+    expect(rapport.itemsTraites).toBe(0)
+  })
+
+  it('respecte robots.txt par item (chemin Disallow → échec, pas d’extraction)', async () => {
+    const { item } = await creerSourceEtItem('decouvert')
+    const clientBloque: ClientHttp = async (url) =>
+      url.endsWith('/robots.txt')
+        ? { statut: 200, corps: 'User-agent: *\nDisallow: /\n', contentType: 'text/plain' }
+        : { statut: 200, corps: PAGE_OFFRE, contentType: 'text/html' }
+    await executerExtraction({ client: clientBloque, attendre: async () => {} })
+    const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
+    expect(apres?.statut).toBe('decouvert') // pas extrait
+    expect(apres?.nbTentatives).toBe(1)
   })
 })

@@ -1,8 +1,9 @@
 import { type ChampsExtraits, type ResultatExtraction, CHAMPS_SCORE } from './types'
-import { extraireJsonLd } from './jsonld'
+import { extraireJsonLd, extraireTypeSchemaOrg } from './jsonld'
 import { extraireParSelecteurs } from './selecteurs'
 import { extraireMeta } from './meta'
 import { parseDateFr } from './dates'
+import { mapperRegion, mapperDomaine, slugTypeSchemaOrg } from './mapping'
 
 /**
  * GUIC-598 — US-3 : cascade déterministe (SANS LLM). Pour chaque champ, on prend la
@@ -46,16 +47,34 @@ export function extraireOpportunite(html: string, opts: OptionsExtraction): Resu
     }
   }
 
+  // Mapping vers les enums du Guichet (exploitable en publication US-6). On garde aussi
+  // le texte brut dans `regionTexte`/`domaineTexte` pour que l'admin voie l'origine.
+  const region = mapperRegion(champs.region)
+  if (region) {
+    champs.regionTexte = champs.region
+    champs.region = region
+  }
+  const domaine = mapperDomaine(champs.domaine)
+  if (domaine) {
+    champs.domaineTexte = champs.domaine
+    champs.domaine = domaine
+  }
+  // Type dérivé du @type schema.org si la source n'en impose pas (résolu en id par l'appelant).
+  if (!champs.typeId) {
+    const slug = slugTypeSchemaOrg(extraireTypeSchemaOrg(html))
+    if (slug) champs.typeSlugSchemaOrg = slug
+  }
+
   const trouves = CHAMPS_SCORE.filter((c) => Boolean(champs[c])).length
   return { champs, scoreCompletude: Math.round((trouves / CHAMPS_SCORE.length) * 100) }
 }
 
-/** Dernier filet : première date FR/ISO trouvée dans le texte brut. */
+/** Dernier filet : première date FR/ISO trouvée. Borné aux 200 premiers Ko (perf). */
 function filetRegex(html: string): Partial<ChampsExtraits> {
   const out: Partial<ChampsExtraits> = {}
-  const m = html.match(
-    /\d{1,2}[/-]\d{1,2}[/-]\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\s*(?:er)?\s+[a-zéûà]+\s+\d{4}/i,
-  )
+  const m = html
+    .slice(0, 200_000)
+    .match(/\d{1,2}[/-]\d{1,2}[/-]\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}(?:er)? +[a-zéûà]+ +\d{4}/i)
   if (m) {
     const iso = parseDateFr(m[0])
     if (iso) out.deadline = iso

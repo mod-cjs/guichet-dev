@@ -15,9 +15,11 @@ const ENTITES: Record<string, string> = {
 export function nettoyerTexte(brut: string | null | undefined): string {
   if (!brut) return ''
   return brut
-    .replace(/<[^>]{0,2000}>/g, ' ') // balises (borné → anti-ReDoS)
+    .replace(/<[^>]{0,2000}>/g, ' ') // balises complètes (borné → anti-ReDoS)
+    .replace(/<[^>]{0,2000}$/g, ' ') // fragment de balise NON fermé en fin (ex. `<img onerror=…`)
     .replace(/&#(\d{1,7});/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&[a-z]+;/gi, (e) => ENTITES[e.toLowerCase()] ?? ' ')
+    .replace(/[<>]/g, ' ') // caractères d'angle résiduels — jamais restitués tels quels
     .replace(/\s+/g, ' ')
     .trim()
 }

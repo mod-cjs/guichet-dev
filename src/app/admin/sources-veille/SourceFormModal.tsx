@@ -74,7 +74,11 @@ export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormMo
         const res = await fetch('/api/admin/sources-veille/apercu', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ url, ...(champs ? { champs } : {}) }),
+          body: JSON.stringify({
+            url,
+            ...(typeDefautId ? { typeDefautId } : {}),
+            ...(champs ? { champs } : {}),
+          }),
         })
         const body = (await res.json().catch(() => null)) as {
           data?: { champs: Record<string, string>; scoreCompletude: number }
@@ -223,7 +227,7 @@ export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormMo
           rows={4}
           value={config}
           onChange={(e) => setConfig(e.target.value)}
-          placeholder='{ "liste": ".offres article", "titre": "h3 a", "lien": "h3 a@href" }'
+          placeholder='{ "liste": ".offres article", "motifLien": "/offres/", "champs": { "titre": "h1.title", "organisation": ".org", "deadline": ".date@datetime" } }'
         />
 
         {/* Aperçu d'extraction (GUIC-598) : coller une URL, voir les champs avant d'activer. */}

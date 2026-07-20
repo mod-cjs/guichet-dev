@@ -29,6 +29,9 @@ describe('GUIC-597 — estIpInterne', () => {
     '::ffff:a9fe:a9fe', // ::ffff:169.254.169.254 (metadata) en hex
     '::127.0.0.1', // IPv4-compatible
     'fd00:ec2::254', // ULA (metadata AWS IPv6)
+    '2002:7f00:1::', // 6to4 encapsulant 127.0.0.1
+    '2002:a9fe:a9fe::', // 6to4 encapsulant 169.254.169.254 (metadata)
+    '64:ff9b::7f00:1', // NAT64 well-known encapsulant 127.0.0.1
     'pas-une-ip', // non parsable → fail-closed
     ':::::', // IPv6 malformé → fail-closed
   ])('interne/fail-closed : %s', (ip) => expect(estIpInterne(ip)).toBe(true))

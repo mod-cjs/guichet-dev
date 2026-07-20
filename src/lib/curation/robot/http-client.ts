@@ -99,6 +99,8 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
 
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+      // Dispatcher épinglé créé par requête → refermé en finally (pas de fuite de sockets).
+      const dispatcher = opts.fetchImpl ? undefined : dispatcherEpingle(ip)
       try {
         const res = await doFetch(cible, {
           method: 'GET',
@@ -106,7 +108,7 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
           signal: ctrl.signal,
           headers: { 'user-agent': userAgent, accept: 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.5' },
           // @ts-expect-error dispatcher (undici) non typé sur le fetch DOM
-          dispatcher: opts.fetchImpl ? undefined : dispatcherEpingle(ip),
+          dispatcher,
         })
 
         // Redirection : suivre une fois, cible re-validée au tour suivant.
@@ -121,6 +123,7 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
         return { statut: res.status, corps, contentType: res.headers.get('content-type') }
       } finally {
         clearTimeout(timer)
+        void dispatcher?.destroy() // libère le pool de sockets keep-alive
       }
     }
     throw new Error(`Trop de redirections : ${url}`)

@@ -3,10 +3,18 @@ export interface ChampsExtraits {
   titre?: string
   description?: string
   organisation?: string
+  /** Région : valeur enum `Region` du Guichet si mappée, sinon texte brut. */
   region?: string
+  /** Texte de région d'origine quand `region` a été mappé sur l'enum. */
+  regionTexte?: string
+  /** Domaine : valeur enum `Domaine` si mappée, sinon texte brut. */
   domaine?: string
-  /** Type d'opportunité (id OpportuniteType), dérivé de la source ou du @type JSON-LD. */
+  /** Texte de domaine d'origine quand `domaine` a été mappé sur l'enum. */
+  domaineTexte?: string
+  /** Type d'opportunité (id OpportuniteType), imposé par la source. */
   typeId?: string
+  /** Slug de type déduit du @type schema.org (résolu en id par l'appelant si pas de typeId). */
+  typeSlugSchemaOrg?: string
   /** Deadline normalisée ISO `yyyy-mm-dd`. */
   deadline?: string
   /** Lien vers l'annonce source (toujours présent). */

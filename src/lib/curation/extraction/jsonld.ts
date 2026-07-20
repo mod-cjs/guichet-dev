@@ -17,24 +17,30 @@ const TYPES_CIBLES = new Set([
   'scholarship',
 ])
 
-function texte(v: unknown): string | undefined {
+const PROFONDEUR_MAX = 8 // borne anti stack-overflow sur JSON-LD hostile imbriqué
+
+function texte(v: unknown, prof = 0): string | undefined {
+  if (prof > PROFONDEUR_MAX) return undefined
   if (typeof v === 'string') {
     const t = nettoyerTexte(v)
     return t || undefined
   }
-  if (v && typeof v === 'object' && 'name' in v) return texte((v as { name: unknown }).name)
+  if (v && typeof v === 'object' && 'name' in v) {
+    return texte((v as { name: unknown }).name, prof + 1)
+  }
   return undefined
 }
 
-function premierNom(v: unknown): string | undefined {
+function premierNom(v: unknown, prof = 0): string | undefined {
+  if (prof > PROFONDEUR_MAX) return undefined
   if (Array.isArray(v)) {
     for (const e of v) {
-      const t = texte(e)
+      const t = texte(e, prof + 1)
       if (t) return t
     }
     return undefined
   }
-  return texte(v)
+  return texte(v, prof)
 }
 
 function typeCorrespond(t: unknown): boolean {
@@ -83,10 +89,11 @@ function asString(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined
 }
 
-function extraireRegion(loc: unknown): string | undefined {
+function extraireRegion(loc: unknown, prof = 0): string | undefined {
+  if (prof > PROFONDEUR_MAX) return undefined
   if (Array.isArray(loc)) {
     for (const e of loc) {
-      const r = extraireRegion(e)
+      const r = extraireRegion(e, prof + 1)
       if (r) return r
     }
     return undefined
@@ -102,6 +109,24 @@ function extraireRegion(loc: unknown): string | undefined {
     )
   }
   return texte(loc)
+}
+
+/** Type schema.org brut (JobPosting, Event…) du premier objet ciblé — mappé en aval. */
+export function extraireTypeSchemaOrg(html: string): string | undefined {
+  const objets: Record<string, unknown>[] = []
+  for (const m of html.matchAll(
+    /<script\b[^>]{0,300}\btype\s*=\s*["']application\/ld\+json["'][^>]{0,300}>([\s\S]{0,100000}?)<\/script>/gi,
+  )) {
+    try {
+      aplatir(JSON.parse(m[1].trim()), objets)
+    } catch {
+      /* ignoré */
+    }
+  }
+  const cible = objets.find((o) => typeCorrespond(o['@type']))
+  const t = cible?.['@type']
+  const val = Array.isArray(t) ? t.find((x) => typeof x === 'string') : t
+  return typeof val === 'string' ? val : undefined
 }
 
 export function extraireJsonLd(html: string): Partial<ChampsExtraits> {

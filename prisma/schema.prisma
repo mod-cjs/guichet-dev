@@ -1807,6 +1807,7 @@ model ItemCuration {
   titre          String?            @db.VarChar(300)
   payloadExtrait Json?              @map("payload_extrait")
   scoreCompletude Int?              @map("score_completude")
+  nbTentatives   Int                @default(0) @map("nb_tentatives")
   statut         StatutItemCuration @default(decouvert)
   motifRejet     String?            @map("motif_rejet") @db.Text
   modereePar     String?            @map("moderee_par") @db.VarChar(36)

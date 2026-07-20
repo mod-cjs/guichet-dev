@@ -7,6 +7,8 @@ import { extraireParSelecteurs } from '@/lib/curation/extraction/selecteurs'
 import { extraireMeta } from '@/lib/curation/extraction/meta'
 import { parseDateFr } from '@/lib/curation/extraction/dates'
 import { extraireOpportunite } from '@/lib/curation/extraction/extract'
+import { mapperRegion, mapperDomaine, slugTypeSchemaOrg } from '@/lib/curation/extraction/mapping'
+import { nettoyerTexte } from '@/lib/curation/extraction/html-texte'
 
 describe('GUIC-598 — JSON-LD (schema.org JobPosting)', () => {
   const HTML = `<html><head>
@@ -96,6 +98,59 @@ describe('GUIC-598 — dates FR', () => {
 
   it('renvoie null sur texte non daté', () => {
     expect(parseDateFr('bientôt')).toBeNull()
+  })
+
+  it('rejette une date calendaire impossible (31/02, 31/04)', () => {
+    expect(parseDateFr('31/02/2026')).toBeNull()
+    expect(parseDateFr('31/04/2026')).toBeNull()
+    expect(parseDateFr('29/02/2024')).toBe('2024-02-29') // bissextile OK
+    expect(parseDateFr('29/02/2026')).toBeNull() // non bissextile
+  })
+})
+
+// ─── Durcissement post-challenge (2026-07-20) ────────────────────────────────
+
+describe('GUIC-598 — mapping texte → enums Guichet (M-2/M-3)', () => {
+  it('mappe les régions (insensible aux accents)', () => {
+    expect(mapperRegion('Thiès')).toBe('Thies')
+    expect(mapperRegion('Saint-Louis')).toBe('Saint_Louis')
+    expect(mapperRegion('Dakar, Sénégal')).toBe('Dakar') // match partiel
+    expect(mapperRegion('Paris')).toBeUndefined()
+  })
+
+  it('mappe les domaines par mots-clés', () => {
+    expect(mapperDomaine('Informatique')).toBe('Numerique')
+    expect(mapperDomaine('Développeur web full-stack')).toBe('Numerique')
+    expect(mapperDomaine('Agroalimentaire')).toBe('Agriculture')
+    expect(mapperDomaine('xyz inconnu')).toBeUndefined()
+  })
+
+  it('mappe le @type schema.org vers un slug de type', () => {
+    expect(slugTypeSchemaOrg('JobPosting')).toBe('emploi')
+    expect(slugTypeSchemaOrg('Event')).toBe('evenement')
+    expect(slugTypeSchemaOrg('AutreChose')).toBeUndefined()
+  })
+
+  it('extraireOpportunite mappe region/domaine et garde le texte brut', () => {
+    const html = `<script type="application/ld+json">
+      {"@type":"JobPosting","title":"Dev","jobLocation":{"address":{"addressRegion":"Ziguinchor"}},"industry":"Informatique"}</script>`
+    const r = extraireOpportunite(html, { url: 'https://x.sn/1' })
+    expect(r.champs.region).toBe('Ziguinchor')
+    expect(r.champs.domaine).toBe('Numerique')
+    expect(r.champs.domaineTexte).toBe('Informatique')
+    expect(r.champs.typeSlugSchemaOrg).toBe('emploi') // pas de typeDefautId → déduit du @type
+  })
+})
+
+describe('GUIC-598 — nettoyerTexte n’est pas contournable (fragment de balise)', () => {
+  it('retire un fragment de balise non fermé en fin de champ', () => {
+    const out = nettoyerTexte('Offre <img src=x onerror=alert(1)')
+    expect(out).not.toContain('<')
+    expect(out).not.toContain('onerror=alert') // le fragment dangereux est retiré
+  })
+
+  it('neutralise les chevrons résiduels', () => {
+    expect(nettoyerTexte('a > b < c')).not.toMatch(/[<>]/)
   })
 })
 

@@ -88,6 +88,12 @@ export function estIpInterne(ip: string): boolean {
     const mapped = o.slice(0, 10).every((b) => b === 0) && o[10] === 0xff && o[11] === 0xff
     const compat = o.slice(0, 12).every((b) => b === 0)
     if (mapped || compat) return estIpInterne(o.slice(12).join('.'))
+    // 6to4 (2002::/16) : IPv4 encapsulée en octets 2-5 → re-classer.
+    if (o[0] === 0x20 && o[1] === 0x02) return estIpInterne(o.slice(2, 6).join('.'))
+    // NAT64 well-known (64:ff9b::/96) : IPv4 en octets 12-15.
+    if (o[0] === 0x00 && o[1] === 0x64 && o[2] === 0xff && o[3] === 0x9b) {
+      return estIpInterne(o.slice(12).join('.'))
+    }
     return false // IPv6 globale valide
   }
 

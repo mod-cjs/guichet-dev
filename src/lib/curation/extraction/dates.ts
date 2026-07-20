@@ -7,7 +7,11 @@ const MOIS: Record<string, number> = {
 }
 
 function iso(a: number, m: number, j: number): string | null {
-  if (m < 1 || m > 12 || j < 1 || j > 31) return null
+  if (m < 1 || m > 12 || j < 1) return null
+  // Validation du nombre de jours du mois (rejette 31/02, 31/04…), années bissextiles incluses.
+  const bissextile = (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0
+  const joursMois = [31, bissextile ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if (j > joursMois[m - 1]) return null
   return `${a.toString().padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(j).padStart(2, '0')}`
 }
 
