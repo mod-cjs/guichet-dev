@@ -32,6 +32,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <CurationDetail
       id={item.id}
       statut={item.statut}
+      opportuniteId={item.opportuniteId}
       score={item.scoreCompletude ?? 0}
       sourceNom={item.source.nom}
       urlSource={item.urlCanonique}

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { approuverItem, rejeterItem, mettreEnAttenteItem, editerItem } from '../actions'
+import { publierItem } from '../publier'
 
 /** GUIC-600 — US-5 : détail éditable + actions de validation. */
 
@@ -24,6 +25,7 @@ interface Champs {
 interface CurationDetailProps {
   id: string
   statut: string
+  opportuniteId?: string | null
   score: number
   sourceNom: string
   urlSource: string
@@ -35,6 +37,7 @@ interface CurationDetailProps {
 export function CurationDetail({
   id,
   statut,
+  opportuniteId,
   score,
   sourceNom,
   urlSource,
@@ -124,7 +127,37 @@ export function CurationDetail({
             className="text-fs-200 font-bold"
             style={{ color: 'var(--gj-grey)', marginTop: 8 }}
           >
-            Cet item est «&nbsp;{statut}&nbsp;» : consultation seule, aucune action possible.
+            Cet item est «&nbsp;{statut}&nbsp;» : consultation seule.
+          </p>
+        )}
+
+        {/* Publication (GUIC-601) : uniquement sur un item approuvé pas encore publié. */}
+        {statut === 'approuvee' && !opportuniteId && (
+          <div style={{ marginTop: 12 }}>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={pending}
+              onClick={() =>
+                agir(async () => {
+                  const { opportuniteId: oppId } = await publierItem(id)
+                  router.push(`/admin/opportunites/${oppId}`)
+                }, false)
+              }
+            >
+              Publier vers le catalogue
+            </Button>
+            <p className="text-fs-200 text-gj-grey" style={{ marginTop: 6 }}>
+              Crée un brouillon d’opportunité ; tu complètes les détails puis publies dans l’éditeur.
+            </p>
+          </div>
+        )}
+        {statut === 'approuvee' && opportuniteId && (
+          <p className="text-fs-200 font-bold" style={{ marginTop: 12 }}>
+            Déjà publiée —{' '}
+            <a href={`/admin/opportunites/${opportuniteId}`} style={{ color: 'var(--gj-teal-deep)' }}>
+              ouvrir l’opportunité
+            </a>
           </p>
         )}
 
