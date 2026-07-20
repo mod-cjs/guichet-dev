@@ -473,6 +473,7 @@ model Opportunite {
   candidatures Candidature[]
   drafts       CandidatureDraft[]
   favoris      OpportuniteFavorite[]
+  itemsCuration ItemCuration[]      @relation("CurationPubliee")
 
   @@index([statut, deletedAt])
   @@index([type, domaine])
@@ -1816,17 +1817,21 @@ model ItemCuration {
   motifRejet     String?            @map("motif_rejet") @db.Text
   modereePar     String?            @map("moderee_par") @db.VarChar(36)
   modereeLe      DateTime?          @map("moderee_le")
+  // GUIC-601 — traçabilité : Opportunite créée à la publication (idempotence : non null = publié).
+  opportuniteId  String?            @map("opportunite_id") @db.VarChar(36)
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
 
-  source    SourceVeille     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  execution ExecutionVeille? @relation(fields: [executionId], references: [id], onDelete: SetNull)
-  doublonDe ItemCuration?    @relation("Doublons", fields: [doublonDeId], references: [id], onDelete: SetNull)
-  doublons  ItemCuration[]   @relation("Doublons")
+  source      SourceVeille     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  execution   ExecutionVeille? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+  doublonDe   ItemCuration?    @relation("Doublons", fields: [doublonDeId], references: [id], onDelete: SetNull)
+  doublons    ItemCuration[]   @relation("Doublons")
+  opportunite Opportunite?     @relation("CurationPubliee", fields: [opportuniteId], references: [id], onDelete: SetNull)
 
   @@index([sourceId, statut])
   @@index([statut, createdAt])
   @@index([executionId])
   @@index([empreinteContenu])
+  @@index([opportuniteId])
   @@map("items_curation")
 }

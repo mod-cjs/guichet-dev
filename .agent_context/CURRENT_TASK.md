@@ -1,24 +1,24 @@
-# CURRENT_TASK — GUIC-600 · US-5 File de curation / validation admin
+# CURRENT_TASK — GUIC-601 · US-6 Publication après validation
 
-**Épic** : GUIC-595 · **Spec** : §4quinquies (validée lead 2026-07-20)
-**Branche** : `feature/GUIC-600-file-curation` (worktree curation-600b, stackée sur GUIC-599)
-**JIRA** : GUIC-600 En cours
+**Épic** : GUIC-595 · **Spec** : §4sexies (validée lead 2026-07-20)
+**Branche** : `feature/GUIC-601-publication` (worktree curation-601, stackée sur GUIC-600)
+**JIRA** : GUIC-601 En cours
 
 ## Décisions lead (2026-07-20)
-- Approuver → statut `approuvee` (publication réelle = US-6).
-- Repromotion : rejet/mise en attente d'un canonique → repromouvoir le doublon le plus ancien en a_valider.
-- `en_attente` = onglet séparé, hors file principale (a_valider only).
+- Publier → crée Opportunite en **brouillon** (base extraite + détails sous-type minimaux) → renvoie vers l'éditeur existant `/admin/opportunites/[id]` pour compléter/publier. Réutilise le workflow existant.
+- Tag programme : optionnel (null), défini par l'admin dans l'éditeur.
+- KG Yaye : via le cron `yaye-graph-sync` existant (documenté, pas de code curation).
 
-## Périmètre (AUCUNE migration — champs ItemCuration déjà posés)
-- `src/app/admin/curation/actions.ts` : approuverItem / rejeterItem / mettreEnAttenteItem / editerItem. RBAC, audit, revalidate.
-- Repromotion helper (rejet/attente d'un canonique) + recalcul empreinteContenu sur édition titre/org.
-- UI : `/admin/curation` (liste filtrée source/type/score, onglet en_attente) + `/admin/curation/[id]` (détail éditable). Thème admin, composants ui/, pattern AdminModerationList.
-- Entrée sidebar admin.
+## Périmètre
+- Migration : `ItemCuration.opportuniteId` FK → Opportunite (traçabilité + idempotence).
+- `src/app/admin/curation/publier.ts` (ou dans actions.ts) : `publierItem(id)` — item approuvee → mappe payload → `OpportuniteService.create` (statut brouillon, détails sous-type par défaut) → lie opportuniteId + `lienExterne` = URL source. Audit opportunite.create/publish.
+- Défauts sous-type : emploi typeContrat=CDD, stage dureeMois=1, formation dureeHeures=1/PRESENTIEL, bourse montant=0/organismeFinanceur=org, etc.
+- Idempotence : opportuniteId non null → refus (déjà publié).
+- UI : bouton « Publier » sur items approuvee (détail).
 
 ## TDD
-1. RED : intégration MariaDB — approuver/rejeter(+motif+audit)/attente/édition(payload+empreinte)/repromotion + refus.
+1. RED : publier approuvee → Opportunite brouillon + opportuniteId + lien ; refus non-admin/non-approuvee/déjà publié ; domaine/région défaut.
 2. GREEN.
 
 ## Garde-fous
-- Baseline tsc 12 (GUIC-622, corrigé sur dev). node_modules partagé (css-select réinstallé).
-- Édition titre/org → recalcul empreinteContenu (dette L1 audit).
+- Baseline tsc 12. node_modules partagé (css-select). Réutiliser OpportuniteService (workflow existant), pas de create Prisma direct.

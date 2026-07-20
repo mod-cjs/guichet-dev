@@ -207,6 +207,30 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 ### Tests (TDD strict, charte robustesse)
 - Intégration MariaDB réelle : liste filtrée (source/type/score) ; approuver→approuvee ; rejeter→rejetee+motif+audit ; en attente→en_attente ; édition→payloadExtrait maj + empreinte recalculée ; **repromotion** (rejet d'un canonique → son doublon repasse a_valider) ; chemins de refus (non-admin 401/403, id inconnu 404).
 
+## 4sexies. US-6 — Publication après validation (GUIC-601) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-600.
+
+**En tant qu'admin, je publie en un clic une opportunité validée, pour l'ajouter au catalogue.**
+
+### Critères (JIRA)
+- Bascule vers le catalogue via le **workflow de publication existant** (`OpportuniteService.create`).
+- Publication au nom de la **source/partenaire** d'origine (organisation extraite).
+- **Alimentation du Knowledge Graph de Yaye** (l'Opportunite publiée est reprise par le cron `yaye-graph-sync`).
+- **Tag programme** applicable.
+- **Traçabilité** : lien conservé vers la source d'origine.
+
+### Point dur — détails sous-type (décision lead requise)
+`OpportuniteService.create` exige un `type` (slug sous-type) + `base` + **`details` avec des champs OBLIGATOIRES** que l'extraction ne fournit pas (emploi→`typeContrat`, bourse→`montantTotalFcfa`+`organismeFinanceur`, stage→`dureeMois`, etc.). L'item curé n'a que la base (titre, description, organisation, région, domaine, deadline, lien). → cf. Q1.
+
+### Modèle & effets
+- Migration : `ItemCuration.opportuniteId` (FK → `Opportunite`, nullable) = lien de traçabilité. `Opportunite.lienExterne` ← URL source. Idempotence : un item déjà lié (`opportuniteId` non null) n'est pas republié.
+- `publierItem(id)` : item `approuvee` → mappe payload → `OpportuniteService.create` → lie `opportuniteId`. Audit `opportunite.publish`.
+- UI : bouton « Publier » sur les items `approuvee` (onglet Approuvées / détail).
+
+### Tests
+- Intégration MariaDB : publier un `approuvee` crée une `Opportunite` (statut cible), lie `opportuniteId`, conserve le lien source ; refus si non-admin / non-approuvee / déjà publié ; domaine/région défaut.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |
