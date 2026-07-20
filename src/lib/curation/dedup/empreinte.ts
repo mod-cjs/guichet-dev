@@ -17,21 +17,28 @@ export function normaliser(s: string | null | undefined): string {
     .trim()
 }
 
-/** Empreinte exacte de contenu : sha256(titre|organisation) normalisés. Null sans titre. */
+/**
+ * Empreinte exacte de contenu : sha256(titre|organisation|deadline) normalisés. Null sans
+ * titre. La deadline discrimine deux annonces DISTINCTES au même titre+employeur mais à
+ * échéances différentes (2 postes) → empreintes différentes → pas de fusion (GUIC-599 C-1).
+ */
 export function empreinteContenu(
   titre: string | null | undefined,
   organisation?: string | null,
+  deadline?: string | null,
 ): string | null {
   const t = normaliser(titre)
   if (!t) return null
-  return createHash('sha256').update(`${t}|${normaliser(organisation)}`).digest('hex')
+  return createHash('sha256')
+    .update(`${t}|${normaliser(organisation)}|${(deadline ?? '').trim()}`)
+    .digest('hex')
 }
 
-/** Mots significatifs du titre (≥ 3 caractères), pour la similarité floue. */
+/** Mots significatifs du titre (≥ 3 caractères), pour la similarité floue. Unicode (Sénégal : arabe/wolof). */
 export function tokensTitre(titre: string | null | undefined): Set<string> {
   const n = normaliser(titre)
   const out = new Set<string>()
-  for (const mot of n.split(/[^a-z0-9]+/)) {
+  for (const mot of n.split(/[^\p{L}\p{N}]+/u)) {
     if (mot.length >= 3) out.add(mot)
   }
   return out

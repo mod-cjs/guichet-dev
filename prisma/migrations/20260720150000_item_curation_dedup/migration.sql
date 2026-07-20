@@ -1,6 +1,6 @@
 -- AlterTable
-ALTER TABLE `items_curation` ADD COLUMN `doublon_de_id` VARCHAR(36) NULL,
-    ADD COLUMN `empreinte_contenu` VARCHAR(64) NULL;
+ALTER TABLE `items_curation` ADD COLUMN `doublon_de_id` VARCHAR(36) COLLATE utf8mb4_unicode_ci NULL,
+    ADD COLUMN `empreinte_contenu` VARCHAR(64) COLLATE utf8mb4_unicode_ci NULL;
 
 -- CreateIndex
 CREATE INDEX `items_curation_empreinte_contenu_idx` ON `items_curation`(`empreinte_contenu`);

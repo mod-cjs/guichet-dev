@@ -169,9 +169,15 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 ### Exécution
 - Phase 3 du cron veille (après extraction) OU inline (cf. Q3). Déterministe, sans LLM.
 
+### Durcissement (double revue adverse 2026-07-20)
+- **Anti-faux-positif (prudence)** : on préfère RATER un doublon que masquer une vraie opportunité. Dédup UNIQUEMENT si l'organisation est présente **des deux côtés** ; deadline dans l'empreinte exacte (2 postes même titre/employeur, échéances ≠ = distincts) ; quasi-doublon = Jaccard ≥ seuil **ET** org identique **ET** deadlines compatibles.
+- Anti-famine : items sans titre exclus de la sélection ; sentinelle `empreinteContenu` pour titre normalisé vide.
+- Tokenizer unicode (`\p{L}\p{N}`) pour l'arabe/wolof. Pré-filtre SQL du quasi par token de titre (plus de scan chronologique aveugle). Migration avec **COLLATE explicite** (errno 150).
+- **⚠️ Dépendance US-5 (repromotion)** : si un canonique est rejeté OU supprimé, il faut y remonter le doublon le plus ancien en `a_valider` (sinon l'annonce entière disparaît de la file). Non implémenté ici — à traiter dans la file de validation US-5.
+
 ### Tests (TDD strict)
-- Unitaires : normalisation + empreinte contenu, similarité quasi-doublon (seuil), même annonce sur 2 sources → 1 canonique + 1 doublon.
-- Intégration MariaDB réelle : item extrait dont le contenu existe déjà → `doublon` + `doublonDeId` ; annonce unique → reste `a_valider` ; item déjà publié (`Opportunite`) non resoumis.
+- Unitaires : normalisation + empreinte contenu (titre+org+deadline), similarité quasi-doublon (seuil), tokens unicode.
+- Intégration MariaDB réelle : même annonce 2 sources → canonique + doublon `doublonDeId` ; annonce unique → `a_valider` ; déjà publié → `doublon` ; **C-1** (même titre+org, deadlines ≠ → PAS fusionné) ; **M-1** (sans org → jamais doublon) ; **M-2** (sans titre → pas de famine).
 
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
