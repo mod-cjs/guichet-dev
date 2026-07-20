@@ -41,8 +41,16 @@ case "$ARGS" in
     # GUIC-634 — routage par URL : la sonde S3, la santé du proxy, le DNS et Loki passent tous
     # par curl. Un shim indifférencié rendrait les tests incapables de les distinguer.
     case "$ARGS" in
-      *_dmarc*)     printf '%s' "\${DNS_DMARC:-v=DMARC1; p=none}"; exit 0 ;;
-      *dns.google*) printf '%s' "\${DNS_SPF:-v=spf1 ~all}"; exit 0 ;;
+      # NB : pas de \${VAR:-{…}} ici — bash lit la première accolade fermante comme la fin de
+      # l'expansion. On passe donc par un test explicite.
+      *_dmarc*)
+        if [ -n "\$DNS_DMARC" ]; then printf '%s' "\$DNS_DMARC"
+        else printf '%s' '{"Status":0,"Answer":[{"data":"v=DMARC1; p=none"}]}'; fi
+        exit 0 ;;
+      *dns.google*)
+        if [ -n "\$DNS_SPF" ]; then printf '%s' "\$DNS_SPF"
+        else printf '%s' '{"Status":0,"Answer":[{"data":"v=spf1 ~all"}]}'; fi
+        exit 0 ;;
       *loki*)       printf '%s' "\${LOKI_BODY:-ready}"; exit 0 ;;
       *api/health*) printf '%s' "\${SANTE_ENTETES:-x-request-id: abc-123}"; exit 0 ;;
     esac
@@ -368,13 +376,13 @@ describe('GUIC-634 — chaîne d’exploitation (avertissements non bloquants)',
   })
 
   it('avertit sans bloquer quand SPF est absent — les alertes partiraient en spam', () => {
-    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_SPF: 'aucun enregistrement' } })
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_SPF: '{"Status":0,"Answer":[]}' } })
     expect(r.code).toBe(0)
     expect(r.out).toMatch(/SPF/)
   })
 
   it('avertit sans bloquer quand DMARC est absent', () => {
-    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_DMARC: 'rien' } })
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_DMARC: '{"Status":0,"Answer":[]}' } })
     expect(r.code).toBe(0)
     expect(r.out).toMatch(/DMARC/)
   })
@@ -391,14 +399,14 @@ describe('GUIC-634 — chaîne d’exploitation (avertissements non bloquants)',
   it('un avertissement ne se confond JAMAIS avec un échec (marqueur distinct)', () => {
     // Le marqueur « ✗ » est réservé aux blocages. Si un avertissement l'utilisait, le helper
     // echecs() des autres tests deviendrait faux et le décompte de refus serait errone.
-    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: 'rien' } })
+    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: '{"Status":0,"Answer":[]}' } })
     expect(r.code).toBe(0)
     expect(echecs(r.out)).toBe('') // aucune ligne d'échec
     expect(r.out).toMatch(/!/)     // mais bien des avertissements
   })
 
   it('le décompte des avertissements est affiché — sinon personne ne les lit', () => {
-    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: 'rien', DNS_DMARC: 'rien' } })
+    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: '{"Status":0,"Answer":[]}', DNS_DMARC: '{"Status":0,"Answer":[]}' } })
     expect(r.out).toMatch(/[3-9]\d* avertissement/i)
   })
 
@@ -413,5 +421,46 @@ describe('GUIC-634 — chaîne d’exploitation (avertissements non bloquants)',
     })
     expect(r.code).toBe(0)
     expect(r.out).toMatch(/tous les contrôles passent/i)
+  })
+})
+
+/**
+ * GUIC-159 — « absent » et « pas pu vérifier » ne sont PAS la même chose.
+ *
+ * Défaut réellement commis : sans accès réseau sortant, la requête DNS échouait et le script
+ * CONCLUAIT à l'absence de SPF. J'ai ainsi annoncé une découverte fausse — le domaine porte bien
+ * SPF (deux enregistrements) et DMARC en `p=reject`.
+ *
+ * Une alerte qui crie au loup finit par ne plus être lue. Un contrôle qui ne peut pas conclure
+ * doit le DIRE, pas inventer un verdict.
+ */
+describe('GUIC-159 — DNS : ne pas confondre « absent » et « indéterminé »', () => {
+  const complet = [
+    'DATABASE_URL="mysql://u:p@h:3306/d"',
+    'REDIS_URL="redis://h:6379"',
+    'S3_ENDPOINT="http://minio:9000"',
+    'S3_BUCKET="guichet"',
+    'S3_ACCESS_KEY="A"',
+    'S3_SECRET_KEY="B"',
+    'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+    'SSO_BASE_URL="https://sso.sn"',
+    'SSO_CLIENT_ID="guichet"',
+    'SSO_API_KEY="k"',
+    'SSO_API_SECRET="s"',
+    'SESSION_SECRET="s"',
+  ].join('\n') + '\n'
+
+  it('dit INDÉTERMINÉ quand le résolveur est injoignable — jamais « absent »', () => {
+    // Réponse vide = requête ratée (une réponse DoH valide contient toujours "Status").
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_SPF: 'connexion impossible' } })
+    expect(r.out).toMatch(/INDÉTERMIN/i)
+    // Et surtout : il ne doit PAS affirmer l'absence.
+    expect(r.out).not.toMatch(/Aucun SPF/)
+  })
+
+  it('dit ABSENT quand le résolveur répond mais sans enregistrement', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_SPF: '{"Status":0,"Answer":[]}' } })
+    expect(r.out).toMatch(/Aucun SPF/)
+    expect(r.out).not.toMatch(/SPF.*INDÉTERMIN/i)
   })
 })

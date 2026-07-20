@@ -348,12 +348,32 @@ verifier_dns_mail() {
   domaine="$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[:/].*$##; s#^[^.]+\.##')"
   [[ -z "$domaine" ]] && { avert "Domaine indéterminable depuis NEXTAUTH_URL."; return 0; }
 
-  local spf dmarc
-  spf="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 "https://dns.google/resolve?name=${domaine}&type=TXT" 2>/dev/null | grep -c 'v=spf1' || true)"
-  dmarc="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 "https://dns.google/resolve?name=_dmarc.${domaine}&type=TXT" 2>/dev/null | grep -c 'v=DMARC1' || true)"
+  # ⚠️ DISTINGUER « absent » de « pas pu vérifier ». Une première version confondait les deux :
+  # sans accès réseau sortant, la requête échouait et le script CONCLUAIT à l'absence de SPF.
+  # J'ai ainsi annoncé une découverte fausse — le domaine porte bien SPF et DMARC (p=reject).
+  # Une alerte qui crie au loup finit par ne plus être lue : on préfère dire « indéterminé ».
+  local reponse
+  interroger_dns() {
+    reponse="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 "https://dns.google/resolve?name=$1&type=TXT" 2>/dev/null || true)"
+    # Une réponse DoH valide contient toujours "Status" ; son absence = requête ratée.
+    printf '%s' "$reponse" | grep -q '"Status"'
+  }
 
-  [[ "${spf:-0}" -gt 0 ]]   && ok "SPF présent sur $domaine"   || avert "Aucun SPF sur $domaine — les e-mails (notifications, alertes d'astreinte) partiront en SPAM. Cf. GUIC-577."
-  [[ "${dmarc:-0}" -gt 0 ]] && ok "DMARC présent sur $domaine" || avert "Aucun DMARC sur _dmarc.$domaine. Cf. GUIC-577."
+  if interroger_dns "$domaine"; then
+    printf '%s' "$reponse" | grep -q 'v=spf1' \
+      && ok "SPF présent sur $domaine" \
+      || avert "Aucun SPF sur $domaine — les e-mails (notifications, alertes d'astreinte) partiront en SPAM. Cf. GUIC-577."
+  else
+    avert "SPF sur $domaine : INDÉTERMINÉ (résolveur DNS injoignable depuis le conteneur). Ce n'est PAS une absence — vérifier manuellement : dig TXT $domaine"
+  fi
+
+  if interroger_dns "_dmarc.$domaine"; then
+    printf '%s' "$reponse" | grep -q 'v=DMARC1' \
+      && ok "DMARC présent sur $domaine" \
+      || avert "Aucun DMARC sur _dmarc.$domaine. Cf. GUIC-577."
+  else
+    avert "DMARC sur $domaine : INDÉTERMINÉ (résolveur DNS injoignable). Vérifier : dig TXT _dmarc.$domaine"
+  fi
 }
 
 # La supervision ne se voit pas depuis l'application : si Loki est arrêté, les logs partent
