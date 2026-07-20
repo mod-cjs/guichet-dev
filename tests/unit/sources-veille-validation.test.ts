@@ -126,6 +126,65 @@ describe('GUIC-596 — durcissement : anti-SSRF', () => {
   })
 })
 
+// Sentinelle anti-régression : verrouille le contrat anti-SSRF sur les formes
+// obfusquées (prouvées le 2026-07-20). Une régression qui rouvrirait l'un de ces
+// vecteurs casse ici — la surface est fetchée côté serveur par le robot US-2.
+describe('GUIC-596 — SENTINELLE anti-SSRF : formes obfusquées', () => {
+  const REJETES = [
+    'http://127.0.0.1/',
+    'http://127.1/', // forme courte
+    'http://0177.0.0.1/', // octal
+    'http://0x7f.0.0.1/', // hexadécimal par octet
+    'http://0x7f000001/', // hexadécimal entier
+    'http://2130706433/', // décimal
+    'http://[::1]/', // IPv6 loopback
+    'http://[::ffff:127.0.0.1]/', // IPv4-mapped IPv6
+    'http://[fd00::1]/', // ULA IPv6
+    'http://[fe80::1]/', // link-local IPv6
+    'http://169.254.169.254/latest/meta-data', // metadata cloud
+    'http://metadata.google.internal/computeMetadata/v1/', // metadata GCP
+    'http://10.0.0.1/', // RFC1918
+    'http://192.168.0.1/',
+    'http://172.16.0.1/',
+    'http://localhost/x',
+    'http://localhost./x', // point final
+    'http://LOCALHOST/x', // casse
+    'http://expected.com@169.254.169.254/', // userinfo trompeur
+    'http://127.0.0.1:6379/', // Redis via port
+    'http://www.anpej.sn:22/', // port non 80/443
+    'file:///etc/passwd', // schéma non http
+    'gopher://www.anpej.sn/', // schéma non http
+  ]
+  it.each(REJETES)('rejette %s (création et patch)', (url) => {
+    expect(SourceVeilleCreateSchema.safeParse({ ...VALIDE, url }).success).toBe(false)
+    expect(SourceVeilleUpdateSchema.safeParse({ url }).success).toBe(false)
+  })
+
+  const ACCEPTES = [
+    'https://www.anpej.sn/offres',
+    'http://emplois.gouv.sn/liste',
+    'https://exemple.sn:443/a',
+    'http://exemple.sn:80/a',
+  ]
+  it.each(ACCEPTES)('accepte %s', (url) => {
+    expect(SourceVeilleCreateSchema.safeParse({ ...VALIDE, url }).success).toBe(true)
+  })
+})
+
+describe('GUIC-596 — durcissement : longueur après normalisation', () => {
+  it('une URL ≤ 500 dont la normalisation (punycode) dépasse 500 ne doit jamais être acceptée telle quelle', () => {
+    // Hôte unicode : `new URL().toString()` le convertit en punycode (xn--…), ce qui
+    // ALLONGE la chaîne APRÈS le contrôle max(500) — risque de dépassement VARCHAR(500).
+    const host = 'é'.repeat(60) + '.sn'
+    const url = 'https://' + host + '/' + 'a'.repeat(427) // longueur brute ≈ 499
+    expect(url.length).toBeLessThanOrEqual(500)
+    const r = SourceVeilleCreateSchema.safeParse({ ...VALIDE, url })
+    // Soit refusée, soit normalisée à ≤ 500 — jamais un payload stocké > 500.
+    if (r.success) expect(r.data.url.length).toBeLessThanOrEqual(500)
+    else expect(r.success).toBe(false)
+  })
+})
+
 describe('GUIC-596 — durcissement : bornes de configExtraction', () => {
   it('refuse une config vide {} (erreur de saisie, quelle que soit la méthode)', () => {
     expect(
