@@ -112,3 +112,97 @@ réserver le **détail** au réseau interne.
 **Tracé en GUIC-624.** Non fait ici — hors périmètre, et l'endpoint a **trois consommateurs** :
 la sonde externe, le healthcheck du conteneur, et le smoke test de `deploy.sh` **qui déclenche le
 rollback automatique**. Casser l'un des deux derniers casserait le déploiement lui-même.
+
+---
+
+# Alerting et astreinte (GUIC-576)
+
+*« Un tableau de bord que personne ne regarde à 3 h du matin ne sert à rien : la supervision sans
+alerte est décorative. »*
+
+## Deux dispositifs, aucun ne remplace l'autre
+
+| Situation | Qui alerte | Pourquoi |
+|---|---|---|
+| **Serveur à terre** | Sonde externe UptimeRobot | Grafana meurt avec la machine — il ne peut pas alerter sur sa propre mort. |
+| **Serveur debout, dégradé** | Grafana | Il voit les logs, donc les 5xx, les échecs de sauvegarde et de tâches. |
+
+C'est la répartition qui compte : brancher les deux sur le même outil laisserait un angle mort
+exactement là où l'incident est le plus grave.
+
+## Sévérité — ce qui réveille, et ce qui attend
+
+| Règle | Sévérité | Seuil | Fenêtre |
+|---|---|---|---|
+| Taux de 5xx élevé | **alerte** | > 5 % | 5 min de persistance |
+| Taux de 5xx en hausse | avertissement | > 1 % | 15 min |
+| Échec de sauvegarde | **alerte** | ≥ 1 | immédiat |
+| Aucune sauvegarde depuis 26 h | **alerte** | absence | immédiat |
+| Échecs répétés d'une tâche planifiée | avertissement | ≥ 3 / h | immédiat |
+
+**Alerte** : répétée toutes les heures tant que ce n'est pas résolu — une alerte vue à 3 h et
+rendormie ne doit pas disparaître. **Avertissement** : cadence lente (12 h), ce sont des tendances.
+
+La règle *« aucune sauvegarde depuis 26 h »* mérite une mention : c'est la seule qui couvre une
+panne **silencieuse**. La sauvegarde ne plante pas — elle ne tourne plus (crontab perdue, disque
+plein, machine redémarrée). Rien n'échoue, donc rien n'alerterait. On le découvrirait le jour où
+l'on a besoin de restaurer.
+
+**Non couvert ici, volontairement** : saturation disque et mémoire relèvent de **Netdata**
+(GUIC-545) — ce sont des métriques machine, absentes des logs. Écrire ces règles dans Grafana
+aurait produit des alertes qui ne se déclenchent jamais.
+
+## Canaux
+
+**WhatsApp + e-mail pour tout**, ALERTE comme AVERTISSEMENT (décision retenue).
+
+Réserve consignée, car le ticket la soulève : *« le bruit tue le signal »*. Le dispositif reste
+**scindable sans recâblage** — chaque alerte porte un label `severite`, le titre en est préfixé,
+et les cadences sont déjà différenciées. Router les avertissements vers l'e-mail seul = une ligne
+à changer.
+
+⚠️ **L'e-mail dépend de GUIC-577** (SPF/DKIM/DMARC). Sans ces enregistrements DNS, les alertes
+partent en spam : tout fonctionne, et personne ne reçoit rien.
+
+## Mise en service
+
+Dans `/etc/guichet/prod.env` :
+
+```bash
+ALERTE_EMAILS=prenom@consortiumjeunessesenegal.org,autre@…   # obligatoire
+ALERTE_WEBHOOK_URL=https://<relais-externe>/alerte            # WhatsApp (optionnel)
+ALERTE_WEBHOOK_TOKEN=<secret partagé avec le relais>
+```
+
+`ALERTE_EMAILS` est **obligatoire** : Grafana refuse de démarrer sans. Un canal d'alerte vide est
+pire qu'absent — on croit être couvert.
+
+Le relais WhatsApp vit **hors du serveur** (Cloudflare Worker) et sert **aussi** la sonde externe :
+un seul relais, deux usages, et il survit à la chute de la machine.
+
+## Vérifié en exécution
+
+Pile réellement démarrée, pas seulement relue :
+
+- **5 règles chargées, 5 en `health: ok`** ;
+- une ligne d'échec injectée dans Loki → règle **`firing`** → routée vers le contact `astreinte` ;
+- routage par sévérité confirmé (`severite="alerte"` → 1 h, `severite="avertissement"` → 12 h).
+
+**Trois bugs que seul ce test a révélés**, et qui auraient tous produit une supervision
+silencieusement morte :
+
+1. **Source de données sans UID explicite** → les 5 règles échouaient en « data source not found »,
+   en restant affichées `inactive`. On aurait cru être supervisé sans qu'aucune alerte ne parte.
+2. **Variables d'environnement absentes du conteneur** — les exporter dans le shell ne suffit pas :
+   Grafana refusait le point de contact e-mail.
+3. **`clamp_min` n'existe pas en LogQL** → les deux règles de taux 5xx en erreur de syntaxe.
+
+## Ce qui reste à faire — le ticket n'est pas clos
+
+Son critère d'acceptation est *« chaque seuil déclenche une alerte réellement reçue par une
+personne identifiée (testé) »*. Il manque :
+
+- le **relais WhatsApp** (hors dépôt) et **GUIC-577** pour un e-mail fiable ;
+- un **test de bout en bout par seuil**, sur le serveur, jusqu'à réception ;
+- le **tableau d'astreinte et le chemin d'escalade** — à arbitrer, puis à reporter dans le runbook
+  (`docs/runbook-production.md` §7, aujourd'hui vide et marqué No-Go).

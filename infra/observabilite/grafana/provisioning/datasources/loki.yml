@@ -9,6 +9,12 @@ apiVersion: 1
 datasources:
   - name: Loki
     type: loki
+    # GUIC-576 — UID EXPLICITE, indispensable : les règles d'alerte référencent la source par son
+    # UID (`datasourceUid: loki`). Sans cette ligne, Grafana en génère un aléatoire et TOUTES les
+    # règles échouent avec « data source not found » — silencieusement : elles restent `inactive`,
+    # donc on croit être supervisé alors qu'aucune alerte ne partira jamais.
+    # Constaté en exécution : 5 règles chargées, 5 en erreur, 0 déclenchement.
+    uid: loki
     access: proxy
     url: http://loki:3100
     isDefault: true

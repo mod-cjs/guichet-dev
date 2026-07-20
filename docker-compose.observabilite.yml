@@ -43,6 +43,10 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       # Logs du reverse proxy, qui vit sur l'HÔTE (nginx/Plesk n'est pas dockerisé).
       - /var/log/nginx:/var/log/nginx:ro
+      # GUIC-576 — tâches planifiées et sauvegardes : elles tournent en cron SUR L'HÔTE, donc
+      # hors de tout conteneur. Sans ce montage, l'échec d'une sauvegarde ou d'une purge CV
+      # reste invisible — et ce sont les pannes les plus dangereuses, parce que silencieuses.
+      - /var/log/guichet:/var/log/guichet:ro
       - promtail_positions:/promtail
     networks: [observabilite]
     depends_on:
@@ -69,6 +73,16 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED:    'false'
       GF_ANALYTICS_CHECK_FOR_UPDATES:    'false'
       GF_NEWS_NEWS_FEED_ENABLED:         'false'
+      # ── GUIC-576 — destinataires des alertes ────────────────────────────────
+      # Ces variables DOIVENT être dans l'environnement du CONTENEUR : le provisioning d'alerting
+      # les résout à l'intérieur de Grafana. Les exporter dans le shell ne suffit pas — vérifié
+      # en exécution, Grafana refusait alors le point de contact (« could not find addresses »).
+      # Obligatoires : un canal d'alerte vide est pire qu'absent, on croit être couvert.
+      ALERTE_EMAILS:         ${ALERTE_EMAILS:?ALERTE_EMAILS obligatoire (destinataires d astreinte, séparés par des virgules)}
+      # Relais WhatsApp, hébergé HORS du serveur (cf. GUIC-575). Optionnels : sans eux, seul le
+      # canal e-mail fonctionne — dégradé, mais pas silencieux.
+      ALERTE_WEBHOOK_URL:    ${ALERTE_WEBHOOK_URL:-}
+      ALERTE_WEBHOOK_TOKEN:  ${ALERTE_WEBHOOK_TOKEN:-}
     volumes:
       - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana

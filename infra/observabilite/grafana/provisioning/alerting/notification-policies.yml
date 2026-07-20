@@ -1,0 +1,43 @@
+# GUIC-576 — Politique de notification : QUAND et À QUELLE CADENCE une alerte part.
+#
+# Décision produit retenue : **les deux canaux (WhatsApp + e-mail) pour tout**, ALERTE comme
+# AVERTISSEMENT.
+#
+# Réserve consignée, car le ticket la soulève explicitement — « sinon le bruit tue le signal » :
+# deux canaux pour chaque avertissement finissent par n'être lus sur aucun. Le dispositif reste
+# donc **prêt à être scindé sans recâblage** :
+#   - chaque alerte porte un label `severite` (alerte | avertissement) ;
+#   - le sujet et le titre commencent par cette sévérité, donc filtrables côté client ;
+#   - les cadences sont déjà différenciées ci-dessous.
+# Le jour où le bruit devient un problème, il suffit de router `severite = avertissement` vers
+# l'e-mail seul : une ligne à changer, aucune règle à réécrire.
+
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: astreinte
+    # Grouper par nom d'alerte et sévérité : dix routes en 5xx produisent UNE notification, pas
+    # dix. C'est la première défense contre le bruit — une tempête d'alertes est aussi inutile
+    # qu'un silence.
+    group_by: [alertname, severite]
+    routes:
+      # ── ALERTE — on réveille quelqu'un ──────────────────────────────────────
+      - receiver: astreinte
+        matchers:
+          - severite = alerte
+        # Notifier vite : 30 s de regroupement suffisent à agréger une rafale sans retarder.
+        group_wait: 30s
+        group_interval: 2m
+        # Répéter toutes les heures tant que ce n'est pas résolu : une alerte vue à 3 h du matin
+        # et rendormie ne doit pas disparaître.
+        repeat_interval: 1h
+
+      # ── AVERTISSEMENT — on regarde demain ──────────────────────────────────
+      - receiver: astreinte
+        matchers:
+          - severite = avertissement
+        # Cadence volontairement lente : ce sont des tendances, pas des urgences.
+        group_wait: 5m
+        group_interval: 30m
+        repeat_interval: 12h
