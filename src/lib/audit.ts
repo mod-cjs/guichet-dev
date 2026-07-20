@@ -53,6 +53,10 @@ export type AuditAction =
   | 'entretien.termine'
   // GUIC-515 — pipeline kanban recruteur.
   | 'candidature.pipeline'
+  // GUIC-596 — curation : gestion des sources de veille (admin).
+  | 'source_veille.create'
+  | 'source_veille.update'
+  | 'source_veille.delete'
 
 interface AuditEntry {
   actorCjsUid: string
