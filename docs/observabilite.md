@@ -58,6 +58,70 @@ Statut, latence, requestId sont journalisés ; le requestId est renvoyé en en-t
   corps de requête.
 - Les logs restent **auto-hébergés** (Loki, pas de service étranger — cf. contrainte CDP GUIC-544).
 
+## 5. Agrégation, recherche et rétention — Loki + Grafana (GUIC-544)
+
+**Auto-hébergé, et c'est une décision, pas un défaut.** Sentry, Datadog et Grafana Cloud sont des
+services **étrangers** : y envoyer nos logs, même pseudonymisés, constituerait un transfert de
+données hors du Sénégal pour une plateforme soumise à la CDP (22 000 jeunes).
+
+```bash
+docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/prod.env up -d
+```
+
+Trois services, **aucun port public** — Grafana n'écoute que sur la boucle locale :
+
+```bash
+ssh -L 3000:127.0.0.1:3000 <serveur>   # puis http://localhost:3000
+```
+
+`GRAFANA_ADMIN_PASSWORD` est **obligatoire** dans `/etc/guichet/prod.env` : le service refuse de
+démarrer sans, plutôt que de tourner avec le mot de passe `admin` bien connu.
+
+### Répondre à « que s'est-il passé pour cette requête ? »
+
+Le `requestId` relie l'application **et** le proxy. En une seule recherche :
+
+```logql
+{job=~"guichet-app|nginx-proxy"} |= "<requestId>"
+```
+
+Dans Grafana, le `requestId` est **cliquable** (champ dérivé) : depuis une ligne applicative, on
+saute à toutes les lignes portant le même identifiant.
+
+Taux d'erreur (ce que GUIC-574 a rendu calculable — avant, les 5xx retournés sans exception
+étaient muets) :
+
+```logql
+sum(count_over_time({job="guichet-app"} | json | level="error" [5m]))
+```
+
+### Cardinalité — la règle qui protège l'index
+
+**Un label = un flux.** Mettre `requestId` ou un `cjs_uid` en label créerait un flux par requête
+et ferait exploser Loki. Seuls `job`, `level` et `statut` sont des labels ; tout le reste se
+cherche par **filtre** (`|= "…"` ou `| json | champ="…"`), sans coût de cardinalité.
+
+### Rétention — vérifiée, pas déclarée
+
+**30 jours.** Le piège : `retention_period` **seul ne supprime rien**. C'est le `compactor`, avec
+`retention_enabled: true`, qui exécute la suppression. Sans lui la rétention est déclarative —
+donc fausse, et l'exigence CDP n'est pas tenue. Vérification sur l'instance :
+
+```bash
+curl -s http://loki:3100/config | grep -E 'retention_enabled|retention_period'
+# retention_enabled: true / retention_period: 30d
+```
+
+Le disque est protégé aux **deux** bouts : plafonds d'ingestion côté Loki (un emballement
+applicatif ne peut pas remplir le disque d'une machine qui porte aussi le SSO et le BRM) et
+`max-size` sur le driver `json-file` de chaque conteneur.
+
+### CDP — double filet
+
+L'application scrube déjà (`hashId`, `scrubPath`, `scrubMessage`). Promtail rattrape en dernière
+ligne ce qui aurait échappé — e-mails, téléphones E.164, IP dans les logs nginx. Deux filets
+valent mieux qu'un : ce qui entre dans Loki y reste 30 jours.
+
 ## Modules
 
 | Fichier | Rôle |

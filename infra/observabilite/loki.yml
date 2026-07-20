@@ -1,0 +1,85 @@
+# GUIC-544 — Loki : stockage et recherche des logs. AUTO-HÉBERGÉ.
+#
+# Contrainte CDP décisive : Sentry, Datadog et Grafana Cloud sont des services ÉTRANGERS. Y
+# envoyer nos logs, même pseudonymisés, constitue un transfert de données hors du Sénégal pour
+# une plateforme soumise à la CDP (22 000 jeunes). D'où l'auto-hébergement.
+#
+# Configuration mono-nœud : une seule machine, pas de cluster à orchestrer.
+
+auth_enabled: false # Pas de multi-tenant : un seul émetteur, réseau interne, aucun port publié.
+
+server:
+  http_listen_port: 3100
+  # Les logs de Loki lui-même ne doivent pas noyer ceux qu'on cherche.
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# ── Rétention — critère d'acceptation du ticket ────────────────────────────────
+#
+# Deux réglages sont nécessaires, et c'est le piège classique : `retention_period` SEUL ne
+# supprime rien. C'est le compactor, avec `retention_enabled: true`, qui exécute réellement la
+# suppression. Sans lui, les vieux logs restent sur le disque indéfiniment — la rétention est
+# alors déclarative, donc fausse, et l'exigence CDP n'est pas tenue.
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+  # Délai entre la fin de rétention et la suppression effective des chunks.
+  retention_delete_delay: 2h
+  compaction_interval: 10m
+
+limits_config:
+  # 30 jours : assez pour enquêter sur un incident et suivre une tendance, assez court pour ne
+  # pas conserver indéfiniment des logs porteurs d'identifiants pseudonymisés (CDP).
+  retention_period: 720h
+
+  # ── Le disque ne peut plus être saturé par les logs (critère d'acceptation) ──
+  # Plafonds d'ingestion : un emballement applicatif (boucle d'erreurs) ne doit pas remplir le
+  # disque de la machine qui porte AUSSI le SSO et le BRM.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  per_stream_rate_limit: 3MB
+  per_stream_rate_limit_burst: 10MB
+
+  # Garde-fou de cardinalité : chaque combinaison de labels crée un flux. Un label à forte
+  # cardinalité (requestId, cjs_uid…) ferait exploser l'index. Le requestId se cherche par
+  # FILTRE, jamais par label — cf. promtail.yml.
+  max_label_names_per_series: 15
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-tmp
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+
+# Aucune télémétrie vers grafana.com : cohérent avec la contrainte CDP.
+analytics:
+  reporting_enabled: false
