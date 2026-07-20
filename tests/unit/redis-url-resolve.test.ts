@@ -13,18 +13,7 @@
  * tolère donc les DEUX formes, `REDIS_URL` restant prioritaire pour ne rien changer à
  * l'existant (CI, e2e, docker-compose local).
  */
-import * as redisModule from '@/lib/redis'
-
-/**
- * Accès indirect VOLONTAIRE, le temps du commit RED : `resolveRedisUrl` n'existe pas encore, et
- * un import nommé ferait échouer `tsc` — donc le hook pre-commit — alors que le RED doit échouer
- * à l'EXÉCUTION, sur le comportement manquant, pas à la compilation. Remplacé par un import
- * nommé classique dans le commit GREEN.
- */
-type EnvRedis = Record<string, string | undefined>
-const resolveRedisUrl = (redisModule as unknown as {
-  resolveRedisUrl: (env: EnvRedis) => string
-}).resolveRedisUrl
+import { resolveRedisUrl } from '@/lib/redis'
 
 describe('GUIC-623 — resolveRedisUrl', () => {
   it('utilise REDIS_URL tel quel quand il est fourni', () => {
