@@ -176,15 +176,17 @@ export async function POST(request: NextRequest) {
       : undefined
 
   // Idempotence (GUIC-240) : Meta peut renvoyer 3× le même message en cas
-  // de timeout côté Guichet. On enregistre `message.id` dans Redis avec
-  // SET NX TTL 7j → 2e POST renvoie {idempotent:true} sans rejouer le LLM.
-  if (message?.id) {
-    const key = `guichet:whatsapp:processed:${message.id}`
+  // de timeout côté Guichet. On RÉSERVE `message.id` dans Redis avec SET NX TTL 7j
+  // AVANT traitement → un rejeu Meta *concurrent* renvoie {idempotent:true} sans
+  // relancer le LLM. En cas d'échec du traitement, la clé est RELÂCHÉE plus bas pour
+  // qu'un rejeu ultérieur puisse retenter (sinon le message serait perdu à jamais).
+  const idempotencyKey = message?.id ? `guichet:whatsapp:processed:${message.id}` : null
+  if (idempotencyKey) {
     try {
       // ioredis : redis.set(key, val, 'EX', ttl, 'NX') → null si déjà existant
-      const stored = await redis.set(key, '1', 'EX', IDEMPOTENCY_TTL, 'NX')
+      const stored = await redis.set(idempotencyKey, '1', 'EX', IDEMPOTENCY_TTL, 'NX')
       if (stored === null) {
-        logger.info('whatsapp-webhook: doublon ignoré', { messageId: message.id })
+        logger.info('whatsapp-webhook: doublon ignoré', { messageId: message?.id })
         return NextResponse.json({ ok: true, idempotent: true })
       }
     } catch (err) {
@@ -200,6 +202,27 @@ export async function POST(request: NextRequest) {
       await handleWhatsAppText(message.from, userText)
     } catch (err) {
       logger.error('whatsapp: traitement message échec', { err: String(err) })
+
+      // ANTI-PERTE : relâcher la clé d'idempotence pour qu'un rejeu Meta (ou un renvoi
+      // du jeune) puisse retenter le traitement — au lieu de perdre le message en silence.
+      if (idempotencyKey) {
+        try {
+          await redis.del(idempotencyKey)
+        } catch (delErr) {
+          logger.warn('whatsapp: relâche idempotence échec', { error: String(delErr) })
+        }
+      }
+
+      // Ne jamais laisser le jeune sans réponse : message d'excuse en personnage.
+      try {
+        await sendTextMessage(
+          message.from,
+          "Oups, j'ai eu un souci de mon côté et je n'ai pas pu traiter ton message. " +
+            'Réessaie dans un instant, je reste avec toi.',
+        )
+      } catch (sendErr) {
+        logger.warn('whatsapp: envoi message excuse échec', { error: String(sendErr) })
+      }
     }
   }
   return new Response('OK', { status: 200 })

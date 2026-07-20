@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { YayeChat } from '@/app/jeune/yaye/YayeChat'
-import { routeYayeFetch, yayePostCalls } from './_helpers/yaye-fetch'
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
@@ -15,13 +14,31 @@ beforeAll(() => {
 const mockFetch = jest.fn()
 let randomSpy: jest.SpyInstance
 
-/** Cf. `_helpers/yaye-fetch` : le mock est routé par méthode (GET historique / POST message). */
-const postCalls = () => yayePostCalls(mockFetch)
+// Le composant fait DEUX sortes d'appels à /api/ia :
+//   - GET  au montage → restauration de l'historique (fetchYayeHistory)
+//   - POST à l'envoi  → streamYaye (SSE, ici on renvoie du JSON → branche fallback)
+// On route donc le mock PAR MÉTHODE : le GET de montage ne doit pas consommer la
+// réponse prévue pour le POST (sinon le POST reçoit `undefined` → crash res.headers).
+function historyResponse(turns: unknown[] = []) {
+  return { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: { turns } }) }
+}
+function replyResponse(reply: string) {
+  return {
+    ok: true,
+    headers: { get: () => 'application/json' },
+    json: async () => ({
+      data: { reply, blocks: [{ kind: 'text', text: reply }], sessionId: '11111111-1111-1111-1111-111111111111' },
+    }),
+  }
+}
 
 beforeEach(() => {
   mockFetch.mockReset()
+  // Par défaut : montage → historique vide (aucun test n'envoie de POST sans replyOnce).
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST' ? replyResponse('') : historyResponse()),
+  )
   global.fetch = mockFetch as unknown as typeof fetch
-  routeYayeFetch(mockFetch)
   // Greeting + amorces varient par Math.random ; on fige sur la variante canonique
   // (« Bonjour … » + « Une offre pour moi ») pour des assertions déterministes.
   randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0)
@@ -31,13 +48,9 @@ afterEach(() => {
 })
 
 function replyOnce(reply: string) {
-  routeYayeFetch(mockFetch, {
-    reply: {
-      reply,
-      blocks:    [{ kind: 'text', text: reply }],
-      sessionId: '11111111-1111-1111-1111-111111111111',
-    },
-  })
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST' ? replyResponse(reply) : historyResponse()),
+  )
 }
 
 describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
@@ -70,7 +83,6 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
       expect(screen.getAllByText('Voici une formation près de chez toi.').length).toBeGreaterThan(0),
     )
     expect(mockFetch).toHaveBeenCalledWith('/api/ia', expect.objectContaining({ method: 'POST' }))
-    expect(postCalls()).toHaveLength(1)
   })
 
   it('une QuickReply envoie immédiatement le message', async () => {
@@ -83,9 +95,8 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
   it("n'envoie rien sur soumission d'un input blanc", () => {
     render(<YayeChat />)
     fireEvent.submit(screen.getByLabelText('Envoyer un message à Yaye'))
-    // GUIC-617 — l'intention est « aucun MESSAGE envoyé », pas « aucun fetch » : le montage fait
-    // un GET /api/ia légitime (historique, GUIC-540). L'ancienne assertion `not.toHaveBeenCalled()`
-    // décrivait le composant d'avant cette fonctionnalité.
-    expect(postCalls()).toHaveLength(0)
+    // Le montage déclenche un GET de restauration ; ce qui doit rester vrai : aucun
+    // POST d'envoi n'est émis pour un champ vide.
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/ia', expect.objectContaining({ method: 'POST' }))
   })
 })

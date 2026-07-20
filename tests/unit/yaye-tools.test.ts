@@ -220,8 +220,12 @@ test('search_events : événements à venir → bloc evenements cliquable', asyn
   expect(r.ok).toBe(true)
   expect(r.block?.kind).toBe('evenements')
   if (r.block?.kind === 'evenements') {
-    expect(r.block.items[0].id).toBe('ev1')
-    expect(r.block.items[0].centre).toBe('CJS Dakar')
+    // Mapping COMPLET (Piste B) : tous les champs de rendu, dont la conversion Date → ISO string.
+    expect(r.block.items[0]).toEqual({
+      id: 'ev1', titre: 'Atelier CV', type: 'Atelier',
+      dateDebut: '2026-09-10T14:00:00.000Z', dateFin: null,
+      lieu: 'Salle A', centre: 'CJS Dakar', estGratuit: true,
+    })
   }
   // filtre statut a_venir appliqué
   expect(mockEvtFindMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -243,7 +247,9 @@ test('search_resources : ressources publiques → bloc ressources', async () => 
   const r = await TOOLS.search_resources.execute({ q: 'CV' }, ctx)
   expect(r.ok).toBe(true)
   expect(r.block?.kind).toBe('ressources')
-  if (r.block?.kind === 'ressources') expect(r.block.items[0].id).toBe('r1')
+  if (r.block?.kind === 'ressources') {
+    expect(r.block.items[0]).toEqual({ id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null })
+  }
   expect(mockResFindMany).toHaveBeenCalledWith(expect.objectContaining({
     where: expect.objectContaining({ estPublic: true }),
   }))
@@ -257,8 +263,10 @@ test('find_centres : centres actifs → bloc centres (services mappés)', async 
   expect(r.ok).toBe(true)
   expect(r.block?.kind).toBe('centres')
   if (r.block?.kind === 'centres') {
-    expect(r.block.items[0].slug).toBe('cjs-dakar')
-    expect(r.block.items[0].services).toEqual(['WiFi', 'Conseiller'])
+    expect(r.block.items[0]).toEqual({
+      id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar',
+      adresse: 'Rue 1', telephone: '+221...', services: ['WiFi', 'Conseiller'],
+    })
   }
   expect(mockCentreFindMany).toHaveBeenCalledWith(expect.objectContaining({
     where: expect.objectContaining({ estActif: true, region: 'Dakar' }),
@@ -275,8 +283,11 @@ test('get_notifications : scope cjsUid + non-lues comptées + bloc notifications
   expect((r.data as { nonLues: number }).nonLues).toBe(1)
   expect(r.block?.kind).toBe('notifications')
   if (r.block?.kind === 'notifications') {
-    expect(r.block.items[0].lu).toBe(false)
-    expect(r.block.items[1].lu).toBe(true)
+    expect(r.block.items[0]).toEqual({
+      id: 'n1', type: 'Deadline', titre: 'Échéance proche', contenu: 'Offre X ferme demain',
+      lien: '/opportunites/x', metaPill: 'J-1', lu: false,
+    })
+    expect(r.block.items[1].lu).toBe(true) // luA renseigné → lu
   }
   expect(mockNotifFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { cjsUid: 'u-1' } }))
 })

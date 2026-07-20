@@ -58,6 +58,9 @@ storybook-static/
 # Sauvegardes locales de .env (secrets)
 .env.local.bak-*
 
+secrets/guichet-key.json
+
+# Rapports d'éval Yaye locaux (données réelles, non versionnés)
 # Clés de compte de service GCP / Vertex AI (GOOGLE_APPLICATION_CREDENTIALS) — NE JAMAIS COMMITER
 gcp-*.json
 *-gcp-*.json

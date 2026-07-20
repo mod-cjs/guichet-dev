@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { YayeConversation } from '@/components/yaye/YayeConversation'
-import { routeYayeFetch } from './_helpers/yaye-fetch'
 
 // YayeBlocks (rendu dans les bulles bot) appelle useRouter.
 jest.mock('next/navigation', () => ({
@@ -14,18 +13,29 @@ beforeAll(() => {
 })
 
 const mockFetch = jest.fn()
+
+// Route par méthode : GET au montage (restauration d'historique) vs POST à l'envoi
+// (streamYaye). Sans ça, le GET de montage consommerait la réponse prévue pour le POST.
+function historyResponse(turns: unknown[] = []) {
+  return { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: { turns } }) }
+}
+
 beforeEach(() => {
   mockFetch.mockReset()
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST'
+      ? { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: {} }) }
+      : historyResponse()),
+  )
   global.fetch = mockFetch as unknown as typeof fetch
-  routeYayeFetch(mockFetch)
 })
 
-/**
- * GUIC-617 — routage par méthode (cf. `_helpers/yaye-fetch`) : le composant fait un GET au
- * montage (historique, GUIC-540) qui consommait le `mockResolvedValueOnce` destiné au POST.
- */
 function replyOnce(data: Record<string, unknown>) {
-  routeYayeFetch(mockFetch, { reply: data })
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST'
+      ? { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data }) }
+      : historyResponse()),
+  )
 }
 
 describe('<YayeConversation /> — feedback par tour (parité fullscreen)', () => {
