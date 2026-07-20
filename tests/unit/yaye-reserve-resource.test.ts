@@ -78,6 +78,10 @@ test('reserve_resource : confirm absent → récapitulatif, AUCUNE écriture', a
   expect((r.data as { needsConfirmation: boolean }).needsConfirmation).toBe(true)
   expect(mockSubmit).not.toHaveBeenCalled()
   expect((r.block as { title: string }).title).toMatch(/Récapitulatif/)
+  // Fix B (multi-tour) : le récap réémet les params EXACTS prêts à confirmer (confirm=true) →
+  // le modèle les réutilise tels quels au tour « oui », sans les reconstruire.
+  const ca = (r.data as { confirmArgs: Record<string, unknown> }).confirmArgs
+  expect(ca).toMatchObject({ ressourceId: VALID.ressourceId, date: VALID.date, confirm: true })
 })
 
 test('reserve_resource : confirm=true → délègue à la passerelle + carte de confirmation', async () => {

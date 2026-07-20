@@ -39,12 +39,14 @@ const mockRedisSet = jest.fn()
 const mockIncr = jest.fn()
 const mockExpire = jest.fn()
 const mockGetdel = jest.fn()
+const mockDel = jest.fn()
 jest.mock('@/lib/redis', () => ({
   redis: {
     set:    (...a: unknown[]) => mockRedisSet(...a),
     incr:   (...a: unknown[]) => mockIncr(...a),
     expire: (...a: unknown[]) => mockExpire(...a),
     getdel: (...a: unknown[]) => mockGetdel(...a),
+    del:    (...a: unknown[]) => mockDel(...a),
   },
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
@@ -75,6 +77,20 @@ test('compte lié → runAgent (canal whatsapp) + réponse formatée envoyée', 
     expect.objectContaining({ cjsUid: 'u-1', canal: 'whatsapp', message: 'bonjour', sessionId: 'c1' }),
   )
   expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('Voici une offre'))
+})
+
+test('échec de traitement → 200, relâche la clé d’idempotence et envoie un message d’excuse (anti-perte)', async () => {
+  mockFindUnique.mockResolvedValueOnce({ id: 'c1', cjsUid: 'u-1' })
+  mockRun.mockRejectedValueOnce(new Error('vertex 429')) // panne LLM transitoire
+
+  const res = await POST(req(body('bonjour', 'wamid.err')))
+
+  // On répond 200 à Meta (pas de 500), mais on ne perd pas le message :
+  expect(res.status).toBe(200)
+  // La clé d'idempotence réservée est RELÂCHÉE → un rejeu Meta pourra retenter.
+  expect(mockDel).toHaveBeenCalledWith('guichet:whatsapp:processed:wamid.err')
+  // Le jeune reçoit un message d'excuse en personnage (pas de silence).
+  expect(mockSend).toHaveBeenCalledWith(FROM, expect.stringContaining('souci de mon côté'))
 })
 
 test('compte non lié → envoi d’un lien magique de liaison, pas d’agent', async () => {

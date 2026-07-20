@@ -279,7 +279,13 @@ const searchOpportunities: AgentTool = {
       ok: true,
       // Pas de titres ici : les offres sont déjà sur les cards (block). On ne renvoie
       // au LLM que le décompte pour éviter qu'il ré-énumère en prose (anti-redondance).
-      data: { count: items.length },
+      // Fix 4 — signal de succès LISIBLE pour le modèle (sans titres) : les résultats sont
+      // DÉJÀ affichés en cards à l'écran → le modèle les introduit en une phrase, il n'a pas
+      // à les réciter ni à en inventer. Contre-mesure au « je regarde ça ! » halluciné.
+      // `refs` (id + titre) exposé au modèle POUR remplir les arguments d'action (« postule à la
+      // première » → opportuniteId). Les titres restent portés par les cards ; la règle 3 du prompt
+      // interdit de les réciter en prose. Sans ça, aucune candidature multi-tour n'est possible.
+      data: { count: items.length, resultsShownAsCards: items.length > 0, refs: items.map(i => ({ id: i.id, titre: i.titre })) },
       block: items.length > 0 ? { kind: 'opportunites', items } : undefined,
     }
   },
@@ -313,7 +319,13 @@ const getRecommendations: AgentTool = {
       .map(it => ({ ...it, note: noteById.get(it.id) ?? null }))
     return {
       ok: true,
-      data: { count: items.length },
+      // Fix 4 — signal de succès LISIBLE pour le modèle (sans titres) : les résultats sont
+      // DÉJÀ affichés en cards à l'écran → le modèle les introduit en une phrase, il n'a pas
+      // à les réciter ni à en inventer. Contre-mesure au « je regarde ça ! » halluciné.
+      // `refs` (id + titre) exposé au modèle POUR remplir les arguments d'action (« postule à la
+      // première » → opportuniteId). Les titres restent portés par les cards ; la règle 3 du prompt
+      // interdit de les réciter en prose. Sans ça, aucune candidature multi-tour n'est possible.
+      data: { count: items.length, resultsShownAsCards: items.length > 0, refs: items.map(i => ({ id: i.id, titre: i.titre })) },
       block: items.length > 0 ? { kind: 'opportunites', items } : undefined,
     }
   },
@@ -568,6 +580,10 @@ const reserveResource: AgentTool = {
             date, creneau: `${creneauDebut}-${creneauFin}`, nombrePersonnes, motif,
           },
           requiresJustif: ressource.requiresJustif,
+          // Fix B (multi-tour) : params EXACTS à réutiliser après le « oui » de la personne — le
+          // modèle n'a plus à les reconstruire des tours précédents, il rappelle l'outil tel quel.
+          nextStep: 'Après accord explicite de la personne, rappelle reserve_resource avec EXACTEMENT ces paramètres.',
+          confirmArgs: { ressourceId, date, creneauDebut, creneauFin, nombrePersonnes, motif, confirm: true },
         },
         block: {
           kind: 'action',
@@ -737,7 +753,13 @@ const submitApplication: AgentTool = {
     if (!confirm) {
       return {
         ok: true,
-        data: { needsConfirmation: true, recap: { opportunite: opp.titre, organisation: orga, cvJoint: Boolean(profil?.cvUrl) } },
+        data: {
+          needsConfirmation: true,
+          recap: { opportunite: opp.titre, organisation: orga, cvJoint: Boolean(profil?.cvUrl) },
+          // Fix B (multi-tour) : l'id (issu des cards) + la lettre sont réémis prêts à confirmer.
+          nextStep: 'Après accord explicite, rappelle submit_application avec EXACTEMENT ces paramètres.',
+          confirmArgs: { opportuniteId, lettreMotivation, notificationsConsent, confirm: true },
+        },
         block: {
           kind: 'action',
           title: 'Récapitulatif de ta candidature',
@@ -954,7 +976,8 @@ const searchLibrary: AgentTool = {
           id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme,
           exemplairesDisponibles: l.exemplairesDisponibles,
           emplacements: l.emplacements.map(e => ({
-            centre: e.centreNom, rayon: e.rayon, etagere: e.etagere, position: e.position,
+            // exemplaireId exposé au modèle → borrow_book peut emprunter « le premier exemplaire ».
+            exemplaireId: e.exemplaireId, centre: e.centreNom, rayon: e.rayon, etagere: e.etagere, position: e.position,
           })),
         })),
       },
@@ -1022,6 +1045,9 @@ const borrowBook: AgentTool = {
           needsConfirmation: true,
           recap: { livre: ex.livre.titre, auteur: ex.livre.auteur, centre: ex.centre.nom,
             emplacement: `rayon ${ex.rayon} · étagère ${ex.etagere} · position ${ex.position}` },
+          // Fix B (multi-tour) : exemplaire exact réémis prêt à confirmer.
+          nextStep: 'Après accord explicite, rappelle borrow_book avec EXACTEMENT ces paramètres.',
+          confirmArgs: { exemplaireId, confirm: true },
         },
         block: {
           kind: 'action',
@@ -1168,7 +1194,10 @@ const searchEvents: AgentTool = {
     return {
       ok: true,
       // Décompte seul au LLM (les détails vivent sur les cards) — anti ré-énumération en prose.
-      data: { count: items.length },
+      // Fix 4 — signal de succès LISIBLE pour le modèle (sans titres) : les résultats sont
+      // DÉJÀ affichés en cards à l'écran → le modèle les introduit en une phrase, il n'a pas
+      // à les réciter ni à en inventer. Contre-mesure au « je regarde ça ! » halluciné.
+      data: { count: items.length, resultsShownAsCards: items.length > 0 },
       block: items.length > 0 ? { kind: 'evenements', items } : undefined,
     }
   },
@@ -1210,7 +1239,7 @@ const searchResources: AgentTool = {
     const items: YayeRessourceItem[] = rows.map(r => ({
       id: r.id, titre: r.titre, type: String(r.type), theme: r.theme, niveau: r.niveau ? String(r.niveau) : null,
     }))
-    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'ressources', items } : undefined }
+    return { ok: true, data: { count: items.length, resultsShownAsCards: items.length > 0 }, block: items.length > 0 ? { kind: 'ressources', items } : undefined }
   },
 }
 
@@ -1252,7 +1281,7 @@ const findCentres: AgentTool = {
       adresse: r.adresse, telephone: r.telephone ?? null,
       services: Array.isArray(r.services) ? (r.services as unknown[]).map(String) : [],
     }))
-    return { ok: true, data: { count: items.length }, block: items.length > 0 ? { kind: 'centres', items } : undefined }
+    return { ok: true, data: { count: items.length, resultsShownAsCards: items.length > 0 }, block: items.length > 0 ? { kind: 'centres', items } : undefined }
   },
 }
 

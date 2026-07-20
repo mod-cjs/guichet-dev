@@ -28,11 +28,18 @@ describe('Yaye — variété conversationnelle (greetings.ts)', () => {
     expect(a).not.toEqual(b)
   })
 
-  it('aucun emoji ni pourcentage dans les greetings (toutes variantes)', () => {
-    const emojiOrPct = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]|%/u
+  it('emoji SOBRE (≤1 par variante) et jamais de pourcentage dans les greetings', () => {
+    const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu
     for (const r of [0, 0.2, 0.4, 0.6, 0.8, 0.99]) {
-      expect(pickGreeting('Awa', () => r)).not.toMatch(emojiOrPct)
+      const g = pickGreeting('Awa', () => r)
+      expect(g).not.toMatch(/%/) // pas de pourcentage (règle « décris en mots, pas en chiffres »)
+      expect((g.match(emoji) ?? []).length).toBeLessThanOrEqual(1) // sobriété : au plus un emoji
     }
+  })
+
+  it('variante canonique (rng=0) reste sans emoji — stabilité des tests déterministes', () => {
+    const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u
+    expect(pickGreeting('Awa', () => 0)).not.toMatch(emoji)
   })
 
   it('français uniquement — aucune salutation wolof/arabe (Salama, Salam, Na nga def…)', () => {

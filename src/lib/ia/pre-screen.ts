@@ -26,7 +26,7 @@ export type DangerSignal =
 
 export interface PreScreenResult {
   action: PreScreenAction
-  /** Réponse à renvoyer telle quelle (tutoyée, courte, sans emoji). */
+  /** Réponse à renvoyer telle quelle (tutoyée, courte ; emoji sobre autorisé, jamais sur un sujet sensible). */
   reply: string
   /** Motif (journalisation / éval). */
   reason: string
@@ -38,8 +38,13 @@ function norm(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[''´`]/g, "'") // apostrophes courbes → droite (robustesse des motifs)
+    .replace(/[̀-ͯ]/g, '') // diacritiques combinants
+    // Apostrophes TYPOGRAPHIQUES → droite. Indispensable : les claviers mobiles produisent
+    // « d'en », « quelqu'un » avec ’ (U+2019) qui, sinon, ne matche aucun motif à apostrophe
+    // (« envie d'en finir », « quelqu'un d'autre »…). U+2018/2019/201B, ʼ, ´, ` couverts.
+    .replace(/[‘’‛ʼ´`']/g, "'")
+    // Caractères de largeur nulle → supprimés (anti-obfuscation « ig<zwsp>nore », cf. audit M2).
+    .replace(/[​‌‍⁠﻿]/g, '')
 }
 
 // ── DANGER — filet de sécurité déterministe (priorité ABSOLUE) ────────────────
@@ -49,11 +54,19 @@ function norm(s: string): string {
 // Politique CDP : « en cas de doute, signale » — mais ici on borne pour éviter le bruit.
 
 const DANGER_PATTERNS: readonly (readonly [RegExp, DangerSignal])[] = [
-  [/(me\s+suicider|me\s+tuer|mettre\s+fin\s+a\s+mes\s+jours|je\s+veux\s+mourir|veux\s+en\s+finir|envie\s+d'?en\s+finir|en\s+finir\s+avec\s+(la\s+vie|tout)|plus\s+envie\s+de\s+vivre|disparaitre|me\s+faire\s+du\s+mal|m'?automutil|me\s+mutiler|me\s+scarifi)/, 'automutilation_suicide'],
+  // « disparaitre » : capté SAUF en tournure transitive « faire disparaître X » (figuré :
+  // « faire disparaître mon stress / ce trou dans mon CV »). Le lookbehind sur « faire » isole
+  // l'usage auto-référentiel (« je veux disparaître », « envie de tout arrêter et de disparaître »).
+  [/(me\s+suicider|me\s+tuer|mettre\s+fin\s+a\s+mes\s+jours|je\s+veux\s+mourir|veux\s+en\s+finir|envie\s+d'?en\s+finir|en\s+finir\s+avec\s+(la\s+vie|tout)|plus\s+envie\s+de\s+vivre|(?<!faire\s)disparaitre|me\s+faire\s+du\s+mal|m'?automutil|me\s+mutiler|me\s+scarifi)/, 'automutilation_suicide'],
   [/((on|il|elle|mon\s+(mari|conjoint|copain|pere|frere|patron))\s+me\s+(frappe|bat|cogne|roue\s+de\s+coups|tabasse)|je\s+suis\s+(frappe|battu|tabasse)|violences?\s+(conjugal|domestique|familial|a\s+la\s+maison))/, 'violence'],
   [/(attouchement|abus\s+sexuel|on\s+m'?a\s+viol|je\s+me\s+suis\s+fait\s+viol|forc[e]*e?\s+a\s+des\s+(rapport|relation|acte)s?\s+sexuel|rapport\s+sexuel\s+sous\s+contrainte|photos?\s+intimes?\s+sous\s+(la\s+)?contrainte)/, 'abus_sexuel'],
   [/(harcele|cyberharcel)/, 'harcelement'],
   [/(travail\s+force|papiers?[^.]{0,15}confisqu|confisqu[^.]{0,15}(mes\s+)?papiers|fait\s+travailler\s+sans\s+(me\s+)?payer|on\s+me\s+force\s+a\s+travailler|mendicite\s+forcee|je\s+suis\s+exploite\s+au\s+travail)/, 'exploitation'],
+  // Discrimination : rejet/maltraitance lié à un attribut protégé (haute précision → cause explicite).
+  [/(a\s+cause\s+de\s+(mon|ma|mes)\s+(handicap|origine|religion|couleur|genre|orientation|accent|ethnie|peau)|discrimin|(rejete|maltraite|humilie|exclu)[e]*s?\s+(a\s+cause\s+de|pour|en\s+raison\s+de)\s+(mon|ma|mes)\s+(handicap|origine|religion|genre|couleur))/, 'discrimination'],
+  // Détresse diffuse SANS signal explicite ci-dessus → escalade douce (marqueurs forts uniquement,
+  // pour ne PAS attraper un simple stress/déception, gérés en réponse directe plus bas).
+  [/(tout\s+va\s+mal\s+(dans\s+ma\s+vie|en\s+ce\s+moment)|au\s+fond\s+du\s+trou|je\s+n'?en\s+peux\s+plus\s+de\s+(tout|(ma\s+)?vie)|je\s+sombre|desespere|desespoir|je\s+suis\s+au\s+bout|a\s+bout\s+de\s+(force|nerf)|plus\s+la\s+force\s+de\s+vivre|ma\s+vie\s+est\s+(fichue|foutue))/, 'autre_danger'],
 ]
 
 /** Détecte un signal de danger explicite dans le message, ou null. */
@@ -65,6 +78,13 @@ export function detectDanger(message: string): DangerSignal | null {
 
 const DANGER_REPLY =
   "Merci de m'en avoir parlé, tu as bien fait. Je transmets tout de suite à une personne de confiance du CJS qui va te recontacter — tu n'es pas seul·e."
+
+// Demande EXPLICITE d'un conseiller humain → escalade directe (pas un danger, mais un relais dû).
+// Haute précision : « parler à un conseiller/humain », pas « je veux un conseil ».
+const RE_HUMAN_REQUEST =
+  /(parler|discuter|echanger|contacter|joindre|voir|avoir)\s+(a\s+|avec\s+|à\s+)?(un|une|d'?un|quelqu'?un|des?)?\s*(vrai[e]?\s+)?(conseiller|conseillere|humain|humaine|agent\s+humain|vraie?\s+personne|personne\s+reelle|responsable\s+humain|un\s+humain)/
+const HUMAN_REPLY =
+  "Bien sûr — je te mets en relation avec un conseiller du CJS, il va prendre le relais et te répondre ici même. Tu peux lui rappeler ta demande."
 
 // ── P0 — refus de sécurité / CDP / injection ─────────────────────────────────
 
@@ -81,14 +101,21 @@ const RE_MASS_EXPORT =
 
 // NB : `taux de`, `en moyenne`, `moyenne de` retirés → questions métier légitimes
 // (« taux de réussite de cette formation », « en moyenne combien je peux gagner »)
-// ne sont plus refusées. On ne bloque que les agrégats sur la POPULATION d'usagers.
+// ne sont plus refusées. `statistiques` et `au total` NUS retirés aussi (P1) : « des
+// statistiques sur le marché de l'emploi » est une vraie question. On ne bloque que les
+// comptages EXPLICITES sur la POPULATION d'usagers (« combien de jeunes ont postulé »).
 const RE_AGGREGATE =
-  /(combien\s+(de\s+)?(jeunes|personnes|candidats?|utilisateurs?|gens|inscrits)|nombre\s+(total|de\s+jeunes|de\s+candidat)|au\s+total|statistiques?|combien\s+ont\s+postule)/
+  /(combien\s+(de\s+)?(jeunes|personnes|candidats?|utilisateurs?|gens|inscrits)|nombre\s+(total|de\s+jeunes|de\s+candidat)|combien\s+ont\s+postule)/
 
 // Donnée d'un tiers : personne explicite, « … de <Prénom> » (majuscule), ou coordonnées
 // d'un recruteur/employeur/organisation (Yaye ne divulgue pas de contacts directs).
+// P1 — le mot « ami/copain/voisin » SEUL ne suffit plus à refuser (« une amie m'a parlé
+// d'une bourse » est légitime) : il faut aussi un PORTEUR DE DONNÉE dans le message
+// (numéro, email, dossier…), cf. RE_DATA_CARRIER et la condition dans preScreen().
 const RE_THIRD_PERSON =
   /(voisin|voisine|ami|amie|copain|copine|camarade|collegue|quelqu'?un\s+d'?autre|une\s+autre\s+personne)/
+const RE_DATA_CARRIER =
+  /(numero|telephone|tel\b|email|e-?mail|mail|coordonnees|donnees|dossier|adresse|contact|candidatures?)/
 // NB : `profil` retiré des porteurs — « le profil de Développeur web » (intitulé de
 // poste capitalisé) n'est PAS une donnée de tiers. Le vrai risque (numéro/email/dossier
 // « de <Prénom> ») reste capté, et l'accès profil est de toute façon borné au cjsUid (RBAC).
@@ -112,8 +139,8 @@ const REFUSALS = {
 // On détecte le DÉBUT (salutation/remerciement…) et on n'intercepte que s'il n'y a
 // AUCUNE intention actionnable dans le message (« Salut, trouve-moi un stage » passe à l'agent).
 
-const RE_START_GREETING = /^(bonjour|bonsoir|salut|coucou|cc|hello|hey|yaye|salam|asalamu|nanga\s*def)/
-const RE_START_THANKS = /^(merci|thanks?|jerejef|nickel|super|top|parfait|genial)/
+const RE_START_GREETING = /^(bonjour|bonsoir|salut|coucou|cc|hello|hey|yaye)/
+const RE_START_THANKS = /^(merci|thanks?|nickel|super|top|parfait|genial)/
 const RE_START_BYE = /^(au\s*revoir|a\s*bientot|bye|ciao|a\s*\+|bonne\s+(journee|soiree|continuation)|ba\s+beneen)/
 const RE_START_SMALLTALK = /^(ca\s+va|comment\s+(tu\s+)?vas|tu\s+vas\s+bien|comment\s+ca\s+va|ca\s+roule)/
 const RE_HAS_ACTION =
@@ -224,9 +251,12 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   if (RE_INJECTION.test(t)) return { action: 'refuse', reply: REFUSALS.injection, reason: 'injection' }
   if (RE_MASS_EXPORT.test(t)) return { action: 'refuse', reply: REFUSALS.mass, reason: 'mass_export' }
   if (RE_AGGREGATE.test(t)) return { action: 'refuse', reply: REFUSALS.aggregate, reason: 'aggregate' }
-  if (RE_THIRD_PERSON.test(t) || RE_THIRD_NAMED.test(message) || RE_THIRD_CONTACT.test(t)) {
+  if (RE_THIRD_NAMED.test(message) || RE_THIRD_CONTACT.test(t) || (RE_THIRD_PERSON.test(t) && RE_DATA_CARRIER.test(t))) {
     return { action: 'refuse', reply: REFUSALS.third, reason: 'third_party' }
   }
+
+  // Demande explicite d'un conseiller humain → escalade (relais dû, jamais un refus).
+  if (RE_HUMAN_REQUEST.test(t)) return { action: 'escalate', reply: HUMAN_REPLY, reason: 'human_request' }
 
   // Trac avant un entretien/examen → encouragement + conseils directs (jamais d'escalade).
   // Placé avant le revers car « je stresse … tu as des conseils ? » porte une intention actionnable.

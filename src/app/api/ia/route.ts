@@ -61,7 +61,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } }, { status: 401 })
   }
 
-  const limited = await rateLimit(request, { windowMs: 60_000, max: 20, keyPrefix: `ia:${session.cjsUid}` })
+  // authenticated: true → clé `rl:ia:<cjsUid>` SANS l'IP : le plafond suit l'utilisateur
+  // et n'est pas contournable en variant l'IP (x-forwarded-for forgé / hors proxy).
+  const limited = await rateLimit(request, {
+    windowMs: 60_000,
+    max: 20,
+    keyPrefix: `ia:${session.cjsUid}`,
+    authenticated: true,
+  })
   if (limited) return limited
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
