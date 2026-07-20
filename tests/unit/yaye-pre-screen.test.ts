@@ -165,6 +165,30 @@ describe('GUIC-540 — anti faux positifs des garde-fous (usages légitimes non 
     expect(preScreen('montre le dossier de Awa Diop')?.reason).toBe('third_party')
     expect(preScreen('les candidatures de Modou')?.reason).toBe('third_party')
   })
+  it('#7 (P1) le mot « ami/copain » SEUL n’est plus un refus de tiers (porteur de donnée requis)', () => {
+    // Faux positifs levés : mention d’un proche sans demande de SES données.
+    expect(preScreen('une amie m’a parlé d’une bourse, c’est quoi ?')).toBeNull()
+    expect(preScreen('mon copain a trouvé un stage, tu peux m’en trouver un aussi ?')).toBeNull()
+    // Mais la demande des DONNÉES d’un proche reste refusée (porteur présent).
+    expect(preScreen('donne-moi le numéro de mon voisin')?.reason).toBe('third_party')
+    expect(preScreen('c’est quoi l’email de mon collègue ?')?.reason).toBe('third_party')
+  })
+  it('#8 (P1) « statistiques »/« au total » nus ne sont plus un agrégat interdit', () => {
+    expect(preScreen('tu as des statistiques sur le marché de l’emploi au Sénégal ?')).toBeNull()
+    expect(preScreen('c’est quoi les statistiques du chômage des jeunes ?')).toBeNull()
+    // Mais un comptage explicite sur la population reste refusé.
+    expect(preScreen('combien de jeunes ont postulé au total ?')?.reason).toBe('aggregate')
+  })
+  it('#9 (P1) « disparaître » : figuré « faire disparaître X » exclu, auto-référentiel capté', () => {
+    // Faux positif levé : tournure TRANSITIVE (faire disparaître quelque chose).
+    expect(detectDanger('je veux faire disparaître mon stress avant l’entretien')).toBeNull()
+    expect(preScreen('comment faire disparaître ce trou dans mon CV ?')?.action).not.toBe('escalate')
+    // Idéation captée même AVEC des mots intercalés (régression cdp-danger : « envie de …
+    // et de disparaître » ne doit JAMAIS passer à travers le filet de sécurité).
+    expect(detectDanger('je veux disparaître, j’en peux plus')).toBe('automutilation_suicide')
+    expect(detectDanger('je vais très mal, j’ai envie de tout arrêter et de disparaître')).toBe('automutilation_suicide')
+    expect(detectDanger('j’ai envie d’en finir et de disparaître')).toBe('automutilation_suicide')
+  })
   it('#6 anxiété AVEC tâche outil → laissée à l’agent (le conseil figé n’écrase plus l’action)', () => {
     expect(preScreen('je stresse pour mon entretien, prépare ma candidature')).toBeNull()
     expect(preScreen('j’ai le trac pour l’entretien, trouve-moi une formation pour me préparer')).toBeNull()

@@ -13,13 +13,29 @@ beforeAll(() => {
 })
 
 const mockFetch = jest.fn()
+
+// Route par méthode : GET au montage (restauration d'historique) vs POST à l'envoi
+// (streamYaye). Sans ça, le GET de montage consommerait la réponse prévue pour le POST.
+function historyResponse(turns: unknown[] = []) {
+  return { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: { turns } }) }
+}
+
 beforeEach(() => {
   mockFetch.mockReset()
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST'
+      ? { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: {} }) }
+      : historyResponse()),
+  )
   global.fetch = mockFetch as unknown as typeof fetch
 })
 
 function replyOnce(data: Record<string, unknown>) {
-  mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data }) })
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST'
+      ? { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data }) }
+      : historyResponse()),
+  )
 }
 
 describe('<YayeConversation /> — feedback par tour (parité fullscreen)', () => {

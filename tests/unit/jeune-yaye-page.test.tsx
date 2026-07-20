@@ -13,8 +13,31 @@ beforeAll(() => {
 
 const mockFetch = jest.fn()
 let randomSpy: jest.SpyInstance
+
+// Le composant fait DEUX sortes d'appels à /api/ia :
+//   - GET  au montage → restauration de l'historique (fetchYayeHistory)
+//   - POST à l'envoi  → streamYaye (SSE, ici on renvoie du JSON → branche fallback)
+// On route donc le mock PAR MÉTHODE : le GET de montage ne doit pas consommer la
+// réponse prévue pour le POST (sinon le POST reçoit `undefined` → crash res.headers).
+function historyResponse(turns: unknown[] = []) {
+  return { ok: true, headers: { get: () => 'application/json' }, json: async () => ({ data: { turns } }) }
+}
+function replyResponse(reply: string) {
+  return {
+    ok: true,
+    headers: { get: () => 'application/json' },
+    json: async () => ({
+      data: { reply, blocks: [{ kind: 'text', text: reply }], sessionId: '11111111-1111-1111-1111-111111111111' },
+    }),
+  }
+}
+
 beforeEach(() => {
   mockFetch.mockReset()
+  // Par défaut : montage → historique vide (aucun test n'envoie de POST sans replyOnce).
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST' ? replyResponse('') : historyResponse()),
+  )
   global.fetch = mockFetch as unknown as typeof fetch
   // Greeting + amorces varient par Math.random ; on fige sur la variante canonique
   // (« Bonjour … » + « Une offre pour moi ») pour des assertions déterministes.
@@ -25,12 +48,9 @@ afterEach(() => {
 })
 
 function replyOnce(reply: string) {
-  mockFetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({
-      data: { reply, blocks: [{ kind: 'text', text: reply }], sessionId: '11111111-1111-1111-1111-111111111111' },
-    }),
-  })
+  mockFetch.mockImplementation((_url: unknown, opts: { method?: string } = {}) =>
+    Promise.resolve(opts.method === 'POST' ? replyResponse(reply) : historyResponse()),
+  )
 }
 
 describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
@@ -75,6 +95,8 @@ describe('<YayeChat /> — page mobile branchée sur /api/ia', () => {
   it("n'envoie rien sur soumission d'un input blanc", () => {
     render(<YayeChat />)
     fireEvent.submit(screen.getByLabelText('Envoyer un message à Yaye'))
-    expect(mockFetch).not.toHaveBeenCalled()
+    // Le montage déclenche un GET de restauration ; ce qui doit rester vrai : aucun
+    // POST d'envoi n'est émis pour un champ vide.
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/ia', expect.objectContaining({ method: 'POST' }))
   })
 })

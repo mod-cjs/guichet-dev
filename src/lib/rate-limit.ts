@@ -39,12 +39,29 @@ export async function rateLimit(
     : `rl:${prefix}:${extractIp(request)}`
   const windowSec = Math.ceil(options.windowMs / 1000)
 
-  // INCR + EXPIRE atomique pour éviter la race condition
-  const results = await redis.multi()
-    .incr(key)
-    .expire(key, windowSec)
-    .exec()
-  const current = (results?.[0] as unknown as number) ?? 1
+  let current: number
+  try {
+    // Fenêtre FIXE et atomique :
+    //   - `SET key 0 EX windowSec NX` crée le compteur avec sa TTL UNIQUEMENT au premier
+    //     hit ; les hits suivants (clé déjà là) ne touchent pas la TTL → pas de fenêtre
+    //     glissante involontaire (l'ancienne version réappliquait EXPIRE à chaque hit).
+    //   - `INCR` compte.
+    // `multi()` garantit le préfixage ACL des clés (cf. src/lib/redis.ts — à la différence
+    // d'un script Lua/EVAL dont les KEYS ne seraient pas préfixés → NOPERM en prod).
+    const results = await redis.multi()
+      .set(key, '0', 'EX', windowSec, 'NX')
+      .incr(key)
+      .exec()
+    // exec() renvoie [[err, val], …] : le compteur est la valeur de la 2e commande (INCR).
+    // BUG CORRIGÉ : l'ancienne lecture `results?.[0]` prenait le TUPLE [err, val] et non le
+    // nombre → `[null, n] > max` se coerçait en `NaN > max` = toujours false → 429 jamais émis.
+    current = Number(results?.[1]?.[1] ?? 0)
+    if (!Number.isFinite(current) || current === 0) return null // réponse inattendue → fail-open
+  } catch {
+    // Redis indisponible → fail-open : le rate-limit protège, il ne doit pas devenir un
+    // point de défaillance dur qui renvoie 500 et casse tout l'endpoint (ex. le chat Yaye).
+    return null
+  }
 
   if (current > options.max) {
     return NextResponse.json(
