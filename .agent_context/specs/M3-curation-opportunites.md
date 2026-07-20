@@ -179,6 +179,28 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 - Unitaires : normalisation + empreinte contenu (titre+org+deadline), similarité quasi-doublon (seuil), tokens unicode.
 - Intégration MariaDB réelle : même annonce 2 sources → canonique + doublon `doublonDeId` ; annonce unique → `a_valider` ; déjà publié → `doublon` ; **C-1** (même titre+org, deadlines ≠ → PAS fusionné) ; **M-1** (sans org → jamais doublon) ; **M-2** (sans titre → pas de famine).
 
+## 4quinquies. US-5 — File de curation / validation admin (GUIC-600) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-599.
+
+**En tant qu'admin, je valide les opportunités détectées avant publication, pour garder le contrôle éditorial.**
+
+### Écrans (espace admin, thème sombre+doré, composants `ui/`)
+- **Liste `/admin/curation`** : items `statut = a_valider`, colonnes source d'origine · titre · type · organisation · **score de complétude** · date. **Filtres** : source, type d'opportunité, score (min). Pagination 20/page. Réutilise le pattern `AdminModerationList` existant.
+- **Détail éditable `/admin/curation/[id]`** : formulaire pré-rempli depuis `payloadExtrait` (titre, description, organisation, région, domaine, type, deadline, lien source) — l'admin **corrige/complète** avant publication (compense l'extraction partielle). Bandeau « source + URL d'origine + score ».
+
+### Actions (server actions, RBAC `isAdminRole`, journal d'audit)
+- **Approuver** → `statut = approuvee` (la publication réelle = création `Opportunite` est US-6).
+- **Rejeter** (motif obligatoire) → `statut = rejetee`, `motifRejet`, `moderePar`/`modereLe`.
+- **Mettre en attente** → `statut = en_attente`.
+- Édition des champs → met à jour `payloadExtrait` (+ `titre`) ; si titre/org modifiés, **recalcul de `empreinteContenu`** (sinon la dédup future utilise une clé périmée — dette signalée à l'audit L1).
+
+### Repromotion (dépendance tracée en US-4)
+- Quand un item **canonique** (qui a des `doublons` via `doublonDeId`) est **rejeté** OU **mis en attente**, **repromouvoir le doublon le plus ancien** en `a_valider` (et re-pointer les autres doublons vers lui). Sinon l'annonce entière disparaît de la file alors que l'admin n'a écarté qu'une instance.
+
+### Tests (TDD strict, charte robustesse)
+- Intégration MariaDB réelle : liste filtrée (source/type/score) ; approuver→approuvee ; rejeter→rejetee+motif+audit ; en attente→en_attente ; édition→payloadExtrait maj + empreinte recalculée ; **repromotion** (rejet d'un canonique → son doublon repasse a_valider) ; chemins de refus (non-admin 401/403, id inconnu 404).
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |

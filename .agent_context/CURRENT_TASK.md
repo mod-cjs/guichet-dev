@@ -1,25 +1,24 @@
-# CURRENT_TASK — GUIC-599 · US-4 Déduplication des opportunités
+# CURRENT_TASK — GUIC-600 · US-5 File de curation / validation admin
 
-**Épic** : GUIC-595 · **Spec** : `.agent_context/specs/M3-curation-opportunites.md` §4quater (validée lead 2026-07-20)
-**Branche** : `feature/GUIC-599-deduplication` (worktree `.claude/worktrees/curation-599`, **stackée sur GUIC-598**)
-**JIRA** : GUIC-599 En cours
+**Épic** : GUIC-595 · **Spec** : §4quinquies (validée lead 2026-07-20)
+**Branche** : `feature/GUIC-600-file-curation` (worktree curation-600b, stackée sur GUIC-599)
+**JIRA** : GUIC-600 En cours
 
 ## Décisions lead (2026-07-20)
-- Méthode : empreinte exacte `sha256(titre+org normalisés)` + similarité floue (Jaccard tokens titre ≥ seuil, org OU deadline concordante).
-- Comparaison contre : autres ItemCuration (a_valider/approuvee) ET Opportunite publiées.
-- Exécution : phase 3 du cron veille (après extraction).
+- Approuver → statut `approuvee` (publication réelle = US-6).
+- Repromotion : rejet/mise en attente d'un canonique → repromouvoir le doublon le plus ancien en a_valider.
+- `en_attente` = onglet séparé, hors file principale (a_valider only).
 
-## Périmètre
-- Migration : `ItemCuration.empreinteContenu String?` (indexé) + `doublonDeId String?` (self-FK).
-- `src/lib/curation/dedup/` : normalisation, empreinteContenu, similarité Jaccard, orchestrateur phase 3.
-- Un item `a_valider` dont le contenu existe déjà → `statut doublon` + `doublonDeId` (item) ; si match une Opportunite publiée → `doublon` (note). Le canonique = le plus ancien.
-- Phase 3 branchée dans `/api/cron/veille-sources` (verrou Redis partagé).
+## Périmètre (AUCUNE migration — champs ItemCuration déjà posés)
+- `src/app/admin/curation/actions.ts` : approuverItem / rejeterItem / mettreEnAttenteItem / editerItem. RBAC, audit, revalidate.
+- Repromotion helper (rejet/attente d'un canonique) + recalcul empreinteContenu sur édition titre/org.
+- UI : `/admin/curation` (liste filtrée source/type/score, onglet en_attente) + `/admin/curation/[id]` (détail éditable). Thème admin, composants ui/, pattern AdminModerationList.
+- Entrée sidebar admin.
 
 ## TDD
-1. RED : normalisation+empreinte, Jaccard/seuil, même annonce 2 sources → 1 canonique+1 doublon ; intégration (doublon+doublonDeId, unique reste a_valider, match Opportunite publiée).
+1. RED : intégration MariaDB — approuver/rejeter(+motif+audit)/attente/édition(payload+empreinte)/repromotion + refus.
 2. GREEN.
 
 ## Garde-fous
-- **dev a corrigé GUIC-622 (tsc vert)** ; mais mes branches stackées gardent l'ancienne baseline 12 jusqu'au merge de #274. Vérifier tsc = 12 sur ce worktree.
-- node_modules partagé (css-select déjà installé). 
-- US-4 ne fetch rien (dédup sur contenu déjà extrait) → pas de surface SSRF nouvelle.
+- Baseline tsc 12 (GUIC-622, corrigé sur dev). node_modules partagé (css-select réinstallé).
+- Édition titre/org → recalcul empreinteContenu (dette L1 audit).

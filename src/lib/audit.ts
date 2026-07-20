@@ -57,6 +57,11 @@ export type AuditAction =
   | 'source_veille.create'
   | 'source_veille.update'
   | 'source_veille.delete'
+  // GUIC-600 — curation : validation d'un item détecté (file de curation).
+  | 'curation_item.approve'
+  | 'curation_item.reject'
+  | 'curation_item.hold'
+  | 'curation_item.edit'
 
 interface AuditEntry {
   actorCjsUid: string
