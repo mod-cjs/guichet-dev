@@ -22,6 +22,33 @@ export function estReferenceVercel(reference: string): boolean {
 }
 
 /**
+ * Sous-ensemble d'environnement réellement lu par `configS3Pour` (injectable → testable).
+ *
+ * GUIC-622 — le paramètre était typé `NodeJS.ProcessEnv`, ce qui exigeait `NODE_ENV` (Next le
+ * déclare obligatoire) sur TOUT littéral passé à la fonction : les tests ne compilaient plus
+ * (6 erreurs TS2345), donc `npm run validate` était rouge sur dev, donc le hook pre-push
+ * bloquait toute branche et `--no-verify` redevenait routinier.
+ *
+ * La fonction ne lit que des clés `S3_*` : exiger le contrat complet de `ProcessEnv` était une
+ * sur-contrainte. Ce type dit exactement ce qu'elle consomme — `process.env` y reste assignable.
+ */
+export interface EnvS3 {
+  S3_ENDPOINT?:          string
+  S3_BUCKET?:            string
+  S3_REGION?:            string
+  S3_ACCESS_KEY_ID?:     string
+  S3_SECRET_ACCESS_KEY?: string
+  S3_ACCESS_KEY?:        string
+  S3_SECRET_KEY?:        string
+  /**
+   * Signature d'index : un environnement porte bien d'autres variables. Elle est aussi
+   * NÉCESSAIRE — sans elle, toutes les propriétés étant optionnelles, TypeScript traite `EnvS3`
+   * comme un « weak type » et refuse `process.env` (TS2559, « no properties in common »).
+   */
+  [autre: string]: string | undefined
+}
+
+/**
  * Config S3 depuis un environnement donné (injectable → testable).
  *
  * Tolère DEUX nommages des clés, car l'infra les fournit sous la convention MinIO/mc alors que
@@ -30,7 +57,7 @@ export function estReferenceVercel(reference: string): boolean {
  *   - AWS   : S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY   (prioritaire)
  *   - MinIO : S3_ACCESS_KEY    / S3_SECRET_KEY
  */
-export function configS3Pour(env: NodeJS.ProcessEnv): ConfigS3 {
+export function configS3Pour(env: EnvS3): ConfigS3 {
   const endpoint = env.S3_ENDPOINT
   const bucket = env.S3_BUCKET
   const accessKeyId = env.S3_ACCESS_KEY_ID || env.S3_ACCESS_KEY
