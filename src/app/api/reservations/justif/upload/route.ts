@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stockage } from '@/lib/storage'
 import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
+import { erreurServeur } from '@/lib/observability/erreur-serveur'
 import type { ApiResponse } from '@/types/api'
 
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png']
@@ -112,15 +113,15 @@ export async function POST(
     // GUIC-565 — stockage objet actif (MinIO en prod OVH, Vercel Blob sur le miroir de dev).
     const depose = await stockage().televerser({ chemin: pathname, fichier: file })
     return NextResponse.json({ data: { url: depose.reference } })
-  } catch {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'UPLOAD_FAILED',
-          message: 'Échec de l’upload, réessaye.',
-        },
-      },
-      { status: 502 },
-    )
+  } catch (err) {
+    // GUIC-574 — le `catch {}` d'origine jetait la cause : un MinIO injoignable, un bucket absent
+    // ou une clé invalide produisaient le MÊME 502 muet, indiscernables au diagnostic.
+    return erreurServeur({
+      code:    'UPLOAD_FAILED',
+      status:  502,
+      message: 'Échec de l’upload, réessaye.',
+      cause:   err,
+      route:   '/api/reservations/justif/upload',
+    })
   }
 }
