@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { erreurServeur } from '@/lib/observability/erreur-serveur'
 import { rateLimit } from '@/lib/rate-limit'
 import type { ApiResponse } from '@/types/api'
 
@@ -84,16 +85,14 @@ export async function POST(
       create: { cjsUid: session.cjsUid, centrePrincipalId: centreId },
     })
   } catch (e) {
-    console.error('[profil/centre-principal] upsert failed', e)
-    return NextResponse.json(
-      {
-        error: {
-          code: 'UPDATE_FAILED',
-          message: 'Impossible de mettre à jour le centre principal',
-        },
-      },
-      { status: 500 },
-    )
+    // GUIC-574 — `console.error` n'était PAS journalisé de façon structurée : invisible au
+    // filtre `level=error` de Grafana, donc absent du taux d'erreur.
+    return erreurServeur({
+      code:    'UPDATE_FAILED',
+      message: 'Impossible de mettre à jour le centre principal',
+      cause:   e,
+      route:   '/api/profil/centre-principal',
+    })
   }
 
   return NextResponse.json({ data: { ok: true } })

@@ -74,7 +74,7 @@ backup_db() {
   # F2 — le dump tourne DANS un conteneur sur le réseau du Guichet (avec host-gateway), pas sur
   # l'hôte : DB_HOST vaut host.docker.internal (perspective conteneur, comme l'app) et ne
   # résoudrait pas sur l'hôte. Cohérent avec scripts/backup/backup.sh (GUIC-571).
-  if docker run --rm --network "${SERVICES_NETWORK:-cjs_services}" \
+  if docker run --rm --network "${SERVICES_NETWORK:-cjs-net}" \
       --add-host host.docker.internal:host-gateway \
       -e MYSQL_PWD="$DB_PASS" "${MARIADB_IMAGE:-mariadb:10.11}" \
       mariadb-dump --single-transaction --quick --no-tablespaces \

@@ -1,0 +1,26 @@
+# GUIC-544 — Source de données Loki, provisionnée au démarrage.
+#
+# Provisionnée par fichier plutôt que cliquée dans l'interface : la configuration est versionnée,
+# revue en PR, et se rejoue à l'identique après une reconstruction du conteneur. Un réglage posé
+# à la main disparaît au premier `docker compose down -v`.
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    editable: false # La source de vérité est ce fichier, pas l'interface.
+    jsonData:
+      # Le requestId relie les logs de l'app et ceux du proxy. Ce lien rend l'id CLIQUABLE dans
+      # Grafana : depuis une ligne applicative, on saute à toutes les lignes — app ET proxy —
+      # portant le même identifiant. C'est exactement le « en une recherche » du ticket.
+      derivedFields:
+        - name: requestId
+          matcherRegex: '"requestId":"([^"]+)"'
+          url: '$${__value.raw}'
+          datasourceUid: loki
+          urlDisplayLabel: 'Toutes les lignes de cette requête'
+      maxLines: 2000

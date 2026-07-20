@@ -1,0 +1,90 @@
+# GUIC-544 — Pile d'observabilité des LOGS : Loki (stockage + recherche) et Grafana (exploration
+# et alertes), alimentés par Promtail.
+#
+# POURQUOI UN FICHIER SÉPARÉ du compose de production : cycle de vie distinct. On redéploie
+# l'application plusieurs fois par jour ; la pile d'observabilité, elle, doit rester DEBOUT
+# pendant ces redéploiements — c'est précisément là qu'on a besoin de lire les logs. Les mélanger
+# ferait tomber la supervision à chaque `docker compose up` applicatif.
+#
+# Démarrage (sur le serveur) :
+#   docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/prod.env up -d
+#
+# ⚠️ AUCUN port n'est exposé publiquement. Grafana n'écoute que sur la BOUCLE LOCALE : on y accède
+# par tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`). Un Grafana ouvert sur Internet, c'est
+# l'intégralité des logs — donc des identifiants pseudonymisés — à portée d'un mot de passe faible.
+
+services:
+  loki:
+    image: grafana/loki:3.4.2
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./infra/observabilite/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    networks: [observabilite]
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3100/ready | grep -q ready || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./infra/observabilite/promtail.yml:/etc/promtail/promtail.yml:ro
+      # Logs des conteneurs Docker (l'application). Lecture seule : Promtail ne doit jamais
+      # pouvoir écrire dans le répertoire de Docker.
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Logs du reverse proxy, qui vit sur l'HÔTE (nginx/Plesk n'est pas dockerisé).
+      - /var/log/nginx:/var/log/nginx:ro
+      - promtail_positions:/promtail
+    networks: [observabilite]
+    depends_on:
+      loki:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    restart: unless-stopped
+    ports:
+      # BOUCLE LOCALE UNIQUEMENT — jamais 0.0.0.0. Accès par tunnel SSH.
+      - '127.0.0.1:3000:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER:      ${GRAFANA_ADMIN_USER:-admin}
+      # Obligatoire : pas de valeur par défaut. Le service refuse de démarrer sans, plutôt que
+      # de tourner avec le mot de passe « admin » bien connu.
+      GF_SECURITY_ADMIN_PASSWORD:  ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD obligatoire dans /etc/guichet/prod.env}
+      GF_AUTH_ANONYMOUS_ENABLED:   'false'
+      GF_USERS_ALLOW_SIGN_UP:      'false'
+      # Aucune télémétrie ni appel sortant : cohérent avec la contrainte CDP (auto-hébergé).
+      GF_ANALYTICS_REPORTING_ENABLED:    'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES:    'false'
+      GF_NEWS_NEWS_FEED_ENABLED:         'false'
+    volumes:
+      - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    networks: [observabilite]
+    depends_on:
+      loki:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  loki_data:
+  grafana_data:
+  promtail_positions:
+
+networks:
+  observabilite:
+    driver: bridge

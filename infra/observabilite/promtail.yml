@@ -1,0 +1,102 @@
+# GUIC-544 — Promtail : collecte des logs et envoi vers Loki.
+#
+# Deux sources, et c'est tout l'intérêt du ticket — répondre à « que s'est-il passé entre 14h02
+# et 14h07 sur cette route ? » exige de croiser les DEUX :
+#   1. l'APPLICATION (conteneur Docker, JSON structuré déjà produit par src/lib/logger.ts) ;
+#   2. le REVERSE PROXY nginx/Plesk, qui vit sur l'hôte et voit TOUTES les requêtes — y compris
+#      celles qui n'atteignent jamais l'app (502, timeouts, blocages TLS).
+#
+# ⚠️ CARDINALITÉ — la règle qui protège l'index : un label = un flux. Mettre `requestId` ou un
+# `cjs_uid` en label créerait un flux par requête et ferait exploser Loki. Le requestId se cherche
+# donc par FILTRE de contenu, pas par label :
+#     {job="guichet-app"} | json | requestId = "abc-123"
+# C'est aussi ce qui satisfait le critère « rechercher tous les logs d'un requestId donné ».
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  # Persisté (volume) : au redémarrage, Promtail reprend où il s'est arrêté au lieu de tout
+  # réexpédier — sinon chaque redémarrage duplique les logs et gonfle le disque.
+  filename: /promtail/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── 1. Logs de l'application (conteneur Docker) ─────────────────────────────
+  - job_name: guichet-app
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job:  guichet-app
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      # Docker enveloppe chaque ligne : {"log":"<notre JSON>\n","stream":"stdout","time":"…"}
+      - json:
+          expressions:
+            sortie: log
+            flux:   stream
+            heure:  time
+      - timestamp:
+          source: heure
+          format: RFC3339Nano
+
+      # Notre logger émet du JSON structuré. On extrait de quoi filtrer — sans en faire des
+      # labels, sauf `level` (cardinalité bornée : info/warn/error).
+      - json:
+          source: sortie
+          expressions:
+            level:     level
+            message:   message
+            requestId: requestId
+            path:      path
+            status:    status
+      - labels:
+          level:
+      # Le corps indexé reste la ligne JSON d'origine : `| json` permet ensuite de filtrer sur
+      # n'importe quel champ (requestId, path, status) sans coût de cardinalité.
+      - output:
+          source: sortie
+
+      # ── Garde-fou CDP, en DERNIÈRE ligne de défense ─────────────────────────
+      # L'application scrube déjà (hashId, scrubPath, scrubMessage). Ceci rattrape ce qui
+      # aurait échappé — un log ajouté à la hâte, une dépendance bavarde. Mieux vaut deux
+      # filets qu'un seul : ce qui entre dans Loki y reste 30 jours.
+      - replace:
+          expression: '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})'
+          replace: '[email]'
+      - replace:
+          expression: '(\+221[0-9]{9})'
+          replace: '[phone]'
+
+  # ── 2. Logs du reverse proxy (nginx / Plesk, sur l'HÔTE) ────────────────────
+  # Ce sont eux qui portent le statut et la latence de TOUTES les requêtes, et le
+  # `req=<request_id>` posé par nginx (cf. docs/observabilite.md §1) — la clé de corrélation
+  # avec les logs applicatifs.
+  - job_name: nginx-proxy
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job:  nginx-proxy
+          __path__: /var/log/nginx/*access.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<ip>\S+) (?P<methode>\S+) (?P<uri>\S+) (?P<statut>\d{3}) (?P<duree>\S+) req=(?P<requestId>\S+)'
+      - labels:
+          statut:
+      # L'IP est une donnée personnelle au sens CDP : on ne l'indexe pas en label et on la
+      # neutralise dans la ligne conservée.
+      - replace:
+          expression: '^(\S+) '
+          replace: '[ip] '
+
+  - job_name: nginx-erreurs
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job:  nginx-proxy-erreurs
+          __path__: /var/log/nginx/*error.log
