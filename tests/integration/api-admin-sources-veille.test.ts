@@ -29,7 +29,11 @@ import {
 } from '@/app/api/admin/sources-veille/[id]/route'
 
 const ADMIN = { cjsUid: 'test-admin-veille', roles: ['admin'] }
+// PREFIX stable pour le cleanup (ramasse aussi les restes d'un run crashé) ;
+// RUN unique pour que les URLs ne collisionnent jamais entre runs/sessions
+// parallèles sur la même MariaDB partagée.
 const PREFIX = 'test-guic596'
+const RUN = Date.now()
 const BASE = 'http://localhost/api/admin/sources-veille'
 
 function req(method: string, body?: unknown, url = BASE): NextRequest {
@@ -45,7 +49,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) })
 function fixture(n: number) {
   return {
     nom: `${PREFIX} source ${n}`,
-    url: `https://exemple-veille.sn/${PREFIX}/${n}`,
+    url: `https://exemple-veille.sn/${PREFIX}/${RUN}/${n}`,
     methode: 'rss',
     frequence: 'quotidienne',
   }
@@ -61,11 +65,17 @@ afterAll(async () => {
 })
 
 describe('GUIC-596 — refus (chemins non-admin)', () => {
-  it.each([
-    ['sans session', null],
-    ['rôle non-admin', { cjsUid: 'u-jeune', roles: ['jeune'] }],
-  ])('403 sur toutes les routes — %s', async (_label, session) => {
-    mockGetSession.mockResolvedValue(session)
+  it('401 sans session (non authentifié) sur toutes les routes', async () => {
+    mockGetSession.mockResolvedValue(null)
+    expect((await listGET(req('GET'))).status).toBe(401)
+    expect((await listPOST(req('POST', fixture(1)))).status).toBe(401)
+    expect((await detailGET(req('GET'), ctx('x'))).status).toBe(401)
+    expect((await detailPATCH(req('PATCH', { actif: false }), ctx('x'))).status).toBe(401)
+    expect((await detailDELETE(req('DELETE'), ctx('x'))).status).toBe(401)
+  })
+
+  it('403 avec session non-admin (authentifié mais rôle insuffisant)', async () => {
+    mockGetSession.mockResolvedValue({ cjsUid: 'u-jeune', roles: ['jeune'] })
     expect((await listGET(req('GET'))).status).toBe(403)
     expect((await listPOST(req('POST', fixture(1)))).status).toBe(403)
     expect((await detailGET(req('GET'), ctx('x'))).status).toBe(403)
@@ -106,20 +116,23 @@ describe('GUIC-596 — CRUD sources de veille (DB réelle)', () => {
   })
 
   it('GET liste paginée 20/page, exclut les soft-deleted', async () => {
+    // La MariaDB 3307 est PARTAGÉE (autre session possible) : les assertions sont
+    // relatives au contenu courant de la table, jamais absolues.
+    const avant = await prisma.sourceVeille.count({ where: { deletedAt: null } })
     await prisma.sourceVeille.createMany({
       data: Array.from({ length: 22 }, (_, i) => ({
         nom: `${PREFIX} bulk ${String(i).padStart(2, '0')}`,
-        url: `https://exemple-veille.sn/${PREFIX}/bulk/${i}`,
+        url: `https://exemple-veille.sn/${PREFIX}/${RUN}/bulk/${i}`,
         ...(i === 21 ? { deletedAt: new Date() } : {}),
       })),
     })
 
     const p1 = await (await listGET(req('GET', undefined, `${BASE}?page=1`))).json()
-    expect(p1.meta).toMatchObject({ total: 21, page: 1, limit: 20 })
-    expect(p1.data).toHaveLength(20)
+    expect(p1.meta).toMatchObject({ total: avant + 21, page: 1, limit: 20 })
+    expect(p1.data).toHaveLength(Math.min(20, avant + 21))
 
     const p2 = await (await listGET(req('GET', undefined, `${BASE}?page=2`))).json()
-    expect(p2.data).toHaveLength(1)
+    expect(p2.data).toHaveLength(Math.min(20, Math.max(0, p2.meta.total - 20)))
   })
 
   it('GET détail 200 · id inconnu 404', async () => {
@@ -149,6 +162,116 @@ describe('GUIC-596 — CRUD sources de veille (DB réelle)', () => {
     expect(
       (await detailPATCH(req('PATCH', { actif: true }), ctx('00000000-0000-0000-0000-000000000000'))).status,
     ).toBe(404)
+  })
+
+  // ─── Durcissement post-challenge (2026-07-20) ─────────────────────────────
+
+  it('POST initialise prochaineVerifLe (source neuve immédiatement due pour le robot US-2)', async () => {
+    const { data } = await (await listPOST(req('POST', fixture(10)))).json()
+    const row = await prisma.sourceVeille.findUnique({ where: { id: data.id } })
+    expect(row?.prochaineVerifLe).toBeInstanceOf(Date)
+    expect(row!.prochaineVerifLe!.getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('re-déclarer une URL soft-deletée la ré-hydrate (pas de 409 fantôme)', async () => {
+    const { data: first } = await (await listPOST(req('POST', fixture(11)))).json()
+    await detailDELETE(req('DELETE'), ctx(first.id))
+
+    const res = await listPOST(req('POST', fixture(11)))
+    expect(res.status).toBe(201)
+    const { data: revived } = await res.json()
+    // Même ligne réhydratée (URL unique préservée), vivante à nouveau.
+    expect(revived.id).toBe(first.id)
+    const row = await prisma.sourceVeille.findUnique({ where: { id: first.id } })
+    expect(row?.deletedAt).toBeNull()
+
+    const liste = await (await listGET(req('GET'))).json()
+    expect((liste.data as Array<{ id: string }>).some((s) => s.id === first.id)).toBe(true)
+  })
+
+  it('réactiver une source (actif false→true) repose prochaineVerifLe si absent', async () => {
+    const { data } = await (await listPOST(req('POST', fixture(12)))).json()
+    // Simule une source désactivée dont le robot a consommé la date.
+    await prisma.sourceVeille.update({
+      where: { id: data.id },
+      data: { actif: false, prochaineVerifLe: null },
+    })
+    await detailPATCH(req('PATCH', { actif: true }), ctx(data.id))
+    const row = await prisma.sourceVeille.findUnique({ where: { id: data.id } })
+    expect(row?.prochaineVerifLe).toBeInstanceOf(Date)
+  })
+
+  it('PATCH bascule vers html_selecteurs sur une source DÉJÀ configurée → 200 (invariant sur état fusionné)', async () => {
+    const { data } = await (
+      await listPOST(
+        req('POST', {
+          ...fixture(13),
+          methode: 'api',
+          configExtraction: { endpoint: 'https://api.exemple.sn/offres' },
+        }),
+      )
+    ).json()
+    // La config existe déjà en base : basculer la méthode seule ne doit PAS être rejeté.
+    const res = await detailPATCH(req('PATCH', { methode: 'html_selecteurs' }), ctx(data.id))
+    expect(res.status).toBe(200)
+    const row = await prisma.sourceVeille.findUnique({ where: { id: data.id } })
+    expect(row?.methode).toBe('html_selecteurs')
+  })
+
+  it('PATCH refuse une bascule vers une méthode à config requise SANS config existante (400)', async () => {
+    const { data } = await (await listPOST(req('POST', { ...fixture(14), methode: 'rss' }))).json()
+    const res = await detailPATCH(req('PATCH', { methode: 'html_selecteurs' }), ctx(data.id))
+    expect(res.status).toBe(400)
+  })
+
+  it('PATCH configExtraction:null efface la config', async () => {
+    const { data } = await (
+      await listPOST(
+        req('POST', {
+          ...fixture(15),
+          methode: 'jsonld',
+          configExtraction: { note: 'à supprimer' },
+        }),
+      )
+    ).json()
+    await detailPATCH(req('PATCH', { configExtraction: null }), ctx(data.id))
+    const row = await prisma.sourceVeille.findUnique({ where: { id: data.id } })
+    expect(row?.configExtraction).toBeNull()
+  })
+
+  it('PATCH url vers une URL déjà prise par une autre source vivante → 409', async () => {
+    const { data: a } = await (await listPOST(req('POST', fixture(16)))).json()
+    await listPOST(req('POST', fixture(17)))
+    const res = await detailPATCH(req('PATCH', { url: fixture(17).url }), ctx(a.id))
+    expect(res.status).toBe(409)
+  })
+
+  it('POST normalise l’URL : trailing slash = même source (409 au doublon)', async () => {
+    const base = `https://exemple-veille.sn/${PREFIX}/${RUN}/norm`
+    expect((await listPOST(req('POST', { ...fixture(18), url: base }))).status).toBe(201)
+    const dup = await listPOST(req('POST', { ...fixture(18), nom: `${PREFIX} n2`, url: `${base}/` }))
+    expect(dup.status).toBe(409)
+  })
+
+  it('POST refuse une URL interne (anti-SSRF) — le robot fetchera cette URL en US-2', async () => {
+    for (const url of ['http://169.254.169.254/latest', 'http://127.0.0.1:6379/', 'http://localhost/x']) {
+      const res = await listPOST(req('POST', { ...fixture(19), nom: `${PREFIX} ssrf`, url }))
+      expect(res.status).toBe(400)
+    }
+  })
+
+  it('POST refuse un typeDefautId inexistant (FK) et accepte un type réel', async () => {
+    const bad = await listPOST(req('POST', { ...fixture(20), typeDefautId: '00000000-0000-0000-0000-000000000000' }))
+    expect(bad.status).toBe(400)
+
+    const type = await prisma.opportuniteType.findFirst({ select: { id: true } })
+    if (type) {
+      const ok = await listPOST(req('POST', { ...fixture(21), typeDefautId: type.id }))
+      expect(ok.status).toBe(201)
+      const { data } = await ok.json()
+      const row = await prisma.sourceVeille.findUnique({ where: { id: data.id } })
+      expect(row?.typeDefautId).toBe(type.id)
+    }
   })
 
   it('DELETE soft-delete : deletedAt posé, absent de la liste, journalisé', async () => {
