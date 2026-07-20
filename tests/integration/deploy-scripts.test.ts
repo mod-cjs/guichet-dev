@@ -84,6 +84,12 @@ function run(script: string, opts: { env?: Record<string, string>; health?: stri
     'S3_ACCESS_KEY="AAA"',
     'S3_SECRET_KEY="BBB"',
     'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+    // GUIC-634 — le preflight exige désormais le SSO (seule porte d'entrée) : sans ces
+    // variables il refuse, et deploy.sh s'arrête AVANT la sauvegarde. C'est le comportement
+    // voulu — ce harnais doit donc fournir une config complète pour tester l'orchestration.
+    'SSO_BASE_URL="https://sso.consortiumjeunessesenegal.org"',
+    'SSO_CLIENT_ID="guichet"',
+    'SESSION_SECRET="secret-de-session"',
   ].join('\n') + '\n')
   chmodSync(envFile, 0o600)
 
