@@ -1,26 +1,25 @@
-# CURRENT_TASK — GUIC-598 · US-3 Extraction déterministe en cascade
+# CURRENT_TASK — GUIC-599 · US-4 Déduplication des opportunités
 
-**Épic** : GUIC-595 · **Spec** : `.agent_context/specs/M3-curation-opportunites.md` §4ter (validée lead 2026-07-20)
-**Branche** : `feature/GUIC-598-extraction-deterministe` (worktree `.claude/worktrees/curation-598`, **stackée sur GUIC-597**)
-**JIRA** : GUIC-598 En cours
+**Épic** : GUIC-595 · **Spec** : `.agent_context/specs/M3-curation-opportunites.md` §4quater (validée lead 2026-07-20)
+**Branche** : `feature/GUIC-599-deduplication` (worktree `.claude/worktrees/curation-599`, **stackée sur GUIC-598**)
+**JIRA** : GUIC-599 En cours
 
 ## Décisions lead (2026-07-20)
-- Moteur sélecteurs : **css-select** (+ htmlparser2/domutils déjà présents). Ajouté à package.json (^5.2.2).
-- Extraction par lot = **phase 2 du cron** `/api/cron/veille-sources` (lot borné d'items `decouvert`, politesse, verrou Redis partagé).
-- Aperçu admin : **endpoint + bouton UI** dans SourceFormModal.
+- Méthode : empreinte exacte `sha256(titre+org normalisés)` + similarité floue (Jaccard tokens titre ≥ seuil, org OU deadline concordante).
+- Comparaison contre : autres ItemCuration (a_valider/approuvee) ET Opportunite publiées.
+- Exécution : phase 3 du cron veille (après extraction).
 
-## Périmètre (AUCUNE migration — colonnes ItemCuration déjà posées en US-2)
-- `src/lib/curation/extraction/` : jsonld (schema.org JobPosting/Event, sans dép), selecteurs (css-select : `sel` texte / `sel@attr`), meta (og:/meta/title/h1), dates (FR→ISO), cascade+score.
-- Extraction remplit `payloadExtrait`+`titre`+`scoreCompletude`, passe `decouvert → a_valider` (jamais de rejet auto).
-- Phase 2 orchestrateur : fetch chaque item (réutilise `ssrf-guard`+`clientHttpReel`, politesse), lot borné N/run.
-- Route `POST /api/admin/sources-veille/apercu` (RBAC admin + SSRF + fetch + extraction, SANS persistance).
-- UI : bouton « Tester l'extraction » dans `SourceFormModal` → affiche champs extraits + score.
+## Périmètre
+- Migration : `ItemCuration.empreinteContenu String?` (indexé) + `doublonDeId String?` (self-FK).
+- `src/lib/curation/dedup/` : normalisation, empreinteContenu, similarité Jaccard, orchestrateur phase 3.
+- Un item `a_valider` dont le contenu existe déjà → `statut doublon` + `doublonDeId` (item) ; si match une Opportunite publiée → `doublon` (note). Le canonique = le plus ancien.
+- Phase 3 branchée dans `/api/cron/veille-sources` (verrou Redis partagé).
 
 ## TDD
-1. RED : extraction JSON-LD/sélecteurs/meta/regex sur fixtures réelles, score, mapping type/domaine ; intégration (decouvert→a_valider, non ré-extraction) ; aperçu 403 non-admin + SSRF refusé.
+1. RED : normalisation+empreinte, Jaccard/seuil, même annonce 2 sources → 1 canonique+1 doublon ; intégration (doublon+doublonDeId, unique reste a_valider, match Opportunite publiée).
 2. GREEN.
 
 ## Garde-fous
-- Baseline tsc 12 (GUIC-622). **node_modules partagé** : `npm install css-select` a élagué `.prisma/client` → régénéré. Signaler à l'autre session.
-- US-3 fetch chaque item → garde SSRF obligatoire (réutilisée d'US-2).
-- pre-push rouge préexistant (observability+yaye+qr-badge flaky) → bypass déjà tranché pour la famille curation.
+- **dev a corrigé GUIC-622 (tsc vert)** ; mais mes branches stackées gardent l'ancienne baseline 12 jusqu'au merge de #274. Vérifier tsc = 12 sur ce worktree.
+- node_modules partagé (css-select déjà installé). 
+- US-4 ne fetch rien (dédup sur contenu déjà extrait) → pas de surface SSRF nouvelle.

@@ -149,6 +149,30 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 - Unitaires sur **fixtures d'octets réels** : extraction JSON-LD JobPosting, sélecteurs HTML, fallback meta/regex, calcul du score, mapping type/domaine.
 - Intégration MariaDB réelle : un item `decouvert` → extraction → `payloadExtrait`+`scoreCompletude`+`a_valider` ; item déjà `a_valider` non ré-extrait ; route aperçu 403 non-admin + SSRF refusé.
 
+## 4quater. US-4 — Déduplication des opportunités (GUIC-599) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-598.
+
+**En tant que système, je veux éviter les doublons, pour ne pas présenter deux fois la même opportunité à l'admin.**
+
+### Deux niveaux de dédup (complémentaires)
+1. **URL (déjà en place, US-2)** : `empreinte = sha256(urlCanonique)` `@unique` → une URL déjà vue n'est jamais resoumise.
+2. **CONTENU (cette US)** : après extraction (US-3), détecter qu'une opportunité est la même annonce vue via une **autre source / une autre URL**. `empreinteContenu = sha256(titreNormalisé + '|' + organisationNormalisée)` (normalisation : minuscules, sans accents, espaces réduits) + **quasi-doublons** (cf. Q1).
+
+### Effets
+- Un item `a_valider` dont le contenu correspond à un item déjà `a_valider`/`approuvee` (ou à une `Opportunite` publiée, cf. Q2) est passé `statut = doublon` (enum déjà présent) et lié au canonique via `doublonDeId` → il ne pollue plus la file de validation, mais reste traçable.
+- Jamais de suppression : l'admin peut inspecter/défaire en US-5.
+
+### Modèle (migration)
+- `ItemCuration.empreinteContenu String?` (indexé, rempli à l'extraction) · `ItemCuration.doublonDeId String?` (self-FK vers le canonique).
+
+### Exécution
+- Phase 3 du cron veille (après extraction) OU inline (cf. Q3). Déterministe, sans LLM.
+
+### Tests (TDD strict)
+- Unitaires : normalisation + empreinte contenu, similarité quasi-doublon (seuil), même annonce sur 2 sources → 1 canonique + 1 doublon.
+- Intégration MariaDB réelle : item extrait dont le contenu existe déjà → `doublon` + `doublonDeId` ; annonce unique → reste `a_valider` ; item déjà publié (`Opportunite`) non resoumis.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |
