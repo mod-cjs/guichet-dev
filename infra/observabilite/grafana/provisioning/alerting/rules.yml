@@ -1,0 +1,204 @@
+# GUIC-576 — Règles d'alerte : À PARTIR DE QUEL SEUIL on dérange quelqu'un.
+#
+# Chaque règle porte un label `severite` :
+#   alerte         -> on réveille quelqu'un, maintenant ;
+#   avertissement  -> on regarde demain.
+# Sans cette distinction, tout devient urgent, donc plus rien ne l'est.
+#
+# ⚠️ NE SONT ÉCRITES ICI QUE LES RÈGLES DONT LE SIGNAL EXISTE. Une alerte branchée sur un signal
+# absent ne se déclenche jamais et donne une fausse sécurité — pire que pas d'alerte du tout,
+# parce qu'on croit être couvert.
+#   - Saturation disque et mémoire -> **Netdata** (GUIC-545), pas Loki : ce sont des métriques
+#     machine, elles n'apparaissent dans aucun log. Les seuils y sont définis, pas ici.
+#   - Indisponibilité totale -> **sonde externe** (GUIC-575) : Grafana meurt avec le serveur.
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: guichet-disponibilite
+    folder: Guichet
+    interval: 1m
+    rules:
+      # ── Taux de 5xx — le signal qui décide d'un rollback pendant le canary ──
+      - uid: guichet-5xx-alerte
+        title: Taux de 5xx élevé
+        condition: C
+        for: 5m # 5 min de persistance : un pic isolé (redéploiement) ne réveille personne.
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Plus de 5 % des requêtes échouent en 5xx depuis 5 minutes.'
+          description: >-
+            Vérifier si un déploiement vient d'avoir lieu (rollback : scripts/deploy/rollback.sh)
+            puis /api/health. Logs : {job="guichet-app"} | json | level="error"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              # LogQL ne connait PAS `clamp_min` (verifie : « syntax error: unexpected
+              # IDENTIFIER »). Le ratio nu suffit : sans trafic, Loki ne renvoie rien et
+              # `noDataState: OK` traite l'absence de requetes comme une absence d'incident.
+              expr: >-
+                sum(count_over_time({job="nginx-proxy", statut=~"5.."}[5m]))
+                /
+                sum(count_over_time({job="nginx-proxy"}[5m]))
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.05] }
+              refId: C
+        noDataState: OK # Aucun trafic = pas d'incident (nuit, staging au repos).
+        execErrState: Error
+
+      - uid: guichet-5xx-avertissement
+        title: Taux de 5xx en hausse
+        condition: C
+        for: 15m # Une tendance, pas une urgence : on veut la voir monter, pas sursauter.
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Plus de 1 % de 5xx depuis 15 minutes — dégradation lente.'
+          description: 'À regarder demain si ça persiste. Souvent : une route qui échoue en silence.'
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: >-
+                sum(count_over_time({job="nginx-proxy", statut=~"5.."}[15m]))
+                /
+                sum(count_over_time({job="nginx-proxy"}[15m]))
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.01] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+  - orgId: 1
+    name: guichet-taches-planifiees
+    folder: Guichet
+    interval: 5m
+    rules:
+      # ── Échec de sauvegarde ────────────────────────────────────────────────
+      # La perte de données est irrattrapable ; une indisponibilité ne l'est pas. C'est la seule
+      # panne dont on ne se remet pas — d'où le réveil immédiat, sans période de tolérance.
+      - uid: guichet-sauvegarde-echec
+        title: Échec de sauvegarde
+        condition: C
+        for: 0m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'La sauvegarde a échoué.'
+          description: >-
+            Vérifier /var/log/guichet/backup.log et relancer scripts/backup/backup.sh.
+            Tant qu'elle échoue, AUCUN déploiement ne doit partir : deploy.sh refuse de migrer
+            sans point de restauration, et c'est voulu.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "backup:erreur" [1h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+      # ── Sauvegarde ABSENTE — la panne silencieuse ─────────────────────────
+      # Le cas le plus dangereux du système : la sauvegarde ne PLANTE pas, elle ne tourne PLUS
+      # (cron retiré, disque plein, machine redémarrée sans crontab). Rien n'échoue, donc rien
+      # n'alerte — et on le découvre le jour où on a besoin de restaurer.
+      # 26 h de fenêtre pour une tâche quotidienne : tolère un décalage sans laisser passer un jour.
+      - uid: guichet-sauvegarde-absente
+        title: Aucune sauvegarde depuis 26 heures
+        condition: C
+        for: 0m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Aucune trace de sauvegarde depuis 26 h — la tâche ne tourne peut-être plus.'
+          description: >-
+            Vérifier que la crontab existe encore (crontab -l | grep GUICHET-BACKUP) et que
+            /var/log/guichet/backup.log est bien alimenté. Une sauvegarde qui ne tourne plus ne
+            se remarque QUE le jour où on en a besoin.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 93600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "backup" [26h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+              refId: C
+        # NoData vaut ici ALERTE : aucune ligne de log = c'est précisément le symptôme.
+        noDataState: Alerting
+        execErrState: Error
+
+      # ── Tâches planifiées en échec ────────────────────────────────────────
+      # Un échec isolé arrive (réseau, verrou). Trois en une heure, c'est une panne. Parmi ces
+      # tâches : la purge des CV, qui porte la rétention CDP — son arrêt est un manquement
+      # réglementaire que rien d'autre ne signalerait.
+      - uid: guichet-cron-echecs-repetes
+        title: Échecs répétés d'une tâche planifiée
+        condition: C
+        for: 0m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Au moins 3 échecs de tâches planifiées en 1 heure.'
+          description: >-
+            Voir /var/log/guichet/cron.log. Attention à la purge des CV : son arrêt est un
+            manquement à la rétention CDP.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |~ "(?i)(erreur|error|failed|échec)" [1h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [2] }
+              refId: C
+        noDataState: OK
+        execErrState: Error

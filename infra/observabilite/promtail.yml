@@ -100,3 +100,35 @@ scrape_configs:
         labels:
           job:  nginx-proxy-erreurs
           __path__: /var/log/nginx/*error.log
+
+  # ── 3. Tâches planifiées et sauvegardes (GUIC-576) ──────────────────────────
+  # Ces travaux tournent en CRON SUR L'HÔTE, pas dans un conteneur : leur sortie n'apparaît donc
+  # ni dans les logs Docker ni dans ceux de nginx. Sans cette collecte, deux seuils exigés par
+  # GUIC-576 — échec répété d'une tâche planifiée, échec de sauvegarde — ne pourraient JAMAIS se
+  # déclencher : on aurait des règles d'alerte branchées sur un signal inexistant.
+  #
+  # Destinations (déjà en place) :
+  #   /var/log/guichet/cron.log    <- scripts/cron/generate-crontab.sh
+  #   /var/log/guichet/backup.log  <- scripts/backup/README.md (backup.sh + restore-drill.sh)
+  #
+  # Ce sont les échecs les plus dangereux du système : ils sont SILENCIEUX. Une sauvegarde qui ne
+  # tourne plus ne se remarque que le jour où on en a besoin — trop tard. Une purge CV qui ne
+  # tourne plus est un manquement à la rétention CDP que rien ne signale.
+  - job_name: guichet-taches
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job:  guichet-taches
+          __path__: /var/log/guichet/*.log
+    pipeline_stages:
+      # Les scripts shell colorisent leur sortie ; les codes ANSI parasitent la recherche.
+      - replace:
+          expression: '(\x1b\[[0-9;]*m)'
+          replace: ''
+      # `[backup:erreur]` et `[deploy:erreur]` (err() dans les scripts) et « ✗ » (preflight)
+      # marquent un échec. On en fait un label de SÉVÉRITÉ, à cardinalité bornée (2 valeurs),
+      # pour que les règles d'alerte s'y accrochent sans scanner tout le contenu.
+      - regex:
+          expression: '(?P<marqueur>\[[a-z]+:erreur\]|✗)'
+      - labels:
+          marqueur:

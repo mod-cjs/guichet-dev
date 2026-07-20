@@ -1,0 +1,58 @@
+# GUIC-576 — Points de contact : OÙ part une alerte.
+#
+# Provisionné par fichier, pas cliqué dans l'interface : la configuration est versionnée, revue
+# en PR, et se rejoue à l'identique après reconstruction du conteneur. Un contact posé à la main
+# disparaît au premier `docker compose down -v` — et personne ne s'en aperçoit avant l'incident.
+#
+# ⚠️ LIMITE STRUCTURELLE, à connaître avant de faire confiance à ce fichier :
+# Grafana tourne SUR la machine qu'il supervise. Il ne peut pas alerter sur sa propre mort. Si le
+# serveur tombe — panne, noyau, réseau OVH — ces contacts ne partent PAS.
+# C'est précisément le rôle de la sonde externe (GUIC-575, UptimeRobot), hors infrastructure.
+#
+#   Serveur À TERRE          -> sonde externe UptimeRobot   (GUIC-575)
+#   Serveur DEBOUT, dégradé  -> Grafana, ce fichier          (GUIC-576)
+#
+# Les deux sont nécessaires : aucun ne couvre le cas de l'autre.
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: astreinte
+    receivers:
+      # ── E-mail ────────────────────────────────────────────────────────────
+      # Dépend de GUIC-577 (relais SMTP + SPF/DKIM/DMARC). Sans ces enregistrements DNS, les
+      # alertes partent en spam : l'application marche, la supervision marche, et personne ne
+      # reçoit rien. Configurer GUIC-577 AVANT de compter sur ce canal.
+      - uid: astreinte-email
+        type: email
+        settings:
+          addresses: ${ALERTE_EMAILS}
+          subject: '[{{ .CommonLabels.severite | toUpper }}] Guichet — {{ .CommonLabels.alertname }}'
+          message: |
+            {{ range .Alerts }}{{ .Annotations.summary }}
+            {{ .Annotations.description }}
+            {{ end }}
+
+      # ── WhatsApp, via un relais EXTERNE ───────────────────────────────────
+      # Meta Cloud API exige un en-tête `Authorization: Bearer` et un corps JSON qui lui est
+      # propre — Grafana envoie le sien. D'où un relais qui retraduit.
+      #
+      # Le relais vit HORS de notre serveur (Cloudflare Worker, offre gratuite), et c'est
+      # délibéré : le même relais sert la sonde externe (GUIC-575), qui, elle, doit fonctionner
+      # quand le serveur est à terre. Un relais unique et externe couvre les deux cas ; un relais
+      # local n'en couvrirait qu'un.
+      - uid: astreinte-whatsapp
+        type: webhook
+        settings:
+          url: ${ALERTE_WEBHOOK_URL}
+          httpMethod: POST
+          # Le secret partagé empêche n'importe qui de déclencher des messages WhatsApp en
+          # connaissant l'URL du relais.
+          authorization_scheme: Bearer
+          authorization_credentials: ${ALERTE_WEBHOOK_TOKEN}
+          title: '[{{ .CommonLabels.severite | toUpper }}] Guichet — {{ .CommonLabels.alertname }}'
+          message: |
+            {{ range .Alerts }}{{ .Annotations.summary }}
+            {{ .Annotations.description }}
+            {{ end }}
