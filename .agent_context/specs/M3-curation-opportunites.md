@@ -122,6 +122,33 @@ Le robot lui-même (US-2), tout fetch réseau, l'extraction, la file de curation
 - Unitaires : parsing RSS/Atom/sitemap/listing HTML sur fixtures, respect robots.txt (autorisé/interdit), calcul de `prochaineVerifLe` par fréquence, garde anti-SSRF (IP privée résolue → refus).
 - **Intégration MariaDB réelle** : une exécution complète crée `ExecutionVeille`, ne re-soumet pas une URL déjà vue, met à jour `derniereVerifLe`/`prochaineVerifLe`, saute les sources inactives, route 401 sans `CRON_SECRET`.
 
+## 4ter. US-3 — Extraction déterministe en cascade (GUIC-598) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-597 (dépend d'`ItemCuration`).
+
+**En tant que système, j'extrais les champs d'une opportunité SANS LLM, pour pré-remplir le Guichet à coût quasi nul et sans hallucination.**
+
+### Champs cibles (critères d'acceptation)
+`titre`, `type`, `secteur/domaine`, `région`, `deadline`, `organisation`, `description`, `lien source`. Score de complétude = nombre de champs trouvés / total.
+
+### Cascade déterministe (par item `decouvert`)
+1. **JSON-LD** `<script type="application/ld+json">` schema.org (`JobPosting`, `Event`, `EducationalOccupationalProgram`…) — **sans dépendance** (regex d'extraction du script + `JSON.parse`). Le plus fiable → tenté en premier.
+2. **Sélecteurs HTML configurables** par source (`configExtraction.champs.{titre,description,deadline,organisation,…}`) — moteur CSS (cf. Q1).
+3. **Métadonnées génériques** : `og:*`, `<meta name=description>`, `<title>`, microformats.
+4. **Article + regex** en filet : dates (`\d{1,2}[/-]…`, mois FR), première `<h1>`, premier paragraphe.
+Chaque champ prend la **première source non vide** de la cascade. `type`/`domaine` : mapping depuis `source.typeDefautId` et `@type` JSON-LD quand explicite, sinon laissé à l'admin (US-5).
+
+### Effets
+- Renseigne `ItemCuration.payloadExtrait` (Json normalisé), `titre`, `scoreCompletude`, et passe `statut decouvert → a_valider` (jamais de rejet auto — un score faible reste `a_valider`, l'admin complète en US-5).
+- **Aperçu admin** (critère explicite) : `POST /api/admin/sources-veille/apercu` `{ url, champs? }` → fetch + extraction, **sans persistance**, RBAC admin + **garde anti-SSRF réutilisée d'US-2**.
+
+### Sécurité
+- US-3 fetch CHAQUE item → réutilise `ssrf-guard.ipPubliqueValidee` + `clientHttpReel` (épinglage IP, cap, timeout, robots déjà validé en découverte). Politesse entre items d'un même hôte.
+
+### Tests (TDD strict)
+- Unitaires sur **fixtures d'octets réels** : extraction JSON-LD JobPosting, sélecteurs HTML, fallback meta/regex, calcul du score, mapping type/domaine.
+- Intégration MariaDB réelle : un item `decouvert` → extraction → `payloadExtrait`+`scoreCompletude`+`a_valider` ; item déjà `a_valider` non ré-extrait ; route aperçu 403 non-admin + SSRF refusé.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |

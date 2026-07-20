@@ -1,26 +1,26 @@
-# CURRENT_TASK — GUIC-597 · US-2 Robot de découverte planifié
+# CURRENT_TASK — GUIC-598 · US-3 Extraction déterministe en cascade
 
-**Épic** : GUIC-595 · **Spec** : `.agent_context/specs/M3-curation-opportunites.md` §4bis (validée lead 2026-07-20)
-**Branche** : `feature/GUIC-597-robot-decouverte` (worktree `.claude/worktrees/curation-597`, **stackée sur GUIC-596**)
-**JIRA** : GUIC-597 En cours
-
-## État — LIVRÉE + DURCIE, PR #272 (En review)
-- RED `d290d0c` → GREEN `e958b9d` (base) → durcissement post double revue adverse. 54/54 verts (2 runs), intégration MariaDB réelle.
-- PR #272 basée sur la branche GUIC-596 (stackée) → retarget vers dev après merge US-1 (#269).
-- Findings adverses corrigés : ReDoS, SSRF/DNS-rebinding (épinglage IP undici), OOM streaming, IPv6 fail-closed, Crawl-delay plafonné, verrou Redis, CRON_SECRET timing-safe, `auto`↔`<link>` HTML (CRITIQUE), politesse intra-hôte, chute-à-zéro (nbLiensDecouverts+partiel), redirections, retry, URLs >500.
-- Sentinelle GUIC-570 : vercel.json + scripts/cron/jobs.json (les deux).
-- **US-3 devra** appliquer `ssrf-guard.ipPubliqueValidee` au fetch de CHAQUE item (US-2 ne fetch que les listings).
+**Épic** : GUIC-595 · **Spec** : `.agent_context/specs/M3-curation-opportunites.md` §4ter (validée lead 2026-07-20)
+**Branche** : `feature/GUIC-598-extraction-deterministe` (worktree `.claude/worktrees/curation-598`, **stackée sur GUIC-597**)
+**JIRA** : GUIC-598 En cours
 
 ## Décisions lead (2026-07-20)
-- ItemCuration dès US-2 (statut `decouvert`, empreinte URL @unique) + ExecutionVeille.
-- Découverte = listing seul. UA `CJSGuichetBot/1.0`, politesse 2 s + Crawl-delay.
+- Moteur sélecteurs : **css-select** (+ htmlparser2/domutils déjà présents). Ajouté à package.json (^5.2.2).
+- Extraction par lot = **phase 2 du cron** `/api/cron/veille-sources` (lot borné d'items `decouvert`, politesse, verrou Redis partagé).
+- Aperçu admin : **endpoint + bouton UI** dans SourceFormModal.
 
-## Points à surveiller (auto-challenge)
-- TOCTOU : urlFetchable résout le DNS, puis fetch re-résout → fenêtre de rebinding. Node fetch ne permet pas le pinning IP simplement. À arbitrer avec la review.
-- exec.nbNouveautes = nouveaux.length vs createMany count sous concurrence (léger).
-- Crawl-delay de la source N appliqué avant source N+1 (hôte différent) = conservateur, pas strict.
-- US-3 devra appliquer la MÊME garde SSRF au fetch de chaque item (US-2 ne fetch pas les items).
+## Périmètre (AUCUNE migration — colonnes ItemCuration déjà posées en US-2)
+- `src/lib/curation/extraction/` : jsonld (schema.org JobPosting/Event, sans dép), selecteurs (css-select : `sel` texte / `sel@attr`), meta (og:/meta/title/h1), dates (FR→ISO), cascade+score.
+- Extraction remplit `payloadExtrait`+`titre`+`scoreCompletude`, passe `decouvert → a_valider` (jamais de rejet auto).
+- Phase 2 orchestrateur : fetch chaque item (réutilise `ssrf-guard`+`clientHttpReel`, politesse), lot borné N/run.
+- Route `POST /api/admin/sources-veille/apercu` (RBAC admin + SSRF + fetch + extraction, SANS persistance).
+- UI : bouton « Tester l'extraction » dans `SourceFormModal` → affiche champs extraits + score.
+
+## TDD
+1. RED : extraction JSON-LD/sélecteurs/meta/regex sur fixtures réelles, score, mapping type/domaine ; intégration (decouvert→a_valider, non ré-extraction) ; aperçu 403 non-admin + SSRF refusé.
+2. GREEN.
 
 ## Garde-fous
-- Baseline tsc 12 (GUIC-622). vercel.json + scripts/cron/jobs.json autorisés (hors zone M14 deploy/backup/observability/storage/instrumentation).
-- Push : pre-push rouge pour cause préexistante → arbitrage lead (déjà autorisé pour la famille curation).
+- Baseline tsc 12 (GUIC-622). **node_modules partagé** : `npm install css-select` a élagué `.prisma/client` → régénéré. Signaler à l'autre session.
+- US-3 fetch chaque item → garde SSRF obligatoire (réutilisée d'US-2).
+- pre-push rouge préexistant (observability+yaye+qr-badge flaky) → bypass déjà tranché pour la famille curation.
