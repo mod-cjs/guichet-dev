@@ -14,7 +14,8 @@ jest.mock(
       toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,AA'),
     },
   }),
-  { virtual: true },
+  // GUIC-617 — pas de `{ virtual: true }` : `qrcode` est installé, et `virtual` sur un module
+  // réel empoisonne le résolveur des fichiers suivants (cf. ma-carte-page.test.tsx).
 )
 
 jest.mock('@/lib/auth', () => ({

@@ -13,7 +13,12 @@ jest.mock(
       toDataURL: jest.fn().mockResolvedValue('data:image/png;base64,AA'),
     },
   }),
-  { virtual: true },
+  // GUIC-617 — PAS de `{ virtual: true }` ici : `qrcode` (1.5.4) EST installé. `virtual` est
+  // réservé aux modules ABSENTS ; l'employer sur un module réel empoisonne le résolveur pour
+  // les fichiers suivants du même process, qui reçoivent alors la VRAIE lib malgré leur
+  // `jest.mock`. C'est ce qui rendait qr-badge.test.tsx rouge ~1 run sur 3 (le seul test qui
+  // vérifie le `src` voyait un vrai QR). Reproduit puis corrigé : cette paire de fichiers
+  // échouait 2 fois sur 3, elle passe 4 fois sur 4 sans `virtual`.
 )
 
 jest.mock('@/lib/auth', () => ({

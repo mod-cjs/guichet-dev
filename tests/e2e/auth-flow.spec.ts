@@ -11,9 +11,14 @@
  * Les tests "flux complet" sont skippés en CI par défaut (PLAYWRIGHT_SSO_MOCK=1 pour activer).
  */
 
-import { test, expect, type BrowserContext, type Page } from '@playwright/test'
+import { test, expect, type BrowserContext } from '@playwright/test'
+import { resetOnboardingState } from './_fixtures/utilisateur'
+import { disconnectPrisma } from './_fixtures/prisma'
 
 const SSO_MOCK_ACTIVE = process.env.PLAYWRIGHT_SSO_MOCK === '1'
+
+/** `sub` fixe du SSO mock (cf. fixtures/mock-sso.ts > DEFAULT_CLAIMS). */
+const MOCK_SUB = 'e2e-uid-001'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -113,26 +118,29 @@ test.describe('callback — état invalide', () => {
 test.describe('flux PKCE complet', () => {
   test.skip(!SSO_MOCK_ACTIVE, 'Activer avec PLAYWRIGHT_SSO_MOCK=1')
 
+  // GUIC-616 — ces parcours partent d'un compte VIERGE. Le `sub` du mock est fixe et la ligne
+  // `utilisateurs` survit au run : sans ce reset, ils ne passaient que sur une base fraîche
+  // (2ᵉ passage → compte déjà onboardé → login direct sur le tableau de bord → rouge).
+  test.beforeEach(async () => {
+    await resetOnboardingState(MOCK_SUB)
+  })
+
+  test.afterAll(async () => {
+    await disconnectPrisma()
+  })
+
   test('clic Se connecter → SSO mock → callback → session créée → onboarding', async ({
     page,
     context,
   }) => {
     await page.goto('/auth/connexion')
 
-    // Intercepter la navigation vers le SSO pour récupérer state + challenge
-    let capturedState    = ''
-    let capturedVerifier = ''
-
-    page.on('request', req => {
-      const url = req.url()
-      if (url.includes('/oauth/authorize')) {
-        const params = new URL(url)
-        capturedState = params.searchParams.get('state') ?? ''
-      }
-    })
-
     // Cliquer sur le bouton de connexion SSO
-    const connectBtn = page.getByRole('link', { name: /se connecter/i }).first()
+    // GUIC-604 — cibler le lien SSO par son CONTRAT (href), pas par un texte flou : il n'existe
+    // aucun « Se connecter » sur /auth/connexion (le Header marketing n'y est pas monté), le
+    // bouton s'appelle « Continuer avec mon compte CJS ». Le locator d'origine attendait 30 s
+    // dans le vide — jamais vu, car ce test n'avait jamais été exécuté (toujours skippé).
+    const connectBtn = page.locator('a[href="/api/auth/login"]')
     await connectBtn.click()
 
     // Le SSO mock reçoit /oauth/authorize et redirige vers /auth/callback?code=...&state=...
@@ -153,56 +161,72 @@ test.describe('flux PKCE complet', () => {
     page,
     context,
   }) => {
-    // Placer des cookies valides mais le code sera rejeté par le mock SSO
-    // (simulé en mettant une valeur de code qui force l'erreur côté mock)
+    // Cookies valides, mais le code sera rejeté par le mock SSO : par convention, un code
+    // contenant « bad » → 401 (cf. fixtures/mock-sso.ts).
+    //
+    // GUIC-604 — l'interception `context.route('**/oauth/token')` a été RETIRÉE : elle ne
+    // pouvait pas fonctionner. L'échange de jetons est SERVEUR-À-SERVEUR (Next → mock) ;
+    // `context.route` n'intercepte que le trafic du NAVIGATEUR. C'est le mock qui doit
+    // simuler l'échec.
     const state    = 'test-state-fail'
     const verifier = 'test-verifier-fail'
     await setAuthCookies(context, state, verifier)
-
-    // Intercepter la requête /oauth/token et retourner une erreur
-    await context.route('**/oauth/token', route => {
-      route.fulfill({ status: 401, body: '{"error":"invalid_client"}' })
-    })
 
     await page.goto(`/auth/callback?code=bad-code&state=${state}`)
     await expect(page).toHaveURL(/error=auth_failed/)
   })
 
-  test('flux complet onboarding — 3 étapes', async ({ page }) => {
-    // Naviguer vers l'onboarding (nécessite session valide établie par test précédent
-    // ou injection de session via context)
+  test("flux complet onboarding — jusqu'au tableau de bord", async ({ page }) => {
+    // GUIC-616 — Test entièrement réécrit. L'ancien supposait « identité → localisation →
+    // profil » (3 étapes) : l'onboarding RÉEL en compte 4 (objectifs → profil →
+    // centre-principal → recommandations) et commence par un choix d'objectifs, pas par des
+    // champs nom/prénom. Il restait donc bloqué sur /jeune/onboarding/objectifs. Jamais vu :
+    // ce test était skippé depuis sa création.
+    //
+    // On teste l'INTENTION (un nouveau compte traverse l'onboarding et atteint le tableau de
+    // bord) sans coder en dur le nombre d'étapes ni leur contenu — ce qui le rend robuste aux
+    // évolutions de l'onboarding, tout en gardant sa valeur d'anti-régression.
     await page.goto('/auth/connexion')
-    const connectBtn = page.getByRole('link', { name: /se connecter/i }).first()
-    await connectBtn.click()
-
+    await page.locator('a[href="/api/auth/login"]').click()
     await page.waitForURL(/onboarding/, { timeout: 10_000 })
 
-    // Étape 1 — Identité
-    const nomInput    = page.getByLabel(/nom/i)
-    const prenomInput = page.getByLabel(/prénom/i)
+    const visible = (re: RegExp) =>
+      page.getByRole('button', { name: re }).filter({ visible: true }).first()
 
-    if (await nomInput.isVisible()) {
-      await nomInput.fill('Diallo')
-      await prenomInput.fill('Fatou')
-      await page.getByRole('button', { name: /suivant|continuer/i }).click()
+    for (let i = 0; i < 8; i++) {
+      if (/tableau-de-bord/.test(page.url())) break
+
+      // Étape « profil » : OBLIGATOIRE (pas de « Passer »), champs requis — cf. GUIC-442
+      // (date de naissance + genre). On la remplit ; les autres étapes se passent.
+      if (/onboarding\/profil/.test(page.url())) {
+        // NB : la page rend les variantes MOBILE et DESKTOP → chaque label existe en double.
+        // On ne cible que l'exemplaire VISIBLE (sinon « strict mode violation »).
+        const champ = (label: string | RegExp) => page.getByLabel(label).filter({ visible: true }).first()
+        await page.getByRole('button', { name: /^femme$/i }).filter({ visible: true }).first().click()
+        await champ('Jour').selectOption({ index: 1 })
+        await champ('Mois').selectOption({ index: 1 })
+        await champ('Année').selectOption({ index: 1 })
+        await page.getByRole('button', { name: /^dakar$/i }).filter({ visible: true }).first().click()
+        await page.waitForTimeout(300)
+        await champ(/niveau d'études/i).selectOption({ index: 1 })
+        await page.waitForTimeout(300)
+      }
+
+      // « Passer » quand l'étape est facultative, sinon l'action d'avancement.
+      const passer = visible(/passer/i)
+      const avancer = visible(/continuer|suivant|terminer|valider|commencer|découvrir|aller (à mon espace|au tableau de bord)/i)
+
+      if (await avancer.count() && (await avancer.isEnabled())) {
+        await avancer.click()
+      } else if (await passer.count()) {
+        await passer.click()
+      } else {
+        break // aucune action disponible : l'assertion finale tranchera
+      }
+      await page.waitForTimeout(800)
     }
 
-    // Étape 2 — Localisation
-    const regionSelect = page.getByLabel(/région/i)
-    if (await regionSelect.isVisible()) {
-      await regionSelect.selectOption({ index: 1 })
-      await page.getByRole('button', { name: /suivant|continuer/i }).click()
-    }
-
-    // Étape 3 — Profil
-    const niveauSelect = page.getByLabel(/niveau d'étude/i)
-    if (await niveauSelect.isVisible()) {
-      await niveauSelect.selectOption({ index: 1 })
-      await page.getByRole('button', { name: /terminer|valider/i }).click()
-    }
-
-    // Après complétion → tableau de bord
-    await expect(page).toHaveURL(/tableau-de-bord/, { timeout: 5_000 })
+    await expect(page).toHaveURL(/tableau-de-bord/, { timeout: 10_000 })
   })
 })
 

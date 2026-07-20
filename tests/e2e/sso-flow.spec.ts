@@ -45,22 +45,16 @@
  */
 
 import { test, expect, type BrowserContext } from '@playwright/test'
-import { startMockSsoServer, type MockSsoServer } from './fixtures/mock-sso'
 
 const SSO_MOCK_ACTIVE = process.env.PLAYWRIGHT_SSO_MOCK === '1'
 
-// ── Fixture mock SSO (lancée à la demande) ──────────────────────────────
-let mockSso: MockSsoServer | null = null
-
-test.beforeAll(async () => {
-  if (!SSO_MOCK_ACTIVE) return
-  // Le mock écoute sur 19999 et est référencé par SSO_BASE_URL côté Next.
-  mockSso = await startMockSsoServer(19999)
-})
-
-test.afterAll(async () => {
-  if (mockSso) await mockSso.destroy()
-})
+// GUIC-604 — Le mock SSO n'est PLUS démarré ici : il l'est par `playwright.config.ts`
+// (webServer `run-mock-sso.ts`, port 19999), AVANT tout test et pour TOUS les specs.
+//
+// Pourquoi ce changement : ce fichier démarrait le mock dans un `beforeAll`, et `auth-flow`
+// (flux PKCE) en dépendait SANS le démarrer → dépendance cachée entre fichiers, et une COURSE
+// avec `fullyParallel: true` (auth-flow pouvait s'exécuter avant ce beforeAll). Un seul
+// propriétaire du cycle de vie = déterministe.
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -78,7 +72,11 @@ async function performSsoLogin(context: BrowserContext): Promise<void> {
 
 // ── Tests ───────────────────────────────────────────────────────────────
 
-test.describe('Flow SSO complet (anti-régression GUIC-259)', () => {
+// GUIC-604 — `.serial` : ces tests PARTAGENT un état (session SSO du même utilisateur mock,
+// cookie `cjs_session`, tokens Redis). En parallèle ils se marchent dessus — vérifié : 2 échecs
+// aléatoires en `fullyParallel`, 4/4 en série. La CI met `workers: 1`, ce qui les faisait passer
+// PAR CHANCE ; `.serial` rend la contrainte explicite et sûre quel que soit le nombre de workers.
+test.describe.serial('Flow SSO complet (anti-régression GUIC-259)', () => {
 
   test('login → callback → /jeune/tableau-de-bord (PAS de boucle)', async ({ context, page }) => {
     test.skip(!SSO_MOCK_ACTIVE, 'Activer avec PLAYWRIGHT_SSO_MOCK=1')
