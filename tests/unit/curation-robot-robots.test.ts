@@ -20,6 +20,12 @@ describe('GUIC-597 — robots.txt', () => {
     expect(r.estAutorise('/prive/x')).toBe(false)
   })
 
+  it('Allow plus spécifique l’emporte sur Disallow (précédence par longueur)', () => {
+    const r = analyserRobots('User-agent: *\nDisallow: /a\nAllow: /a/b\n', UA)
+    expect(r.estAutorise('/a/x')).toBe(false) // couvert par Disallow /a
+    expect(r.estAutorise('/a/b/c')).toBe(true) // Allow /a/b plus long → autorise
+  })
+
   it('lit le Crawl-delay (secondes → ms)', () => {
     const r = analyserRobots('User-agent: *\nCrawl-delay: 5\n', UA)
     expect(r.crawlDelayMs).toBe(5000)

@@ -13,8 +13,12 @@ jest.setTimeout(30000)
 const PREFIX = 'test-guic599'
 const RUN = Date.now()
 
+// Scope d'isolation : `executerDedup` scanne globalement ; on lui passe UNIQUEMENT les
+// sources créées par ce test → aucune interférence avec les autres fichiers en parallèle.
+let sourceIds: string[] = []
+
 async function source() {
-  return prisma.sourceVeille.create({
+  const s = await prisma.sourceVeille.create({
     data: {
       nom: `${PREFIX} src ${Math.random().toString(36).slice(2, 8)}`,
       url: `https://veille-${RUN}-${Math.random().toString(36).slice(2, 8)}.sn/liste`,
@@ -22,7 +26,10 @@ async function source() {
       frequence: 'quotidienne',
     },
   })
+  sourceIds.push(s.id)
+  return s
 }
+const dedup = () => executerDedup({ sourceIds })
 
 async function item(
   sourceId: string,
@@ -46,11 +53,16 @@ async function item(
   })
 }
 
-afterEach(async () => {
+// `executerDedup` scanne TOUS les items `a_valider` : un reste de run tué polluerait
+// le choix du canonique. On purge le préfixe avant la 1re exécution.
+async function purge() {
   await prisma.itemCuration.deleteMany({ where: { source: { nom: { startsWith: PREFIX } } } })
   await prisma.opportunite.deleteMany({ where: { titre: { startsWith: PREFIX } } })
   await prisma.sourceVeille.deleteMany({ where: { nom: { startsWith: PREFIX } } })
-})
+  sourceIds = []
+}
+beforeAll(purge)
+afterEach(purge)
 afterAll(async () => {
   await prisma.$disconnect()
 })
@@ -62,7 +74,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     const canon = await item(s1.id, 'Développeur Backend', 'CJS', 'a_valider', new Date(Date.now() - 5000))
     const dup = await item(s2.id, 'developpeur backend', 'cjs', 'a_valider', new Date())
 
-    await executerDedup()
+    await dedup()
 
     const c = await prisma.itemCuration.findUnique({ where: { id: canon.id } })
     const d = await prisma.itemCuration.findUnique({ where: { id: dup.id } })
@@ -75,7 +87,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
   it('annonce unique → reste a_valider, empreinte contenu posée', async () => {
     const s = await source()
     const it = await item(s.id, 'Bourse doctorale unique', 'Université')
-    await executerDedup()
+    await dedup()
     const apres = await prisma.itemCuration.findUnique({ where: { id: it.id } })
     expect(apres?.statut).toBe('a_valider')
     expect(apres?.empreinteContenu).not.toBeNull()
@@ -89,7 +101,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     const canon = await item(s1.id, 'Stage communication institutionnelle senior', 'Agence Baobab', 'a_valider', new Date(Date.now() - 5000), '2026-09-30')
     const quasi = await item(s2.id, 'Stage communication institutionnelle', 'Agence Baobab', 'a_valider', new Date(), '2026-09-30')
 
-    await executerDedup()
+    await dedup()
 
     const d = await prisma.itemCuration.findUnique({ where: { id: quasi.id } })
     expect(d?.statut).toBe('doublon')
@@ -102,7 +114,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     const a = await item(s1.id, 'Chargé de projet', 'ONG Teranga', 'a_valider', new Date(Date.now() - 5000), '2026-08-31')
     const b = await item(s2.id, 'Chargé de projet', 'ONG Teranga', 'a_valider', new Date(), '2026-11-30')
 
-    await executerDedup()
+    await dedup()
 
     expect((await prisma.itemCuration.findUnique({ where: { id: a.id } }))?.statut).toBe('a_valider')
     expect((await prisma.itemCuration.findUnique({ where: { id: b.id } }))?.statut).toBe('a_valider')
@@ -116,7 +128,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     })
     const it = await item(s.id, `${PREFIX} Appel à candidatures`, '', 'a_valider')
 
-    await executerDedup()
+    await dedup()
 
     const apres = await prisma.itemCuration.findUnique({ where: { id: it.id } })
     expect(apres?.statut).toBe('a_valider') // pas de dédup sur titre seul
@@ -128,7 +140,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     // Un item titré valide, plus récent, doit quand même être examiné.
     const titre = await item(s.id, 'Bourse unique xyz', 'Fondation')
 
-    await executerDedup()
+    await dedup()
 
     const st = await prisma.itemCuration.findUnique({ where: { id: sansTitre.id } })
     const ti = await prisma.itemCuration.findUnique({ where: { id: titre.id } })
@@ -151,7 +163,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
     })
     const it = await item(s.id, `${PREFIX} Assistant comptable`, 'Cabinet Diallo')
 
-    await executerDedup()
+    await dedup()
 
     const apres = await prisma.itemCuration.findUnique({ where: { id: it.id } })
     expect(apres?.statut).toBe('doublon')

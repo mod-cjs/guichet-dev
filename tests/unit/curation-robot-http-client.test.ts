@@ -6,7 +6,7 @@
  * la logique jusqu'ici non couverte — redirection re-validée, retry, cap Content-Length,
  * refus anti-SSRF — sans toucher le réseau.
  */
-import { clientHttpReel, UrlInterditeError } from '@/lib/curation/robot/http-client'
+import { clientHttpReel, UrlInterditeError, lookupEpingle } from '@/lib/curation/robot/http-client'
 
 const resolverPublic = async () => ['41.82.10.5']
 const resolverInterne = async () => ['169.254.169.254']
@@ -59,11 +59,33 @@ describe('GUIC-597 — clientHttpReel durci', () => {
     expect(appels).toBe(2)
   })
 
-  it('refuse un corps annoncé plus grand que le cap (Content-Length)', async () => {
+  it('refuse un corps annoncé plus grand que le cap (Content-Length) — message précis', async () => {
     const fetchImpl = (async () =>
       reponse(200, 'x', { 'content-length': '9999999' })) as unknown as typeof fetch
     const client = clientHttpReel({ resolver: resolverPublic, fetchImpl, tailleMaxOctets: 1000 })
-    await expect(client('https://exemple.sn/gros')).rejects.toBeTruthy()
+    await expect(client('https://exemple.sn/gros')).rejects.toThrow(/volumineuse/i)
+  })
+
+  it('borne le corps EN STREAMING quand Content-Length est ABSENT (vraie parade OOM)', async () => {
+    // Réponse sans Content-Length, corps > cap → doit être tronqué à la lecture du flux.
+    const gros = 'a'.repeat(5000)
+    const fetchImpl = (async () =>
+      new Response(gros, { status: 200 })) as unknown as typeof fetch
+    const client = clientHttpReel({ resolver: resolverPublic, fetchImpl, tailleMaxOctets: 1000 })
+    const r = await client('https://exemple.sn/flux')
+    expect(r.statut).toBe(200)
+    expect(r.corps.length).toBeLessThanOrEqual(1000) // tronqué, pas 5000 → pas d'OOM
+  })
+
+  it('ÉPINGLAGE IP (anti-rebinding) : le lookup renvoie l’IP validée en IGNORANT le hostname', () => {
+    const lookup = lookupEpingle('41.82.10.5')
+    // Quel que soit le hostname passé (rebinding), la connexion cible l'IP épinglée.
+    let recu: unknown
+    lookup('attacker-rebind.sn', {}, (_e, addr) => (recu = addr))
+    expect(recu).toEqual([{ address: '41.82.10.5', family: 4 }])
+    let recu6: unknown
+    lookupEpingle('::1')('autre.sn', {}, (_e, addr) => (recu6 = addr))
+    expect(recu6).toEqual([{ address: '::1', family: 6 }])
   })
 
   it('refuse d’emblée une URL qui résout vers une IP interne (pas de fetch)', async () => {

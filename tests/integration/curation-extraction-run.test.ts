@@ -26,6 +26,11 @@ const clientOffre: ClientHttp = async () => ({
   contentType: 'text/html',
 })
 
+// Scope d'isolation : on ne traite QUE les sources de ce test (runs parallèles).
+let sourceIds: string[] = []
+const extraire = (client: ClientHttp) =>
+  executerExtraction({ client, attendre: async () => {}, sourceIds })
+
 async function creerSourceEtItem(statut: 'decouvert' | 'a_valider' = 'decouvert') {
   const source = await prisma.sourceVeille.create({
     data: {
@@ -35,6 +40,7 @@ async function creerSourceEtItem(statut: 'decouvert' | 'a_valider' = 'decouvert'
       frequence: 'quotidienne',
     },
   })
+  sourceIds.push(source.id)
   const url = `https://veille-${RUN}.sn/offre/${Math.random().toString(36).slice(2, 8)}`
   const item = await prisma.itemCuration.create({
     data: {
@@ -47,9 +53,16 @@ async function creerSourceEtItem(statut: 'decouvert' | 'a_valider' = 'decouvert'
   return { source, item }
 }
 
+// Nettoyage AVANT la 1re exécution aussi : un run précédent tué (SIGKILL) laisse des
+// lignes `test-guic598…` qui pollueraient l'extraction (elle scanne tous les `decouvert`).
+beforeAll(async () => {
+  await prisma.itemCuration.deleteMany({ where: { source: { nom: { startsWith: PREFIX } } } })
+  await prisma.sourceVeille.deleteMany({ where: { nom: { startsWith: PREFIX } } })
+})
 afterEach(async () => {
   await prisma.itemCuration.deleteMany({ where: { source: { nom: { startsWith: PREFIX } } } })
   await prisma.sourceVeille.deleteMany({ where: { nom: { startsWith: PREFIX } } })
+  sourceIds = []
 })
 afterAll(async () => {
   await prisma.$disconnect()
@@ -59,7 +72,7 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
   it('extrait un item decouvert → payloadExtrait + score + statut a_valider', async () => {
     const { item } = await creerSourceEtItem('decouvert')
 
-    const rapport = await executerExtraction({ client: clientOffre, attendre: async () => {} })
+    const rapport = await extraire(clientOffre)
     expect(rapport.itemsTraites).toBeGreaterThanOrEqual(1)
 
     const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
@@ -75,7 +88,7 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
 
   it('ne ré-extrait pas un item déjà a_valider', async () => {
     const { item } = await creerSourceEtItem('a_valider')
-    await executerExtraction({ client: clientOffre, attendre: async () => {} })
+    await extraire(clientOffre)
     const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
     // Statut inchangé, pas d'écrasement (titre resté null).
     expect(apres?.statut).toBe('a_valider')
@@ -91,15 +104,18 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
 
     // 3 passages : tentatives 1, 2, 3 → escalade au 3e.
     for (let i = 0; i < 3; i++) {
-      await executerExtraction({ client: client404, attendre: async () => {} })
+      await extraire(client404)
     }
     const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
     expect(apres?.nbTentatives).toBe(3)
     expect(apres?.statut).toBe('en_attente') // sorti de la file decouvert (anti-famine)
 
-    // Un 4e passage ne le re-sélectionne plus (nbTentatives >= max).
-    const rapport = await executerExtraction({ client: client404, attendre: async () => {} })
-    expect(rapport.itemsTraites).toBe(0)
+    // Un 4e passage ne le re-sélectionne PLUS : preuve = l'état n'a pas bougé (nbTentatives
+    // resterait à 3, pas 4). `itemsTraites` seul serait tautologique sous client 404.
+    await extraire(client404)
+    const apres4 = await prisma.itemCuration.findUnique({ where: { id: item.id } })
+    expect(apres4?.nbTentatives).toBe(3) // inchangé → l'item n'a pas été re-traité
+    expect(apres4?.statut).toBe('en_attente')
   })
 
   it('respecte robots.txt par item (chemin Disallow → échec, pas d’extraction)', async () => {
@@ -108,7 +124,7 @@ describe('GUIC-598 — executerExtraction (DB réelle, HTTP injecté)', () => {
       url.endsWith('/robots.txt')
         ? { statut: 200, corps: 'User-agent: *\nDisallow: /\n', contentType: 'text/plain' }
         : { statut: 200, corps: PAGE_OFFRE, contentType: 'text/html' }
-    await executerExtraction({ client: clientBloque, attendre: async () => {} })
+    await extraire(clientBloque)
     const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
     expect(apres?.statut).toBe('decouvert') // pas extrait
     expect(apres?.nbTentatives).toBe(1)

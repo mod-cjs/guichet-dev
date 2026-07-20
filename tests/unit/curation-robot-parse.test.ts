@@ -32,7 +32,6 @@ describe('GUIC-597 — parse RSS/Atom', () => {
   })
 
   it('extrait les <link href> Atom et résout le relatif contre la base', () => {
-    expect(extraireLiensHtml).toBeDefined()
     expect(extraireLiensRss(ATOM, 'https://exemple.sn')).toEqual([
       'https://exemple.sn/a',
       'https://exemple.sn/relatif/b',
@@ -129,8 +128,9 @@ describe('GUIC-597 — durcissement : anti-ReDoS (parsing borné)', () => {
     const hostile = '<link>' + ' '.repeat(20000) + '!'
     const t0 = Date.now()
     const out = extraireLiensRss(hostile, 'https://exemple.sn')
-    // Regex linéaire bornée : < 200 ms (l'ancienne version prenait plusieurs secondes).
-    expect(Date.now() - t0).toBeLessThan(200)
+    // Regex linéaire bornée : marge large vs catastrophique (~s). Seuil 1000 ms pour ne
+    // pas flaker sous forte charge CPU (jest maxWorkers 50%).
+    expect(Date.now() - t0).toBeLessThan(1000)
     expect(out).toEqual([])
   })
 

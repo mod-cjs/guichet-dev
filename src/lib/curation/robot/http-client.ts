@@ -39,15 +39,20 @@ export interface OptionsClientReel {
   fetchImpl?: typeof fetch
 }
 
+/**
+ * `lookup` undici épinglé : renvoie TOUJOURS l'IP déjà validée, en IGNORANT le hostname —
+ * c'est la parade DNS-rebinding (undici ne re-résout jamais au moment de la connexion).
+ * Exporté pour être testable directement (le vrai mécanisme anti-rebinding).
+ */
+export function lookupEpingle(ip: string) {
+  const family = ip.includes(':') ? 6 : 4
+  return (_hostname: string, _opts: unknown, cb: (err: Error | null, addr: unknown) => void) =>
+    cb(null, [{ address: ip, family }])
+}
+
 /** Dispatcher undici qui force la connexion sur une IP déjà validée (anti-rebinding). */
 function dispatcherEpingle(ip: string): Agent {
-  const family = ip.includes(':') ? 6 : 4
-  return new Agent({
-    connect: {
-      lookup: (_hostname, _opts, cb) =>
-        cb(null, [{ address: ip, family }] as unknown as Parameters<typeof cb>[1]),
-    },
-  })
+  return new Agent({ connect: { lookup: lookupEpingle(ip) as never } })
 }
 
 const estTransitoire = (statut: number) => statut === 0 || statut >= 500

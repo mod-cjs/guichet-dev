@@ -32,6 +32,14 @@ describe('GUIC-599 — empreinte contenu', () => {
     expect(empreinteContenu(null, 'CJS')).toBeNull()
     expect(empreinteContenu('', 'CJS')).toBeNull()
   })
+
+  it('la deadline discrimine (C-1) : même titre+org, deadlines ≠ → empreintes ≠', () => {
+    const a = empreinteContenu('Chargé de projet', 'ONG', '2026-08-31')
+    const b = empreinteContenu('Chargé de projet', 'ONG', '2026-11-30')
+    expect(a).not.toBe(b)
+    // Sans deadline des deux côtés → même empreinte (annonce identique).
+    expect(empreinteContenu('X', 'ONG')).toBe(empreinteContenu('X', 'ONG'))
+  })
 })
 
 describe('GUIC-599 — similarité titre (quasi-doublons)', () => {
@@ -57,5 +65,15 @@ describe('GUIC-599 — similarité titre (quasi-doublons)', () => {
     expect(similariteJaccard(ref, tokensTitre('Bourse doctorale physique'))).toBeLessThan(
       SEUIL_SIMILARITE,
     )
+  })
+
+  it('discrimine à la borne : 2 tokens communs sur 3+1 = 0.5 < seuil (pas un doublon)', () => {
+    // {stage,marketing,digital} ∩ {stage,marketing,vente} = 2 / ∪=4 → 0.5.
+    const sim = similariteJaccard(
+      tokensTitre('Stage marketing digital'),
+      tokensTitre('Stage marketing vente'),
+    )
+    expect(sim).toBeCloseTo(0.5, 2)
+    expect(sim).toBeLessThan(SEUIL_SIMILARITE) // ne doit PAS être fusionné (faux positif évité)
   })
 })

@@ -169,7 +169,8 @@ describe('GUIC-598 — cascade + score de complétude', () => {
     expect(r.champs.domaine).toBe('Statistiques') // via sélecteur (absent du JSON-LD)
     expect(r.champs.typeId).toBe('type-emploi')
     expect(r.champs.lienSource).toBe('https://exemple.sn/offres/1')
-    expect(r.scoreCompletude).toBeGreaterThan(0)
+    // Score PRÉCIS : titre + organisation + domaine trouvés = 3/6 → 50%.
+    expect(r.scoreCompletude).toBe(50)
   })
 
   it('score reflète le nombre de champs trouvés (0 si page vide)', () => {

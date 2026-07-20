@@ -32,6 +32,8 @@ const SENTINELLE_SANS_EMPREINTE = 'SANS_EMPREINTE' // marque « examiné » sans
 
 interface Deps {
   lotMax?: number
+  /** Restreint le traitement à ces sources (isolation des tests parallèles). Undefined = global (prod). */
+  sourceIds?: string[]
 }
 export interface RapportDedup {
   itemsExamines: number
@@ -45,11 +47,12 @@ function champTexte(payload: unknown, cle: 'organisation' | 'deadline'): string 
 
 export async function executerDedup(deps: Deps = {}): Promise<RapportDedup> {
   const lotMax = deps.lotMax ?? LOT_DEFAUT
+  const scope = deps.sourceIds ? { sourceId: { in: deps.sourceIds } } : {}
 
   // Items à dédupliquer : a_valider AVEC titre, pas encore examinés (empreinteContenu null),
   // du plus ancien au plus récent → le canonique (plus ancien) est traité en premier.
   const items = await prisma.itemCuration.findMany({
-    where: { statut: 'a_valider', empreinteContenu: null, titre: { not: null } },
+    where: { statut: 'a_valider', empreinteContenu: null, titre: { not: null }, ...scope },
     orderBy: { createdAt: 'asc' },
     take: lotMax,
   })
@@ -67,7 +70,7 @@ export async function executerDedup(deps: Deps = {}): Promise<RapportDedup> {
     })
     if (!empreinte || !item.titre) continue
 
-    const canonique = await trouverCanonique(item.id, empreinte, item.titre, org, deadline)
+    const canonique = await trouverCanonique(item.id, empreinte, item.titre, org, deadline, scope)
     if (canonique === 'PUBLIE') {
       await prisma.itemCuration.update({ where: { id: item.id }, data: { statut: 'doublon' } })
       doublonsMarques++
@@ -91,6 +94,7 @@ async function trouverCanonique(
   titre: string,
   org: string,
   deadline: string,
+  scope: { sourceId?: { in: string[] } },
 ): Promise<string | 'PUBLIE' | null> {
   const oNorm = normaliser(org)
   const tNorm = normaliser(titre)
@@ -100,7 +104,7 @@ async function trouverCanonique(
 
   // 1) Doublon EXACT (même titre+org+deadline via l'empreinte), plus ancien.
   const exact = await prisma.itemCuration.findFirst({
-    where: { empreinteContenu: empreinte, statut: 'a_valider', id: { not: selfId } },
+    where: { empreinteContenu: empreinte, statut: 'a_valider', id: { not: selfId }, ...scope },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   })
@@ -122,7 +126,7 @@ async function trouverCanonique(
   }
 
   // 3) QUASI-doublon (titre similaire + org concordante + deadlines compatibles).
-  return quasiCanonique(selfId, titre, oNorm, deadline)
+  return quasiCanonique(selfId, titre, oNorm, deadline, scope)
 }
 
 /** Quasi-doublon : Jaccard ≥ seuil, org identique, et deadlines toutes deux absentes OU égales. */
@@ -131,6 +135,7 @@ async function quasiCanonique(
   titre: string,
   oNorm: string,
   deadline: string,
+  scope: { sourceId?: { in: string[] } },
 ): Promise<string | null> {
   const refTokens = tokensTitre(titre)
   const tokenLong = [...refTokens].sort((a, b) => b.length - a.length)[0]
@@ -143,6 +148,7 @@ async function quasiCanonique(
       id: { not: selfId },
       empreinteContenu: { not: null },
       titre: { not: null, contains: tokenLong },
+      ...scope,
     },
     orderBy: { createdAt: 'asc' },
     take: CANDIDATS_FLOUS,

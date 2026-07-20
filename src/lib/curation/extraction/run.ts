@@ -32,6 +32,8 @@ export interface ExtractionDeps {
   delaiPolitesseMs?: number
   lotMax?: number
   budgetMs?: number
+  /** Restreint le traitement à ces sources (isolation des tests parallèles). Undefined = global (prod). */
+  sourceIds?: string[]
 }
 
 export interface RapportExtraction {
@@ -86,7 +88,11 @@ export async function executerExtraction(deps: ExtractionDeps): Promise<RapportE
   const robotsAutorise = faiseurRobots(deps.client)
 
   const items = await prisma.itemCuration.findMany({
-    where: { statut: 'decouvert', nbTentatives: { lt: TENTATIVES_MAX } },
+    where: {
+      statut: 'decouvert',
+      nbTentatives: { lt: TENTATIVES_MAX },
+      ...(deps.sourceIds ? { sourceId: { in: deps.sourceIds } } : {}),
+    },
     orderBy: [{ nbTentatives: 'asc' }, { createdAt: 'asc' }],
     take: lotMax,
     include: { source: { select: { typeDefautId: true, configExtraction: true } } },
