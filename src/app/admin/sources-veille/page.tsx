@@ -26,13 +26,18 @@ export default async function Page({
   const page = Number.isInteger(parsed) && parsed >= 1 ? parsed : 1
 
   const where = { deletedAt: null }
-  const [total, sources] = await prisma.$transaction([
+  const [total, sources, types] = await prisma.$transaction([
     prisma.sourceVeille.count({ where }),
     prisma.sourceVeille.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
+    }),
+    prisma.opportuniteType.findMany({
+      where: { actif: true },
+      orderBy: { ordre: 'asc' },
+      select: { id: true, libelle: true },
     }),
   ])
 
@@ -45,10 +50,11 @@ export default async function Page({
         methode: s.methode,
         frequence: s.frequence,
         actif: s.actif,
-        typeDefaut: s.typeDefaut,
+        typeDefautId: s.typeDefautId,
         configExtraction: s.configExtraction as Record<string, unknown> | null,
         derniereVerifLe: s.derniereVerifLe?.toISOString() ?? null,
       }))}
+      types={types}
       total={total}
       page={page}
       totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}

@@ -5,26 +5,42 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-import { SourceVeilleUpdateSchema } from '@/lib/curation/sources-veille-schema'
+import {
+  SourceVeilleUpdateSchema,
+  methodeConfigCoherentes,
+  type MethodeExtraction,
+} from '@/lib/curation/sources-veille-schema'
 import type { ApiResponse } from '@/types/api'
 
 /**
  * GUIC-596 — US-1 Gestion des sources de veille : détail / édition / suppression.
  *
- * GET    → 200 · 404 (soft-deleted = introuvable)
- * PATCH  → 200 patch partiel (toggle actif inclus) · 400 patch vide/invalide · 404 · 409 URL prise
+ * GET    → 200 · 401/403 · 404 (soft-deleted = introuvable)
+ * PATCH  → 200 patch partiel (toggle actif inclus) · 400 · 404 · 409 URL prise
  * DELETE → 200 soft-delete (`deletedAt`) · 404
  *
+ * L'invariant méthode↔config est vérifié sur l'état FUSIONNÉ (DB + patch), pas sur
+ * le seul payload : basculer la méthode d'une source déjà configurée reste légal.
  * RBAC admin, mutations journalisées (audit_logs).
  */
 
 type Ctx = { params: Promise<{ id: string }> }
 
-function forbidden() {
-  return NextResponse.json(
-    { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
-    { status: 403 },
-  )
+async function gardeAdmin(): Promise<{ cjsUid: string } | NextResponse<ApiResponse<never>>> {
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json<ApiResponse<never>>(
+      { error: { code: 'UNAUTHENTICATED', message: 'Authentification requise' } },
+      { status: 401 },
+    )
+  }
+  if (!isAdminRole(session.roles)) {
+    return NextResponse.json<ApiResponse<never>>(
+      { error: { code: 'FORBIDDEN', message: 'Accès réservé aux administrateurs' } },
+      { status: 403 },
+    )
+  }
+  return { cjsUid: session.cjsUid }
 }
 
 function notFound() {
@@ -42,8 +58,8 @@ export async function GET(
   _request: NextRequest,
   context: Ctx,
 ): Promise<NextResponse<ApiResponse<SourceVeille>>> {
-  const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) return forbidden()
+  const garde = await gardeAdmin()
+  if (garde instanceof NextResponse) return garde
 
   const { id } = await context.params
   const source = await findVivante(id)
@@ -56,8 +72,8 @@ export async function PATCH(
   request: NextRequest,
   context: Ctx,
 ): Promise<NextResponse<ApiResponse<SourceVeille>>> {
-  const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) return forbidden()
+  const garde = await gardeAdmin()
+  if (garde instanceof NextResponse) return garde
 
   const { id } = await context.params
   const existante = await findVivante(id)
@@ -72,16 +88,42 @@ export async function PATCH(
   }
 
   const { configExtraction, ...rest } = parsed.data
+
+  // Invariant méthode↔config sur l'ENTITÉ RÉSULTANTE (état en base + patch).
+  const methodeFinale = (rest.methode ?? existante.methode) as MethodeExtraction
+  const configFinale =
+    configExtraction === undefined ? existante.configExtraction : configExtraction
+  if (!methodeConfigCoherentes(methodeFinale, configFinale)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `configExtraction est requise pour la méthode « ${methodeFinale} »`,
+        },
+      },
+      { status: 400 },
+    )
+  }
+
   const data: Prisma.SourceVeilleUpdateInput = Object.fromEntries(
     Object.entries(rest).filter(([, v]) => v !== undefined),
   )
+  // `null` explicite = effacement ; `undefined` = champ non touché.
   if (configExtraction !== undefined) {
-    data.configExtraction = configExtraction as Prisma.InputJsonValue
+    data.configExtraction =
+      configExtraction === null
+        ? Prisma.JsonNull
+        : (configExtraction as Prisma.InputJsonValue)
+  }
+  // Réactivation : reposer une date d'échéance si le robot avait consommé la précédente,
+  // sinon une source réactivée resterait invisible au crawler US-2.
+  if (rest.actif === true && !existante.actif && existante.prochaineVerifLe === null) {
+    data.prochaineVerifLe = new Date()
   }
 
   try {
     const source = await prisma.sourceVeille.update({ where: { id }, data })
-    await recordAudit(session.cjsUid, 'source_veille.update', {
+    await recordAudit(garde.cjsUid, 'source_veille.update', {
       targetType: 'source_veille',
       targetId: id,
       meta: { champs: Object.keys(parsed.data) },
@@ -92,6 +134,12 @@ export async function PATCH(
       return NextResponse.json(
         { error: { code: 'URL_EXISTANTE', message: 'Cette URL est déjà déclarée comme source.' } },
         { status: 409 },
+      )
+    }
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+      return NextResponse.json(
+        { error: { code: 'TYPE_INCONNU', message: 'Type d’opportunité par défaut inconnu.' } },
+        { status: 400 },
       )
     }
     logger.error('[PATCH /api/admin/sources-veille/[id]] échec', {
@@ -108,15 +156,15 @@ export async function DELETE(
   _request: NextRequest,
   context: Ctx,
 ): Promise<NextResponse<ApiResponse<{ id: string }>>> {
-  const session = await getSession()
-  if (!session || !isAdminRole(session.roles)) return forbidden()
+  const garde = await gardeAdmin()
+  if (garde instanceof NextResponse) return garde
 
   const { id } = await context.params
   const source = await findVivante(id)
   if (!source) return notFound()
 
   await prisma.sourceVeille.update({ where: { id }, data: { deletedAt: new Date() } })
-  await recordAudit(session.cjsUid, 'source_veille.delete', {
+  await recordAudit(garde.cjsUid, 'source_veille.delete', {
     targetType: 'source_veille',
     targetId: id,
     meta: { url: source.url },

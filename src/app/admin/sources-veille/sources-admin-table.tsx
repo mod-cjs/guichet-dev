@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
-import { SourceFormModal, type SourceFormValues } from './SourceFormModal'
+import { SourceFormModal, type SourceFormValues, type TypeOption } from './SourceFormModal'
 import { LIBELLES_METHODE, LIBELLES_FREQUENCE } from './libelles'
 
 export interface SourceRow extends SourceFormValues {
@@ -20,6 +20,7 @@ export interface SourceRow extends SourceFormValues {
 
 interface SourcesAdminTableProps {
   sources: SourceRow[]
+  types: TypeOption[]
   total: number
   page: number
   totalPages: number
@@ -27,7 +28,13 @@ interface SourcesAdminTableProps {
 
 const GRID = '1.8fr 1fr 1fr 0.7fr 0.9fr 0.8fr'
 
-export function SourcesAdminTable({ sources, total, page, totalPages }: SourcesAdminTableProps) {
+/** Extrait un message d'erreur lisible d'une réponse API échouée. */
+async function messageErreur(res: Response, fallback: string): Promise<string> {
+  const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null
+  return body?.error?.message ?? fallback
+}
+
+export function SourcesAdminTable({ sources, types, total, page, totalPages }: SourcesAdminTableProps) {
   const router = useRouter()
   const [modalOpen, setModalOpen] = useState(false)
   const [editSource, setEditSource] = useState<SourceRow | undefined>(undefined)
@@ -43,11 +50,20 @@ export function SourcesAdminTable({ sources, total, page, totalPages }: SourcesA
   }
   function toggleActif(s: SourceRow) {
     startTransition(async () => {
-      await fetch(`/api/admin/sources-veille/${s.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ actif: !s.actif }),
-      })
+      try {
+        const res = await fetch(`/api/admin/sources-veille/${s.id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ actif: !s.actif }),
+        })
+        if (!res.ok) {
+          window.alert(await messageErreur(res, 'Impossible de changer le statut — réessaie.'))
+          return
+        }
+      } catch {
+        window.alert('Réseau indisponible — le statut n’a pas été changé.')
+        return
+      }
       router.refresh()
     })
   }
@@ -55,7 +71,16 @@ export function SourcesAdminTable({ sources, total, page, totalPages }: SourcesA
     if (!window.confirm(`Supprimer la source « ${s.nom} » ? Le robot cessera de la surveiller.`))
       return
     startTransition(async () => {
-      await fetch(`/api/admin/sources-veille/${s.id}`, { method: 'DELETE' })
+      try {
+        const res = await fetch(`/api/admin/sources-veille/${s.id}`, { method: 'DELETE' })
+        if (!res.ok) {
+          window.alert(await messageErreur(res, 'Suppression impossible — réessaie.'))
+          return
+        }
+      } catch {
+        window.alert('Réseau indisponible — la source n’a pas été supprimée.')
+        return
+      }
       router.refresh()
     })
   }
@@ -238,6 +263,7 @@ export function SourcesAdminTable({ sources, total, page, totalPages }: SourcesA
           router.refresh()
         }}
         source={editSource}
+        types={types}
       />
     </>
   )

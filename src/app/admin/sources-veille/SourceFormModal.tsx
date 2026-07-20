@@ -6,10 +6,16 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
-import { LIBELLES_METHODE, LIBELLES_FREQUENCE, LIBELLES_TYPE_DEFAUT } from './libelles'
+import { LIBELLES_METHODE, LIBELLES_FREQUENCE } from './libelles'
 
 /** Méthodes dont la configuration (sélecteurs / paramètres) est obligatoire. */
 const METHODES_AVEC_CONFIG = ['api', 'html_selecteurs']
+
+/** Type d'opportunité proposé comme défaut (issu de la table OpportuniteType). */
+export interface TypeOption {
+  id: string
+  libelle: string
+}
 
 export interface SourceFormValues {
   id?: string
@@ -18,7 +24,7 @@ export interface SourceFormValues {
   methode?: string
   frequence?: string
   actif?: boolean
-  typeDefaut?: string | null
+  typeDefautId?: string | null
   configExtraction?: Record<string, unknown> | null
 }
 
@@ -27,27 +33,30 @@ export interface SourceFormModalProps {
   onClose: () => void
   /** Présent (avec id) = édition ; absent = création. */
   source?: SourceFormValues
+  /** Types actifs proposés comme défaut. */
+  types: TypeOption[]
 }
 
 // Options dérivées des libellés (déjà en ordre de cascade) — ce composant client
 // n'importe PAS le module zod, qui tire `@prisma/client` (interdit côté navigateur).
 const METHODE_OPTIONS = Object.entries(LIBELLES_METHODE).map(([value, label]) => ({ value, label }))
 const FREQUENCE_OPTIONS = Object.entries(LIBELLES_FREQUENCE).map(([value, label]) => ({ value, label }))
-const TYPE_OPTIONS = [
-  { value: '', label: '— Aucun (déterminé à l’extraction)' },
-  ...Object.entries(LIBELLES_TYPE_DEFAUT).map(([value, label]) => ({ value, label })),
-]
 
-export function SourceFormModal({ isOpen, onClose, source }: SourceFormModalProps) {
+export function SourceFormModal({ isOpen, onClose, source, types }: SourceFormModalProps) {
   const editing = Boolean(source?.id)
   const [nom, setNom] = useState('')
   const [url, setUrl] = useState('')
   const [methode, setMethode] = useState('auto')
   const [frequence, setFrequence] = useState('quotidienne')
-  const [typeDefaut, setTypeDefaut] = useState('')
+  const [typeDefautId, setTypeDefautId] = useState('')
   const [config, setConfig] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  const typeOptions = [
+    { value: '', label: '— Aucun (déterminé à l’extraction)' },
+    ...types.map((t) => ({ value: t.id, label: t.libelle })),
+  ]
 
   // Ré-initialise le formulaire à chaque ouverture (création ou édition d'une autre source).
   useEffect(() => {
@@ -56,7 +65,7 @@ export function SourceFormModal({ isOpen, onClose, source }: SourceFormModalProp
     setUrl(source?.url ?? '')
     setMethode(source?.methode ?? 'auto')
     setFrequence(source?.frequence ?? 'quotidienne')
-    setTypeDefaut(source?.typeDefaut ?? '')
+    setTypeDefautId(source?.typeDefautId ?? '')
     setConfig(source?.configExtraction ? JSON.stringify(source.configExtraction, null, 2) : '')
     setError(null)
   }, [isOpen, source])
@@ -87,21 +96,27 @@ export function SourceFormModal({ isOpen, onClose, source }: SourceFormModalProp
       url,
       methode,
       frequence,
-      ...(typeDefaut ? { typeDefaut } : {}),
+      ...(typeDefautId ? { typeDefautId } : {}),
       ...(configExtraction ? { configExtraction } : {}),
     }
 
     startTransition(async () => {
-      const res = await fetch(
-        editing && source?.id
-          ? `/api/admin/sources-veille/${source.id}`
-          : '/api/admin/sources-veille',
-        {
-          method: editing ? 'PATCH' : 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      )
+      let res: Response
+      try {
+        res = await fetch(
+          editing && source?.id
+            ? `/api/admin/sources-veille/${source.id}`
+            : '/api/admin/sources-veille',
+          {
+            method: editing ? 'PATCH' : 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+          },
+        )
+      } catch {
+        setError('Réseau indisponible — réessaie.')
+        return
+      }
       if (res.ok) {
         onClose()
         return
@@ -154,9 +169,9 @@ export function SourceFormModal({ isOpen, onClose, source }: SourceFormModalProp
         <Select
           id="source-type"
           label="Type d’opportunité par défaut"
-          options={TYPE_OPTIONS}
-          value={typeDefaut}
-          onChange={(e) => setTypeDefaut(e.target.value)}
+          options={typeOptions}
+          value={typeDefautId}
+          onChange={(e) => setTypeDefautId(e.target.value)}
         />
         <Textarea
           id="source-config"

@@ -992,6 +992,7 @@ model OpportuniteType {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   opportunites Opportunite[]
+  sourcesVeille SourceVeille[]
 
   @@map("opportunite_types")
 }
@@ -1734,14 +1735,17 @@ model SourceVeille {
   frequence        FrequenceVeille   @default(quotidienne)
   actif            Boolean           @default(true)
   configExtraction Json?             @map("config_extraction")
-  typeDefaut       TypeOpportunite?  @map("type_defaut")
+  typeDefautId     String?           @map("type_defaut_id") @db.VarChar(36)
   prochaineVerifLe DateTime?         @map("prochaine_verif_le")
   derniereVerifLe  DateTime?         @map("derniere_verif_le")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
   deletedAt        DateTime?         @map("deleted_at")
 
+  typeDefaut OpportuniteType? @relation(fields: [typeDefautId], references: [id], onDelete: SetNull)
+
   @@index([actif, prochaineVerifLe])
   @@index([deletedAt])
+  @@index([typeDefautId])
   @@map("sources_veille")
 }

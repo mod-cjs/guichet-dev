@@ -15,12 +15,3 @@ export const LIBELLES_FREQUENCE: Record<string, string> = {
   quotidienne: 'Quotidienne',
   hebdomadaire: 'Hebdomadaire',
 }
-
-export const LIBELLES_TYPE_DEFAUT: Record<string, string> = {
-  Emploi: 'Emploi',
-  Stage: 'Stage',
-  Formation: 'Formation',
-  Bourse: 'Bourse',
-  Volontariat: 'Volontariat',
-  Appel_a_projets: 'Appel à projets',
-}
