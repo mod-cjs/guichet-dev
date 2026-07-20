@@ -231,6 +231,27 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 ### Tests
 - Intégration MariaDB : publier un `approuvee` crée une `Opportunite` (statut cible), lie `opportuniteId`, conserve le lien source ; refus si non-admin / non-approuvee / déjà publié ; domaine/région défaut.
 
+## 4septies. US-7 — Journalisation & monitoring de la curation (GUIC-602) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-601. AUCUNE migration (données déjà collectées depuis US-2/US-5).
+
+**En tant qu'admin, je suis la performance de la veille, pour ajuster mes sources.**
+
+### Données sources (déjà en base)
+- `ExecutionVeille` (par source) : `nbLiensDecouverts`, `nbNouveautes`, `nbErreurs`, `statut ok|partiel|erreur`, `dureeMs`, `createdAt`.
+- `ItemCuration` (par source, par statut) : `approuvee`/`rejetee`/`a_valider`… → taux d'approbation & de rejet.
+- `SourceVeille` : `derniereVerifLe`.
+
+### Écrans
+- Vue synthétique `/admin/curation/monitoring` : totaux globaux + tableau **par source** (nb rapportées, taux d'approbation, taux de rejet, dernière vérif, nb erreurs récentes) + **bandeau des sources en alerte**.
+
+### Alertes (cf. Q1)
+- **Erreur répétée** : les N dernières exécutions de la source en `statut erreur`.
+- **Chute à zéro** : les N dernières exécutions à `nbLiensDecouverts = 0` alors que la source produisait avant (signal : sélecteurs HTML à revoir après un changement du site).
+
+### Tests
+- Intégration MariaDB réelle : stats par source correctes (approbation/rejet/erreurs), détection alerte erreur répétée + chute à zéro, aucune alerte sur source saine ; RBAC.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |
