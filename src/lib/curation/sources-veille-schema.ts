@@ -85,6 +85,10 @@ const UrlSource = z
     return hostAutorise(parsed.hostname)
   }, 'URL interne ou non publique interdite (source fetchée côté serveur)')
   .transform(normaliseUrl)
+  // La normalisation (punycode d'un hôte unicode) peut RALLONGER l'URL après le
+  // contrôle max(500) ci-dessus : on revalide la longueur du résultat persisté
+  // pour ne jamais dépasser VARCHAR(500).
+  .refine((u) => u.length <= 500, 'URL trop longue après normalisation (500 max)')
 
 const ConfigExtraction = z
   .record(z.unknown())
