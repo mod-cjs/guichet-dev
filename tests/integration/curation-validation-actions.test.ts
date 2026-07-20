@@ -35,10 +35,17 @@ async function source() {
   })
 }
 
+let TYPE_ID = ''
+beforeAll(async () => {
+  const t = await prisma.opportuniteType.findFirst({ select: { id: true } })
+  TYPE_ID = t?.id ?? ''
+})
+
 async function item(
   sourceId: string,
   over: Record<string, unknown> = {},
   createdAt?: Date,
+  payloadOver: Record<string, unknown> = {},
 ) {
   const url = `https://veille-${RUN}.sn/o/${Math.random().toString(36).slice(2, 10)}`
   return prisma.itemCuration.create({
@@ -47,7 +54,8 @@ async function item(
       urlCanonique: url,
       empreinte: createHash('sha256').update(url).digest('hex'),
       titre: 'Développeur',
-      payloadExtrait: { titre: 'Développeur', organisation: 'CJS' } as object,
+      // typeId présent par défaut → l'approbation (garde de complétude) passe.
+      payloadExtrait: { titre: 'Développeur', organisation: 'CJS', typeId: TYPE_ID, ...payloadOver } as object,
       statut: 'a_valider',
       ...(createdAt ? { createdAt } : {}),
       ...over,
@@ -153,5 +161,76 @@ describe('GUIC-600 — actions de validation (DB réelle)', () => {
 
   it('id inconnu → 404 (erreur NOT_FOUND)', async () => {
     await expect(approuverItem('00000000-0000-0000-0000-000000000000')).rejects.toThrow(/NOT_FOUND/)
+  })
+
+  // ─── Gardes anti-double-publication (revue adverse) ────────────────────────
+
+  it('GARDE STATUT : approuver un doublon est REFUSÉ (sinon double publication)', async () => {
+    const s = await source()
+    const it = await item(s.id, { statut: 'doublon' })
+    await expect(approuverItem(it.id)).rejects.toThrow(/CONFLIT_STATUT/)
+    // Idem un item déjà approuvé/rejeté ne se re-modère pas.
+    const dejaApprouve = await item(s.id, { statut: 'approuvee' })
+    await expect(rejeterItem(dejaApprouve.id, 'motif')).rejects.toThrow(/CONFLIT_STATUT/)
+  })
+
+  it('GARDE COMPLÉTUDE : approuver sans titre ou sans type est REFUSÉ', async () => {
+    const s = await source()
+    const sansTitre = await item(s.id, { titre: null }, undefined, { titre: undefined })
+    await expect(approuverItem(sansTitre.id)).rejects.toThrow(/[Tt]itre/)
+    const sansType = await item(s.id, {}, undefined, { typeId: undefined })
+    await expect(approuverItem(sansType.id)).rejects.toThrow(/[Tt]ype/)
+  })
+
+  it('IDEMPOTENCE : une 2e approbation concurrente échoue (CONFLIT)', async () => {
+    const s = await source()
+    const it = await item(s.id)
+    await approuverItem(it.id)
+    await expect(approuverItem(it.id)).rejects.toThrow(/CONFLIT_STATUT/)
+  })
+
+  it('MISE EN ATTENTE ne repromeut PAS (anti-double-publication)', async () => {
+    const s = await source()
+    const canon = await item(s.id, {}, new Date(Date.now() - 5000))
+    const dup = await item(s.id, { statut: 'doublon', doublonDeId: canon.id })
+    await mettreEnAttenteItem(canon.id)
+    const d = await prisma.itemCuration.findUnique({ where: { id: dup.id } })
+    expect(d?.statut).toBe('doublon') // reste doublon (pas repromu)
+  })
+
+  it('FILTRE TYPE en base (JSON path) : count et sélection cohérents (fix pagination)', async () => {
+    const s = await source()
+    const autreType = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+    await item(s.id, {}, undefined, { typeId: TYPE_ID })
+    await item(s.id, {}, undefined, { typeId: TYPE_ID })
+    await item(s.id, {}, undefined, { typeId: autreType })
+
+    // Le même `where` (JSON path) sert au count ET à la sélection → pas de trous.
+    const where = {
+      sourceId: s.id,
+      statut: 'a_valider' as const,
+      payloadExtrait: { path: '$.typeId', equals: TYPE_ID },
+    }
+    expect(await prisma.itemCuration.count({ where })).toBe(2)
+    const rows = await prisma.itemCuration.findMany({ where, take: 20 })
+    expect(rows).toHaveLength(2)
+    expect(rows.every((r) => (r.payloadExtrait as { typeId?: string }).typeId === TYPE_ID)).toBe(true)
+  })
+
+  it('COLLISION ÉDITION : corriger un titre en doublon exact d’un autre → marqué doublon', async () => {
+    const s = await source()
+    const canon = await item(s.id, {}, new Date(Date.now() - 5000), { titre: 'Stagiaire', organisation: 'CJS' })
+    await prisma.itemCuration.update({
+      where: { id: canon.id },
+      data: { titre: 'Stagiaire', empreinteContenu: require('@/lib/curation/dedup/empreinte').empreinteContenu('Stagiaire', 'CJS') },
+    })
+    const faute = await item(s.id, {}, new Date(), { titre: 'Stagaire', organisation: 'CJS' })
+    await prisma.itemCuration.update({ where: { id: faute.id }, data: { titre: 'Stagaire' } })
+
+    await editerItem(faute.id, { titre: 'Stagiaire', organisation: 'CJS' })
+
+    const apres = await prisma.itemCuration.findUnique({ where: { id: faute.id } })
+    expect(apres?.statut).toBe('doublon')
+    expect(apres?.doublonDeId).toBe(canon.id)
   })
 })

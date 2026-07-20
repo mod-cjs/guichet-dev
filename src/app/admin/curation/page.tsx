@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
-import type { Prisma, StatutItemCuration } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import { CurationList, type CurationRow } from './CurationList'
 
 export const metadata: Metadata = { title: 'File de curation — Admin CJS' }
@@ -23,15 +23,20 @@ export default async function Page({
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const sp = await searchParams
-  const onglet: StatutItemCuration = sp.onglet === 'en_attente' ? 'en_attente' : 'a_valider'
+  type Onglet = 'a_valider' | 'en_attente' | 'approuvee' | 'rejetee'
+  const ONGLETS: Onglet[] = ['a_valider', 'en_attente', 'approuvee', 'rejetee']
+  const onglet: Onglet = ONGLETS.includes(sp.onglet as Onglet) ? (sp.onglet as Onglet) : 'a_valider'
   const pageParsed = Number(sp.page ?? '1')
   const page = Number.isInteger(pageParsed) && pageParsed >= 1 ? pageParsed : 1
   const scoreMin = Number(sp.scoreMin)
 
+  // Le filtre TYPE est poussé en BASE via le chemin JSON (payloadExtrait.typeId) → count,
+  // take et filtre partagent le même `where` : plus de pages à trous ni de total faux.
   const where: Prisma.ItemCurationWhereInput = {
     statut: onglet,
     ...(sp.source ? { sourceId: sp.source } : {}),
     ...(Number.isFinite(scoreMin) && scoreMin > 0 ? { scoreCompletude: { gte: scoreMin } } : {}),
+    ...(sp.type ? { payloadExtrait: { path: '$.typeId', equals: sp.type } } : {}),
   }
 
   const [total, items, sources, types] = await prisma.$transaction([
@@ -57,24 +62,18 @@ export default async function Page({
 
   const typeLabels = new Map(types.map((t) => [t.id, t.libelle]))
 
-  const rows: CurationRow[] = items
-    .filter((it) => {
-      if (!sp.type) return true
-      const p = it.payloadExtrait as { typeId?: string } | null
-      return p?.typeId === sp.type
-    })
-    .map((it) => {
-      const p = (it.payloadExtrait as Record<string, unknown> | null) ?? {}
-      return {
-        id: it.id,
-        titre: it.titre ?? '(sans titre)',
-        sourceNom: it.source.nom,
-        organisation: typeof p.organisation === 'string' ? p.organisation : '—',
-        typeLabel: typeof p.typeId === 'string' ? (typeLabels.get(p.typeId) ?? '—') : '—',
-        score: it.scoreCompletude ?? 0,
-        dateLabel: it.createdAt.toLocaleDateString('fr-FR'),
-      }
-    })
+  const rows: CurationRow[] = items.map((it) => {
+    const p = (it.payloadExtrait as Record<string, unknown> | null) ?? {}
+    return {
+      id: it.id,
+      titre: it.titre ?? '(sans titre)',
+      sourceNom: it.source.nom,
+      organisation: typeof p.organisation === 'string' ? p.organisation : '—',
+      typeLabel: typeof p.typeId === 'string' ? (typeLabels.get(p.typeId) ?? '—') : '—',
+      score: it.scoreCompletude ?? 0,
+      dateLabel: it.createdAt.toLocaleDateString('fr-FR'),
+    }
+  })
 
   return (
     <CurationList

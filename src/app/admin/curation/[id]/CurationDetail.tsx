@@ -47,8 +47,25 @@ export function CurationDetail({
   const [erreur, setErreur] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
+  const modifiable = statut === 'a_valider' || statut === 'en_attente'
+  const sale = JSON.stringify(c) !== JSON.stringify(initial)
+  const lienSur = /^https:\/\/|^http:\/\//i.test(urlSource)
+
   function set<K extends keyof Champs>(cle: K, val: string) {
     setC((prev) => ({ ...prev, [cle]: val }))
+  }
+
+  function champsPayload() {
+    return {
+      titre: c.titre || undefined,
+      description: c.description || undefined,
+      organisation: c.organisation || undefined,
+      region: c.region || undefined,
+      domaine: c.domaine || undefined,
+      typeId: c.typeId || undefined,
+      deadline: c.deadline || undefined,
+      lienSource: c.lienSource || undefined,
+    }
   }
 
   function agir(fn: () => Promise<void>, redirige = true) {
@@ -61,6 +78,15 @@ export function CurationDetail({
       } catch (e) {
         setErreur(e instanceof Error ? e.message : 'Échec de l’action.')
       }
+    })
+  }
+
+  /** Action de validation : PERSISTE d'abord les corrections en cours (si le formulaire
+   *  est modifié) pour ne jamais les perdre, PUIS applique la transition. */
+  function valider(action: () => Promise<void>) {
+    agir(async () => {
+      if (sale) await editerItem(id, champsPayload())
+      await action()
     })
   }
 
@@ -82,11 +108,25 @@ export function CurationDetail({
           Valider l’opportunité
         </h1>
         <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginTop: 0 }}>
-          Source : <strong>{sourceNom}</strong> · complétude {score}% · statut {statut} ·{' '}
-          <a href={urlSource} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gj-teal-deep)' }}>
-            voir l’annonce d’origine
-          </a>
+          Source : <strong>{sourceNom}</strong> · complétude {score}% · statut {statut}
+          {lienSur && (
+            <>
+              {' · '}
+              <a href={urlSource} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gj-teal-deep)' }}>
+                voir l’annonce d’origine
+              </a>
+            </>
+          )}
         </p>
+        {!modifiable && (
+          <p
+            role="status"
+            className="text-fs-200 font-bold"
+            style={{ color: 'var(--gj-grey)', marginTop: 8 }}
+          >
+            Cet item est «&nbsp;{statut}&nbsp;» : consultation seule, aucune action possible.
+          </p>
+        )}
 
         <form
           onSubmit={(e) => e.preventDefault()}
@@ -105,23 +145,8 @@ export function CurationDetail({
           <Button
             type="button"
             variant="secondary"
-            disabled={pending}
-            onClick={() =>
-              agir(
-                () =>
-                  editerItem(id, {
-                    titre: c.titre || undefined,
-                    description: c.description || undefined,
-                    organisation: c.organisation || undefined,
-                    region: c.region || undefined,
-                    domaine: c.domaine || undefined,
-                    typeId: c.typeId || undefined,
-                    deadline: c.deadline || undefined,
-                    lienSource: c.lienSource || undefined,
-                  }),
-                false,
-              )
-            }
+            disabled={pending || !modifiable || !sale}
+            onClick={() => agir(() => editerItem(id, champsPayload()), false)}
           >
             Enregistrer les corrections
           </Button>
@@ -144,17 +169,19 @@ export function CurationDetail({
           </p>
         )}
 
-        <div className="flex items-center gap-space-2" style={{ marginTop: 16, flexWrap: 'wrap' }}>
-          <Button type="button" variant="primary" disabled={pending} onClick={() => agir(() => approuverItem(id))}>
-            Approuver
-          </Button>
-          <Button type="button" variant="danger" disabled={pending} onClick={() => agir(() => rejeterItem(id, motif))}>
-            Rejeter
-          </Button>
-          <Button type="button" variant="ghost" disabled={pending} onClick={() => agir(() => mettreEnAttenteItem(id))}>
-            Mettre en attente
-          </Button>
-        </div>
+        {modifiable && (
+          <div className="flex items-center gap-space-2" style={{ marginTop: 16, flexWrap: 'wrap' }}>
+            <Button type="button" variant="primary" disabled={pending} onClick={() => valider(() => approuverItem(id))}>
+              Approuver{sale ? ' (enregistre d’abord)' : ''}
+            </Button>
+            <Button type="button" variant="danger" disabled={pending} onClick={() => valider(() => rejeterItem(id, motif))}>
+              Rejeter
+            </Button>
+            <Button type="button" variant="ghost" disabled={pending} onClick={() => valider(() => mettreEnAttenteItem(id))}>
+              Mettre en attente
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

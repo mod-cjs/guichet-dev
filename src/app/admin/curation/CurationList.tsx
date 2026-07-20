@@ -22,7 +22,7 @@ interface CurationListProps {
   total: number
   page: number
   totalPages: number
-  onglet: 'a_valider' | 'en_attente'
+  onglet: 'a_valider' | 'en_attente' | 'approuvee' | 'rejetee'
   sources: Array<{ id: string; nom: string }>
   types: Array<{ id: string; libelle: string }>
   filtres: { source: string; type: string; scoreMin: string }
@@ -78,6 +78,8 @@ export function CurationList({
             [
               ['a_valider', 'À valider'],
               ['en_attente', 'En attente'],
+              ['approuvee', 'Approuvées'],
+              ['rejetee', 'Rejetées'],
             ] as const
           ).map(([val, label]) => (
             <Link

@@ -195,8 +195,14 @@ Chaque champ prend la **première source non vide** de la cascade. `type`/`domai
 - **Mettre en attente** → `statut = en_attente`.
 - Édition des champs → met à jour `payloadExtrait` (+ `titre`) ; si titre/org modifiés, **recalcul de `empreinteContenu`** (sinon la dédup future utilise une clé périmée — dette signalée à l'audit L1).
 
-### Repromotion (dépendance tracée en US-4)
-- Quand un item **canonique** (qui a des `doublons` via `doublonDeId`) est **rejeté** OU **mis en attente**, **repromouvoir le doublon le plus ancien** en `a_valider` (et re-pointer les autres doublons vers lui). Sinon l'annonce entière disparaît de la file alors que l'admin n'a écarté qu'une instance.
+### Repromotion (dépendance tracée en US-4) — RÉVISÉE post-revue adverse
+- Quand un item **canonique** (qui a des `doublons` via `doublonDeId`) est **rejeté** (statut terminal), **repromouvoir le doublon le plus ancien** en `a_valider` (et re-pointer les autres vers lui).
+- **PAS de repromotion sur « mise en attente »** : la mise en attente n'est pas terminale (le canonique reviendra en file). Repromouvoir créerait deux lignées actives de la même annonce → **risque de double publication**. Correction de la §199 initiale (revue adverse 2026-07-20).
+
+### Gardes anti-double-publication (revue adverse) — NON NÉGOCIABLES
+- **Garde de statut** : approuver/rejeter/mettre en attente/éditer n'agissent QUE sur `a_valider`/`en_attente`. Jamais sur `doublon` (sinon double publication : le doublon ET son canonique publiés), ni `approuvee`/`rejetee` (pas de re-modération). Update **conditionnel** (`updateMany where:{id, statut in [...]}`) → conflit si un autre admin a déjà agi (concurrence).
+- **Garde de complétude à l'approbation** : refuser si `titre` vide ou `typeId` absent (champs requis par la création `Opportunite` US-6).
+- **Collision d'empreinte à l'édition** : après recalcul, si un autre `a_valider` partage la nouvelle empreinte, marquer l'item édité `doublon` (le plus ancien reste canonique) — sinon l'édition recrée un doublon qu'US-4 ne rattrape plus (empreinte non-null).
 
 ### Tests (TDD strict, charte robustesse)
 - Intégration MariaDB réelle : liste filtrée (source/type/score) ; approuver→approuvee ; rejeter→rejetee+motif+audit ; en attente→en_attente ; édition→payloadExtrait maj + empreinte recalculée ; **repromotion** (rejet d'un canonique → son doublon repasse a_valider) ; chemins de refus (non-admin 401/403, id inconnu 404).
