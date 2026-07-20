@@ -4,6 +4,7 @@ CREATE TABLE `executions_veille` (
     `source_id` VARCHAR(36) NOT NULL,
     `demarre_le` DATETIME(3) NOT NULL,
     `duree_ms` INTEGER NOT NULL,
+    `nb_liens_decouverts` INTEGER NOT NULL DEFAULT 0,
     `nb_nouveautes` INTEGER NOT NULL DEFAULT 0,
     `nb_erreurs` INTEGER NOT NULL DEFAULT 0,
     `statut` ENUM('ok', 'partiel', 'erreur') NOT NULL,

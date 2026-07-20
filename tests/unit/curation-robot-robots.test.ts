@@ -34,4 +34,9 @@ describe('GUIC-597 — robots.txt', () => {
     expect(r.estAutorise('/quoi')).toBe(true)
     expect(r.crawlDelayMs).toBeNull()
   })
+
+  it('plafonne un Crawl-delay abusif (une source ne doit pas geler la file)', () => {
+    const r = analyserRobots('User-agent: *\nCrawl-delay: 250\n', UA)
+    expect(r.crawlDelayMs).toBe(30_000) // plafond, pas 250 000
+  })
 })

@@ -22,6 +22,16 @@ describe('GUIC-597 — estIpInterne', () => {
   it.each(['8.8.8.8', '41.82.10.5', '2001:4860:4860::8888'])('public : %s', (ip) =>
     expect(estIpInterne(ip)).toBe(false),
   )
+
+  // Durcissement : IPv6 fail-closed + formes mapped exotiques.
+  it.each([
+    '::ffff:7f00:1', // ::ffff:127.0.0.1 en hexadécimal
+    '::ffff:a9fe:a9fe', // ::ffff:169.254.169.254 (metadata) en hex
+    '::127.0.0.1', // IPv4-compatible
+    'fd00:ec2::254', // ULA (metadata AWS IPv6)
+    'pas-une-ip', // non parsable → fail-closed
+    ':::::', // IPv6 malformé → fail-closed
+  ])('interne/fail-closed : %s', (ip) => expect(estIpInterne(ip)).toBe(true))
 })
 
 describe('GUIC-597 — urlFetchable (résolution DNS injectée)', () => {

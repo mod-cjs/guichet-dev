@@ -6,6 +6,9 @@
  * exhaustif. Un robots.txt vide/illisible → tout autorisé, sans délai.
  */
 
+/** Plafond du Crawl-delay honoré : au-delà, une source gèlerait la file de veille. */
+export const CRAWL_DELAY_MAX_MS = 30_000
+
 export interface RobotsInfo {
   estAutorise(path: string): boolean
   crawlDelayMs: number | null
@@ -48,7 +51,8 @@ export function analyserRobots(txt: string, userAgent: string): RobotsInfo {
       if (valeur) courante.regles.push({ autorise: true, prefixe: valeur })
     } else if (champ === 'crawl-delay') {
       const s = Number(valeur)
-      if (Number.isFinite(s) && s >= 0) courante.crawlDelay = s * 1000
+      // Plafonné : une source malveillante ne doit pas geler toute la file de veille.
+      if (Number.isFinite(s) && s >= 0) courante.crawlDelay = Math.min(s * 1000, CRAWL_DELAY_MAX_MS)
     }
   }
 

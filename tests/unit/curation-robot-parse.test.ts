@@ -7,6 +7,7 @@ import {
   extraireLiensRss,
   extraireLiensSitemap,
   extraireLiensHtml,
+  ressembleAFlux,
 } from '@/lib/curation/robot/parse'
 
 describe('GUIC-597 — parse RSS/Atom', () => {
@@ -92,5 +93,51 @@ describe('GUIC-597 — parse listing HTML (ancres, filtre par motif)', () => {
     expect(extraireLiensHtml(h, 'https://exemple.sn', '/offres/')).toEqual([
       'https://exemple.sn/offres/9',
     ])
+  })
+})
+
+// ─── Durcissement post-challenge (2026-07-20) ────────────────────────────────
+
+describe('GUIC-597 — durcissement : RSS ≠ HTML <link>', () => {
+  it('extraireLiensRss n’attrape PAS les <link> HTML (stylesheet/canonical/favicon)', () => {
+    const page = `<html><head>
+      <link rel="stylesheet" href="https://exemple.sn/style.css">
+      <link rel="canonical" href="https://exemple.sn/canonique">
+      <link rel="icon" href="/favicon.ico">
+    </head><body><a href="/offres/1">o</a></body></html>`
+    // Aucune de ces balises n'est dans un <item>/<entry> → 0 lien de flux.
+    expect(extraireLiensRss(page, 'https://exemple.sn')).toEqual([])
+  })
+
+  it('ressembleAFlux distingue un vrai flux d’une page HTML', () => {
+    expect(ressembleAFlux('<?xml?><rss><channel></channel></rss>')).toBe(true)
+    expect(ressembleAFlux('<?xml?><feed xmlns="...">')).toBe(true)
+    expect(ressembleAFlux('<!doctype html><html><head><link rel="stylesheet">')).toBe(false)
+  })
+
+  it('exclut le <link> du <channel> (self-link du flux)', () => {
+    const rss = `<rss><channel>
+      <link>https://exemple.sn/</link>
+      <item><link>https://exemple.sn/vraie-offre</link></item>
+    </channel></rss>`
+    expect(extraireLiensRss(rss, 'https://exemple.sn')).toEqual(['https://exemple.sn/vraie-offre'])
+  })
+})
+
+describe('GUIC-597 — durcissement : anti-ReDoS (parsing borné)', () => {
+  it('un <link> non fermé suivi de milliers d’espaces se parse instantanément', () => {
+    const hostile = '<link>' + ' '.repeat(20000) + '!'
+    const t0 = Date.now()
+    const out = extraireLiensRss(hostile, 'https://exemple.sn')
+    // Regex linéaire bornée : < 200 ms (l'ancienne version prenait plusieurs secondes).
+    expect(Date.now() - t0).toBeLessThan(200)
+    expect(out).toEqual([])
+  })
+
+  it('tronque les URLs > 500 caractères (colonne VARCHAR(500))', () => {
+    const longue = 'https://exemple.sn/offres/' + 'x'.repeat(600)
+    const html = `<a href="${longue}">trop long</a><a href="/offres/ok">ok</a>`
+    const liens = extraireLiensHtml(html, 'https://exemple.sn', '/offres/')
+    expect(liens).toEqual(['https://exemple.sn/offres/ok'])
   })
 })

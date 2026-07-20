@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 import { logger } from '@/lib/logger'
 import { executerVeille } from '@/lib/curation/robot/run'
 import { clientHttpReel } from '@/lib/curation/robot/http-client'
 import type { ApiResponse } from '@/types/api'
+
+/** Comparaison en temps constant du bearer (évite l'oracle temporel sur le secret). */
+function secretValide(provided: string | null, secret: string): boolean {
+  const attendu = Buffer.from(`Bearer ${secret}`)
+  const recu = Buffer.from(provided ?? '')
+  return recu.length === attendu.length && timingSafeEqual(recu, attendu)
+}
 
 /**
  * GUIC-597 — US-2 : robot de découverte planifié (curation, épic GUIC-595).
@@ -16,7 +24,7 @@ export const maxDuration = 300
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   const secret = process.env.CRON_SECRET
   const provided = request.headers.get('authorization')
-  if (!secret || provided !== `Bearer ${secret}`) {
+  if (!secret || !secretValide(provided, secret)) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Non autorisé' } },
       { status: 401 },

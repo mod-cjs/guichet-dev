@@ -1779,6 +1779,7 @@ model ExecutionVeille {
   sourceId     String          @map("source_id") @db.VarChar(36)
   demarreLe    DateTime        @map("demarre_le")
   dureeMs      Int             @map("duree_ms")
+  nbLiensDecouverts Int        @default(0) @map("nb_liens_decouverts")
   nbNouveautes Int             @default(0) @map("nb_nouveautes")
   nbErreurs    Int             @default(0) @map("nb_erreurs")
   statut       StatutExecution

@@ -99,11 +99,18 @@ Le robot lui-même (US-2), tout fetch réseau, l'extraction, la file de curation
   - `html_selecteurs` : `configExtraction.liste` (sélecteur CSS des liens de la liste).
 - Le robot **ne fetch PAS** chaque URL candidate (c'est US-3). Il enregistre les URLs découvertes non déjà vues.
 
-### Sécurité réseau (durcissement US-1 → à ENFORCER ici)
-- **Anti-SSRF au fetch** : avant toute requête, résolution DNS (`dns.lookup`) + rejet si l'IP résolue est privée/loopback/link-local/ULA (parade DNS-rebinding que la validation d'URL d'US-1 ne peut pas couvrir). Idéalement pinning IP.
-- **robots.txt** respecté (chemin + `Crawl-delay` si présent), **délai de politesse** entre requêtes au même hôte (défaut proposé : 2 s), **timeout** (défaut 10 s), **1 retry** sur erreur transitoire.
+### Sécurité réseau (durcissement US-1 → ENFORCÉ ici, + revue adverse 2026-07-20)
+- **Anti-SSRF au fetch SANS TOCTOU** : résolution DNS UNE fois, validation de l'IP, puis **épinglage de cette IP** pour la connexion (dispatcher undici) — pas de re-résolution exploitable (parade DNS-rebinding). Fail-closed (IPv6 non classée = interne). Redirections : une seule suivie, **cible re-validée**.
+- **robots.txt** respecté (chemin + `Crawl-delay` **plafonné à 30 s**), **délai de politesse intra-hôte** (entre robots.txt et listing, défaut 2 s), **timeout** 10 s, **1 retry** sur erreur transitoire (réseau/5xx).
 - **User-agent** : `CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)`.
-- Taille de réponse bornée (défaut 2 Mo) pour éviter le gonflage mémoire.
+- **Corps lu en streaming avec plafond dur** (2 Mo) + refus si `Content-Length` dépasse — pas d'OOM.
+- **Parsing anti-ReDoS** : regex linéaires bornées ; URLs découvertes tronquées/rejetées > 500 caractères.
+- **Verrou Redis anti-réentrance** : un run en cours empêche un second (chevauchement cron).
+- **CRON_SECRET** comparé en temps constant (`timingSafeEqual`).
+
+### Empreinte & détection "chute à zéro"
+- `empreinte = sha256(urlCanonique)` = **clé de dédup URL** (« déjà vu cette URL »), permanente et `@unique`. La dédup de **contenu** (quasi-doublons inter-sources) d'US-4 est un mécanisme SÉPARÉ posé par-dessus, pas un remplacement de cette clé.
+- `ExecutionVeille.nbLiensDecouverts` (total avant dédup) + `statut='partiel'` quand une source est bloquée robots OU rapporte 0 lien → signal exploitable par le monitoring US-7 (distingue source morte / calme / bloquée). `nbNouveautes` = count réel inséré (transaction).
 
 ### Modèle de données introduit ici (décisions lead 2026-07-20)
 - `ExecutionVeille` : journal par exécution (`sourceId`, `demarreLe`, `dureeMs`, `nbNouveautes`, `nbErreurs`, `statut ok|partiel|erreur`, `messageErreur?`). Alimente le monitoring US-7.

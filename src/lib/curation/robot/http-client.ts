@@ -1,10 +1,15 @@
-import { urlFetchable } from './ssrf-guard'
+import { Agent } from 'undici'
+import { ipPubliqueValidee, estIpInterne, type Resolver } from './ssrf-guard'
 
 /**
- * GUIC-597 — US-2 : client HTTP du robot. Seam injectable : le vrai `fetch` en prod
- * (avec garde anti-SSRF, user-agent identifiable, timeout et plafond de taille),
- * remplacé par des fixtures dans les tests. On teste ainsi le vrai parsing/orchestration
- * sans dépendre du réseau.
+ * GUIC-597 — US-2 : client HTTP du robot. Seam injectable : vrai `fetch` en prod,
+ * fixtures en test. Durcissement (revue adverse 2026-07-20) :
+ *  - Anti-SSRF SANS TOCTOU : on résout UNE fois, on valide l'IP, puis on ÉPINGLE cette IP
+ *    pour la connexion (dispatcher undici) → pas de re-résolution exploitable (rebinding).
+ *  - Corps LU EN STREAMING avec plafond dur (pas d'`arrayBuffer()` complet → pas d'OOM),
+ *    plus refus si `Content-Length` annoncé dépasse le cap.
+ *  - Redirections : une seule redirection suivie, cible RE-VALIDÉE anti-SSRF.
+ *  - 1 retry sur erreur transitoire (réseau / 5xx / timeout).
  */
 
 export interface ReponseHttp {
@@ -17,13 +22,6 @@ export type ClientHttp = (url: string) => Promise<ReponseHttp>
 
 export const USER_AGENT_ROBOT = 'CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)'
 
-export interface OptionsClientReel {
-  userAgent?: string
-  timeoutMs?: number
-  tailleMaxOctets?: number
-}
-
-/** Erreur levée quand une URL est refusée par la garde anti-SSRF. */
 export class UrlInterditeError extends Error {
   constructor(url: string) {
     super(`URL refusée (SSRF/hôte interne) : ${url}`)
@@ -31,31 +29,115 @@ export class UrlInterditeError extends Error {
   }
 }
 
+export interface OptionsClientReel {
+  userAgent?: string
+  timeoutMs?: number
+  tailleMaxOctets?: number
+  maxRedirections?: number
+  resolver?: Resolver
+  /** Injection du transport bas niveau (tests). Défaut : `fetch` global. */
+  fetchImpl?: typeof fetch
+}
+
+/** Dispatcher undici qui force la connexion sur une IP déjà validée (anti-rebinding). */
+function dispatcherEpingle(ip: string): Agent {
+  const family = ip.includes(':') ? 6 : 4
+  return new Agent({
+    connect: {
+      lookup: (_hostname, _opts, cb) =>
+        cb(null, [{ address: ip, family }] as unknown as Parameters<typeof cb>[1]),
+    },
+  })
+}
+
+const estTransitoire = (statut: number) => statut === 0 || statut >= 500
+
+async function lireBorne(res: Response, tailleMax: number): Promise<string> {
+  const cl = Number(res.headers.get('content-length'))
+  if (Number.isFinite(cl) && cl > tailleMax) throw new Error('Réponse trop volumineuse (Content-Length)')
+  if (!res.body) return ''
+  const reader = res.body.getReader()
+  const morceaux: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > tailleMax) {
+      await reader.cancel().catch(() => {})
+      break // plafond dur : on arrête de bufferiser
+    }
+    morceaux.push(value)
+  }
+  return new TextDecoder('utf-8').decode(concat(morceaux))
+}
+
+function concat(morceaux: Uint8Array[]): Uint8Array {
+  const total = morceaux.reduce((a, m) => a + m.byteLength, 0)
+  const out = new Uint8Array(total)
+  let o = 0
+  for (const m of morceaux) {
+    out.set(m, o)
+    o += m.byteLength
+  }
+  return out
+}
+
 export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
   const userAgent = opts.userAgent ?? USER_AGENT_ROBOT
   const timeoutMs = opts.timeoutMs ?? 10_000
   const tailleMax = opts.tailleMaxOctets ?? 2_000_000
+  const maxRedirs = opts.maxRedirections ?? 1
+  const resolver = opts.resolver
+  const doFetch = opts.fetchImpl ?? fetch
+
+  async function unFetch(url: string): Promise<ReponseHttp> {
+    let cible = url
+    for (let saut = 0; saut <= maxRedirs; saut++) {
+      const ip = await ipPubliqueValidee(cible, resolver)
+      if (!ip) throw new UrlInterditeError(cible)
+
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+      try {
+        const res = await doFetch(cible, {
+          method: 'GET',
+          redirect: 'manual', // on gère la redirection nous-mêmes (revalidation SSRF)
+          signal: ctrl.signal,
+          headers: { 'user-agent': userAgent, accept: 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.5' },
+          // @ts-expect-error dispatcher (undici) non typé sur le fetch DOM
+          dispatcher: opts.fetchImpl ? undefined : dispatcherEpingle(ip),
+        })
+
+        // Redirection : suivre une fois, cible re-validée au tour suivant.
+        if (res.status >= 300 && res.status < 400 && saut < maxRedirs) {
+          const loc = res.headers.get('location')
+          if (loc) {
+            cible = new URL(loc, cible).toString()
+            continue
+          }
+        }
+        const corps = await lireBorne(res, tailleMax)
+        return { statut: res.status, corps, contentType: res.headers.get('content-type') }
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+    throw new Error(`Trop de redirections : ${url}`)
+  }
 
   return async (url: string): Promise<ReponseHttp> => {
-    // Garde anti-SSRF au fetch (parade DNS-rebinding).
-    if (!(await urlFetchable(url))) throw new UrlInterditeError(url)
-
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
     try {
-      const res = await fetch(url, {
-        method: 'GET',
-        redirect: 'manual', // une redirection pourrait pointer vers un hôte interne non re-gardé
-        signal: ctrl.signal,
-        headers: { 'user-agent': userAgent, accept: 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.5' },
-      })
-      // Lecture bornée : on tronque au-delà du plafond pour éviter le gonflage mémoire.
-      const buf = await res.arrayBuffer()
-      const octets = buf.byteLength > tailleMax ? buf.slice(0, tailleMax) : buf
-      const corps = new TextDecoder('utf-8').decode(octets)
-      return { statut: res.status, corps, contentType: res.headers.get('content-type') }
-    } finally {
-      clearTimeout(timer)
+      const r = await unFetch(url)
+      if (estTransitoire(r.statut)) throw new Error(`HTTP ${r.statut}`)
+      return r
+    } catch (err) {
+      if (err instanceof UrlInterditeError) throw err
+      // 1 retry sur erreur transitoire (réseau / timeout / 5xx).
+      return unFetch(url)
     }
   }
 }
+
+// Ré-export pour les appelants qui veulent classer une IP.
+export { estIpInterne }
