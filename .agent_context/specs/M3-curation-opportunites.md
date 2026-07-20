@@ -33,17 +33,24 @@ présente dans une **file de validation admin**. **Rien n'est publié sans valid
 SourceVeille (US-1)          ExecutionVeille (US-2)        ItemCuration (US-3/4/5)
 ─────────────────            ──────────────────            ─────────────────
 id uuid                      id uuid                       id uuid
-nom, url                     sourceId FK                   sourceId FK
+nom, url @unique+normalisée  sourceId FK                   sourceId FK
 methode (enum)               demarreLe, dureeMs            executionId FK
 frequence (enum)             nouveautes, erreurs (Json)    empreinte @unique  ← dédup US-4
 actif bool                   statut (ok|erreur)            urlCanonique, titre
 configExtraction Json?                                     payloadExtrait Json
-typeDefaut TypeOpportunite?                                scoreCompletude Int
+typeDefautId FK→OpportuniteType                            scoreCompletude Int
 prochaineVerifLe                                           statut (a_valider|approuvee|
 derniereVerifLe                                                    rejetee|en_attente|doublon)
 createdAt/updatedAt/deletedAt                              motifRejet?, modereePar?, modereeLe?
                                                            opportuniteId? FK  ← US-6 publication
 ```
+
+**Décision post-challenge (2026-07-20)** : `typeDefaut` référence la table `OpportuniteType`
+(FK, `onDelete: SetNull`), PAS l'enum legacy `TypeOpportunite` condamné au drop 178d — la
+publication US-6 crée déjà des `Opportunite` via `typeId`. Sécurité : les URLs de sources
+étant fetchées côté serveur en US-2, la validation n'autorise que des domaines publics
+(anti-SSRF applicatif) ; il restera à re-vérifier l'hôte après résolution DNS au moment du
+fetch (anti DNS-rebinding). `url` est normalisée avant persistance (base de la dédup US-4).
 
 - Enums : `MethodeExtraction { auto, jsonld, rss, api, html_selecteurs, article_regex }` (`auto` = cascade complète) · `FrequenceVeille { horaire, six_heures, quotidienne, hebdomadaire }`.
 - Nommage français + `@@map` snake_case, aligné sur le schéma existant.

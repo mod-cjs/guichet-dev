@@ -11,11 +11,13 @@
 - Journal d'audit sur create/update/delete
 - AUCUN fetch réseau (robot = US-2 GUIC-597)
 
-## État (2026-07-20)
-**LIVRÉ sur la branche — en attente de push/PR (décision lead).**
-- RED `c902e89` (échec vérifié : modules absents) → GREEN `490f528` : 18/18 tests verts ×2 runs (intégration MariaDB réelle 3307), tsc = baseline 12 (GUIC-622 uniquement), lint clean, `npm run build` OK (routes présentes).
-- Migration `20260720120000_add_sources_veille` appliquée en local via `migrate deploy` (le drift préexistant de la base locale fait échouer `migrate dev` qui exige un reset).
-- Suivant : PR vers dev, puis US-2 GUIC-597 (robot) dans un nouveau worktree.
+## État (2026-07-20) — LIVRÉ + DURCI, en cours de push/PR
+Cycle TDD complet + second cycle TDD de durcissement après double revue adverse :
+- `b5c4480` spec · `c902e89` RED · `490f528` GREEN (base) · `5e1eb34` RED durcissement · `4ade081` GREEN durcissement.
+- **47/47 tests verts ×2 runs base polluée** (intégration MariaDB réelle 3307). Suite complète : seules les 4 suites préexistantes rouges (observability + yaye, identiques à origin/dev, prouvé sur worktree baseline). tsc = baseline 12 (GUIC-622), lint clean, `npm run build` exit 0.
+- Brèches corrigées : SSRF (domaines publics only), URL brûlée (revive soft-delete), prochaineVerifLe init, PATCH sur état fusionné, config bornée, typeDefaut→FK OpportuniteType, normalisation URL, feedback UI, 401≠403.
+- Migration `20260720120000` régénérée (typeDefautId FK) et ré-appliquée localement via drop table + `migrate deploy` (migrate dev exige un reset à cause du drift base locale préexistant).
+- Suivant : US-2 GUIC-597 (robot) — la spec §5 note la dépendance anti-DNS-rebinding au moment du fetch.
 
 ## Garde-fous
 - Baseline tsc = 12 erreurs (GUIC-622 storage-config-alias) — ne pas en ajouter
