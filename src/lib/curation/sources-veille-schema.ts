@@ -68,7 +68,7 @@ function normaliseUrl(raw: string): string {
   return u.toString()
 }
 
-const UrlSource = z
+export const UrlSource = z
   .string()
   .trim()
   .max(500, 'URL trop longue (500 max)')

@@ -80,6 +80,178 @@ Le robot lui-même (US-2), tout fetch réseau, l'extraction, la file de curation
 - **Intégration MariaDB réelle** (base test 3307, pattern suites d'intégration existantes) : CRUD complet via les routes API, pagination, soft-delete, **chemins de refus** (non-admin → 401/403, payload invalide → 400, id inconnu → 404).
 - Pas de mock Prisma dans les tests d'intégration (un vert contre un mock ne protège de rien).
 
+## 4bis. US-2 — Robot de découverte planifié (GUIC-597) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-596 (dépend du modèle `SourceVeille`).
+
+**En tant que système, je vérifie régulièrement chaque source active et je détecte le contenu nouveau, pour alimenter la curation.**
+
+### Architecture d'exécution
+- Route `GET /api/cron/veille-sources`, protégée `Authorization: Bearer CRON_SECRET`, `maxDuration = 300` (pattern exact `yaye-graph-sync`/`cleanup-cv`).
+- Entrée cron **horaire** dans `vercel.json` (`0 * * * *`) — union préservée avec les crons existants. Prod Plesk = crontab (M14, hors périmètre, juste documenté).
+- À chaque tick : sélection des sources **dues** = `actif = true AND deletedAt = null AND (prochaineVerifLe IS NULL OR prochaineVerifLe <= now)`. Traitées **séquentiellement** avec délai de politesse. Après traitement : `derniereVerifLe = now`, `prochaineVerifLe = now + intervalle(frequence)`.
+- Logique métier dans `src/lib/curation/robot/*` (testable hors route), la route n'est qu'un adaptateur HTTP + garde CRON_SECRET.
+
+### Découverte (SANS extraction — l'extraction de champs est US-3)
+- Par source, **une** requête sur l'URL déclarée (+ `robots.txt`) → récupère une **liste d'URLs candidates** :
+  - `rss` : parse RSS/Atom → `<item><link>` / `<entry>`.
+  - méthode `auto` : tente RSS/Atom puis sitemap.xml puis listing HTML.
+  - `html_selecteurs` : `configExtraction.liste` (sélecteur CSS des liens de la liste).
+- Le robot **ne fetch PAS** chaque URL candidate (c'est US-3). Il enregistre les URLs découvertes non déjà vues.
+
+### Sécurité réseau (durcissement US-1 → ENFORCÉ ici, + revue adverse 2026-07-20)
+- **Anti-SSRF au fetch SANS TOCTOU** : résolution DNS UNE fois, validation de l'IP, puis **épinglage de cette IP** pour la connexion (dispatcher undici) — pas de re-résolution exploitable (parade DNS-rebinding). Fail-closed (IPv6 non classée = interne). Redirections : une seule suivie, **cible re-validée**.
+- **robots.txt** respecté (chemin + `Crawl-delay` **plafonné à 30 s**), **délai de politesse intra-hôte** (entre robots.txt et listing, défaut 2 s), **timeout** 10 s, **1 retry** sur erreur transitoire (réseau/5xx).
+- **User-agent** : `CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)`.
+- **Corps lu en streaming avec plafond dur** (2 Mo) + refus si `Content-Length` dépasse — pas d'OOM.
+- **Parsing anti-ReDoS** : regex linéaires bornées ; URLs découvertes tronquées/rejetées > 500 caractères.
+- **Verrou Redis anti-réentrance** : un run en cours empêche un second (chevauchement cron).
+- **CRON_SECRET** comparé en temps constant (`timingSafeEqual`).
+
+### Empreinte & détection "chute à zéro"
+- `empreinte = sha256(urlCanonique)` = **clé de dédup URL** (« déjà vu cette URL »), permanente et `@unique`. La dédup de **contenu** (quasi-doublons inter-sources) d'US-4 est un mécanisme SÉPARÉ posé par-dessus, pas un remplacement de cette clé.
+- `ExecutionVeille.nbLiensDecouverts` (total avant dédup) + `statut='partiel'` quand une source est bloquée robots OU rapporte 0 lien → signal exploitable par le monitoring US-7 (distingue source morte / calme / bloquée). `nbNouveautes` = count réel inséré (transaction).
+
+### Modèle de données introduit ici (décisions lead 2026-07-20)
+- `ExecutionVeille` : journal par exécution (`sourceId`, `demarreLe`, `dureeMs`, `nbNouveautes`, `nbErreurs`, `statut ok|partiel|erreur`, `messageErreur?`). Alimente le monitoring US-7.
+- `ItemCuration` **introduit ici** (Q1 tranché) en mode « découvert » : `id`, `sourceId` FK, `executionId` FK?, `urlCanonique`, `empreinte` (sha256 URL normalisée) `@unique`, `titre?`, `statut` (enum `decouvert|a_valider|approuvee|rejetee|en_attente|doublon`, défaut `decouvert`), + champs nullable posés pour les US suivantes (`payloadExtrait` Json, `scoreCompletude`, `motifRejet`, `modereePar`, `modereeLe` — remplis en US-3/US-5). `opportuniteId` (US-6) ajouté plus tard pour ne pas coupler `Opportunite` maintenant.
+- Décisions confirmées : **découverte = listing seul** (1 requête/source/run, pas de fetch des items = US-3) · **UA** `CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)` · **politesse** 2 s/hôte, timeout 10 s, `Crawl-delay` de robots.txt respecté s'il est supérieur.
+
+### Tests (TDD strict, charte robustesse)
+- **Seam HTTP injectable** : le vrai `fetch` en prod, des **fixtures d'octets réels** (RSS/sitemap/HTML) en test — on teste le VRAI parsing, on ne mocke que le transport réseau.
+- Unitaires : parsing RSS/Atom/sitemap/listing HTML sur fixtures, respect robots.txt (autorisé/interdit), calcul de `prochaineVerifLe` par fréquence, garde anti-SSRF (IP privée résolue → refus).
+- **Intégration MariaDB réelle** : une exécution complète crée `ExecutionVeille`, ne re-soumet pas une URL déjà vue, met à jour `derniereVerifLe`/`prochaineVerifLe`, saute les sources inactives, route 401 sans `CRON_SECRET`.
+
+## 4ter. US-3 — Extraction déterministe en cascade (GUIC-598) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-597 (dépend d'`ItemCuration`).
+
+**En tant que système, j'extrais les champs d'une opportunité SANS LLM, pour pré-remplir le Guichet à coût quasi nul et sans hallucination.**
+
+### Champs cibles (critères d'acceptation)
+`titre`, `type`, `secteur/domaine`, `région`, `deadline`, `organisation`, `description`, `lien source`. Score de complétude = nombre de champs trouvés / total.
+
+### Cascade déterministe (par item `decouvert`)
+1. **JSON-LD** `<script type="application/ld+json">` schema.org (`JobPosting`, `Event`, `EducationalOccupationalProgram`…) — **sans dépendance** (regex d'extraction du script + `JSON.parse`). Le plus fiable → tenté en premier.
+2. **Sélecteurs HTML configurables** par source (`configExtraction.champs.{titre,description,deadline,organisation,…}`) — moteur CSS (cf. Q1).
+3. **Métadonnées génériques** : `og:*`, `<meta name=description>`, `<title>`, microformats.
+4. **Article + regex** en filet : dates (`\d{1,2}[/-]…`, mois FR), première `<h1>`, premier paragraphe.
+Chaque champ prend la **première source non vide** de la cascade. `type`/`domaine` : mapping depuis `source.typeDefautId` et `@type` JSON-LD quand explicite, sinon laissé à l'admin (US-5).
+
+### Effets
+- Renseigne `ItemCuration.payloadExtrait` (Json normalisé), `titre`, `scoreCompletude`, et passe `statut decouvert → a_valider` (jamais de rejet auto — un score faible reste `a_valider`, l'admin complète en US-5).
+- **Aperçu admin** (critère explicite) : `POST /api/admin/sources-veille/apercu` `{ url, champs? }` → fetch + extraction, **sans persistance**, RBAC admin + **garde anti-SSRF réutilisée d'US-2**.
+
+### Sécurité
+- US-3 fetch CHAQUE item → réutilise `ssrf-guard.ipPubliqueValidee` + `clientHttpReel` (épinglage IP, cap, timeout, robots déjà validé en découverte). Politesse entre items d'un même hôte.
+
+### Tests (TDD strict)
+- Unitaires sur **fixtures d'octets réels** : extraction JSON-LD JobPosting, sélecteurs HTML, fallback meta/regex, calcul du score, mapping type/domaine.
+- Intégration MariaDB réelle : un item `decouvert` → extraction → `payloadExtrait`+`scoreCompletude`+`a_valider` ; item déjà `a_valider` non ré-extrait ; route aperçu 403 non-admin + SSRF refusé.
+
+## 4quater. US-4 — Déduplication des opportunités (GUIC-599) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-598.
+
+**En tant que système, je veux éviter les doublons, pour ne pas présenter deux fois la même opportunité à l'admin.**
+
+### Deux niveaux de dédup (complémentaires)
+1. **URL (déjà en place, US-2)** : `empreinte = sha256(urlCanonique)` `@unique` → une URL déjà vue n'est jamais resoumise.
+2. **CONTENU (cette US)** : après extraction (US-3), détecter qu'une opportunité est la même annonce vue via une **autre source / une autre URL**. `empreinteContenu = sha256(titreNormalisé + '|' + organisationNormalisée)` (normalisation : minuscules, sans accents, espaces réduits) + **quasi-doublons** (cf. Q1).
+
+### Effets
+- Un item `a_valider` dont le contenu correspond à un item déjà `a_valider`/`approuvee` (ou à une `Opportunite` publiée, cf. Q2) est passé `statut = doublon` (enum déjà présent) et lié au canonique via `doublonDeId` → il ne pollue plus la file de validation, mais reste traçable.
+- Jamais de suppression : l'admin peut inspecter/défaire en US-5.
+
+### Modèle (migration)
+- `ItemCuration.empreinteContenu String?` (indexé, rempli à l'extraction) · `ItemCuration.doublonDeId String?` (self-FK vers le canonique).
+
+### Exécution
+- Phase 3 du cron veille (après extraction) OU inline (cf. Q3). Déterministe, sans LLM.
+
+### Durcissement (double revue adverse 2026-07-20)
+- **Anti-faux-positif (prudence)** : on préfère RATER un doublon que masquer une vraie opportunité. Dédup UNIQUEMENT si l'organisation est présente **des deux côtés** ; deadline dans l'empreinte exacte (2 postes même titre/employeur, échéances ≠ = distincts) ; quasi-doublon = Jaccard ≥ seuil **ET** org identique **ET** deadlines compatibles.
+- Anti-famine : items sans titre exclus de la sélection ; sentinelle `empreinteContenu` pour titre normalisé vide.
+- Tokenizer unicode (`\p{L}\p{N}`) pour l'arabe/wolof. Pré-filtre SQL du quasi par token de titre (plus de scan chronologique aveugle). Migration avec **COLLATE explicite** (errno 150).
+- **⚠️ Dépendance US-5 (repromotion)** : si un canonique est rejeté OU supprimé, il faut y remonter le doublon le plus ancien en `a_valider` (sinon l'annonce entière disparaît de la file). Non implémenté ici — à traiter dans la file de validation US-5.
+
+### Tests (TDD strict)
+- Unitaires : normalisation + empreinte contenu (titre+org+deadline), similarité quasi-doublon (seuil), tokens unicode.
+- Intégration MariaDB réelle : même annonce 2 sources → canonique + doublon `doublonDeId` ; annonce unique → `a_valider` ; déjà publié → `doublon` ; **C-1** (même titre+org, deadlines ≠ → PAS fusionné) ; **M-1** (sans org → jamais doublon) ; **M-2** (sans titre → pas de famine).
+
+## 4quinquies. US-5 — File de curation / validation admin (GUIC-600) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-599.
+
+**En tant qu'admin, je valide les opportunités détectées avant publication, pour garder le contrôle éditorial.**
+
+### Écrans (espace admin, thème sombre+doré, composants `ui/`)
+- **Liste `/admin/curation`** : items `statut = a_valider`, colonnes source d'origine · titre · type · organisation · **score de complétude** · date. **Filtres** : source, type d'opportunité, score (min). Pagination 20/page. Réutilise le pattern `AdminModerationList` existant.
+- **Détail éditable `/admin/curation/[id]`** : formulaire pré-rempli depuis `payloadExtrait` (titre, description, organisation, région, domaine, type, deadline, lien source) — l'admin **corrige/complète** avant publication (compense l'extraction partielle). Bandeau « source + URL d'origine + score ».
+
+### Actions (server actions, RBAC `isAdminRole`, journal d'audit)
+- **Approuver** → `statut = approuvee` (la publication réelle = création `Opportunite` est US-6).
+- **Rejeter** (motif obligatoire) → `statut = rejetee`, `motifRejet`, `moderePar`/`modereLe`.
+- **Mettre en attente** → `statut = en_attente`.
+- Édition des champs → met à jour `payloadExtrait` (+ `titre`) ; si titre/org modifiés, **recalcul de `empreinteContenu`** (sinon la dédup future utilise une clé périmée — dette signalée à l'audit L1).
+
+### Repromotion (dépendance tracée en US-4) — RÉVISÉE post-revue adverse
+- Quand un item **canonique** (qui a des `doublons` via `doublonDeId`) est **rejeté** (statut terminal), **repromouvoir le doublon le plus ancien** en `a_valider` (et re-pointer les autres vers lui).
+- **PAS de repromotion sur « mise en attente »** : la mise en attente n'est pas terminale (le canonique reviendra en file). Repromouvoir créerait deux lignées actives de la même annonce → **risque de double publication**. Correction de la §199 initiale (revue adverse 2026-07-20).
+
+### Gardes anti-double-publication (revue adverse) — NON NÉGOCIABLES
+- **Garde de statut** : approuver/rejeter/mettre en attente/éditer n'agissent QUE sur `a_valider`/`en_attente`. Jamais sur `doublon` (sinon double publication : le doublon ET son canonique publiés), ni `approuvee`/`rejetee` (pas de re-modération). Update **conditionnel** (`updateMany where:{id, statut in [...]}`) → conflit si un autre admin a déjà agi (concurrence).
+- **Garde de complétude à l'approbation** : refuser si `titre` vide ou `typeId` absent (champs requis par la création `Opportunite` US-6).
+- **Collision d'empreinte à l'édition** : après recalcul, si un autre `a_valider` partage la nouvelle empreinte, marquer l'item édité `doublon` (le plus ancien reste canonique) — sinon l'édition recrée un doublon qu'US-4 ne rattrape plus (empreinte non-null).
+
+### Tests (TDD strict, charte robustesse)
+- Intégration MariaDB réelle : liste filtrée (source/type/score) ; approuver→approuvee ; rejeter→rejetee+motif+audit ; en attente→en_attente ; édition→payloadExtrait maj + empreinte recalculée ; **repromotion** (rejet d'un canonique → son doublon repasse a_valider) ; chemins de refus (non-admin 401/403, id inconnu 404).
+
+## 4sexies. US-6 — Publication après validation (GUIC-601) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-600.
+
+**En tant qu'admin, je publie en un clic une opportunité validée, pour l'ajouter au catalogue.**
+
+### Critères (JIRA)
+- Bascule vers le catalogue via le **workflow de publication existant** (`OpportuniteService.create`).
+- Publication au nom de la **source/partenaire** d'origine (organisation extraite).
+- **Alimentation du Knowledge Graph de Yaye** (l'Opportunite publiée est reprise par le cron `yaye-graph-sync`).
+- **Tag programme** applicable.
+- **Traçabilité** : lien conservé vers la source d'origine.
+
+### Point dur — détails sous-type (décision lead requise)
+`OpportuniteService.create` exige un `type` (slug sous-type) + `base` + **`details` avec des champs OBLIGATOIRES** que l'extraction ne fournit pas (emploi→`typeContrat`, bourse→`montantTotalFcfa`+`organismeFinanceur`, stage→`dureeMois`, etc.). L'item curé n'a que la base (titre, description, organisation, région, domaine, deadline, lien). → cf. Q1.
+
+### Modèle & effets
+- Migration : `ItemCuration.opportuniteId` (FK → `Opportunite`, nullable) = lien de traçabilité. `Opportunite.lienExterne` ← URL source. Idempotence : un item déjà lié (`opportuniteId` non null) n'est pas republié.
+- `publierItem(id)` : item `approuvee` → mappe payload → `OpportuniteService.create` → lie `opportuniteId`. Audit `opportunite.publish`.
+- UI : bouton « Publier » sur les items `approuvee` (onglet Approuvées / détail).
+
+### Tests
+- Intégration MariaDB : publier un `approuvee` crée une `Opportunite` (statut cible), lie `opportuniteId`, conserve le lien source ; refus si non-admin / non-approuvee / déjà publié ; domaine/région défaut.
+
+## 4septies. US-7 — Journalisation & monitoring de la curation (GUIC-602) — périmètre détaillé
+
+> Statut : **draft — en attente de validation lead**. Branche stackée sur GUIC-601. AUCUNE migration (données déjà collectées depuis US-2/US-5).
+
+**En tant qu'admin, je suis la performance de la veille, pour ajuster mes sources.**
+
+### Données sources (déjà en base)
+- `ExecutionVeille` (par source) : `nbLiensDecouverts`, `nbNouveautes`, `nbErreurs`, `statut ok|partiel|erreur`, `dureeMs`, `createdAt`.
+- `ItemCuration` (par source, par statut) : `approuvee`/`rejetee`/`a_valider`… → taux d'approbation & de rejet.
+- `SourceVeille` : `derniereVerifLe`.
+
+### Écrans
+- Vue synthétique `/admin/curation/monitoring` : totaux globaux + tableau **par source** (nb rapportées, taux d'approbation, taux de rejet, dernière vérif, nb erreurs récentes) + **bandeau des sources en alerte**.
+
+### Alertes (cf. Q1)
+- **Erreur répétée** : les N dernières exécutions de la source en `statut erreur`.
+- **Chute à zéro** : les N dernières exécutions à `nbLiensDecouverts = 0` alors que la source produisait avant (signal : sélecteurs HTML à revoir après un changement du site).
+
+### Tests
+- Intégration MariaDB réelle : stats par source correctes (approbation/rejet/erreurs), détection alerte erreur répétée + chute à zéro, aucune alerte sur source saine ; RBAC.
+
 ## 5. US suivantes — cadrage court (specs détaillées au fil de l'eau)
 
 | US | Ticket | Cœur | Points durs |
