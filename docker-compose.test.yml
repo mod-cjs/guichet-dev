@@ -1,0 +1,26 @@
+# GUIC-641 — Override de DÉPLOIEMENT TEST (sous-domaine de test, OVH/Plesk).
+#
+# À combiner avec le compose de PROD :
+#   docker compose -f docker-compose.prod.yml -f docker-compose.test.yml ...
+#
+# Pourquoi cet override existe
+# ----------------------------
+# docker-compose.prod.yml ne PUBLIE aucun port : en prod, un proxy applicatif (canary, GUIC-158)
+# reçoit le trafic depuis Plesk. Ce proxy n'est pas encore construit. Pour le test, on publie donc
+# le conteneur sur la BOUCLE LOCALE (127.0.0.1) et Plesk proxifie dessus.
+#
+# 127.0.0.1 et NON 0.0.0.0 : le port n'est JAMAIS exposé sur l'extérieur. Seul Plesk, sur la même
+# machine, l'atteint. Un 0.0.0.0 ouvrirait l'app de test à Internet en contournant Plesk et son TLS.
+#
+# Isolation : à lancer avec COMPOSE_PROJECT_NAME=guichet-test → conteneur, réseau et volumes
+# distincts de la future prod (guichet). Les deux cohabitent sans collision (GUIC-569).
+
+services:
+  app:
+    ports:
+      # hôte 127.0.0.1:8081 → conteneur 3000. Surchargeable via GUICHET_TEST_PORT si 8081 est pris.
+      - "${GUICHET_TEST_PORT:-127.0.0.1:8081}:3000"
+    environment:
+      # Marqueur d'environnement de test (n'affaiblit AUCUN garde-fou : APP_ENV reste production,
+      # la connexion sans SSO reste verrouillée par prod-guards).
+      DEPLOY_ENV: test
