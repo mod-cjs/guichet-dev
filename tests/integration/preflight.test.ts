@@ -38,6 +38,14 @@ case "$ARGS" in
     [ -n "$FAIL_REDIS_PERM" ] && { echo "NOPERM this user has no permissions to access one of the keys"; exit 0; }
     echo "OK"; exit 0 ;;
   *curl*)
+    # GUIC-634 — routage par URL : la sonde S3, la santé du proxy, le DNS et Loki passent tous
+    # par curl. Un shim indifférencié rendrait les tests incapables de les distinguer.
+    case "$ARGS" in
+      *_dmarc*)     printf '%s' "\${DNS_DMARC:-v=DMARC1; p=none}"; exit 0 ;;
+      *dns.google*) printf '%s' "\${DNS_SPF:-v=spf1 ~all}"; exit 0 ;;
+      *loki*)       printf '%s' "\${LOKI_BODY:-ready}"; exit 0 ;;
+      *api/health*) printf '%s' "\${SANTE_ENTETES:-x-request-id: abc-123}"; exit 0 ;;
+    esac
     printf '%s' "\${S3_BODY:-<?xml version=\\"1.0\\"?><Error><Code>AccessDenied</Code></Error>}"
     exit 0 ;;
 esac
@@ -325,5 +333,85 @@ describe('GUIC-634 — WhatsApp : la configuration PARTIELLE est le cas dangereu
         'WHATSAPP_APP_SECRET="s"\nWHATSAPP_VERIFY_TOKEN="v"\n',
     })
     expect(r.code).toBe(0)
+  })
+})
+
+/**
+ * GUIC-634 — Chaîne d'exploitation : nginx, crontab, DNS, observabilité.
+ *
+ * PROPRIÉTÉ CENTRALE, et c'est un choix de conception : ces contrôles AVERTISSENT sans BLOQUER.
+ * Bloquer un déploiement d'urgence parce que Grafana est arrêté serait absurde, et un premier
+ * déploiement n'a légitimement ni crontab ni sauvegarde. Mais des avertissements qu'on tait ne
+ * servent à rien — d'où le décompte final, imprimé même quand tout le reste passe.
+ */
+describe('GUIC-634 — chaîne d’exploitation (avertissements non bloquants)', () => {
+  const complet = [
+    'DATABASE_URL="mysql://u:p@h:3306/d"',
+    'REDIS_URL="redis://h:6379"',
+    'S3_ENDPOINT="http://minio:9000"',
+    'S3_BUCKET="guichet"',
+    'S3_ACCESS_KEY="A"',
+    'S3_SECRET_KEY="B"',
+    'NEXTAUTH_URL="https://guichet.consortiumjeunessesenegal.org"',
+    'SSO_BASE_URL="https://sso.sn"',
+    'SSO_CLIENT_ID="guichet"',
+    'SSO_API_KEY="k"',
+    'SSO_API_SECRET="s"',
+    'SESSION_SECRET="s"',
+  ].join('\n') + '\n'
+
+  it('avertit sans bloquer quand le proxy ne pose pas X-Request-Id', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { SANTE_ENTETES: 'content-type: application/json' } })
+    expect(r.code).toBe(0) // ← ne bloque PAS
+    expect(r.out).toMatch(/X-Request-Id/i)
+    expect(r.out).toMatch(/avertissement/i)
+  })
+
+  it('avertit sans bloquer quand SPF est absent — les alertes partiraient en spam', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_SPF: 'aucun enregistrement' } })
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/SPF/)
+  })
+
+  it('avertit sans bloquer quand DMARC est absent', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { DNS_DMARC: 'rien' } })
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/DMARC/)
+  })
+
+  // NB : la valeur doit être NON VIDE. `${LOKI_BODY:-ready}` retombe sur le défaut quand la
+  // variable est vide — une première version passait '' et ne simulait donc RIEN : la mutation
+  // avert→ko restait verte. Faux-vert attrapé par mutation.
+  it('avertit sans bloquer quand Loki est injoignable', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused' } })
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/Loki/i)
+  })
+
+  it('un avertissement ne se confond JAMAIS avec un échec (marqueur distinct)', () => {
+    // Le marqueur « ✗ » est réservé aux blocages. Si un avertissement l'utilisait, le helper
+    // echecs() des autres tests deviendrait faux et le décompte de refus serait errone.
+    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: 'rien' } })
+    expect(r.code).toBe(0)
+    expect(echecs(r.out)).toBe('') // aucune ligne d'échec
+    expect(r.out).toMatch(/!/)     // mais bien des avertissements
+  })
+
+  it('le décompte des avertissements est affiché — sinon personne ne les lit', () => {
+    const r = run(PREFLIGHT, { envFile: complet, env: { LOKI_BODY: 'connection refused', DNS_SPF: 'rien', DNS_DMARC: 'rien' } })
+    expect(r.out).toMatch(/[3-9]\d* avertissement/i)
+  })
+
+  it('aucun avertissement quand toute la chaîne répond', () => {
+    // On contrôle AUSSI la crontab et le dossier de sauvegardes : sinon ce test lirait la vraie
+    // machine et son verdict dépendrait du poste qui l'exécute.
+    const sandbox = mkdtempSync(join(tmpdir(), 'guic-backups-'))
+    writeFileSync(join(sandbox, 'guichet-recent.sql.gz'), 'x')
+    const r = run(PREFLIGHT, {
+      envFile: complet,
+      env: { CRONTAB_CMD: 'echo GUICHET-BACKUP', BACKUP_DIR: sandbox },
+    })
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/tous les contrôles passent/i)
   })
 })

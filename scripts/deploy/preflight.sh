@@ -41,9 +41,15 @@ CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:latest}"
 
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 ko()   { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; ECHECS=$((ECHECS + 1)); }
+# GUIC-634 — AVERTISSEMENT : signale sans bloquer. Réservé à ce qui DÉGRADE sans casser, et à
+# ce qui est légitimement absent au PREMIER déploiement (crontab, sauvegardes, observabilité).
+# Bloquer là-dessus empêcherait un déploiement d'urgence — mais les taire les rendrait inutiles,
+# d'où le décompte final, imprimé même quand tout le reste passe.
+avert() { printf '  \033[33m!\033[0m %s\n' "$*"; AVERTS=$((AVERTS + 1)); }
 info() { printf '\n\033[1m[preflight]\033[0m %s\n' "$*"; }
 
 ECHECS=0
+AVERTS=0
 
 # Lit une variable dans le fichier de secrets. `|| true` : sous `set -e` + `pipefail`, un grep
 # sans correspondance renverrait 1 et tuerait le script (piège déjà rencontré dans deploy.sh).
@@ -127,7 +133,7 @@ verifier_sso() {
 
   # HMAC sortant vers le SSO : dégradation, pas panne totale — d'où un avertissement.
   if [[ -z "$(lire SSO_API_KEY)" || -z "$(lire SSO_API_SECRET)" ]]; then
-    printf '  \033[33m!\033[0m %s\n' "SSO_API_KEY / SSO_API_SECRET absentes : les appels machine signés vers le SSO échoueront (le login interactif, lui, fonctionnera)."
+    avert "SSO_API_KEY / SSO_API_SECRET absentes : les appels machine signés vers le SSO échoueront (le login interactif, lui, fonctionnera)."
   fi
 }
 
@@ -269,6 +275,103 @@ verifier_s3() {
   esac
 }
 
+# ── 7. Chaîne d'exploitation — AVERTISSEMENTS, jamais bloquants ─────────────
+#
+# GUIC-634 — ces contrôles couvrent ce qui s'oublie le plus facilement parce que ça se
+# configure AILLEURS que dans le dépôt : Plesk, la crontab système, le DNS. Aucun ne casse
+# l'application — d'où l'avertissement plutôt que le refus. Bloquer un déploiement d'urgence
+# parce que Grafana est arrêté serait absurde.
+#
+# Mais ce sont précisément les oublis les plus COÛTEUX, parce qu'ils sont silencieux : une
+# sauvegarde qui ne tourne plus, un SPF absent qui envoie toutes les alertes en spam, un
+# `X-Request-Id` manquant qui rend les logs incorrélables le jour d'un incident.
+
+# Le proxy pose-t-il bien X-Request-Id ? Sans lui, les logs de l'app et ceux de nginx ne se
+# recoupent plus — c'est toute la valeur de GUIC-544 qui tombe, sans le moindre symptôme.
+verifier_proxy() {
+  info "Reverse proxy — corrélation des logs"
+  local url entete
+  url="$(lire NEXTAUTH_URL)"
+  [[ -z "$url" ]] && { avert "NEXTAUTH_URL absente : impossible de vérifier le proxy."; return 0; }
+
+  entete="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 -o /dev/null -D - "$url/api/health" 2>/dev/null | grep -i '^x-request-id:' || true)"
+  if [[ -n "$entete" ]]; then
+    ok "X-Request-Id présent dans la réponse"
+  else
+    avert "Aucun X-Request-Id sur $url/api/health.
+      Les logs de l'application et ceux du proxy ne se recouperont pas — la question « que
+      s'est-il passé pour cette requête ? » restera sans réponse le jour d'un incident.
+      Corriger : docs/observabilite.md §6 (log_format en contexte http + proxy_set_header
+      dans les directives nginx additionnelles de Plesk)."
+  fi
+}
+
+# Les tâches planifiées vivent dans la crontab SYSTÈME, hors du dépôt : rien dans le code ne
+# révèle leur absence. Or l'une d'elles est la purge des CV, qui porte la rétention CDP.
+verifier_crontab() {
+  info "Tâches planifiées et sauvegardes (crontab système)"
+  local lignes
+  # Commande injectable : sans ça, ce contrôle interroge la vraie machine et le test devient
+  # dépendant de l'environnement — le défaut même qu'on traque ailleurs.
+  lignes="$(${CRONTAB_CMD:-crontab -l} 2>/dev/null | grep -c 'GUICHET-' || true)"
+  if [[ "${lignes:-0}" -gt 0 ]]; then
+    ok "$lignes tâche(s) GUICHET- installée(s)"
+  else
+    avert "Aucune tâche GUICHET- dans la crontab de $(whoami).
+      Conséquences silencieuses : plus de sauvegarde, et surtout plus de PURGE DES CV — donc
+      un manquement à la rétention CDP que rien ne signalerait.
+      Installer : scripts/cron/generate-crontab.sh et scripts/backup/README.md
+      (NB : la crontab est par utilisateur — vérifier sous quel compte tournent les tâches.)"
+  fi
+
+  # Une sauvegarde qui ne PLANTE pas mais ne TOURNE PLUS est la panne la plus dangereuse du
+  # système : rien n'échoue, donc rien n'alerte, et on le découvre le jour où il faut restaurer.
+  local recent
+  # BACKUP_DIR est déjà surchargeable (cf. deploy.sh) : le test peut donc pointer un dossier
+  # qu'il contrôle, au lieu de dépendre de /var/backups de la machine hôte.
+  recent="$(find "${BACKUP_DIR:-/var/backups/guichet}" -maxdepth 1 -name '*.sql.gz' -mtime -2 2>/dev/null | head -1 || true)"
+  if [[ -n "$recent" ]]; then
+    ok "sauvegarde de moins de 48 h présente"
+  else
+    avert "Aucune sauvegarde de moins de 48 h dans ${BACKUP_DIR:-/var/backups/guichet}.
+      Soit la tâche ne tourne plus, soit c'est le premier déploiement. Le déploiement en créera
+      une avant de migrer — mais l'absence de sauvegardes PLANIFIÉES reste un risque à part."
+  fi
+}
+
+# SPF, DKIM et DMARC se configurent dans le DNS — nulle part dans le dépôt. Sans eux,
+# l'application fonctionne parfaitement et personne ne reçoit rien.
+verifier_dns_mail() {
+  info "Délivrabilité des e-mails (SPF / DMARC)"
+  local domaine url
+  url="$(lire NEXTAUTH_URL)"
+  domaine="$(printf '%s' "$url" | sed -E 's#^[a-z]+://##; s#[:/].*$##; s#^[^.]+\.##')"
+  [[ -z "$domaine" ]] && { avert "Domaine indéterminable depuis NEXTAUTH_URL."; return 0; }
+
+  local spf dmarc
+  spf="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 "https://dns.google/resolve?name=${domaine}&type=TXT" 2>/dev/null | grep -c 'v=spf1' || true)"
+  dmarc="$(dans_conteneur "$CURL_IMAGE" -s --max-time 10 "https://dns.google/resolve?name=_dmarc.${domaine}&type=TXT" 2>/dev/null | grep -c 'v=DMARC1' || true)"
+
+  [[ "${spf:-0}" -gt 0 ]]   && ok "SPF présent sur $domaine"   || avert "Aucun SPF sur $domaine — les e-mails (notifications, alertes d'astreinte) partiront en SPAM. Cf. GUIC-577."
+  [[ "${dmarc:-0}" -gt 0 ]] && ok "DMARC présent sur $domaine" || avert "Aucun DMARC sur _dmarc.$domaine. Cf. GUIC-577."
+}
+
+# La supervision ne se voit pas depuis l'application : si Loki est arrêté, les logs partent
+# dans le vide et personne ne s'en aperçoit avant d'en avoir besoin.
+verifier_observabilite() {
+  info "Pile d'observabilité (Loki)"
+  local reponse
+  reponse="$(dans_conteneur "${OBSERVABILITE_NETWORK:+--network=$OBSERVABILITE_NETWORK}" "$CURL_IMAGE" -s --max-time 5 "${LOKI_URL:-http://loki:3100}/ready" 2>/dev/null || true)"
+  if printf '%s' "$reponse" | grep -qi 'ready'; then
+    ok "Loki prêt"
+  else
+    avert "Loki injoignable (${LOKI_URL:-http://loki:3100}).
+      Les logs ne sont plus agrégés : plus de recherche par requestId, et les alertes
+      Grafana (GUIC-576) ne se déclencheront pas. Démarrer :
+      docker compose -f docker-compose.observabilite.yml up -d"
+  fi
+}
+
 main() {
   info "Vérification de la configuration de déploiement — $GUICHET_ENV_FILE"
 
@@ -280,6 +383,10 @@ main() {
   verifier_mariadb
   verifier_redis
   verifier_s3
+  verifier_proxy
+  verifier_crontab
+  verifier_dns_mail
+  verifier_observabilite
 
   if ((ECHECS > 0)); then
     printf '\n\033[1;31m[preflight] REFUS : %d contrôle(s) en échec.\033[0m Le déploiement est interrompu AVANT tout effet de bord.\n' "$ECHECS" >&2
@@ -287,7 +394,12 @@ main() {
     exit 1
   fi
 
-  printf '\n\033[1;32m[preflight] preflight OK\033[0m — tous les contrôles passent.\n'
+  if ((AVERTS > 0)); then
+    printf '\n\033[1;32m[preflight] preflight OK\033[0m — aucun blocage, mais \033[33m%d avertissement(s)\033[0m à traiter.\n' "$AVERTS"
+    printf 'Ils ne cassent rien aujourd hui ; ce sont les oublis SILENCIEUX de demain.\n'
+  else
+    printf '\n\033[1;32m[preflight] preflight OK\033[0m — tous les contrôles passent.\n'
+  fi
 }
 
 main "$@"
