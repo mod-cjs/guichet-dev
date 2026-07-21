@@ -272,3 +272,33 @@ Honnêteté sur les trous, plutôt qu'une fausse impression de complétude :
   `S3_ENDPOINT=http://minio:9000`. Le préflight détecte ce cas et le dit (**GUIC-620**).
 - **Rotation des secrets** : tout secret ayant transité par un canal non sûr (chat, e-mail) est
   **compromis** et doit être tourné avant le go-live.
+
+---
+
+## Déploiement manuel — sans GitHub Actions (GUIC-639)
+
+**Quand.** Le dépôt est privé ; les minutes GitHub Actions peuvent s'épuiser et bloquer le CD.
+Cette procédure construit et déploie **sans une seule minute Actions**. Elle a été **prouvée par
+répétition locale** (préflight → sauvegarde → 50 migrations → app healthy).
+
+⚠️ L'image doit contenir le correctif **GUIC-637** (`prisma.config.ts` + toolchain), sinon la
+migration échoue. Vérifier que la branche construite l'inclut.
+
+```bash
+# 1. S'authentifier auprès de GHCR (jeton avec le scope write:packages)
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <utilisateur> --password-stdin
+
+# 2. Construire et pousser — depuis un arbre PROPRE, sur le commit à livrer
+./scripts/deploy/build-push.sh v1.0.0
+#    → affiche la RÉFÉRENCE PAR EMPREINTE (…@sha256:…) à déployer
+
+# 3. Sur le SERVEUR, déployer cette empreinte (jamais un tag mutable)
+GUICHET_IMAGE=ghcr.io/<org>/guichet@sha256:<empreinte> ./scripts/deploy/deploy.sh
+```
+
+`deploy.sh` fait le reste : préflight → sauvegarde → migration → bascule → smoke test → rollback
+automatique si échec. **Rien d'autre à faire à la main.**
+
+> **Ne jamais rendre le dépôt public pour contourner le quota Actions.** Des secrets sont encore
+> dans l'historique git (GUIC-625) : le rendre public les exposerait. La solution durable est un
+> **runner auto-hébergé** (GUIC-640), pas la visibilité publique.
