@@ -68,6 +68,7 @@ const SECTIONS: NavSection[] = [
       { id: 'curation-monitoring', href: '/admin/curation/monitoring', icon: 'chart', label: 'Monitoring veille' },
       { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
       { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
+      { id: 'notifications', href: '/admin/notifications', icon: 'bell', label: 'Notifications' },
       { id: 'audit', href: '/admin/journal-audit', icon: 'document', label: 'Journal d’audit' },
     ],
   },

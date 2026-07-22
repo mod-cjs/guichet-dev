@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
+import { notifyCandidatStatutChange } from '@/lib/notifications/candidature-statut'
 import type { CJSSession } from '@/types/user'
 import type { Prisma, StatutCandidature } from '@prisma/client'
 
@@ -54,6 +55,9 @@ export async function changerStatutCandidature(id: string, statut: StatutCandida
     targetId: id,
     meta: { statut: parsed },
   })
+
+  // GUIC-547 — notifie le candidat (multicanal selon config admin + consentement). Fail-soft.
+  await notifyCandidatStatutChange(id, parsed)
 
   revalidatePath('/recruteur/candidatures')
   revalidatePath(`/recruteur/candidatures/${id}`)

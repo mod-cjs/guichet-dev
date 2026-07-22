@@ -14,6 +14,8 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
+# next build dépasse la heap Node par défaut (~2 Go) → OOM. On l'élargit (Docker a 8 Go).
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 # Runner

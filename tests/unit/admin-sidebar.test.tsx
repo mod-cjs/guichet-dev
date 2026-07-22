@@ -88,6 +88,13 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/ressources')
   })
 
+  // GUIC-550 — configuration du centre de notifications multicanal.
+  it('rend le lien "Notifications" vers /admin/notifications', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /^notifications$/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/notifications')
+  })
+
   // G3 — journal d'audit : écran de consultation de la traçabilité.
   it('rend le lien "Journal d’audit" vers /admin/journal-audit', () => {
     render(<AdminSidebar />)
