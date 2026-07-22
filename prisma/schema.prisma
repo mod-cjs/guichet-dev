@@ -975,6 +975,23 @@ model NotificationEnvoi {
   @@map("notification_envois")
 }
 
+// Surcharges des templates d'emails (GUIC-553 évolution) : les DÉFAUTS vivent dans
+// le code (src/lib/email/templates.ts) ; la DB ne stocke que les versions éditées.
+// ownerUid "" = version système (admin) ; sinon cjsUid du recruteur propriétaire.
+// Résolution : version du recruteur ?? version système ?? défaut du code.
+model EmailTemplate {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  cle       String   @db.VarChar(80)
+  ownerUid  String   @default("") @map("owner_uid") @db.VarChar(36)
+  sujet     String   @db.VarChar(255)
+  corps     String   @db.Text
+  updatedBy String?  @map("updated_by") @db.VarChar(36)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([cle, ownerUid])
+  @@map("email_templates")
+}
+
 // Préférences & consentement par canal, par utilisateur (GUIC-554 + CDP).
 // `consentGiven` = opt-in légal (obligatoire hors in_app) ; `enabled` = confort.
 model NotificationPreference {
