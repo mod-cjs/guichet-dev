@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
+import { notifyEntretienStatut } from '@/lib/notifications/entretien-statut'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
@@ -90,6 +91,10 @@ async function majStatutEntretien(id: string, statut: 'Annule' | 'Termine', acti
   })
   if (res.count === 0) throw new Error('NOT_FOUND')
   await recordAudit(session.cjsUid, action, { targetType: 'entretien', targetId: id })
+
+  // GUIC-547 — notifie le candidat (multicanal selon config admin + consentement). Fail-soft.
+  await notifyEntretienStatut(id, statut)
+
   revalidatePath('/recruteur/entretiens')
   return { ok: true }
 }
