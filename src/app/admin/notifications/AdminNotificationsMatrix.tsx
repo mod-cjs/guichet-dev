@@ -1,7 +1,10 @@
 'use client'
 
+// GUIC-550 — Matrice admin des notifications, langage design v4 (admin-web2.jsx) :
+// contenu clair, cartes blanches bordées gj-line, pills arrondis, toggles 42×24
+// gj-teal / gj-line-strong. Une carte par (événement × rôle).
+
 import { useMemo, useState, useTransition } from 'react'
-import { Badge } from '@/components/ui/Badge'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { setEventChannels } from './actions'
 import type { MatrixCell } from '@/lib/notifications/matrix'
@@ -38,6 +41,19 @@ const MODULE_LABEL: Record<string, string> = {
 
 type CellKey = string
 const keyOf = (c: Pick<MatrixCell, 'eventKey' | 'role'>): CellKey => `${c.eventKey}::${c.role}`
+
+function Pill({ tone, children }: { tone: 'grey' | 'teal' | 'red'; children: React.ReactNode }) {
+  const tones = {
+    grey: 'bg-gj-bg text-gj-grey',
+    teal: 'bg-gj-teal-soft text-gj-teal-deep',
+    red: 'bg-gj-red-soft text-gj-red-ink',
+  }
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${tones[tone]}`}>
+      {children}
+    </span>
+  )
+}
 
 export function AdminNotificationsMatrix({ initial }: { initial: MatrixCell[] }) {
   const [cells, setCells] = useState<MatrixCell[]>(initial)
@@ -80,65 +96,55 @@ export function AdminNotificationsMatrix({ initial }: { initial: MatrixCell[] })
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {groups.map(([module, rows]) => (
         <section key={module}>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gj-yellow">
+          <h2 className="mb-2.5 text-xs font-extrabold uppercase tracking-wide text-gj-grey">
             {MODULE_LABEL[module] ?? module}
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-white/10">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-left text-white/60">
-                  <th className="px-3 py-2 font-medium">Événement</th>
-                  <th className="px-3 py-2 font-medium">Destinataire</th>
-                  {NOTIFICATION_CHANNELS.map((canal) => (
-                    <th key={canal} className="px-3 py-2 text-center font-medium">
-                      {CHANNEL_LABEL[canal]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((cell) => (
-                  <tr key={keyOf(cell)} className="border-b border-white/5 last:border-0">
-                    <td className="px-3 py-2">
-                      <span className="text-white">{cell.label}</span>{' '}
-                      {cell.critical && <Badge variant="red">critique</Badge>}
-                      {cell.isOverride && <Badge variant="grey">personnalisé</Badge>}
-                    </td>
-                    <td className="px-3 py-2 text-white/70">{ROLE_LABEL[cell.role] ?? cell.role}</td>
-                    {NOTIFICATION_CHANNELS.map((canal) => {
-                      const on = cell.canaux.includes(canal)
-                      return (
-                        <td key={canal} className="px-3 py-2 text-center">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={on}
-                            aria-label={`${CHANNEL_LABEL[canal]} — ${cell.label} (${ROLE_LABEL[cell.role] ?? cell.role})`}
-                            disabled={pending}
-                            onClick={() => toggle(cell, canal)}
-                            className={[
-                              'inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                              on ? 'bg-gj-teal' : 'bg-white/15',
-                              pending ? 'opacity-60' : 'cursor-pointer',
-                            ].join(' ')}
-                          >
-                            <span
-                              className={[
-                                'inline-block h-5 w-5 transform rounded-full bg-white transition-transform',
-                                on ? 'translate-x-5' : 'translate-x-0.5',
-                              ].join(' ')}
-                            />
-                          </button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-2.5">
+            {rows.map((cell) => (
+              <div
+                key={keyOf(cell)}
+                className={`flex flex-col gap-3 rounded-[14px] border-[1.5px] border-gj-line bg-white p-4 sm:flex-row sm:items-center ${cell.actif ? '' : 'opacity-60'}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[15px] font-extrabold text-gj-ink">{cell.label}</span>
+                    <Pill tone="grey">{ROLE_LABEL[cell.role] ?? cell.role}</Pill>
+                    {cell.critical && <Pill tone="red">critique</Pill>}
+                    {cell.isOverride && <Pill tone="teal">personnalisé</Pill>}
+                  </div>
+                  <div className="mt-1 text-[11.5px] text-gj-grey">{cell.eventKey}</div>
+                </div>
+
+                <div className="flex shrink-0 items-start gap-4">
+                  {NOTIFICATION_CHANNELS.map((canal) => {
+                    const on = cell.canaux.includes(canal)
+                    return (
+                      <div key={canal} className="flex flex-col items-center gap-1">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          aria-label={`${CHANNEL_LABEL[canal]} — ${cell.label} (${ROLE_LABEL[cell.role] ?? cell.role})`}
+                          disabled={pending}
+                          onClick={() => toggle(cell, canal)}
+                          className={`relative h-6 w-[42px] rounded-full transition-colors ${on ? 'bg-gj-teal' : 'bg-gj-line-strong'} ${pending ? 'opacity-60' : 'cursor-pointer'}`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all ${on ? 'left-[20px]' : 'left-0.5'}`}
+                          />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-gj-grey">
+                          {CHANNEL_LABEL[canal]}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       ))}

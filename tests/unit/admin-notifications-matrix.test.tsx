@@ -59,4 +59,13 @@ describe('AdminNotificationsMatrix', () => {
     await userEvent.click(screen.getByRole('switch', { name: /^App —/ }))
     expect(mockSet).not.toHaveBeenCalled()
   })
+
+  // Régression GUIC-550 : la matrice était en text-white sur le fond CLAIR du layout admin.
+  it('reste lisible sur fond clair (design v4) : aucun texte blanc, libellés visibles', () => {
+    const { container } = render(<AdminNotificationsMatrix initial={CELLS} />)
+    expect(container.querySelector('[class*="text-white"]')).toBeNull()
+    expect(screen.getByText('Statut de candidature mis à jour')).toBeInTheDocument()
+    expect(screen.getByText('Bénéficiaire')).toBeInTheDocument() // pill du rôle
+    expect(screen.getByText('WhatsApp')).toBeInTheDocument() // libellé sous le toggle
+  })
 })
