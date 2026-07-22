@@ -10,8 +10,24 @@ import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 import { isConseillerRole, isRecruteurRole, rolePrincipal } from '@/lib/auth/espace-roles'
 import type { CJSSession } from '@/types/user'
 
+/**
+ * GUIC-644 — Base des redirections : l'URL PUBLIQUE, jamais `request.url`.
+ *
+ * Derrière un reverse proxy (Plesk → conteneur), `request.url` porte l'adresse INTERNE
+ * (`http://0.0.0.0:3000`, le HOSTNAME du conteneur) et NON le domaine public — Next ne substitue
+ * pas le header `Host` sur `request.url` dans un route handler. Une redirection construite dessus
+ * envoyait l'utilisateur sur `https://0.0.0.0:3000/...` après le login SSO (ERR_SSL_PROTOCOL_ERROR).
+ *
+ * On s'aligne sur `sso-client.ts`, qui construit déjà le `redirect_uri` à partir de `NEXTAUTH_URL` :
+ * les deux extrémités du flux OAuth utilisent ainsi LA MÊME origine canonique.
+ */
+function basePublique(request: NextRequest): string {
+  return process.env.NEXTAUTH_URL || new URL(request.url).origin
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
+  const base = basePublique(request)
   const code         = searchParams.get('code')
   const state        = searchParams.get('state')
   const storedState  = request.cookies.get('oauth_state')?.value
@@ -19,7 +35,7 @@ export async function GET(request: NextRequest) {
   const returnTo     = request.cookies.get('auth_return_to')?.value
 
   if (!code || !state || state !== storedState || !pkceVerifier) {
-    return NextResponse.redirect(new URL('/auth/connexion?error=invalid_state', request.url))
+    return NextResponse.redirect(new URL('/auth/connexion?error=invalid_state', base))
   }
 
   let tokens: TokenResponse | undefined
@@ -43,12 +59,12 @@ export async function GET(request: NextRequest) {
 
     if (roles.length === 0) {
       await revokeToken(tokens.access_token).catch(() => {})
-      return NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
+      return NextResponse.redirect(new URL('/auth/connexion?error=no_role', base))
     }
 
     if (claims.cjs_status && claims.cjs_status !== 'active') {
       await revokeToken(tokens.access_token).catch(() => {})
-      return NextResponse.redirect(new URL('/auth/connexion?error=account_inactive', request.url))
+      return NextResponse.redirect(new URL('/auth/connexion?error=account_inactive', base))
     }
 
     // Upsert Utilisateur — synchronise les données SSO en base
@@ -113,7 +129,7 @@ export async function GET(request: NextRequest) {
       isBeneficiaire && !session.onboardingComplete
         ? '/jeune/onboarding'
         : (safeReturnTo(returnTo) ?? roleRedirect(session))
-    const response    = NextResponse.redirect(new URL(destination, request.url))
+    const response    = NextResponse.redirect(new URL(destination, base))
 
     setSessionCookie(response, encoded, tokens.expires_in)
     response.cookies.delete('pkce_verifier')
@@ -128,7 +144,7 @@ export async function GET(request: NextRequest) {
     logger.error('auth/callback: échec authentification SSO', {
       error: err instanceof Error ? err.message : String(err),
     })
-    return NextResponse.redirect(new URL('/auth/connexion?error=auth_failed', request.url))
+    return NextResponse.redirect(new URL('/auth/connexion?error=auth_failed', base))
   }
 }
 

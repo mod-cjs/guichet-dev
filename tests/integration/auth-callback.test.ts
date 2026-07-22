@@ -553,3 +553,48 @@ describe('GET /auth/callback — safeReturnTo', () => {
     expect(res.headers.get('location')).not.toContain('javascript')
   })
 })
+
+describe('GUIC-644 — redirections basées sur l’URL publique, pas sur request.url (proxy)', () => {
+  /**
+   * Simule le déploiement réel : Plesk → conteneur. La requête ARRIVE avec l'hôte INTERNE
+   * (`0.0.0.0:3000`, le HOSTNAME du conteneur), mais l'origine PUBLIQUE est NEXTAUTH_URL.
+   * Avant GUIC-644, `new URL(dest, request.url)` renvoyait vers `https://0.0.0.0:3000/...`
+   * (ERR_SSL_PROTOCOL_ERROR après login). Après : vers le domaine public.
+   */
+  function requeteDerriereProxy(params: Record<string, string>, cookies: Record<string, string>): NextRequest {
+    const url = new URL('http://0.0.0.0:3000/auth/callback') // ← hôte interne du conteneur
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+    const req = new NextRequest(url.toString())
+    Object.entries(cookies).forEach(([n, v]) => req.cookies.set(n, v))
+    return req
+  }
+
+  const PUBLIC = 'https://devguichet.consortiumjeunessesenegal.org'
+
+  beforeEach(() => {
+    process.env.NEXTAUTH_URL = PUBLIC
+  })
+  afterEach(() => {
+    process.env.NEXTAUTH_URL = 'http://localhost:3000'
+  })
+
+  it('erreur invalid_state : redirige vers l’URL PUBLIQUE, jamais 0.0.0.0', async () => {
+    const res = await GET(requeteDerriereProxy({}, {}))
+    const loc = res.headers.get('location') ?? ''
+    expect(loc).toContain(PUBLIC)
+    expect(loc).not.toContain('0.0.0.0')
+  })
+
+  it('la redirection finale de succès vise l’URL publique', async () => {
+    const res = await GET(
+      requeteDerriereProxy(
+        { code: 'valid-code', state: 'stateXYZ' },
+        { oauth_state: 'stateXYZ', pkce_verifier: 'verifier' },
+      ),
+    )
+    const loc = res.headers.get('location') ?? ''
+    // Redirection vers l'app (onboarding ou tableau de bord) — sur le domaine public.
+    expect(loc).toContain(PUBLIC)
+    expect(loc).not.toContain('0.0.0.0')
+  })
+})
