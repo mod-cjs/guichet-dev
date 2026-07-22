@@ -13,10 +13,13 @@ import { ChannelError, type ChannelMessage, type GenericChannel } from './messag
 import { inAppChannel } from './channels/in-app'
 import { smsChannel } from './channels/sms'
 import { emailChannel } from './channels/email'
+import { whatsappGenericChannel } from './channels/whatsapp-generic'
 
-// whatsapp requiert un mapping eventKey→template Meta pré-approuvé (GUIC-551) : non branché ici.
+// whatsapp ne livre que les événements dont le template Meta est mappé (GUIC-551) — les autres
+// sont ignorés via isConfigured, sans erreur.
 const REGISTRY: Partial<Record<NotificationChannelId, GenericChannel>> = {
   in_app: inAppChannel,
+  whatsapp: whatsappGenericChannel,
   sms: smsChannel,
   email: emailChannel,
 }
@@ -127,6 +130,11 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
           lien: ctx.lien,
           iconName: ctx.iconName,
           metaPill: ctx.metaPill,
+        }
+        // Canal non configurable pour ce message (ex. WhatsApp sans template) → ignoré, pas d'erreur.
+        if (adapter.isConfigured && !adapter.isConfigured(msg)) {
+          logger.info('[notif] canal non configuré pour cet événement', { canal, eventKey })
+          continue
         }
         await deliver(canal, adapter, msg)
       }

@@ -33,6 +33,8 @@ export interface ChannelMessage {
 /** Canal générique multicanal (distinct du `NotificationChannel` candidature historique). */
 export interface GenericChannel {
   readonly id: NotificationChannelId
+  /** Le canal peut-il livrer ce message précis ? (ex. WhatsApp : template Meta mappé). */
+  isConfigured?(msg: ChannelMessage): boolean
   /** Envoie ; lève une `ChannelError` en cas d'échec. */
   send(msg: ChannelMessage): Promise<void>
 }

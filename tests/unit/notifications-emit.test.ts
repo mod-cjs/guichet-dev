@@ -30,6 +30,8 @@ const mockSendSms = jest.fn()
 jest.mock('@/lib/sms/orange', () => ({ sendOrangeSms: (...a: unknown[]) => mockSendSms(...a) }))
 const mockSendEmail = jest.fn()
 jest.mock('@/lib/email/gcp', () => ({ sendGcpEmail: (...a: unknown[]) => mockSendEmail(...a) }))
+const mockSendTemplate = jest.fn()
+jest.mock('@/lib/whatsapp', () => ({ sendTemplateMessage: (...a: unknown[]) => mockSendTemplate(...a) }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 
 import { emitEvent, type EmitContext } from '@/lib/notifications/emit'
@@ -62,6 +64,8 @@ beforeEach(() => {
   mockRpush.mockResolvedValue(1)
   mockSendSms.mockResolvedValue(undefined)
   mockSendEmail.mockResolvedValue(undefined)
+  mockSendTemplate.mockResolvedValue(undefined)
+  delete process.env.WHATSAPP_TEMPLATE_CANDIDATURE_STATUT
 })
 
 describe('emitEvent — in-app', () => {
@@ -107,6 +111,23 @@ describe('emitEvent — canaux externes', () => {
     mockPrefFind.mockResolvedValue([{ canal: 'sms', consentGiven: false, enabled: true, categoriesOff: null }])
     await emitEvent('candidature.statut_change', CTX)
     expect(mockSendSms).not.toHaveBeenCalled()
+  })
+
+  it('WhatsApp sans template mappé est ignoré (ni envoi, ni DLQ)', async () => {
+    mockConfigFind.mockResolvedValue({ actif: true, canaux: ['in_app', 'whatsapp'] })
+    mockPrefFind.mockResolvedValue([{ canal: 'whatsapp', consentGiven: true, enabled: true, categoriesOff: null }])
+    await emitEvent('candidature.statut_change', CTX)
+    expect(mockSendTemplate).not.toHaveBeenCalled()
+    expect(mockRpush).not.toHaveBeenCalled()
+    expect(mockNotifCreate).toHaveBeenCalledTimes(1) // in-app livré
+  })
+
+  it('WhatsApp avec template mappé envoie le template Meta', async () => {
+    process.env.WHATSAPP_TEMPLATE_CANDIDATURE_STATUT = 'candidature_statut'
+    mockConfigFind.mockResolvedValue({ actif: true, canaux: ['whatsapp'] })
+    mockPrefFind.mockResolvedValue([{ canal: 'whatsapp', consentGiven: true, enabled: true, categoriesOff: null }])
+    await emitEvent('candidature.statut_change', CTX)
+    expect(mockSendTemplate).toHaveBeenCalledWith('+221770000000', 'candidature_statut', 'fr', ['Awa', 'Candidature retenue'])
   })
 
   it('un échec transitoire pousse en DLQ (fail-soft, pas d’exception)', async () => {
