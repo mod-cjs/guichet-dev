@@ -81,4 +81,10 @@ describe('catalogue des événements notifiables', () => {
   it('getEventDef renvoie undefined pour une clé inconnue', () => {
     expect(getEventDef('inexistant.event')).toBeUndefined()
   })
+
+  it('les événements avec opt-out historique GUIC-513 ne sont pas critiques', () => {
+    // Sinon resolveChannels garderait l'in-app malgré categoriesOff (opt-out ignoré).
+    expect(getEventDef('candidature.created.recruteur')?.critical).toBe(false)
+    expect(getEventDef('message.received')?.critical).toBe(false)
+  })
 })

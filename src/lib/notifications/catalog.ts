@@ -46,7 +46,8 @@ const EVENTS: NotificationEventDef[] = [
 
   // ── M3 — Opportunités & Candidatures ───────────────────────────────────
   def('candidature.created.confirmation', 'm3', 'Candidature envoyée (confirmation)', ['beneficiaire'], ['in_app', 'whatsapp'], true),
-  def('candidature.created.recruteur', 'm3', 'Nouvelle candidature reçue', ['recruteur'], ['in_app'], true),
+  // Non critique : opt-out utilisateur historique GUIC-513 (notifCandidatures) à respecter.
+  def('candidature.created.recruteur', 'm3', 'Nouvelle candidature reçue', ['recruteur'], ['in_app']),
   def('candidature.statut_change', 'm3', 'Statut de candidature mis à jour', ['beneficiaire'], ['in_app', 'whatsapp'], true),
   def('opportunite.created_recruteur', 'm3', 'Offre soumise par un recruteur', ['admin'], ['in_app']),
   def('opportunite.approved', 'm3', 'Offre approuvée / publiée', ['recruteur'], ['in_app', 'email']),
@@ -92,7 +93,8 @@ const EVENTS: NotificationEventDef[] = [
   def('entretien.annule', 'm9', 'Entretien annulé', ['beneficiaire'], ['in_app', 'sms'], true),
   def('entretien.termine', 'm9', 'Entretien terminé', ['beneficiaire'], ['in_app']),
   def('entretien.reminder', 'm9', 'Rappel d’entretien (J-1)', ['beneficiaire', 'recruteur'], ['sms', 'whatsapp']),
-  def('message.received', 'm9', 'Nouveau message', ['beneficiaire', 'recruteur', 'conseiller'], ['in_app'], true),
+  // Non critique : opt-out utilisateur historique GUIC-513 (notifMessages) à respecter.
+  def('message.received', 'm9', 'Nouveau message', ['beneficiaire', 'recruteur', 'conseiller'], ['in_app']),
 
   // ── M11 — WhatsApp ─────────────────────────────────────────────────────
   def('whatsapp.opt_in_confirmed', 'm11', 'Canal WhatsApp lié', ['beneficiaire'], ['whatsapp']),
