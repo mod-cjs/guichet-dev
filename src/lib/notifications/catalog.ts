@@ -124,3 +124,16 @@ export function listEvents(): NotificationEventDef[] {
 export function eventKeys(): string[] {
   return Object.keys(NOTIFICATION_EVENTS)
 }
+
+/**
+ * Modules « RH » (recrutement) : opportunités/candidatures (m3) et espace
+ * recruteur/entretiens (m9). Un conseiller peut valider les envois de ces
+ * événements ; le reste est réservé à l'admin (décision PO 2026-07-22).
+ */
+const RH_MODULES = new Set(['m3', 'm9'])
+
+/** L'événement relève-t-il du périmètre RH (validable par un conseiller) ? */
+export function isRhEvent(eventKey: string): boolean {
+  const def = getEventDef(eventKey)
+  return def ? RH_MODULES.has(def.module) : false
+}

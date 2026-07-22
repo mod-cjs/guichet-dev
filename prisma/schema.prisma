@@ -285,6 +285,7 @@ model Utilisateur {
   recommandations       RecommandationIA[]
   notifications         Notification[]
   notifPreferences      NotificationPreference[]
+  notifEnvois           NotificationEnvoi[]
   // Lot 7 — Centres CJS (GUIC-350)
   reservations          Reservation[]
   checkIns              CheckIn[]
@@ -904,19 +905,74 @@ enum CanalNotification {
   @@map("canal_notification")
 }
 
+// Mode de déclenchement d'une notification (GUIC-547 évolution).
+enum ModeNotification {
+  auto // envoi immédiat dès l'événement (défaut)
+  validation // mis en file d'attente, validé par un humain avant envoi
+  differe // envoyé automatiquement delaiMinutes après l'événement
+
+  @@map("mode_notification")
+}
+
 // Matrice admin (GUIC-550) : pour un (événement × rôle), quels canaux sont activés.
 // Fallback si absent = `defaultChannels` du catalogue (src/lib/notifications/catalog.ts).
 model NotificationEventConfig {
-  id        String   @id @default(uuid()) @db.VarChar(36)
-  eventKey  String   @map("event_key") @db.VarChar(80)
-  role      String   @db.VarChar(40)
-  canaux    Json // liste de CanalNotification, ex. ["in_app","whatsapp"]
-  actif     Boolean  @default(true)
-  updatedBy String?  @map("updated_by") @db.VarChar(36)
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String           @id @default(uuid()) @db.VarChar(36)
+  eventKey     String           @map("event_key") @db.VarChar(80)
+  role         String           @db.VarChar(40)
+  canaux       Json // liste de CanalNotification, ex. ["in_app","whatsapp"]
+  actif        Boolean          @default(true)
+  mode         ModeNotification @default(auto)
+  delaiMinutes Int?             @map("delai_minutes") // requis si mode=differe
+  updatedBy    String?          @map("updated_by") @db.VarChar(36)
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
   @@unique([eventKey, role])
   @@map("notification_event_config")
+}
+
+// Statut d'un envoi dans l'outbox/historique.
+enum StatutEnvoiNotification {
+  en_attente_validation // mode validation — attend un humain
+  planifiee // mode différé — dueAt fixe l'échéance
+  envoyee
+  rejetee // refusé par le valideur
+  echec_retry // échec transitoire, en file DLQ
+  abandonnee // échec permanent
+
+  @@map("statut_envoi_notification")
+}
+
+// Outbox + historique des envois (GUIC-547 évolution) : une ligne par
+// (occurrence × destinataire × canal). Rétention permanente (décision PO) ;
+// droit à l'effacement couvert par la cascade cjsUid.
+model NotificationEnvoi {
+  id         String                  @id @default(uuid()) @db.VarChar(36)
+  eventKey   String                  @map("event_key") @db.VarChar(80)
+  // Clé d'occurrence `${eventKey}:${entityId}` — groupe les lignes d'une même émission.
+  eventId    String                  @map("event_id") @db.VarChar(191)
+  cjsUid     String                  @map("cjs_uid") @db.VarChar(36)
+  role       String                  @db.VarChar(40)
+  canal      CanalNotification
+  type       TypeNotification
+  titre      String                  @db.VarChar(255)
+  contenu    String                  @db.Text
+  lien       String?                 @db.VarChar(500)
+  iconName   String?                 @map("icon_name") @db.VarChar(32)
+  statut     StatutEnvoiNotification
+  erreur     String?                 @db.VarChar(500)
+  valideePar String?                 @map("validee_par") @db.VarChar(36)
+  dueAt      DateTime?               @map("due_at")
+  envoyeeA   DateTime?               @map("envoyee_a")
+  createdAt  DateTime                @default(now()) @map("created_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+
+  @@index([statut, createdAt(sort: Desc)])
+  @@index([statut, dueAt])
+  @@index([eventId])
+  @@index([cjsUid])
+  @@map("notification_envois")
 }
 
 // Préférences & consentement par canal, par utilisateur (GUIC-554 + CDP).

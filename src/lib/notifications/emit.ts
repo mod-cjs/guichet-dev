@@ -1,12 +1,15 @@
-// Moteur d'émission d'événements notifiables — GUIC-548.
+// Moteur d'émission d'événements notifiables — GUIC-548 (+ modes GUIC-547 évolution).
 // Point d'entrée unique : emitEvent(eventKey, ctx). Résout, pour chaque destinataire,
-// canaux = config_admin ∩ préférence ∩ consentement ∩ contact, puis fan-out idempotent.
+// canaux = config_admin ∩ préférence ∩ consentement ∩ contact, puis selon le MODE :
+//   auto       → fan-out immédiat idempotent + journalisation (NotificationEnvoi)
+//   validation → lignes en_attente_validation (un humain valide l'occurrence)
+//   differe    → lignes planifiee (dueAt = now + delaiMinutes, envoyées par cron)
 // Fail-soft : une notification n'interrompt jamais la mutation métier appelante.
 
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
-import type { TypeNotification } from '@prisma/client'
+import type { ModeNotification, TypeNotification } from '@prisma/client'
 import { getEventDef, type NotificationChannelId, type NotificationRole } from './catalog'
 import { resolveChannels, type ChannelPref } from './resolve'
 import { ChannelError, type ChannelMessage, type GenericChannel } from './message'
@@ -17,7 +20,7 @@ import { whatsappGenericChannel } from './channels/whatsapp-generic'
 
 // whatsapp ne livre que les événements dont le template Meta est mappé (GUIC-551) — les autres
 // sont ignorés via isConfigured, sans erreur.
-const REGISTRY: Partial<Record<NotificationChannelId, GenericChannel>> = {
+export const REGISTRY: Partial<Record<NotificationChannelId, GenericChannel>> = {
   in_app: inAppChannel,
   whatsapp: whatsappGenericChannel,
   sms: smsChannel,
@@ -27,7 +30,15 @@ const REGISTRY: Partial<Record<NotificationChannelId, GenericChannel>> = {
 /** Canaux externes (coût + consentement) — gardés derrière NOTIFICATIONS_ENABLED. */
 const EXTERNAL: readonly NotificationChannelId[] = ['whatsapp', 'sms', 'email']
 const SENT_TTL_S = 60 * 60 * 24 * 7 // 7 jours
-const DLQ_KEY = 'notif:dlq'
+/** File morte du moteur (format ChannelMessage) — distincte du legacy `notif:dlq` (GUIC-83). */
+export const ENGINE_DLQ_KEY = 'notif:dlq:v2'
+
+export interface EngineDlqJob {
+  canal: NotificationChannelId
+  envoiId: string | null
+  msg: ChannelMessage
+  attempts: number
+}
 
 export interface EmitRecipient {
   cjsUid: string
@@ -57,22 +68,68 @@ async function markSent(canal: string, eventId: string): Promise<void> {
   await redis.set(`notif:sent:${canal}:${eventId}`, '1', 'EX', SENT_TTL_S)
 }
 
-async function deliver(
+type Outcome = 'envoyee' | 'echec_retry' | 'abandonnee' | 'deja_envoyee'
+
+/** Journalise un envoi (historique permanent). Fail-soft : ne bloque jamais l'envoi. */
+async function recordEnvoi(
+  msg: ChannelMessage,
+  canal: NotificationChannelId,
+  role: NotificationRole,
+  statut: 'envoyee' | 'echec_retry' | 'abandonnee' | 'en_attente_validation' | 'planifiee',
+  extra: { erreur?: string; dueAt?: Date } = {},
+): Promise<string | null> {
+  try {
+    const row = await prisma.notificationEnvoi.create({
+      data: {
+        eventKey: msg.eventKey,
+        eventId: msg.eventId,
+        cjsUid: msg.recipient.cjsUid,
+        role,
+        canal,
+        type: msg.type,
+        titre: msg.titre,
+        contenu: msg.contenu,
+        lien: msg.lien ?? null,
+        iconName: msg.iconName ?? null,
+        statut,
+        erreur: extra.erreur?.slice(0, 500) ?? null,
+        dueAt: extra.dueAt ?? null,
+        envoyeeA: statut === 'envoyee' ? new Date() : null,
+      },
+      select: { id: true },
+    })
+    return row.id
+  } catch (err) {
+    logger.error('[notif] journalisation envoi échouée', {
+      eventId: msg.eventId,
+      canal,
+      err: err instanceof Error ? err.message : String(err),
+    })
+    return null
+  }
+}
+
+/** Livre immédiatement (idempotent) ; pousse en DLQ v2 les échecs transitoires. */
+export async function deliver(
   canal: NotificationChannelId,
   adapter: GenericChannel,
   msg: ChannelMessage,
-): Promise<void> {
-  if (await alreadySent(canal, msg.eventId)) return
+  envoiId: string | null = null,
+): Promise<Outcome> {
+  if (await alreadySent(canal, msg.eventId)) return 'deja_envoyee'
   try {
     await adapter.send(msg)
     await markSent(canal, msg.eventId)
+    return 'envoyee'
   } catch (err) {
     const permanent = err instanceof ChannelError && err.permanent
     if (permanent) {
       logger.error('NOTIF_ABANDONED', { canal, eventId: msg.eventId, cause: (err as Error).message })
-    } else {
-      await redis.rpush(DLQ_KEY, JSON.stringify({ canal, eventId: msg.eventId, msg, attempts: 0 }))
+      return 'abandonnee'
     }
+    const job: EngineDlqJob = { canal, envoiId, msg, attempts: 0 }
+    await redis.rpush(ENGINE_DLQ_KEY, JSON.stringify(job))
+    return 'echec_retry'
   }
 }
 
@@ -94,6 +151,8 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
       })
       if (config && !config.actif) continue
       const configCanaux = config ? (config.canaux as NotificationChannelId[]) : null
+      const mode: ModeNotification = config?.mode ?? 'auto'
+      const delaiMinutes = config?.delaiMinutes ?? null
 
       const prefRows = await prisma.notificationPreference.findMany({ where: { cjsUid: r.cjsUid } })
       const prefs: Partial<Record<NotificationChannelId, ChannelPref>> = {}
@@ -119,10 +178,10 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
           logger.warn('[notif] canal résolu mais non implémenté', { canal, eventKey })
           continue
         }
-        const eventId = `${eventKey}:${ctx.entityId}:${r.cjsUid}`
+        const eventId = `${eventKey}:${ctx.entityId}`
         const msg: ChannelMessage = {
           eventKey,
-          eventId,
+          eventId: `${eventId}:${r.cjsUid}`,
           recipient: { cjsUid: r.cjsUid, prenom: r.prenom, telephone: r.telephone, email: r.email },
           type: ctx.type,
           titre: ctx.titre,
@@ -136,7 +195,21 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
           logger.info('[notif] canal non configuré pour cet événement', { canal, eventKey })
           continue
         }
-        await deliver(canal, adapter, msg)
+
+        if (mode === 'validation') {
+          await recordEnvoi(msg, canal, r.role, 'en_attente_validation')
+          continue
+        }
+        if (mode === 'differe') {
+          const dueAt = new Date(Date.now() + (delaiMinutes ?? 60) * 60_000)
+          await recordEnvoi(msg, canal, r.role, 'planifiee', { dueAt })
+          continue
+        }
+
+        const outcome = await deliver(canal, adapter, msg)
+        if (outcome !== 'deja_envoyee') {
+          await recordEnvoi(msg, canal, r.role, outcome)
+        }
       }
     } catch (err) {
       logger.error('[notif] emitEvent destinataire échoué (fail-soft)', {

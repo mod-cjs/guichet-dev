@@ -9,11 +9,16 @@ import {
   type NotificationRole,
 } from './catalog'
 
+/** Mode de déclenchement (aligné sur l'enum Prisma ModeNotification). */
+export type MatrixMode = 'auto' | 'validation' | 'differe'
+
 export interface MatrixOverride {
   eventKey: string
   role: string
   canaux: NotificationChannelId[]
   actif: boolean
+  mode?: MatrixMode
+  delaiMinutes?: number | null
 }
 
 export interface MatrixCell {
@@ -26,6 +31,8 @@ export interface MatrixCell {
   /** true si une ligne DB surcharge le défaut catalogue. */
   isOverride: boolean
   actif: boolean
+  mode: MatrixMode
+  delaiMinutes: number | null
 }
 
 /**
@@ -49,6 +56,8 @@ export function buildEventMatrix(overrides: MatrixOverride[]): MatrixCell[] {
         canaux: ov ? ov.canaux : def.defaultChannels,
         isOverride: Boolean(ov),
         actif: ov ? ov.actif : true,
+        mode: ov?.mode ?? 'auto',
+        delaiMinutes: ov?.delaiMinutes ?? null,
       })
     }
   }
