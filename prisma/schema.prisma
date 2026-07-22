@@ -284,6 +284,7 @@ model Utilisateur {
   conversations         ConversationWhatsApp[]
   recommandations       RecommandationIA[]
   notifications         Notification[]
+  notifPreferences      NotificationPreference[]
   // Lot 7 — Centres CJS (GUIC-350)
   reservations          Reservation[]
   checkIns              CheckIn[]
@@ -887,6 +888,54 @@ model Notification {
   @@index([cjsUid, createdAt(sort: Desc)])
   @@index([cjsUid, luA])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// GUIC-547 — CENTRE DE NOTIFICATIONS MULTICANAL
+// Config admin (événement × rôle → canaux) + préférences/consentement par canal.
+// ─────────────────────────────────────────────
+
+enum CanalNotification {
+  in_app
+  whatsapp
+  sms
+  email
+
+  @@map("canal_notification")
+}
+
+// Matrice admin (GUIC-550) : pour un (événement × rôle), quels canaux sont activés.
+// Fallback si absent = `defaultChannels` du catalogue (src/lib/notifications/catalog.ts).
+model NotificationEventConfig {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  eventKey  String   @map("event_key") @db.VarChar(80)
+  role      String   @db.VarChar(40)
+  canaux    Json // liste de CanalNotification, ex. ["in_app","whatsapp"]
+  actif     Boolean  @default(true)
+  updatedBy String?  @map("updated_by") @db.VarChar(36)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventKey, role])
+  @@map("notification_event_config")
+}
+
+// Préférences & consentement par canal, par utilisateur (GUIC-554 + CDP).
+// `consentGiven` = opt-in légal (obligatoire hors in_app) ; `enabled` = confort.
+model NotificationPreference {
+  id            String            @id @default(uuid()) @db.VarChar(36)
+  cjsUid        String            @map("cjs_uid") @db.VarChar(36)
+  canal         CanalNotification
+  consentGiven  Boolean           @default(false) @map("consent_given")
+  consentAt     DateTime?         @map("consent_at")
+  consentSource String?           @map("consent_source") @db.VarChar(40)
+  enabled       Boolean           @default(true)
+  categoriesOff Json?             @map("categories_off") // event keys désactivés par l'utilisateur
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+
+  @@unique([cjsUid, canal])
+  @@map("notification_preferences")
 }
 
 // ─────────────────────────────────────────────
