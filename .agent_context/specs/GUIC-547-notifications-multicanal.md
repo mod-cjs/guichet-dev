@@ -267,7 +267,7 @@ model NotificationPreference {
 ## 8. Décisions (tranchées 2026-07-22)
 
 1. **SMS = Orange SMS Pro** (contrat SSO). API `https://api.orangesmspro.sn:8443/api` (env `ORANGE_SMS_BASE_URL`). Contrat exact ci-dessous. Creds en env `ORANGE_SMS_*` (jamais commit).
-2. **Email = GCP** (Gmail API via `google-auth-library`, réutilise le service account déjà présent pour Vertex ADC). Expéditeur configurable (`GCP_EMAIL_SENDER`). Templates HTML aux tokens `gj-*` (pas de MJML pour le MVP).
+2. **Email = Resend** (décision PO 2026-07-22, remplace le choix GCP/Gmail initial — bascule faite en GUIC-553). `POST api.resend.com/emails`, env `RESEND_API_KEY` + `RESEND_FROM` (domaine vérifié côté Resend). Templates HTML aux tokens `gj-*`.
 3. **Granularité config admin = `(eventKey × rôle)`** — pas de niveau centre/organisation.
 4. **Les 4 canaux** (in-app, whatsapp, sms, email) sont livrés.
 5. **Migration GUIC-513** : `notifCandidatures`/`notifMessages` → `NotificationPreference.categoriesOff` (migration douce, oui).
