@@ -24,6 +24,8 @@ const CELLS: MatrixCell[] = [
     canaux: ['in_app'],
     isOverride: false,
     actif: true,
+    mode: 'auto',
+    delaiMinutes: null,
   },
 ]
 
@@ -50,8 +52,30 @@ describe('AdminNotificationsMatrix', () => {
         'beneficiaire',
         ['in_app', 'sms'],
         true,
+        'auto',
+        null,
       ),
     )
+  })
+
+  it('changer le mode en Validation appelle setEventChannels avec mode=validation', async () => {
+    render(<AdminNotificationsMatrix initial={CELLS} />)
+    await userEvent.click(screen.getByRole('radio', { name: 'Validation' }))
+    await waitFor(() =>
+      expect(mockSet).toHaveBeenCalledWith(
+        'candidature.statut_change',
+        'beneficiaire',
+        ['in_app'],
+        true,
+        'validation',
+        null,
+      ),
+    )
+  })
+
+  it('le mode Différé affiche le champ délai en minutes', async () => {
+    render(<AdminNotificationsMatrix initial={[{ ...CELLS[0], mode: 'differe', delaiMinutes: 120 }]} />)
+    expect(screen.getByLabelText(/Délai en minutes/)).toHaveValue(120)
   })
 
   it('refuse de couper l’in-app d’un événement critique', async () => {
@@ -61,9 +85,12 @@ describe('AdminNotificationsMatrix', () => {
   })
 
   // Régression GUIC-550 : la matrice était en text-white sur le fond CLAIR du layout admin.
-  it('reste lisible sur fond clair (design v4) : aucun texte blanc, libellés visibles', () => {
+  it('reste lisible sur fond clair (design v4) : pas de blanc sans fond coloré, libellés visibles', () => {
     const { container } = render(<AdminNotificationsMatrix initial={CELLS} />)
-    expect(container.querySelector('[class*="text-white"]')).toBeNull()
+    // text-white admis uniquement sur un élément qui pose son propre fond (ex. segment actif teal).
+    for (const el of container.querySelectorAll('[class*="text-white"]')) {
+      expect(el.className).toMatch(/bg-/)
+    }
     expect(screen.getByText('Statut de candidature mis à jour')).toBeInTheDocument()
     expect(screen.getByText('Bénéficiaire')).toBeInTheDocument() // pill du rôle
     expect(screen.getByText('WhatsApp')).toBeInTheDocument() // libellé sous le toggle

@@ -7,11 +7,17 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { setEventChannels } from './actions'
-import type { MatrixCell } from '@/lib/notifications/matrix'
+import type { MatrixCell, MatrixMode } from '@/lib/notifications/matrix'
 import {
   NOTIFICATION_CHANNELS,
   type NotificationChannelId,
 } from '@/lib/notifications/catalog'
+
+const MODE_LABEL: Record<MatrixMode, string> = {
+  auto: 'Auto',
+  validation: 'Validation',
+  differe: 'Différé',
+}
 
 const CHANNEL_LABEL: Record<NotificationChannelId, string> = {
   in_app: 'App',
@@ -70,29 +76,45 @@ export function AdminNotificationsMatrix({ initial }: { initial: MatrixCell[] })
     return [...byModule.entries()]
   }, [cells])
 
-  function toggle(cell: MatrixCell, canal: NotificationChannelId) {
-    const has = cell.canaux.includes(canal)
-    const next = has ? cell.canaux.filter((c) => c !== canal) : [...cell.canaux, canal]
-    // in_app d'un événement critique : on refuse de le couper (jamais silencieux).
-    if (cell.critical && canal === 'in_app' && has) {
-      setToast({ message: 'Événement critique : l’in-app reste toujours actif.', variant: 'danger' })
-      return
-    }
-
+  function persist(cell: MatrixCell, patch: Partial<MatrixCell>, successMsg: string) {
+    const next = { ...cell, ...patch, isOverride: true }
     const k = keyOf(cell)
     const prev = cells
-    setCells((cs) =>
-      cs.map((c) => (keyOf(c) === k ? { ...c, canaux: next, isOverride: true } : c)),
-    )
+    setCells((cs) => cs.map((c) => (keyOf(c) === k ? next : c)))
     startTransition(async () => {
       try {
-        await setEventChannels(cell.eventKey, cell.role, next, cell.actif)
-        setToast({ message: 'Configuration enregistrée.', variant: 'success' })
+        await setEventChannels(next.eventKey, next.role, next.canaux, next.actif, next.mode, next.delaiMinutes)
+        setToast({ message: successMsg, variant: 'success' })
       } catch {
         setCells(prev) // rollback optimiste
         setToast({ message: 'Échec de l’enregistrement.', variant: 'danger' })
       }
     })
+  }
+
+  function toggle(cell: MatrixCell, canal: NotificationChannelId) {
+    const has = cell.canaux.includes(canal)
+    // in_app d'un événement critique : on refuse de le couper (jamais silencieux).
+    if (cell.critical && canal === 'in_app' && has) {
+      setToast({ message: 'Événement critique : l’in-app reste toujours actif.', variant: 'danger' })
+      return
+    }
+    const canaux = has ? cell.canaux.filter((c) => c !== canal) : [...cell.canaux, canal]
+    persist(cell, { canaux }, 'Configuration enregistrée.')
+  }
+
+  function changeMode(cell: MatrixCell, mode: MatrixMode) {
+    if (mode === cell.mode) return
+    persist(
+      cell,
+      { mode, delaiMinutes: mode === 'differe' ? (cell.delaiMinutes ?? 60) : null },
+      mode === 'auto' ? 'Envoi automatique.' : mode === 'validation' ? 'Validation humaine requise.' : 'Envoi différé.',
+    )
+  }
+
+  function changeDelai(cell: MatrixCell, minutes: number) {
+    if (!Number.isFinite(minutes) || minutes < 1) return
+    persist(cell, { delaiMinutes: Math.trunc(minutes) }, 'Délai enregistré.')
   }
 
   return (
@@ -116,6 +138,46 @@ export function AdminNotificationsMatrix({ initial }: { initial: MatrixCell[] })
                     {cell.isOverride && <Pill tone="teal">personnalisé</Pill>}
                   </div>
                   <div className="mt-1 text-[11.5px] text-gj-grey">{cell.eventKey}</div>
+
+                  {/* Mode de déclenchement : auto / validation humaine / différé */}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <div
+                      role="radiogroup"
+                      aria-label={`Mode — ${cell.label} (${ROLE_LABEL[cell.role] ?? cell.role})`}
+                      className="inline-flex overflow-hidden rounded-full border-[1.5px] border-gj-line"
+                    >
+                      {(Object.keys(MODE_LABEL) as MatrixMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={cell.mode === mode}
+                          disabled={pending}
+                          onClick={() => changeMode(cell, mode)}
+                          className={`px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
+                            cell.mode === mode
+                              ? 'bg-gj-teal-deep text-white'
+                              : 'bg-white text-gj-grey hover:bg-gj-bg'
+                          }`}
+                        >
+                          {MODE_LABEL[mode]}
+                        </button>
+                      ))}
+                    </div>
+                    {cell.mode === 'differe' && (
+                      <label className="inline-flex items-center gap-1 text-[11px] font-bold text-gj-grey">
+                        <input
+                          type="number"
+                          min={1}
+                          defaultValue={cell.delaiMinutes ?? 60}
+                          aria-label={`Délai en minutes — ${cell.label}`}
+                          onBlur={(e) => changeDelai(cell, Number(e.currentTarget.value))}
+                          className="w-16 rounded-md border-[1.5px] border-gj-line px-1.5 py-0.5 text-gj-ink"
+                        />
+                        min
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 items-start gap-4">
