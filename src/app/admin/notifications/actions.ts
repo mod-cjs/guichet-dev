@@ -21,6 +21,7 @@ import {
 } from '@/lib/notifications/matrix'
 import { getEventDef, isRhEvent, type NotificationChannelId } from '@/lib/notifications/catalog'
 import { validerOccurrence, rejeterOccurrence } from '@/lib/notifications/outbox'
+import { resolveAllTemplates, getTemplateDef, type ResolvedTemplate } from '@/lib/email/templates'
 import type { CJSSession } from '@/types/user'
 import type { StatutEnvoiNotification } from '@prisma/client'
 
@@ -199,6 +200,41 @@ export interface HistoriquePage {
   total: number
   page: number
   totalPages: number
+}
+
+// ─── Templates d'emails (vue système) ─────────────────────────────────────────
+
+/** Tous les templates, vue admin : version système ?? défaut du code. */
+export async function listTemplatesAdmin(): Promise<ResolvedTemplate[]> {
+  await assertAdmin()
+  return resolveAllTemplates(null)
+}
+
+/** Enregistre la version SYSTÈME d'un template (s'applique à tous, sauf perso recruteur). */
+export async function enregistrerTemplateSysteme(cle: string, sujet: string, corps: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  if (!getTemplateDef(cle)) throw new Error(`TEMPLATE_INCONNU:${cle}`)
+  const s = sujet.trim()
+  const c = corps.trim()
+  if (s.length < 3 || c.length < 10) throw new Error('TEMPLATE_INVALIDE')
+
+  await prisma.emailTemplate.upsert({
+    where: { cle_ownerUid: { cle, ownerUid: '' } },
+    create: { cle, ownerUid: '', sujet: s, corps: c, updatedBy: session.cjsUid },
+    update: { sujet: s, corps: c, updatedBy: session.cjsUid },
+  })
+  await recordAudit(session.cjsUid, 'email_template.systeme', { targetType: 'email_template', targetId: cle })
+  revalidatePath('/admin/notifications')
+  return { ok: true }
+}
+
+/** Supprime la version système → retour au défaut du code. */
+export async function reinitialiserTemplateSysteme(cle: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  await prisma.emailTemplate.deleteMany({ where: { cle, ownerUid: '' } })
+  await recordAudit(session.cjsUid, 'email_template.reset', { targetType: 'email_template', targetId: cle })
+  revalidatePath('/admin/notifications')
+  return { ok: true }
 }
 
 const PAGE_SIZE = 20

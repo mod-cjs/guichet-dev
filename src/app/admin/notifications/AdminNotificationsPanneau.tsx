@@ -7,16 +7,20 @@ import { useState, useTransition } from 'react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { AdminNotificationsMatrix } from './AdminNotificationsMatrix'
+import { TemplatesEditor } from '@/components/notifications/TemplatesEditor'
 import {
   validerEnvois,
   rejeterEnvois,
   listHistorique,
+  enregistrerTemplateSysteme,
+  reinitialiserTemplateSysteme,
   type OccurrenceEnAttente,
   type HistoriquePage,
 } from './actions'
 import type { MatrixCell } from '@/lib/notifications/matrix'
+import type { ResolvedTemplate } from '@/lib/email/templates-defs'
 
-type Onglet = 'config' | 'attente' | 'historique'
+type Onglet = 'config' | 'attente' | 'templates' | 'historique'
 
 const CANAL_LABEL: Record<string, string> = {
   in_app: 'App',
@@ -223,11 +227,13 @@ export function AdminNotificationsPanneau({
   matrix,
   enAttente,
   historique,
+  templates,
 }: {
   adminAccess: boolean
   matrix: MatrixCell[]
   enAttente: OccurrenceEnAttente[]
   historique: HistoriquePage
+  templates: ResolvedTemplate[]
 }) {
   const [onglet, setOnglet] = useState<Onglet>(adminAccess ? 'config' : 'attente')
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -236,6 +242,7 @@ export function AdminNotificationsPanneau({
   const items = [
     ...(adminAccess ? [{ value: 'config' as const, label: 'Configuration' }] : []),
     { value: 'attente' as const, label: 'À valider', count: enAttente.length || undefined },
+    ...(adminAccess ? [{ value: 'templates' as const, label: 'Templates' }] : []),
     ...(adminAccess ? [{ value: 'historique' as const, label: 'Historique' }] : []),
   ]
 
@@ -244,6 +251,14 @@ export function AdminNotificationsPanneau({
       <Tabs value={onglet} onChange={setOnglet} items={items} ariaLabel="Sections du centre de notifications" className="mb-5" />
       {onglet === 'config' && adminAccess && <AdminNotificationsMatrix initial={matrix} />}
       {onglet === 'attente' && <EnAttenteList initial={enAttente} onResult={onResult} />}
+      {onglet === 'templates' && adminAccess && (
+        <TemplatesEditor
+          initial={templates}
+          save={enregistrerTemplateSysteme}
+          reset={reinitialiserTemplateSysteme}
+          resetHint={['systeme']}
+        />
+      )}
       {onglet === 'historique' && adminAccess && <HistoriqueList initial={historique} onResult={onResult} />}
       {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
     </div>
