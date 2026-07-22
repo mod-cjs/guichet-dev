@@ -1,6 +1,6 @@
-// Canal email — GCP / Gmail API (GUIC-553). Enveloppe le primitive src/lib/email/gcp.ts.
+// Canal email — Resend (GUIC-553, bascule de provider). Enveloppe src/lib/email/resend.ts.
 
-import { sendGcpEmail } from '@/lib/email/gcp'
+import { sendResendEmail, type ResendError } from '@/lib/email/resend'
 import { ChannelError, type ChannelMessage, type GenericChannel } from '../message'
 
 /** Rend un corps HTML minimal aux tokens gj-* à partir du titre + contenu. */
@@ -18,6 +18,11 @@ function renderHtml(msg: ChannelMessage): string {
   ].join('')
 }
 
+/** 4xx (hors 429) = permanent (adresse invalide, domaine non vérifié) ; 429/5xx = retry. */
+function isPermanent(status: number | undefined): boolean {
+  return typeof status === 'number' && status >= 400 && status < 500 && status !== 429
+}
+
 export const emailChannel: GenericChannel = {
   id: 'email',
 
@@ -26,10 +31,13 @@ export const emailChannel: GenericChannel = {
       throw new ChannelError('Email: adresse absente', true)
     }
     try {
-      await sendGcpEmail(msg.recipient.email, msg.titre, renderHtml(msg), msg.contenu)
+      await sendResendEmail(msg.recipient.email, msg.titre, renderHtml(msg), msg.contenu)
     } catch (err) {
-      // L'API Gmail ne remonte pas de status simple ici → traité comme transitoire (retry DLQ).
-      throw new ChannelError(err instanceof Error ? err.message : 'envoi email échoué', false)
+      const status = (err as ResendError).status
+      throw new ChannelError(
+        err instanceof Error ? err.message : 'envoi email échoué',
+        isPermanent(status),
+      )
     }
   },
 }

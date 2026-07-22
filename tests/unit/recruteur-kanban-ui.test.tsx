@@ -77,6 +77,15 @@ describe('GUIC-647 — <FiltresPanneau />', () => {
     expect(screen.getByRole('button', { name: /Filtres \(2\)/i })).toBeInTheDocument()
   })
 
+  // Régression build : les régions doivent venir de @/lib/regions (module sans Prisma),
+  // jamais d'un loader — sinon le driver mariadb part dans le bundle client.
+  it('rend les régions avec leurs libellés accentués (source @/lib/regions)', () => {
+    render(<FiltresPanneau sp={{}} />)
+    fireEvent.click(screen.getByRole('button', { name: /Filtres/i }))
+    expect(screen.getByRole('option', { name: 'Thiès' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Saint-Louis' })).toBeInTheDocument()
+  })
+
   it('Réinitialiser ne conserve que le scope offre', () => {
     render(<FiltresPanneau sp={{ offre: 'o1', region: 'Dakar' }} />)
     fireEvent.click(screen.getByRole('button', { name: /Filtres/i }))
