@@ -90,6 +90,124 @@ export async function deplacerPipeline(id: string, stage: string): Promise<{ ok:
   return { ok: true }
 }
 
+// ── GUIC-647 — Actions groupées (sélection multiple du kanban) ───────────────────
+
+const idsSchema = z.array(z.string().min(1)).min(1).max(100)
+
+/**
+ * Résout les ids réellement possédés par le recruteur (bornés à ses offres).
+ * Les ids étrangers sont silencieusement ignorés — jamais modifiés.
+ */
+async function idsPossedes(cjsUid: string, ids: string[]): Promise<string[]> {
+  const opportunite = await offreOwnership(cjsUid)
+  const rows = await prisma.candidature.findMany({
+    where: { id: { in: ids }, opportunite },
+    select: { id: true },
+  })
+  return rows.map((r) => r.id)
+}
+
+/**
+ * Déplace un groupe de candidatures vers une étape du pipeline.
+ * @returns nombre de candidatures effectivement déplacées (possédées).
+ */
+export async function deplacerPipelineGroupe(ids: string[], stage: string): Promise<{ count: number }> {
+  const session = await assertRecruteur()
+  const parsedIds = idsSchema.parse(ids)
+  const parsedStage = stageSchema.parse(stage)
+
+  const possedes = await idsPossedes(session.cjsUid, parsedIds)
+  if (possedes.length === 0) return { count: 0 }
+
+  await prisma.candidature.updateMany({
+    where: { id: { in: possedes } },
+    data: { pipelineStage: parsedStage },
+  })
+  for (const id of possedes) {
+    await recordAudit(session.cjsUid, 'candidature.pipeline', {
+      targetType: 'candidature',
+      targetId: id,
+      meta: { stage: parsedStage, groupe: true },
+    })
+  }
+  revalidatePath('/recruteur/candidatures')
+  return { count: possedes.length }
+}
+
+/**
+ * Change le statut d'un groupe de candidatures (Vue / Retenue / Refusee).
+ * Une décision force la colonne « Décision » (même règle que l'unitaire) et
+ * chaque candidat est notifié via GUIC-547 (fail-soft, idempotent par transition).
+ */
+export async function changerStatutGroupe(ids: string[], statut: string): Promise<{ count: number }> {
+  const session = await assertRecruteur()
+  const parsedIds = idsSchema.parse(ids)
+  const parsed = statutSchema.parse(statut)
+
+  const possedes = await idsPossedes(session.cjsUid, parsedIds)
+  if (possedes.length === 0) return { count: 0 }
+
+  const decision = parsed === 'Retenue' || parsed === 'Refusee'
+  await prisma.candidature.updateMany({
+    where: { id: { in: possedes } },
+    data: { statut: parsed, ...(decision ? { pipelineStage: 'Decision' } : {}) },
+  })
+  for (const id of possedes) {
+    await recordAudit(session.cjsUid, 'candidature.statut', {
+      targetType: 'candidature',
+      targetId: id,
+      meta: { statut: parsed, groupe: true },
+    })
+    await notifyCandidatStatutChange(id, parsed)
+  }
+  revalidatePath('/recruteur/candidatures')
+  return { count: possedes.length }
+}
+
+/** Applique (ou retire) le favori recruteur à un groupe de candidatures. */
+export async function basculerFavoriGroupe(ids: string[], favori: boolean): Promise<{ count: number }> {
+  const session = await assertRecruteur()
+  const parsedIds = idsSchema.parse(ids)
+
+  const possedes = await idsPossedes(session.cjsUid, parsedIds)
+  if (possedes.length === 0) return { count: 0 }
+
+  await prisma.candidature.updateMany({
+    where: { id: { in: possedes } },
+    data: { favoriRecruteur: Boolean(favori) },
+  })
+  revalidatePath('/recruteur/candidatures')
+  return { count: possedes.length }
+}
+
+/**
+ * GUIC-647 — Réintègre une candidature refusée dans le pipeline actif :
+ * statut redevient « Vue » (jamais En_attente — invariant GUIC-485) et la carte
+ * retourne en colonne « Reçues » pour ré-examen. Audit `candidature.reintegre`.
+ */
+export async function reintegrerCandidature(id: string): Promise<{ ok: true }> {
+  const session = await assertRecruteur()
+  const opportunite = await offreOwnership(session.cjsUid)
+  const cand = await prisma.candidature.findFirst({
+    where: { id, statut: 'Refusee', opportunite },
+    select: { id: true },
+  })
+  if (!cand) throw new Error('NOT_FOUND')
+
+  await prisma.candidature.update({
+    where: { id: cand.id },
+    data: { statut: 'Vue', pipelineStage: 'Recue' },
+  })
+  await recordAudit(session.cjsUid, 'candidature.reintegre', {
+    targetType: 'candidature',
+    targetId: cand.id,
+    meta: {},
+  })
+  revalidatePath('/recruteur/candidatures')
+  revalidatePath(`/recruteur/candidatures/${cand.id}`)
+  return { ok: true }
+}
+
 /** GUIC-515 — Bascule le favori recruteur d'une candidature. */
 export async function basculerFavori(id: string): Promise<{ favori: boolean }> {
   const session = await assertRecruteur()

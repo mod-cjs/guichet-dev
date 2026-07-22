@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Prisma, StatutCandidature } from '@prisma/client'
+import type { Prisma, Region, StatutCandidature } from '@prisma/client'
 import { matchCompetences, type CompetencesMatchResult } from '@/lib/recruteur/competences-match'
 import { buildFunnel, type FunnelData } from '@/lib/recruteur/funnel'
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
@@ -322,6 +322,62 @@ export interface RecruteurPipeline {
   offres: { id: string; titre: string; statut: string }[]
   offreActiveId: string | null
   colonnes: Record<PipelineStageId, PipelineCard[]>
+  /** GUIC-647 — candidatures refusées, hors colonnes actives (zone repliée sous le board). */
+  refusees: PipelineCard[]
+}
+
+// GUIC-647 — filtres avancés du pipeline (état porté par l'URL côté page).
+export interface PipelineFiltres {
+  q?: string
+  region?: string
+  commune?: string
+  genre?: string
+  ageMin?: number
+  ageMax?: number
+  niveau?: string
+  situation?: string
+  /** Filtre compétence — post-filtre applicatif (colonne Json, JSON_CONTAINS non fiable MariaDB). */
+  competence?: string
+  scoreMin?: number
+  favoris?: boolean
+  depuisJours?: number
+}
+
+/** Valeurs de l'enum Prisma `Region` — une région hors liste est ignorée (fail-soft). */
+export const REGIONS_SENEGAL = [
+  'Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga',
+  'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou',
+] as const
+
+function dateMoinsAns(ans: number): Date {
+  return new Date(Date.now() - ans * 365.25 * 24 * 3600 * 1000)
+}
+
+/** Traduit les filtres avancés en critères Prisma sur la candidature/le candidat. */
+function filtresCandidatureWhere(f: PipelineFiltres): Prisma.CandidatureWhereInput {
+  const user: Prisma.UtilisateurWhereInput = {}
+  const terme = f.q?.trim()
+  if (terme) user.OR = [{ prenom: { contains: terme } }, { nom: { contains: terme } }]
+  if (f.region && (REGIONS_SENEGAL as readonly string[]).includes(f.region)) user.region = f.region as Region
+  if (f.genre === 'M' || f.genre === 'F') user.genre = f.genre
+  if (f.commune?.trim()) user.commune = { contains: f.commune.trim() }
+  const naissance: { lte?: Date; gte?: Date } = {}
+  if (f.ageMin != null && f.ageMin > 0) naissance.lte = dateMoinsAns(f.ageMin)
+  if (f.ageMax != null && f.ageMax > 0) naissance.gte = dateMoinsAns(f.ageMax + 1)
+  if (naissance.lte || naissance.gte) user.dateNaissance = naissance
+  const profil: Prisma.ProfilJeuneWhereInput = {}
+  if (f.niveau?.trim()) profil.niveauEtude = { contains: f.niveau.trim() }
+  if (f.situation?.trim()) profil.situationEmploi = { contains: f.situation.trim() }
+  if (Object.keys(profil).length) user.profil = profil
+
+  return {
+    ...(Object.keys(user).length ? { utilisateur: user } : {}),
+    ...(f.scoreMin != null && f.scoreMin > 0 ? { scoreAdequation: { gte: f.scoreMin } } : {}),
+    ...(f.favoris ? { favoriRecruteur: true } : {}),
+    ...(f.depuisJours != null && f.depuisJours > 0
+      ? { soumiseA: { gte: new Date(Date.now() - f.depuisJours * 24 * 3600 * 1000) } }
+      : {}),
+  }
 }
 
 function ageFrom(d: Date | null): number | null {
@@ -330,12 +386,42 @@ function ageFrom(d: Date | null): number | null {
   return a > 0 && a < 120 ? a : null
 }
 
-/** Pipeline kanban des candidatures (optionnellement scopé à une offre). */
+const PIPELINE_SELECT = {
+  id: true, pipelineStage: true, scoreAdequation: true, favoriRecruteur: true, soumiseA: true,
+  utilisateur: { select: { prenom: true, nom: true, dateNaissance: true, commune: true, profil: { select: { niveauEtude: true, competences: true } } } },
+  opportunite: { select: { titre: true } },
+} satisfies Prisma.CandidatureSelect
+
+type PipelineRow = Prisma.CandidatureGetPayload<{ select: typeof PIPELINE_SELECT }>
+
+function toCard(r: PipelineRow): PipelineCard {
+  const comp = jsonStringArray(r.utilisateur.profil?.competences)
+  return {
+    id: r.id,
+    prenom: r.utilisateur.prenom,
+    nom: r.utilisateur.nom,
+    age: ageFrom(r.utilisateur.dateNaissance),
+    commune: r.utilisateur.commune,
+    niveau: r.utilisateur.profil?.niveauEtude ?? null,
+    skills: comp.slice(0, 3),
+    match: r.scoreAdequation,
+    favori: r.favoriRecruteur,
+    soumiseA: r.soumiseA.toISOString(),
+    offreTitre: r.opportunite.titre,
+    stage: r.pipelineStage,
+  }
+}
+
+/**
+ * Pipeline kanban des candidatures (optionnellement scopé à une offre).
+ * GUIC-647 : les refusées sortent des colonnes actives (→ `refusees`) et les
+ * filtres avancés candidat s'appliquent aux deux requêtes.
+ */
 export async function getRecruteurPipeline(
   cjsUid: string,
   organisationId: string | null,
   offreId?: string,
-  q?: string,
+  filtres: PipelineFiltres = {},
 ): Promise<RecruteurPipeline> {
   const base = offreWhere(cjsUid, organisationId)
   const offres = await prisma.opportunite.findMany({
@@ -345,45 +431,45 @@ export async function getRecruteurPipeline(
     take: 100,
   })
   const offreActiveId = offreId && offres.some((o) => o.id === offreId) ? offreId : null
-  const terme = q?.trim()
 
-  const rows = await prisma.candidature.findMany({
-    where: {
-      opportunite: base,
-      ...(offreActiveId ? { opportuniteId: offreActiveId } : {}),
-      ...(terme ? { utilisateur: { OR: [{ prenom: { contains: terme } }, { nom: { contains: terme } }] } } : {}),
-    },
-    select: {
-      id: true, pipelineStage: true, scoreAdequation: true, favoriRecruteur: true, soumiseA: true,
-      utilisateur: { select: { prenom: true, nom: true, dateNaissance: true, commune: true, profil: { select: { niveauEtude: true, competences: true } } } },
-      opportunite: { select: { titre: true } },
-    },
-    orderBy: [{ favoriRecruteur: 'desc' }, { scoreAdequation: { sort: 'desc', nulls: 'last' } }],
-    take: 300,
-  })
+  const commun: Prisma.CandidatureWhereInput = {
+    opportunite: base,
+    ...(offreActiveId ? { opportuniteId: offreActiveId } : {}),
+    ...filtresCandidatureWhere(filtres),
+  }
+
+  const [rows, refuseesRows] = await Promise.all([
+    prisma.candidature.findMany({
+      where: { ...commun, statut: { not: 'Refusee' } },
+      select: PIPELINE_SELECT,
+      orderBy: [{ favoriRecruteur: 'desc' }, { scoreAdequation: { sort: 'desc', nulls: 'last' } }],
+      take: 300,
+    }),
+    prisma.candidature.findMany({
+      where: { ...commun, statut: 'Refusee' },
+      select: PIPELINE_SELECT,
+      orderBy: { soumiseA: 'desc' },
+      take: 100,
+    }),
+  ])
+
+  // Post-filtre compétence (colonne Json → filtrage applicatif, insensible à la casse).
+  const comp = filtres.competence?.trim().toLowerCase()
+  const garder = (r: PipelineRow) =>
+    !comp || jsonStringArray(r.utilisateur.profil?.competences).some((c) => c.toLowerCase().includes(comp))
 
   const colonnes: Record<PipelineStageId, PipelineCard[]> = { Recue: [], Preselection: [], Entretien: [], Decision: [] }
   for (const r of rows) {
-    const comp = Array.isArray(r.utilisateur.profil?.competences)
-      ? (r.utilisateur.profil!.competences as unknown[]).map((x) => String(x)).filter(Boolean)
-      : []
-    colonnes[r.pipelineStage].push({
-      id: r.id,
-      prenom: r.utilisateur.prenom,
-      nom: r.utilisateur.nom,
-      age: ageFrom(r.utilisateur.dateNaissance),
-      commune: r.utilisateur.commune,
-      niveau: r.utilisateur.profil?.niveauEtude ?? null,
-      skills: comp.slice(0, 3),
-      match: r.scoreAdequation,
-      favori: r.favoriRecruteur,
-      soumiseA: r.soumiseA.toISOString(),
-      offreTitre: r.opportunite.titre,
-      stage: r.pipelineStage,
-    })
+    if (!garder(r)) continue
+    colonnes[r.pipelineStage].push(toCard(r))
   }
 
-  return { offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut })), offreActiveId, colonnes }
+  return {
+    offres: offres.map((o) => ({ id: o.id, titre: o.titre, statut: o.statut })),
+    offreActiveId,
+    colonnes,
+    refusees: refuseesRows.filter(garder).map(toCard),
+  }
 }
 
 /** GUIC-515 — compteurs pour les badges de navigation recruteur (candidats à examiner). */

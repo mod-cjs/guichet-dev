@@ -4,11 +4,13 @@
  * GUIC-515 — Kanban des candidatures (design v4 `RecPipeline`).
  * 4 colonnes (Reçues / Présélection / Entretien / Décision), drag-and-drop pour changer
  * d'étape, cartes riches (âge/commune/niveau/skills/match/favori), scope par offre.
+ * GUIC-647 — sélection multiple (carte / colonne) + barre d'actions groupées
+ * (déplacer d'étape, retenir, refuser, favori).
  */
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
-import { deplacerPipeline, basculerFavori } from './actions'
+import { deplacerPipeline, basculerFavori, deplacerPipelineGroupe, changerStatutGroupe, basculerFavoriGroupe } from './actions'
 import type { RecruteurPipeline, PipelineCard, PipelineStageId } from '@/lib/loaders/recruteur'
 
 const COLS: { id: PipelineStageId; label: string; dot: string; soft: string }[] = [
@@ -28,9 +30,12 @@ function matchStyle(m: number): React.CSSProperties {
 
 export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
   const router = useRouter()
-  const [, start] = useTransition()
+  const [pending, start] = useTransition()
   const [dragId, setDragId] = useState<string | null>(null)
   const [over, setOver] = useState<PipelineStageId | null>(null)
+  // GUIC-647 — sélection multiple pour les actions groupées.
+  const [sel, setSel] = useState<ReadonlySet<string>>(new Set())
+  const [stageCible, setStageCible] = useState<PipelineStageId>('Preselection')
 
   function move(id: string, stage: PipelineStageId) {
     setOver(null); setDragId(null)
@@ -43,6 +48,34 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
   function onOffreChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const v = e.target.value
     router.push(v ? `/recruteur/candidatures?offre=${v}` : '/recruteur/candidatures')
+  }
+
+  function toggleSel(id: string) {
+    setSel((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  /** « Tout sélectionner » de colonne : coche tout, ou décoche tout si déjà tout coché. */
+  function toggleColonne(cards: PipelineCard[]) {
+    setSel((prev) => {
+      const next = new Set(prev)
+      const tous = cards.length > 0 && cards.every((c) => next.has(c.id))
+      for (const c of cards) { if (tous) next.delete(c.id); else next.add(c.id) }
+      return next
+    })
+  }
+  function groupe(fn: (ids: string[]) => Promise<unknown>) {
+    const ids = [...sel]
+    if (ids.length === 0) return
+    start(async () => {
+      try { await fn(ids); setSel(new Set()); router.refresh() } catch { /* noop */ }
+    })
+  }
+  function refuserGroupe() {
+    if (!window.confirm(`Refuser ${sel.size} candidature${sel.size > 1 ? 's' : ''} ? Les candidats seront notifiés.`)) return
+    groupe((ids) => changerStatutGroupe(ids, 'Refusee'))
   }
 
   return (
@@ -62,6 +95,7 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
           {COLS.map((col) => {
             const cards = pipeline.colonnes[col.id]
             const isOver = over === col.id
+            const toutesCochees = cards.length > 0 && cards.every((c) => sel.has(c.id))
             return (
               <div
                 key={col.id}
@@ -74,34 +108,111 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: col.dot }} />
                   <span className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>{col.label}</span>
                   <span className="text-[11px] font-black" style={{ marginLeft: 'auto', color: 'var(--gj-grey)', background: '#fff', padding: '1px 8px', borderRadius: 999 }}>{cards.length}</span>
+                  {cards.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleColonne(cards)}
+                      aria-label={toutesCochees ? `Tout désélectionner dans ${col.label}` : `Tout sélectionner dans ${col.label}`}
+                      className="text-[10.5px] font-black border-0 rounded-[7px] px-[8px] min-h-[24px]"
+                      style={{ background: toutesCochees ? 'var(--gj-blue, #1A4ED8)' : '#fff', color: toutesCochees ? '#fff' : 'var(--gj-grey)', cursor: 'pointer' }}
+                    >
+                      Tout
+                    </button>
+                  )}
                 </div>
                 <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {cards.length === 0 && <p className="text-[12px] text-center py-[10px]" style={{ color: 'var(--gj-grey)' }}>—</p>}
-                  {cards.map((c) => <Card key={c.id} c={c} onDragStart={() => setDragId(c.id)} onFav={(e) => fav(e, c.id)} onMove={(stage) => move(c.id, stage)} />)}
+                  {cards.map((c) => (
+                    <Card
+                      key={c.id}
+                      c={c}
+                      selected={sel.has(c.id)}
+                      onToggleSel={() => toggleSel(c.id)}
+                      onDragStart={() => setDragId(c.id)}
+                      onFav={(e) => fav(e, c.id)}
+                      onMove={(stage) => move(c.id, stage)}
+                    />
+                  ))}
                 </div>
               </div>
             )
           })}
         </div>
       </div>
+
+      {/* GUIC-647 — barre d'actions groupées (au-dessus de la bottom-nav mobile 64px) */}
+      {sel.size > 0 && (
+        <div
+          role="toolbar"
+          aria-label="Actions groupées"
+          className="fixed left-[12px] right-[12px] bottom-[calc(76px+env(safe-area-inset-bottom,0px))] md:left-1/2 md:right-auto md:-translate-x-1/2 md:bottom-[24px] z-40 flex items-center gap-[8px] flex-wrap rounded-[14px] px-[14px] py-[10px]"
+          style={{ background: 'var(--gj-ink, #101828)', color: '#fff', boxShadow: '0 8px 28px rgba(0,0,0,.28)' }}
+        >
+          <span className="text-[12.5px] font-black whitespace-nowrap">{sel.size} sélectionné{sel.size > 1 ? 's' : ''}</span>
+          <span aria-hidden style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,.22)' }} />
+          <label className="inline-flex items-center gap-[6px] text-[12px] font-bold">
+            <span className="sr-only">Étape cible</span>
+            <select
+              value={stageCible}
+              onChange={(e) => setStageCible(e.target.value as PipelineStageId)}
+              className="rounded-[8px] border-0 px-[8px] min-h-[34px] text-[12px]"
+              style={{ background: 'rgba(255,255,255,.12)', color: '#fff' }}
+            >
+              {COLS.map((c) => <option key={c.id} value={c.id} style={{ color: 'var(--gj-ink)' }}>{c.label}</option>)}
+            </select>
+          </label>
+          <button type="button" disabled={pending} onClick={() => groupe((ids) => deplacerPipelineGroupe(ids, stageCible))} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'var(--gj-blue, #1A4ED8)', color: '#fff', cursor: 'pointer' }}>
+            <Icon name="arrow-right" size={12} /> Déplacer
+          </button>
+          <button type="button" disabled={pending} onClick={() => groupe((ids) => changerStatutGroupe(ids, 'Retenue'))} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'var(--gj-green, #16A34A)', color: '#fff', cursor: 'pointer' }}>
+            <Icon name="check-circle" size={12} /> Retenir
+          </button>
+          <button type="button" disabled={pending} onClick={refuserGroupe} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'var(--gj-red, #DC2626)', color: '#fff', cursor: 'pointer' }}>
+            <Icon name="close" size={12} /> Refuser
+          </button>
+          <button type="button" disabled={pending} onClick={() => groupe((ids) => basculerFavoriGroupe(ids, true))} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer' }}>
+            <Icon name="bookmark" size={12} /> Favori
+          </button>
+          <button type="button" onClick={() => setSel(new Set())} aria-label="Effacer la sélection" className="inline-flex items-center text-[12px] font-bold rounded-[8px] px-[8px] min-h-[34px] border-0" style={{ background: 'transparent', color: 'rgba(255,255,255,.75)', cursor: 'pointer' }}>
+            <Icon name="close" size={13} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-function Card({ c, onDragStart, onFav, onMove }: { c: PipelineCard; onDragStart: () => void; onFav: (e: React.MouseEvent) => void; onMove: (stage: PipelineStageId) => void }) {
+function Card({ c, selected, onToggleSel, onDragStart, onFav, onMove }: {
+  c: PipelineCard
+  selected: boolean
+  onToggleSel: () => void
+  onDragStart: () => void
+  onFav: (e: React.MouseEvent) => void
+  onMove: (stage: PipelineStageId) => void
+}) {
   const idx = COLS.findIndex((cc) => cc.id === c.stage)
   const prev = idx > 0 ? COLS[idx - 1] : null
   const next = idx < COLS.length - 1 ? COLS[idx + 1] : null
   const arrow = (e: React.MouseEvent, stage: PipelineStageId) => { e.preventDefault(); e.stopPropagation(); onMove(stage) }
+  const cocher = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onToggleSel() }
   return (
     <a
       href={`/recruteur/candidatures/${c.id}`}
       draggable
       onDragStart={onDragStart}
       className="no-underline"
-      style={{ background: '#fff', border: '1.5px solid var(--gj-line)', borderRadius: 11, padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+      style={{ background: '#fff', border: `1.5px solid ${selected ? 'var(--gj-blue, #1A4ED8)' : 'var(--gj-line)'}`, borderRadius: 11, padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* GUIC-647 — case de sélection groupée (ne navigue pas). */}
+        <input
+          type="checkbox"
+          checked={selected}
+          readOnly
+          onClick={cocher}
+          aria-label={`Sélectionner ${c.prenom} ${c.nom}`}
+          style={{ width: 16, height: 16, flexShrink: 0, accentColor: 'var(--gj-blue, #1A4ED8)', cursor: 'pointer' }}
+        />
         <span aria-hidden style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-blue, #1A4ED8), var(--gj-blue-ink, #1A3FA8))', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12.5 }}>{initials(c.prenom, c.nom)}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="text-[13px] font-black truncate" style={{ color: 'var(--gj-ink)' }}>{c.prenom} {c.nom}</div>

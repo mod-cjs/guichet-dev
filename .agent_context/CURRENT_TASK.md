@@ -1,12 +1,18 @@
-# CURRENT_TASK — GUIC-602 · US-7 Journalisation & monitoring
+# CURRENT_TASK — GUIC-647 · Kanban recruteur : refusées + filtres avancés + actions groupées
 
-**Épic** : GUIC-595 · **Spec** : §4septies (validée lead 2026-07-20) · **Branche** : `feature/GUIC-602-monitoring` (stackée sur GUIC-601) · **JIRA** : En cours
+**Spec** : `.agent_context/specs/GUIC-647-kanban-filtres-bulk.md` · **Branche** : `feature/GUIC-647-kanban-filtres-bulk` (depuis dev) · **JIRA** : En cours
 
-## Décisions lead : seuil alerte = 3 derniers runs · page dédiée /admin/curation/monitoring · flag visuel.
-## AUCUNE migration (données déjà collectées).
+## Décisions PO (2026-07-22)
+- Refusées = zone repliée sous le board (exclues des colonnes + du total) ; bouton Réintégrer (→ Vue/Recue).
+- Filtres avancés dans l'URL : q, region, commune, genre, ageMin/ageMax, niveau, situation, competence (post-filtre Json), scoreMin, favoris, depuis.
+- Actions groupées (≤100 ids) : déplacer d'étape, retenir, refuser, favori — ownership résolu par id, audit par candidature, notifications via `notifyCandidatStatutChange` (GUIC-547).
 
-## Périmètre
-- `src/lib/curation/monitoring/stats.ts` : statsParSource (nb rapportées, taux approbation/rejet, dernière vérif, erreurs récentes, alerte erreur_repetee/chute_zero sur 3 derniers runs) + resumeCuration (totaux + nb en alerte).
-- UI : /admin/curation/monitoring (synthèse + tableau par source + bandeau alertes). Entrée sidebar.
+## Fichiers
+- `src/lib/loaders/recruteur.ts` (getRecruteurPipeline + PipelineFiltres + refusees)
+- `src/app/recruteur/candidatures/actions.ts` (bulk + reintegrer)
+- `src/app/recruteur/candidatures/{page,PipelineBoard,FiltresPanneau,RefuseesZone}.tsx`
 
-## TDD : RED intégration MariaDB (stats correctes, détection alertes, source saine sans alerte) → GREEN.
+## TDD
+RED : `tests/unit/recruteur-pipeline-filtres.test.ts` + `tests/unit/recruteur-actions-groupees.test.ts` → GREEN loader/actions → UI.
+
+## Hors périmètre : templates email + envoi groupé paramétrable (GUIC-648), synchro entretien→étape (GUIC-650).
