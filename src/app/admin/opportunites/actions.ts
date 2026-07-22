@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit, type AuditAction } from '@/lib/audit'
+import { notifyRecruteurDecisionOpportunite } from '@/lib/notifications/opportunite-decision'
 import { OpportuniteService, type CreateOpportuniteInput, type SousTypeSlug } from '@/lib/services/opportunite-service'
 import { sanitizeOpportuniteRichFields } from '@/lib/opportunite/sanitize-base'
 import type { CJSSession } from '@/types/user'
@@ -69,6 +70,11 @@ async function setStatutBrouillon(
     targetId: id,
     meta: { statut, ...(reason ? { reason } : {}) },
   })
+
+  // GUIC-547 — notifie le recruteur propriétaire (multicanal selon config). Fail-soft.
+  if (statut === 'publiee' || statut === 'archivee') {
+    await notifyRecruteurDecisionOpportunite(id, statut, reason)
+  }
 
   revalidateAdmin()
   return { ok: true }
