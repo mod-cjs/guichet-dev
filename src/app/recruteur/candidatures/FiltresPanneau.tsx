@@ -8,11 +8,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
-import { REGIONS_SENEGAL } from '@/lib/loaders/recruteur'
-
-const REGION_LABELS: Record<string, string> = {
-  Thies: 'Thiès', Saint_Louis: 'Saint-Louis', Kedougou: 'Kédougou', Sedhiou: 'Sédhiou',
-}
+// ⚠️ Toujours importer les régions depuis @/lib/regions (module SANS Prisma) :
+// importer une valeur de @/lib/loaders/* depuis un composant client embarque
+// le client Prisma (driver mariadb) dans le bundle → next build casse (fs/net).
+import { REGIONS_SENEGAL } from '@/lib/regions'
 
 /** Clés de filtre portées par l'URL (hors scope `offre`). */
 const FILTRE_KEYS = ['q', 'region', 'commune', 'genre', 'ageMin', 'ageMax', 'niveau', 'situation', 'competence', 'scoreMin', 'favoris', 'depuis'] as const
@@ -88,7 +87,7 @@ export function FiltresPanneau({ sp }: { sp: Record<string, string | undefined> 
               Région
               <select value={f.region ?? ''} onChange={(e) => set('region', e.target.value)} className={field} style={fieldStyle}>
                 <option value="">Toutes</option>
-                {REGIONS_SENEGAL.map((r) => <option key={r} value={r}>{REGION_LABELS[r] ?? r}</option>)}
+                {REGIONS_SENEGAL.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </label>
             <label className="text-[11.5px] font-bold" style={{ color: 'var(--gj-grey)' }}>
