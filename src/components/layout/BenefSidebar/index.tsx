@@ -5,9 +5,7 @@ import Link from 'next/link'
 import * as nav from 'next/navigation'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui/Icon'
-import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
-import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 export interface BenefSidebarItem {
   id: string
@@ -205,7 +203,6 @@ export function BenefSidebar({
   // `useRouter` peut être indisponible dans certains tests qui ne mockent
   // que `usePathname` (cf. tests/unit/benef-sidebar.test.tsx). On guard.
   const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
-  const yayePanel = useYayePanel()
   const activeId = active ?? resolveActiveId(pathname, searchParams, sections)
   const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
@@ -437,88 +434,71 @@ export function BenefSidebar({
         </div>
       ))}
 
-      {/* GUIC-376 — Yaye CTA : ouvre le drawer (YayeSidePanel) via le contexte
-          partagé avec la bubble flottante (plus de page dédiée /jeune/yaye).
-          Placé juste avant le footer pour rester très visible. */}
-      <button
-        type="button"
-        onClick={() => yayePanel.open()}
-        aria-label="Parler à Yaye, l'assistant IA"
-        aria-haspopup="dialog"
-        aria-expanded={yayePanel.isOpen}
+      {/* GUIC-581 — Inclusion & accessibilité : remplace le CTA Yaye (redondant
+          depuis GUIC-376, la bulle flottante ouvre le même drawer). Entrée
+          sobre et permanente vers la page dédiée — l'activation des réglages
+          est un choix réfléchi, pas un panneau superposé. */}
+      <Link
+        href="/jeune/accessibilite"
+        aria-label="Inclusion & accessibilité"
+        aria-current={pathname === '/jeune/accessibilite' ? 'page' : undefined}
         className="no-underline"
         style={{
           marginTop: 'auto',
-          padding: '12px 10px',
-          background:
-            'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-ink)))',
+          padding: '11px 12px',
+          background: 'var(--gj-teal-soft)',
+          border:
+            pathname === '/jeune/accessibilite'
+              ? '1.5px solid var(--gj-teal-deep)'
+              : '1.5px solid transparent',
           borderRadius: 12,
-          color: 'var(--gj-surface)',
           display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          position: 'relative',
-          overflow: 'hidden',
-          border: 0,
+          alignItems: 'center',
+          gap: 10,
           width: '100%',
-          textAlign: 'left',
-          cursor: 'pointer',
-          font: 'inherit',
+          minHeight: 'var(--tap-min)',
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <YayeAvatar size={32} />
-          <span style={{ flex: 1, minWidth: 0, lineHeight: 1.15 }}>
-            <span
-              style={{
-                fontFamily: 'var(--gj-yaye-font)',
-                fontWeight: 900,
-                fontSize: 14,
-                color: 'var(--gj-surface)',
-              }}
-            >
-              Yaye
-            </span>
-            <span
-              style={{
-                background: 'var(--gj-yellow)',
-                color: 'var(--gj-teal-deep)',
-                fontSize: 8.5,
-                fontWeight: 900,
-                padding: '1px 5px',
-                borderRadius: 999,
-                marginLeft: 5,
-                letterSpacing: '.3px',
-              }}
-            >
-              IA
-            </span>
-            <span
-              style={{
-                display: 'block',
-                fontSize: 10,
-                opacity: 0.85,
-                marginTop: 2,
-              }}
-            >
-              Assistant Guichet
-            </span>
-          </span>
-        </span>
         <span
+          aria-hidden
           style={{
-            background: 'var(--gj-yellow)',
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            flexShrink: 0,
+            background: 'var(--gj-surface)',
             color: 'var(--gj-teal-deep)',
-            padding: '8px 12px',
-            borderRadius: 8,
-            fontWeight: 800,
-            fontSize: 11.5,
-            textAlign: 'center',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          Parler à Yaye
+          <Icon name="eye" size={17} />
         </span>
-      </button>
+        <span style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+          <span
+            style={{
+              display: 'block',
+              fontSize: 12.5,
+              fontWeight: 800,
+              color: 'var(--gj-teal-deep)',
+            }}
+          >
+            Inclusion & accessibilité
+          </span>
+          <span
+            style={{
+              display: 'block',
+              fontSize: 10.5,
+              color: 'var(--gj-grey)',
+              marginTop: 1,
+            }}
+          >
+            Adapter l&apos;application
+          </span>
+        </span>
+        <Icon name="chevron-right" size={14} />
+      </Link>
 
       {/* GUIC-376 — Footer compte : Notifications + Déconnexion séparés
           visuellement du reste de la sidebar par un border-top. */}

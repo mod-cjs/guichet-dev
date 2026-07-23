@@ -116,6 +116,12 @@ describe('<BenefSidebar />', () => {
     expect(link).toHaveAttribute('aria-current', 'page')
   })
 
+  it('conserve le footer compte après le swap (Notifications + Se déconnecter)', () => {
+    render(<BenefSidebar />)
+    expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /se déconnecter/i })).toBeInTheDocument()
+  })
+
   it('rend les liens externes YEAH et E-learning avec target=_blank', () => {
     render(<BenefSidebar />)
     const yeah = screen.getByRole('link', { name: /YEAH \(ouvre dans un nouvel onglet\)/i })
