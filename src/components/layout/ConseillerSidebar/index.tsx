@@ -85,7 +85,7 @@ export function ConseillerSidebar({
       <aside
         role="navigation"
         aria-label="Navigation conseiller"
-        className="hidden md:flex static min-h-screen flex-col"
+        className="hidden md:flex static h-screen flex-col"
         style={{ width: 260, flexShrink: 0, background: 'var(--gj-ink-teal)', color: '#fff', borderRight: '1px solid rgba(255,255,255,.08)', padding: 14, overflowY: 'auto' }}
       >
         {/* Marque */}
