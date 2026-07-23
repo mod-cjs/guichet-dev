@@ -33,70 +33,70 @@ export const RECRUTEUR_TEMPLATES: EmailTemplateDef[] = [
     'Accusé de réception',
     'Confirme au candidat que sa candidature est bien reçue.',
     'Votre candidature à « {{offre}} » a bien été reçue',
-    'Bonjour {{prenom}},\n\nNous confirmons la bonne réception de votre candidature au poste « {{offre}} » chez {{organisation}}. Nous revenons vers vous dès son examen.\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Nous confirmons la bonne réception de votre candidature au poste « {{offre}} » chez {{organisation}}. Nous revenons vers vous dès son examen.</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.preselection',
     'Présélection',
     'Informe le candidat qu’il est présélectionné.',
     'Bonne nouvelle : vous êtes présélectionné(e) pour « {{offre}} »',
-    'Bonjour {{prenom}},\n\nVotre profil a retenu notre attention pour le poste « {{offre}} ». Vous êtes présélectionné(e) pour la suite du processus.\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Votre profil a retenu notre attention pour le poste « {{offre}} ». Vous êtes présélectionné(e) pour la suite du processus.</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.entretien',
     'Invitation à un entretien',
     'Invite le candidat à un entretien (précisez date/heure/lieu en complément).',
     'Invitation à un entretien — « {{offre}} »',
-    'Bonjour {{prenom}},\n\nNous souhaitons vous rencontrer dans le cadre de votre candidature au poste « {{offre}} ».\n\n{{complement}}\n\nMerci de confirmer votre disponibilité.\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Nous souhaitons vous rencontrer dans le cadre de votre candidature au poste « {{offre}} ».</p><p>{{complement}}</p><p>Merci de confirmer votre disponibilité.</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.entretien_replanifie',
     'Entretien replanifié',
     'Prévient d’un changement de date/heure d’entretien.',
     'Votre entretien pour « {{offre}} » est replanifié',
-    'Bonjour {{prenom}},\n\nVotre entretien pour le poste « {{offre}} » doit être replanifié.\n\n{{complement}}\n\nMerci de votre compréhension.\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Votre entretien pour le poste « {{offre}} » doit être replanifié.</p><p>{{complement}}</p><p>Merci de votre compréhension.</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.test',
     'Convocation à un test',
     'Convoque le candidat à un test ou une évaluation.',
     'Convocation à un test — « {{offre}} »',
-    'Bonjour {{prenom}},\n\nDans le cadre du processus de recrutement pour « {{offre}} », nous vous invitons à passer un test d’évaluation.\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Dans le cadre du processus de recrutement pour « {{offre}} », nous vous invitons à passer un test d’évaluation.</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.documents',
     'Demande de documents',
     'Demande des pièces complémentaires au candidat.',
     'Documents complémentaires pour votre candidature « {{offre}} »',
-    'Bonjour {{prenom}},\n\nPour poursuivre l’étude de votre candidature au poste « {{offre}} », merci de nous transmettre les documents suivants :\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Pour poursuivre l’étude de votre candidature au poste « {{offre}} », merci de nous transmettre les documents suivants :</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.relance',
     'Relance candidat',
     'Relance un candidat resté sans réponse.',
     'Sans réponse de votre part — « {{offre}} »',
-    'Bonjour {{prenom}},\n\nNous restons sans retour de votre part concernant votre candidature au poste « {{offre}} ». Merci de nous indiquer si vous êtes toujours intéressé(e).\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Nous restons sans retour de votre part concernant votre candidature au poste « {{offre}} ». Merci de nous indiquer si vous êtes toujours intéressé(e).</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.retenue',
     'Candidature retenue',
     'Annonce au candidat qu’il est retenu.',
     'Félicitations : votre candidature à « {{offre}} » est retenue',
-    'Bonjour {{prenom}},\n\nFélicitations ! Votre candidature au poste « {{offre}} » chez {{organisation}} a été retenue.\n\n{{complement}}\n\nNous vous recontactons très vite pour la suite.\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Félicitations ! Votre candidature au poste « {{offre}} » chez {{organisation}} a été retenue.</p><p>{{complement}}</p><p>Nous vous recontactons très vite pour la suite.</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.refus',
     'Candidature non retenue',
     'Informe le candidat que sa candidature n’est pas retenue.',
     'Votre candidature à « {{offre}} »',
-    'Bonjour {{prenom}},\n\nNous vous remercions de l’intérêt porté au poste « {{offre}} ». Malgré la qualité de votre profil, nous ne donnons pas suite à votre candidature.\n\n{{complement}}\n\nNous vous souhaitons une pleine réussite dans vos recherches.\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Nous vous remercions de l’intérêt porté au poste « {{offre}} ». Malgré la qualité de votre profil, nous ne donnons pas suite à votre candidature.</p><p>{{complement}}</p><p>Nous vous souhaitons une pleine réussite dans vos recherches.</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
   T(
     'pipeline.offre_pourvue',
     'Offre pourvue',
     'Informe les candidats restants que le poste est pourvu.',
     'Le poste « {{offre}} » est pourvu',
-    'Bonjour {{prenom}},\n\nLe poste « {{offre}} » chez {{organisation}} est désormais pourvu. Nous vous remercions de votre candidature et conservons votre profil pour de futures opportunités.\n\n{{complement}}\n\nCordialement,\n{{organisation}}',
+    '<p>Bonjour <strong>{{prenom}}</strong>,</p><p>Le poste « {{offre}} » chez {{organisation}} est désormais pourvu. Nous vous remercions de votre candidature et conservons votre profil pour de futures opportunités.</p><p>{{complement}}</p><p style="margin-top:18px">Cordialement,<br/><strong>{{organisation}}</strong></p>',
   ),
 ]
 
@@ -114,6 +114,7 @@ export function renderTemplate(texte: string, vars: Partial<Record<TemplateVaria
   return texte
     .replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (_, name: string) => vars[name as TemplateVariable] ?? '')
     .replace(/\n{3,}/g, '\n\n') // compacte les lignes vides laissées par un {{complement}} absent
+    .replace(/<p[^>]*>\s*<\/p>/g, '') // paragraphes HTML vidés par une variable absente
     .trim()
 }
 

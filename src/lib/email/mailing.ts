@@ -5,8 +5,10 @@
 
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { htmlToPlainText } from '@/lib/rich-html'
 import { sendResendEmail } from './resend'
 import { resolveTemplate, renderTemplate } from './templates'
+import { emailLayout, estHtml, texteVersHtml } from './layout'
 
 export interface MailingResult {
   envoyes: number
@@ -14,18 +16,13 @@ export interface MailingResult {
   echecs: number
 }
 
-/** Corps texte → HTML minimal dans l'habillage CJS. */
-function toHtml(sujet: string, corps: string): string {
-  const paragraphes = corps
-    .split(/\n{2,}/)
-    .map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
-    .join('')
-  return [
-    '<div style="font-family:system-ui,sans-serif;max-width:560px;margin:auto">',
-    `<h2 style="color:var(--gj-teal,#0a7d76)">${sujet}</h2>`,
-    paragraphes,
-    '</div>',
-  ].join('')
+/** Échappe le complément saisi librement avant injection dans un template HTML. */
+function echapperComplement(texte: string): string {
+  return texte
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>')
 }
 
 /**
@@ -62,20 +59,24 @@ export async function envoyerMailingCandidatures(
       result.sansEmail++
       continue
     }
+    const corpsEstHtml = estHtml(template.corps)
     const vars = {
       prenom: cand.utilisateur.prenom,
       nom: cand.utilisateur.nom,
       offre: cand.opportunite?.titre ?? '',
       organisation: cand.opportunite?.org?.nom ?? '',
-      complement,
+      // En contexte HTML, le complément libre est échappé (jamais interprété).
+      complement: corpsEstHtml ? echapperComplement(complement) : complement,
     }
-    const sujet = renderTemplate(template.sujet, vars)
+    const sujet = renderTemplate(template.sujet, { ...vars, complement })
     const corps = renderTemplate(template.corps, vars)
+    const corpsHtml = corpsEstHtml ? corps : texteVersHtml(corps)
+    const texte = corpsEstHtml ? htmlToPlainText(corps) : corps
 
     let statut: 'envoyee' | 'abandonnee' = 'envoyee'
     let erreur: string | null = null
     try {
-      await sendResendEmail(email, sujet, toHtml(sujet, corps), corps)
+      await sendResendEmail(email, sujet, emailLayout(sujet, corpsHtml), texte)
       result.envoyes++
     } catch (err) {
       statut = 'abandonnee'
@@ -95,7 +96,7 @@ export async function envoyerMailingCandidatures(
           canal: 'email',
           type: 'System',
           titre: sujet,
-          contenu: corps.slice(0, 5000),
+          contenu: texte.slice(0, 5000), // version texte lisible dans l'historique
           statut,
           erreur: erreur?.slice(0, 500) ?? null,
           valideePar: recruteurUid,

@@ -39,11 +39,21 @@ describe('envoyerMailingCandidatures', () => {
   it('rend le template (variables + complément) et envoie via Resend', async () => {
     const res = await envoyerMailingCandidatures('rec-1', ['c1'], 'pipeline.retenue', 'Prise de poste lundi.')
     expect(res).toEqual({ envoyes: 1, sansEmail: 0, echecs: 0 })
-    const [to, sujet, , texte] = mockSend.mock.calls[0]
+    const [to, sujet, html, texte] = mockSend.mock.calls[0]
     expect(to).toBe('awa@x.sn')
     expect(sujet).toContain('Stage agro')
     expect(texte).toContain('Awa')
     expect(texte).toContain('Prise de poste lundi.')
+    // Habillage CJS email-safe : bandeau + contenu riche du template par défaut.
+    expect(html).toContain('Guichet Jeunesse')
+    expect(html).toContain('<strong>Awa</strong>')
+  })
+
+  it('échappe le complément libre injecté dans un template HTML', async () => {
+    await envoyerMailingCandidatures('rec-1', ['c1'], 'pipeline.retenue', '<script>alert(1)</script>')
+    const html = mockSend.mock.calls[0][2]
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;')
   })
 
   it('utilise la version personnalisée du recruteur si elle existe', async () => {
