@@ -146,6 +146,7 @@ describe('sanitizeA11yPrefs()', () => {
     expect(sanitizeA11yPrefs(null)).toEqual(A11Y_DEFAULTS)
     expect(sanitizeA11yPrefs('x')).toEqual(A11Y_DEFAULTS)
     expect(sanitizeA11yPrefs(42)).toEqual(A11Y_DEFAULTS)
+    expect(sanitizeA11yPrefs([{ contrast: true }])).toEqual(A11Y_DEFAULTS)
   })
 
   it('strippe les clés inconnues et corrige les types invalides', () => {
