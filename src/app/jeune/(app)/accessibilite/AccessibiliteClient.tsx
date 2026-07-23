@@ -25,6 +25,8 @@ interface Row {
   icon: IconName
   label: string
   sub: string
+  /** GUIC-658 — réglage sans objet au tactile : ligne masquée < lg. */
+  desktopOnly?: boolean
 }
 
 /** Groupes de réglages — reprise 1:1 du découpage v4 (Vision / Lecture / Navigation). */
@@ -67,6 +69,14 @@ const GROUPS: Array<{ title: string; rows: Row[] }> = [
         label: 'Mode FALC',
         sub: 'Facile à lire et à comprendre — mise en page simplifiée',
       },
+      // GUIC-658 — TTS français seul (décision PO : pas de détection wolof,
+      // le wolof passe par les contenus audio enregistrés — badge Lot 6).
+      {
+        key: 'voice',
+        icon: 'play',
+        label: 'Lecture vocale',
+        sub: 'Touche un texte pour l’écouter — voix française',
+      },
     ],
   },
   {
@@ -77,6 +87,21 @@ const GROUPS: Array<{ title: string; rows: Row[] }> = [
         icon: 'target',
         label: 'Navigation clavier renforcée',
         sub: 'Met en évidence l’élément sélectionné',
+      },
+      // GUIC-658 — gadgets souris, sans objet au tactile
+      {
+        key: 'cursor',
+        icon: 'desktop',
+        label: 'Grand curseur',
+        sub: 'Pointeur agrandi haute visibilité',
+        desktopOnly: true,
+      },
+      {
+        key: 'guide',
+        icon: 'menu',
+        label: 'Guide de lecture',
+        sub: 'Une règle suit le curseur pour garder la ligne',
+        desktopOnly: true,
       },
     ],
   },
@@ -178,7 +203,8 @@ export function AccessibiliteClient() {
               <div
                 key={row.key}
                 className={[
-                  'flex items-center gap-3.5 py-3',
+                  row.desktopOnly ? 'hidden lg:flex' : 'flex',
+                  'items-center gap-3.5 py-3',
                   i === 0 ? '' : 'border-t border-gj-line',
                 ].join(' ')}
               >

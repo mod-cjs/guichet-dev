@@ -108,6 +108,14 @@ describe('<AccessibiliteClient /> — page /jeune/accessibilite', () => {
     )
   })
 
+  it('la ligne Lecture vocale reste visible sur mobile (pas de lg:)', () => {
+    renderPage()
+    const row = screen
+      .getByRole('switch', { name: /lecture vocale/i })
+      .closest('div[class*="flex"]')
+    expect((row as HTMLElement).className).not.toMatch(/hidden/)
+  })
+
   it('lignes Grand curseur et Guide de lecture masquées sur mobile (lg only)', () => {
     renderPage()
     for (const name of [/grand curseur/i, /guide de lecture/i]) {
