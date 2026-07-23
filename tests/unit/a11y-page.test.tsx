@@ -88,6 +88,11 @@ describe('<AccessibiliteClient /> — page /jeune/accessibilite', () => {
     }
   })
 
+  it('mentionne la persistance par profil (note bas de page)', () => {
+    renderPage()
+    expect(screen.getByText(/liés à ton profil/i)).toBeInTheDocument()
+  })
+
   it('« Tout réinitialiser » remet les défauts (attributs retirés) + persistance', () => {
     renderPage()
     fireEvent.click(screen.getByRole('switch', { name: /mode falc/i }))
