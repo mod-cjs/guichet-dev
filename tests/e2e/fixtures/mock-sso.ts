@@ -55,6 +55,9 @@ export const ROLE_CLAIMS: Record<string, MockClaims> = {
   recruteur:  { sub: 'e2e-recruteur',  given_name: 'Bineta', family_name: 'Fall',   email: 'e2e-recruteur@example.sn',  phone_number: '+221770000012', cjs_roles: ['recruteur'],    cjs_status: 'active' },
   admin:      { sub: 'e2e-admin',      given_name: 'Ibrahima', family_name: 'Ba',   email: 'e2e-admin@example.sn',      phone_number: '+221770000013', cjs_roles: ['admin'],        cjs_status: 'active' },
   conseiller: { sub: 'e2e-conseiller', given_name: 'Sokhna', family_name: 'Diop',   email: 'e2e-conseiller@example.sn', phone_number: '+221770000014', cjs_roles: ['conseiller'],   cjs_status: 'active' },
+  // Identités « en attente » : rôle d'espace SANS rattachement (org/centre) → écran d'attente.
+  'recruteur-noorg':  { sub: 'e2e-recruteur-noorg',  given_name: 'Oumar', family_name: 'Kane', email: 'e2e-recruteur-noorg@example.sn',  phone_number: '+221770000015', cjs_roles: ['recruteur'],  cjs_status: 'active' },
+  'conseiller-norat': { sub: 'e2e-conseiller-norat', given_name: 'Aïda',  family_name: 'Sarr', email: 'e2e-conseiller-norat@example.sn', phone_number: '+221770000016', cjs_roles: ['conseiller'], cjs_status: 'active' },
 }
 
 /** Extrait la valeur d'un cookie depuis l'en-tête `Cookie` brut. */
