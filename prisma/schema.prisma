@@ -992,6 +992,22 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
+// Connexion Google (Meet / Calendar) d'un recruteur — génération auto des liens
+// Meet à la planification d'entretiens Visio. Tokens serveur uniquement (jamais
+// exposés client) ; suppression = déconnexion.
+model RecruteurGoogleAuth {
+  cjsUid       String   @id @map("cjs_uid") @db.VarChar(36)
+  googleEmail  String   @map("google_email") @db.VarChar(255)
+  accessToken  String   @map("access_token") @db.Text
+  refreshToken String?  @map("refresh_token") @db.Text
+  expiresAt    DateTime @map("expires_at")
+  scopes       String   @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("recruteur_google_auth")
+}
+
 // Préférences & consentement par canal, par utilisateur (GUIC-554 + CDP).
 // `consentGiven` = opt-in légal (obligatoire hors in_app) ; `enabled` = confort.
 model NotificationPreference {
