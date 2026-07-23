@@ -48,3 +48,14 @@ describe('3. backup.sh — réseau préprod aligné sur deploy.sh', () => {
     expect(bk).not.toMatch(/\$\{COMPOSE_PROJECT_NAME\}_guichet/)
   })
 })
+
+describe('4. docker-compose.test.yml — clé Vertex montée (Yaye préprod)', () => {
+  const ct = R('docker-compose.test.yml')
+  it('monte la clé de compte de service Vertex dans le conteneur', () => {
+    // Sans ce montage, GoogleAuth ne trouve pas GOOGLE_APPLICATION_CREDENTIALS → Yaye KO en prod.
+    expect(ct).toMatch(/vertex-sa\.json/)
+  })
+  it('la monte en LECTURE SEULE (:ro) — jamais dans une couche d’image', () => {
+    expect(ct).toMatch(/vertex-sa\.json[^\n]*:ro/)
+  })
+})
