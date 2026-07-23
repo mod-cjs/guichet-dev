@@ -5,7 +5,7 @@
  *
  * RED : ces tests échouent tant que les composants gardent les <input> libres.
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { OnboardingProfil } from '@/app/jeune/onboarding/_screens/OnboardingProfil'
 import { OnboardingProfilWeb } from '@/app/jeune/onboarding/_screens-web/OnboardingProfilWeb'
 
@@ -113,7 +113,9 @@ describe('GUIC-432 — OnboardingProfil (mobile) — niveau études select', () 
 
   it('affiche l\'option "Autre" dans le select niveau études', () => {
     render(<OnboardingProfil initial={EMPTY} />)
-    expect(screen.getByRole('option', { name: /^autre$/i })).toBeInTheDocument()
+    // Scopé au select niveau : le select handicap (GUIC-660) a aussi une option "Autre".
+    const niveauSel = screen.getByRole('combobox', { name: /niveau.*tudes/i })
+    expect(within(niveauSel).getByRole('option', { name: /^autre$/i })).toBeInTheDocument()
   })
 
   it('affiche un input libre quand "Autre" est sélectionné pour niveau études', () => {
@@ -188,7 +190,9 @@ describe('GUIC-432 — OnboardingProfilWeb — niveau études select', () => {
 
   it('affiche l\'option "Autre" dans le select niveau études (web)', () => {
     render(<OnboardingProfilWeb initial={EMPTY} />)
-    expect(screen.getByRole('option', { name: /^autre$/i })).toBeInTheDocument()
+    // Scopé au select niveau : le select handicap (GUIC-660) a aussi une option "Autre".
+    const niveauSel = screen.getByRole('combobox', { name: /niveau.*tudes/i })
+    expect(within(niveauSel).getByRole('option', { name: /^autre$/i })).toBeInTheDocument()
   })
 
   it('affiche un input libre quand "Autre" est sélectionné pour niveau études (web)', () => {
