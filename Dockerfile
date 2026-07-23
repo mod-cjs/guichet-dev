@@ -11,6 +11,25 @@ RUN npm ci
 
 # Build
 FROM base AS builder
+# prisma.config.ts (Prisma 7) exige DATABASE_URL au `generate`. VALEUR PAR DÉFAUT
+# indispensable : le CD (docker/build-push-action) ne passe AUCUN build-arg → sans défaut,
+# la chaîne serait vide et `prisma generate` échouerait. Chaîne factice — aucune connexion,
+# aucune migration au build ; surchargeable via --build-arg pour un build manuel.
+ARG DATABASE_URL=mysql://build:build@localhost:3306/build
+ENV DATABASE_URL=${DATABASE_URL}
+# `next build` collecte les données des routes → importe des modules dont les garde-fous
+# d'env (Redis, secrets) throwent si absents. Valeurs FACTICES, stage builder UNIQUEMENT :
+# elles ne franchissent pas la frontière multi-stage (le runner repart de `base`) et
+# aucune n'est `NEXT_PUBLIC_*`, donc rien n'est inliné dans le bundle client. Les vraies
+# valeurs viennent de --env-file au runtime.
+ENV REDIS_URL=redis://localhost:6379 \
+    SESSION_SECRET=build-only-not-a-secret \
+    NEXTAUTH_SECRET=build-only-not-a-secret \
+    NEXTAUTH_URL=http://localhost:3000 \
+    JWT_CJS_CARD_SECRET=build-only \
+    STAFF_SESSION_SECRET=build-only \
+    SSO_BASE_URL=http://localhost \
+    SSO_CLIENT_ID=build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
