@@ -19,7 +19,11 @@ export default function DeconnexionPage() {
   }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gj-bg px-space-4">
+    // GUIC-661 — Overlay FIXE plein écran : le layout (public) rend le shell
+    // bénéficiaire tant que la session existe (le POST logout ne part qu'après).
+    // `fixed inset-0` + z élevé recouvrent sidebar/topbar/bottom-nav/bulle Yaye →
+    // pas de flash du shell pendant la déconnexion.
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gj-bg px-space-4">
       <div className="bg-white rounded-gj-2xl shadow-gj-md p-space-8 text-center w-full max-w-[360px]">
         {done ? (
           <>
