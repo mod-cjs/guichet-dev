@@ -133,6 +133,12 @@ describe('<A11yProvider />', () => {
   })
 
   // GUIC-658 — phase 2 : curseur agrandi, guide de lecture, lecture vocale
+  it('expose les défauts phase 2 à false (opt-in strict)', () => {
+    expect(A11Y_DEFAULTS.cursor).toBe(false)
+    expect(A11Y_DEFAULTS.guide).toBe(false)
+    expect(A11Y_DEFAULTS.voice).toBe(false)
+  })
+
   it('applique data-cursor/data-guide/data-voice quand activés (phase 2)', () => {
     render(
       <A11yProvider

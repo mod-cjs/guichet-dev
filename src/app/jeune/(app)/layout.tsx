@@ -16,7 +16,7 @@ import { prisma } from '@/lib/prisma'
  * localStorage sur <html> avant l'hydratation (script parser-blocking).
  * Le provider React re-résout ensuite (valeur serveur prioritaire).
  */
-const A11Y_INIT_SCRIPT = `(function(){try{var p=JSON.parse(localStorage.getItem('gj-a11y')||'null');if(!p)return;var h=document.documentElement;if(['s','l','xl'].indexOf(p.text)>-1)h.setAttribute('data-text',p.text);var m={contrast:['data-contrast','high'],gray:['data-gray','on'],motion:['data-motion','reduce'],spacing:['data-spacing','on'],falc:['data-falc','on'],kbd:['data-kbd','on']};for(var k in m){if(p[k]===true)h.setAttribute(m[k][0],m[k][1])}}catch(e){}})()`
+const A11Y_INIT_SCRIPT = `(function(){try{var p=JSON.parse(localStorage.getItem('gj-a11y')||'null');if(!p)return;var h=document.documentElement;if(['s','l','xl'].indexOf(p.text)>-1)h.setAttribute('data-text',p.text);var m={contrast:['data-contrast','high'],gray:['data-gray','on'],motion:['data-motion','reduce'],spacing:['data-spacing','on'],falc:['data-falc','on'],kbd:['data-kbd','on'],cursor:['data-cursor','on'],guide:['data-guide','on'],voice:['data-voice','on']};for(var k in m){if(p[k]===true)h.setAttribute(m[k][0],m[k][1])}}catch(e){}})()`
 
 /**
  * Layout des pages app jeune.
