@@ -137,6 +137,16 @@ describe('<BenefSidebar />', () => {
     expect(link).toHaveTextContent(/adapter l.application à tes besoins/i)
   })
 
+  // GUIC-658 — lisibilité : le titre de la carte doit être ≥ 14px et le
+  // sous-titre ≥ 12px (retour PO : texte trop petit, peu visible).
+  it('carte Inclusion : tailles de texte lisibles (titre ≥ 14px, sous-titre ≥ 12px)', () => {
+    render(<BenefSidebar />)
+    const title = screen.getByText('Inclusion & accessibilité')
+    const sub = screen.getByText(/adapter l.application à tes besoins/i)
+    expect(parseFloat(title.style.fontSize)).toBeGreaterThanOrEqual(14)
+    expect(parseFloat(sub.style.fontSize)).toBeGreaterThanOrEqual(12)
+  })
+
   // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
   // (YEAH, E-learning) est supprimée.
   it('ne rend plus la section Plateformes partenaires (YEAH / E-learning)', () => {
