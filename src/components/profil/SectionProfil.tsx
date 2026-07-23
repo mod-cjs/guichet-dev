@@ -5,9 +5,13 @@ import { Card, Button, Input, Select } from '@/components/ui'
 import {
   NIVEAU_ETUDE_OPTIONS,
   SITUATION_EMPLOI_OPTIONS,
+  HANDICAP_OPTIONS,
+  ZONE_HABITATION_OPTIONS,
   DOMAINES_INTERET,
   niveauLabel,
   situationLabel,
+  handicapLabel,
+  zoneLabel,
 } from '@/lib/profil-constants'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -25,6 +29,8 @@ export function SectionProfil({ data, onSaved }: Props) {
     biographie:      data?.biographie      ?? null as string | null,
     niveauEtude:     data?.niveauEtude     ?? null as string | null,
     situationEmploi: data?.situationEmploi ?? null as string | null,
+    situationHandicap: data?.situationHandicap ?? null as string | null,
+    zoneHabitation:    data?.zoneHabitation    ?? null as string | null,
     domainesInteret: data?.domainesInteret ?? [] as string[],
     competences:     data?.competences     ?? [] as string[],
   })
@@ -33,6 +39,8 @@ export function SectionProfil({ data, onSaved }: Props) {
     biographie:      data?.biographie      ?? '',
     niveauEtude:     data?.niveauEtude     ?? '',
     situationEmploi: data?.situationEmploi ?? '',
+    situationHandicap: data?.situationHandicap ?? '',
+    zoneHabitation:    data?.zoneHabitation    ?? '',
     domainesInteret: data?.domainesInteret ?? [] as string[],
     competences:     (data?.competences ?? []).join(', '),
   })
@@ -58,6 +66,8 @@ export function SectionProfil({ data, onSaved }: Props) {
           biographie:      form.biographie      || null,
           niveauEtude:     form.niveauEtude     || null,
           situationEmploi: form.situationEmploi || null,
+          situationHandicap: form.situationHandicap || null,
+          zoneHabitation:    form.zoneHabitation    || null,
           domainesInteret: form.domainesInteret,
           competences,
         }),
@@ -69,6 +79,8 @@ export function SectionProfil({ data, onSaved }: Props) {
         biographie:      saved.biographie,
         niveauEtude:     saved.niveauEtude,
         situationEmploi: saved.situationEmploi,
+        situationHandicap: saved.situationHandicap,
+        zoneHabitation:    saved.zoneHabitation,
         domainesInteret: saved.domainesInteret,
         competences:     saved.competences,
       })
@@ -105,6 +117,18 @@ export function SectionProfil({ data, onSaved }: Props) {
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Situation :</span>
               <span className="font-medium text-color-text-primary">{situationLabel(displayed.situationEmploi)}</span>
+            </div>
+          )}
+          {displayed.zoneHabitation && (
+            <div className="flex gap-space-2">
+              <span className="text-color-text-secondary">Zone d&apos;habitation :</span>
+              <span className="font-medium text-color-text-primary">{zoneLabel(displayed.zoneHabitation)}</span>
+            </div>
+          )}
+          {displayed.situationHandicap && (
+            <div className="flex gap-space-2">
+              <span className="text-color-text-secondary">Situation de handicap :</span>
+              <span className="font-medium text-color-text-primary">{handicapLabel(displayed.situationHandicap)}</span>
             </div>
           )}
           {displayed.domainesInteret.length > 0 && (
@@ -166,6 +190,24 @@ export function SectionProfil({ data, onSaved }: Props) {
             placeholder="Sélectionner…"
             value={form.situationEmploi}
             onChange={e => setForm(f => ({ ...f, situationEmploi: e.target.value }))}
+          />
+
+          <Select
+            id="zoneHabitation"
+            label="Zone d'habitation"
+            options={ZONE_HABITATION_OPTIONS as unknown as { value: string; label: string }[]}
+            placeholder="Non renseigné"
+            value={form.zoneHabitation}
+            onChange={e => setForm(f => ({ ...f, zoneHabitation: e.target.value }))}
+          />
+
+          <Select
+            id="situationHandicap"
+            label="Situation de handicap"
+            options={HANDICAP_OPTIONS as unknown as { value: string; label: string }[]}
+            placeholder="Non renseigné"
+            value={form.situationHandicap}
+            onChange={e => setForm(f => ({ ...f, situationHandicap: e.target.value }))}
           />
 
           <div className="flex flex-col gap-space-1">

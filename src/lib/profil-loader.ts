@@ -42,6 +42,7 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       profil: {
         select: {
           id: true, photoUrl: true, cvUrl: true, cvUploadedAt: true, biographie: true, niveauEtude: true, situationEmploi: true,
+          situationHandicap: true, zoneHabitation: true,
           domainesInteret: true, competences: true, completionScore: true, profileVisibility: true,
           experiences: {
             select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
@@ -81,6 +82,8 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       biographie:        p.biographie,
       niveauEtude:       p.niveauEtude,
       situationEmploi:   p.situationEmploi,
+      situationHandicap: p.situationHandicap,
+      zoneHabitation:    p.zoneHabitation,
       domainesInteret:   (p.domainesInteret as string[] | null) ?? [],
       competences:       (p.competences    as string[] | null) ?? [],
       completionScore:   p.completionScore,

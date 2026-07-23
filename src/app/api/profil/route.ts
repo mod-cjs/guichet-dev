@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { Region, Genre } from '@prisma/client'
+import { Region, Genre, Handicap, ZoneHabitation } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
@@ -11,8 +11,10 @@ import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 // ── Schéma PUT ────────────────────────────────────────────────────────────────
 
-const REGIONS = Object.values(Region) as [string, ...string[]]
-const GENRES  = Object.values(Genre)  as [string, ...string[]]
+const REGIONS    = Object.values(Region)         as [string, ...string[]]
+const GENRES     = Object.values(Genre)          as [string, ...string[]]
+const HANDICAPS  = Object.values(Handicap)       as [string, ...string[]]
+const ZONES      = Object.values(ZoneHabitation) as [string, ...string[]]
 
 const PutProfilSchema = z.object({
   region:           z.enum(REGIONS).optional().nullable(),
@@ -28,6 +30,9 @@ const PutProfilSchema = z.object({
   biographie:       z.string().max(2000).optional().nullable(),
   niveauEtude:      z.string().max(50).optional().nullable(),
   situationEmploi:  z.string().max(50).optional().nullable(),
+  // GUIC-660 — champs socio-démographiques inclusion (enums Prisma)
+  situationHandicap: z.enum(HANDICAPS).optional().nullable(),
+  zoneHabitation:    z.enum(ZONES).optional().nullable(),
   domainesInteret:  z.array(z.string()).max(10).optional(),
   competences:      z.array(z.string().max(80)).max(20).optional(),
   profileVisibility: z.enum(['public', 'prive']).optional(),
@@ -75,7 +80,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
       where: { cjsUid: session.cjsUid },
       select: {
         region: true, commune: true, genre: true, dateNaissance: true,
-        profil: { select: { biographie: true, niveauEtude: true, situationEmploi: true, domainesInteret: true, competences: true } },
+        profil: { select: { biographie: true, niveauEtude: true, situationEmploi: true, situationHandicap: true, zoneHabitation: true, domainesInteret: true, competences: true } },
       },
     }),
     prisma.experience.count({ where: { profil: { cjsUid: session.cjsUid } } }),
@@ -98,6 +103,12 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
   }
   const score = calculerScore(mergedIdentite, mergedProfil, expCount, diplomeCount)
 
+  // GUIC-660 — champs inclusion : hors calcul de score, mais fusionnés pour la réponse.
+  const mergedInclusion = {
+    situationHandicap: profilFields.situationHandicap !== undefined ? profilFields.situationHandicap : existing?.profil?.situationHandicap ?? null,
+    zoneHabitation:    profilFields.zoneHabitation    !== undefined ? profilFields.zoneHabitation    : existing?.profil?.zoneHabitation    ?? null,
+  }
+
   // Construire les données à persister
   const identiteData = {
     ...(region        !== undefined ? { region: region as Region | null }             : {}),
@@ -109,6 +120,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
     ...(profilFields.biographie        !== undefined ? { biographie: profilFields.biographie }               : {}),
     ...(profilFields.niveauEtude       !== undefined ? { niveauEtude: profilFields.niveauEtude }             : {}),
     ...(profilFields.situationEmploi   !== undefined ? { situationEmploi: profilFields.situationEmploi }     : {}),
+    ...(profilFields.situationHandicap !== undefined ? { situationHandicap: profilFields.situationHandicap as Handicap | null }     : {}),
+    ...(profilFields.zoneHabitation    !== undefined ? { zoneHabitation: profilFields.zoneHabitation as ZoneHabitation | null }    : {}),
     ...(profilFields.domainesInteret   !== undefined ? { domainesInteret: profilFields.domainesInteret }     : {}),
     ...(profilFields.competences       !== undefined ? { competences: profilFields.competences }             : {}),
     ...(profilFields.profileVisibility !== undefined ? { profileVisibility: profilFields.profileVisibility } : {}),
@@ -137,6 +150,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
     biographie:      mergedProfil.biographie,
     niveauEtude:     mergedProfil.niveauEtude,
     situationEmploi: mergedProfil.situationEmploi,
+    situationHandicap: mergedInclusion.situationHandicap,
+    zoneHabitation:    mergedInclusion.zoneHabitation,
     domainesInteret: mergedProfil.domainesInteret,
     competences:     mergedProfil.competences,
     completionScore: score,
