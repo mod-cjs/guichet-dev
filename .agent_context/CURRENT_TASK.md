@@ -1,21 +1,19 @@
-# CURRENT_TASK — GUIC-581 · Inclusion & accessibilité (espace bénéficiaire)
+# CURRENT_TASK — GUIC-658 · Accessibilité phase 2 (lecture vocale, curseur, guide)
 
-**Spec** : `.agent_context/specs/GUIC-581-inclusion-accessibilite.md` (validée PO 2026-07-23) · **Branche** : `feature/GUIC-581-inclusion-accessibilite` (depuis dev @ 89ef9258) · **JIRA** : En cours (sous-tâche de GUIC-580, label `go-live-v1`)
+**Spec** : `.agent_context/specs/GUIC-658-accessibilite-phase2.md` (validée PO 2026-07-23) · **Branche** : `feature/GUIC-658-accessibilite-phase2` (empilée sur `feature/GUIC-581-inclusion-accessibilite` — PR #295 en review) · **JIRA** : sous-tâche de GUIC-580
 
 ## Décisions PO (2026-07-23)
-- Design par défaut strictement inchangé — aucun `data-*` sans opt-in explicite. Pas de FAB (`accessibility.js` v4 = référence fonctionnelle seulement).
-- Activation réfléchie via page dédiée `/jeune/accessibilite` (design v4 Lot 4 `InclusionPage`).
-- Sidebar desktop : CTA Yaye remplacé par bouton « Inclusion & accessibilité » sobre (Yaye reste via la bulle). Mobile : entrée Paramètres/Profil.
-- Persistance **par profil** (`ProfilJeune.prefsAccessibilite` Json) + cache `localStorage["gj-a11y"]` anti-FOUC.
+- Lecture vocale : **TTS français seul** (fr-FR, voix appareil) — pas de détection wolof (contenus audio enregistrés, badge Lot 6).
+- Grand curseur + guide de lecture : **desktop uniquement** (lignes `hidden lg:flex`).
+- Invariants phase 1 : opt-in strict, design par défaut inchangé, scope `/jeune/*`, persistance profil + localStorage.
 
-## Étapes (TDD strict)
-1. Migration Prisma `add_profil_prefs_accessibilite`
-2. Tokens CSS : nouveaux blocs `data-gray` / `data-motion` / `data-spacing` / `data-kbd` (les blocs `data-contrast`/`data-text`/`data-falc` existent déjà, orphelins)
-3. RED `switch.test.tsx` → GREEN primitive `Switch` + story
-4. RED `a11y-provider.test.tsx` → GREEN `A11yProvider` + script anti-FOUC + `useA11y()`
-5. RED `a11y-actions.test.ts` → GREEN action `modifierPrefsAccessibilite`
-6. Page `/jeune/accessibilite` (hero, taille texte, Vision, Lecture, Navigation)
-7. Sidebar : swap CTA Yaye → bouton Inclusion (amender `benef-sidebar.test.tsx`) + entrée mobile
-8. `npm run validate` → PR → dev → Jira « En review »
+## État
+- [x] Extension `A11yPrefs` (cursor/guide/voice) + ATTR_MAP + anti-FOUC + sanitize rétro-compat
+- [x] Tokens CSS : `data-cursor` (SVG v4), `#gj-a11y-guide`, affordance hover `data-voice`
+- [x] `A11yGadgets` (guide mousemove + TTS clic capture non bloquant) monté dans le layout
+- [x] Schéma Zod 10 clés strictes
+- [x] Page : 3 nouveaux switches (Lecture & compréhension / Navigation)
+- [x] `npm run validate` vert (3687 tests)
+- [ ] PR ouverte (base = branche GUIC-581 tant que #295 non mergée ; retarget dev après merge)
 
-## Hors périmètre : lecture vocale, curseur agrandi, guide de lecture (phase 2 — à cadrer avant GUIC-583) · langues nationales (épic i18n) · pages publiques partagées.
+## Hors périmètre : wolof TTS (cadrage équipe inclusion avant GUIC-583) · langues nationales (épic i18n) · pages publiques.
