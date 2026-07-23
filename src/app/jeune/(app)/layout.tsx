@@ -9,6 +9,7 @@ import { YayeProvider } from '@/components/yaye/YayeProvider'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { getHasProfilePhoto } from '@/lib/loaders/profil-photo'
 import { A11yProvider, type A11yPrefs } from '@/components/a11y/A11yProvider'
+import { A11yGadgets } from '@/components/a11y/A11yGadgets'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -103,6 +104,8 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           via `YayeProvider`. */}
       <YayeBubble prenom={session.prenom ?? undefined} />
     </div>
+    {/* GUIC-658 — guide de lecture + lecture vocale (rien rendu si off) */}
+    <A11yGadgets />
     </YayeProvider>
     </A11yProvider>
   )

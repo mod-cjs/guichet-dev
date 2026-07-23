@@ -77,4 +77,17 @@ describe('<A11yGadgets />', () => {
     const { getByText } = renderGadgets({ voice: true })
     expect(() => fireEvent.click(getByText('Bonjour le Guichet'))).not.toThrow()
   })
+
+  it('voice actif → clic sur une zone non lisible (div nu) → silence', () => {
+    const speech = mockSpeech()
+    const { container } = render(
+      <A11yProvider initial={{ ...A11Y_DEFAULTS, voice: true }}>
+        <A11yGadgets />
+        <div data-testid="nu">zone technique</div>
+      </A11yProvider>,
+    )
+    speech.speak.mockClear()
+    fireEvent.click(container.querySelector('[data-testid="nu"]')!)
+    expect(speech.speak).not.toHaveBeenCalled()
+  })
 })
