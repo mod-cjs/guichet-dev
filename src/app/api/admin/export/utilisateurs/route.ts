@@ -4,6 +4,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { auditPiiAccess } from '@/lib/audit'
 import { regionLabel } from '@/lib/regions'
+import { handicapLabel, zoneLabel } from '@/lib/profil-constants'
 
 const EXPORT_CAP = 5000
 
@@ -43,13 +44,14 @@ export async function GET() {
       commune: true,
       statut: true,
       createdAt: true,
+      profil: { select: { zoneHabitation: true, situationHandicap: true } },
     },
   })
 
   // E1 — accès PII de masse journalisé (stdout haché + trail audit_logs).
   await auditPiiAccess('export.utilisateurs', session.cjsUid, { count: users.length })
 
-  const header = ['Prénom', 'Nom', 'Email', 'Téléphone', 'Région', 'Commune', 'Statut', 'Inscrit le']
+  const header = ['Prénom', 'Nom', 'Email', 'Téléphone', 'Région', 'Commune', "Zone d'habitation", 'Situation de handicap', 'Statut', 'Inscrit le']
   const lines = users.map((u) =>
     [
       u.prenom,
@@ -58,6 +60,8 @@ export async function GET() {
       u.telephone ?? '',
       u.region ? (regionLabel(u.region) ?? u.region) : '',
       u.commune ?? '',
+      zoneLabel(u.profil?.zoneHabitation ?? null) ?? '',
+      handicapLabel(u.profil?.situationHandicap ?? null) ?? '',
       u.statut ?? '',
       u.createdAt.toISOString().slice(0, 10),
     ]

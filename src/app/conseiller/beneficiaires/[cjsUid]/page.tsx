@@ -6,6 +6,7 @@ import { getConseillerContext, getBeneficiaireDetail } from '@/lib/loaders/conse
 import { contacterBeneficiaire } from '../../actions'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { handicapLabel, zoneLabel } from '@/lib/profil-constants'
 import { ProfilRing } from '../profil-ring'
 
 export const dynamic = 'force-dynamic'
@@ -84,6 +85,8 @@ export default async function BeneficiaireDetailPage({ params }: { params: Promi
               <KV label="Dernière activité" value={b.lastActivity} />
               <KV label="Téléphone" value={b.tel ?? '—'} />
               <KV label="Commune" value={b.commune} />
+              <KV label="Zone d'habitation" value={zoneLabel(b.zoneHabitation) ?? '—'} />
+              <KV label="Situation de handicap" value={handicapLabel(b.situationHandicap) ?? '—'} />
               <KV label="Membre depuis" value={b.memberSince} />
             </div>
           </div>
