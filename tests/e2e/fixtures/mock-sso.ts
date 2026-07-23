@@ -74,6 +74,26 @@ function roleFromMarker(value: string | null | undefined): string | null {
   return idx === -1 ? null : value.slice(idx + 2)
 }
 
+/**
+ * Claims pour une clé `e2e_role`. Rôle connu (ROLE_CLAIMS) → identité dédiée ; clé inconnue mais
+ * présente → identité **bénéficiaire synthétique distincte** (`sub = e2e-<clé>`) — permet à chaque
+ * spec d'avoir sa propre identité (donc sa propre session Redis / ligne DB) et de tourner en
+ * PARALLÈLE sans se marcher dessus. Sans clé → identité par défaut du serveur.
+ */
+export function claimsForRole(role: string | null, fallback: MockClaims): MockClaims {
+  if (!role) return fallback
+  if (ROLE_CLAIMS[role]) return ROLE_CLAIMS[role]
+  return {
+    sub:          `e2e-${role}`,
+    given_name:   'E2E',
+    family_name:  role,
+    email:        `e2e-${role}@example.sn`,
+    phone_number: null,
+    cjs_roles:    ['beneficiaire'],
+    cjs_status:   'active',
+  }
+}
+
 export function startMockSsoServer(
   port = 19999,
   claims: MockClaims = DEFAULT_CLAIMS,
@@ -119,7 +139,7 @@ export function startMockSsoServer(
       if (req.method === 'GET' && req.url === '/oauth/userinfo') {
         // Décode le rôle depuis le Bearer (appel serveur-à-serveur) → claims de l'identité.
         const role = roleFromMarker((req.headers.authorization ?? '').replace(/^Bearer\s+/i, ''))
-        const c = (role && ROLE_CLAIMS[role]) ? ROLE_CLAIMS[role] : claims
+        const c = claimsForRole(role, claims)
         res.end(JSON.stringify({
           ...c,
           name:                  `${c.given_name} ${c.family_name}`,

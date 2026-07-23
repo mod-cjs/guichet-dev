@@ -39,8 +39,9 @@ test.describe('flow réservation centre jeune (E2E)', () => {
   let seed: SeededCentre
 
   test.beforeAll(async () => {
-    // Le cjsUid du seed doit correspondre au `sub` du SSO mock (cf. DEFAULT_CLAIMS).
-    seed = await seedCentreWithRessource({ cjsUid: 'e2e-uid-001' })
+    // GUIC-153 — identité DÉDIÉE `e2e-reservation` (cookie e2e_role ci-dessous) → isolée des
+    // autres specs pour un parallélisme sûr. Le cjsUid du seed doit matcher ce sub.
+    seed = await seedCentreWithRessource({ cjsUid: 'e2e-reservation' })
   })
 
   test.afterAll(async () => {
@@ -49,7 +50,8 @@ test.describe('flow réservation centre jeune (E2E)', () => {
   })
 
   test('jeune réserve → voit la résa → annule', async ({ page }) => {
-    // 1. Login SSO mock
+    // 1. Login SSO mock — cookie e2e_role → le mock émet l'identité `e2e-reservation`.
+    await page.context().addCookies([{ name: 'e2e_role', value: 'reservation', domain: 'localhost', path: '/' }])
     await page.goto('/auth/connexion')
     // GUIC-604 — cibler le lien SSO par son CONTRAT (href) : aucun « Se connecter » n'existe
     // sur /auth/connexion (le Header marketing n'y est pas monté).

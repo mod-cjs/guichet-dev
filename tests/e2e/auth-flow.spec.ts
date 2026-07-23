@@ -18,7 +18,8 @@ import { disconnectPrisma } from './_fixtures/prisma'
 const SSO_MOCK_ACTIVE = process.env.PLAYWRIGHT_SSO_MOCK === '1'
 
 /** `sub` fixe du SSO mock (cf. fixtures/mock-sso.ts > DEFAULT_CLAIMS). */
-const MOCK_SUB = 'e2e-uid-001'
+// GUIC-153 — identité DÉDIÉE à ce fichier (isolée des autres specs → parallélisme sûr).
+const MOCK_SUB = 'e2e-authflow'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -118,10 +119,15 @@ test.describe('callback — état invalide', () => {
 test.describe('flux PKCE complet', () => {
   test.skip(!SSO_MOCK_ACTIVE, 'Activer avec PLAYWRIGHT_SSO_MOCK=1')
 
+  // GUIC-153 — SÉRIALISÉ : ces tests mutent l'onboarding du MÊME sub (compte vierge → onboardé) ;
+  // en full-parallel ils se marchaient dessus. Sérial intra-fichier + identité dédiée = robuste.
+  test.describe.configure({ mode: 'serial' })
+
   // GUIC-616 — ces parcours partent d'un compte VIERGE. Le `sub` du mock est fixe et la ligne
-  // `utilisateurs` survit au run : sans ce reset, ils ne passaient que sur une base fraîche
-  // (2ᵉ passage → compte déjà onboardé → login direct sur le tableau de bord → rouge).
-  test.beforeEach(async () => {
+  // `utilisateurs` survit au run : sans ce reset, ils ne passaient que sur une base fraîche.
+  test.beforeEach(async ({ context }) => {
+    // Cookie e2e_role → le mock émet l'identité dédiée `e2e-authflow` au login.
+    await context.addCookies([{ name: 'e2e_role', value: 'authflow', domain: 'localhost', path: '/' }])
     await resetOnboardingState(MOCK_SUB)
   })
 

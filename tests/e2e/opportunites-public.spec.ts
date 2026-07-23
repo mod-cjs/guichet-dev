@@ -29,16 +29,14 @@ test.describe('P2 — recherche opportunité publique @smoke', () => {
   test('liste → recherche → détail (anonyme)', async ({ page }) => {
     await page.goto('/opportunites')
 
-    // Écran 1 : les opportunités publiées seedées sont visibles.
-    // (double DOM mobile+web → `.first()` évite la strict-mode violation, cf. oracle §13.)
-    await expect(page.getByText(DEV_TITRE).first()).toBeVisible()
-    await expect(page.getByText(AGRI_TITRE).first()).toBeVisible()
-
-    // Recherche (debounce 300ms) → attendre le refetch client puis vérifier le filtrage.
+    // Recherche d'abord (terme UNIQUE à ce test) → robuste au parallélisme : la liste non filtrée
+    // contient les opportunités seedées par d'autres specs (pagination 20/page). On n'asserte que
+    // la nôtre. Debounce 300ms → attendre le refetch client. (double DOM → `.first()`.)
     const search = page.getByRole('searchbox', { name: /rechercher une opportunit/i })
-    await search.fill('Developpeur') // terme unique (les titres partagent « E2E P2 »)
+    await search.fill('Developpeur')
     await page.waitForResponse((r) => r.url().includes('/api/opportunites') && r.ok())
     await expect(page.getByText(DEV_TITRE).first()).toBeVisible()
+    // Le filtre exclut les autres types seedés par ce test (AGRI ne contient pas « Developpeur »).
     await expect(page.getByText(AGRI_TITRE)).toHaveCount(0)
 
     // Écran 2 : clic carte → détail (nav directe ou interception modale) → URL sur le slug.
