@@ -15,7 +15,9 @@ export interface MockNotification {
   read: boolean
 }
 
-const now = new Date()
+// Ancré à MIDI du jour courant : les offsets en minutes/heures restent dans le
+// groupe « Aujourd'hui » quelle que soit l'heure d'exécution (anti-flaky minuit).
+const now = new Date(new Date().setHours(12, 0, 0, 0))
 const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000).toISOString()
 const daysAgo = (d: number) => new Date(now.getTime() - d * 24 * 3600_000).toISOString()
 
