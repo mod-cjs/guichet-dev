@@ -437,6 +437,52 @@
 :root[data-audio="wo"] .gj-audio-hint::before {
   content: "\ud83d\udd0a "; margin-right: 4px;
 }
+
+/* --- Niveaux de gris / noir et blanc (GUIC-581) ---
+   R\u00e9duit les couleurs pour les sensibilit\u00e9s visuelles (daltonisme s\u00e9v\u00e8re,
+   photosensibilit\u00e9). Appliqu\u00e9 sur body pour pr\u00e9server les overlays fixes. */
+:root[data-gray="on"] body { filter: grayscale(1); }
+
+/* --- R\u00e9duction des animations (GUIC-581) ---
+   \u00c9quivalent opt-in du media query prefers-reduced-motion, pour les
+   appareils o\u00f9 la pr\u00e9f\u00e9rence syst\u00e8me n'est pas configurable. */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* --- Espacement du texte (GUIC-581, WCAG 1.4.12) ---
+   Interlignes, lettres et mots a\u00e9r\u00e9s pour les troubles de la lecture. */
+:root[data-spacing="on"] body {
+  line-height: 1.7;
+  letter-spacing: .04em;
+  word-spacing: .1em;
+}
+:root[data-spacing="on"] p,
+:root[data-spacing="on"] li,
+:root[data-spacing="on"] label,
+:root[data-spacing="on"] button,
+:root[data-spacing="on"] a {
+  line-height: 1.7;
+}
+
+/* --- Navigation clavier renforc\u00e9e (GUIC-581) ---
+   Focus visible amplifi\u00e9 \u2014 compl\u00e8te le focus ring par d\u00e9faut (l.230). */
+:root[data-kbd="on"] :focus-visible {
+  outline: 4px solid var(--focus-ring-color) !important;
+  outline-offset: 3px !important;
+  border-radius: 3px;
+}
+:root[data-kbd="on"] a:focus-visible,
+:root[data-kbd="on"] button:focus-visible,
+:root[data-kbd="on"] [role="button"]:focus-visible {
+  box-shadow: 0 0 0 4px rgba(0, 178, 135, .25) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;

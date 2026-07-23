@@ -45,4 +45,9 @@ describe('<Switch />', () => {
     render(<Switch checked={false} onChange={jest.fn()} aria-label="FALC" />)
     expect(screen.getByRole('switch')).toHaveAttribute('type', 'button')
   })
+
+  it('est exporté par le barrel @/components/ui', async () => {
+    const barrel = await import('@/components/ui')
+    expect(barrel.Switch).toBe(Switch)
+  })
 })
