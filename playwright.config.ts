@@ -15,6 +15,12 @@ import { defineConfig, devices } from '@playwright/test'
 const MOCK_SSO_PORT = process.env.MOCK_SSO_PORT ?? '19999'
 const SSO_BASE_URL = `http://localhost:${MOCK_SSO_PORT}`
 
+// GUIC-153 — port de l'app E2E paramétrable : évite de réutiliser un serveur étranger déjà sur
+// :3000 (autre projet), ce qui produisait des 404 sur toutes nos routes. Lancer avec
+// PLAYWRIGHT_APP_PORT=3100 pour un port dédié sans conflit inter-sessions.
+const APP_PORT = process.env.PLAYWRIGHT_APP_PORT ?? '3000'
+const APP_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${APP_PORT}`
+
 /** Secrets partagés Playwright ↔ Next (repli de dev si non fournis par la CI). */
 const SHARED_SECRETS = {
   SESSION_SECRET: process.env.SESSION_SECRET ?? 'e2e_session_secret',
@@ -26,6 +32,8 @@ const SHARED_SECRETS = {
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // GUIC-153 — seed du graphe stable (rattachements) avant tout test.
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -36,12 +44,14 @@ export default defineConfig({
     ? [['html'], ['json', { outputFile: 'playwright-results.json' }]]
     : 'html',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    baseURL: APP_URL,
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'Mobile Chrome', use: { ...devices['Pixel 5'] } },
+    // GUIC-153 — projet `setup` : login par rôle → storageState (login une seule fois).
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, dependencies: ['setup'] },
+    { name: 'Mobile Chrome', use: { ...devices['Pixel 5'] }, dependencies: ['setup'] },
   ],
   webServer: [
     {
@@ -55,14 +65,15 @@ export default defineConfig({
     {
       // 2. App Next, pointée sur le mock. En CI on sert le BUILD DE PROD (plus représentatif
       //    qu'un `next dev`) : le job construit d'abord, puis PLAYWRIGHT_WEBSERVER_CMD=npm run start.
-      command: process.env.PLAYWRIGHT_WEBSERVER_CMD ?? 'npm run dev',
-      url: 'http://localhost:3000',
+      command: process.env.PLAYWRIGHT_WEBSERVER_CMD ?? `npm run dev -- -p ${APP_PORT}`,
+      url: APP_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
         ...SHARED_SECRETS,
+        PORT: APP_PORT,
         SSO_BASE_URL,
-        NEXTAUTH_URL: 'http://localhost:3000',
+        NEXTAUTH_URL: APP_URL,
         SSO_CLIENT_ID: process.env.SSO_CLIENT_ID ?? 'guichet-e2e',
         SSO_CLIENT_SECRET: process.env.SSO_CLIENT_SECRET ?? 'test',
       },
