@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { handicapLabel, zoneLabel } from '@/lib/profil-constants'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -7,6 +8,9 @@ export interface UserDetailProfil {
   completionScore: number
   niveauEtude: string | null
   situationEmploi: string | null
+  // GUIC-660 — données socio-démographiques inclusion (valeurs enum brutes)
+  situationHandicap: string | null
+  zoneHabitation: string | null
   biographie: string | null
   photoUrl: string | null
   centrePrincipalNom: string | null
@@ -167,6 +171,8 @@ export function AdminUserDetail({ data, children }: { data: UserDetailData; chil
                 </div>
                 <Field label="Niveau d'études" value={p.niveauEtude} />
                 <Field label="Situation" value={p.situationEmploi} />
+                <Field label="Zone d'habitation" value={zoneLabel(p.zoneHabitation)} />
+                <Field label="Situation de handicap" value={handicapLabel(p.situationHandicap)} />
                 {p.domainesInteret.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 5 }}>Domaines d'intérêt</div>

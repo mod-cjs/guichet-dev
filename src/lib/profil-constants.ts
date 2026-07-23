@@ -42,6 +42,37 @@ export function situationLabel(value: string | null | undefined): string | null 
   return SITUATION_EMPLOI_OPTIONS.find(o => o.value === value)?.label ?? value
 }
 
+// GUIC-660 — situation de handicap (auto-déclarée, facultative). Aligné sur l'enum
+// Prisma `Handicap`. « non_precise » = le jeune choisit de ne pas préciser.
+export const HANDICAP_OPTIONS = [
+  { value: 'aucun',       label: 'Aucun'                       },
+  { value: 'moteur',      label: 'Moteur'                      },
+  { value: 'visuel',      label: 'Visuel'                      },
+  { value: 'auditif',     label: 'Auditif'                     },
+  { value: 'autre',       label: 'Autre'                       },
+  { value: 'non_precise', label: 'Je préfère ne pas préciser'  },
+] as const
+
+export type HandicapValue = typeof HANDICAP_OPTIONS[number]['value']
+
+// GUIC-660 — zone d'habitation (auto-déclarée). Aligné sur l'enum Prisma `ZoneHabitation`.
+export const ZONE_HABITATION_OPTIONS = [
+  { value: 'rural',  label: 'Rural'  },
+  { value: 'urbain', label: 'Urbain' },
+] as const
+
+export type ZoneHabitationValue = typeof ZONE_HABITATION_OPTIONS[number]['value']
+
+export function handicapLabel(value: string | null | undefined): string | null {
+  if (!value) return null
+  return HANDICAP_OPTIONS.find(o => o.value === value)?.label ?? value
+}
+
+export function zoneLabel(value: string | null | undefined): string | null {
+  if (!value) return null
+  return ZONE_HABITATION_OPTIONS.find(o => o.value === value)?.label ?? value
+}
+
 export const MENTION_OPTIONS = [
   { value: 'passable',   label: 'Passable'   },
   { value: 'assez_bien', label: 'Assez bien' },

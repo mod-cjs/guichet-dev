@@ -9,7 +9,7 @@ import {
   stepProfilSchema,
 } from '@/lib/validations/onboarding'
 import type { ApiResponse } from '@/types/api'
-import { Genre, type Region } from '@prisma/client'
+import { Genre, type Region, type Handicap, type ZoneHabitation } from '@prisma/client'
 import { z } from 'zod'
 
 // ── GET — récupérer les données existantes pour pré-remplissage ───────────
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       nom: true, prenom: true, dateNaissance: true, genre: true,
       region: true, commune: true,
       profil: {
-        select: { niveauEtude: true, situationEmploi: true, domainesInteret: true },
+        select: { niveauEtude: true, situationEmploi: true, situationHandicap: true, zoneHabitation: true, domainesInteret: true },
       },
     },
   })
@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
     profil: {
       niveauEtude:     profil?.niveauEtude     ?? null,
       situationEmploi: profil?.situationEmploi ?? null,
+      situationHandicap: profil?.situationHandicap ?? null,
+      zoneHabitation:    profil?.zoneHabitation    ?? null,
       domainesInteret: (profil?.domainesInteret as string[] | null) ?? [],
     },
   }
@@ -159,6 +161,8 @@ export async function PUT(request: NextRequest) {
       update: {
         niveauEtude:     data.niveauEtude     ?? null,
         situationEmploi: data.situationEmploi ?? null,
+        situationHandicap: (data.situationHandicap as Handicap | null) ?? null,
+        zoneHabitation:    (data.zoneHabitation as ZoneHabitation | null) ?? null,
         domainesInteret: data.domainesInteret ?? [],
         completionScore: score,
       },
@@ -166,6 +170,8 @@ export async function PUT(request: NextRequest) {
         cjsUid:          session.cjsUid,
         niveauEtude:     data.niveauEtude     ?? null,
         situationEmploi: data.situationEmploi ?? null,
+        situationHandicap: (data.situationHandicap as Handicap | null) ?? null,
+        zoneHabitation:    (data.zoneHabitation as ZoneHabitation | null) ?? null,
         domainesInteret: data.domainesInteret ?? [],
         completionScore: score,
       },

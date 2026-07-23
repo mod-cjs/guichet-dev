@@ -1,19 +1,24 @@
-# CURRENT_TASK — GUIC-658 · Accessibilité phase 2 (lecture vocale, curseur, guide)
+# CURRENT_TASK — GUIC-660 · Situation de handicap + Zone d'habitation (rural/urbain) au profil bénéficiaire
 
-**Spec** : `.agent_context/specs/GUIC-658-accessibilite-phase2.md` (validée PO 2026-07-23) · **Branche** : `feature/GUIC-658-accessibilite-phase2` (empilée sur `feature/GUIC-581-inclusion-accessibilite` — PR #295 en review) · **JIRA** : sous-tâche de GUIC-580
+**Spec** : `.agent_context/specs/GUIC-660-profil-handicap-zone.md` · **Branche** : `feature/GUIC-660-profil-handicap-zone` (depuis `dev`) · **JIRA** : [GUIC-660](https://consortiumjeunesse.atlassian.net/browse/GUIC-660) (Story, m1-socle)
 
-## Décisions PO (2026-07-23)
-- Lecture vocale : **TTS français seul** (fr-FR, voix appareil) — pas de détection wolof (contenus audio enregistrés, badge Lot 6).
-- Grand curseur + guide de lecture : **desktop uniquement** (lignes `hidden lg:flex`).
-- Invariants phase 1 : opt-in strict, design par défaut inchangé, scope `/jeune/*`, persistance profil + localStorage.
+## Décisions PO
+- **Handicap** : enum `aucun · moteur · visuel · auditif · autre · non_precise` (facultatif).
+- **Zone** : auto-déclarée (Rural / Urbain), pas de dérivation depuis la commune.
+- **Score complétion** : non compté (`profil-score.ts` intouché).
+- **RGPD / anonymisation / consentement** : hors périmètre.
 
 ## État
-- [x] Extension `A11yPrefs` (cursor/guide/voice) + ATTR_MAP + anti-FOUC + sanitize rétro-compat
-- [x] Tokens CSS : `data-cursor` (SVG v4), `#gj-a11y-guide`, affordance hover `data-voice`
-- [x] `A11yGadgets` (guide mousemove + TTS clic capture non bloquant) monté dans le layout
-- [x] Schéma Zod 10 clés strictes
-- [x] Page : 3 nouveaux switches (Lecture & compréhension / Navigation)
-- [x] `npm run validate` vert (3687 tests)
-- [ ] PR ouverte (base = branche GUIC-581 tant que #295 non mergée ; retarget dev après merge)
+- [x] Étude d'impact + plan validé
+- [x] Story GUIC-660 créée + spec rédigée + branche créée
+- [x] Étape 1 — Schéma Prisma (enums Handicap/ZoneHabitation + colonnes ProfilJeune/OnboardingDraft) — `prisma validate`/`generate` OK
+- [ ] **Migration `prisma migrate dev` NON générée** (pré-requis : Vague 0 migration cassée résolue + DB dispo) — bloquant runtime
+- [x] Étape 2 — Constants (HANDICAP_OPTIONS/ZONE_HABITATION_OPTIONS + labels) + types (RED→GREEN, 8 tests)
+- [x] Étape 3 — Onboarding : validation Zod + draft (client+API) + persistance step 3 + UI mobile & web + envoi Recommandations
+- [x] Étape 4 — Profil : loader + /api/profil (PutProfilSchema + merge hors score) + SectionProfil (affichage+édition)
+- [x] Étape 5 — Vues conseiller (loader liste+détail, page détail, export CSV) + admin (détail, export CSV)
+- [x] tsc 0 erreur · lint propre · 56 tests ciblés verts
+- [ ] Data Hub stub `api/v1/export/utilisateurs` (optionnel) — non fait
+- [ ] `npm run validate` complet + commits TDD + PR vers dev
 
-## Hors périmètre : wolof TTS (cadrage équipe inclusion avant GUIC-583) · langues nationales (épic i18n) · pages publiques.
+## Hors périmètre : RGPD/anonymisation · score complétion · filtrage Yaye · dérivation commune→zone.

@@ -66,6 +66,8 @@ describe('GET /api/admin/export/utilisateurs', () => {
         commune: 'Plateau',
         statut: 'actif',
         createdAt: new Date('2026-01-15T00:00:00Z'),
+        // GUIC-660 — colonnes inclusion (valeurs enum → libellés FR)
+        profil: { zoneHabitation: 'urbain', situationHandicap: 'moteur' },
       },
     ])
     const res = await GET()
@@ -74,8 +76,8 @@ describe('GET /api/admin/export/utilisateurs', () => {
     expect(res.headers.get('Content-Disposition')).toContain('utilisateurs-')
 
     const body = await res.text()
-    expect(body).toContain('Prénom,Nom,Email,Téléphone,Région,Commune,Statut,Inscrit le')
-    expect(body).toContain('Awa,Diop,awa@example.sn,+221770000000,Dakar,Plateau,actif,2026-01-15')
+    expect(body).toContain("Prénom,Nom,Email,Téléphone,Région,Commune,Zone d'habitation,Situation de handicap,Statut,Inscrit le")
+    expect(body).toContain('Awa,Diop,awa@example.sn,+221770000000,Dakar,Plateau,Urbain,Moteur,actif,2026-01-15')
 
     // E1 — un seul appel d'audit, marqueur export.utilisateurs, acteur + count.
     expect(mockAudit).toHaveBeenCalledTimes(1)

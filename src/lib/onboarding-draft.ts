@@ -36,6 +36,10 @@ export interface OnboardingDraft {
   genre?:        'M' | 'F'
   region?:       string
   commune?:      string
+  /** GUIC-660 — situation de handicap auto-déclarée (enum Handicap). */
+  situationHandicap?: 'aucun' | 'moteur' | 'visuel' | 'auditif' | 'autre' | 'non_precise'
+  /** GUIC-660 — zone d'habitation auto-déclarée. */
+  zoneHabitation?: 'rural' | 'urbain'
 }
 
 interface RawDraft {
@@ -47,6 +51,8 @@ interface RawDraft {
   genre:         string | null
   region:        string | null
   commune:       string | null
+  situationHandicap: string | null
+  zoneHabitation:    string | null
   updatedAt:     string
 }
 
@@ -67,7 +73,14 @@ function normalize(raw: RawDraft | null): OnboardingDraft {
     genre:         raw.genre === 'M' || raw.genre === 'F' ? raw.genre : undefined,
     region:        raw.region        ?? undefined,
     commune:       raw.commune       ?? undefined,
+    situationHandicap: isHandicap(raw.situationHandicap) ? raw.situationHandicap : undefined,
+    zoneHabitation:    raw.zoneHabitation === 'rural' || raw.zoneHabitation === 'urbain' ? raw.zoneHabitation : undefined,
   }
+}
+
+function isHandicap(v: unknown): v is NonNullable<OnboardingDraft['situationHandicap']> {
+  return v === 'aucun' || v === 'moteur' || v === 'visuel'
+    || v === 'auditif' || v === 'autre' || v === 'non_precise'
 }
 
 function isObjectifId(v: unknown): v is ObjectifId {

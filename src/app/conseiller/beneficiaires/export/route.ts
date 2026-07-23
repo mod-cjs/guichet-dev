@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getConseillerContext, getCentreBeneficiaires, type BenefStatutFilter } from '@/lib/loaders/conseiller'
+import { handicapLabel, zoneLabel } from '@/lib/profil-constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,9 +27,9 @@ export async function GET(request: NextRequest) {
   const statut = parseStatut(request.nextUrl.searchParams.get('statut'))
   const { items } = await getCentreBeneficiaires(ctx.centreId, q, statut, 1000)
 
-  const headers = ['Nom', 'Commune', 'Âge', "Niveau d'étude", 'Candidatures', 'Complétion (%)', 'Statut', 'Dernière visite', 'Téléphone']
+  const headers = ['Nom', 'Commune', 'Âge', "Niveau d'étude", "Zone d'habitation", 'Situation de handicap', 'Candidatures', 'Complétion (%)', 'Statut', 'Dernière visite', 'Téléphone']
   const rows = items.map((b) => [
-    b.name, b.commune, b.age ?? '', b.niveau ?? '', b.candidatures, b.completion, b.statutLabel, b.lastVisitLabel, b.tel ?? '',
+    b.name, b.commune, b.age ?? '', b.niveau ?? '', zoneLabel(b.zoneHabitation) ?? '', handicapLabel(b.situationHandicap) ?? '', b.candidatures, b.completion, b.statutLabel, b.lastVisitLabel, b.tel ?? '',
   ])
   const csv = [headers, ...rows].map((r) => r.map(csvCell).join(';')).join('\r\n')
   // BOM UTF-8 pour Excel + accents corrects.

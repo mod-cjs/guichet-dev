@@ -55,6 +55,38 @@ describe('onboarding-draft client (serveur Prisma)', () => {
     expect(d.dateNaissance).toBe('2000-05-01')
   })
 
+  it('readDraft : normalise situationHandicap/zoneHabitation valides (GUIC-660)', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          objectifs: [], telephone: null, prenom: null, nom: null,
+          dateNaissance: null, genre: null, region: null, commune: null,
+          situationHandicap: 'moteur', zoneHabitation: 'rural',
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    )
+    const d = await readDraft()
+    expect(d.situationHandicap).toBe('moteur')
+    expect(d.zoneHabitation).toBe('rural')
+  })
+
+  it('readDraft : ignore des valeurs inclusion hors enum (GUIC-660)', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+      jsonResponse({
+        data: {
+          objectifs: [], telephone: null, prenom: null, nom: null,
+          dateNaissance: null, genre: null, region: null, commune: null,
+          situationHandicap: 'xxx', zoneHabitation: 'periurbain',
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    )
+    const d = await readDraft()
+    expect(d.situationHandicap).toBeUndefined()
+    expect(d.zoneHabitation).toBeUndefined()
+  })
+
   it('readDraft : cache en mémoire — pas de double fetch', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce(jsonResponse({ data: null }))
     await readDraft()

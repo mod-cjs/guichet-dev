@@ -539,6 +539,9 @@ export interface BenefListItem {
   initials: string
   age: number | null
   niveau: string | null
+  // GUIC-660 — données socio-démographiques inclusion (valeurs enum brutes)
+  zoneHabitation: string | null
+  situationHandicap: string | null
   candidatures: number
   commune: string
   completion: number
@@ -586,7 +589,7 @@ export async function getCentreBeneficiaires(
         telephone: true,
         region: true,
         dateNaissance: true,
-        profil: { select: { niveauEtude: true, completionScore: true } },
+        profil: { select: { niveauEtude: true, situationHandicap: true, zoneHabitation: true, completionScore: true } },
         _count: { select: { candidatures: true } },
       },
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
@@ -612,6 +615,8 @@ export async function getCentreBeneficiaires(
       initials: buildInitials(u.prenom, u.nom),
       age: ageFromBirthdate(u.dateNaissance),
       niveau: u.profil?.niveauEtude ?? null,
+      zoneHabitation: u.profil?.zoneHabitation ?? null,
+      situationHandicap: u.profil?.situationHandicap ?? null,
       candidatures: u._count.candidatures,
       commune: u.region ? String(u.region) : '—',
       completion,
@@ -680,6 +685,9 @@ export interface BeneficiaireDetail {
   genre: string | null
   commune: string
   niveau: string | null
+  // GUIC-660 — données socio-démographiques inclusion (valeurs enum brutes)
+  zoneHabitation: string | null
+  situationHandicap: string | null
   tel: string | null
   memberSince: string
   completion: number
@@ -708,7 +716,7 @@ export async function getBeneficiaireDetail(centreId: string, cjsUid: string): P
       select: {
         cjsUid: true, prenom: true, nom: true, telephone: true, region: true,
         genre: true, dateNaissance: true, createdAt: true,
-        profil: { select: { niveauEtude: true, completionScore: true } },
+        profil: { select: { niveauEtude: true, situationHandicap: true, zoneHabitation: true, completionScore: true } },
         _count: { select: { candidatures: true } },
       },
     }),
@@ -737,6 +745,8 @@ export async function getBeneficiaireDetail(centreId: string, cjsUid: string): P
     genre: u.genre ? String(u.genre) : null,
     commune: u.region ? String(u.region) : '—',
     niveau: u.profil?.niveauEtude ?? null,
+    zoneHabitation: u.profil?.zoneHabitation ?? null,
+    situationHandicap: u.profil?.situationHandicap ?? null,
     tel: u.telephone ?? null,
     memberSince: (() => { const s = MONTH_YEAR.format(u.createdAt); return s.charAt(0).toUpperCase() + s.slice(1) })(),
     completion,
