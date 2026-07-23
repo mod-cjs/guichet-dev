@@ -128,11 +128,13 @@ describe('<BenefSidebar />', () => {
 
   // GUIC-658 — bouton d'accessibilité mis en avant : carte gradient teal
   // (ancre visuelle du pied de sidebar, à la place de l'ex-CTA Yaye).
-  it('bouton Inclusion amélioré : carte gradient avec sous-titre', () => {
+  it('bouton Inclusion amélioré : variante carte CTA avec sous-titre', () => {
     render(<BenefSidebar />)
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
-    expect(link.getAttribute('style')).toMatch(/linear-gradient/)
-    expect(link).toHaveTextContent(/adapter l.application/i)
+    // data-variant="cta" = contrat de la carte gradient mise en avant
+    // (le style inline gradient n'est pas sérialisé par jsdom).
+    expect(link).toHaveAttribute('data-variant', 'cta')
+    expect(link).toHaveTextContent(/adapter l.application à tes besoins/i)
   })
 
   // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
