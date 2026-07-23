@@ -8,6 +8,15 @@ import { YayeBubble } from '@/components/yaye/YayeBubble'
 import { YayeProvider } from '@/components/yaye/YayeProvider'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
 import { getHasProfilePhoto } from '@/lib/loaders/profil-photo'
+import { A11yProvider, type A11yPrefs } from '@/components/a11y/A11yProvider'
+import { prisma } from '@/lib/prisma'
+
+/**
+ * GUIC-581 — Anti-FOUC accessibilité : applique les préférences du cache
+ * localStorage sur <html> avant l'hydratation (script parser-blocking).
+ * Le provider React re-résout ensuite (valeur serveur prioritaire).
+ */
+const A11Y_INIT_SCRIPT = `(function(){try{var p=JSON.parse(localStorage.getItem('gj-a11y')||'null');if(!p)return;var h=document.documentElement;if(['s','l','xl'].indexOf(p.text)>-1)h.setAttribute('data-text',p.text);var m={contrast:['data-contrast','high'],gray:['data-gray','on'],motion:['data-motion','reduce'],spacing:['data-spacing','on'],falc:['data-falc','on'],kbd:['data-kbd','on']};for(var k in m){if(p[k]===true)h.setAttribute(m[k][0],m[k][1])}}catch(e){}})()`
 
 /**
  * Layout des pages app jeune.
@@ -41,10 +50,22 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
   // GUIC-447 — présence photo pour éviter le 404 proxy (best-effort).
   const hasPhoto = await getHasProfilePhoto(session.cjsUid).catch(() => false)
+  // GUIC-581 — préférences d'accessibilité du profil (best-effort, la valeur
+  // serveur est prioritaire sur le cache localStorage côté provider).
+  const prefsA11y = await prisma.profilJeune
+    .findUnique({
+      where: { cjsUid: session.cjsUid },
+      select: { prefsAccessibilite: true },
+    })
+    .then((p) => (p?.prefsAccessibilite ?? null) as A11yPrefs | null)
+    .catch(() => null)
 
   return (
+    <A11yProvider initial={prefsA11y}>
     <YayeProvider>
     <div className="lg:grid lg:min-h-[100svh]" style={{ gridTemplateColumns: '260px 1fr' }}>
+      {/* GUIC-581 — anti-FOUC : cache localStorage appliqué avant hydratation */}
+      <script dangerouslySetInnerHTML={{ __html: A11Y_INIT_SCRIPT }} />
       <SkipLink />
       {/* Sidebar desktop (≥lg) — composant déjà `hidden lg:flex` en interne.
           Wrapper sticky pour la garder visible au scroll. */}
@@ -83,5 +104,6 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
       <YayeBubble prenom={session.prenom ?? undefined} />
     </div>
     </YayeProvider>
+    </A11yProvider>
   )
 }
