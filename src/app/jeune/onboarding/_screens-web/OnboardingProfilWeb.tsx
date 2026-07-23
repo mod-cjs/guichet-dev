@@ -8,6 +8,8 @@ import { FieldLabel } from '@/components/ui/FieldLabel'
 import { Chip } from '@/components/ui/Chip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import { communesForRegion } from '@/lib/communes'
+import { HANDICAP_OPTIONS, ZONE_HABITATION_OPTIONS } from '@/lib/profil-constants'
+import { patchDraft, type OnboardingDraft } from '@/lib/onboarding-draft'
 import { useProfilStep, type ProfilInitial } from '../_logic/use-onboarding-step'
 import { OnboardingNavWeb } from './OnboardingNavWeb'
 
@@ -96,6 +98,9 @@ export function OnboardingProfilWeb({ initial }: Props) {
   // ce champ. Le champ sera persisté côté backend dans une future itération.
   const [niveauSelectVal, setNiveauSelectVal] = useState<string>('')
   const [niveauLibre, setNiveauLibre]         = useState<string>('')
+  // GUIC-660 — champs socio-démographiques inclusion (facultatifs, persistés dans le draft)
+  const [zoneHabitation, setZoneHabitation]       = useState<string>('')
+  const [situationHandicap, setSituationHandicap] = useState<string>('')
   const initParts = parseDatePartsWeb(initial.dateNaissance)
   const [jourDN, setJourDN]   = useState(initParts.jour)
   const [moisDN, setMoisDN]   = useState(initParts.mois)
@@ -138,6 +143,17 @@ export function OnboardingProfilWeb({ initial }: Props) {
     if (val === AUTRE_VALUE) {
       setNiveauLibre('')
     }
+  }
+
+  function handleZoneChange(val: string) {
+    const next = zoneHabitation === val ? '' : val
+    setZoneHabitation(next)
+    void patchDraft({ zoneHabitation: (next || undefined) as 'rural' | 'urbain' | undefined })
+  }
+
+  function handleHandicapChange(val: string) {
+    setSituationHandicap(val)
+    void patchDraft({ situationHandicap: (val || undefined) as OnboardingDraft['situationHandicap'] })
   }
 
   return (
@@ -333,6 +349,52 @@ export function OnboardingProfilWeb({ initial }: Props) {
                   onChange={e => setNiveauLibre(e.target.value)}
                 />
               )}
+            </div>
+          </div>
+
+          {/* GUIC-660 — Zone d'habitation + Situation de handicap (auto-déclarées, facultatives) */}
+          <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="web-zone-group">
+                Zone d&apos;habitation
+                <span className="text-gj-grey-2" style={{ fontSize: 10, marginLeft: 4 }}>FACULTATIF</span>
+              </FieldLabel>
+              <div id="web-zone-group" className="flex gap-2" role="group" aria-label="Zone d'habitation">
+                {ZONE_HABITATION_OPTIONS.map(z => (
+                  <button
+                    key={z.value}
+                    type="button"
+                    onClick={() => handleZoneChange(z.value)}
+                    aria-pressed={zoneHabitation === z.value}
+                    className="flex-1 font-bold"
+                    style={{
+                      background: zoneHabitation === z.value ? 'var(--gj-teal-soft)' : 'var(--gj-surface)',
+                      border: `1.5px solid ${zoneHabitation === z.value ? 'var(--gj-teal)' : 'var(--gj-line)'}`,
+                      color: zoneHabitation === z.value ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
+                      borderRadius: 10,
+                      fontSize: 14,
+                      minHeight: 50,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {z.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <FieldLabel htmlFor="web-handicap-select">
+                Situation de handicap
+                <span className="text-gj-grey-2" style={{ fontSize: 10, marginLeft: 4 }}>FACULTATIF</span>
+              </FieldLabel>
+              <Select
+                id="web-handicap-select"
+                aria-label="Situation de handicap"
+                value={situationHandicap}
+                onChange={e => handleHandicapChange(e.target.value)}
+                placeholder="Non renseigné"
+                options={HANDICAP_OPTIONS.map(h => ({ value: h.value, label: h.label }))}
+              />
             </div>
           </div>
 

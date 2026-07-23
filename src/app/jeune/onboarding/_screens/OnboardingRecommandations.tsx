@@ -140,10 +140,18 @@ export function OnboardingRecommandations({ prenom }: Props) {
         .map(mapObjectifToDomaine)
         .filter((v): v is string => v !== null)
 
+      // GUIC-660 — joindre les champs inclusion saisis à l'écran profil (via draft).
       const r = await fetch('/api/v1/onboarding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 3, data: { domainesInteret } }),
+        body: JSON.stringify({
+          step: 3,
+          data: {
+            domainesInteret,
+            ...(draft.situationHandicap ? { situationHandicap: draft.situationHandicap } : {}),
+            ...(draft.zoneHabitation ? { zoneHabitation: draft.zoneHabitation } : {}),
+          },
+        }),
       })
       if (!r.ok) {
         setLoading(false)

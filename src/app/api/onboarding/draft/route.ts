@@ -38,6 +38,9 @@ const patchSchema = z
     genre:   z.enum(['M', 'F', 'Autre']).optional().nullable(),
     region:  z.string().min(1).max(50).optional().nullable(),
     commune: z.string().min(1).max(100).optional().nullable(),
+    // GUIC-660 — champs socio-démographiques inclusion (transit draft avant persistance step 3)
+    situationHandicap: z.enum(['aucun', 'moteur', 'visuel', 'auditif', 'autre', 'non_precise']).optional().nullable(),
+    zoneHabitation:    z.enum(['rural', 'urbain']).optional().nullable(),
   })
   .strict()
 
@@ -50,6 +53,8 @@ export type OnboardingDraftDTO = {
   genre:         string | null
   region:        string | null
   commune:       string | null
+  situationHandicap: string | null
+  zoneHabitation:    string | null
   updatedAt:     string
 }
 
@@ -85,6 +90,8 @@ interface DraftRow {
   genre:         string | null
   region:        string | null
   commune:       string | null
+  situationHandicap: string | null
+  zoneHabitation:    string | null
   updatedAt:     Date
 }
 
@@ -98,6 +105,8 @@ function serialize(row: DraftRow): OnboardingDraftDTO {
     genre:         row.genre,
     region:        row.region,
     commune:       row.commune,
+    situationHandicap: row.situationHandicap,
+    zoneHabitation:    row.zoneHabitation,
     updatedAt:     row.updatedAt.toISOString(),
   }
 }
@@ -154,6 +163,8 @@ export async function PATCH(request: NextRequest) {
   if (input.genre !== undefined)         writable.genre         = input.genre
   if (input.region !== undefined)        writable.region        = input.region
   if (input.commune !== undefined)       writable.commune       = input.commune
+  if (input.situationHandicap !== undefined) writable.situationHandicap = input.situationHandicap
+  if (input.zoneHabitation !== undefined)    writable.zoneHabitation    = input.zoneHabitation
 
   const row = await prisma.onboardingDraft.upsert({
     where:  { cjsUid: session.cjsUid },

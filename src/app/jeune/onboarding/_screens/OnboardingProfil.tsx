@@ -10,7 +10,8 @@ import { StepBar } from '@/components/ui/StepBar'
 import { FooterCTA } from '@/components/ui/FooterCTA'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import { communesForRegion } from '@/lib/communes'
-import { patchDraft, readDraft } from '@/lib/onboarding-draft'
+import { HANDICAP_OPTIONS, ZONE_HABITATION_OPTIONS } from '@/lib/profil-constants'
+import { patchDraft, readDraft, type OnboardingDraft } from '@/lib/onboarding-draft'
 import { stepLocalisationSchema, validateIdentiteProfil } from '@/lib/validations/onboarding'
 
 /**
@@ -127,6 +128,9 @@ export function OnboardingProfil({ initial }: Props) {
   // Niveau d'études
   const [niveauSelectVal, setNiveauSelectVal] = useState<string>('')
   const [niveauLibre, setNiveauLibre]         = useState<string>('')
+  // GUIC-660 — champs socio-démographiques inclusion (facultatifs, persistés dans le draft)
+  const [zoneHabitation, setZoneHabitation]     = useState<string>('')
+  const [situationHandicap, setSituationHandicap] = useState<string>('')
   const [loading, setLoading]             = useState(false)
   const [errors, setErrors]               = useState<Record<string, string>>({})
 
@@ -153,6 +157,8 @@ export function OnboardingProfil({ initial }: Props) {
       if (draft.genre)         setGenre(g => g ?? draft.genre!)
       if (draft.region)        setRegion(r => r || draft.region!)
       if (draft.commune)       setCommune(c => c || draft.commune!)
+      if (draft.zoneHabitation)    setZoneHabitation(z => z || draft.zoneHabitation!)
+      if (draft.situationHandicap) setSituationHandicap(h => h || draft.situationHandicap!)
     })
     return () => { alive = false }
   }, [])
@@ -212,6 +218,18 @@ export function OnboardingProfil({ initial }: Props) {
     if (val === AUTRE_VALUE) {
       setNiveauLibre('')
     }
+  }
+
+  function handleZoneChange(val: string) {
+    // Toggle : re-cliquer sur la zone active la désélectionne.
+    const next = zoneHabitation === val ? '' : val
+    setZoneHabitation(next)
+    void patchDraft({ zoneHabitation: (next || undefined) as 'rural' | 'urbain' | undefined })
+  }
+
+  function handleHandicapChange(val: string) {
+    setSituationHandicap(val)
+    void patchDraft({ situationHandicap: (val || undefined) as OnboardingDraft['situationHandicap'] })
   }
 
   async function handleSubmit() {
@@ -456,6 +474,51 @@ export function OnboardingProfil({ initial }: Props) {
               onChange={e => setNiveauLibre(e.target.value)}
             />
           )}
+        </div>
+
+        {/* GUIC-660 — Zone d'habitation (auto-déclarée, facultative) */}
+        <div className="flex flex-col gap-1">
+          <FieldLabel htmlFor="zone-group">
+            Zone d&apos;habitation <span className="text-fs-100 text-gj-grey-2 font-semibold ml-1">FACULTATIF</span>
+          </FieldLabel>
+          <div id="zone-group" className="flex gap-1" role="group" aria-label="Zone d'habitation">
+            {ZONE_HABITATION_OPTIONS.map(z => (
+              <button
+                key={z.value}
+                type="button"
+                onClick={() => handleZoneChange(z.value)}
+                aria-pressed={zoneHabitation === z.value}
+                className="flex-1 font-bold"
+                style={{
+                  padding: '12px 4px',
+                  border: `1.5px solid ${zoneHabitation === z.value ? 'var(--gj-teal)' : 'var(--gj-line)'}`,
+                  background: zoneHabitation === z.value ? 'var(--gj-teal-soft)' : 'var(--gj-surface)',
+                  color: zoneHabitation === z.value ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  minHeight: 50,
+                  cursor: 'pointer',
+                }}
+              >
+                {z.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* GUIC-660 — Situation de handicap (auto-déclarée, facultative) */}
+        <div className="flex flex-col gap-1">
+          <FieldLabel htmlFor="handicap-select">
+            Situation de handicap <span className="text-fs-100 text-gj-grey-2 font-semibold ml-1">FACULTATIF</span>
+          </FieldLabel>
+          <Select
+            id="handicap-select"
+            aria-label="Situation de handicap"
+            value={situationHandicap}
+            onChange={e => handleHandicapChange(e.target.value)}
+            placeholder="Non renseigné"
+            options={HANDICAP_OPTIONS.map(h => ({ value: h.value, label: h.label }))}
+          />
         </div>
 
         {errors._form ? (
