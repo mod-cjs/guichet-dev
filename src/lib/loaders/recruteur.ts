@@ -445,7 +445,8 @@ export async function getRecruteurPipeline(
     prisma.candidature.findMany({
       where: { ...commun, statut: { not: 'Refusee' } },
       select: PIPELINE_SELECT,
-      orderBy: [{ favoriRecruteur: 'desc' }, { scoreAdequation: { sort: 'desc', nulls: 'last' } }],
+      // Classement demandé : le score IA prime (les CV les mieux notés d'abord).
+      orderBy: [{ scoreAdequation: { sort: 'desc', nulls: 'last' } }, { favoriRecruteur: 'desc' }, { soumiseA: 'desc' }],
       take: 300,
     }),
     prisma.candidature.findMany({

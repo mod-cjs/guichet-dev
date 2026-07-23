@@ -11,6 +11,7 @@ jest.mock('@/lib/prisma', () => ({
     emailTemplate: { findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
     organisation: { findFirst: jest.fn() },
     candidature: { findMany: jest.fn() },
+    notificationEnvoi: { findMany: jest.fn(), count: jest.fn() },
   },
 }))
 const mockMailing = jest.fn()
@@ -25,6 +26,7 @@ import {
   enregistrerMonTemplate,
   reinitialiserMonTemplate,
   envoyerEmailGroupe,
+  listMesEnvois,
 } from '@/app/recruteur/modeles-emails/actions'
 
 const mockSession = getSession as jest.Mock
@@ -32,6 +34,7 @@ const mockPrisma = prisma as unknown as {
   emailTemplate: { findMany: jest.Mock; upsert: jest.Mock; deleteMany: jest.Mock }
   organisation: { findFirst: jest.Mock }
   candidature: { findMany: jest.Mock }
+  notificationEnvoi: { findMany: jest.Mock; count: jest.Mock }
 }
 
 const RECRUTEUR = { cjsUid: 'rec-1', roles: ['recruteur'] }
@@ -43,6 +46,8 @@ beforeEach(() => {
   mockPrisma.emailTemplate.upsert.mockResolvedValue({})
   mockPrisma.emailTemplate.deleteMany.mockResolvedValue({ count: 1 })
   mockPrisma.organisation.findFirst.mockResolvedValue({ id: 'org-1' })
+  mockPrisma.notificationEnvoi.findMany.mockResolvedValue([])
+  mockPrisma.notificationEnvoi.count.mockResolvedValue(0)
   mockPrisma.candidature.findMany.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }])
   mockMailing.mockResolvedValue({ envoyes: 2, sansEmail: 0, echecs: 0 })
 })
@@ -102,5 +107,28 @@ describe('envoyerEmailGroupe', () => {
     mockSession.mockResolvedValue({ cjsUid: 'j', roles: ['beneficiaire'] })
     await expect(envoyerEmailGroupe(['c1'], 'pipeline.refus')).rejects.toThrow(/FORBIDDEN/)
     expect(mockMailing).not.toHaveBeenCalled()
+  })
+})
+
+describe('listMesEnvois', () => {
+  it('scope l’historique au recruteur et aux mailings, avec le nom du template', async () => {
+    mockPrisma.notificationEnvoi.findMany.mockResolvedValue([
+      {
+        id: 'h1', eventKey: 'recruteur.mailing.pipeline.retenue', titre: 'T', statut: 'envoyee',
+        erreur: null, envoyeeA: new Date(), createdAt: new Date(),
+        utilisateur: { prenom: 'Awa', nom: 'Diallo' },
+      },
+    ])
+    mockPrisma.notificationEnvoi.count.mockResolvedValue(1)
+    const page = await listMesEnvois(1)
+    const where = mockPrisma.notificationEnvoi.findMany.mock.calls[0][0].where
+    expect(where).toEqual({ valideePar: 'rec-1', eventKey: { startsWith: 'recruteur.mailing.' } })
+    expect(page.items[0].template).toBe('Candidature retenue')
+    expect(page.items[0].destinataire).toBe('Awa Diallo')
+  })
+
+  it('non-recruteur → FORBIDDEN', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'j', roles: ['beneficiaire'] })
+    await expect(listMesEnvois()).rejects.toThrow(/FORBIDDEN/)
   })
 })

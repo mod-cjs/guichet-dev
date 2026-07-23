@@ -6,6 +6,7 @@
 
 import { useState, useTransition } from 'react'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import {
   renderTemplate,
   TEMPLATE_VARIABLES,
@@ -112,15 +113,15 @@ export function TemplatesEditor({
                     className="mt-1 w-full rounded-[10px] border-[1.5px] border-gj-line px-3 py-2 text-[13px] text-gj-ink"
                   />
                 </label>
-                <label className="mt-3 block text-[11.5px] font-bold text-gj-grey">
-                  Corps
-                  <textarea
+                <div className="mt-3">
+                  <RichTextEditor
+                    label="Corps"
                     value={corps}
-                    onChange={(e) => setCorps(e.target.value)}
-                    rows={9}
-                    className="mt-1 w-full rounded-[10px] border-[1.5px] border-gj-line px-3 py-2 font-mono text-[12.5px] text-gj-ink"
+                    onChange={setCorps}
+                    hint="Mise en forme, listes, liens et images acceptés — l’habillage CJS (bandeau, pied) est ajouté automatiquement à l’envoi."
+                    placeholder="Rédigez le contenu de l’email…"
                   />
-                </label>
+                </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-gj-grey">
                   Variables :
                   {TEMPLATE_VARIABLES.map((v) => (
@@ -166,7 +167,11 @@ export function TemplatesEditor({
                 {apercu && (
                   <div className="mt-3 rounded-[10px] border-[1.5px] border-dashed border-gj-line-strong bg-gj-bg p-3">
                     <div className="text-[12px] font-extrabold text-gj-ink">{renderTemplate(sujet, APERCU_VARS)}</div>
-                    <div className="mt-2 whitespace-pre-wrap text-[12.5px] text-gj-ink">{renderTemplate(corps, APERCU_VARS)}</div>
+                    {/* HTML de l'éditeur riche (sanitisé serveur à l'enregistrement) rendu tel qu'il partira. */}
+                    <div
+                      className="prose mt-2 max-w-none text-[12.5px] text-gj-ink [&_p]:my-1.5"
+                      dangerouslySetInnerHTML={{ __html: renderTemplate(corps, APERCU_VARS) }}
+                    />
                   </div>
                 )}
               </div>

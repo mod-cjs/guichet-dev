@@ -68,6 +68,13 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
       return next
     })
   }
+
+  // Sélection globale : toutes les candidatures affichées (donc celles du filtre actif).
+  const toutesLesCartes = COLS.flatMap((col) => pipeline.colonnes[col.id])
+  const toutSelectionne = toutesLesCartes.length > 0 && toutesLesCartes.every((c) => sel.has(c.id))
+  function toggleToutEcran() {
+    setSel(toutSelectionne ? new Set() : new Set(toutesLesCartes.map((c) => c.id)))
+  }
   function groupe(fn: (ids: string[]) => Promise<unknown>) {
     const ids = [...sel]
     if (ids.length === 0) return
@@ -117,6 +124,18 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
           <option value="">Toutes les offres</option>
           {pipeline.offres.map((o) => <option key={o.id} value={o.id}>{o.titre}</option>)}
         </select>
+        {toutesLesCartes.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleToutEcran}
+            aria-pressed={toutSelectionne}
+            className="inline-flex items-center gap-[5px] rounded-[10px] border-[1.5px] px-[12px] min-h-[40px] text-[12.5px] font-extrabold bg-white"
+            style={{ borderColor: toutSelectionne ? 'var(--gj-teal-deep)' : 'var(--gj-line)', color: toutSelectionne ? 'var(--gj-teal-deep)' : 'var(--gj-ink)', cursor: 'pointer' }}
+          >
+            <Icon name="check" size={13} />
+            {toutSelectionne ? 'Tout désélectionner' : `Tout sélectionner (${toutesLesCartes.length})`}
+          </button>
+        )}
       </div>
 
       {/* Board */}
@@ -312,7 +331,7 @@ function Card({ c, selected, onToggleSel, onDragStart, onFav, onMove }: {
             title={c.matchRaison ?? 'Score calculé par l’IA (CV + profil vs offre)'}
             aria-label={`Score IA ${c.match} sur 100${c.matchRaison ? ` — ${c.matchRaison}` : ''}`}
           >
-            <Icon name="bolt" size={10} /> IA {c.match}
+            <Icon name="bolt" size={10} /> IA {c.match} %
           </span>
         ) : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
         <span className="text-[10.5px]" style={{ color: 'var(--gj-grey-2, #9aa5b1)' }}>{frDate(c.soumiseA)}</span>

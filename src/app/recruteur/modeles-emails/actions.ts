@@ -16,6 +16,7 @@ import {
   type ResolvedTemplate,
 } from '@/lib/email/templates'
 import { envoyerMailingCandidatures, type MailingResult } from '@/lib/email/mailing'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
@@ -43,10 +44,12 @@ export async function enregistrerMonTemplate(cle: string, sujet: string, corps: 
   const parsed = templateSchema.parse({ cle, sujet, corps })
   if (!getTemplateDef(parsed.cle)) throw new Error(`TEMPLATE_INCONNU:${parsed.cle}`)
 
+  // Corps riche (éditeur HTML) : sanitisé côté serveur avant persistance.
+  const corpsPropre = sanitizeRichHtml(parsed.corps)
   await prisma.emailTemplate.upsert({
     where: { cle_ownerUid: { cle: parsed.cle, ownerUid: session.cjsUid } },
-    create: { cle: parsed.cle, ownerUid: session.cjsUid, sujet: parsed.sujet, corps: parsed.corps, updatedBy: session.cjsUid },
-    update: { sujet: parsed.sujet, corps: parsed.corps, updatedBy: session.cjsUid },
+    create: { cle: parsed.cle, ownerUid: session.cjsUid, sujet: parsed.sujet, corps: corpsPropre, updatedBy: session.cjsUid },
+    update: { sujet: parsed.sujet, corps: corpsPropre, updatedBy: session.cjsUid },
   })
   await recordAudit(session.cjsUid, 'email_template.perso', { targetType: 'email_template', targetId: parsed.cle })
   revalidatePath('/recruteur/modeles-emails')
@@ -59,6 +62,63 @@ export async function reinitialiserMonTemplate(cle: string): Promise<{ ok: true 
   await prisma.emailTemplate.deleteMany({ where: { cle, ownerUid: session.cjsUid } })
   revalidatePath('/recruteur/modeles-emails')
   return { ok: true }
+}
+
+// ─── Historique des envois du recruteur ──────────────────────────────────────
+
+const MAILING_PREFIX = 'recruteur.mailing.'
+const PAGE_SIZE = 20
+
+export interface EnvoiRecruteur {
+  id: string
+  template: string
+  destinataire: string
+  titre: string
+  statut: string
+  erreur: string | null
+  envoyeeA: string | null
+  createdAt: string
+}
+
+export interface EnvoisRecruteurPage {
+  items: EnvoiRecruteur[]
+  total: number
+  page: number
+  totalPages: number
+}
+
+/** Historique paginé des mailings envoyés par CE recruteur (avec leur état). */
+export async function listMesEnvois(page = 1): Promise<EnvoisRecruteurPage> {
+  const session = await assertRecruteur()
+  const where = { valideePar: session.cjsUid, eventKey: { startsWith: MAILING_PREFIX } }
+  const [rows, total] = await Promise.all([
+    prisma.notificationEnvoi.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (Math.max(1, page) - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: { utilisateur: { select: { prenom: true, nom: true } } },
+    }),
+    prisma.notificationEnvoi.count({ where }),
+  ])
+  return {
+    items: rows.map((r) => {
+      const cle = r.eventKey.slice(MAILING_PREFIX.length)
+      return {
+        id: r.id,
+        template: getTemplateDef(cle)?.nom ?? cle,
+        destinataire: `${r.utilisateur.prenom} ${r.utilisateur.nom}`,
+        titre: r.titre,
+        statut: r.statut as string,
+        erreur: r.erreur,
+        envoyeeA: r.envoyeeA?.toISOString() ?? null,
+        createdAt: r.createdAt.toISOString(),
+      }
+    }),
+    total,
+    page: Math.max(1, page),
+    totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+  }
 }
 
 const mailingSchema = z.object({

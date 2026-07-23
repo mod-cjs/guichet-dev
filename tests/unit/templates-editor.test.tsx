@@ -5,6 +5,14 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
+// Tiptap n'est pas exploitable en jsdom : shim textarea (convention du repo).
+jest.mock('@/components/ui/RichTextEditor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RichTextEditor: ({ label, value, onChange }: any) => (
+    <textarea aria-label={label} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)} />
+  ),
+}))
+
 import { TemplatesEditor } from '@/components/notifications/TemplatesEditor'
 import type { ResolvedTemplate } from '@/lib/email/templates-defs'
 

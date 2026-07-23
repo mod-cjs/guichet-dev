@@ -22,6 +22,7 @@ import {
 import { getEventDef, isRhEvent, type NotificationChannelId } from '@/lib/notifications/catalog'
 import { validerOccurrence, rejeterOccurrence } from '@/lib/notifications/outbox'
 import { resolveAllTemplates, getTemplateDef, type ResolvedTemplate } from '@/lib/email/templates'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { CJSSession } from '@/types/user'
 import type { StatutEnvoiNotification } from '@prisma/client'
 
@@ -215,7 +216,7 @@ export async function enregistrerTemplateSysteme(cle: string, sujet: string, cor
   const session = await assertAdmin()
   if (!getTemplateDef(cle)) throw new Error(`TEMPLATE_INCONNU:${cle}`)
   const s = sujet.trim()
-  const c = corps.trim()
+  const c = sanitizeRichHtml(corps.trim()) // corps riche sanitisé côté serveur
   if (s.length < 3 || c.length < 10) throw new Error('TEMPLATE_INVALIDE')
 
   await prisma.emailTemplate.upsert({

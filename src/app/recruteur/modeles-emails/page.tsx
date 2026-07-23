@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { listMesTemplates } from './actions'
+import { listMesTemplates, listMesEnvois } from './actions'
 import { ModelesEmailsClient } from './ModelesEmailsClient'
 
 export const metadata: Metadata = { title: 'Modèles d’emails — Recruteur' }
@@ -11,7 +11,7 @@ export default async function ModelesEmailsPage() {
   const session = await getSession()
   if (!session || !session.roles.includes('recruteur')) redirect('/')
 
-  const templates = await listMesTemplates()
+  const [templates, envois] = await Promise.all([listMesTemplates(), listMesEnvois(1)])
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -23,7 +23,7 @@ export default async function ModelesEmailsPage() {
           Envoi : sélectionnez des candidatures dans le kanban puis « Email ».
         </p>
       </header>
-      <ModelesEmailsClient initial={templates} />
+      <ModelesEmailsClient initial={templates} envois={envois} />
     </div>
   )
 }
