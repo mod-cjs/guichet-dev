@@ -36,6 +36,26 @@ enum Genre {
   @@map("genre")
 }
 
+// GUIC-660 — situation de handicap auto-déclarée (donnée socio-démographique inclusion).
+enum Handicap {
+  aucun
+  moteur
+  visuel
+  auditif
+  autre
+  non_precise
+
+  @@map("handicap")
+}
+
+// GUIC-660 — zone d'habitation auto-déclarée (rural / urbain).
+enum ZoneHabitation {
+  rural
+  urbain
+
+  @@map("zone_habitation")
+}
+
 enum StatutCompte {
   actif
   inactif
@@ -312,6 +332,10 @@ model ProfilJeune {
   domainesInteret   Json?     @map("domaines_interet")
   niveauEtude       String?   @map("niveau_etude") @db.VarChar(50)
   situationEmploi   String?   @map("situation_emploi") @db.VarChar(50)
+  // GUIC-660 — données socio-démographiques inclusion (auto-déclarées, facultatives,
+  // hors score de complétion). Voir .agent_context/specs/GUIC-660-profil-handicap-zone.md
+  situationHandicap Handicap?       @map("situation_handicap")
+  zoneHabitation    ZoneHabitation? @map("zone_habitation")
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int       @default(0) @map("completion_score")
   profileVisibility String    @default("public") @map("profile_visibility") @db.VarChar(20)
@@ -1090,6 +1114,10 @@ model OnboardingDraft {
   genre         String?   @db.VarChar(20)
   region        String?   @db.VarChar(50)
   commune       String?   @db.VarChar(100)
+  // GUIC-660 — stockés en VARCHAR (comme genre/region) pour la reprise multi-device
+  // avant persistance finale (enum) au step 3 de l'onboarding.
+  situationHandicap String? @map("situation_handicap") @db.VarChar(20)
+  zoneHabitation    String? @map("zone_habitation")    @db.VarChar(10)
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("onboarding_drafts")

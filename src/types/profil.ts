@@ -43,6 +43,9 @@ export interface ProfilComplet {
     biographie:        string | null
     niveauEtude:       string | null
     situationEmploi:   string | null
+    // GUIC-660 — données socio-démographiques inclusion (auto-déclarées, facultatives)
+    situationHandicap: string | null
+    zoneHabitation:    string | null
     domainesInteret:   string[]
     competences:       string[]
     completionScore:   number
@@ -101,6 +104,9 @@ export interface PutProfilResponse {
   biographie:      string | null
   niveauEtude:     string | null
   situationEmploi: string | null
+  // GUIC-660 — données socio-démographiques inclusion
+  situationHandicap: string | null
+  zoneHabitation:    string | null
   domainesInteret: string[]
   competences:     string[]
   completionScore: number

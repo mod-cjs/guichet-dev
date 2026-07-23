@@ -31,6 +31,9 @@ export const stepLocalisationSchema = z.object({
 export const stepProfilSchema = z.object({
   niveauEtude:     z.string().optional().nullable(),
   situationEmploi: z.string().optional().nullable(),
+  // GUIC-660 — champs socio-démographiques inclusion (facultatifs)
+  situationHandicap: z.enum(['aucun', 'moteur', 'visuel', 'auditif', 'autre', 'non_precise']).optional().nullable(),
+  zoneHabitation:    z.enum(['rural', 'urbain']).optional().nullable(),
   domainesInteret: z.array(z.string()).max(5).optional().default([]),
 })
 
