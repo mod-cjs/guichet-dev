@@ -1,4 +1,4 @@
-import { stepIdentiteSchema, validateIdentiteProfil } from './onboarding'
+import { stepIdentiteSchema, stepProfilSchema, validateIdentiteProfil } from './onboarding'
 
 describe('stepIdentiteSchema — messages FR (GUIC-443)', () => {
   const base = { nom: 'Diallo', prenom: 'Awa', dateNaissance: '1999-03-10', genre: 'F' as const }
@@ -24,6 +24,33 @@ describe('stepIdentiteSchema — messages FR (GUIC-443)', () => {
       const msg = r.error.issues.find(i => i.path[0] === 'dateNaissance')?.message ?? ''
       expect(msg.toLowerCase()).toMatch(/obligatoire|date/)
     }
+  })
+})
+
+describe('stepProfilSchema — champs inclusion (GUIC-660)', () => {
+  it('accepte situationHandicap et zoneHabitation valides', () => {
+    const r = stepProfilSchema.safeParse({ situationHandicap: 'moteur', zoneHabitation: 'rural' })
+    expect(r.success).toBe(true)
+  })
+
+  it('accepte l\'absence des deux champs (facultatifs)', () => {
+    const r = stepProfilSchema.safeParse({ domainesInteret: [] })
+    expect(r.success).toBe(true)
+  })
+
+  it('accepte null explicite', () => {
+    const r = stepProfilSchema.safeParse({ situationHandicap: null, zoneHabitation: null })
+    expect(r.success).toBe(true)
+  })
+
+  it('rejette une valeur de handicap hors enum', () => {
+    const r = stepProfilSchema.safeParse({ situationHandicap: 'inexistant' })
+    expect(r.success).toBe(false)
+  })
+
+  it('rejette une zone hors enum', () => {
+    const r = stepProfilSchema.safeParse({ zoneHabitation: 'periurbain' })
+    expect(r.success).toBe(false)
   })
 })
 
