@@ -23,6 +23,8 @@ const PROFIL: ProfilComplet = {
     biographie:        null,
     niveauEtude:       null,
     situationEmploi:   null,
+    situationHandicap: null,
+    zoneHabitation:    null,
     domainesInteret:   [],
     competences:       [],
     completionScore:   42,
