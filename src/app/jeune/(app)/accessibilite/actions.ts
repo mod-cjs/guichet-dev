@@ -20,6 +20,10 @@ const prefsSchema = z
     spacing: z.boolean(),
     falc: z.boolean(),
     kbd: z.boolean(),
+    // GUIC-658 — phase 2 : curseur agrandi, guide de lecture, lecture vocale
+    cursor: z.boolean(),
+    guide: z.boolean(),
+    voice: z.boolean(),
   })
   .strict()
 

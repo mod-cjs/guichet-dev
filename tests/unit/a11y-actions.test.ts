@@ -93,6 +93,13 @@ describe('modifierPrefsAccessibilite', () => {
     expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
   })
 
+  it('guide non-booléen → VALIDATION', async () => {
+    await expect(
+      modifierPrefsAccessibilite({ ...VALID_PREFS, guide: 1 }),
+    ).rejects.toThrow(/VALIDATION/)
+    expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
+  })
+
   it('payload non-objet → VALIDATION', async () => {
     await expect(modifierPrefsAccessibilite('hack')).rejects.toThrow(/VALIDATION/)
     await expect(modifierPrefsAccessibilite(null)).rejects.toThrow(/VALIDATION/)
