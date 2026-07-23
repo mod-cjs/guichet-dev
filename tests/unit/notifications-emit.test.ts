@@ -31,7 +31,7 @@ jest.mock('@/lib/redis', () => ({
 const mockSendSms = jest.fn()
 jest.mock('@/lib/sms/orange', () => ({ sendOrangeSms: (...a: unknown[]) => mockSendSms(...a) }))
 const mockSendEmail = jest.fn()
-jest.mock('@/lib/email/gcp', () => ({ sendGcpEmail: (...a: unknown[]) => mockSendEmail(...a) }))
+jest.mock('@/lib/email/resend', () => ({ sendResendEmail: (...a: unknown[]) => mockSendEmail(...a) }))
 const mockSendTemplate = jest.fn()
 jest.mock('@/lib/whatsapp', () => ({ sendTemplateMessage: (...a: unknown[]) => mockSendTemplate(...a) }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
