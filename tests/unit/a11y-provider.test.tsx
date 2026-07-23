@@ -31,6 +31,10 @@ const A11Y_ATTRS = [
   'data-spacing',
   'data-falc',
   'data-kbd',
+  // GUIC-658 — phase 2
+  'data-cursor',
+  'data-guide',
+  'data-voice',
 ]
 
 afterEach(() => {
@@ -128,6 +132,20 @@ describe('<A11yProvider />', () => {
     expect(screen.getByTestId('text-value')).toHaveTextContent('m')
   })
 
+  // GUIC-658 — phase 2 : curseur agrandi, guide de lecture, lecture vocale
+  it('applique data-cursor/data-guide/data-voice quand activés (phase 2)', () => {
+    render(
+      <A11yProvider
+        initial={{ ...A11Y_DEFAULTS, cursor: true, guide: true, voice: true }}
+      >
+        <Harness />
+      </A11yProvider>,
+    )
+    expect(html()).toHaveAttribute('data-cursor', 'on')
+    expect(html()).toHaveAttribute('data-guide', 'on')
+    expect(html()).toHaveAttribute('data-voice', 'on')
+  })
+
   it('reset() retire tous les attributs et réécrit les défauts', () => {
     render(
       <A11yProvider initial={{ ...A11Y_DEFAULTS, falc: true, text: 'xl' }}>
@@ -169,7 +187,29 @@ describe('sanitizeA11yPrefs()', () => {
       spacing: false,
       falc: false,
       kbd: true,
+      cursor: true,
+      guide: false,
+      voice: true,
     }
     expect(sanitizeA11yPrefs(valid)).toEqual(valid)
+  })
+
+  // GUIC-658 — rétro-compat : Json phase 1 (7 clés) → nouvelles clés à false
+  it('complète un shape phase 1 (7 clés) avec cursor/guide/voice=false', () => {
+    const phase1 = {
+      text: 'l',
+      contrast: true,
+      gray: false,
+      motion: false,
+      spacing: false,
+      falc: true,
+      kbd: false,
+    }
+    expect(sanitizeA11yPrefs(phase1)).toEqual({
+      ...phase1,
+      cursor: false,
+      guide: false,
+      voice: false,
+    })
   })
 })

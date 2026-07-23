@@ -22,6 +22,10 @@ export interface A11yPrefs {
   spacing: boolean
   falc: boolean
   kbd: boolean
+  // GUIC-658 — phase 2
+  cursor: boolean
+  guide: boolean
+  voice: boolean
 }
 
 export const A11Y_STORAGE_KEY = 'gj-a11y'
@@ -34,6 +38,9 @@ export const A11Y_DEFAULTS: A11yPrefs = {
   spacing: false,
   falc: false,
   kbd: false,
+  cursor: false,
+  guide: false,
+  voice: false,
 }
 
 const TEXT_SIZES: readonly A11yTextSize[] = ['s', 'm', 'l', 'xl']
