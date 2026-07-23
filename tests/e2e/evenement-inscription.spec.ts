@@ -4,8 +4,8 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { seedEvenement } from './_fixtures/seed-e2e'
-import { disconnectPrisma } from './_fixtures/prisma'
+import { seedEvenement, E2E_UIDS } from './_fixtures/seed-e2e'
+import { getPrisma, disconnectPrisma } from './_fixtures/prisma'
 import { storageStatePath } from './_fixtures/roles'
 
 test.use({ storageState: storageStatePath('jeune') })
@@ -37,5 +37,16 @@ test.describe('J6 — inscription événement @smoke', () => {
     // État inscrit (optimiste) : pill de confirmation + bouton de désinscription.
     await expect(page.getByText(/tu es inscrit/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /se désinscrire/i })).toBeVisible()
+
+    // Preuve AUTORITAIRE : l'inscription est réellement persistée (pas juste l'UI optimiste).
+    await expect
+      .poll(async () => {
+        const i = await getPrisma().inscriptionEvenement.findUnique({
+          where: { cjsUid_evenementId: { cjsUid: E2E_UIDS.jeune, evenementId: eventId } },
+          select: { statut: true },
+        })
+        return i?.statut
+      }, { timeout: 8000 })
+      .toBe('inscrit')
   })
 })
