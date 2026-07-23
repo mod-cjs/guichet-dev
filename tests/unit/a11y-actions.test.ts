@@ -30,6 +30,10 @@ const VALID_PREFS = {
   spacing: true,
   falc: false,
   kbd: false,
+  // GUIC-658 — phase 2
+  cursor: false,
+  guide: true,
+  voice: false,
 }
 
 beforeEach(() => {
@@ -74,6 +78,28 @@ describe('modifierPrefsAccessibilite', () => {
     expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
   })
 
+  // GUIC-658 — le shape phase 1 (7 clés) n'est plus accepté : la page envoie
+  // toujours le shape complet à 10 clés.
+  it('shape phase 1 incomplet (sans cursor/guide/voice) → VALIDATION', async () => {
+    const { cursor: _c, guide: _g, voice: _v, ...phase1 } = VALID_PREFS
+    await expect(modifierPrefsAccessibilite(phase1)).rejects.toThrow(/VALIDATION/)
+    expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
+  })
+
+  it('voice non-booléen → VALIDATION', async () => {
+    await expect(
+      modifierPrefsAccessibilite({ ...VALID_PREFS, voice: 'oui' }),
+    ).rejects.toThrow(/VALIDATION/)
+    expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
+  })
+
+  it('guide non-booléen → VALIDATION', async () => {
+    await expect(
+      modifierPrefsAccessibilite({ ...VALID_PREFS, guide: 1 }),
+    ).rejects.toThrow(/VALIDATION/)
+    expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
+  })
+
   it('payload non-objet → VALIDATION', async () => {
     await expect(modifierPrefsAccessibilite('hack')).rejects.toThrow(/VALIDATION/)
     await expect(modifierPrefsAccessibilite(null)).rejects.toThrow(/VALIDATION/)
@@ -89,6 +115,9 @@ describe('modifierPrefsAccessibilite', () => {
       spacing: false,
       falc: false,
       kbd: false,
+      cursor: false,
+      guide: false,
+      voice: false,
     }
     await modifierPrefsAccessibilite(defaults)
     expect(mockPrisma.profilJeune.update).toHaveBeenCalledWith({

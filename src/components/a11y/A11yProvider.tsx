@@ -22,6 +22,10 @@ export interface A11yPrefs {
   spacing: boolean
   falc: boolean
   kbd: boolean
+  // GUIC-658 — phase 2
+  cursor: boolean
+  guide: boolean
+  voice: boolean
 }
 
 export const A11Y_STORAGE_KEY = 'gj-a11y'
@@ -34,11 +38,24 @@ export const A11Y_DEFAULTS: A11yPrefs = {
   spacing: false,
   falc: false,
   kbd: false,
+  cursor: false,
+  guide: false,
+  voice: false,
 }
 
 const TEXT_SIZES: readonly A11yTextSize[] = ['s', 'm', 'l', 'xl']
 
-const BOOL_KEYS = ['contrast', 'gray', 'motion', 'spacing', 'falc', 'kbd'] as const
+const BOOL_KEYS = [
+  'contrast',
+  'gray',
+  'motion',
+  'spacing',
+  'falc',
+  'kbd',
+  'cursor',
+  'guide',
+  'voice',
+] as const
 
 /** Normalise une valeur inconnue (localStorage / colonne Json) vers un shape sûr. */
 export function sanitizeA11yPrefs(value: unknown): A11yPrefs {
@@ -62,6 +79,9 @@ const ATTR_MAP: Record<(typeof BOOL_KEYS)[number], { attr: string; value: string
   spacing: { attr: 'data-spacing', value: 'on' },
   falc: { attr: 'data-falc', value: 'on' },
   kbd: { attr: 'data-kbd', value: 'on' },
+  cursor: { attr: 'data-cursor', value: 'on' },
+  guide: { attr: 'data-guide', value: 'on' },
+  voice: { attr: 'data-voice', value: 'on' },
 }
 
 const ALL_ATTRS = ['data-text', ...BOOL_KEYS.map((k) => ATTR_MAP[k].attr)]

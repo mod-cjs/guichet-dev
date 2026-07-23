@@ -17,6 +17,9 @@ const A11Y_ATTRS = [
   'data-spacing',
   'data-falc',
   'data-kbd',
+  'data-cursor',
+  'data-guide',
+  'data-voice',
 ]
 
 function renderPage() {
@@ -85,6 +88,40 @@ describe('<AccessibiliteClient /> — page /jeune/accessibilite', () => {
       /navigation clavier renforcée/i,
     ]) {
       expect(screen.getByRole('switch', { name })).toBeInTheDocument()
+    }
+  })
+
+  // GUIC-658 — phase 2 : lecture vocale, grand curseur, guide de lecture
+  it('expose les 3 interrupteurs phase 2 (rôle switch)', () => {
+    renderPage()
+    for (const name of [/lecture vocale/i, /grand curseur/i, /guide de lecture/i]) {
+      expect(screen.getByRole('switch', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('toggle Lecture vocale → data-voice=on + persistance (10 clés)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('switch', { name: /lecture vocale/i }))
+    expect(html()).toHaveAttribute('data-voice', 'on')
+    expect(mockAction).toHaveBeenCalledWith(
+      expect.objectContaining({ voice: true, cursor: false, guide: false }),
+    )
+  })
+
+  it('la ligne Lecture vocale reste visible sur mobile (pas de lg:)', () => {
+    renderPage()
+    const row = screen
+      .getByRole('switch', { name: /lecture vocale/i })
+      .closest('div[class*="flex"]')
+    expect((row as HTMLElement).className).not.toMatch(/hidden/)
+  })
+
+  it('lignes Grand curseur et Guide de lecture masquées sur mobile (lg only)', () => {
+    renderPage()
+    for (const name of [/grand curseur/i, /guide de lecture/i]) {
+      const row = screen.getByRole('switch', { name }).closest('[class*="lg:flex"]')
+      expect(row).not.toBeNull()
+      expect((row as HTMLElement).className).toMatch(/hidden/)
     }
   })
 

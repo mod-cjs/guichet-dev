@@ -470,6 +470,39 @@
   line-height: 1.7;
 }
 
+/* --- Curseur agrandi (GUIC-658) ---
+   Fl\u00e8che SVG haute visibilit\u00e9 (blanc bord\u00e9 noir, 40px, hotspot 4 4) \u2014
+   reprise de la r\u00e9f\u00e9rence v4 accessibility.js. !important n\u00e9cessaire pour
+   surcharger les cursor:pointer locaux. */
+:root[data-cursor="on"],
+:root[data-cursor="on"] * {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><path d='M6 4 L6 32 L13 25 L18 36 L23 34 L18 23 L28 23 Z' fill='white' stroke='black' stroke-width='2.2' stroke-linejoin='round'/></svg>") 4 4, auto !important;
+}
+
+/* --- Guide de lecture (GUIC-658) ---
+   R\u00e8gle horizontale qui suit le curseur (positionn\u00e9e par A11yGadgets). */
+#gj-a11y-guide {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 38px;
+  background: rgba(249, 196, 0, .16);
+  border-top: 2px solid rgba(10, 128, 127, .55);
+  border-bottom: 2px solid rgba(10, 128, 127, .55);
+  pointer-events: none;
+  z-index: 2147483640;
+  display: none;
+}
+:root[data-guide="on"] #gj-a11y-guide { display: block; }
+
+/* --- Lecture vocale (GUIC-658) ---
+   Affordance : les zones lisibles se signalent au survol (le TTS est
+   branch\u00e9 par A11yGadgets). */
+:root[data-voice="on"] :is(p, li, h1, h2, h3, a, button, label):hover {
+  outline: 2px dashed rgba(10, 128, 127, .6);
+  outline-offset: 1px;
+}
+
 /* --- Navigation clavier renforc\u00e9e (GUIC-581) ---
    Focus visible amplifi\u00e9 \u2014 compl\u00e8te le focus ring par d\u00e9faut (l.230). */
 :root[data-kbd="on"] :focus-visible {
