@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ProfilHeader }       from './ProfilHeader'
 import { SectionIdentite }    from './SectionIdentite'
 import { SectionProfil }      from './SectionProfil'
@@ -9,7 +10,7 @@ import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
 import { MyCJSCard }          from '@/components/centres/MyCJSCard'
-import { PageHeader }         from '@/components/ui'
+import { Icon, PageHeader }   from '@/components/ui'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -106,6 +107,29 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
           <SectionCertificats
             certificats={initial.certificats}
           />
+
+          {/* GUIC-581 — entrée mobile vers la page Inclusion & accessibilité.
+              Desktop (≥lg) : la sidebar porte déjà l'entrée → masqué. */}
+          <Link
+            href="/jeune/accessibilite"
+            className="lg:hidden no-underline flex items-center gap-3 bg-gj-teal-soft rounded-gj-lg px-4 py-3.5 min-h-[var(--tap-min)]"
+          >
+            <span
+              aria-hidden
+              className="w-[34px] h-[34px] rounded-gj-md shrink-0 bg-white text-gj-teal-deep inline-flex items-center justify-center"
+            >
+              <Icon name="eye" size={17} />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-fs-300 font-extrabold text-gj-teal-deep">
+                Inclusion &amp; accessibilité
+              </span>
+              <span className="block text-fs-100 text-gj-grey mt-0.5">
+                Adapter l&apos;application à tes besoins
+              </span>
+            </span>
+            <Icon name="chevron-right" size={14} />
+          </Link>
         </div>
       </div>
     </div>

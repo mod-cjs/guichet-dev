@@ -79,5 +79,6 @@ describe('<ProfilClient />', () => {
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
     expect(link).toHaveAttribute('href', '/jeune/accessibilite')
     expect(link.className).toMatch(/lg:hidden/)
+    expect(link).toHaveTextContent(/adapter l.application à tes besoins/i)
   })
 })
