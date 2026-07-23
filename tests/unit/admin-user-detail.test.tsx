@@ -25,6 +25,8 @@ const DATA: UserDetailData = {
     completionScore: 80,
     niveauEtude: 'Licence',
     situationEmploi: 'En recherche',
+    situationHandicap: null,
+    zoneHabitation: null,
     biographie: 'Développeuse junior motivée.',
     photoUrl: null,
     centrePrincipalNom: 'CJS Dakar',
