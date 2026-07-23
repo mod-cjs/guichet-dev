@@ -23,7 +23,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/db-url.sh"
 
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guichet}"
-NETWORK="${BACKUP_NETWORK:-${COMPOSE_PROJECT_NAME}_guichet}"
+# GUIC-662 — Le compose branche l'app sur le réseau EXTERNE `${SERVICES_NETWORK:-cjs-net}`
+# (`external: true`, docker-compose.prod.yml), PAS sur `${projet}_guichet` (Docker ne crée pas
+# ce réseau quand il est externe). On s'aligne sur deploy.sh, sinon le conteneur de sauvegarde
+# ne joint pas la base (préprod : `mariadb-test` sur cjs-net → « base injoignable »).
+NETWORK="${BACKUP_NETWORK:-${SERVICES_NETWORK:-cjs-net}}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/guichet}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 MARIADB_IMAGE="${MARIADB_IMAGE:-mariadb:10.11}"

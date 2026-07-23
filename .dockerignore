@@ -1,0 +1,21 @@
+# Contexte de build minimal — sinon docker envoie node_modules (ARM64 sur Mac),
+# .git, les worktrees d'agents (~1 Go) et les artefacts de test.
+.git
+.gitignore
+node_modules
+**/node_modules
+.next
+.claude
+.agent_context
+test-results
+playwright-report
+coverage
+*.log
+.env*
+!.env.example
+README*.md
+docs
+design-guichet-v2
+design-guichet-v3
+design-guichet-v4
+design
