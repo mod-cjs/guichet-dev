@@ -222,7 +222,7 @@ export function AdminSidebar({
       <aside
         aria-label="Administration"
         className={`fixed md:static inset-y-0 left-0 z-[260] md:z-auto
-          min-h-screen flex flex-col transition-all duration-200
+          h-screen flex flex-col transition-all duration-200
           ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{
           width,

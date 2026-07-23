@@ -69,7 +69,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         </Link>
       </div>
 
-      <div className="flex min-h-screen" style={{ background: 'var(--gj-bg)' }}>
+      <div className="flex min-h-screen md:h-screen md:overflow-hidden" style={{ background: 'var(--gj-bg)' }}>
         <ConseillerSidebar
           name={fullName}
           role={roleLabel}
@@ -80,7 +80,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
           messagesBadge={messagesBadge}
         />
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
           {/* TopBar desktop (design v4 `agent-shell.jsx`) : recherche + notifications + Publier */}
           <div
             className="hidden md:flex items-center gap-[14px]"
@@ -101,7 +101,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
             </Link>
           </div>
 
-          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-space-6">{children}</main>
+          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-space-6">{children}</main>
         </div>
       </div>
 

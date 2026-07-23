@@ -66,9 +66,9 @@ export default async function RecruteurLayout({ children }: { children: React.Re
         <BellLink unread={unread} size={20} />
       </div>
 
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen md:h-screen md:overflow-hidden">
         <RecruteurSidebar companyName={ctx.organisationNom} verified={ctx.estVerifie} candidaturesCount={nav.aExaminer} messagesCount={messagesNonLus} />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
           {/* TopBar desktop (design v3 Lot 10) : recherche + notifications + avatar */}
           <div
             className="hidden md:flex items-center gap-[14px]"
@@ -82,7 +82,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
             </span>
           </div>
           {/* Padding bas mobile = hauteur de la bottom-nav (GUIC-492). */}
-          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-space-6">{children}</main>
+          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto pb-[calc(64px+env(safe-area-inset-bottom,0px))] md:pb-space-6">{children}</main>
         </div>
       </div>
 
