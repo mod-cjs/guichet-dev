@@ -116,22 +116,32 @@ describe('<BenefSidebar />', () => {
     expect(link).toHaveAttribute('aria-current', 'page')
   })
 
-  it('conserve le footer compte après le swap (Notifications + Se déconnecter)', () => {
+  // GUIC-658 — le bouton Notifications quitte le footer (la cloche de la
+  // BenefTopBar reste le point d'accès aux notifications).
+  it('footer épuré : Se déconnecter seul, sans bouton Notifications', () => {
     render(<BenefSidebar />)
-    expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /notifications/i }),
+    ).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /se déconnecter/i })).toBeInTheDocument()
   })
 
-  it('rend les liens externes YEAH et E-learning avec target=_blank', () => {
+  // GUIC-658 — bouton d'accessibilité mis en avant : carte gradient teal
+  // (ancre visuelle du pied de sidebar, à la place de l'ex-CTA Yaye).
+  it('bouton Inclusion amélioré : carte gradient avec sous-titre', () => {
     render(<BenefSidebar />)
-    const yeah = screen.getByRole('link', { name: /YEAH \(ouvre dans un nouvel onglet\)/i })
-    expect(yeah).toHaveAttribute('target', '_blank')
-    expect(yeah).toHaveAttribute('rel', expect.stringContaining('noopener'))
-    expect(yeah).toHaveAttribute('href', 'https://yeah.consortiumjeunessesenegal.org')
+    const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
+    expect(link.getAttribute('style')).toMatch(/linear-gradient/)
+    expect(link).toHaveTextContent(/adapter l.application/i)
+  })
 
-    const elearning = screen.getByRole('link', { name: /E-learning \(ouvre dans un nouvel onglet\)/i })
-    expect(elearning).toHaveAttribute('target', '_blank')
-    expect(elearning).toHaveAttribute('href', 'https://elearning.guichetjeunesse.sn')
+  // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
+  // (YEAH, E-learning) est supprimée.
+  it('ne rend plus la section Plateformes partenaires (YEAH / E-learning)', () => {
+    render(<BenefSidebar />)
+    expect(screen.queryByText('Plateformes partenaires')).not.toBeInTheDocument()
+    expect(screen.queryByText('YEAH')).not.toBeInTheDocument()
+    expect(screen.queryByText('E-learning')).not.toBeInTheDocument()
   })
 
   it('résout l\'item actif depuis le pathname (mes-candidatures)', () => {
