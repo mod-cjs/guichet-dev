@@ -156,6 +156,12 @@ describe('<BenefSidebar />', () => {
     expect(link.style.flexShrink).toBe('0')
   })
 
+  it('la sidebar reste défilable (overflow-y auto) malgré la carte épinglée', () => {
+    render(<BenefSidebar />)
+    const nav = screen.getByRole('navigation', { name: /navigation principale/i })
+    expect(nav.style.overflowY).toBe('auto')
+  })
+
   // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
   // (YEAH, E-learning) est supprimée.
   it('ne rend plus la section Plateformes partenaires (YEAH / E-learning)', () => {

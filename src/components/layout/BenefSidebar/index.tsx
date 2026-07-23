@@ -430,7 +430,7 @@ export function BenefSidebar({
         className="no-underline"
         style={{
           marginTop: 'auto',
-          padding: '12px 12px',
+          padding: '13px 12px',
           backgroundColor: 'var(--gj-teal-deep)',
           backgroundImage:
             'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-ink)))',
@@ -440,6 +440,10 @@ export function BenefSidebar({
           gap: 11,
           width: '100%',
           minHeight: 'var(--tap-min)',
+          // GUIC-658 — la sidebar est une colonne flex overflowY:auto : sans
+          // flexShrink:0 la carte est écrasée dès que la nav dépasse la
+          // hauteur d'écran et le texte est rogné par overflow:hidden.
+          flexShrink: 0,
           position: 'relative',
           overflow: 'hidden',
           boxShadow:
