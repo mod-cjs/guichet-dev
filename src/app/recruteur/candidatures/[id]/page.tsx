@@ -81,16 +81,24 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <span className="inline-block rounded-full text-[10.5px] font-black px-[10px] py-[3px] uppercase tracking-wide" style={{ background: col.bg, color: col.fg }}>{CAND_LABEL[statut] ?? statut}</span>
       </div>
 
-      {/* Score d'adéquation (IA) */}
+      {/* Analyse IA — score d'adéquation calculé par le modèle (CV soumis + profil vs offre) */}
       {(() => {
         const sc = scoreColors(detail.score)
         return (
-          <div className="rounded-[14px] p-[16px] mb-4 flex items-center gap-3 flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-            <span className="inline-flex items-center justify-center rounded-[12px] text-[16px] font-black" style={{ minWidth: 60, height: 46, padding: '0 12px', background: sc.bg, color: sc.fg }}>{sc.label}</span>
-            <div className="flex-1 min-w-[200px]">
-              <div className="text-[13px] font-black" style={{ color: 'var(--gj-ink)' }}>Score d&apos;adéquation <span style={{ color: 'var(--gj-grey)', fontWeight: 600 }}>· IA</span></div>
-              <p className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>{detail.scoreRaison ?? (detail.score == null ? 'Analyse en cours…' : 'Correspondance profil candidat / offre.')}</p>
+          <div className="rounded-[14px] p-[16px] mb-4" style={{ background: 'var(--gj-teal-soft)', border: '1.5px solid var(--gj-teal)' }}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="inline-flex items-center justify-center rounded-[12px] text-[16px] font-black" style={{ minWidth: 60, height: 46, padding: '0 12px', background: sc.bg, color: sc.fg }}>{sc.label}</span>
+              <div className="flex-1 min-w-[200px]">
+                <div className="inline-flex items-center gap-[6px] text-[13px] font-black" style={{ color: 'var(--gj-teal-deep)' }}>
+                  <Icon name="bolt" size={14} /> Analyse IA
+                  <span className="rounded-full text-[9.5px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-teal-deep)', color: '#fff' }}>CV + profil</span>
+                </div>
+                <p className="text-[12.5px] mt-[2px]" style={{ color: 'var(--gj-ink)' }}>{detail.scoreRaison ?? (detail.score == null ? 'Analyse en cours…' : 'Correspondance candidat / offre.')}</p>
+              </div>
             </div>
+            <p className="text-[11px] mt-[8px]" style={{ color: 'var(--gj-grey)' }}>
+              Score calculé par l&apos;IA à partir du CV soumis, du profil et de l&apos;offre — une aide à la décision, qui ne remplace pas votre jugement.
+            </p>
           </div>
         )
       })()}

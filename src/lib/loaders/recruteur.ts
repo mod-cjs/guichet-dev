@@ -312,6 +312,8 @@ export interface PipelineCard {
   niveau: string | null
   skills: string[]
   match: number | null
+  /** Raison du score, formulée par l'IA (tooltip du badge). */
+  matchRaison: string | null
   favori: boolean
   soumiseA: string
   offreTitre: string
@@ -387,7 +389,7 @@ function ageFrom(d: Date | null): number | null {
 }
 
 const PIPELINE_SELECT = {
-  id: true, pipelineStage: true, scoreAdequation: true, favoriRecruteur: true, soumiseA: true,
+  id: true, pipelineStage: true, scoreAdequation: true, scoreRaison: true, favoriRecruteur: true, soumiseA: true,
   utilisateur: { select: { prenom: true, nom: true, dateNaissance: true, commune: true, profil: { select: { niveauEtude: true, competences: true } } } },
   opportunite: { select: { titre: true } },
 } satisfies Prisma.CandidatureSelect
@@ -405,6 +407,7 @@ function toCard(r: PipelineRow): PipelineCard {
     niveau: r.utilisateur.profil?.niveauEtude ?? null,
     skills: comp.slice(0, 3),
     match: r.scoreAdequation,
+    matchRaison: r.scoreRaison,
     favori: r.favoriRecruteur,
     soumiseA: r.soumiseA.toISOString(),
     offreTitre: r.opportunite.titre,

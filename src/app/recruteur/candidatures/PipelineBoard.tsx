@@ -305,7 +305,16 @@ function Card({ c, selected, onToggleSel, onDragStart, onFav, onMove }: {
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--gj-line)', paddingTop: 8 }}>
-        {c.match != null ? <span className="text-[10px] font-black" style={{ ...matchStyle(c.match), padding: '2px 8px', borderRadius: 999 }}>{c.match}% match</span> : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
+        {c.match != null ? (
+          <span
+            className="inline-flex items-center gap-[3px] text-[10px] font-black"
+            style={{ ...matchStyle(c.match), padding: '2px 8px', borderRadius: 999 }}
+            title={c.matchRaison ?? 'Score calculé par l’IA (CV + profil vs offre)'}
+            aria-label={`Score IA ${c.match} sur 100${c.matchRaison ? ` — ${c.matchRaison}` : ''}`}
+          >
+            <Icon name="bolt" size={10} /> IA {c.match}
+          </span>
+        ) : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
         <span className="text-[10.5px]" style={{ color: 'var(--gj-grey-2, #9aa5b1)' }}>{frDate(c.soumiseA)}</span>
       </div>
       {/* Fallback tactile/clavier : déplacer d'une colonne (le drag reste dispo sur desktop). */}
