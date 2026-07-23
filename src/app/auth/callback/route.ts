@@ -6,24 +6,10 @@ import { clearRevocation } from '@/lib/session-store'
 import { prisma } from '@/lib/prisma'
 import { logger, hashId } from '@/lib/logger'
 import { safeReturnTo } from '@/lib/security/safe-return-to'
+import { basePublique } from '@/lib/security/base-publique'
 import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 import { isConseillerRole, isRecruteurRole, rolePrincipal } from '@/lib/auth/espace-roles'
 import type { CJSSession } from '@/types/user'
-
-/**
- * GUIC-644 — Base des redirections : l'URL PUBLIQUE, jamais `request.url`.
- *
- * Derrière un reverse proxy (Plesk → conteneur), `request.url` porte l'adresse INTERNE
- * (`http://0.0.0.0:3000`, le HOSTNAME du conteneur) et NON le domaine public — Next ne substitue
- * pas le header `Host` sur `request.url` dans un route handler. Une redirection construite dessus
- * envoyait l'utilisateur sur `https://0.0.0.0:3000/...` après le login SSO (ERR_SSL_PROTOCOL_ERROR).
- *
- * On s'aligne sur `sso-client.ts`, qui construit déjà le `redirect_uri` à partir de `NEXTAUTH_URL` :
- * les deux extrémités du flux OAuth utilisent ainsi LA MÊME origine canonique.
- */
-function basePublique(request: NextRequest): string {
-  return process.env.NEXTAUTH_URL || new URL(request.url).origin
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
