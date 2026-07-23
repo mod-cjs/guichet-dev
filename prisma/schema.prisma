@@ -318,6 +318,10 @@ model ProfilJeune {
   // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
   cvUrl             String?   @map("cv_url") @db.VarChar(500)
   cvUploadedAt      DateTime? @map("cv_uploaded_at")
+  // GUIC-581 — Préférences d'accessibilité (page /jeune/accessibilite).
+  // Shape { text, contrast, gray, motion, spacing, falc, kbd } — validé par Zod
+  // dans l'action modifierPrefsAccessibilite ; cache localStorage côté client.
+  prefsAccessibilite Json?    @map("prefs_accessibilite")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 

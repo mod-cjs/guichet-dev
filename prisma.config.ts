@@ -15,6 +15,13 @@ export default defineConfig({
   schema: path.join('prisma', 'schema.prisma'),
   datasource: {
     url: env('DATABASE_URL'),
+    // GUIC-581 — l'utilisateur MariaDB local n'a pas CREATE DATABASE : les
+    // `migrate dev` locaux passent par une shadow DB explicite (base scratch
+    // vide, ex. yaye_migration_test). Optionnel — sans la variable, Prisma
+    // retombe sur la shadow DB auto-créée (CI / envs avec droits).
+    ...(process.env.SHADOW_DATABASE_URL
+      ? { shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL }
+      : {}),
   },
   migrations: {
     seed: 'tsx prisma/seed/index.ts',

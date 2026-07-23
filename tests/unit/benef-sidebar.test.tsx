@@ -94,9 +94,32 @@ describe('<BenefSidebar />', () => {
     expect(screen.queryByText('Awa Diop')).not.toBeInTheDocument()
   })
 
-  it('rend le CTA Yaye en pied', () => {
+  // GUIC-581 — le CTA Yaye du pied de sidebar est remplacé par l'entrée
+  // Inclusion & accessibilité (Yaye reste accessible via la bulle flottante,
+  // même drawer YayeSidePanel — GUIC-376).
+  it('ne rend plus le CTA Yaye en pied (remplacé — GUIC-581)', () => {
     render(<BenefSidebar />)
-    expect(screen.getByText('Parler à Yaye')).toBeInTheDocument()
+    expect(screen.queryByText('Parler à Yaye')).not.toBeInTheDocument()
+  })
+
+  it('rend le lien Inclusion & accessibilité en pied → /jeune/accessibilite', () => {
+    render(<BenefSidebar />)
+    const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
+    expect(link).toHaveAttribute('href', '/jeune/accessibilite')
+    expect(link).toHaveTextContent(/adapter l.application/i)
+  })
+
+  it('marque le lien Inclusion actif quand pathname=/jeune/accessibilite', () => {
+    mockPathname = '/jeune/accessibilite'
+    render(<BenefSidebar />)
+    const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
+    expect(link).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('conserve le footer compte après le swap (Notifications + Se déconnecter)', () => {
+    render(<BenefSidebar />)
+    expect(screen.getByRole('button', { name: /notifications/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /se déconnecter/i })).toBeInTheDocument()
   })
 
   it('rend les liens externes YEAH et E-learning avec target=_blank', () => {

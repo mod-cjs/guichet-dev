@@ -71,4 +71,14 @@ describe('<ProfilClient />', () => {
     // Score 42 — la CompletionBar affiche "42%" (cf CompletionBar.tsx)
     expect(screen.getByText(/42\s*%/)).toBeInTheDocument()
   })
+
+  // GUIC-581 — entrée mobile vers la page Inclusion & accessibilité
+  // (le desktop passe par la sidebar ; la ligne est masquée en lg via CSS).
+  it('rend le lien mobile Inclusion & accessibilité → /jeune/accessibilite', () => {
+    render(<ProfilClient initial={PROFIL} ssoProfilUrl={null} />)
+    const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
+    expect(link).toHaveAttribute('href', '/jeune/accessibilite')
+    expect(link.className).toMatch(/lg:hidden/)
+    expect(link).toHaveTextContent(/adapter l.application à tes besoins/i)
+  })
 })
