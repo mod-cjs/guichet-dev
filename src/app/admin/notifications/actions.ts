@@ -238,14 +238,32 @@ export async function reinitialiserTemplateSysteme(cle: string): Promise<{ ok: t
 }
 
 const PAGE_SIZE = 20
+const MAILING_PREFIX = 'recruteur.mailing.'
 
-/** Historique paginé des envois (20/page), filtrable par statut. */
+/** Type d'envoi filtrable dans l'historique. */
+export type HistoriqueType = 'notifications' | 'mailings'
+
+/** Libellé humain d'une clé d'événement (catalogue, ou template de mailing recruteur). */
+function labelPourEventKey(eventKey: string): string {
+  if (eventKey.startsWith(MAILING_PREFIX)) {
+    const cle = eventKey.slice(MAILING_PREFIX.length)
+    return `Mailing recruteur — ${getTemplateDef(cle)?.nom ?? cle}`
+  }
+  return getEventDef(eventKey)?.label ?? eventKey
+}
+
+/** Historique paginé des envois (20/page), filtrable par statut et par type. */
 export async function listHistorique(
   page = 1,
   statut: StatutEnvoiNotification | null = null,
+  type: HistoriqueType | null = null,
 ): Promise<HistoriquePage> {
   await assertAdmin()
-  const where = statut ? { statut } : {}
+  const where = {
+    ...(statut ? { statut } : {}),
+    ...(type === 'mailings' ? { eventKey: { startsWith: MAILING_PREFIX } } : {}),
+    ...(type === 'notifications' ? { NOT: { eventKey: { startsWith: MAILING_PREFIX } } } : {}),
+  }
   const [rows, total] = await Promise.all([
     prisma.notificationEnvoi.findMany({
       where,
@@ -260,7 +278,7 @@ export async function listHistorique(
     items: rows.map((r) => ({
       id: r.id,
       eventKey: r.eventKey,
-      label: getEventDef(r.eventKey)?.label ?? r.eventKey,
+      label: labelPourEventKey(r.eventKey),
       canal: r.canal as string,
       statut: r.statut as string,
       titre: r.titre,

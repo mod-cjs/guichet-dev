@@ -27,6 +27,7 @@ import {
   setEventChannels,
   listEnvoisEnAttente,
   validerEnvois,
+  listHistorique,
 } from '@/app/admin/notifications/actions'
 
 const mockSession = getSession as jest.Mock
@@ -155,5 +156,36 @@ describe('validerEnvois — guards', () => {
     mockPrisma.notificationEnvoi.findFirst.mockResolvedValue({ eventKey: 'evenement.cancelled' })
     await validerEnvois('evenement.cancelled:e1')
     expect(recordAudit).toHaveBeenCalledWith('a1', 'notif.valider', expect.anything())
+  })
+})
+
+describe('listHistorique — libellés et filtres', () => {
+  const ROW = {
+    id: 'h1', canal: 'email', statut: 'envoyee', titre: 'T', erreur: null,
+    envoyeeA: new Date(), createdAt: new Date(), utilisateur: { prenom: 'Awa', nom: 'Diallo' },
+  }
+
+  it('un mailing recruteur porte un libellé lisible (nom du template)', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    mockPrisma.notificationEnvoi.findMany.mockResolvedValue([{ ...ROW, eventKey: 'recruteur.mailing.pipeline.retenue' }])
+    mockPrisma.notificationEnvoi.count.mockResolvedValue(1)
+    const page = await listHistorique(1)
+    expect(page.items[0].label).toBe('Mailing recruteur — Candidature retenue')
+  })
+
+  it('filtre mailings → where sur le préfixe recruteur.mailing.', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    await listHistorique(1, null, 'mailings')
+    expect(mockPrisma.notificationEnvoi.findMany.mock.calls[0][0].where).toEqual({
+      eventKey: { startsWith: 'recruteur.mailing.' },
+    })
+  })
+
+  it('filtre notifications → exclusion du préfixe mailing', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    await listHistorique(1, null, 'notifications')
+    expect(mockPrisma.notificationEnvoi.findMany.mock.calls[0][0].where).toEqual({
+      NOT: { eventKey: { startsWith: 'recruteur.mailing.' } },
+    })
   })
 })
