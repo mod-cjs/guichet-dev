@@ -12,7 +12,7 @@ const mockSendSms = jest.fn()
 jest.mock('@/lib/sms/orange', () => ({ sendOrangeSms: (...a: unknown[]) => mockSendSms(...a) }))
 
 const mockSendEmail = jest.fn()
-jest.mock('@/lib/email/gcp', () => ({ sendGcpEmail: (...a: unknown[]) => mockSendEmail(...a) }))
+jest.mock('@/lib/email/resend', () => ({ sendResendEmail: (...a: unknown[]) => mockSendEmail(...a) }))
 
 import { inAppChannel } from '@/lib/notifications/channels/in-app'
 import { smsChannel } from '@/lib/notifications/channels/sms'
