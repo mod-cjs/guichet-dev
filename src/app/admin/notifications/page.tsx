@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { isConseillerRole } from '@/lib/auth/espace-roles'
-import { loadNotificationMatrix, listEnvoisEnAttente, listHistorique } from './actions'
+import { loadNotificationMatrix, listEnvoisEnAttente, listHistorique, listTemplatesAdmin } from './actions'
 import { AdminNotificationsPanneau } from './AdminNotificationsPanneau'
 
 export const metadata: Metadata = { title: 'Notifications — Admin CJS' }
@@ -15,10 +15,11 @@ export default async function Page() {
   // Un conseiller accède à la file de validation (périmètre RH) — décision PO 2026-07-22.
   if (!session || (!adminAccess && !isConseillerRole(session.roles))) redirect('/')
 
-  const [matrix, enAttente, historique] = await Promise.all([
+  const [matrix, enAttente, historique, templates] = await Promise.all([
     adminAccess ? loadNotificationMatrix() : Promise.resolve([]),
     listEnvoisEnAttente(),
     adminAccess ? listHistorique(1) : Promise.resolve({ items: [], total: 0, page: 1, totalPages: 1 }),
+    adminAccess ? listTemplatesAdmin() : Promise.resolve([]),
   ])
 
   return (
@@ -36,6 +37,7 @@ export default async function Page() {
         matrix={matrix}
         enAttente={enAttente}
         historique={historique}
+        templates={templates}
       />
     </div>
   )

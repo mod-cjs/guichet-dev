@@ -11,6 +11,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { notifyEntretienStatut } from '@/lib/notifications/entretien-statut'
+import { creerLienMeet } from '@/lib/google-meet'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
@@ -50,6 +51,13 @@ export async function planifierEntretien(input: PlanifierEntretienInput): Promis
   const cand = await candidatureDuRecruteur(session.cjsUid, parsed.candidatureId)
   if (!cand) throw new Error('FORBIDDEN')
 
+  // Visio sans lien fourni : génération auto d'un lien Google Meet si le recruteur
+  // a connecté son compte (profil entreprise). Fail-soft : lieu reste null sinon.
+  let lieu = parsed.lieu?.trim() || null
+  if (parsed.mode === 'Visio' && !lieu) {
+    lieu = await creerLienMeet(session.cjsUid, { titre: 'Entretien — Guichet Jeunesse', dateHeure: date })
+  }
+
   const ent = await prisma.entretien.create({
     data: {
       candidatureId: cand.id,
@@ -57,7 +65,7 @@ export async function planifierEntretien(input: PlanifierEntretienInput): Promis
       candidatUid: cand.cjsUid,
       dateHeure: date,
       mode: parsed.mode,
-      lieu: parsed.lieu?.trim() || null,
+      lieu,
       notes: parsed.notes?.trim() || null,
     },
     select: { id: true },

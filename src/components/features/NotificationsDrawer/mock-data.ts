@@ -7,7 +7,10 @@ import type { Notification } from './types'
  * Les timestamps sont relatifs à `now` calculés au chargement du module
  * pour rester naturels en démo (Aujourd'hui / Hier / Cette semaine).
  */
-const now = Date.now()
+// Ancré à MIDI du jour courant : les offsets en heures restent dans « Aujourd'hui »
+// quelle que soit l'heure d'exécution (sinon, juste après minuit, « now - 1h »
+// tombe la veille et le groupe Aujourd'hui disparaît — tests flakys).
+const now = new Date().setHours(12, 0, 0, 0)
 const hour = 60 * 60 * 1000
 const day = 24 * hour
 

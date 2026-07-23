@@ -4,6 +4,8 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
 import { ProfilEntrepriseForm } from './ProfilEntrepriseForm'
+import { MeetCard } from './MeetCard'
+import { getMeetEtat } from '@/lib/google-meet'
 
 export const metadata: Metadata = { title: 'Profil entreprise — Espace Recruteur' }
 export const dynamic = 'force-dynamic'
@@ -57,6 +59,8 @@ export default async function Page() {
           siteWeb: org.siteWeb, logoUrl: org.logoUrl,
         }}
       />
+
+      <MeetCard etat={await getMeetEtat(session.cjsUid)} />
 
       <p className="text-[11px] mt-4" style={{ color: 'var(--gj-grey)' }}>Le <strong>nom</strong> et le statut de <strong>vérification</strong> sont gérés par l’administration CJS.</p>
     </div>

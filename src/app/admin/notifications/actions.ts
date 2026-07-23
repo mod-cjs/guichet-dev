@@ -21,6 +21,8 @@ import {
 } from '@/lib/notifications/matrix'
 import { getEventDef, isRhEvent, type NotificationChannelId } from '@/lib/notifications/catalog'
 import { validerOccurrence, rejeterOccurrence } from '@/lib/notifications/outbox'
+import { resolveAllTemplates, getTemplateDef, type ResolvedTemplate } from '@/lib/email/templates'
+import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import type { CJSSession } from '@/types/user'
 import type { StatutEnvoiNotification } from '@prisma/client'
 
@@ -201,15 +203,68 @@ export interface HistoriquePage {
   totalPages: number
 }
 
-const PAGE_SIZE = 20
+// ─── Templates d'emails (vue système) ─────────────────────────────────────────
 
-/** Historique paginé des envois (20/page), filtrable par statut. */
+/** Tous les templates, vue admin : version système ?? défaut du code. */
+export async function listTemplatesAdmin(): Promise<ResolvedTemplate[]> {
+  await assertAdmin()
+  return resolveAllTemplates(null)
+}
+
+/** Enregistre la version SYSTÈME d'un template (s'applique à tous, sauf perso recruteur). */
+export async function enregistrerTemplateSysteme(cle: string, sujet: string, corps: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  if (!getTemplateDef(cle)) throw new Error(`TEMPLATE_INCONNU:${cle}`)
+  const s = sujet.trim()
+  const c = sanitizeRichHtml(corps.trim()) // corps riche sanitisé côté serveur
+  if (s.length < 3 || c.length < 10) throw new Error('TEMPLATE_INVALIDE')
+
+  await prisma.emailTemplate.upsert({
+    where: { cle_ownerUid: { cle, ownerUid: '' } },
+    create: { cle, ownerUid: '', sujet: s, corps: c, updatedBy: session.cjsUid },
+    update: { sujet: s, corps: c, updatedBy: session.cjsUid },
+  })
+  await recordAudit(session.cjsUid, 'email_template.systeme', { targetType: 'email_template', targetId: cle })
+  revalidatePath('/admin/notifications')
+  return { ok: true }
+}
+
+/** Supprime la version système → retour au défaut du code. */
+export async function reinitialiserTemplateSysteme(cle: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  await prisma.emailTemplate.deleteMany({ where: { cle, ownerUid: '' } })
+  await recordAudit(session.cjsUid, 'email_template.reset', { targetType: 'email_template', targetId: cle })
+  revalidatePath('/admin/notifications')
+  return { ok: true }
+}
+
+const PAGE_SIZE = 20
+const MAILING_PREFIX = 'recruteur.mailing.'
+
+/** Type d'envoi filtrable dans l'historique. */
+export type HistoriqueType = 'notifications' | 'mailings'
+
+/** Libellé humain d'une clé d'événement (catalogue, ou template de mailing recruteur). */
+function labelPourEventKey(eventKey: string): string {
+  if (eventKey.startsWith(MAILING_PREFIX)) {
+    const cle = eventKey.slice(MAILING_PREFIX.length)
+    return `Mailing recruteur — ${getTemplateDef(cle)?.nom ?? cle}`
+  }
+  return getEventDef(eventKey)?.label ?? eventKey
+}
+
+/** Historique paginé des envois (20/page), filtrable par statut et par type. */
 export async function listHistorique(
   page = 1,
   statut: StatutEnvoiNotification | null = null,
+  type: HistoriqueType | null = null,
 ): Promise<HistoriquePage> {
   await assertAdmin()
-  const where = statut ? { statut } : {}
+  const where = {
+    ...(statut ? { statut } : {}),
+    ...(type === 'mailings' ? { eventKey: { startsWith: MAILING_PREFIX } } : {}),
+    ...(type === 'notifications' ? { NOT: { eventKey: { startsWith: MAILING_PREFIX } } } : {}),
+  }
   const [rows, total] = await Promise.all([
     prisma.notificationEnvoi.findMany({
       where,
@@ -224,7 +279,7 @@ export async function listHistorique(
     items: rows.map((r) => ({
       id: r.id,
       eventKey: r.eventKey,
-      label: getEventDef(r.eventKey)?.label ?? r.eventKey,
+      label: labelPourEventKey(r.eventKey),
       canal: r.canal as string,
       statut: r.statut as string,
       titre: r.titre,

@@ -25,7 +25,8 @@ import type { PipelineCard } from '@/lib/loaders/recruteur'
 
 const carte = (id: string): PipelineCard => ({
   id, prenom: 'Awa', nom: 'Diop', age: 24, commune: 'Pikine', niveau: 'Licence',
-  skills: ['Python'], match: 82, favori: false, soumiseA: '2026-07-01T10:00:00.000Z',
+  skills: ['Python'], match: 82, matchRaison: 'Compétences alignées avec l’offre.',
+  favori: false, soumiseA: '2026-07-01T10:00:00.000Z',
   offreTitre: 'Stage Data', stage: 'Decision',
 })
 

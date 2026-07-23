@@ -7,16 +7,21 @@ import { useState, useTransition } from 'react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { AdminNotificationsMatrix } from './AdminNotificationsMatrix'
+import { TemplatesEditor } from '@/components/notifications/TemplatesEditor'
 import {
   validerEnvois,
   rejeterEnvois,
   listHistorique,
+  enregistrerTemplateSysteme,
+  reinitialiserTemplateSysteme,
   type OccurrenceEnAttente,
   type HistoriquePage,
+  type HistoriqueType,
 } from './actions'
 import type { MatrixCell } from '@/lib/notifications/matrix'
+import type { ResolvedTemplate } from '@/lib/email/templates-defs'
 
-type Onglet = 'config' | 'attente' | 'historique'
+type Onglet = 'config' | 'attente' | 'templates' | 'historique'
 
 const CANAL_LABEL: Record<string, string> = {
   in_app: 'App',
@@ -126,6 +131,12 @@ function EnAttenteList({
 
 // ─── Onglet Historique ────────────────────────────────────────────────────────
 
+const TYPE_FILTRES = [
+  { value: null, label: 'Tous' },
+  { value: 'notifications' as const, label: 'Notifications' },
+  { value: 'mailings' as const, label: 'Mailings recruteur' },
+]
+
 function HistoriqueList({
   initial,
   onResult,
@@ -134,28 +145,57 @@ function HistoriqueList({
   onResult: (message: string, variant: ToastVariant) => void
 }) {
   const [pageData, setPageData] = useState(initial)
+  const [type, setType] = useState<HistoriqueType | null>(null)
   const [pending, startTransition] = useTransition()
 
-  function goTo(page: number) {
+  function charger(page: number, nextType: HistoriqueType | null) {
     startTransition(async () => {
       try {
-        setPageData(await listHistorique(page))
+        setPageData(await listHistorique(page, null, nextType))
       } catch {
         onResult('Chargement impossible.', 'danger')
       }
     })
   }
+  const goTo = (page: number) => charger(page, type)
+  function changeType(next: HistoriqueType | null) {
+    setType(next)
+    charger(1, next)
+  }
+
+  const filtres = (
+    <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer l’historique par type">
+      {TYPE_FILTRES.map((f) => (
+        <button
+          key={f.label}
+          type="button"
+          disabled={pending}
+          aria-pressed={type === f.value}
+          onClick={() => changeType(f.value)}
+          className={`rounded-full px-3 py-1 text-[11.5px] font-extrabold transition-colors ${
+            type === f.value ? 'bg-gj-teal-deep text-white' : 'bg-white text-gj-grey border-[1.5px] border-gj-line'
+          }`}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  )
 
   if (pageData.items.length === 0) {
     return (
-      <div className="rounded-[14px] border-[1.5px] border-gj-line bg-white p-8 text-center text-[13px] text-gj-grey">
-        Aucun envoi journalisé pour l’instant.
+      <div>
+        {filtres}
+        <div className="rounded-[14px] border-[1.5px] border-gj-line bg-white p-8 text-center text-[13px] text-gj-grey">
+          Aucun envoi journalisé {type === 'mailings' ? 'pour les mailings recruteur' : type === 'notifications' ? 'pour les notifications' : 'pour l’instant'}.
+        </div>
       </div>
     )
   }
 
   return (
     <div>
+      {filtres}
       <div className="overflow-x-auto rounded-[14px] border-[1.5px] border-gj-line bg-white">
         <table className="w-full min-w-[720px] text-[12.5px]">
           <thead>
@@ -223,11 +263,13 @@ export function AdminNotificationsPanneau({
   matrix,
   enAttente,
   historique,
+  templates,
 }: {
   adminAccess: boolean
   matrix: MatrixCell[]
   enAttente: OccurrenceEnAttente[]
   historique: HistoriquePage
+  templates: ResolvedTemplate[]
 }) {
   const [onglet, setOnglet] = useState<Onglet>(adminAccess ? 'config' : 'attente')
   const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -236,6 +278,7 @@ export function AdminNotificationsPanneau({
   const items = [
     ...(adminAccess ? [{ value: 'config' as const, label: 'Configuration' }] : []),
     { value: 'attente' as const, label: 'À valider', count: enAttente.length || undefined },
+    ...(adminAccess ? [{ value: 'templates' as const, label: 'Templates' }] : []),
     ...(adminAccess ? [{ value: 'historique' as const, label: 'Historique' }] : []),
   ]
 
@@ -244,6 +287,14 @@ export function AdminNotificationsPanneau({
       <Tabs value={onglet} onChange={setOnglet} items={items} ariaLabel="Sections du centre de notifications" className="mb-5" />
       {onglet === 'config' && adminAccess && <AdminNotificationsMatrix initial={matrix} />}
       {onglet === 'attente' && <EnAttenteList initial={enAttente} onResult={onResult} />}
+      {onglet === 'templates' && adminAccess && (
+        <TemplatesEditor
+          initial={templates}
+          save={enregistrerTemplateSysteme}
+          reset={reinitialiserTemplateSysteme}
+          resetHint={['systeme']}
+        />
+      )}
       {onglet === 'historique' && adminAccess && <HistoriqueList initial={historique} onResult={onResult} />}
       {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
     </div>

@@ -1,21 +1,18 @@
 // Canal email — Resend (GUIC-553, bascule de provider). Enveloppe src/lib/email/resend.ts.
 
 import { sendResendEmail, type ResendError } from '@/lib/email/resend'
+import { emailLayout } from '@/lib/email/layout'
 import { ChannelError, type ChannelMessage, type GenericChannel } from '../message'
 
-/** Rend un corps HTML minimal aux tokens gj-* à partir du titre + contenu. */
+/** Corps HTML de la notification dans l'habillage email CJS (hex email-safe). */
 function renderHtml(msg: ChannelMessage): string {
   const cta = msg.lien
-    ? `<p><a href="${msg.lien}" style="color:var(--gj-teal,#0a7d76)">Voir dans le Guichet</a></p>`
+    ? `<p style="margin:16px 0 0"><a href="${msg.lien}" style="display:inline-block;background:#0B7285;color:#ffffff;font-weight:700;font-size:13px;text-decoration:none;padding:10px 18px;border-radius:10px">Voir dans le Guichet</a></p>`
     : ''
-  return [
-    '<div style="font-family:system-ui,sans-serif;max-width:560px;margin:auto">',
-    `<h2 style="color:var(--gj-teal,#0a7d76)">${msg.titre}</h2>`,
-    `<p>Bonjour ${msg.recipient.prenom},</p>`,
-    `<p>${msg.contenu}</p>`,
-    cta,
-    '</div>',
-  ].join('')
+  return emailLayout(
+    msg.titre,
+    `<p style="margin:0 0 12px">Bonjour ${msg.recipient.prenom},</p><p style="margin:0 0 12px">${msg.contenu}</p>${cta}`,
+  )
 }
 
 /** 4xx (hors 429) = permanent (adresse invalide, domaine non vérifié) ; 429/5xx = retry. */

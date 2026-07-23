@@ -2,7 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NotificationsDrawer } from '@/components/features/NotificationsDrawer'
 import type { Notification } from '@/components/features/NotificationsDrawer'
 
-const now = Date.now()
+// Ancré à MIDI du jour courant : « now - 1h » reste Aujourd'hui même si la
+// suite tourne juste après minuit (anti-flaky).
+const now = new Date().setHours(12, 0, 0, 0)
 const hour = 60 * 60 * 1000
 const day = 24 * hour
 

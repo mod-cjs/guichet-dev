@@ -70,3 +70,12 @@ export async function modifierProfilEntreprise(input: ProfilEntrepriseInput): Pr
   revalidatePath('/recruteur/profil-entreprise')
   return { ok: true }
 }
+
+/** Déconnecte Google Meet : supprime les tokens du recruteur. */
+export async function deconnecterGoogleMeet(): Promise<{ ok: true }> {
+  const session = await assertRecruteur()
+  await prisma.recruteurGoogleAuth.deleteMany({ where: { cjsUid: session.cjsUid } })
+  await recordAudit(session.cjsUid, 'meet.deconnexion', { targetType: 'recruteur_google_auth', targetId: session.cjsUid })
+  revalidatePath('/recruteur/profil-entreprise')
+  return { ok: true }
+}

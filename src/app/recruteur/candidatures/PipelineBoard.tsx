@@ -11,6 +11,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import { deplacerPipeline, basculerFavori, deplacerPipelineGroupe, changerStatutGroupe, basculerFavoriGroupe } from './actions'
+import { listMesTemplates, envoyerEmailGroupe } from '@/app/recruteur/modeles-emails/actions'
+import type { ResolvedTemplate } from '@/lib/email/templates-defs'
 import type { RecruteurPipeline, PipelineCard, PipelineStageId } from '@/lib/loaders/recruteur'
 
 const COLS: { id: PipelineStageId; label: string; dot: string; soft: string }[] = [
@@ -66,6 +68,13 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
       return next
     })
   }
+
+  // Sélection globale : toutes les candidatures affichées (donc celles du filtre actif).
+  const toutesLesCartes = COLS.flatMap((col) => pipeline.colonnes[col.id])
+  const toutSelectionne = toutesLesCartes.length > 0 && toutesLesCartes.every((c) => sel.has(c.id))
+  function toggleToutEcran() {
+    setSel(toutSelectionne ? new Set() : new Set(toutesLesCartes.map((c) => c.id)))
+  }
   function groupe(fn: (ids: string[]) => Promise<unknown>) {
     const ids = [...sel]
     if (ids.length === 0) return
@@ -78,6 +87,34 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
     groupe((ids) => changerStatutGroupe(ids, 'Refusee'))
   }
 
+  // GUIC-553 évolution — envoi groupé d'un modèle d'email aux candidatures sélectionnées.
+  const [mailOuvert, setMailOuvert] = useState(false)
+  const [modeles, setModeles] = useState<ResolvedTemplate[] | null>(null)
+  const [cleModele, setCleModele] = useState('pipeline.preselection')
+  const [complement, setComplement] = useState('')
+
+  function ouvrirMail() {
+    setMailOuvert(true)
+    if (!modeles) {
+      listMesTemplates().then(setModeles).catch(() => setModeles([]))
+    }
+  }
+  function envoyerMail() {
+    const ids = [...sel]
+    if (ids.length === 0) return
+    start(async () => {
+      try {
+        const res = await envoyerEmailGroupe(ids, cleModele, complement)
+        window.alert(`Emails : ${res.envoyes} envoyé${res.envoyes > 1 ? 's' : ''}, ${res.sansEmail} sans adresse, ${res.echecs} échec${res.echecs > 1 ? 's' : ''}.`)
+        setMailOuvert(false); setComplement(''); setSel(new Set()); router.refresh()
+      } catch (err) {
+        window.alert(err instanceof Error && err.message.includes('NOTIFICATIONS_DISABLED')
+          ? 'Envois désactivés (NOTIFICATIONS_ENABLED).'
+          : 'Échec de l’envoi groupé.')
+      }
+    })
+  }
+
   return (
     <div>
       {/* Sélecteur d'offre */}
@@ -87,6 +124,18 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
           <option value="">Toutes les offres</option>
           {pipeline.offres.map((o) => <option key={o.id} value={o.id}>{o.titre}</option>)}
         </select>
+        {toutesLesCartes.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleToutEcran}
+            aria-pressed={toutSelectionne}
+            className="inline-flex items-center gap-[5px] rounded-[10px] border-[1.5px] px-[12px] min-h-[40px] text-[12.5px] font-extrabold bg-white"
+            style={{ borderColor: toutSelectionne ? 'var(--gj-teal-deep)' : 'var(--gj-line)', color: toutSelectionne ? 'var(--gj-teal-deep)' : 'var(--gj-ink)', cursor: 'pointer' }}
+          >
+            <Icon name="check" size={13} />
+            {toutSelectionne ? 'Tout désélectionner' : `Tout sélectionner (${toutesLesCartes.length})`}
+          </button>
+        )}
       </div>
 
       {/* Board */}
@@ -173,9 +222,55 @@ export function PipelineBoard({ pipeline }: { pipeline: RecruteurPipeline }) {
           <button type="button" disabled={pending} onClick={() => groupe((ids) => basculerFavoriGroupe(ids, true))} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'rgba(255,255,255,.12)', color: '#fff', cursor: 'pointer' }}>
             <Icon name="bookmark" size={12} /> Favori
           </button>
+          <button type="button" disabled={pending} onClick={ouvrirMail} className="inline-flex items-center gap-[5px] text-[12px] font-black rounded-[8px] px-[10px] min-h-[34px] border-0" style={{ background: 'var(--gj-teal, #0FA88F)', color: '#fff', cursor: 'pointer' }}>
+            <Icon name="chat" size={12} /> Email
+          </button>
           <button type="button" onClick={() => setSel(new Set())} aria-label="Effacer la sélection" className="inline-flex items-center text-[12px] font-bold rounded-[8px] px-[8px] min-h-[34px] border-0" style={{ background: 'transparent', color: 'rgba(255,255,255,.75)', cursor: 'pointer' }}>
             <Icon name="close" size={13} />
           </button>
+        </div>
+      )}
+
+      {/* GUIC-553 évolution — modale d'envoi groupé d'un modèle d'email */}
+      {mailOuvert && (
+        <div role="dialog" aria-modal="true" aria-label="Envoyer un email aux candidats sélectionnés" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,24,40,.55)' }} onClick={() => setMailOuvert(false)}>
+          <div className="w-full max-w-[520px] rounded-[14px] bg-white p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>
+              Envoyer un email — {sel.size} candidat{sel.size > 1 ? 's' : ''}
+            </div>
+            <label className="mt-4 block text-[11.5px] font-bold" style={{ color: 'var(--gj-grey)' }}>
+              Modèle
+              <select
+                value={cleModele}
+                onChange={(e) => setCleModele(e.target.value)}
+                className="mt-1 w-full rounded-[10px] border-[1.5px] px-3 min-h-[40px] text-[13px] bg-white"
+                style={{ borderColor: 'var(--gj-line)', color: 'var(--gj-ink)' }}
+              >
+                {(modeles ?? []).map((m) => <option key={m.cle} value={m.cle}>{m.nom}</option>)}
+              </select>
+            </label>
+            <label className="mt-3 block text-[11.5px] font-bold" style={{ color: 'var(--gj-grey)' }}>
+              Complément (injecté dans le modèle — date, lieu, précisions…)
+              <textarea
+                value={complement}
+                onChange={(e) => setComplement(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-[10px] border-[1.5px] px-3 py-2 text-[13px]"
+                style={{ borderColor: 'var(--gj-line)', color: 'var(--gj-ink)' }}
+              />
+            </label>
+            <p className="mt-2 text-[11.5px]" style={{ color: 'var(--gj-grey)' }}>
+              Vous pouvez ajuster vos modèles dans « Modèles d’emails ». Chaque envoi est tracé.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setMailOuvert(false)} className="rounded-[10px] border-[1.5px] px-4 min-h-[40px] text-[13px] font-extrabold bg-white" style={{ borderColor: 'var(--gj-line)', color: 'var(--gj-ink)', cursor: 'pointer' }}>
+                Annuler
+              </button>
+              <button type="button" disabled={pending || !modeles} onClick={envoyerMail} className="rounded-[10px] border-0 px-4 min-h-[40px] text-[13px] font-extrabold" style={{ background: 'var(--gj-teal-deep, #0B7285)', color: '#fff', cursor: 'pointer' }}>
+                {pending ? 'Envoi…' : `Envoyer (${sel.size})`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -229,7 +324,16 @@ function Card({ c, selected, onToggleSel, onDragStart, onFav, onMove }: {
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--gj-line)', paddingTop: 8 }}>
-        {c.match != null ? <span className="text-[10px] font-black" style={{ ...matchStyle(c.match), padding: '2px 8px', borderRadius: 999 }}>{c.match}% match</span> : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
+        {c.match != null ? (
+          <span
+            className="inline-flex items-center gap-[3px] text-[10px] font-black"
+            style={{ ...matchStyle(c.match), padding: '2px 8px', borderRadius: 999 }}
+            title={c.matchRaison ?? 'Score calculé par l’IA (CV + profil vs offre)'}
+            aria-label={`Score IA ${c.match} sur 100${c.matchRaison ? ` — ${c.matchRaison}` : ''}`}
+          >
+            <Icon name="bolt" size={10} /> IA {c.match} %
+          </span>
+        ) : <span className="text-[10px]" style={{ color: 'var(--gj-grey)' }}>—</span>}
         <span className="text-[10.5px]" style={{ color: 'var(--gj-grey-2, #9aa5b1)' }}>{frDate(c.soumiseA)}</span>
       </div>
       {/* Fallback tactile/clavier : déplacer d'une colonne (le drag reste dispo sur desktop). */}
