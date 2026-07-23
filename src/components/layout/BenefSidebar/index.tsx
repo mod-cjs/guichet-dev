@@ -43,9 +43,13 @@ export interface BenefSidebarProps {
    * elle est désormais ignorée.
    */
   yayeHref?: string
-  /** GUIC-373 — nombre de notifications non lues (affiche un badge sur l'icône cloche). */
+  /**
+   * @deprecated GUIC-658 — le bouton Notifications a quitté le footer de la
+   * sidebar (la cloche BenefTopBar reste le point d'accès). Props conservées
+   * pour compat ascendante, désormais ignorées.
+   */
   unread?: number
-  /** GUIC-373 — handler bouton notifications. Si absent : navigue vers `/jeune/notifications`. */
+  /** @deprecated GUIC-658 — cf `unread`. */
   onBellClick?: () => void
   /** GUIC-373 — handler bouton déconnexion. Si absent : `router.push('/auth/deconnexion')`. */
   onLogoutClick?: () => void
@@ -86,27 +90,10 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },
-  {
-    title: 'Plateformes partenaires',
-    items: [
-      {
-        id: 'yeah',
-        href: 'https://yeah.consortiumjeunessesenegal.org',
-        icon: 'sparkle',
-        label: 'YEAH',
-        external: true,
-      },
-      {
-        id: 'elearning',
-        href: 'https://elearning.guichetjeunesse.sn',
-        icon: 'learning',
-        label: 'E-learning',
-        external: true,
-      },
-    ],
-  },
   // GUIC-376 — "Mon compte > Mon profil" supprimé : la carte profil en haut
   // de la sidebar est désormais l'unique point d'accès à `/jeune/mon-profil`.
+  // GUIC-658 — section « Plateformes partenaires » (YEAH, E-learning)
+  // supprimée : sidebar épurée, le pied est réservé à l'accessibilité.
 ]
 
 /**
@@ -190,8 +177,9 @@ export function BenefSidebar({
   hasPhoto = false,
   // GUIC-376 — `yayeHref` est désormais ignoré (déprécié).
   yayeHref: _yayeHref,
-  unread = 0,
-  onBellClick,
+  // GUIC-658 — `unread`/`onBellClick` ignorés (Notifications hors footer).
+  unread: _unread,
+  onBellClick: _onBellClick,
   onLogoutClick,
 }: BenefSidebarProps) {
   // `usePathname()` peut retourner null hors contexte router — fallback sur '/'.
@@ -208,11 +196,6 @@ export function BenefSidebar({
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [loggingOut, setLoggingOut] = useState(false)
 
-  const handleBell = () => {
-    if (onBellClick) onBellClick()
-    else if (router) router.push('/jeune/notifications')
-    else window.location.assign('/jeune/notifications')
-  }
   const handleLogout = () => {
     if (loggingOut) return
     setLoggingOut(true)
@@ -434,54 +417,81 @@ export function BenefSidebar({
         </div>
       ))}
 
-      {/* GUIC-581 — Inclusion & accessibilité : remplace le CTA Yaye (redondant
-          depuis GUIC-376, la bulle flottante ouvre le même drawer). Entrée
-          sobre et permanente vers la page dédiée — l'activation des réglages
-          est un choix réfléchi, pas un panneau superposé. */}
+      {/* GUIC-581/GUIC-658 — Inclusion & accessibilité : ancre visuelle du
+          pied de sidebar (à la place de l'ex-CTA Yaye, redondant depuis
+          GUIC-376). Carte gradient teal — même registre que le hero de la
+          page dédiée. L'activation des réglages reste un choix réfléchi :
+          la carte mène à /jeune/accessibilite, pas de panneau superposé. */}
       <Link
         href="/jeune/accessibilite"
         aria-label="Inclusion & accessibilité"
         aria-current={pathname === '/jeune/accessibilite' ? 'page' : undefined}
+        data-variant="cta"
         className="no-underline"
         style={{
           marginTop: 'auto',
-          padding: '11px 12px',
-          background: 'var(--gj-teal-soft)',
-          border:
-            pathname === '/jeune/accessibilite'
-              ? '1.5px solid var(--gj-teal-deep)'
-              : '1.5px solid transparent',
+          padding: '13px 12px',
+          backgroundColor: 'var(--gj-teal-deep)',
+          backgroundImage:
+            'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-ink)))',
           borderRadius: 12,
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 11,
           width: '100%',
           minHeight: 'var(--tap-min)',
+          // GUIC-658 — la sidebar est une colonne flex overflowY:auto : sans
+          // flexShrink:0 la carte est écrasée dès que la nav dépasse la
+          // hauteur d'écran et le texte est rogné par overflow:hidden.
+          flexShrink: 0,
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow:
+            pathname === '/jeune/accessibilite'
+              ? '0 0 0 2px var(--gj-yellow)'
+              : 'none',
         }}
       >
+        {/* halo jaune discret, même registre que le hero de la page */}
         <span
           aria-hidden
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
+            position: 'absolute',
+            right: -30,
+            top: -40,
+            width: 120,
+            height: 120,
+            background:
+              'radial-gradient(circle, rgba(249,196,0,.22), transparent 60%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <span
+          aria-hidden
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 11,
             flexShrink: 0,
-            background: 'var(--gj-surface)',
-            color: 'var(--gj-teal-deep)',
+            background: 'rgba(255,255,255,.18)',
+            color: 'var(--gj-yellow)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative',
           }}
         >
-          <Icon name="eye" size={17} />
+          <Icon name="eye" size={22} />
         </span>
-        <span style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+        <span style={{ flex: 1, minWidth: 0, lineHeight: 1.25, position: 'relative' }}>
+          {/* GUIC-658 — lisibilité renforcée (retour PO) : blanc pur + tailles
+              relevées, la carte est l'ancre du pied de sidebar. */}
           <span
             style={{
               display: 'block',
-              fontSize: 12.5,
-              fontWeight: 800,
-              color: 'var(--gj-teal-deep)',
+              fontSize: 14.5,
+              fontWeight: 900,
+              color: '#FFFFFF',
             }}
           >
             Inclusion & accessibilité
@@ -489,19 +499,24 @@ export function BenefSidebar({
           <span
             style={{
               display: 'block',
-              fontSize: 10.5,
-              color: 'var(--gj-grey)',
-              marginTop: 1,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#FFFFFF',
+              opacity: 0.92,
+              marginTop: 3,
             }}
           >
-            Adapter l&apos;application
+            Adapter l&apos;application à tes besoins
           </span>
         </span>
-        <Icon name="chevron-right" size={14} />
+        <span style={{ color: 'var(--gj-yellow)', position: 'relative', flexShrink: 0 }}>
+          <Icon name="chevron-right" size={17} />
+        </span>
       </Link>
 
-      {/* GUIC-376 — Footer compte : Notifications + Déconnexion séparés
-          visuellement du reste de la sidebar par un border-top. */}
+      {/* GUIC-376 — Footer compte, séparé par un border-top.
+          GUIC-658 — Notifications retiré (la cloche BenefTopBar reste le
+          point d'accès) : seul Se déconnecter demeure. */}
       <div
         style={{
           display: 'flex',
@@ -512,52 +527,6 @@ export function BenefSidebar({
           borderTop: '1px solid var(--gj-line)',
         }}
       >
-        <button
-          type="button"
-          onClick={handleBell}
-          aria-label={
-            unread > 0 ? `Notifications (${unread} non lues)` : 'Notifications'
-          }
-          className="no-underline"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '9px 10px',
-            borderRadius: 8,
-            fontSize: 13,
-            color: 'var(--gj-grey)',
-            fontWeight: 600,
-            minHeight: 'var(--tap-min)',
-            background: 'transparent',
-            border: 0,
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'left',
-            position: 'relative',
-          }}
-        >
-          <Icon name="bell" size={18} />
-          <span style={{ flex: 1 }}>Notifications</span>
-          {unread > 0 ? (
-            <span
-              style={{
-                marginLeft: 'auto',
-                background: 'var(--gj-red)',
-                color: 'var(--gj-surface)',
-                fontSize: 9.5,
-                fontWeight: 800,
-                padding: '2px 7px',
-                borderRadius: 10,
-                minWidth: 18,
-                textAlign: 'center',
-              }}
-            >
-              {unread > 99 ? '99+' : unread}
-            </span>
-          ) : null}
-        </button>
-
         <button
           type="button"
           onClick={handleLogout}

@@ -77,14 +77,15 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           userInitials={userInitials || undefined}
           cjsUid={session.cjsUid}
           hasPhoto={hasPhoto}
-          unread={unread}
         />
       </div>
 
       {/* Colonne droite (desktop) / flow normal (mobile/tablet) */}
       <div className="flex flex-col min-w-0">
-        {/* Top bar desktop (≥lg) — composant déjà `hidden lg:flex` en interne */}
-        <BenefTopBar />
+        {/* Top bar desktop (≥lg) — composant déjà `hidden lg:flex` en interne.
+            GUIC-658 — le badge non-lues vit sur la cloche topbar (le bouton
+            Notifications de la sidebar est supprimé). */}
+        <BenefTopBar unread={unread} />
 
         {/* Header marketing : visible uniquement en tablet [md, lg)
             (mobile <md → shell mobile global ; desktop ≥lg → BenefTopBar ci-dessus) */}
