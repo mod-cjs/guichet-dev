@@ -147,6 +147,15 @@ describe('<BenefSidebar />', () => {
     expect(parseFloat(sub.style.fontSize)).toBeGreaterThanOrEqual(12)
   })
 
+  // GUIC-658 — la sidebar est une colonne flex overflowY:auto : sans
+  // flex-shrink:0 la carte est écrasée quand la nav dépasse la hauteur
+  // d'écran et son texte est rogné par overflow:hidden (bug constaté).
+  it('carte Inclusion : non compressible par le flex de la sidebar', () => {
+    render(<BenefSidebar />)
+    const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
+    expect(link.style.flexShrink).toBe('0')
+  })
+
   // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
   // (YEAH, E-learning) est supprimée.
   it('ne rend plus la section Plateformes partenaires (YEAH / E-learning)', () => {

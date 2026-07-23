@@ -465,11 +465,11 @@ export function BenefSidebar({
         <span
           aria-hidden
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
+            width: 42,
+            height: 42,
+            borderRadius: 11,
             flexShrink: 0,
-            background: 'rgba(255,255,255,.16)',
+            background: 'rgba(255,255,255,.18)',
             color: 'var(--gj-yellow)',
             display: 'inline-flex',
             alignItems: 'center',
@@ -477,15 +477,17 @@ export function BenefSidebar({
             position: 'relative',
           }}
         >
-          <Icon name="eye" size={19} />
+          <Icon name="eye" size={22} />
         </span>
-        <span style={{ flex: 1, minWidth: 0, lineHeight: 1.2, position: 'relative' }}>
+        <span style={{ flex: 1, minWidth: 0, lineHeight: 1.25, position: 'relative' }}>
+          {/* GUIC-658 — lisibilité renforcée (retour PO) : blanc pur + tailles
+              relevées, la carte est l'ancre du pied de sidebar. */}
           <span
             style={{
               display: 'block',
-              fontSize: 12.5,
-              fontWeight: 800,
-              color: 'var(--gj-surface)',
+              fontSize: 14.5,
+              fontWeight: 900,
+              color: '#FFFFFF',
             }}
           >
             Inclusion & accessibilité
@@ -493,17 +495,18 @@ export function BenefSidebar({
           <span
             style={{
               display: 'block',
-              fontSize: 10.5,
-              color: 'var(--gj-surface)',
-              opacity: 0.85,
-              marginTop: 2,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#FFFFFF',
+              opacity: 0.92,
+              marginTop: 3,
             }}
           >
             Adapter l&apos;application à tes besoins
           </span>
         </span>
         <span style={{ color: 'var(--gj-yellow)', position: 'relative', flexShrink: 0 }}>
-          <Icon name="chevron-right" size={15} />
+          <Icon name="chevron-right" size={17} />
         </span>
       </Link>
 
