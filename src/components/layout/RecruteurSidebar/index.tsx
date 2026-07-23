@@ -107,7 +107,7 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
       <aside
         role="navigation"
         aria-label="Navigation recruteur"
-        className={`fixed md:static inset-y-0 left-0 z-[260] md:z-auto min-h-screen flex flex-col transition-all duration-200 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        className={`fixed md:static inset-y-0 left-0 z-[260] md:z-auto h-screen flex flex-col transition-all duration-200 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ width, background: '#fff', borderRight: '1px solid var(--gj-line)', padding: '14px 12px', overflowY: 'auto' }}
       >
         {/* Marque : logo CJS au-dessus du badge « Espace recruteur » */}

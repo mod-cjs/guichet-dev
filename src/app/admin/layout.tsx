@@ -53,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </span>
       </div>
 
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen md:h-screen md:overflow-hidden">
         <AdminSidebar
           userName={userName}
           userRole={userRole}
@@ -62,11 +62,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           moderationCount={aModerer}
         />
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
           {/* ── Topbar desktop (blanc, clair) ─────────────────────────── */}
           <AdminTopBar notificationCount={aModerer} />
 
-          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0">
+          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto">
             {children}
           </main>
         </div>
