@@ -42,4 +42,14 @@ docker exec -i "$CONTAINER" mariadb -uroot -p"${ROOT_PWD}" "${DB}" < "$DUMP"
 COUNT=$(docker exec -i "$CONTAINER" mariadb -uroot -p"${ROOT_PWD}" -N -B "${DB}" \
   -e "SELECT COUNT(*) FROM opportunites;" 2>/dev/null || echo "?")
 echo "✅ Base '${DB}' chargée — ${COUNT} opportunités."
+
+# Le dump est un instantané : son schéma est FIGÉ à la date de sa capture, et sa table
+# `_prisma_migrations` est incohérente avec son propre schéma (cf. en-tête de
+# sync-enriched-migrations.sh). Sans cette étape, la base repart systématiquement avec
+# des migrations manquantes — c'est ainsi que `llm_config` était absente pendant 10 jours
+# sans que personne ne le voie, l'application étant fail-soft sur cette lecture.
+echo
+ENRICHED_DB="$DB" bash "$(dirname "$0")/sync-enriched-migrations.sh"
+
+echo
 echo "   Prochaine étape : npm run yaye:reproject   (projette MariaDB → Neo4j base 'enriched')"
