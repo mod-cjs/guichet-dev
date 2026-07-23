@@ -79,4 +79,21 @@ describe('modifierPrefsAccessibilite', () => {
     await expect(modifierPrefsAccessibilite(null)).rejects.toThrow(/VALIDATION/)
     expect(mockPrisma.profilJeune.update).not.toHaveBeenCalled()
   })
+
+  it('accepte le shape par défaut complet (tout désactivé)', async () => {
+    const defaults = {
+      text: 'm',
+      contrast: false,
+      gray: false,
+      motion: false,
+      spacing: false,
+      falc: false,
+      kbd: false,
+    }
+    await modifierPrefsAccessibilite(defaults)
+    expect(mockPrisma.profilJeune.update).toHaveBeenCalledWith({
+      where: { cjsUid: 'jeune-1' },
+      data: { prefsAccessibilite: defaults },
+    })
+  })
 })
