@@ -5,6 +5,7 @@ import { saveTokens, clearTokens } from '@/lib/token-store'
 import { revokeToken } from '@/lib/sso-client'
 import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 import { isConseillerRole, isRecruteurRole } from '@/lib/auth/espace-roles'
+import { basePublique } from '@/lib/security/base-publique'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
 
@@ -40,10 +41,11 @@ export async function middleware(request: NextRequest) {
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
   if (!matched) return NextResponse.next()
 
+  const base    = basePublique(request)
   const session = await getSession(request)
 
   if (!session) {
-    const loginUrl = new URL('/auth/connexion', request.url)
+    const loginUrl = new URL('/auth/connexion', base)
     const response = NextResponse.redirect(loginUrl)
     response.cookies.set('auth_return_to', pathname + request.nextUrl.search, {
       httpOnly: true,
@@ -57,15 +59,15 @@ export async function middleware(request: NextRequest) {
 
   // Vérifier la denylist Redis (backchannel logout SSO)
   if (!(await isSessionActive(session.cjsUid))) {
-    const response = NextResponse.redirect(new URL('/auth/connexion', request.url))
+    const response = NextResponse.redirect(new URL('/auth/connexion', base))
     response.cookies.delete('cjs_session')
     return response
   }
 
   if (!matched.check(session.roles)) {
     const home = roleHome(session.roles)
-    if (home) return NextResponse.redirect(new URL(home, request.url))
-    const response = NextResponse.redirect(new URL('/auth/connexion?error=no_role', request.url))
+    if (home) return NextResponse.redirect(new URL(home, base))
+    const response = NextResponse.redirect(new URL('/auth/connexion?error=no_role', base))
     response.cookies.delete('cjs_session')
     return response
   }
@@ -75,7 +77,7 @@ export async function middleware(request: NextRequest) {
     !session.onboardingComplete &&
     !pathname.startsWith('/jeune/onboarding')
   ) {
-    return NextResponse.redirect(new URL('/jeune/onboarding', request.url))
+    return NextResponse.redirect(new URL('/jeune/onboarding', base))
   }
 
   const now = Math.floor(Date.now() / 1000)

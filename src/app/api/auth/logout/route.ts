@@ -3,6 +3,7 @@ import { getSession, clearSessionCookie } from '@/lib/auth'
 import { revokeToken } from '@/lib/sso-client'
 import { revokeSession } from '@/lib/session-store'
 import { clearTokens } from '@/lib/token-store'
+import { basePublique } from '@/lib/security/base-publique'
 import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXTAUTH_URL ?? ''
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
   }
 
   const session  = await getSession()
-  const response = NextResponse.redirect(new URL('/', request.url))
+  const response = NextResponse.redirect(new URL('/', basePublique(request)))
 
   if (session) {
     await Promise.allSettled([
@@ -52,5 +53,5 @@ export async function POST(request: NextRequest) {
 
 // Compatibilité liens <a> pendant la transition — redirige vers POST via page
 export async function GET(request: NextRequest) {
-  return NextResponse.redirect(new URL('/auth/deconnexion', request.url))
+  return NextResponse.redirect(new URL('/auth/deconnexion', basePublique(request)))
 }
