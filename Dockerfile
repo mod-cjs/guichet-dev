@@ -30,6 +30,13 @@ ENV REDIS_URL=redis://localhost:6379 \
     STAFF_SESSION_SECRET=build-only \
     SSO_BASE_URL=http://localhost \
     SSO_CLIENT_ID=build
+# GUIC-662 — Clé Google Maps : var `NEXT_PUBLIC_*` → INLINÉE dans le bundle client au `next build`.
+# Contrairement aux factices ci-dessus, celle-ci DOIT recevoir la vraie valeur AU BUILD
+# (--build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=...) ; la mettre au runtime (env-file) n'a AUCUN effet.
+# Vide par défaut → la carte retombe sur la liste a11y (le code gère l'absence). Restreins la clé
+# par referer/domaine côté console GCP : une clé NEXT_PUBLIC_* est publique côté navigateur.
+ARG NEXT_PUBLIC_GOOGLE_MAPS_KEY=
+ENV NEXT_PUBLIC_GOOGLE_MAPS_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate

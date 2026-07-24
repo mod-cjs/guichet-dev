@@ -37,6 +37,9 @@ describe('2. Dockerfile buildable sans build-arg externe', () => {
   it('fournit REDIS_URL au stage builder (next build importe le client Redis)', () => {
     expect(df).toMatch(/ENV[\s\S]*?REDIS_URL=/)
   })
+  it('déclare ARG NEXT_PUBLIC_GOOGLE_MAPS_KEY (clé Maps inlinée au build, pas au runtime)', () => {
+    expect(df).toMatch(/ARG\s+NEXT_PUBLIC_GOOGLE_MAPS_KEY/)
+  })
 })
 
 describe('3. backup.sh — réseau préprod aligné sur deploy.sh', () => {
