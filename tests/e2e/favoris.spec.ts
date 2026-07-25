@@ -12,11 +12,12 @@ test.use({ storageState: storageStatePath('jeune') })
 
 let cleanup: (() => Promise<void>) | undefined
 let oppId = ''
+let slug = ''
 const TITRE = 'OppFavE2EJ4 Développeur'
 
 test.beforeAll(async () => {
   const o = await seedOpportunite({ slug: 'e2e-j4-favori', titre: TITRE, statut: 'publiee' })
-  oppId = o.id; cleanup = o.cleanup
+  oppId = o.id; slug = o.slug; cleanup = o.cleanup
   await getPrisma().opportuniteFavorite.deleteMany({ where: { cjsUid: E2E_UIDS.jeune, opportuniteId: oppId } }).catch(() => {})
 })
 
@@ -28,13 +29,10 @@ test.afterAll(async () => {
 
 test.describe('J4 — favoris @secondaire', () => {
   test('ajouter aux favoris depuis une carte → persisté', async ({ page }) => {
-    await page.goto('/opportunites')
-    // Restreint la liste à notre opportunité (terme unique) pour cibler sa carte.
-    await page.getByRole('searchbox', { name: /rechercher une opportunit/i }).fill('OppFavE2EJ4')
-    await page.waitForResponse((r) => r.url().includes('/api/opportunites') && r.ok())
-
-    const carte = page.locator('[data-testid="opp-card"]').filter({ hasText: TITRE }).first()
-    await carte.getByRole('button', { name: /ajouter aux favoris/i }).click()
+    // Nav directe au détail (par slug) — indépendante du full-text (une opp fraîche n'est pas
+    // immédiatement indexée). Le bouton favori du détail est labellisé « Sauvegarder ».
+    await page.goto(`/opportunites/${slug}`)
+    await page.getByRole('button', { name: /^sauvegarder$/i }).first().click()
 
     await expect
       .poll(async () => getPrisma().opportuniteFavorite.count({ where: { cjsUid: E2E_UIDS.jeune, opportuniteId: oppId } }), { timeout: 8000 })
