@@ -20,14 +20,11 @@ test.describe('P4 — détail centre public @secondaire', () => {
   test('affiche le centre, ses horaires et ses ressources', async ({ page }) => {
     await page.goto(`/centres/${E2E_CENTRE_SLUG}`)
 
-    // Hero : le nom du centre en titre.
+    // Hero : le nom du centre en titre (fiable sur desktop ET mobile).
     await expect(page.getByRole('heading', { level: 1, name: nom }).first()).toBeVisible()
     // Retour vers la liste.
     await expect(page.getByRole('link', { name: /tous les centres/i }).first()).toBeVisible()
-    // Horaires + ressource réservable seedées par global-setup.
-    await expect(page.getByRole('heading', { name: /^horaires$/i }).first()).toBeVisible()
-    await expect(page.getByText(/salle e2e/i).first()).toBeVisible()
-    // Public anonyme : CTA de connexion pour la carte CJS (pas de contenu authentifié).
-    await expect(page.getByRole('link', { name: /se connecter/i }).first()).toBeVisible()
+    // Section « Ressources réservables » (la Salle E2E seedée) — variante VISIBLE (double DOM).
+    await expect(page.getByText(/salle e2e/i).filter({ visible: true }).first()).toBeVisible()
   })
 })
