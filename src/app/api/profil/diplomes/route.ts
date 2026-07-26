@@ -6,6 +6,7 @@ import { recalculerEtPersisterScore } from '@/lib/profil-loader'
 import { DiplomeSchema, MAX_DIPLOMES } from '@/lib/validations/diplome'
 import type { ApiResponse } from '@/types/api'
 import type { DiplomeItem, DiplomeResponse } from '@/types/profil'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 
 const SELECT_FIELDS = {
   id: true, intitule: true, etablissement: true, anneeObtention: true, niveau: true, mention: true, fichierUrl: true,
@@ -71,6 +72,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   })
 
   const completionScore = await recalculerEtPersisterScore(session.cjsUid)
+  // Un diplôme ATTESTE des compétences (dérivée floue) → rafraîchit MAITRISE.
+  fireBeneficiaireGraphSync(session.cjsUid)
 
   return NextResponse.json({ data: { ...diplome, completionScore } }, { status: 201 })
 }

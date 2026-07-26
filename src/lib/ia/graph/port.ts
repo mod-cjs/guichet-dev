@@ -77,6 +77,60 @@ export interface MultiEntityPath {
   programmeNom: string | null
 }
 
+/** Critères de recherche d'un livre disponible en bibliothèque de centre. */
+export interface LivreSearchCriteria {
+  /** Mots-clés (titre ou auteur). */
+  q?: string
+  /** Thème du catalogue. */
+  theme?: string
+  /** Valeur d'enum `Region` — restreint aux centres de cette région. */
+  region?: string
+  /** Borne de résultats (défaut 5, max 20). */
+  limit?: number
+}
+
+/**
+ * Un exemplaire DISPONIBLE avec son emplacement physique précis.
+ * C'est l'exemple canonique de la note (§5.3) : « un livre sur l'agriculture
+ * disponible à Thiès » → Livre → Exemplaire → Centre → Region.
+ */
+export interface GraphLivreDispo {
+  livreId: string
+  titre: string
+  auteur: string
+  theme: string
+  exemplaireId: string
+  centreId: string
+  centreNom: string
+  region: string | null
+  rayon: string
+  etagere: string
+  position: string
+}
+
+/** Ressource pédagogique qui PRÉPARE une ou plusieurs compétences visées. */
+export interface GraphRessourcePrepa {
+  id: string
+  titre: string
+  type: string
+  theme: string
+  niveau: string | null
+  /** Libellés des compétences préparées, parmi celles demandées. */
+  competences: string[]
+}
+
+/**
+ * Le read-model est VIDE (fenêtre de reconstruction du cron nocturne, base non
+ * projetée…). Distinct d'un « aucun résultat » métier : le port résilient doit
+ * BASCULER sur le fallback plutôt que de répondre « rien trouvé ».
+ */
+export class GraphEmptyError extends Error {
+  constructor(detail = 'read-model vide') {
+    super(`[graph] ${detail}`)
+    this.name = 'GraphEmptyError'
+  }
+}
+
 /** Portée d'appel d'un bénéficiaire (RBAC : un appel ne voit que ses données). */
 export interface GraphUserScope {
   cjsUid: string
@@ -110,6 +164,10 @@ export interface GraphPort {
   collaborativeReco(scope: GraphUserScope, limit?: number): Promise<RecoAggregate[]>
   /** Parcours multi-entités pour la découverte (opportunité → compétence → formation → programme). */
   multiEntityPath(criteria: { domaine?: string; region?: string; limit?: number }): Promise<MultiEntityPath[]>
+  /** Exemplaires disponibles + emplacement physique (Livre → Exemplaire → Centre → Region). */
+  livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]>
+  /** Ressources pédagogiques préparant les compétences visées (RessourcePedagogique -PREPARE-> Competence). */
+  ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]>
 }
 
 export const DEFAULT_LIMIT = 5

@@ -77,6 +77,46 @@ export const COLLABORATIVE_RECO = `
 `
 
 /**
+ * Livres DISPONIBLES avec emplacement physique — l'exemple canonique de la note (§5.3) :
+ * « un livre sur l'agriculture disponible à Thiès » traverse Livre → Exemplaire → Centre → Region.
+ * Seuls les exemplaires `disponible` remontent (un exemplaire emprunté n'est pas une réponse).
+ */
+export const LIVRES_DISPONIBLES = `
+  MATCH (l:Livre)-[:CONTIENT]->(e:Exemplaire)-[:EST_LOCALISE_EN]->(c:Centre)
+  WHERE e.statut = 'disponible'
+    AND ($q      IS NULL OR toLower(l.titre) CONTAINS toLower($q)
+                          OR toLower(l.auteur) CONTAINS toLower($q))
+    AND ($theme  IS NULL OR toLower(l.theme) CONTAINS toLower($theme))
+    AND ($region IS NULL OR c.region = $region)
+  RETURN l.id AS livreId, l.titre AS titre, l.auteur AS auteur, l.theme AS theme,
+         e.id AS exemplaireId, e.rayon AS rayon, e.etagere AS etagere, e.position AS position,
+         c.id AS centreId, c.nom AS centreNom, c.region AS region
+  ORDER BY l.titre ASC
+  LIMIT $limit
+`
+
+/**
+ * Ressources pédagogiques préparant un ensemble de compétences (par slug).
+ * Exploite `PREPARE`, projetée depuis le thème de la ressource (spec 02 §4) et
+ * jusqu'ici jamais lue. Chaînée derrière `SKILL_GAP_MISSING`, elle répond à
+ * « qu'est-ce que je peux lire/regarder pour combler ce qui me manque ? ».
+ */
+export const RESSOURCES_POUR_COMPETENCES = `
+  MATCH (r:RessourcePedagogique)-[:PREPARE]->(c:Competence)
+  WHERE c.slug IN $slugs
+  WITH r, collect(DISTINCT c.libelle) AS competences
+  RETURN r.id AS id, r.titre AS titre, r.type AS type, r.theme AS theme,
+         r.niveau AS niveau, competences
+  ORDER BY size(competences) DESC
+  LIMIT $limit
+`
+
+/** Sentinelle « le read-model est-il peuplé ? » (détection de graphe vide, C.2). */
+export const GRAPH_POPULATED = `
+  MATCH (o:Opportunite) RETURN count(o) > 0 AS populated
+`
+
+/**
  * Parcours multi-entités : opportunité → compétence requise ← formation qui la
  * développe, + programme financeur. (Centre/ACCUEILLE : pas de source Prisma → omis.)
  */

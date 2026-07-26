@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { calculerScore } from '@/lib/profil-score'
 import { loadProfilComplet } from '@/lib/profil-loader'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -156,6 +157,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
     competences:     mergedProfil.competences,
     completionScore: score,
   }
+
+  // Fraîcheur du Knowledge Graph : compétences (MAITRISE), niveau d'étude et région
+  // pilotent l'éligibilité et l'écart de compétences → à reprojeter tout de suite.
+  fireBeneficiaireGraphSync(session.cjsUid)
 
   return NextResponse.json({ data: responseData })
 }

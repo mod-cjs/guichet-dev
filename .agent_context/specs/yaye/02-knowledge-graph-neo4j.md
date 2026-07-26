@@ -210,9 +210,33 @@ RETURN o, f, c, p LIMIT 3
 
 > 🔒 **Invariant** : tout template Cypher intègre le filtrage par rôle et `centre_id` du token SSO (cf. [07-securite-conformite.md](./07-securite-conformite.md) §RBAC). Jamais de Cypher sans ce filtrage.
 
+### Templates réellement implémentés (`src/lib/ia/graph/cypher-templates.ts`)
+
+| Template | Intention `query_knowledge_graph` | Relations traversées |
+|----------|-----------------------------------|----------------------|
+| `SEARCH_OPPORTUNITES` | `recherche` | — (filtres de propriété) |
+| `SKILL_GAP_MISSING` + `FORMATIONS_FOR_SKILLS` | `ecart_competences` | `REQUIERT`, `MAITRISE`, `DEVELOPPE` |
+| `ELIGIBLE_OPPORTUNITES` | `eligibilite` | `A_POSTULE`, `A_EXERCE` |
+| `COLLABORATIVE_RECO` | `reco_collaborative` | `A_POSTULE` (sortie agrégée) |
+| `MULTI_ENTITY_PATH` | `parcours` | `REQUIERT`, `DEVELOPPE`, `FINANCE` |
+| **`LIVRES_DISPONIBLES`** | **`livre_disponible`** | **`CONTIENT`, `EST_LOCALISE_EN`** |
+| **`RESSOURCES_POUR_COMPETENCES`** | **`ressources_competences`** | **`PREPARE`** |
+| `GRAPH_POPULATED` | *(sentinelle interne)* | — |
+
+> ⚠️ **Écart projection ↔ lecture** — restent PROJETÉES mais jamais interrogées : `EST_DE_TYPE`,
+> `PUBLIE`, `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`,
+> `INTERESSE_PAR`, `A_OBTENU`, `ATTESTE`. Soit on écrit les templates qui les exploitent, soit on
+> arrête de les projeter — un read-model qu'on n'interroge pas est un coût sans contrepartie.
+
+> 🛡 **Vide ≠ aucun résultat** : le cron nocturne reconstruit le graphe en `wipe:true`. Une traversée
+> qui renvoie 0 ligne déclenche la sentinelle `GRAPH_POPULATED` ; si le read-model est vide, l'adapter
+> lève `GraphEmptyError` et le circuit-breaker sert le fallback Prisma — au lieu de répondre « je n'ai
+> rien trouvé » (ou, pire sur `ecart_competences`, « il ne te manque aucune compétence »).
+
 ## 6. Pipeline d'alimentation Prisma → Neo4j
 
 - **Événementiel** : à chaque création/modif d'entité Prisma (opportunité + son sous-type, livre, exemplaire, salle, véhicule, programme, événement, candidature, certificat), un événement interne Next.js déclenche un Route Handler de synchronisation qui **upsert** le nœud + ses labels + recalcule les relations impactées (`REQUIERT`, `ETIQUETTE`, `A_POSTULE`, `MAITRISE`…).
+- **Couverture événementielle réelle** : `projectOpportunite` (opportunités), `projectLivre`/`projectExemplaire` (bibliothèque) et **`projectBeneficiaire`** — ce dernier rafraîchit `A_POSTULE`, `MAITRISE`, `ATTESTE`, `A_OBTENU`, `A_EXERCE`, `INTERESSE_PAR`, `INSCRIT_A` pour UNE personne, avec purge préalable des arêtes re-projetées. Déclencheurs (`fireBeneficiaireGraphSync`, fail-soft) posés sur : candidature, profil, diplôme, certificat, expérience, favori (ajout/retrait), inscription événement.
 - **Mapping** : une fonction de projection par modèle Prisma → `MERGE (n:Label {id}) SET n += $props` + `MERGE` des relations. Les relations dérivées (`MAITRISE`, `ATTESTE`, `PREPARE`) sont recalculées par règles (matching theme/competence).
 - **Filet de sécurité** : **synchronisation complète nocturne** (reprojection idempotente).
 - **Scoring de recommandation** : un pipeline distinct interroge le graphe (matching profil × opportunités) et **écrit les scores dans `RecommandationIA` (Prisma)** — jamais dans le graphe (invariant §0). Lu ensuite par l'outil `get_recommendations` (cf. [11](./11-fonctionnalites.md) F2-b, [03](./03-outils-function-calling.md)).

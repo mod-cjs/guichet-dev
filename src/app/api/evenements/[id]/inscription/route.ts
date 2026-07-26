@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 
 // GUIC-23 — M5 · Inscription / désinscription à un événement (auth SSO requise).
@@ -96,6 +97,7 @@ export async function POST(
           where: { cjsUid_evenementId: { cjsUid: session.cjsUid, evenementId: id } },
           data: { statut: 'inscrit' },
         })
+        fireBeneficiaireGraphSync(session.cjsUid) // INSCRIT_A (statut d'arête)
         return NextResponse.json({ data: reactivated }, { status: 200 })
       }
       return NextResponse.json({ data: existing }, { status: 200 })
@@ -104,6 +106,7 @@ export async function POST(
     const created = await prisma.inscriptionEvenement.create({
       data: { cjsUid: session.cjsUid, evenementId: id, statut: 'inscrit' },
     })
+    fireBeneficiaireGraphSync(session.cjsUid) // INSCRIT_A
     return NextResponse.json({ data: created }, { status: 201 })
   } catch (err) {
     // P2002 = unique constraint (race condition) → considère comme déjà inscrit

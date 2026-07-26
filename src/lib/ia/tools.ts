@@ -335,7 +335,10 @@ const getRecommendations: AgentTool = {
 // Outil RÉACTIF du Knowledge Graph (GUIC-433). Groq choisit l'INTENTION et remplit
 // les paramètres ; on route vers le template de traversée correspondant via le
 // GraphPort (Neo4j ou fallback Prisma). Portée RBAC : bornée au cjsUid connecté.
-const GRAPH_INTENTS = ['recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours'] as const
+const GRAPH_INTENTS = [
+  'recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours',
+  'livre_disponible', 'ressources_competences',
+] as const
 type GraphIntent = (typeof GRAPH_INTENTS)[number]
 
 const queryKnowledgeGraph: AgentTool = {
@@ -351,7 +354,11 @@ const queryKnowledgeGraph: AgentTool = {
         "au jeune + les formations qui les développent (« suis-je prêt ? »).\n" +
         "- `eligibilite` : offres adaptées à son niveau d'étude et son expérience.\n" +
         "- `reco_collaborative` : offres pertinentes au vu de son parcours (présente-les comme adaptées à SON profil, jamais via d'autres usagers ni un nombre).\n" +
-        "- `parcours` : chaîne opportunité → compétence → formation → programme (découverte).",
+        "- `parcours` : chaîne opportunité → compétence → formation → programme (découverte).\n" +
+        "- `livre_disponible` : livres RÉELLEMENT disponibles près de chez lui (mots-clés/thème + région), " +
+        "avec le centre et l'emplacement précis (rayon · étagère · position).\n" +
+        "- `ressources_competences` : guides, vidéos et fiches qui préparent les compétences qui lui " +
+        "MANQUENT pour une offre donnée (opportuniteId) — « avec quoi je me prépare ? ».",
       parameters: {
         type: 'object',
         properties: {
@@ -360,7 +367,8 @@ const queryKnowledgeGraph: AgentTool = {
           domaine: { type: 'string', enum: Object.values(Domaine), description: 'Filtre secteur (recherche/parcours)' },
           region: { type: 'string', enum: Object.values(Region), description: 'Filtre région (recherche/parcours)' },
           type: { type: 'string', enum: Object.values(TypeOpportunite), description: "Filtre type (recherche)" },
-          q: { type: 'string', description: 'Mots-clés titre (recherche)' },
+          q: { type: 'string', description: 'Mots-clés : titre (recherche) ou titre/auteur (livre_disponible)' },
+          theme: { type: 'string', description: 'Thème du livre (livre_disponible)' },
         },
         required: ['intent'],
       },
@@ -434,6 +442,73 @@ const queryKnowledgeGraph: AgentTool = {
           },
           block: items.length ? { kind: 'opportunites', items } : undefined,
           graph: { template: 'multi_entity_path', nodesReturned: paths.length },
+        }
+      }
+      case 'livre_disponible': {
+        // Traversée Livre → Exemplaire → Centre → Region (note §5.3). On rend l'emplacement
+        // physique EXACT et l'`exemplaireId`, pour que `borrow_book` puisse enchaîner.
+        const livres = await graph.livresDisponibles({ q: str(args.q), theme: str(args.theme), region: str(args.region) })
+        const base = appUrl()
+        const parLivre = new Map<string, { titre: string; auteur: string; emplacements: Array<Record<string, string>> }>()
+        for (const l of livres) {
+          const entry = parLivre.get(l.livreId) ?? { titre: l.titre, auteur: l.auteur, emplacements: [] }
+          entry.emplacements.push({
+            exemplaireId: l.exemplaireId, centre: l.centreNom, rayon: l.rayon, etagere: l.etagere, position: l.position,
+          })
+          parLivre.set(l.livreId, entry)
+        }
+        const ids = [...parLivre.keys()]
+        return {
+          ok: true,
+          data: {
+            intent,
+            count: ids.length,
+            livres: ids.map(id => ({ id, ...parLivre.get(id)! })),
+          },
+          block: ids.length
+            ? {
+                kind: 'action',
+                title: `${ids.length} livre${ids.length > 1 ? 's' : ''} disponible${ids.length > 1 ? 's' : ''}`,
+                actions: ids.slice(0, 4).map(id => ({
+                  icon: 'book',
+                  label: `${parLivre.get(id)!.titre} — ${parLivre.get(id)!.emplacements[0].centre} · ${parLivre.get(id)!.emplacements[0].rayon}`,
+                })),
+                buttons: ids.slice(0, 3).map(id => ({
+                  label: parLivre.get(id)!.titre.length > 28 ? `${parLivre.get(id)!.titre.slice(0, 25)}…` : parLivre.get(id)!.titre,
+                  href: `${base}/jeune/bibliotheque/${id}`,
+                })),
+              }
+            : undefined,
+          graph: { template: 'livres_disponibles', nodesReturned: livres.length },
+        }
+      }
+      case 'ressources_competences': {
+        // Chaîne native au graphe : offre → compétences MANQUANTES → ressources qui les préparent.
+        const oppId = str(args.opportuniteId)
+        if (!oppId) return { ok: false, error: 'opportuniteId requis pour ressources_competences' }
+        const gap = await graph.skillGap(scope, oppId)
+        const slugs = gap.manquantes.map(c => c.slug).filter((s): s is string => Boolean(s))
+        if (slugs.length === 0) {
+          return {
+            ok: true,
+            data: { intent, manquantes: [], count: 0 },
+            graph: { template: 'ressources_prepa', nodesReturned: 0 },
+          }
+        }
+        const ressources = await graph.ressourcesPourCompetences(slugs)
+        const items: YayeRessourceItem[] = ressources.map(r => ({
+          id: r.id, titre: r.titre, type: r.type, theme: r.theme, niveau: r.niveau,
+        }))
+        return {
+          ok: true,
+          data: {
+            intent,
+            manquantes: gap.manquantes.map(c => c.libelle),
+            count: items.length,
+            resultsShownAsCards: items.length > 0,
+          },
+          block: items.length ? { kind: 'ressources', items } : undefined,
+          graph: { template: 'ressources_prepa', nodesReturned: ressources.length },
         }
       }
     }

@@ -11,13 +11,23 @@ import { Domaine, Region, TypeOpportunite } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
 import { logger } from '@/lib/logger'
 import { allowedNiveaux } from './niveau'
-import { buildSkillIndex, matchSkills, parseCompetences, type SkillRef } from './skills-normalize'
+import {
+  buildSkillIndex,
+  matchSkills,
+  matchThemeToCategorieSkills,
+  parseCompetences,
+  type SkillRef,
+  type SkillWithCategorie,
+} from './skills-normalize'
 import {
   clampLimit,
   type GraphHealth,
+  type GraphLivreDispo,
   type GraphOpportunite,
   type GraphPort,
+  type GraphRessourcePrepa,
   type GraphUserScope,
+  type LivreSearchCriteria,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -235,5 +245,82 @@ export class PrismaGraphAdapter implements GraphPort {
     }
     logger.debug('[graph:prisma] multiEntityPath best-effort', { count: out.length })
     return out
+  }
+
+  /**
+   * Parité avec `LIVRES_DISPONIBLES` : exemplaires DISPONIBLES + emplacement, filtrés
+   * par mots-clés (titre/auteur), thème et région du centre.
+   */
+  async livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]> {
+    const q = criteria.q?.trim()
+    const theme = criteria.theme?.trim()
+    const where: Prisma.ExemplaireWhereInput = { statut: 'disponible' }
+    if (inEnum(Region, criteria.region)) where.centre = { region: criteria.region }
+    const livreWhere: Prisma.LivreWhereInput = {}
+    if (q) livreWhere.OR = [{ titre: { contains: q } }, { auteur: { contains: q } }]
+    if (theme) livreWhere.theme = { contains: theme }
+    if (Object.keys(livreWhere).length > 0) where.livre = livreWhere
+
+    const rows = await prisma.exemplaire.findMany({
+      where,
+      select: {
+        id: true, rayon: true, etagere: true, position: true,
+        livre: { select: { id: true, titre: true, auteur: true, theme: true } },
+        centre: { select: { id: true, nom: true, region: true } },
+      },
+      orderBy: { livre: { titre: 'asc' } },
+      take: clampLimit(criteria.limit),
+    })
+
+    return rows.map(e => ({
+      livreId: e.livre.id,
+      titre: e.livre.titre,
+      auteur: e.livre.auteur,
+      theme: e.livre.theme,
+      exemplaireId: e.id,
+      centreId: e.centre.id,
+      centreNom: e.centre.nom,
+      region: e.centre.region ? String(e.centre.region) : null,
+      rayon: e.rayon,
+      etagere: e.etagere,
+      position: e.position,
+    }))
+  }
+
+  /**
+   * Parité avec `RESSOURCES_POUR_COMPETENCES` : la relation PREPARE est projetée depuis
+   * `Ressource.theme` ↔ `Skill.categorie` (spec 02 §4) — on rejoue ici EXACTEMENT la même
+   * dérivation (`matchThemeToCategorieSkills`) pour que le fallback renvoie le même ensemble.
+   */
+  async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {
+    const wanted = new Set(slugs.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()))
+    if (wanted.size === 0) return []
+
+    const skills = await prisma.skill.findMany({ select: { id: true, slug: true, libelle: true, categorie: true } })
+    const cibles = new Map(skills.filter(s => wanted.has(s.slug)).map(s => [s.id, s.libelle]))
+    if (cibles.size === 0) return []
+
+    const ressources = await prisma.ressource.findMany({
+      where: { estPublic: true },
+      select: { id: true, titre: true, type: true, theme: true, niveau: true },
+    })
+
+    const out: GraphRessourcePrepa[] = []
+    for (const r of ressources) {
+      const prepares = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+      const competences = prepares.flatMap(id => (cibles.has(id) ? [cibles.get(id)!] : []))
+      if (competences.length === 0) continue
+      out.push({
+        id: r.id,
+        titre: r.titre,
+        type: String(r.type),
+        theme: r.theme,
+        niveau: r.niveau ? String(r.niveau) : null,
+        competences: [...new Set(competences)],
+      })
+    }
+    return out
+      .sort((a, b) => b.competences.length - a.competences.length)
+      .slice(0, clampLimit(limit))
   }
 }

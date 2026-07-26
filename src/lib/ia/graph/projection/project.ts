@@ -478,6 +478,120 @@ export function syncOpportuniteDeletion(id: string): void {
   )
 }
 
+// ── Voie événementielle bénéficiaire (fraîcheur du read-model) ────────────────
+//
+// Sans elle, TOUT ce qui concerne la personne (candidatures, compétences, favoris,
+// diplômes/certificats, inscriptions) n'entrait dans le graphe qu'à la reprojection
+// nocturne : une offre postulée le matin restait « éligible » toute la journée, et une
+// compétence ajoutée au profil restait « manquante » dans l'analyse d'écart.
+
+/** Relations qu'une re-projection de bénéficiaire RECRÉE (donc à purger avant re-merge). */
+const BENEFICIAIRE_PROJECTED_RELS = ['MAITRISE', 'A_POSTULE', 'INTERESSE_PAR', 'A_OBTENU', 'A_EXERCE', 'INSCRIT_A']
+
+/**
+ * Projette/rafraîchit UN bénéficiaire : son nœud, ses nœuds de parcours (diplômes,
+ * certificats, expériences) et toutes ses arêtes personnelles — y compris la dérivée
+ * FLOUE `MAITRISE` (profil ∪ certificats ∪ diplômes) et `ATTESTE`, à l'identique de
+ * `reprojectAll` (parité stricte : même index de compétences, même matching).
+ *
+ * Idempotent. No-op si Neo4j non configuré. Les nœuds cibles (Opportunite, Evenement,
+ * RessourcePedagogique, Competence) sont supposés déjà projetés — une arête vers un
+ * nœud absent est simplement ignorée par `mergeRels` (MATCH), et réparée la nuit.
+ */
+export async function projectBeneficiaire(cjsUid: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  const user = await prisma.utilisateur.findUnique({
+    where: { cjsUid },
+    select: {
+      cjsUid: true, region: true, deletedAt: true,
+      profil: { select: { id: true, niveauEtude: true, situationEmploi: true, completionScore: true, competences: true } },
+    },
+  })
+  if (!user || user.deletedAt) return false
+  await ensureGraphSchema()
+
+  const profilId = user.profil?.id
+  const [diplomes, certificats, experiences, candidatures, oppFav, resFav, inscriptions, skills] = await Promise.all([
+    profilId ? prisma.diplome.findMany({ where: { profilId }, select: { id: true, intitule: true, niveau: true, anneeObtention: true, etablissement: true } }) : [],
+    profilId ? prisma.certificatMoodle.findMany({ where: { profilId }, select: { id: true, formation: true, obtenuLe: true, moodleCertId: true } }) : [],
+    profilId ? prisma.experience.findMany({ where: { profilId }, select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true } }) : [],
+    prisma.candidature.findMany({ where: { cjsUid }, select: { opportuniteId: true, statut: true, soumiseA: true } }),
+    prisma.opportuniteFavorite.findMany({ where: { cjsUid }, select: { opportuniteId: true } }),
+    prisma.ressourceFavorite.findMany({ where: { cjsUid }, select: { ressourceId: true } }),
+    prisma.inscriptionEvenement.findMany({ where: { cjsUid }, select: { evenementId: true, statut: true } }),
+    prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } }),
+  ])
+
+  await mergeNodes('Beneficiaire', 'cjsUid', [{
+    cjsUid: user.cjsUid,
+    region: user.region,
+    niveauEtude: user.profil?.niveauEtude ?? null,
+    situationEmploi: user.profil?.situationEmploi ?? null,
+    completionScore: user.profil?.completionScore ?? null,
+  }])
+  await mergeNodes('Diplome', 'id', diplomes)
+  await mergeNodes('Certificat', 'id', certificats)
+  await mergeNodes('Experience', 'id', experiences)
+
+  // PURGE des arêtes de CETTE personne (MERGE est additif : sans purge, une candidature
+  // annulée ou un favori retiré resterait une arête fantôme jusqu'à la nuit).
+  await deleteRelsOfTypes('Beneficiaire', 'cjsUid', cjsUid, BENEFICIAIRE_PROJECTED_RELS)
+  for (const c of certificats) await deleteRelsOfTypes('Certificat', 'id', c.id, ['ATTESTE'])
+  for (const d of diplomes) await deleteRelsOfTypes('Diplome', 'id', d.id, ['ATTESTE'])
+
+  await mergeRels('A_OBTENU', 'Beneficiaire', 'cjsUid', 'Diplome', 'id', diplomes.map(d => ({ from: cjsUid, to: d.id })))
+  await mergeRels('A_OBTENU', 'Beneficiaire', 'cjsUid', 'Certificat', 'id', certificats.map(c => ({ from: cjsUid, to: c.id })))
+  await mergeRels('A_EXERCE', 'Beneficiaire', 'cjsUid', 'Experience', 'id', experiences.map(e => ({ from: cjsUid, to: e.id })))
+  await mergeRels('A_POSTULE', 'Beneficiaire', 'cjsUid', 'Opportunite', 'id',
+    candidatures.map(c => ({ from: cjsUid, to: c.opportuniteId, statut: String(c.statut), soumiseA: c.soumiseA })))
+  await mergeRels('INTERESSE_PAR', 'Beneficiaire', 'cjsUid', 'Opportunite', 'id',
+    oppFav.map(f => ({ from: cjsUid, to: f.opportuniteId })))
+  await mergeRels('INTERESSE_PAR', 'Beneficiaire', 'cjsUid', 'RessourcePedagogique', 'id',
+    resFav.map(f => ({ from: cjsUid, to: f.ressourceId })))
+  await mergeRels('INSCRIT_A', 'Beneficiaire', 'cjsUid', 'Evenement', 'id',
+    inscriptions.map(i => ({ from: cjsUid, to: i.evenementId, statut: String(i.statut) })))
+
+  // Dérivées FLOUES (R2) — même logique que `projectDerived`, restreinte à cette personne.
+  const index = buildSkillIndex(skills as SkillRef[])
+  const maitrise: RelPair[] = []
+  const atteste: RelPair[] = []
+  const attesteD: RelPair[] = []
+  for (const comp of parseCompetences(user.profil?.competences)) {
+    for (const m of matchSkills(comp, index)) maitrise.push({ from: cjsUid, to: m.id })
+  }
+  for (const c of certificats) {
+    for (const m of matchSkills(c.formation, index)) {
+      atteste.push({ from: c.id, to: m.id })
+      maitrise.push({ from: cjsUid, to: m.id })
+    }
+  }
+  for (const d of diplomes) {
+    for (const m of matchSkills(d.intitule, index)) {
+      attesteD.push({ from: d.id, to: m.id })
+      maitrise.push({ from: cjsUid, to: m.id })
+    }
+  }
+  await mergeRels('MAITRISE', 'Beneficiaire', 'cjsUid', 'Competence', 'id', dedupePairs(maitrise))
+  await mergeRels('ATTESTE', 'Certificat', 'id', 'Competence', 'id', dedupePairs(atteste))
+  await mergeRels('ATTESTE', 'Diplome', 'id', 'Competence', 'id', dedupePairs(attesteD))
+  return true
+}
+
+/**
+ * Déclencheur FAIL-SOFT (fire-and-forget) après une écriture qui touche le parcours du
+ * bénéficiaire : candidature, profil/compétences, diplôme, certificat, expérience, favori,
+ * inscription. Ne lève jamais, ne bloque jamais la requête appelante.
+ */
+export function syncBeneficiaireToGraph(cjsUid: string): void {
+  void projectBeneficiaire(cjsUid)
+    // Le contexte graphe mémoïsé (24 h) décrit CETTE personne : ses données viennent de
+    // changer → on l'invalide, sinon Yaye raisonnerait sur une lecture périmée.
+    .then(() => import('../../graph-context').then(m => m.purgeGraphContext(cjsUid)))
+    .catch(err =>
+      logger.warn('[graph:projection] sync bénéficiaire échouée (fail-soft)', { cjsUid, err: String(err) }),
+    )
+}
+
 // ── Voie événementielle bibliothèque (Lot 3, GUIC-274) ──────────────────────────
 
 /** Relations qu'une re-projection d'exemplaire RECRÉE (donc à purger avant re-merge). */

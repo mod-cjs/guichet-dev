@@ -14,7 +14,7 @@ import { getSlotModel } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
-import { buildGraphContext, GRAPH_PREAMBLE } from './graph-context'
+import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -483,8 +483,10 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
   const messages = buildMessages({ ...p, graphContext })
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
@@ -647,8 +649,10 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
   const messages = buildMessages({ ...p, graphContext })
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
