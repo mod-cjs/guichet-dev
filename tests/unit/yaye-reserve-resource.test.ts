@@ -90,14 +90,18 @@ test('reserve_resource : confirm=true → délègue à la passerelle + carte de 
 
   const r = await TOOLS.reserve_resource.execute({ ...VALID, confirm: true }, ctx)
 
-  expect(mockSubmit).toHaveBeenCalledWith({
-    ressourceId: 'r1',
-    dateReservee: '2026-07-01T12:00:00.000Z',
-    creneauDebut: '10:00',
-    creneauFin: '12:00',
-    nombrePersonnes: 5,
-    motif: VALID.motif,
-  })
+  expect(mockSubmit).toHaveBeenCalledWith(
+    {
+      ressourceId: 'r1',
+      dateReservee: '2026-07-01T12:00:00.000Z',
+      creneauDebut: '10:00',
+      creneauFin: '12:00',
+      nombrePersonnes: 5,
+      motif: VALID.motif,
+    },
+    // Identité propagée : la réservation fonctionne aussi depuis WhatsApp (GUIC-678).
+    ctx.cjsUid,
+  )
   expect(r.ok).toBe(true)
   expect((r.data as { statut: string }).statut).toBe('Acceptee')
   expect((r.block as { title: string }).title).toMatch(/confirmée/)
