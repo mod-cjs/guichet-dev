@@ -17,12 +17,12 @@ import { deleteRelsOfTypes, detachDeleteNode, mergeNodes, mergeRels, wipeGraph, 
 import { ensureGraphSchema, OPPORTUNITE_SUBTYPE_LABELS } from './schema'
 import {
   buildSkillIndex,
-  matchSkills,
   matchThemeToCategorieSkills,
   parseCompetences,
   type SkillRef,
   type SkillWithCategorie,
 } from '../skills-normalize'
+import { matchSkillsHybrid, prepareSemanticMatcher } from '../skills-embeddings'
 
 export interface ProjectionReport {
   backend: 'neo4j' | 'skipped'
@@ -296,6 +296,20 @@ async function projectDerived(): Promise<Record<string, number>> {
   const profils = await prisma.profilJeune.findMany({ select: { id: true, cjsUid: true, competences: true } })
   const profilToUid = new Map(profils.map(p => [p.id, p.cjsUid]))
 
+  // Appariement SÉMANTIQUE (GUIC-677) : le lexical rate « Développement web » vs
+  // « Programmation front-end ». On pré-charge les vecteurs de TOUS les textes à
+  // apparier en une passe (sinon un aller-retour Redis par compétence de chaque
+  // profil). `null` si la fonctionnalité est désactivée → lexical strict, comme avant.
+  const certsPourVecteurs = await prisma.certificatMoodle.findMany({ select: { formation: true } })
+  const diplomesPourVecteurs = await prisma.diplome.findMany({ select: { intitule: true } })
+  const themesPourVecteurs = await prisma.ressource.findMany({ select: { theme: true } })
+  const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
+    ...profils.flatMap(p => parseCompetences(p.competences)),
+    ...certsPourVecteurs.map(c => c.formation),
+    ...diplomesPourVecteurs.map(d => d.intitule),
+    ...themesPourVecteurs.map(r => r.theme),
+  ])
+
   // MAITRISE = compétences auto-déclarées (profil) ∪ compétences ATTESTÉES par
   // les certificats/diplômes (spec 02 §4 : « competences (Json) + dérivée des
   // certificats/diplômes »). Sans ce 2e canal, un cert Moodle non re-saisi
@@ -303,7 +317,7 @@ async function projectDerived(): Promise<Record<string, number>> {
   const maitrise: RelPair[] = []
   for (const p of profils) {
     for (const comp of parseCompetences(p.competences)) {
-      for (const m of matchSkills(comp, index)) maitrise.push({ from: p.cjsUid, to: m.id })
+      for (const m of matchSkillsHybrid(comp, index, semantic)) maitrise.push({ from: p.cjsUid, to: m.id })
     }
   }
 
@@ -315,14 +329,14 @@ async function projectDerived(): Promise<Record<string, number>> {
   const attesteD: RelPair[] = []
   for (const c of certs) {
     const uid = profilToUid.get(c.profilId)
-    for (const m of matchSkills(c.formation, index)) {
+    for (const m of matchSkillsHybrid(c.formation, index, semantic)) {
       atteste.push({ from: c.id, to: m.id })
       if (uid) maitrise.push({ from: uid, to: m.id })
     }
   }
   for (const d of diplomes) {
     const uid = profilToUid.get(d.profilId)
-    for (const m of matchSkills(d.intitule, index)) {
+    for (const m of matchSkillsHybrid(d.intitule, index, semantic)) {
       attesteD.push({ from: d.id, to: m.id })
       if (uid) maitrise.push({ from: uid, to: m.id })
     }
@@ -338,9 +352,15 @@ async function projectDerived(): Promise<Record<string, number>> {
   const ressources = await prisma.ressource.findMany({ select: { id: true, theme: true } })
   const prepare: RelPair[] = []
   for (const r of ressources) {
-    for (const id of matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])) {
-      prepare.push({ from: r.id, to: id })
+    const parCategorie = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+    if (parCategorie.length > 0) {
+      for (const id of parCategorie) prepare.push({ from: r.id, to: id })
+      continue
     }
+    // Repli SÉMANTIQUE (GUIC-677) : un thème sans correspondance de catégorie donnait
+    // PREPARE = 0 — le défaut mesuré sur le POC. On relie alors les compétences dont le
+    // libellé est sémantiquement proche du thème.
+    for (const m of semantic?.match(r.theme) ?? []) prepare.push({ from: r.id, to: m.id })
   }
   counts.PREPARE = await mergeRels('PREPARE', 'RessourcePedagogique', 'id', 'Competence', 'id', dedupePairs(prepare))
 
@@ -551,22 +571,29 @@ export async function projectBeneficiaire(cjsUid: string): Promise<boolean> {
   await mergeRels('INSCRIT_A', 'Beneficiaire', 'cjsUid', 'Evenement', 'id',
     inscriptions.map(i => ({ from: cjsUid, to: i.evenementId, statut: String(i.statut) })))
 
-  // Dérivées FLOUES (R2) — même logique que `projectDerived`, restreinte à cette personne.
+  // Dérivées FLOUES (R2) + sémantiques (GUIC-677) — même logique que `projectDerived`,
+  // restreinte à cette personne (donc quelques textes seulement à vectoriser).
   const index = buildSkillIndex(skills as SkillRef[])
+  const competences = parseCompetences(user.profil?.competences)
+  const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
+    ...competences,
+    ...certificats.map(c => c.formation),
+    ...diplomes.map(d => d.intitule),
+  ])
   const maitrise: RelPair[] = []
   const atteste: RelPair[] = []
   const attesteD: RelPair[] = []
-  for (const comp of parseCompetences(user.profil?.competences)) {
-    for (const m of matchSkills(comp, index)) maitrise.push({ from: cjsUid, to: m.id })
+  for (const comp of competences) {
+    for (const m of matchSkillsHybrid(comp, index, semantic)) maitrise.push({ from: cjsUid, to: m.id })
   }
   for (const c of certificats) {
-    for (const m of matchSkills(c.formation, index)) {
+    for (const m of matchSkillsHybrid(c.formation, index, semantic)) {
       atteste.push({ from: c.id, to: m.id })
       maitrise.push({ from: cjsUid, to: m.id })
     }
   }
   for (const d of diplomes) {
-    for (const m of matchSkills(d.intitule, index)) {
+    for (const m of matchSkillsHybrid(d.intitule, index, semantic)) {
       attesteD.push({ from: d.id, to: m.id })
       maitrise.push({ from: cjsUid, to: m.id })
     }

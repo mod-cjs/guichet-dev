@@ -13,12 +13,12 @@ import { logger } from '@/lib/logger'
 import { allowedNiveaux } from './niveau'
 import {
   buildSkillIndex,
-  matchSkills,
   matchThemeToCategorieSkills,
   parseCompetences,
   type SkillRef,
   type SkillWithCategorie,
 } from './skills-normalize'
+import { matchSkillsHybrid, prepareSemanticMatcher } from './skills-embeddings'
 import {
   clampLimit,
   type GraphHealth,
@@ -105,18 +105,30 @@ export class PrismaGraphAdapter implements GraphPort {
       prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } }),
     ])
     const index = buildSkillIndex(skills as SkillRef[])
+    const competences = parseCompetences(profil?.competences)
+
+    const [certs, diplomes] = profil
+      ? await Promise.all([
+          prisma.certificatMoodle.findMany({ where: { profilId: profil.id }, select: { formation: true } }),
+          prisma.diplome.findMany({ where: { profilId: profil.id }, select: { intitule: true } }),
+        ])
+      : [[], []]
+
+    // Même appariement HYBRIDE que la projection (GUIC-677) : sans ça, le fallback
+    // Prisma déclarerait « manquante » une compétence que le graphe, lui, relie.
+    const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
+      ...competences,
+      ...certs.map(c => c.formation),
+      ...diplomes.map(d => d.intitule),
+    ])
+
     const mastered = new Set<string>()
-    for (const comp of parseCompetences(profil?.competences)) {
-      for (const m of matchSkills(comp, index)) mastered.add(m.id)
+    for (const comp of competences) {
+      for (const m of matchSkillsHybrid(comp, index, semantic)) mastered.add(m.id)
     }
-    if (profil) {
-      const [certs, diplomes] = await Promise.all([
-        prisma.certificatMoodle.findMany({ where: { profilId: profil.id }, select: { formation: true } }),
-        prisma.diplome.findMany({ where: { profilId: profil.id }, select: { intitule: true } }),
-      ])
-      for (const c of certs) for (const m of matchSkills(c.formation, index)) mastered.add(m.id)
-      for (const d of diplomes) for (const m of matchSkills(d.intitule, index)) mastered.add(m.id)
-    }
+    for (const c of certs) for (const m of matchSkillsHybrid(c.formation, index, semantic)) mastered.add(m.id)
+    for (const d of diplomes) for (const m of matchSkillsHybrid(d.intitule, index, semantic)) mastered.add(m.id)
+
     return { mastered, allSkills: skills as SkillRef[] }
   }
 
@@ -376,9 +388,16 @@ export class PrismaGraphAdapter implements GraphPort {
       select: { id: true, titre: true, type: true, theme: true, niveau: true },
     })
 
+    // Parité avec la projection PREPARE : repli sémantique quand le thème ne correspond
+    // à aucune catégorie de compétence (GUIC-677).
+    const semantic = await prepareSemanticMatcher(skills as SkillRef[], ressources.map(r => r.theme))
+
     const out: GraphRessourcePrepa[] = []
     for (const r of ressources) {
-      const prepares = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+      const parCategorie = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+      const prepares = parCategorie.length > 0
+        ? parCategorie
+        : (semantic?.match(r.theme) ?? []).map(m => m.id)
       const competences = prepares.flatMap(id => (cibles.has(id) ? [cibles.get(id)!] : []))
       if (competences.length === 0) continue
       out.push({
