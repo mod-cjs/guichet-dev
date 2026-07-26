@@ -326,6 +326,39 @@
   --gj-admin-border:          rgba(255,255,255,.10);
   --gj-admin-border-soft:     rgba(255,255,255,.07);
   --gj-admin-badge-muted-bg:  rgba(255,255,255,.12);
+
+  /* Refonte « registre » (GUIC-680) — élévation par défaut = thème CLAIR.
+     Repos plat (liseré de lumière, aucune ombre ambiante) ; --gj-lift au survol. */
+  --gj-edge:        inset 0 1px 0 rgba(255,255,255,.85);
+  --gj-lift:        0 14px 30px -18px rgba(16,45,37,.22), inset 0 1px 0 rgba(255,255,255,.9);
+  --gj-content-bg:  #F4F7F5;
+}
+
+/* =========================================================
+   Refonte console admin — thème SOMBRE commuté (GUIC-680)
+   Portée : contenu admin uniquement (data-admin-theme="dark"),
+   posé sur le conteneur du contenu (PAS un ancêtre de la sidebar).
+   N'impacte donc ni jeune, ni recruteur, ni conseiller.
+   ========================================================= */
+[data-admin-theme="dark"] {
+  --gj-surface:      #152620;
+  --gj-content-bg:   #0D1A16;
+  --gj-ink:          #F5F8F6;
+  --gj-grey:         rgba(245,248,246,.62);
+  --gj-grey-2:       rgba(245,248,246,.46);
+  --gj-line:         rgba(255,255,255,.10);
+  --gj-line-strong:  rgba(255,255,255,.18);
+  /* teintes douces -> translucides + encres éclaircies pour le contraste sur sombre */
+  --gj-teal-soft:    rgba(0,122,92,.22);
+  --gj-teal-deep:    #35D6A0;
+  --gj-yellow-soft:  rgba(249,196,0,.16);
+  --gj-yellow-ink:   #F4B930;
+  --gj-green-soft:   rgba(59,214,139,.16);
+  --gj-green-ink:    #3BD68B;
+  --gj-blue-soft:    rgba(95,160,255,.16);
+  --gj-blue-ink:     #7FB0FF;
+  --gj-edge:         inset 0 1px 0 rgba(255,255,255,.055);
+  --gj-lift:         0 14px 34px -18px rgba(0,0,0,.66), inset 0 1px 0 rgba(255,255,255,.06);
 }
 
 /* =========================================================

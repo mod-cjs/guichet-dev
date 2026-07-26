@@ -82,3 +82,22 @@
   background: var(--gj-red-soft) !important;
   color: var(--gj-red) !important;
 }
+
+/* GUIC-680 — langage « registre » : carte plate au repos (liseré de lumière,
+   aucune ombre ambiante), élévation au survol. Piloté par tokens ⇒ clair ET sombre.
+   Le survol relevé (translateY) est réservé aux cartes interactives. */
+.gj-registre-card {
+  box-shadow: var(--gj-edge);
+  transition: box-shadow .16s ease, transform .16s ease, border-color .16s ease;
+}
+.gj-registre-card:hover {
+  box-shadow: var(--gj-lift);
+}
+.gj-registre-card.is-interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--gj-line-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gj-registre-card { transition: none; }
+  .gj-registre-card.is-interactive:hover { transform: none; }
+}
