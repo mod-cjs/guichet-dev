@@ -23,6 +23,8 @@ function fakePort(label: string, mode: { throws?: boolean } = {}): GraphPort {
     eligibleOpportunites: jest.fn(async () => []),
     collaborativeReco: jest.fn(async () => []),
     multiEntityPath: jest.fn(async () => []),
+    livresDisponibles: jest.fn(async () => []),
+    ressourcesPourCompetences: jest.fn(async () => []),
   }
 }
 

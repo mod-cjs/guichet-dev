@@ -21,7 +21,25 @@ jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
 }))
 // Graphe isolé (testé séparément) : pas de DB/Neo4j ici.
-jest.mock('@/lib/ia/graph-context', () => ({ buildGraphContext: async () => '', GRAPH_PREAMBLE: '' }))
+jest.mock('@/lib/ia/graph-context', () => ({
+  buildGraphContext: async () => '',
+  // Contexte graphe désormais MÉMOÏSÉ et injecté à chaque tour (C.3).
+  loadOrBuildGraphContext: async () => '',
+  purgeGraphContext: async () => {},
+  GRAPH_PREAMBLE: '',
+}))
+
+// L'état multi-tour (écriture en attente, cards montrées) vit dans Redis. Sans ce mock,
+// la suite n'est verte QUE si un Redis tourne en local (15 tests en timeout sinon) :
+// on la rend hermétique, comme les autres collaborateurs de l'agent.
+jest.mock('@/lib/ia/pending-write', () => ({
+  savePendingWrite: jest.fn(async () => {}),
+  loadPendingWrite: jest.fn(async () => null),
+  clearPendingWrite: jest.fn(async () => {}),
+  saveShownRefs: jest.fn(async () => {}),
+  loadShownRefs: jest.fn(async () => []),
+  clearShownRefs: jest.fn(async () => {}),
+}))
 
 // Pre-screen ISOLÉ : par défaut ne court-circuite pas (retourne null) → on exerce la boucle LLM.
 // Le comportement du pre-screen lui-même est couvert par yaye-pre-screen.test.ts.

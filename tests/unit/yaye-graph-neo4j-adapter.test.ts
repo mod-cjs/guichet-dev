@@ -43,12 +43,15 @@ test('skillGap : 2 requêtes (manquantes puis formations), mapping + slugs en pa
   expect(mockClose).toHaveBeenCalledTimes(2)
 })
 
-test('skillGap : aucune manquante → pas de requête formations', async () => {
-  mockRun.mockResolvedValueOnce({ records: [rec({ manquantes: [] })] })
+test('skillGap : aucune manquante → pas de requête formations (mais sentinelle de vide)', async () => {
+  mockRun
+    .mockResolvedValueOnce({ records: [rec({ manquantes: [] })] })
+    // C.2 — on qualifie le vide : « rien ne manque » vs « le read-model est vide ».
+    .mockResolvedValueOnce({ records: [rec({ populated: true })] })
   const gap = await adapter.skillGap(scope, 'opp-X')
   expect(gap.manquantes).toHaveLength(0)
   expect(gap.formations).toHaveLength(0)
-  expect(mockRun).toHaveBeenCalledTimes(1)
+  expect(mockRun).toHaveBeenCalledTimes(2)
 })
 
 test('eligibleOpportunites : lit le niveau puis injecte allowedNiveaux', async () => {
