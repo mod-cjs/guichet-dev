@@ -111,6 +111,60 @@ export const RESSOURCES_POUR_COMPETENCES = `
   LIMIT $limit
 `
 
+// ── Aperçu du marché (recherche GLOBALE, GUIC-676) ───────────────────────────
+//
+// Emprunt ciblé au « Global Search » de GraphRAG : répondre à une question THÉMATIQUE
+// (« quels secteurs recrutent à Thiès ? ») au lieu d'une question égocentrée. Ici, pas
+// de communautés Leiden : nos regroupements sont déjà connus (Secteur, Region, Type) —
+// on les agrège, on ne les infère pas.
+//
+// ⚠️ INVARIANT CDP — NON NÉGOCIABLE : ces agrégats portent sur les OFFRES.
+// Aucun de ces templates ne matche `:Beneficiaire`, `A_POSTULE` ni `Candidature`.
+// Compter des personnes reste interdit (le pré-screen refuse « combien de jeunes… »).
+
+/** Filtre commun : offre publiée, non expirée, éventuellement bornée région/domaine. */
+const MARCHE_WHERE = `
+  WHERE o.statut = 'publiee'
+    AND (o.deadline IS NULL OR o.deadline >= datetime())
+    AND ($region  IS NULL OR o.region  = $region)
+    AND ($domaine IS NULL OR o.domaine = $domaine)
+`
+
+/** Volume d'offres ouvertes par type (emploi, stage, bourse…). */
+export const MARCHE_PAR_TYPE = `
+  MATCH (o:Opportunite) ${MARCHE_WHERE}
+  RETURN o.type AS cle, count(*) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
+/** Volume d'offres ouvertes par secteur d'activité. */
+export const MARCHE_PAR_DOMAINE = `
+  MATCH (o:Opportunite) ${MARCHE_WHERE}
+  RETURN o.domaine AS cle, count(*) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
+/** Volume d'offres ouvertes par région (utile quand aucune région n'est précisée). */
+export const MARCHE_PAR_REGION = `
+  MATCH (o:Opportunite) ${MARCHE_WHERE}
+  RETURN o.region AS cle, count(*) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
+/** Compétences les plus DEMANDÉES par les offres ouvertes — traverse REQUIERT globalement. */
+export const MARCHE_COMPETENCES = `
+  MATCH (o:Opportunite)-[:REQUIERT]->(c:Competence) ${MARCHE_WHERE}
+  RETURN c.libelle AS cle, count(DISTINCT o) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
+/** Organisations qui publient le plus — traverse PUBLIE (jusqu'ici projetée sans être lue). */
+export const MARCHE_ORGANISATIONS = `
+  MATCH (org:Organisation)-[:PUBLIE]->(o:Opportunite) ${MARCHE_WHERE}
+  RETURN org.nom AS cle, count(DISTINCT o) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
 /** Sentinelle « le read-model est-il peuplé ? » (détection de graphe vide, C.2). */
 export const GRAPH_POPULATED = `
   MATCH (o:Opportunite) RETURN count(o) > 0 AS populated

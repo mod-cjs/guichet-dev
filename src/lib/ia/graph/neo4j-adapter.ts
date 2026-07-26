@@ -14,6 +14,11 @@ import {
   FORMATIONS_FOR_SKILLS,
   GRAPH_POPULATED,
   LIVRES_DISPONIBLES,
+  MARCHE_COMPETENCES,
+  MARCHE_ORGANISATIONS,
+  MARCHE_PAR_DOMAINE,
+  MARCHE_PAR_REGION,
+  MARCHE_PAR_TYPE,
   MULTI_ENTITY_PATH,
   RESSOURCES_POUR_COMPETENCES,
   SEARCH_OPPORTUNITES,
@@ -30,6 +35,8 @@ import {
   type GraphRessourcePrepa,
   type GraphUserScope,
   type LivreSearchCriteria,
+  type MarketCriteria,
+  type MarketOverview,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -213,6 +220,37 @@ export class Neo4jGraphAdapter implements GraphPort {
         })),
     )
     return this.guardEmpty(rows)
+  }
+
+  /**
+   * Recherche GLOBALE. Cinq agrégations parallèles sur les offres ouvertes ; le total
+   * est dérivé du palmarès par type (mêmes filtres, donc même population).
+   * ⚠️ Aucune de ces requêtes ne touche `:Beneficiaire` (invariant CDP).
+   */
+  async apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    const params = {
+      region: str(criteria.region),
+      domaine: str(criteria.domaine),
+      limit: neo4j.int(clampLimit(criteria.limit)),
+    }
+    const counts = (cypher: string) =>
+      this.read(cypher, params, res =>
+        res.records
+          .filter(r => r.get('cle') != null)
+          .map(r => ({ cle: String(r.get('cle')), n: toInt(r.get('n')) })),
+      )
+
+    const [parType, parDomaine, parRegion, competences, organisations] = await Promise.all([
+      counts(MARCHE_PAR_TYPE),
+      counts(MARCHE_PAR_DOMAINE),
+      counts(MARCHE_PAR_REGION),
+      counts(MARCHE_COMPETENCES),
+      counts(MARCHE_ORGANISATIONS),
+    ])
+
+    const total = parType.reduce((a, b) => a + b.n, 0)
+    if (total === 0) await this.guardEmpty([])
+    return { total, parType, parDomaine, parRegion, competences, organisations }
   }
 
   async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {

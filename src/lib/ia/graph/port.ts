@@ -119,6 +119,37 @@ export interface GraphRessourcePrepa {
   competences: string[]
 }
 
+/** Un décompte agrégé (clé → nombre d'offres). */
+export interface MarketCount {
+  cle: string
+  n: number
+}
+
+/**
+ * Photographie AGRÉGÉE du marché des opportunités ouvertes (recherche globale).
+ * ⚠️ Ne contient QUE des décomptes d'offres — jamais de personnes, de candidatures
+ * ni d'attributs de bénéficiaires (invariant CDP, doc 07).
+ */
+export interface MarketOverview {
+  /** Nombre total d'offres ouvertes sur le périmètre demandé. */
+  total: number
+  parType: MarketCount[]
+  parDomaine: MarketCount[]
+  parRegion: MarketCount[]
+  /** Compétences les plus demandées par ces offres. */
+  competences: MarketCount[]
+  /** Organisations qui publient le plus sur ce périmètre. */
+  organisations: MarketCount[]
+}
+
+/** Périmètre d'un aperçu de marché (facultatif : tout le Sénégal si vide). */
+export interface MarketCriteria {
+  region?: string
+  domaine?: string
+  /** Nombre d'entrées par palmarès (défaut 5, max 20). */
+  limit?: number
+}
+
 /**
  * Le read-model est VIDE (fenêtre de reconstruction du cron nocturne, base non
  * projetée…). Distinct d'un « aucun résultat » métier : le port résilient doit
@@ -168,6 +199,8 @@ export interface GraphPort {
   livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]>
   /** Ressources pédagogiques préparant les compétences visées (RessourcePedagogique -PREPARE-> Competence). */
   ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]>
+  /** Recherche GLOBALE : photographie agrégée du marché des offres ouvertes (jamais de personnes). */
+  apercuMarche(criteria: MarketCriteria): Promise<MarketOverview>
 }
 
 export const DEFAULT_LIMIT = 5

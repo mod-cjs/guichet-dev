@@ -28,6 +28,9 @@ import {
   type GraphRessourcePrepa,
   type GraphUserScope,
   type LivreSearchCriteria,
+  type MarketCount,
+  type MarketCriteria,
+  type MarketOverview,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -245,6 +248,74 @@ export class PrismaGraphAdapter implements GraphPort {
     }
     logger.debug('[graph:prisma] multiEntityPath best-effort', { count: out.length })
     return out
+  }
+
+  /**
+   * Parité avec les templates `MARCHE_*` (recherche globale).
+   * ⚠️ Invariant CDP : agrégats sur les OFFRES uniquement — aucun décompte de personnes,
+   * de candidatures ni de profils.
+   */
+  async apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    const where: Prisma.OpportuniteWhereInput = { ...publishedNotExpired() }
+    if (inEnum(Region, criteria.region)) where.region = criteria.region
+    if (inEnum(Domaine, criteria.domaine)) where.domaine = criteria.domaine
+    const take = clampLimit(criteria.limit)
+
+    const [parType, parDomaine, parRegion, skillGroups, orgGroups] = await Promise.all([
+      prisma.opportunite.groupBy({ by: ['type'], where, _count: { _all: true }, orderBy: { _count: { type: 'desc' } }, take }),
+      prisma.opportunite.groupBy({ by: ['domaine'], where, _count: { _all: true }, orderBy: { _count: { domaine: 'desc' } }, take }),
+      prisma.opportunite.groupBy({ by: ['region'], where, _count: { _all: true }, orderBy: { _count: { region: 'desc' } }, take }),
+      prisma.opportuniteSkill.groupBy({
+        by: ['skillId'],
+        where: { requise: true, opportunite: where },
+        _count: { _all: true },
+      }),
+      prisma.opportunite.groupBy({
+        by: ['organisationId'],
+        where: { ...where, organisationId: { not: null } },
+        _count: { _all: true },
+      }),
+    ])
+
+    // Palmarès compétences : on résout les libellés APRÈS le tri (une seule requête).
+    const topSkills = [...skillGroups].sort((a, b) => b._count._all - a._count._all).slice(0, take)
+    const skillLabels = topSkills.length
+      ? await prisma.skill.findMany({
+          where: { id: { in: topSkills.map(s => s.skillId) } },
+          select: { id: true, libelle: true },
+        })
+      : []
+    const labelById = new Map(skillLabels.map(s => [s.id, s.libelle]))
+
+    const topOrgs = [...orgGroups].sort((a, b) => b._count._all - a._count._all).slice(0, take)
+    const orgNames = topOrgs.length
+      ? await prisma.organisation.findMany({
+          where: { id: { in: topOrgs.map(o => o.organisationId!) } },
+          select: { id: true, nom: true },
+        })
+      : []
+    const nomById = new Map(orgNames.map(o => [o.id, o.nom]))
+
+    const toCounts = (rows: Array<{ _count: { _all: number } } & Record<string, unknown>>, key: string): MarketCount[] =>
+      rows
+        .filter(r => r[key] != null)
+        .map(r => ({ cle: String(r[key]), n: r._count._all }))
+        .sort((a, b) => b.n - a.n)
+
+    return {
+      total: parType.reduce((a, b) => a + b._count._all, 0),
+      parType: toCounts(parType, 'type'),
+      parDomaine: toCounts(parDomaine, 'domaine'),
+      parRegion: toCounts(parRegion, 'region'),
+      competences: topSkills.flatMap(s => {
+        const libelle = labelById.get(s.skillId)
+        return libelle ? [{ cle: libelle, n: s._count._all }] : []
+      }),
+      organisations: topOrgs.flatMap(o => {
+        const nom = o.organisationId ? nomById.get(o.organisationId) : undefined
+        return nom ? [{ cle: nom, n: o._count._all }] : []
+      }),
+    }
   }
 
   /**

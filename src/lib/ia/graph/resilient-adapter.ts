@@ -14,6 +14,8 @@ import type {
   GraphRessourcePrepa,
   GraphUserScope,
   LivreSearchCriteria,
+  MarketCriteria,
+  MarketOverview,
   MultiEntityPath,
   OpportuniteSearchCriteria,
   RecoAggregate,
@@ -85,5 +87,8 @@ export class ResilientGraphAdapter implements GraphPort {
   }
   ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {
     return this.run((p) => p.ressourcesPourCompetences(slugs, limit))
+  }
+  apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    return this.run((p) => p.apercuMarche(criteria))
   }
 }

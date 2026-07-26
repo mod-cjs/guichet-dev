@@ -18,6 +18,7 @@ import { GET as biblioEmpruntsGET, POST as biblioEmpruntsPOST } from '@/app/api/
 import type { EmpruntVue, SearchLivresResult } from '@/lib/bibliotheque/service'
 import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
+import { loadOrBuildApercuMarche } from './graph/market-overview'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
@@ -337,7 +338,7 @@ const getRecommendations: AgentTool = {
 // GraphPort (Neo4j ou fallback Prisma). Portée RBAC : bornée au cjsUid connecté.
 const GRAPH_INTENTS = [
   'recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours',
-  'livre_disponible', 'ressources_competences',
+  'livre_disponible', 'ressources_competences', 'apercu_marche',
 ] as const
 type GraphIntent = (typeof GRAPH_INTENTS)[number]
 
@@ -358,7 +359,10 @@ const queryKnowledgeGraph: AgentTool = {
         "- `livre_disponible` : livres RÉELLEMENT disponibles près de chez lui (mots-clés/thème + région), " +
         "avec le centre et l'emplacement précis (rayon · étagère · position).\n" +
         "- `ressources_competences` : guides, vidéos et fiches qui préparent les compétences qui lui " +
-        "MANQUENT pour une offre donnée (opportuniteId) — « avec quoi je me prépare ? ».",
+        "MANQUENT pour une offre donnée (opportuniteId) — « avec quoi je me prépare ? ».\n" +
+        "- `apercu_marche` : question GÉNÉRALE sur le marché — « quels secteurs recrutent à Thiès ? », " +
+        "« qu'est-ce qui embauche en ce moment ? », « quelles compétences sont demandées en agro ? ». " +
+        "Renvoie des VOLUMES d'offres (jamais de chiffres sur les usagers).",
       parameters: {
         type: 'object',
         properties: {
@@ -480,6 +484,26 @@ const queryKnowledgeGraph: AgentTool = {
               }
             : undefined,
           graph: { template: 'livres_disponibles', nodesReturned: livres.length },
+        }
+      }
+      case 'apercu_marche': {
+        // Recherche GLOBALE (GUIC-676) : thématique, impersonnelle, donc mémoïsée et
+        // partagée. Les chiffres portent sur les OFFRES — le pré-screen continue de
+        // refuser tout décompte de personnes.
+        const apercu = await loadOrBuildApercuMarche({ region: str(args.region), domaine: str(args.domaine) })
+        return {
+          ok: true,
+          data: {
+            intent,
+            perimetre: { region: str(args.region) ?? 'tout le Sénégal', domaine: str(args.domaine) ?? 'tous secteurs' },
+            offresOuvertes: apercu.total,
+            parType: apercu.parType,
+            parSecteur: apercu.parDomaine,
+            parRegion: apercu.parRegion,
+            competencesDemandees: apercu.competences,
+            organisationsActives: apercu.organisations,
+          },
+          graph: { template: 'apercu_marche', nodesReturned: apercu.total },
         }
       }
       case 'ressources_competences': {
