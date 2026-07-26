@@ -116,6 +116,30 @@
   `PUBLIE`, `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`, `INTERESSE_PAR`,
   `A_OBTENU`, `ATTESTE`…) — écrire les templates qui les exploitent, ou cesser de les projeter.
 
+### Lot 1-ter — Recherche globale, embeddings, multi-session (audit 2026-07-26) — ✅ livré
+> Suite de l'audit : comparaison au GraphRAG de Microsoft + revue multi-utilisateur.
+- [x] ✅ **GUIC-676 — Recherche GLOBALE** (`apercu_marche`) : 5 agrégations `MARCHE_*` (volumes par
+  type/secteur/région, compétences les plus demandées via `REQUIERT`, organisations les plus actives
+  via `PUBLIE`), cache Redis 6 h **partagé** (donnée impersonnelle), parité Prisma. Débloque les
+  questions thématiques (« quels secteurs recrutent à Thiès ? »), jusque-là impossibles.
+  **Invariant CDP verrouillé par test** : agrégats d'OFFRES, jamais de personnes.
+- [x] ✅ **GUIC-677 — Appariement SÉMANTIQUE des compétences** : `skills-embeddings` (vecteurs du
+  référentiel, cache Redis 90 j, cosinus, plafond de coût), `matchSkillsHybrid` (lexical ∪ sémantique)
+  câblé dans les DEUX moteurs, repli sémantique pour `PREPARE`. **Opt-in** (`YAYE_EMBEDDING_MODEL`) et
+  **fail-soft**. Corrige « Développement web » ≠ « Programmation front-end » — cause de `PREPARE = 0`.
+- [x] ✅ **GUIC-678 — Concurrence & multi-session** :
+  - identité propagée aux appels internes via une session ÉPHÉMÈRE signée (60 s, sans jeton SSO,
+    compte actif seulement) → **badge, candidature, réservation et emprunt fonctionnent sur WhatsApp** ;
+  - contexte conversationnel en **liste Redis** (RPUSH/LTRIM) → deux messages simultanés ne se
+    perdent plus (l'ancien read-modify-write en écrasait un) ;
+  - **sessionId WhatsApp roulant** (24 h d'inactivité) → débloque les escalades successives et
+    dé-fausse les métriques par session ;
+  - rotation des formules d'accueil décalée par identité (dernier état partagé entre usagers).
+- [ ] ⬜ **Hors périmètre, décision attendue** : le **second profil** (gestionnaire de centre /
+  bibliothécaire) — prompt dédié, outils opérationnels, filtrage `centreId` dans les templates,
+  éval dédiée. Yaye reste mono-persona : `roles` est transporté partout mais ne change aucun
+  comportement, et WhatsApp code le rôle en dur à `beneficiaire`.
+
 ### Lot 2 — Ressources centres (salles + véhicules) — 🟢 connexion Yaye livrée (GUIC-273)
 > Périmètre acté avec le PO : **le système de réservation existe déjà** (m4-centres : `POST /api/reservations`, UI staff/jeune, cron, notifs). Le Lot 2 = **brancher Yaye dessus SANS modifier le service existant**.
 - [x] ✅ `reserve_resource` mappé sur l'endpoint **EXISTANT** via passerelle in-process (`src/lib/ia/reservations-gateway.ts`) — propage le cookie de session, **zéro logique métier dupliquée**, service inchangé.

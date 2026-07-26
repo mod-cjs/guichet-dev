@@ -221,12 +221,39 @@ RETURN o, f, c, p LIMIT 3
 | `MULTI_ENTITY_PATH` | `parcours` | `REQUIERT`, `DEVELOPPE`, `FINANCE` |
 | **`LIVRES_DISPONIBLES`** | **`livre_disponible`** | **`CONTIENT`, `EST_LOCALISE_EN`** |
 | **`RESSOURCES_POUR_COMPETENCES`** | **`ressources_competences`** | **`PREPARE`** |
+| **`MARCHE_*` (5 agrégations)** | **`apercu_marche`** | **`REQUIERT`, `PUBLIE`** |
 | `GRAPH_POPULATED` | *(sentinelle interne)* | — |
 
 > ⚠️ **Écart projection ↔ lecture** — restent PROJETÉES mais jamais interrogées : `EST_DE_TYPE`,
-> `PUBLIE`, `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`,
-> `INTERESSE_PAR`, `A_OBTENU`, `ATTESTE`. Soit on écrit les templates qui les exploitent, soit on
-> arrête de les projeter — un read-model qu'on n'interroge pas est un coût sans contrepartie.
+> `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`, `INTERESSE_PAR`,
+> `A_OBTENU`, `ATTESTE`. Soit on écrit les templates qui les exploitent, soit on arrête de les
+> projeter — un read-model qu'on n'interroge pas est un coût sans contrepartie.
+> (`PUBLIE` et `CONTIENT`/`EST_LOCALISE_EN`/`PREPARE` ont rejoint la liste des relations LUES.)
+
+### Recherche GLOBALE vs recherche égocentrée
+
+Toutes les traversées ci-dessus sauf `apercu_marche` sont **égocentrées** : bornées à `$uid`,
+elles répondent « pour MOI ». `apercu_marche` répond à une question **thématique** (« quels
+secteurs recrutent à Thiès ? ») — c'est l'emprunt ciblé au *Global Search* de GraphRAG, sans
+communautés Leiden : nos regroupements (Secteur, Region, Type) sont connus, on les agrège au
+lieu de les inférer.
+
+> 🔒 **Invariant CDP** : ces agrégats portent sur les **OFFRES**. Aucun template `MARCHE_*` ne
+> matche `:Beneficiaire`, `A_POSTULE` ni `Candidature` — verrouillé par test. Compter des
+> personnes reste interdit (le pré-screen refuse « combien de jeunes… »). C'est parce que la
+> donnée est impersonnelle que le cache (6 h) peut être **partagé entre tous les usagers**.
+
+### Appariement des compétences : lexical ∪ sémantique
+
+`skills-normalize` apparie par la FORME (synonymes + Dice). `skills-embeddings` ajoute un
+appariement par le SENS (embeddings + cosinus), **opt-in** (`YAYE_EMBEDDING_MODEL`) et
+**fail-soft**. Les deux voies sont fusionnées par `matchSkillsHybrid`, utilisé par la
+projection complète, la projection événementielle ET le fallback Prisma — sans quoi les deux
+moteurs divergeraient. `PREPARE` retombe sur le sémantique quand le thème d'une ressource ne
+correspond à aucune catégorie de compétence (le défaut `PREPARE = 0` mesuré sur le POC).
+
+> 🔒 **Invariant CDP** : seuls des **libellés de compétences** et des **thèmes** sont envoyés au
+> modèle d'embedding — jamais un profil, un nom, un CV ou une lettre de motivation.
 
 > 🛡 **Vide ≠ aucun résultat** : le cron nocturne reconstruit le graphe en `wipe:true`. Une traversée
 > qui renvoie 0 ligne déclenche la sentinelle `GRAPH_POPULATED` ; si le read-model est vide, l'adapter
