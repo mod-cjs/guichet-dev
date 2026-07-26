@@ -7,8 +7,9 @@
  * bigramme commun — le lexical ne les rapproche jamais, d'où PREPARE = 0 et une analyse
  * d'écart de compétences qui déclare « manquante » une compétence déjà acquise.
  *
- * Deux exigences non négociables sont testées ici : OPT-IN (sans variable d'env, rien ne
- * change) et FAIL-SOFT (endpoint HS → on retombe sur le lexical, jamais d'exception).
+ * Deux exigences non négociables sont testées ici : la COUPURE explicite
+ * (`YAYE_EMBEDDING_MODEL="off"` → lexical strict) et le FAIL-SOFT (endpoint HS → on
+ * retombe sur le lexical, jamais d'exception).
  */
 
 const store = new Map<string, string>()
@@ -19,14 +20,22 @@ jest.mock('@/lib/redis', () => ({
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }))
 
-const mockEmbeddings = jest.fn()
+// Le fournisseur d'embeddings est mocké au niveau du PORT (Vertex natif en prod,
+// LMStudio en local) : ces tests portent sur l'appariement, pas sur le transport.
+const mockEmbed = jest.fn()
+jest.mock('@/lib/ia/vertex-embeddings', () => ({
+  embedWithVertex: (...a: unknown[]) => mockEmbed(...a),
+  vertexBatchSize: () => 96,
+}))
 jest.mock('@/lib/ia/llm-client', () => ({
-  getLlmClient: () => ({ embeddings: { create: (...a: unknown[]) => mockEmbeddings(...a) } }),
+  isLocalProvider: () => false,
+  getLlmClient: () => ({ embeddings: { create: jest.fn() } }),
 }))
 
 import { buildSkillIndex, type SkillRef } from '@/lib/ia/graph/skills-normalize'
 import {
   cosine,
+  embeddingModel,
   isEmbeddingEnabled,
   matchSkillsHybrid,
   prepareSemanticMatcher,
@@ -46,9 +55,7 @@ const VECTORS: Record<string, number[]> = {
 }
 
 function stubEmbeddings() {
-  mockEmbeddings.mockImplementation(async ({ input }: { input: string[] }) => ({
-    data: input.map(t => ({ embedding: VECTORS[t] ?? [0, 0] })),
-  }))
+  mockEmbed.mockImplementation(async (_model: string, texts: string[]) => texts.map(t => VECTORS[t] ?? [0, 0]))
 }
 
 beforeEach(() => {
@@ -81,17 +88,23 @@ test('l’hybride les rapproche via les embeddings — le défaut corrigé', asy
   expect(out.map(m => m.id)).not.toContain('sk-compta') // pas de bruit
 })
 
-test('OPT-IN : sans YAYE_EMBEDDING_MODEL, aucun appel et comportement lexical strict', async () => {
-  delete process.env.YAYE_EMBEDDING_MODEL
+test('COUPURE explicite : YAYE_EMBEDDING_MODEL="off" → aucun appel, lexical strict', async () => {
+  process.env.YAYE_EMBEDDING_MODEL = 'off'
   expect(isEmbeddingEnabled()).toBe(false)
 
   const semantic = await prepareSemanticMatcher(SKILLS, ['Développement web'])
   expect(semantic).toBeNull()
-  expect(mockEmbeddings).not.toHaveBeenCalled()
+  expect(mockEmbed).not.toHaveBeenCalled()
+})
+
+test('par défaut : modèle Gemini de Vertex, actif sans configuration', async () => {
+  delete process.env.YAYE_EMBEDDING_MODEL
+  expect(embeddingModel()).toBe('gemini-embedding-001')
+  expect(isEmbeddingEnabled()).toBe(true)
 })
 
 test('FAIL-SOFT : endpoint d’embedding en échec → matcher null, lexical préservé', async () => {
-  mockEmbeddings.mockRejectedValue(new Error('embeddings not supported'))
+  mockEmbed.mockResolvedValue(null)
 
   const semantic = await prepareSemanticMatcher(SKILLS, ['Développement web'])
   expect(semantic).toBeNull()
@@ -100,18 +113,25 @@ test('FAIL-SOFT : endpoint d’embedding en échec → matcher null, lexical pr�
 
 test('les vecteurs sont mis en cache : une seule vectorisation par texte', async () => {
   await prepareSemanticMatcher(SKILLS, ['Développement web'])
-  const premierNombreAppels = mockEmbeddings.mock.calls.length
-  expect(premierNombreAppels).toBeGreaterThan(0)
+  expect(mockEmbed.mock.calls.length).toBeGreaterThan(0)
   expect(mockSet).toHaveBeenCalled()
 
-  mockEmbeddings.mockClear()
+  mockEmbed.mockClear()
   await prepareSemanticMatcher(SKILLS, ['Développement web'])
-  expect(mockEmbeddings).not.toHaveBeenCalled() // tout vient du cache
+  expect(mockEmbed).not.toHaveBeenCalled() // tout vient du cache
+})
+
+test('cache compact : les vecteurs sont stockés en Float32/base64, pas en JSON', async () => {
+  await prepareSemanticMatcher(SKILLS, ['Développement web'])
+  const valeurs = mockSet.mock.calls.map(c => c[1] as string)
+  expect(valeurs.length).toBeGreaterThan(0)
+  for (const v of valeurs) expect(v.startsWith('[')).toBe(false)
+  // …et restent relus correctement (cf. test de cache ci-dessus, qui repasse par decodeVector).
 })
 
 test('CDP : seuls des libellés de compétences / thèmes sont envoyés au modèle', async () => {
   await prepareSemanticMatcher(SKILLS, ['Développement web'])
-  const envoyes = mockEmbeddings.mock.calls.flatMap(c => (c[0] as { input: string[] }).input)
+  const envoyes = mockEmbed.mock.calls.flatMap(c => c[1] as string[])
 
   // Le référentiel + le texte métier demandé, rien d'autre : aucun identifiant, aucun nom.
   expect(new Set(envoyes)).toEqual(new Set(['programmation front end', 'comptabilite', 'developpement web']))
