@@ -1,24 +1,23 @@
-# CURRENT_TASK — GUIC-680
+# CURRENT_TASK — GUIC-681 (stacké sur GUIC-680)
 
-**Épic** GUIC-679 · Refonte console admin — langage « registre » + thème clair/sombre
-**Story** GUIC-680 · Fondation thème clair/sombre + Tableau de bord au langage registre
-**Branche** `feature/GUIC-680-refonte-admin-dashboard-theme` (worktree `.claude/worktrees/admin-refonte`, depuis `origin/dev`)
+**Épic** GUIC-679 · Refonte console admin — registre + thème clair/sombre
+**Story** GUIC-681 · Partenaires — grille de cartes letterhead + panneau-dossier (registre)
+**Branche** `feature/GUIC-681-refonte-admin-partenaires` (worktree `admin-refonte`, **stackée sur GUIC-680** car dépend de la fondation registre pas encore sur `dev`)
 **Spec** `.agent_context/specs/admin-console-refonte.md` §2.1
 
-## Décisions (validées avec le lead)
-- Thèmes **clair + sombre commutables** (défaut = **clair**, = état réel actuel du contenu admin → non-breaking).
-- Paradigme **cartes-grille + slide-over** (adopté progressivement, écran par écran).
-- Portée thème = **contenu admin uniquement** (`[data-admin-theme="dark"]`), sans impacter jeune/recruteur/conseiller.
-- 1 écran = 1 PR vers `dev`. Retrait du rail `accent` de `Card` = **ticket séparé** (blast radius tous espaces).
+## Décisions
+- Paradigme **cartes-grille + slide-over** (validé lead).
+- Thème clair (défaut) + sombre commuté via la fondation GUIC-680.
+- Réutiliser les server actions existantes : `basculerVerifiePartenaire`, `basculerStatutRecruteur`, `modifierPartenaire`.
 
 ## Plan d'exécution (incréments)
-1. **Fondation thème** *(en cours)* : helper pur testé (`src/lib/admin-theme.ts`) · tokens `--gj-edge`/`--gj-lift` + scope `[data-admin-theme="dark"]` dans `tokens.css`.
-2. **Toggle UI** : `ThemeToggle` (primitive) + provider client dans le layout admin, wiring topbar.
-3. **Dashboard registre** : cartes plates edge/lift, en-têtes teintés, call-outs, en clair ET sombre.
-4. **Vérif** : `npm run validate` + `tsc` + Playwright 2 thèmes 0 erreur.
+1. ✅ **Palette secteur** (tokens `--gj-sector-*` RGB) + helper pur `partenaire-secteur` (TDD 3/3).
+2. ✅ **`PartenaireCard`** letterhead (TDD 4/4) + story + baril. Rendu vérifié clair+sombre, 0 erreur.
+3. ⏳ **`PartenaireSheet`** (dossier slide-over, primitive `Sheet`) — dossier + actions vérifier/éditer(`PartenaireFormModal`)/suspendre(`RecruteurStatutButton`) + lien fiche complète. **Doit reloger l'édition** (aujourd'hui seul point d'entrée = la table).
+4. ⏳ **Rewire `AdminPartenairesTable`** → grille de `PartenaireCard` (garder filtres/recherche/pagination), carte → ouvre le sheet. **MAJ du test `tests/unit/admin-partenaires.test.tsx`** (comme le cas topbar).
+5. ⏳ Vérif : `validate` + `tsc` + Playwright 2 thèmes, puis commits RED/GREEN + push miroir.
 
 ## Garde-fous
-- TDD strict : commit `test(RED)` séparé AVANT `feat(GREEN)`.
-- `npm run validate` avant commit ; `tsc` complet avant push.
-- **Ne pas committer/push sans go explicite du lead.**
-- Commits `feat|test(m8-admin): [GUIC-680] …` + `Closes GUIC-680`, auteur `mod-cjs`, zéro mention IA.
+- TDD strict (RED avant GREEN). Hook pre-commit ne voit que `tests/**` ⇒ bypass documenté `SKIP_TDD_CHECK=1` (loggué).
+- Ne pas régresser l'édition : sheet AVANT rewire, dans le même incrément que le rewire.
+- Ne pas committer/push sans go. Commits `feat|test(m8-admin): [GUIC-681] …` + `Closes GUIC-681`, `mod-cjs`, zéro mention IA. Push **mouhammadouod** uniquement.

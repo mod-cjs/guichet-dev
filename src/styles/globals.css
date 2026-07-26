@@ -101,3 +101,11 @@
   .gj-registre-card { transition: none; }
   .gj-registre-card.is-interactive:hover { transform: none; }
 }
+
+/* GUIC-681 — en thème sombre admin, les dialogues (Sheet/Modal, primitives partagées
+   en bg-white) suivent la surface sombre. Spécificité (0,2,0) > .bg-white (0,1,0) :
+   pas de !important, et zéro impact hors du scope admin sombre. */
+[data-admin-theme="dark"] [role="dialog"] {
+  background: var(--gj-surface);
+  color: var(--gj-ink);
+}
