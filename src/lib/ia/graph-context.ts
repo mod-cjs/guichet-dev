@@ -14,10 +14,11 @@
 import { getGraphPort } from './graph'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { numEnv } from './env'
 
 const PREFIX = 'yaye:gctx:'
 /** Durée de vie du contexte graphe mémoïsé (24 h par défaut). */
-const TTL_GRAPH_CONTEXT = Number(process.env.YAYE_GRAPH_CONTEXT_TTL_S ?? 24 * 3600)
+const TTL_GRAPH_CONTEXT = numEnv('YAYE_GRAPH_CONTEXT_TTL_S', 24 * 3600)
 
 export function graphContextKey(cjsUid: string): string {
   return `${PREFIX}${cjsUid}`

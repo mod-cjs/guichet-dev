@@ -11,12 +11,13 @@
 
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { numEnv } from '../env'
 import { getGraphPort } from './index'
 import type { MarketCriteria, MarketOverview } from './port'
 
 const PREFIX = 'yaye:marche:'
 /** Le catalogue bouge à la journée, pas à la minute — 6 h suffisent. */
-const TTL_MARCHE = Number(process.env.YAYE_MARCHE_TTL_S ?? 6 * 3600)
+const TTL_MARCHE = numEnv('YAYE_MARCHE_TTL_S', 6 * 3600)
 
 /** Clé de cache : le périmètre demandé (`*` = national / tous secteurs). */
 export function marcheKey(criteria: MarketCriteria): string {

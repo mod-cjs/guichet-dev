@@ -19,24 +19,24 @@
 
 import { createHash } from 'node:crypto'
 import { redis } from '@/lib/redis'
+import { numEnv, strEnv } from '../env'
 import { logger } from '@/lib/logger'
 import { getLlmClient } from '../llm-client'
 import { matchSkills, normalizeLabel, type SkillIndex, type SkillMatch, type SkillRef } from './skills-normalize'
 
 const PREFIX = 'yaye:emb:'
 /** Le vocabulaire métier bouge très peu — on garde les vecteurs longtemps. */
-const TTL_VECTOR = Number(process.env.YAYE_EMBEDDING_TTL_S ?? 90 * 24 * 3600)
+const TTL_VECTOR = numEnv('YAYE_EMBEDDING_TTL_S', 90 * 24 * 3600)
 /** Taille de lot d'appel au fournisseur. */
-const BATCH = Number(process.env.YAYE_EMBEDDING_BATCH ?? 96)
+const BATCH = numEnv('YAYE_EMBEDDING_BATCH', 96)
 /** Garde-fou de coût : nombre max de NOUVEAUX textes vectorisés par exécution. */
-const MAX_NEW_PER_RUN = Number(process.env.YAYE_EMBED_MAX_PER_RUN ?? 500)
+const MAX_NEW_PER_RUN = numEnv('YAYE_EMBED_MAX_PER_RUN', 500)
 /** Seuil de similarité cosinus au-delà duquel deux libellés désignent la même chose. */
-export const SEMANTIC_THRESHOLD = Number(process.env.YAYE_EMBEDDING_THRESHOLD ?? 0.78)
+export const SEMANTIC_THRESHOLD = numEnv('YAYE_EMBEDDING_THRESHOLD', 0.78)
 
 /** Modèle d'embedding actif, ou null si la fonctionnalité n'est pas configurée. */
 export function embeddingModel(): string | null {
-  const m = process.env.YAYE_EMBEDDING_MODEL?.trim()
-  return m ? m : null
+  return strEnv('YAYE_EMBEDDING_MODEL')
 }
 
 /** L'appariement sémantique est-il activé ? (sinon : lexical strict, comme avant). */

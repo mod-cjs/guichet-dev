@@ -18,10 +18,11 @@
 import { randomUUID } from 'node:crypto'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { numEnv } from './env'
 
 const PREFIX = 'yaye:wa:session:'
 /** Inactivité au-delà de laquelle un nouveau message ouvre une nouvelle session. */
-export const WA_SESSION_IDLE_S = Number(process.env.YAYE_WA_SESSION_IDLE_S ?? 24 * 3600)
+export const WA_SESSION_IDLE_S = numEnv('YAYE_WA_SESSION_IDLE_S', 24 * 3600)
 
 export function waSessionKey(conversationId: string): string {
   return `${PREFIX}${conversationId}`

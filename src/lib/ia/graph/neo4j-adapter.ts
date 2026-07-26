@@ -7,6 +7,7 @@
 import neo4j, { type Session, type QueryResult } from 'neo4j-driver'
 import { getNeo4jDriver, neo4jDatabase } from '@/lib/neo4j'
 import { logger } from '@/lib/logger'
+import { numEnv } from '../env'
 import { allowedNiveaux } from './niveau'
 import {
   COLLABORATIVE_RECO,
@@ -44,7 +45,7 @@ import {
 } from './port'
 
 /** Durée de validité de la sentinelle « graphe peuplé » (évite un COUNT par requête vide). */
-const POPULATED_TTL_MS = Number(process.env.YAYE_GRAPH_POPULATED_TTL_MS ?? 60_000)
+const POPULATED_TTL_MS = numEnv('YAYE_GRAPH_POPULATED_TTL_MS', 60_000)
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null

@@ -21,9 +21,10 @@
 import { encodeSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
+import { numEnv } from './env'
 
 /** Durée de vie du jeton d'acteur — le temps d'un appel in-process. */
-const ACTOR_TTL_S = Number(process.env.YAYE_ACTOR_TTL_S ?? 60)
+const ACTOR_TTL_S = numEnv('YAYE_ACTOR_TTL_S', 60)
 
 const SESSION_COOKIE = 'cjs_session'
 
