@@ -21,22 +21,44 @@ import { createHash } from 'node:crypto'
 import { redis } from '@/lib/redis'
 import { numEnv, strEnv } from '../env'
 import { logger } from '@/lib/logger'
-import { getLlmClient } from '../llm-client'
+import { getLlmClient, isLocalProvider } from '../llm-client'
+import { embedWithVertex, vertexBatchSize } from '../vertex-embeddings'
 import { matchSkills, normalizeLabel, type SkillIndex, type SkillMatch, type SkillRef } from './skills-normalize'
 
 const PREFIX = 'yaye:emb:'
 /** Le vocabulaire métier bouge très peu — on garde les vecteurs longtemps. */
 const TTL_VECTOR = numEnv('YAYE_EMBEDDING_TTL_S', 90 * 24 * 3600)
-/** Taille de lot d'appel au fournisseur. */
+/** Taille de lot par défaut (fournisseur local ; Vertex la dérive du modèle). */
 const BATCH = numEnv('YAYE_EMBEDDING_BATCH', 96)
 /** Garde-fou de coût : nombre max de NOUVEAUX textes vectorisés par exécution. */
 const MAX_NEW_PER_RUN = numEnv('YAYE_EMBED_MAX_PER_RUN', 500)
 /** Seuil de similarité cosinus au-delà duquel deux libellés désignent la même chose. */
 export const SEMANTIC_THRESHOLD = numEnv('YAYE_EMBEDDING_THRESHOLD', 0.78)
 
-/** Modèle d'embedding actif, ou null si la fonctionnalité n'est pas configurée. */
+/**
+ * Modèle par défaut : `gemini-embedding-001` (Vertex, famille Gemini, multilingue —
+ * indispensable pour le français et le code-switching wolof). Coût dérisoire à notre
+ * volume : le référentiel de compétences et les libellés saisis représentent quelques
+ * dizaines de milliers de jetons par AN, mis en cache 90 jours.
+ *
+ * Alternative encore moins chère et qui accepte de VRAIS lots (donc une première
+ * projection plus rapide) : `text-multilingual-embedding-002`.
+ *
+ * Coupure : `YAYE_EMBEDDING_MODEL="off"` (ou `none` / `false`) → appariement lexical strict.
+ */
+const DEFAULT_EMBEDDING_MODEL = 'gemini-embedding-001'
+const DESACTIVE = new Set(['off', 'none', 'false', '0', 'disabled'])
+
+/** Modèle d'embedding actif, ou null si explicitement désactivé. */
 export function embeddingModel(): string | null {
-  return strEnv('YAYE_EMBEDDING_MODEL')
+  const configured = strEnv('YAYE_EMBEDDING_MODEL')
+  if (configured && DESACTIVE.has(configured.toLowerCase())) return null
+  return configured ?? DEFAULT_EMBEDDING_MODEL
+}
+
+/** Taille de lot effective : Vertex la contraint par modèle (gemini-embedding = 1). */
+function batchSizeFor(model: string): number {
+  return isLocalProvider() ? BATCH : vertexBatchSize(model)
 }
 
 /** L'appariement sémantique est-il activé ? (sinon : lexical strict, comme avant). */
@@ -63,14 +85,43 @@ export function cosine(a: number[], b: number[]): number {
   return d === 0 ? 0 : dot / d
 }
 
-/** Appelle le fournisseur pour un lot de textes. `null` si l'endpoint ne répond pas. */
+/**
+ * Appelle le fournisseur pour un lot de textes. `null` si l'endpoint ne répond pas.
+ *  - Vertex (prod)  → API NATIVE `:predict` : l'endpoint OpenAI-compatible de Vertex
+ *    couvre `chat/completions`, mais pas `/embeddings` de façon garantie ;
+ *  - LMStudio (dev) → `/v1/embeddings`, que le serveur local expose bien.
+ */
 async function embedBatch(model: string, texts: string[]): Promise<number[][] | null> {
+  if (!isLocalProvider()) return embedWithVertex(model, texts)
   try {
     const res = await getLlmClient(model).embeddings.create({ model, input: texts })
     const vectors = res.data.map(d => d.embedding as number[])
     return vectors.length === texts.length ? vectors : null
   } catch (err) {
-    logger.warn('[skills-emb] embedding indisponible → repli lexical', { err: String(err) })
+    logger.warn('[skills-emb] embedding local indisponible → repli lexical', { err: String(err) })
+    return null
+  }
+}
+
+// ── Stockage compact des vecteurs ─────────────────────────────────────────────
+// Redis est MUTUALISÉ entre plateformes CJS (1 Go). Un vecteur 768 dimensions coûte
+// ~12 Ko en JSON contre ~4 Ko en Float32/base64 : on stocke donc en binaire encodé.
+
+function encodeVector(v: number[]): string {
+  return Buffer.from(new Float32Array(v).buffer).toString('base64')
+}
+
+function decodeVector(raw: string): number[] | null {
+  try {
+    // Rétro-compat : les entrées écrites en JSON avant ce changement restent lisibles.
+    if (raw.startsWith('[')) {
+      const v = JSON.parse(raw) as number[]
+      return Array.isArray(v) && v.length ? v : null
+    }
+    const buf = Buffer.from(raw, 'base64')
+    if (buf.byteLength === 0 || buf.byteLength % 4 !== 0) return null
+    return Array.from(new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4))
+  } catch {
     return null
   }
 }
@@ -93,10 +144,8 @@ export async function embedTexts(texts: string[]): Promise<Map<string, number[]>
     const cached = await redis.mget(...uniques.map(t => vectorKey(model, t)))
     cached.forEach((raw, i) => {
       if (!raw) return
-      try {
-        const v = JSON.parse(raw) as number[]
-        if (Array.isArray(v) && v.length) out.set(uniques[i], v)
-      } catch { /* entrée corrompue → sera recalculée */ }
+      const v = decodeVector(raw)
+      if (v) out.set(uniques[i], v) // entrée corrompue → simplement recalculée
     })
   } catch (err) {
     logger.warn('[skills-emb] lecture cache échouée', { err: String(err) })
@@ -112,14 +161,15 @@ export async function embedTexts(texts: string[]): Promise<Map<string, number[]>
     missing = missing.slice(0, MAX_NEW_PER_RUN)
   }
 
-  for (let i = 0; i < missing.length; i += BATCH) {
-    const slice = missing.slice(i, i + BATCH)
+  const taille = batchSizeFor(model)
+  for (let i = 0; i < missing.length; i += taille) {
+    const slice = missing.slice(i, i + taille)
     const vectors = await embedBatch(model, slice)
     if (!vectors) return out // endpoint HS → on s'arrête là, le lexical prend le relais
     for (let j = 0; j < slice.length; j++) {
       out.set(slice[j], vectors[j])
       try {
-        await redis.set(vectorKey(model, slice[j]), JSON.stringify(vectors[j]), 'EX', TTL_VECTOR)
+        await redis.set(vectorKey(model, slice[j]), encodeVector(vectors[j]), 'EX', TTL_VECTOR)
       } catch { /* cache best-effort */ }
     }
   }
