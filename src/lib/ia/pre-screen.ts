@@ -227,20 +227,46 @@ const ADVICE = [
   "Le trac, tout le monde connaît ! Mets en avant 2-3 forces, prépare une réponse à « parlez-moi de vous », et dors bien avant. On peut réviser tes points forts ensemble si tu veux.",
 ]
 
-/** Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire). */
+/**
+ * Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire).
+ *
+ * Le curseur est global au processus — c'était le seul état partagé ENTRE utilisateurs :
+ * deux personnes différentes pouvaient recevoir la même formule au même instant, et la
+ * même personne pouvait en recevoir deux fois la même. On décale donc la rotation par un
+ * hachage de l'identité (GUIC-678) : la variation reste garantie d'un tour à l'autre, et
+ * deux personnes servies simultanément ne tombent plus sur la même phrase.
+ */
 const _cursor = new WeakMap<string[], number>()
-function pick(pool: string[]): string {
-  const i = _cursor.get(pool) ?? 0
-  _cursor.set(pool, (i + 1) % pool.length)
-  return pool[i]
+
+/** FNV-1a + avalanche : deux identités VOISINES doivent donner des décalages ÉLOIGNÉS,
+ *  sinon l'avance du curseur global annule exactement l'écart et les deux se rejoignent. */
+function seedOffset(seed?: string): number {
+  if (!seed) return 0
+  let h = 2166136261
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  h ^= h >>> 15
+  h = Math.imul(h, 2246822507)
+  h ^= h >>> 13
+  return Math.abs(h | 0)
+}
+
+function pick(pool: string[], seed?: string): string {
+  const cursor = _cursor.get(pool) ?? 0
+  _cursor.set(pool, (cursor + 1) % pool.length)
+  return pool[(cursor + seedOffset(seed)) % pool.length]
 }
 
 /**
  * Filtre un message AVANT la boucle d'outils.
  * @param firstTurn true si aucun historique (les petites interactions ne s'appliquent qu'au 1er tour).
+ * @param seed identité de l'appelant (cjsUid) — décale la rotation des formules pour que
+ *   deux personnes servies au même instant ne reçoivent pas la même phrase (GUIC-678).
  * @returns une réponse à court-circuiter, ou null pour laisser passer à l'agent.
  */
-export function preScreen(message: string, firstTurn = true): PreScreenResult | null {
+export function preScreen(message: string, firstTurn = true, seed?: string): PreScreenResult | null {
   const t = norm(message)
 
   // DANGER — priorité absolue : force l'escalade humaine (filet de sécurité).
@@ -262,27 +288,27 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   // Placé avant le revers car « je stresse … tu as des conseils ? » porte une intention actionnable.
   // Mais si une TÂCHE outil est aussi demandée (« … prépare ma candidature »), on laisse l'agent
   // agir plutôt que de servir un conseil tout fait qui l'ignorerait.
-  if (RE_ANXIETY.test(t) && !RE_TOOL_ACTION.test(t)) return { action: 'direct', reply: pick(ADVICE), reason: 'anxiety' }
+  if (RE_ANXIETY.test(t) && !RE_TOOL_ACTION.test(t)) return { action: 'direct', reply: pick(ADVICE, seed), reason: 'anxiety' }
   // Revers ordinaire sans intention actionnable → consolation directe (anti sur-escalade).
-  if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS), reason: 'setback' }
+  if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS, seed), reason: 'setback' }
 
   // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
   // Gardé par !RE_HAS_ACTION : « tu fais quoi comme recherche pour les bourses ? » porte
   // une vraie demande → à l'agent, pas à la présentation figée.
-  if (RE_SELF_PRESENT.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
-  if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC), reason: 'offtopic' }
+  if (RE_SELF_PRESENT.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS, seed), reason: 'presentation' }
+  if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC, seed), reason: 'offtopic' }
   // Message purement vague (1er tour) → question de clarification, sans outil.
-  if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY), reason: 'clarify' }
+  if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY, seed), reason: 'clarify' }
 
   // P1 — petites interactions PUREMENT sociales (sans intention actionnable), à TOUT tour.
   // Gardées déterministes même en cours de conversation : un simple « bonjour » / « merci »
   // ne doit jamais partir vers le LLM (un petit modèle y répond souvent à côté — présentation
   // hors-sujet, méta…). La reformulation reste variée via la rotation `pick`.
   if (!RE_HAS_ACTION.test(t)) {
-    if (RE_START_GREETING.test(t)) return { action: 'direct', reply: pick(GREETINGS), reason: 'greeting' }
-    if (RE_START_THANKS.test(t)) return { action: 'direct', reply: pick(THANKS), reason: 'thanks' }
-    if (RE_START_BYE.test(t)) return { action: 'direct', reply: pick(BYES), reason: 'bye' }
-    if (RE_START_SMALLTALK.test(t)) return { action: 'direct', reply: pick(SMALLTALK), reason: 'smalltalk' }
+    if (RE_START_GREETING.test(t)) return { action: 'direct', reply: pick(GREETINGS, seed), reason: 'greeting' }
+    if (RE_START_THANKS.test(t)) return { action: 'direct', reply: pick(THANKS, seed), reason: 'thanks' }
+    if (RE_START_BYE.test(t)) return { action: 'direct', reply: pick(BYES, seed), reason: 'bye' }
+    if (RE_START_SMALLTALK.test(t)) return { action: 'direct', reply: pick(SMALLTALK, seed), reason: 'smalltalk' }
   }
 
   return null

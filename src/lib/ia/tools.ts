@@ -645,7 +645,7 @@ const reserveResource: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const ressourceId = typeof args.ressourceId === 'string' ? args.ressourceId.trim() : ''
     const date = typeof args.date === 'string' ? args.date.trim() : ''
     const creneauDebut = typeof args.creneauDebut === 'string' ? args.creneauDebut.trim() : ''
@@ -697,14 +697,17 @@ const reserveResource: AgentTool = {
     }
 
     // Étape 2 — écriture via l'endpoint EXISTANT (aucune règle métier dupliquée ici).
-    const result = await submitReservationViaApi({
-      ressourceId,
-      dateReservee: `${date}T12:00:00.000Z`,
-      creneauDebut,
-      creneauFin,
-      nombrePersonnes,
-      motif,
-    })
+    const result = await submitReservationViaApi(
+      {
+        ressourceId,
+        dateReservee: `${date}T12:00:00.000Z`,
+        creneauDebut,
+        creneauFin,
+        nombrePersonnes,
+        motif,
+      },
+      ctx.cjsUid,
+    )
 
     if (result.ok) {
       const accepted = result.reservation.statut === 'Acceptee'
@@ -757,7 +760,7 @@ const getBadge: AgentTool = {
   },
   async execute(_args, ctx) {
     const base = appUrl()
-    const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token' })
+    const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token', actorCjsUid: ctx.cjsUid })
     const data = r.json.data as { expiresAt?: string; token?: string } | undefined
 
     if (r.ok && data?.token) {
@@ -875,6 +878,7 @@ const submitApplication: AgentTool = {
       method: 'POST',
       path: '/api/candidatures',
       body: { opportuniteId, lettreMotivation, cvUrl: profil?.cvUrl ?? undefined, notificationsConsent },
+      actorCjsUid: ctx.cjsUid,
     })
 
     if (r.ok) {
@@ -1046,7 +1050,7 @@ const searchLibrary: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const qs = new URLSearchParams()
     if (typeof args.q === 'string' && args.q.trim()) qs.set('q', args.q.trim())
     if (typeof args.theme === 'string' && args.theme.trim()) qs.set('theme', args.theme.trim())
@@ -1055,6 +1059,7 @@ const searchLibrary: AgentTool = {
     const r = await callInternalRoute(biblioLivresGET, {
       method: 'GET',
       path: `/api/bibliotheque/livres?${qs.toString()}`,
+      actorCjsUid: ctx.cjsUid,
     })
     if (!r.ok) {
       if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour consulter la bibliothèque.' }
@@ -1120,7 +1125,7 @@ const borrowBook: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const exemplaireId = typeof args.exemplaireId === 'string' ? args.exemplaireId : ''
     const confirm = args.confirm === true
     if (!exemplaireId) return { ok: false, error: "Précise quel exemplaire emprunter (exemplaireId)." }
@@ -1165,6 +1170,7 @@ const borrowBook: AgentTool = {
       method: 'POST',
       path: '/api/bibliotheque/emprunts',
       body: { exemplaireId },
+      actorCjsUid: ctx.cjsUid,
     })
     if (r.ok) {
       const emprunt = (r.json.data as { emprunt: EmpruntVue }).emprunt
@@ -1210,8 +1216,8 @@ const getActiveLoans: AgentTool = {
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
-  async execute() {
-    const r = await callInternalRoute(biblioEmpruntsGET, { method: 'GET', path: '/api/bibliotheque/emprunts' })
+  async execute(_args, ctx) {
+    const r = await callInternalRoute(biblioEmpruntsGET, { method: 'GET', path: '/api/bibliotheque/emprunts', actorCjsUid: ctx.cjsUid })
     if (!r.ok) {
       if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour voir tes emprunts.' }
       return { ok: false, error: r.json.error?.message ?? 'Impossible de récupérer tes emprunts.' }

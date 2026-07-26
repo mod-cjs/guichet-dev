@@ -7,13 +7,15 @@
 // propageant la session de l'appelant (cookie), sans aller-retour réseau.
 //
 // Auth : la session du jeune est portée par le cookie de la requête courante
-// (next/headers, request-scoped). Hors contexte authentifié par cookie (ex.
-// WhatsApp), l'endpoint répond 401 → l'outil bascule sur le lien web.
+// (next/headers, request-scoped). Hors contexte web (WhatsApp), on frappe une session
+// ÉPHÉMÈRE pour l'identité déjà vérifiée par l'agent (GUIC-678, cf. actor-session.ts) ;
+// sans identité exploitable, l'endpoint répond 401 et l'outil bascule sur le lien web.
 
 import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 import { POST as createReservationRoute } from '@/app/api/reservations/route'
 import { logger } from '@/lib/logger'
+import { buildActorCookieHeader } from './actor-session'
 
 /** Charge utile alignée sur le schéma Zod de l'endpoint existant. */
 export interface ReservationGatewayPayload {
@@ -71,8 +73,11 @@ async function currentCookieHeader(): Promise<string> {
  */
 export async function submitReservationViaApi(
   payload: ReservationGatewayPayload,
+  /** Identité déjà vérifiée par l'agent — sert hors contexte web (WhatsApp), cf. actor-session.ts. */
+  actorCjsUid?: string | null,
 ): Promise<ReservationGatewayResult> {
-  const cookie = await currentCookieHeader()
+  const cookie =
+    (await currentCookieHeader()) || (actorCjsUid ? (await buildActorCookieHeader(actorCjsUid)) ?? '' : '')
   const req = new NextRequest('http://internal.local/api/reservations', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },

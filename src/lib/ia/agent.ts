@@ -468,7 +468,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     canal: p.canal,
   }
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       // Danger repéré → on FORCE l'escalade conseiller (crée la trace + notifie), même si le modèle l'aurait ratée.
@@ -633,7 +633,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
 
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       const gstate: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }

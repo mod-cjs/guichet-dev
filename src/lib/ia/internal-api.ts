@@ -11,6 +11,7 @@
 import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 import { logger } from '@/lib/logger'
+import { buildActorCookieHeader } from './actor-session'
 
 type RouteHandler = (req: NextRequest) => Promise<Response>
 
@@ -34,13 +35,20 @@ async function currentCookieHeader(): Promise<string> {
 
 /**
  * Appelle un route handler EXISTANT (sans le modifier) en propageant la session.
+ *
+ * Hors contexte web (WhatsApp), il n'y a pas de cookie : si l'appelant fournit
+ * `actorCjsUid` — une identité DÉJÀ vérifiée par l'agent (binding du lien magique SSO) —
+ * on frappe une session éphémère de 60 s pour cette personne (cf. actor-session.ts).
+ * Sans identité exploitable, on laisse l'endpoint répondre 401 et l'outil bascule
+ * sur un lien web, comme avant.
+ *
  * @param handler Le `GET`/`POST` importé depuis `@/app/api/...`.
  */
 export async function callInternalRoute(
   handler: RouteHandler,
-  opts: { method: 'GET' | 'POST'; path: string; body?: unknown },
+  opts: { method: 'GET' | 'POST'; path: string; body?: unknown; actorCjsUid?: string | null },
 ): Promise<InternalApiResult> {
-  const cookie = await currentCookieHeader()
+  const cookie = (await currentCookieHeader()) || (opts.actorCjsUid ? (await buildActorCookieHeader(opts.actorCjsUid)) ?? '' : '')
   const init: { method: string; headers: Record<string, string>; body?: string } = {
     method: opts.method,
     headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
