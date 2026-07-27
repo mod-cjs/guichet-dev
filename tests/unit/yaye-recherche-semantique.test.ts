@@ -87,11 +87,13 @@ test('recherche insensible à la casse et aux accents (parité avec le LIKE)', a
 test('LATENCE BORNÉE : le corpus est lu depuis le CACHE, jamais vectorisé à chaud', async () => {
   await rankByRelevance('poisson', CATALOGUE)
 
-  // 1er appel = la requête de l'usager (vectorisation autorisée).
+  // 1er appel = la requête de l'usager : vectorisation autorisée, tâche REQUÊTE.
   expect(mockEmbedTexts.mock.calls[0][0]).toEqual(['poisson'])
-  expect(mockEmbedTexts.mock.calls[0][1]).toBeUndefined()
-  // 2e appel = le corpus, avec plafond de nouveaux textes à ZÉRO.
-  expect(mockEmbedTexts.mock.calls[1][1]).toEqual({ maxNew: 0 })
+  expect(mockEmbedTexts.mock.calls[0][1]).toEqual({ taskType: 'RETRIEVAL_QUERY' })
+  // 2e appel = le corpus : plafond de nouveaux textes à ZÉRO, tâche DOCUMENT.
+  // Les deux tâches sont ASYMÉTRIQUES — une requête et un titre ne se vectorisent pas
+  // pareil, et le cache les distingue (mesure du 2026-07-27).
+  expect(mockEmbedTexts.mock.calls[1][1]).toEqual({ maxNew: 0, taskType: 'RETRIEVAL_DOCUMENT' })
 })
 
 test('offre pas encore préchauffée → ignorée sans coût, le lexical répond seul', async () => {
@@ -101,6 +103,21 @@ test('offre pas encore préchauffée → ignorée sans coût, le lexical répond
 
   const lexical = await rankByRelevance('comptable', CATALOGUE)
   expect(lexical.map(r => r.id)).toEqual(['o-compta'])
+})
+
+test('RATTRAPAGE seul : le sémantique ne complète pas une recherche déjà servie', async () => {
+  // Trois correspondances lexicales = de quoi remplir l'écran : on ne va pas chercher
+  // d'approximations en plus. Le gain mesuré est sur les recherches à ZÉRO résultat.
+  const corpus = [
+    { id: 'a', text: 'Comptable junior' },
+    { id: 'b', text: 'Comptable senior' },
+    { id: 'c', text: 'Comptable des matières' },
+    { id: 'd', text: 'Gestionnaire financier' },
+  ]
+  const out = await rankByRelevance('comptable', corpus)
+
+  expect(out.map(r => r.id)).toEqual(['a', 'b', 'c'])
+  expect(mockEmbedTexts).not.toHaveBeenCalled() // aucun appel : rien à rattraper
 })
 
 test('embeddings coupés → strictement le comportement lexical d’origine', async () => {
