@@ -41,13 +41,13 @@ async function main(): Promise<void> {
   for (;;) {
     tour += 1
     const r = await warmOpportuniteVectors()
-    const couverture = r.candidats > 0 ? Math.round((r.vecteurs / r.candidats) * 100) : 100
+    const couverture = r.uniques > 0 ? Math.round((r.vecteurs / r.uniques) * 100) : 100
     console.log(
-      `   tour ${tour} · ${r.vecteurs}/${r.candidats} titres vectorisés (${couverture} %) · ${Math.round(r.dureeMs / 1000)} s`,
+      `   tour ${tour} · ${r.vecteurs}/${r.uniques} textes distincts vectorisés (${couverture} %) · ${Math.round(r.dureeMs / 1000)} s`,
     )
 
     if (!tout) break
-    if (r.vecteurs >= r.candidats) {
+    if (r.complet) {
       console.log('✅ Catalogue entièrement vectorisé.')
       break
     }

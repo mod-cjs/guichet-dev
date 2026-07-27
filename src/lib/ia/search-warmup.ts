@@ -15,7 +15,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
-import { embedTexts, isEmbeddingEnabled } from './embeddings'
+import { embedTexts, isEmbeddingEnabled, normalizeForEmbedding } from './embeddings'
 import { numEnv } from './env'
 
 /** Nouveaux textes vectorisés par nuit (borne le temps passé dans le cron). */
@@ -24,8 +24,16 @@ const WARMUP_MAX = numEnv('YAYE_SEARCH_WARMUP_MAX', 600)
 export interface WarmupReport {
   /** Textes soumis au préchauffage (déjà en cache ou non). */
   candidats: number
+  /**
+   * Textes DISTINCTS après normalisation — la vraie cible à atteindre. Deux offres au
+   * même intitulé partagent un seul vecteur : sans cette borne, `vecteurs` n'égale jamais
+   * `candidats` et un appelant croit à tort que le préchauffage patine.
+   */
+  uniques: number
   /** Vecteurs disponibles à l'issue (cache + nouvellement calculés). */
   vecteurs: number
+  /** Vrai quand tous les textes distincts ont leur vecteur. */
+  complet: boolean
   dureeMs: number
 }
 
@@ -55,7 +63,7 @@ export function texteOpportunite(o: {
  */
 export async function warmOpportuniteVectors(): Promise<WarmupReport> {
   const debut = Date.now()
-  if (!isEmbeddingEnabled()) return { candidats: 0, vecteurs: 0, dureeMs: 0 }
+  if (!isEmbeddingEnabled()) return { candidats: 0, uniques: 0, vecteurs: 0, complet: true, dureeMs: 0 }
 
   try {
     const offres = await prisma.opportunite.findMany({
@@ -73,11 +81,18 @@ export async function warmOpportuniteVectors(): Promise<WarmupReport> {
     // le préchauffage ne sert à rien.
     const vecteurs = await embedTexts(textes, { maxNew: WARMUP_MAX, taskType: 'RETRIEVAL_DOCUMENT' })
 
-    const rapport = { candidats: textes.length, vecteurs: vecteurs.size, dureeMs: Date.now() - debut }
-    logger.info('[search-warmup] catalogue vectorisé', rapport)
+    const uniques = new Set(textes.map(normalizeForEmbedding).filter(Boolean)).size
+    const rapport: WarmupReport = {
+      candidats: textes.length,
+      uniques,
+      vecteurs: vecteurs.size,
+      complet: vecteurs.size >= uniques,
+      dureeMs: Date.now() - debut,
+    }
+    logger.info('[search-warmup] catalogue vectorisé', { ...rapport })
     return rapport
   } catch (err) {
     logger.warn('[search-warmup] échec (sans conséquence : la recherche reste lexicale)', { err: String(err) })
-    return { candidats: 0, vecteurs: 0, dureeMs: Date.now() - debut }
+    return { candidats: 0, uniques: 0, vecteurs: 0, complet: false, dureeMs: Date.now() - debut }
   }
 }
