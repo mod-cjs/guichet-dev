@@ -232,14 +232,19 @@ const searchOpportunities: AgentTool = {
       description:
         "Recherche des opportunités publiées (emploi, stage, bourse, formation, volontariat…) " +
         'selon le domaine, la région, le type et/ou des mots-clés. Renvoie des offres cliquables. ' +
-        "À utiliser dès que l'utilisateur cherche une opportunité ; croise avec son profil si pertinent.",
+        "À utiliser dès que l'utilisateur cherche une opportunité ; croise avec son profil si pertinent.\n" +
+        "IMPORTANT pour `q` : passe la formulation de la personne TELLE QU'ELLE, en langage naturel " +
+        "(« élever des poulets », « je fabrique des sites internet »). La recherche comprend le SENS : " +
+        "elle retrouve « Technicien en aviculture » à partir de « élever des poulets ». Ne réduis " +
+        "donc PAS la demande à un mot-clé isolé — un mot seul porte moins de sens qu'une phrase et " +
+        "dégrade les résultats.",
       parameters: {
         type: 'object',
         properties: {
           domaine: { type: 'string', enum: Object.values(Domaine), description: "Secteur de l'opportunité" },
           region: { type: 'string', enum: Object.values(Region), description: 'Région ciblée' },
           type: { type: 'string', enum: Object.values(TypeOpportunite), description: "Type d'opportunité" },
-          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+          q: { type: 'string', description: "Ce que cherche la personne, dans SES mots (phrase naturelle, pas un mot-clé isolé)" },
         },
         required: [],
       },
@@ -1295,7 +1300,7 @@ const searchEvents: AgentTool = {
         type: 'object',
         properties: {
           type: { type: 'string', enum: Object.values(TypeEvenement), description: "Type d'événement" },
-          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+          q: { type: 'string', description: "Ce que cherche la personne, dans SES mots (phrase naturelle, pas un mot-clé isolé)" },
         },
         required: [],
       },
