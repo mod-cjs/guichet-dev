@@ -17,7 +17,7 @@ import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import { numEnv, strEnv } from './env'
 import { getLlmClient, isLocalProvider } from './llm-client'
-import { embedWithVertex, vertexBatchSize } from './vertex-embeddings'
+import { DEFAULT_TASK_TYPE, embedWithVertex, vertexBatchSize, type EmbeddingTaskType } from './vertex-embeddings'
 
 const PREFIX = 'yaye:emb:'
 /** Le vocabulaire métier bouge très peu — on garde les vecteurs longtemps. */
@@ -30,11 +30,17 @@ const MAX_NEW_PER_RUN = numEnv('YAYE_EMBED_MAX_PER_RUN', 500)
 export const SEMANTIC_THRESHOLD = numEnv('YAYE_EMBEDDING_THRESHOLD', 0.78)
 
 /**
- * Modèle par défaut : `gemini-embedding-001` (Vertex, famille Gemini, multilingue —
- * indispensable pour le français et le code-switching wolof).
+ * Modèle par défaut : `gemini-embedding-001` — CONFIRMÉ par la mesure locale du
+ * 2026-07-27 sur le catalogue réel. Comparé à `text-multilingual-embedding-002` sur des
+ * paires requête↔offre connues :
  *
- * Alternative moins chère et qui accepte de VRAIS lots (préchauffage plus rapide) :
- * `text-multilingual-embedding-002`.
+ *   « sites web » → Développeur web junior          0,594 → 0,638
+ *   « planter des arbres » → Volontariat reboisement 0,644 → 0,714
+ *   « élever des poulets » → Technicien aviculture     —   → 0,648
+ *
+ * Le multilingue-002 est ~15× plus rapide à préchauffer (vrais lots contre une instance
+ * par requête), mais son signal est trop faible pour être séparé du bruit. On paie donc
+ * le préchauffage lent une fois, et on gagne en pertinence tous les jours.
  *
  * Coupure : `YAYE_EMBEDDING_MODEL="off"` (ou `none` / `false`) → tout redevient lexical.
  */
@@ -69,8 +75,15 @@ export function normalizeForEmbedding(s: string): string {
     .replace(/\s+/g, ' ')
 }
 
-function vectorKey(model: string, text: string): string {
-  return `${PREFIX}${model}:${createHash('sha1').update(text).digest('hex')}`
+/**
+ * Clé de cache. Le TYPE DE TÂCHE en fait partie : le même texte vectorisé en
+ * `RETRIEVAL_DOCUMENT` ou en `SEMANTIC_SIMILARITY` donne DEUX vecteurs différents, qu'on
+ * ne doit jamais confondre. Sans ce composant, la recherche lirait les vecteurs de
+ * l'appariement des compétences et comparerait des choux et des carottes.
+ */
+function vectorKey(model: string, taskType: EmbeddingTaskType, text: string): string {
+  const suffixe = taskType === DEFAULT_TASK_TYPE ? '' : `${taskType.toLowerCase()}:`
+  return `${PREFIX}${model}:${suffixe}${createHash('sha1').update(text).digest('hex')}`
 }
 
 /** Similarité cosinus ∈ [-1,1] (0 si dimensions incompatibles). */
@@ -94,8 +107,8 @@ export function cosine(a: number[], b: number[]): number {
  *    couvre `chat/completions`, mais pas `/embeddings` de façon garantie ;
  *  - LMStudio (dev) → `/v1/embeddings`, que le serveur local expose bien.
  */
-async function embedBatch(model: string, texts: string[]): Promise<number[][] | null> {
-  if (!isLocalProvider()) return embedWithVertex(model, texts)
+async function embedBatch(model: string, texts: string[], taskType: EmbeddingTaskType): Promise<number[][] | null> {
+  if (!isLocalProvider()) return embedWithVertex(model, texts, taskType)
   try {
     const res = await getLlmClient(model).embeddings.create({ model, input: texts })
     const vectors = res.data.map(d => d.embedding as number[])
@@ -131,6 +144,12 @@ export function decodeVector(raw: string): number[] | null {
 
 export interface EmbedOptions {
   /**
+   * Nature de la comparaison visée. `SEMANTIC_SIMILARITY` (défaut) pour comparer deux
+   * textes de même nature ; `RETRIEVAL_QUERY` / `RETRIEVAL_DOCUMENT` pour une recherche,
+   * qui est asymétrique. Le cache distingue les deux.
+   */
+  taskType?: EmbeddingTaskType
+  /**
    * Plafond de NOUVEAUX textes vectorisés pendant cet appel.
    * `0` = lecture de cache uniquement — c'est le réglage du chemin de RÉPONSE :
    * jamais de vectorisation à chaud, donc jamais de latence surprise pour l'usager.
@@ -149,12 +168,13 @@ export async function embedTexts(texts: string[], opts: EmbedOptions = {}): Prom
   const model = embeddingModel()
   if (!model) return out
 
+  const taskType = opts.taskType ?? DEFAULT_TASK_TYPE
   const uniques = [...new Set(texts.map(normalizeForEmbedding).filter(Boolean))]
   if (uniques.length === 0) return out
 
   // 1. Lecture du cache (une seule commande).
   try {
-    const cached = await redis.mget(...uniques.map(t => vectorKey(model, t)))
+    const cached = await redis.mget(...uniques.map(t => vectorKey(model, taskType, t)))
     cached.forEach((raw, i) => {
       if (!raw) return
       const v = decodeVector(raw)
@@ -180,12 +200,12 @@ export async function embedTexts(texts: string[], opts: EmbedOptions = {}): Prom
   const taille = batchSizeFor(model)
   for (let i = 0; i < missing.length; i += taille) {
     const slice = missing.slice(i, i + taille)
-    const vectors = await embedBatch(model, slice)
+    const vectors = await embedBatch(model, slice, taskType)
     if (!vectors) return out // endpoint HS → on s'arrête là, le lexical prend le relais
     for (let j = 0; j < slice.length; j++) {
       out.set(slice[j], vectors[j])
       try {
-        await redis.set(vectorKey(model, slice[j]), encodeVector(vectors[j]), 'EX', TTL_VECTOR)
+        await redis.set(vectorKey(model, taskType, slice[j]), encodeVector(vectors[j]), 'EX', TTL_VECTOR)
       } catch { /* cache best-effort */ }
     }
   }

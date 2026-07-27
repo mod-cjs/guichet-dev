@@ -14,7 +14,34 @@
 // Un corpus non encore préchauffé ne coûte donc rien : il est simplement ignoré par la
 // voie sémantique, et le lexical répond seul.
 
-import { cosine, embedTexts, isEmbeddingEnabled, normalizeForEmbedding, SEMANTIC_THRESHOLD } from './embeddings'
+import { cosine, embedTexts, isEmbeddingEnabled, normalizeForEmbedding } from './embeddings'
+import { numEnv } from './env'
+
+/**
+ * Seuil PROPRE À LA RECHERCHE, calibré sur le catalogue RÉEL (mesure du 2026-07-27,
+ * 4 200 offres, gemini-embedding-001, tâches RETRIEVAL_*) :
+ *
+ *   requête               meilleur score   verdict
+ *   « comptable »              0,728        pertinent
+ *   « créer mon entreprise »   0,722        pertinent
+ *   « apprendre l'info »       0,715        pertinent
+ *   « sites web »              0,638        pertinent (4 offres, ZÉRO en lexical)
+ *   « cultiver des légumes »   0,649        bruit (aucune offre correspondante)
+ *   « élever des poulets »     0,622        bruit (aucune offre correspondante)
+ *
+ * 0,63 est la coupure qui retient les six premiers cas et rejette les deux derniers.
+ * Un seuil « intuitif » (0,78, hérité des compétences) ne remontait RIEN : les échelles
+ * de similarité n'ont rien à voir entre libellé↔libellé et requête↔titre.
+ */
+export const SEARCH_THRESHOLD = numEnv('YAYE_SEARCH_THRESHOLD', 0.63)
+
+/**
+ * Le sémantique est un FILET, pas un enrichissement permanent. Au-delà de ce nombre de
+ * correspondances lexicales, on n'y touche plus : une recherche qui marche déjà n'a rien
+ * à gagner à se voir compléter par des approximations. Le gain mesuré est ailleurs — dans
+ * les recherches qui rendaient ZÉRO résultat.
+ */
+export const LEXICAL_SUFFISANT = numEnv('YAYE_SEARCH_LEXICAL_SUFFISANT', 3)
 
 /** Un élément classable : un identifiant et le texte qui le décrit. */
 export interface RankableItem {
@@ -59,7 +86,7 @@ export async function rankByRelevance(
   const q = query.trim()
   if (!q || items.length === 0) return []
 
-  const threshold = opts.threshold ?? SEMANTIC_THRESHOLD
+  const threshold = opts.threshold ?? SEARCH_THRESHOLD
   const retenus = new Map<string, RankedItem>()
 
   // 1. Voie LEXICALE — prioritaire, et seule voie si les embeddings sont coupés.
@@ -67,13 +94,15 @@ export async function rankByRelevance(
     if (matchLexical(q, item.text)) retenus.set(item.id, { id: item.id, score: 1, via: 'lexical' })
   }
 
-  // 2. Voie SÉMANTIQUE — rattrape les reformulations.
-  if (isEmbeddingEnabled()) {
+  // 2. Voie SÉMANTIQUE — RATTRAPAGE uniquement (cf. LEXICAL_SUFFISANT) : on ne pollue
+  // jamais une recherche qui a déjà de quoi répondre.
+  if (isEmbeddingEnabled() && retenus.size < LEXICAL_SUFFISANT) {
     // La requête est le SEUL texte qu'on accepte de vectoriser à chaud.
-    const requete = (await embedTexts([q])).get(normalizeForEmbedding(q))
+    // Tâche ASYMÉTRIQUE : une requête courte et un titre ne se vectorisent pas pareil.
+    const requete = (await embedTexts([q], { taskType: 'RETRIEVAL_QUERY' })).get(normalizeForEmbedding(q))
     if (requete) {
       // Corpus : lecture de cache STRICTE (aucune vectorisation à chaud).
-      const corpus = await embedTexts(items.map(i => i.text), { maxNew: 0 })
+      const corpus = await embedTexts(items.map(i => i.text), { maxNew: 0, taskType: 'RETRIEVAL_DOCUMENT' })
       for (const item of items) {
         if (retenus.has(item.id)) continue // le lexical prime, on ne le déclasse pas
         const v = corpus.get(normalizeForEmbedding(item.text))

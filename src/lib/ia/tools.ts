@@ -265,7 +265,7 @@ const searchOpportunities: AgentTool = {
     const rows = await prisma.opportunite.findMany({
       where,
       select: {
-        id: true, slug: true, titre: true, type: true, region: true,
+        id: true, slug: true, titre: true, type: true, region: true, domaine: true,
         organisation: true, organisationLibelle: true, deadline: true,
         typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
       },

@@ -32,9 +32,21 @@ export interface WarmupReport {
 /**
  * Texte représentatif d'une offre — DOIT rester identique à celui utilisé par la recherche,
  * sinon les clés de cache divergent et le préchauffage ne sert à rien.
+ *
+ * On ENRICHIT le titre du domaine et du type (mesure locale du 2026-07-27) : un titre nu
+ * est trop court pour se vectoriser proprement, et les scores s'écrasent — « Développeur
+ * web junior » ne se détachait pas du bruit sur la requête « sites web ». Le domaine et le
+ * type sont des mots-clés métier stables, qui ancrent le document dans son champ.
  */
-export function texteOpportunite(o: { titre: string; organisationLibelle?: string | null; organisation?: string | null }): string {
-  return `${o.titre} ${o.organisationLibelle ?? o.organisation ?? ''}`.trim()
+export function texteOpportunite(o: {
+  titre: string
+  organisationLibelle?: string | null
+  organisation?: string | null
+  domaine?: string | null
+  type?: string | null
+}): string {
+  const parts = [o.titre, o.organisationLibelle ?? o.organisation ?? '', o.domaine ?? '', o.type ?? '']
+  return parts.filter(Boolean).join(' · ').trim()
 }
 
 /**
@@ -52,12 +64,14 @@ export async function warmOpportuniteVectors(): Promise<WarmupReport> {
         deletedAt: null,
         OR: [{ deadline: null }, { deadline: { gte: new Date() } }],
       },
-      select: { titre: true, organisation: true, organisationLibelle: true },
+      select: { titre: true, organisation: true, organisationLibelle: true, domaine: true, type: true },
       orderBy: { createdAt: 'desc' },
     })
 
     const textes = offres.map(texteOpportunite).filter(Boolean)
-    const vecteurs = await embedTexts(textes, { maxNew: WARMUP_MAX })
+    // MÊME tâche que la recherche (RETRIEVAL_DOCUMENT) : sinon les clés divergent et
+    // le préchauffage ne sert à rien.
+    const vecteurs = await embedTexts(textes, { maxNew: WARMUP_MAX, taskType: 'RETRIEVAL_DOCUMENT' })
 
     const rapport = { candidats: textes.length, vecteurs: vecteurs.size, dureeMs: Date.now() - debut }
     logger.info('[search-warmup] catalogue vectorisé', rapport)

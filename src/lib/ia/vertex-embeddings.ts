@@ -29,11 +29,20 @@ import { numEnv } from './env'
 export const EMBEDDING_DIMENSIONS = numEnv('YAYE_EMBEDDING_DIMENSIONS', 768)
 
 /**
- * Tâche déclarée au modèle. `SEMANTIC_SIMILARITY` est le bon type ici : on compare deux
- * libellés de MÊME nature (« Développement web » ↔ « Programmation front-end »), pas une
- * question à un document (ce serait RETRIEVAL_QUERY / RETRIEVAL_DOCUMENT, asymétriques).
+ * Tâche déclarée au modèle — le choix n'est pas cosmétique, il change le vecteur produit.
+ *  - `SEMANTIC_SIMILARITY` : comparer deux textes de MÊME nature (« Développement web »
+ *    ↔ « Programmation front-end »). C'est le cas de l'appariement des compétences.
+ *  - `RETRIEVAL_QUERY` / `RETRIEVAL_DOCUMENT` : comparer une REQUÊTE courte à un DOCUMENT.
+ *    C'est le cas de la recherche du catalogue, et c'est ASYMÉTRIQUE : la requête et le
+ *    document ne se vectorisent pas de la même façon.
+ *
+ * Mesure locale du 2026-07-27 (catalogue réel, 4 114 titres) : en SEMANTIC_SIMILARITY, les
+ * scores requête↔titre s'écrasent entre 0,60 (hors-sujet) et 0,73 (pertinent) — trop peu
+ * d'écart pour trancher. Les types RETRIEVAL séparent nettement mieux.
  */
-const TASK_TYPE = 'SEMANTIC_SIMILARITY'
+export type EmbeddingTaskType = 'SEMANTIC_SIMILARITY' | 'RETRIEVAL_QUERY' | 'RETRIEVAL_DOCUMENT'
+
+export const DEFAULT_TASK_TYPE: EmbeddingTaskType = 'SEMANTIC_SIMILARITY'
 
 /** Modèles Gemini/Vertex n'acceptant qu'UNE instance par appel. */
 const SINGLE_INSTANCE_MODELS = /^gemini-embedding/
@@ -60,7 +69,11 @@ interface PredictResponse {
  * Vectorise un lot de textes. `null` en cas d'indisponibilité (projet non configuré,
  * modèle inconnu, quota, API désactivée) → l'appelant retombe sur l'appariement lexical.
  */
-export async function embedWithVertex(model: string, texts: string[]): Promise<number[][] | null> {
+export async function embedWithVertex(
+  model: string,
+  texts: string[],
+  taskType: EmbeddingTaskType = DEFAULT_TASK_TYPE,
+): Promise<number[][] | null> {
   if (texts.length === 0) return []
   const url = predictUrl(model)
   if (!url) {
@@ -82,7 +95,7 @@ export async function embedWithVertex(model: string, texts: string[]): Promise<n
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({
-        instances: texts.map(content => ({ content, task_type: TASK_TYPE })),
+        instances: texts.map(content => ({ content, task_type: taskType })),
         parameters: { outputDimensionality: EMBEDDING_DIMENSIONS },
       }),
     })
