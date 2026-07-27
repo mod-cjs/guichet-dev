@@ -69,9 +69,11 @@ describe('<YayeSidePanel />', () => {
     expect(onQuickReply).toHaveBeenCalledWith('action-1')
   })
 
-  it('place le focus initial sur le bouton fermer', () => {
+  it('place le focus initial sur l’input (curseur prêt sans cliquer, GUIC-670)', () => {
     render(<YayeSidePanel open onClose={() => {}} />)
-    expect(screen.getByRole('button', { name: /^Fermer$/i })).toHaveFocus()
+    // Le focus entre bien dans le dialog (a11y modale) ; l'input est un premier point
+    // d'entrée plus utile que le bouton Fermer pour un chat.
+    expect(screen.getByLabelText('Message à Yaye')).toHaveFocus()
   })
 
   // ── Parité avec la page fullscreen (GUIC-259, UX polish) ──────────────────

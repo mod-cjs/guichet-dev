@@ -126,6 +126,7 @@ export function YayeSidePanel({
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   // Esc ferme · Tab piégé dans le dialog (focus trap complet, a11y modale).
   useEffect(() => {
@@ -158,12 +159,16 @@ export function YayeSidePanel({
     return () => document.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  // Focus initial sur le bouton fermer à l'ouverture
+  // GUIC-670 — Curseur toujours prêt : focus sur l'input à l'ouverture ET après chaque
+  // envoi (l'input est `disabled` pendant `sending` → on le refocuse quand il redevient
+  // actif). Fallback bouton Fermer si pas de composer réel (`onSend` absent). Le focus
+  // entre bien dans le dialog → a11y modale préservée.
   useEffect(() => {
-    if (open) {
-      closeBtnRef.current?.focus()
-    }
-  }, [open])
+    if (!open || sending) return
+    const el = inputRef.current
+    if (el) el.focus()
+    else closeBtnRef.current?.focus()
+  }, [open, sending])
 
   // Auto-scroll vers le dernier message (parité avec la page fullscreen YayeChat) :
   // nouveau message OU passage en « écrit… » → on garde la fin visible.
@@ -378,6 +383,7 @@ export function YayeSidePanel({
           }}
         >
           <input
+            ref={inputRef}
             type="text"
             placeholder="Demande à Yaye…"
             aria-label="Message à Yaye"
