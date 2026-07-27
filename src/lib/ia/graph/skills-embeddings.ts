@@ -27,9 +27,12 @@ export interface SemanticSkillIndex {
  * Vectorise le référentiel de compétences. `null` si la fonctionnalité est désactivée
  * ou si aucun vecteur n'a pu être obtenu → les appelants restent en lexical pur.
  */
-export async function buildSemanticSkillIndex(skills: SkillRef[]): Promise<SemanticSkillIndex | null> {
+export async function buildSemanticSkillIndex(
+  skills: SkillRef[],
+  opts: { maxNew?: number } = {},
+): Promise<SemanticSkillIndex | null> {
   if (!isEmbeddingEnabled()) return null
-  const vectors = await embedTexts(skills.map(s => s.libelle))
+  const vectors = await embedTexts(skills.map(s => s.libelle), opts)
   const ids: string[] = []
   const vecs: number[][] = []
   for (const s of skills) {
@@ -60,10 +63,15 @@ export interface SemanticMatcher {
 export async function prepareSemanticMatcher(
   skills: SkillRef[],
   texts: string[],
+  /**
+   * `maxNew: 0` = lecture de cache STRICTE. C'est le réglage du chemin de RÉPONSE :
+   * la vectorisation se paie hors ligne, jamais pendant que l'usager attend.
+   */
+  opts: { maxNew?: number } = {},
 ): Promise<SemanticMatcher | null> {
-  const index = await buildSemanticSkillIndex(skills)
+  const index = await buildSemanticSkillIndex(skills, opts)
   if (!index) return null
-  const queries = await embedTexts(texts)
+  const queries = await embedTexts(texts, opts)
   if (queries.size === 0) return null
 
   return {

@@ -80,12 +80,18 @@ export function diversifyByType<T extends { type: unknown }>(rows: T[], limit: n
   return out
 }
 
-/**
- * Vivier examiné quand une recherche porte des mots-clés (GUIC-683) : c'est le CLASSEMENT
- * qui tranche, plus le SQL. Assez large pour rattraper une reformulation, assez borné pour
- * que le cosinus reste une opération de quelques millisecondes.
- */
-const SEARCH_POOL = 200
+/** Champs nécessaires à l'affichage d'une card d'opportunité. */
+const OPP_CARD_SELECT = {
+  id: true, slug: true, titre: true, type: true, region: true, domaine: true,
+  organisation: true, organisationLibelle: true, deadline: true,
+  typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
+} as const
+
+type OppRow = {
+  id: string; slug: string; titre: string; type: unknown; region: unknown; domaine: unknown
+  organisation: string | null; organisationLibelle: string | null; deadline: Date | null
+  typeRef: { slug: string; libelle: string; actionLabel: string | null } | null
+}
 
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
 export interface ToolDefinition {
@@ -268,33 +274,48 @@ const searchOpportunities: AgentTool = {
     // sémantique en rattrapage.
     const q = typeof args.q === 'string' ? args.q.trim() : ''
 
-    const rows = await prisma.opportunite.findMany({
-      where,
-      select: {
-        id: true, slug: true, titre: true, type: true, region: true, domaine: true,
-        organisation: true, organisationLibelle: true, deadline: true,
-        typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
-      },
-      orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
-      // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
-      // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », cf. dataset ~38%).
-      // Recherche par mots-clés → vivier encore plus large, puisque c'est le classement
-      // qui tranche et non le SQL.
-      take: q ? SEARCH_POOL : typeSpecified ? MAX_OPP_ITEMS : 60,
-    })
-
-    let candidats = rows
+    // ── Recherche par mots-clés : DEUX ÉTAGES (GUIC-683, correctif du 27/07) ──
+    // Le classement portait sur un vivier de 200 offres tirées par échéance — 5 % du
+    // catalogue, choisi par un critère sans rapport avec la pertinence. Aucune des sept
+    // offres d'aviculture actives n'y entrait : « élever des poulets » ne pouvait aboutir
+    // que si le modèle ajoutait un filtre de domaine. Ça marchait quand on n'en avait pas
+    // besoin. Le 1er étage couvre donc TOUT le catalogue actif, en ne chargeant que
+    // l'identifiant et le texte ; seules les retenues sont ensuite hydratées.
+    let candidats: OppRow[]
     if (q) {
+      const legeres = await prisma.opportunite.findMany({
+        where,
+        select: { id: true, titre: true, organisation: true, organisationLibelle: true, domaine: true, type: true },
+      })
       const classes = await rankByRelevance(
         q,
         // `texteOpportunite` est PARTAGÉ avec le préchauffage : deux formulations
         // différentes donneraient deux clés de cache, et le préchauffage ne servirait à rien.
-        rows.map(r => ({ id: r.id, text: texteOpportunite(r) })),
+        legeres.map(r => ({ id: r.id, text: texteOpportunite(r) })),
+        { max: MAX_OPP_ITEMS },
       )
-      const parId = new Map(rows.map(r => [r.id, r]))
-      candidats = classes.flatMap(c => {
-        const row = parId.get(c.id)
-        return row ? [row] : []
+      if (classes.length === 0) {
+        candidats = []
+      } else {
+        const retenues = await prisma.opportunite.findMany({
+          where: { id: { in: classes.map(c => c.id) } },
+          select: OPP_CARD_SELECT,
+        })
+        // L'ordre du CLASSEMENT prime sur celui de la base.
+        const parId = new Map(retenues.map(r => [r.id, r]))
+        candidats = classes.flatMap(c => {
+          const row = parId.get(c.id)
+          return row ? [row] : []
+        })
+      }
+    } else {
+      candidats = await prisma.opportunite.findMany({
+        where,
+        select: OPP_CARD_SELECT,
+        orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
+        // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
+        // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », dataset ~38%).
+        take: typeSpecified ? MAX_OPP_ITEMS : 60,
       })
     }
 

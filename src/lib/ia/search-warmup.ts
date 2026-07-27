@@ -18,8 +18,21 @@ import { logger } from '@/lib/logger'
 import { embedTexts, isEmbeddingEnabled, normalizeForEmbedding } from './embeddings'
 import { numEnv } from './env'
 
-/** Nouveaux textes vectorisés par nuit (borne le temps passé dans le cron). */
+/**
+ * Coût unitaire observé d'une vectorisation (mesure du 27/07 : 3 654 vecteurs en 1 020 s
+ * sur `gemini-embedding-001`, une instance par requête). Sert à convertir un budget de
+ * TEMPS en nombre de textes. Surchargeable si le modèle change.
+ */
+const COUT_UNITAIRE_MS = numEnv('YAYE_EMBEDDING_COUT_MS', 280)
+
+/** Nouveaux textes vectorisés par nuit (garde-fou de volume). */
 const WARMUP_MAX = numEnv('YAYE_SEARCH_WARMUP_MAX', 600)
+/**
+ * Budget de TEMPS du préchauffage. Un plafond en NOMBRE ne sait pas s'arrêter à l'heure :
+ * le coût unitaire dépend du modèle (279 ms mesurés sur gemini-embedding-001) et le
+ * catalogue grossit. La fonction cron, elle, a une durée maximale fixe.
+ */
+const WARMUP_BUDGET_MS = numEnv('YAYE_WARMUP_BUDGET_MS', 180_000)
 
 export interface WarmupReport {
   /** Textes soumis au préchauffage (déjà en cache ou non). */
@@ -58,6 +71,28 @@ export function texteOpportunite(o: {
 }
 
 /**
+ * Vectorise le RÉFÉRENTIEL DE COMPÉTENCES (vague 2.2). Le fallback Prisma — configuration
+ * de production tant que Neo4j n'est pas provisionné — s'en sert sur le chemin de réponse,
+ * en lecture de cache STRICTE. Sans ce préchauffage, l'appariement sémantique des
+ * compétences resterait durablement muet. Quelques centaines de libellés : c'est rapide.
+ */
+export async function warmSkillVectors(): Promise<number> {
+  if (!isEmbeddingEnabled()) return 0
+  try {
+    const skills = await prisma.skill.findMany({ select: { libelle: true } })
+    const vecteurs = await embedTexts(skills.map(s => s.libelle), { maxNew: WARMUP_MAX })
+    logger.info('[search-warmup] référentiel de compétences vectorisé', {
+      libelles: skills.length,
+      vecteurs: vecteurs.size,
+    })
+    return vecteurs.size
+  } catch (err) {
+    logger.warn('[search-warmup] référentiel non vectorisé (sans conséquence : lexical seul)', { err: String(err) })
+    return 0
+  }
+}
+
+/**
  * Vectorise les titres d'opportunités publiées, des plus récentes aux plus anciennes.
  * No-op si les embeddings sont coupés. Ne lève jamais (le cron ne doit pas échouer pour ça).
  */
@@ -77,9 +112,11 @@ export async function warmOpportuniteVectors(): Promise<WarmupReport> {
     })
 
     const textes = offres.map(texteOpportunite).filter(Boolean)
+    // Le budget de temps se traduit en nombre de textes, à partir du coût unitaire observé.
+    const plafondTemps = Math.max(1, Math.floor(WARMUP_BUDGET_MS / COUT_UNITAIRE_MS))
     // MÊME tâche que la recherche (RETRIEVAL_DOCUMENT) : sinon les clés divergent et
     // le préchauffage ne sert à rien.
-    const vecteurs = await embedTexts(textes, { maxNew: WARMUP_MAX, taskType: 'RETRIEVAL_DOCUMENT' })
+    const vecteurs = await embedTexts(textes, { maxNew: Math.min(WARMUP_MAX, plafondTemps), taskType: 'RETRIEVAL_DOCUMENT' })
 
     const uniques = new Set(textes.map(normalizeForEmbedding).filter(Boolean)).size
     const rapport: WarmupReport = {

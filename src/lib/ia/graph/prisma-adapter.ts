@@ -116,11 +116,17 @@ export class PrismaGraphAdapter implements GraphPort {
 
     // Même appariement HYBRIDE que la projection (GUIC-677) : sans ça, le fallback
     // Prisma déclarerait « manquante » une compétence que le graphe, lui, relie.
-    const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
-      ...competences,
-      ...certs.map(c => c.formation),
-      ...diplomes.map(d => d.intitule),
-    ])
+    //
+    // ⚠️ CHEMIN DE RÉPONSE : lecture de cache STRICTE. Ce code s'exécute pendant que
+    // l'usager attend, et le fallback Prisma est la configuration de PRODUCTION (Neo4j
+    // non provisionné). Sans ce plafond, la première question « qu'est-ce qui me manque ? »
+    // après un déploiement vectorisait les 114 libellés du référentiel — ~32 secondes
+    // d'attente mesurées. Le référentiel est préchauffé par le cron, comme le catalogue.
+    const semantic = await prepareSemanticMatcher(
+      skills as SkillRef[],
+      [...competences, ...certs.map(c => c.formation), ...diplomes.map(d => d.intitule)],
+      { maxNew: 0 },
+    )
 
     const mastered = new Set<string>()
     for (const comp of competences) {
@@ -390,7 +396,7 @@ export class PrismaGraphAdapter implements GraphPort {
 
     // Parité avec la projection PREPARE : repli sémantique quand le thème ne correspond
     // à aucune catégorie de compétence (GUIC-677).
-    const semantic = await prepareSemanticMatcher(skills as SkillRef[], ressources.map(r => r.theme))
+    const semantic = await prepareSemanticMatcher(skills as SkillRef[], ressources.map(r => r.theme), { maxNew: 0 })
 
     const out: GraphRessourcePrepa[] = []
     for (const r of ressources) {
