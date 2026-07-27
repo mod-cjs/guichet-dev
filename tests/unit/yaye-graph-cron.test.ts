@@ -9,6 +9,11 @@ import type { NextRequest } from 'next/server'
 const mockReproject = jest.fn()
 jest.mock('@/lib/ia/graph/projection/project', () => ({ reprojectAll: (...a: unknown[]) => mockReproject(...a) }))
 
+// Préchauffage des vecteurs du catalogue (GUIC-683) : mocké ici — cette suite teste
+// l'authentification et la délégation, pas la vectorisation (qui a sa propre suite).
+const mockWarmup = jest.fn(async () => ({ candidats: 12, vecteurs: 12, dureeMs: 3 }))
+jest.mock('@/lib/ia/search-warmup', () => ({ warmOpportuniteVectors: () => mockWarmup() }))
+
 import { GET } from '@/app/api/cron/yaye-graph-sync/route'
 
 const req = (auth?: string) =>
@@ -17,6 +22,7 @@ const req = (auth?: string) =>
 const OLD_ENV = process.env.CRON_SECRET
 beforeEach(() => {
   mockReproject.mockReset()
+  mockWarmup.mockClear()
   process.env.CRON_SECRET = 'sekret'
 })
 afterAll(() => { process.env.CRON_SECRET = OLD_ENV })
@@ -39,6 +45,9 @@ test('200 + rapport si secret valide', async () => {
   const body = await res.json()
   expect(body.data).toMatchObject({ backend: 'neo4j' })
   expect(mockReproject).toHaveBeenCalledWith({ wipe: true })
+  // Le catalogue est vectorisé DANS le cron — jamais sur le chemin de réponse.
+  expect(mockWarmup).toHaveBeenCalled()
+  expect(body.data.warmup).toMatchObject({ vecteurs: 12 })
 })
 
 test('500 si la reprojection échoue', async () => {
