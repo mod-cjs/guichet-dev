@@ -18,6 +18,8 @@ import { GET as biblioEmpruntsGET, POST as biblioEmpruntsPOST } from '@/app/api/
 import type { EmpruntVue, SearchLivresResult } from '@/lib/bibliotheque/service'
 import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
+import { rankByRelevance } from './semantic-rank'
+import { texteOpportunite } from './search-warmup'
 import { loadOrBuildApercuMarche } from './graph/market-overview'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
@@ -76,6 +78,13 @@ export function diversifyByType<T extends { type: unknown }>(rows: T[], limit: n
   }
   return out
 }
+
+/**
+ * Vivier examiné quand une recherche porte des mots-clés (GUIC-683) : c'est le CLASSEMENT
+ * qui tranche, plus le SQL. Assez large pour rattraper une reformulation, assez borné pour
+ * que le cosinus reste une opération de quelques millisecondes.
+ */
+const SEARCH_POOL = 200
 
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
 export interface ToolDefinition {
@@ -246,7 +255,12 @@ const searchOpportunities: AgentTool = {
     if (inEnum(Region, args.region)) where.region = args.region
     const typeSpecified = inEnum(TypeOpportunite, args.type)
     if (typeSpecified) where.type = args.type as TypeOpportunite
-    if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
+
+    // Mots-clés : on NE filtre PLUS en SQL sur le titre (GUIC-683). Un `LIKE '%poisson%'`
+    // rend ZÉRO résultat quand le catalogue dit « aquaculture ». On élargit donc le vivier
+    // (filtres structurés seulement) et on le CLASSE par pertinence — lexical d'abord,
+    // sémantique en rattrapage.
+    const q = typeof args.q === 'string' ? args.q.trim() : ''
 
     const rows = await prisma.opportunite.findMany({
       where,
@@ -258,10 +272,27 @@ const searchOpportunities: AgentTool = {
       orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
       // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
       // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », cf. dataset ~38%).
-      take: typeSpecified ? MAX_OPP_ITEMS : 60,
+      // Recherche par mots-clés → vivier encore plus large, puisque c'est le classement
+      // qui tranche et non le SQL.
+      take: q ? SEARCH_POOL : typeSpecified ? MAX_OPP_ITEMS : 60,
     })
 
-    const selected = typeSpecified ? rows : diversifyByType(rows, MAX_OPP_ITEMS)
+    let candidats = rows
+    if (q) {
+      const classes = await rankByRelevance(
+        q,
+        // `texteOpportunite` est PARTAGÉ avec le préchauffage : deux formulations
+        // différentes donneraient deux clés de cache, et le préchauffage ne servirait à rien.
+        rows.map(r => ({ id: r.id, text: texteOpportunite(r) })),
+      )
+      const parId = new Map(rows.map(r => [r.id, r]))
+      candidats = classes.flatMap(c => {
+        const row = parId.get(c.id)
+        return row ? [row] : []
+      })
+    }
+
+    const selected = typeSpecified ? candidats.slice(0, MAX_OPP_ITEMS) : diversifyByType(candidats, MAX_OPP_ITEMS)
 
     const items: YayeOppItem[] = selected.map(r => ({
       id: r.id,
