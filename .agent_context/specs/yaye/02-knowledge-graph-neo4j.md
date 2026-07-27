@@ -250,7 +250,17 @@ appariement par le SENS (embeddings + cosinus), **opt-in** (`YAYE_EMBEDDING_MODE
 **fail-soft**. Les deux voies sont fusionnées par `matchSkillsHybrid`, utilisé par la
 projection complète, la projection événementielle ET le fallback Prisma — sans quoi les deux
 moteurs divergeraient. `PREPARE` retombe sur le sémantique quand le thème d'une ressource ne
-correspond à aucune catégorie de compétence (le défaut `PREPARE = 0` mesuré sur le POC).
+correspond à aucune catégorie de compétence.
+
+> ⚠️ **`PREPARE` reste à 0 — et ce n'est pas réparable par le code** (mesure du 2026-07-27,
+> reprojection réelle) : `Ressource.theme` porte des rubriques éditoriales (« Emploi »,
+> « Formation », « Soft skills ») quand `Skill.categorie` porte des slugs techniques
+> (`digital:fin`, `agriculture:fin`). Zéro recouvrement lexical, et le sémantique ne donne
+> que du bruit à cette granularité (« Formation » → « Soudure » 0,700). Le préalable est un
+> **alignement des référentiels**, côté données.
+>
+> Gain réellement mesuré de l'appariement sémantique sur la même reprojection :
+> `MAITRISE` 43 559 → **58 664** (+35 %) · `ATTESTE` 5 980 → **8 239** (+38 %).
 
 > 🔒 **Invariant CDP** : seuls des **libellés de compétences** et des **thèmes** sont envoyés au
 > modèle d'embedding — jamais un profil, un nom, un CV ou une lettre de motivation.

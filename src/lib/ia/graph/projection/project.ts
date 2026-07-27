@@ -357,9 +357,21 @@ async function projectDerived(): Promise<Record<string, number>> {
       for (const id of parCategorie) prepare.push({ from: r.id, to: id })
       continue
     }
-    // Repli SÉMANTIQUE (GUIC-677) : un thème sans correspondance de catégorie donnait
-    // PREPARE = 0 — le défaut mesuré sur le POC. On relie alors les compétences dont le
-    // libellé est sémantiquement proche du thème.
+    // Repli SÉMANTIQUE (GUIC-677) : un thème sans correspondance de catégorie relie les
+    // compétences dont le libellé est sémantiquement proche.
+    //
+    // ⚠️ MESURE DU 2026-07-27 — ce repli ne répare PAS `PREPARE = 0` sur les données
+    // actuelles, et c'est un problème de DONNÉES, pas de code. Les deux référentiels ne
+    // décrivent pas la même chose :
+    //   Ressource.theme  = rubriques éditoriales   → « Emploi », « Formation », « Soft skills »
+    //   Skill.categorie  = slugs techniques        → « digital:fin », « agriculture:fin »
+    // Aucun recouvrement lexical (0 correspondance sur les 5 thèmes existants), et le
+    // sémantique ne produit que du bruit à cette granularité (« Formation » → « Soudure »
+    // 0,700 ; « Entrepreneuriat » → « Électricité » 0,668). Le seuil les rejette, à raison.
+    //
+    // Pour que PREPARE existe, il faut d'abord des thèmes de ressources ALIGNÉS sur des
+    // domaines de compétence (« Agriculture durable », « Développement web »), pas des
+    // rubriques de navigation. Cf. spec 12, refinement « raffiner les dérivées ».
     for (const m of semantic?.match(r.theme) ?? []) prepare.push({ from: r.id, to: m.id })
   }
   counts.PREPARE = await mergeRels('PREPARE', 'RessourcePedagogique', 'id', 'Competence', 'id', dedupePairs(prepare))
