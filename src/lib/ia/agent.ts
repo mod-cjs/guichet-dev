@@ -18,6 +18,7 @@ import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
+import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, capOpportunites, type YayeBlock } from './blocks'
 import { finalizeReply, detectMetaLeakage } from './reply-guard'
@@ -449,10 +450,8 @@ function maxRoundsEscaladeBlock(reference: string): YayeBlock {
   return {
     kind: 'escalade',
     reference,
-    title: 'Demande transmise à un conseiller',
-    message:
-      'Un conseiller du CJS va prendre le relais et te répondra ici même. ' +
-      'Garde cette référence si tu veux la rappeler.',
+    title: escaladeTitre({ dejaEnCours: false }),
+    message: escaladeMessage({ danger: false, dejaEnCours: false }),
   }
 }
 

@@ -24,6 +24,7 @@ import { loadOrBuildApercuMarche } from './graph/market-overview'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
+import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem, type YayeRessourceItem, type YayeCentreItem, type YayeNotificationItem } from './blocks'
 import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
@@ -1050,10 +1051,9 @@ const escalateToAdvisor: AgentTool = {
         kind: 'escalade',
         reference,
         danger: !!dangerSignal,
-        title: alreadyPending ? 'Ta demande est déjà entre de bonnes mains' : 'Demande transmise à un conseiller',
-        message: alreadyPending
-          ? "Un membre de l'équipe CJS s'en occupe déjà et te répondra ici même. Garde cette référence si tu veux la rappeler."
-          : "Un membre de l'équipe CJS va prendre le relais et te répondra ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.",
+        title: escaladeTitre({ dejaEnCours: alreadyPending }),
+        // Aucune promesse de réponse dans le fil tant que le canal conseiller n'existe pas.
+        message: escaladeMessage({ danger: !!dangerSignal, dejaEnCours: alreadyPending }),
         button: { label: 'Trouver un centre CJS', href: `${base}/centres` },
       },
     }
