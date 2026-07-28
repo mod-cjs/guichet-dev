@@ -17,6 +17,7 @@ import {
   LIVRES_DISPONIBLES,
   MARCHE_COMPETENCES,
   MARCHE_ORGANISATIONS,
+  MARCHE_PAR_PROGRAMME,
   MARCHE_PAR_DOMAINE,
   MARCHE_PAR_REGION,
   MARCHE_PAR_TYPE,
@@ -241,17 +242,19 @@ export class Neo4jGraphAdapter implements GraphPort {
           .map(r => ({ cle: String(r.get('cle')), n: toInt(r.get('n')) })),
       )
 
-    const [parType, parDomaine, parRegion, competences, organisations] = await Promise.all([
-      counts(MARCHE_PAR_TYPE),
-      counts(MARCHE_PAR_DOMAINE),
-      counts(MARCHE_PAR_REGION),
-      counts(MARCHE_COMPETENCES),
-      counts(MARCHE_ORGANISATIONS),
-    ])
+    const [parType, parDomaine, parRegion, competences, organisations, programmes] =
+      await Promise.all([
+        counts(MARCHE_PAR_TYPE),
+        counts(MARCHE_PAR_DOMAINE),
+        counts(MARCHE_PAR_REGION),
+        counts(MARCHE_COMPETENCES),
+        counts(MARCHE_ORGANISATIONS),
+        counts(MARCHE_PAR_PROGRAMME),
+      ])
 
     const total = parType.reduce((a, b) => a + b.n, 0)
     if (total === 0) await this.guardEmpty([])
-    return { total, parType, parDomaine, parRegion, competences, organisations }
+    return { total, parType, parDomaine, parRegion, competences, organisations, programmes }
   }
 
   async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {

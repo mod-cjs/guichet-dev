@@ -165,6 +165,19 @@ export const MARCHE_ORGANISATIONS = `
   ORDER BY n DESC LIMIT $limit
 `
 
+/**
+ * GUIC-684 — Répartition du marché par PROGRAMME sectoriel. Traverse FINANCE, qui
+ * était projetée sans jamais être lue. Sans ce template, la dimension programme
+ * existe dans le graphe mais reste invisible pour Yaye.
+ * `count(DISTINCT o)` : une offre cofinancée compte une fois PAR programme (c'est
+ * le sens de la question), mais jamais deux fois pour le même.
+ */
+export const MARCHE_PAR_PROGRAMME = `
+  MATCH (p:Programme)-[:FINANCE]->(o:Opportunite) ${MARCHE_WHERE}
+  RETURN p.nom AS cle, count(DISTINCT o) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
 /** Sentinelle « le read-model est-il peuplé ? » (détection de graphe vide, C.2). */
 export const GRAPH_POPULATED = `
   MATCH (o:Opportunite) RETURN count(o) > 0 AS populated

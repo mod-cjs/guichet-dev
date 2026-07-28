@@ -316,6 +316,22 @@ export class PrismaGraphAdapter implements GraphPort {
       : []
     const nomById = new Map(orgNames.map(o => [o.id, o.nom]))
 
+    // GUIC-684 — parité avec MARCHE_PAR_PROGRAMME : on compte via la jonction, donc
+    // une offre cofinancée compte pour CHACUN de ses programmes (sens de la question).
+    const progGroups = await prisma.opportuniteProgramme.groupBy({
+      by: ['programmeId'],
+      where: { opportunite: where },
+      _count: { _all: true },
+    })
+    const topProg = [...progGroups].sort((a, b) => b._count._all - a._count._all).slice(0, take)
+    const progNoms = topProg.length
+      ? await prisma.programme.findMany({
+          where: { id: { in: topProg.map(p => p.programmeId) } },
+          select: { id: true, nom: true },
+        })
+      : []
+    const progNomById = new Map(progNoms.map(p => [p.id, p.nom]))
+
     const toCounts = (rows: Array<{ _count: { _all: number } } & Record<string, unknown>>, key: string): MarketCount[] =>
       rows
         .filter(r => r[key] != null)
@@ -334,6 +350,10 @@ export class PrismaGraphAdapter implements GraphPort {
       organisations: topOrgs.flatMap(o => {
         const nom = o.organisationId ? nomById.get(o.organisationId) : undefined
         return nom ? [{ cle: nom, n: o._count._all }] : []
+      }),
+      programmes: topProg.flatMap(p => {
+        const nom = progNomById.get(p.programmeId)
+        return nom ? [{ cle: nom, n: p._count._all }] : []
       }),
     }
   }

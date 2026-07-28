@@ -6,6 +6,7 @@ import { Button, Icon, RichContent, Toast } from '@/components/ui'
 import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
 import { YayeMatchCard } from './YayeMatchCard'
+import { ProgrammeBadges } from './ProgrammeBadges'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 import {
@@ -263,6 +264,11 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <b>{detail.organisation}</b>
           {detail.region ? <> · {humanize(detail.region)}</> : null}
         </p>
+
+        {/* GUIC-684 — de quel programme CJS relève cette offre. */}
+        <div className="mt-space-2">
+          <ProgrammeBadges programmes={detail.programmes ?? []} surFondSombre />
+        </div>
 
         {heroChips.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-space-3">

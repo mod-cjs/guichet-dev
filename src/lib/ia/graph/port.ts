@@ -140,6 +140,9 @@ export interface MarketOverview {
   competences: MarketCount[]
   /** Organisations qui publient le plus sur ce périmètre. */
   organisations: MarketCount[]
+  /** GUIC-684 — répartition par programme sectoriel (une offre cofinancée compte
+   *  pour chacun de ses programmes). */
+  programmes: MarketCount[]
 }
 
 /** Périmètre d'un aperçu de marché (facultatif : tout le Sénégal si vide). */

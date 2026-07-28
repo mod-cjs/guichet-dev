@@ -26,7 +26,7 @@ function fakePort(label: string, mode: { throws?: boolean } = {}): GraphPort {
     livresDisponibles: jest.fn(async () => []),
     ressourcesPourCompetences: jest.fn(async () => []),
     apercuMarche: jest.fn(async () => ({
-      total: 0, parType: [], parDomaine: [], parRegion: [], competences: [], organisations: [],
+      total: 0, parType: [], parDomaine: [], parRegion: [], competences: [], organisations: [], programmes: [],
     })),
   }
 }
