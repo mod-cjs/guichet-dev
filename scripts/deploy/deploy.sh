@@ -177,6 +177,50 @@ switch_and_verify() {
   return 1
 }
 
+# ── Synchronisation du crontab serveur ──────────────────────────────────────
+# GUIC-683 — Piège B8 de la checklist go-live : sur OVH, Vercel Cron n'existe plus. Les tâches
+# vivent dans scripts/cron/jobs.json, mais le crontab était installé À LA MAIN — donc ajouter
+# une tâche dans une PR ne la déployait pas, et l'oubli est SILENCIEUX : le site répond, la
+# tâche ne tourne simplement jamais (purge des CV, reprojection du graphe, amorçage des
+# vecteurs…). Le déploiement s'en charge maintenant, à chaque passage.
+#
+# Placé APRÈS la bascule et son smoke test : installer des crons qui tapent une app pas encore
+# saine — ou qui vient d'être annulée par un rollback — n'a pas de sens.
+#
+# Idempotent : on ne remplace QUE le bloc marqué GUICHET-CRON, les autres lignes du crontab
+# (sauvegardes système, certificats…) sont conservées telles quelles.
+sync_crontab() {
+  local racine="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  local generateur="$racine/scripts/cron/generate-crontab.sh"
+  local genere="$(mktemp)" nouveau="$(mktemp)"
+  trap 'rm -f "$genere" "$nouveau"' RETURN
+
+  log "Synchronisation du crontab depuis scripts/cron/jobs.json …"
+
+  # REPO_DIR est le chemin que les lignes crontab utiliseront pour `cd` côté serveur.
+  if ! REPO_DIR="$racine" bash "$generateur" > "$genere" 2>/dev/null; then
+    err "Génération du crontab ÉCHOUÉE (jq installé ? jobs.json valide ?)."
+    err "L'application est DÉPLOYÉE et saine, mais les tâches planifiées ne sont PAS à jour."
+    return 1
+  fi
+
+  # Un fichier vide effacerait toutes les tâches du Guichet sans que rien ne le signale.
+  if [[ ! -s "$genere" ]] || ! grep -q 'GUICHET-CRON' "$genere"; then
+    err "Crontab généré vide ou sans marqueur — installation REFUSÉE (crontab actuel conservé)."
+    return 1
+  fi
+
+  crontab -l 2>/dev/null | grep -v 'GUICHET-CRON' > "$nouveau" || true
+  cat "$genere" >> "$nouveau"
+
+  if crontab "$nouveau"; then
+    log "Crontab synchronisé : $(grep -c 'GUICHET-CRON' "$genere") tâche(s) planifiée(s)."
+  else
+    err "Installation du crontab ÉCHOUÉE — tâches planifiées NON à jour."
+    return 1
+  fi
+}
+
 # ── 0. Preflight — AVANT tout effet de bord ─────────────────────────────────
 # GUIC-621 — vérifie les faits d'infra contre le serveur réel (secrets, MariaDB joignable depuis
 # un conteneur, ACL Redis, endpoint S3). Placé EN PREMIER délibérément : un preflight lancé après
@@ -193,6 +237,7 @@ main() {
   backup_db
   migrate
   switch_and_verify
+  sync_crontab
 }
 
 main "$@"
