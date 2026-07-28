@@ -500,6 +500,7 @@ model Opportunite {
 
   skills       OpportuniteSkill[]
   tags         OpportuniteTag[]
+  programmes   OpportuniteProgramme[]
   candidatures Candidature[]
   drafts       CandidatureDraft[]
   favoris      OpportuniteFavorite[]
@@ -769,6 +770,7 @@ model Evenement {
 
   centre       Centre?                @relation(fields: [centreId], references: [id])
   inscriptions InscriptionEvenement[]
+  programmes   EvenementProgramme[]
 
   @@index([dateDebut, statut])
   @@map("evenements")
@@ -810,7 +812,8 @@ model Ressource {
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  favoris RessourceFavorite[]
+  favoris    RessourceFavorite[]
+  programmes RessourceProgramme[]
 
   @@index([type, theme])
   @@index([niveau])
@@ -1142,9 +1145,70 @@ model Programme {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  /// Rattachement historique 1:N — DÉPRÉCIÉ (GUIC-684). Plus écrit par le code ;
+  /// conservé le temps de la transition, drop dans un ticket de suite.
   opportunites Opportunite[]
 
+  // Rattachements M:N (GUIC-684) — un contenu peut relever de plusieurs programmes.
+  opportuniteRattachements OpportuniteProgramme[]
+  ressourceRattachements   RessourceProgramme[]
+  evenementRattachements   EvenementProgramme[]
+
   @@map("programmes")
+}
+
+// ─────────────────────────────────────────────
+// GUIC-684 — Rattachement aux programmes (M:N)
+//
+// Prisma n'a pas de relation polymorphique : une table de jonction PAR entité,
+// toutes de forme identique (patron `OpportuniteTag`). Le coût de la duplication
+// est absorbé par `src/lib/programmes/rattachement.ts`, qui porte la logique.
+//
+// `principal` = le programme affiché quand l'UI n'a la place que d'un badge, et
+// servi dans le scalaire `programme_slug` du Data Hub (contrat externe préservé).
+// Invariants garantis côté applicatif (cf. spec §2) :
+//  - au plus UN `principal = true` par entité ;
+//  - le premier programme rattaché le devient automatiquement ;
+//  - au moins un programme à la création (décision PO 2026-07-28).
+// ─────────────────────────────────────────────
+
+model OpportuniteProgramme {
+  opportuniteId String  @map("opportunite_id") @db.VarChar(36)
+  programmeId   String  @map("programme_id") @db.VarChar(36)
+  principal     Boolean @default(false)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  programme   Programme   @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([opportuniteId, programmeId])
+  @@index([programmeId])
+  @@map("opportunites_programmes")
+}
+
+model RessourceProgramme {
+  ressourceId String  @map("ressource_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  ressource Ressource @relation(fields: [ressourceId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([ressourceId, programmeId])
+  @@index([programmeId])
+  @@map("ressources_programmes")
+}
+
+model EvenementProgramme {
+  evenementId String  @map("evenement_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  evenement Evenement @relation(fields: [evenementId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([evenementId, programmeId])
+  @@index([programmeId])
+  @@map("evenements_programmes")
 }
 
 /// Types d'opportunité — remplace l'enum TypeOpportunite (qui survit pendant migration).
