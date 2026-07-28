@@ -31,6 +31,7 @@ import {
   type MarketCount,
   type MarketCriteria,
   type MarketOverview,
+  type ProgrammeActeurs,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -355,6 +356,33 @@ export class PrismaGraphAdapter implements GraphPort {
         const nom = progNomById.get(p.programmeId)
         return nom ? [{ cle: nom, n: p._count._all }] : []
       }),
+    }
+  }
+
+  /**
+   * GUIC-684 — parité avec `ACTEURS_DU_PROGRAMME` : lecture directe des jonctions.
+   */
+  async acteursDuProgramme(slug: string): Promise<ProgrammeActeurs> {
+    const propre = typeof slug === 'string' ? slug.trim() : ''
+    if (!propre) return { programme: null, centres: [], organisations: [] }
+
+    const programme = await prisma.programme.findUnique({
+      where: { slug: propre },
+      select: {
+        nom: true,
+        centreRattachements: { select: { centre: { select: { nom: true, region: true } } } },
+        organisationRattachements: { select: { organisation: { select: { nom: true } } } },
+      },
+    })
+    if (!programme) return { programme: null, centres: [], organisations: [] }
+
+    return {
+      programme: programme.nom,
+      centres: programme.centreRattachements.map(r => ({
+        nom: r.centre.nom,
+        region: r.centre.region ? String(r.centre.region) : null,
+      })),
+      organisations: programme.organisationRattachements.map(r => ({ nom: r.organisation.nom })),
     }
   }
 

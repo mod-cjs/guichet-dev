@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { checkProgrammeIntegrity } from '@/lib/programmes/integrity'
+import { checkOpportuniteIntegrity } from '@/lib/services/opportunite-integrity'
 import { logger } from '@/lib/logger'
 import type { ApiResponse } from '@/types/api'
 
@@ -36,7 +37,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 
   try {
-    const issues = await checkProgrammeIntegrity()
+    // GUIC-183 — `checkOpportuniteIntegrity` (invariant XOR mère/sous-type) existait
+    // depuis des mois sans qu'aucun appelant ne l'exécute : un contrôle jamais lancé
+    // donne un faux sentiment de sécurité. Les deux vérifient l'intégrité des mêmes
+    // opportunités, autant les lancer ensemble.
+    const [issues, xor] = await Promise.all([
+      checkProgrammeIntegrity(),
+      checkOpportuniteIntegrity(),
+    ])
 
     const parRaison = issues.reduce<Record<string, number>>((acc, i) => {
       const cle = `${i.entite}:${i.raison}`
@@ -55,7 +63,16 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       logger.info('[cron:programme-integrity] aucun problème de rattachement')
     }
 
-    return NextResponse.json({ data: { total: issues.length, parRaison } })
+    if (xor.length > 0) {
+      logger.warn('[cron:programme-integrity] invariant XOR mère/sous-type violé (GUIC-183)', {
+        total: xor.length,
+        echantillon: xor.slice(0, MAX_DETAIL),
+      })
+    }
+
+    return NextResponse.json({
+      data: { total: issues.length, parRaison, invariantXor: xor.length },
+    })
   } catch (err) {
     logger.error('[cron:programme-integrity] échec du contrôle', { err: String(err) })
     return NextResponse.json(

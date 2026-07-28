@@ -178,6 +178,22 @@ export const MARCHE_PAR_PROGRAMME = `
   ORDER BY n DESC LIMIT $limit
 `
 
+/**
+ * GUIC-684 — Acteurs d'un programme : centres où il est DÉPLOYÉ, organisations qui
+ * y sont ASSOCIÉES. Deux relations distinctes justement pour que la question
+ * « quels centres ? » ne se confonde pas avec « quels partenaires ? ».
+ * `collect` : une seule ligne en retour, quel que soit le nombre d'acteurs.
+ */
+export const ACTEURS_DU_PROGRAMME = `
+  MATCH (p:Programme { slug: $slug })
+  OPTIONAL MATCH (p)-[:DEPLOYE_A]->(c:Centre)
+  WITH p, collect(DISTINCT { nom: c.nom, region: c.region }) AS centres
+  OPTIONAL MATCH (p)-[:ASSOCIE_A]->(o:Organisation)
+  RETURN p.nom AS programme,
+         [x IN centres WHERE x.nom IS NOT NULL] AS centres,
+         [x IN collect(DISTINCT { nom: o.nom }) WHERE x.nom IS NOT NULL] AS organisations
+`
+
 /** Sentinelle « le read-model est-il peuplé ? » (détection de graphe vide, C.2). */
 export const GRAPH_POPULATED = `
   MATCH (o:Opportunite) RETURN count(o) > 0 AS populated
