@@ -198,4 +198,20 @@ Lot 1 bloque tout. Les lots 2 et 3 sont parallèles. Le lot 5 ne dépend que du 
 ## 8. Reste à trancher
 
 - **Livre** : seule entité restée hors périmètre (Centre et Organisation sont livrés).
+
+## 9. Points soldés après la première PR
+
+- **`Opportunite.programmeId` supprimée** — migration auto-portante : elle recopie les
+  rattachements restants dans la jonction AVANT de retirer la colonne, donc sûre quel que
+  soit l'état de l'environnement. Le retrait du repli a révélé un oubli qu'il masquait :
+  le loader public ne chargeait pas la jonction, le badge n'aurait jamais rien affiché.
+- **Dérive JSON des migrations** — diagnostic : MariaDB n'a pas de type JSON natif
+  (`JSON` = `longtext + CHECK`), donc `migrate diff` émet un `MODIFY … JSON` par colonne
+  à chaque génération. Vérifié : appliquer ce MODIFY ne change rien. Ce n'était pas une
+  dérive réparable mais un bruit permanent → filtre `scripts/prisma-filtrer-bruit-mariadb.sh`
+  + section dédiée dans `docs/conventions.md`.
+- **`DEPLOYE_A` / `ASSOCIE_A` atteignables par Yaye** — intention `acteurs_programme`
+  (template + port + Neo4j + repli Prisma + résilient).
+- **`checkOpportuniteIntegrity` (GUIC-183)** — code mort depuis des mois, branché sur le
+  cron d'intégrité.
 - Les rattachements du dataset enrichi sont **synthétiques et déterministes** (comme `diversify-enriched.sql`). À confirmer : acceptable pour la recette, ou faut-il une affectation métier réelle sur un sous-ensemble ?
