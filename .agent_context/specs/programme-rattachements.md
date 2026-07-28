@@ -1,7 +1,7 @@
 # Rattachement aux programmes — socle générique M:N
 
 **Ticket** : GUIC-684 · **Modules** : m3-opportunites · m5-agenda · m6-ressources · m8-admin · m12-ia
-**Statut spec** : proposée (2026-07-28) — à valider avant écriture de code
+**Statut spec** : IMPLÉMENTÉE (2026-07-28) — lots 1 à 7 livrés + extension acteurs
 
 ---
 
@@ -58,7 +58,12 @@ model OpportuniteProgramme {          // idem RessourceProgramme / EvenementProg
 
 `Opportunite.programmeId` n'est plus écrit (déprécié, conservé le temps de la transition). `programme_slug` du Data Hub est dérivé de la ligne `principal` → **contrat externe inchangé**.
 
-**Périmètre v1** : opportunités, ressources, événements. Centre / Organisation / Livre : plus tard, sans refonte du socle.
+**Périmètre livré** : opportunités, ressources, événements (rattachement **obligatoire**),
+puis centres et organisations (rattachement **facultatif** — un centre est une infrastructure,
+une organisation un partenaire : les deux existent indépendamment des programmes qui s'y
+déploient ; l'exiger bloquerait leur création sans apporter de sens métier).
+Deux régimes, deux fonctions nommées : `replaceProgrammes` / `replaceProgrammesOptionnels`.
+**Livre** reste hors périmètre.
 
 ---
 
@@ -192,5 +197,5 @@ Lot 1 bloque tout. Les lots 2 et 3 sont parallèles. Le lot 5 ne dépend que du 
 
 ## 8. Reste à trancher
 
-- Étendre le socle à Centre, Organisation (partenaire) et Livre : dans la foulée ou plus tard ?
+- **Livre** : seule entité restée hors périmètre (Centre et Organisation sont livrés).
 - Les rattachements du dataset enrichi sont **synthétiques et déterministes** (comme `diversify-enriched.sql`). À confirmer : acceptable pour la recette, ou faut-il une affectation métier réelle sur un sous-ensemble ?

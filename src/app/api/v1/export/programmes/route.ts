@@ -26,6 +26,8 @@ export interface ProgrammeExportDTO {
   opportunites_count: number
   ressources_count: number
   evenements_count: number
+  centres_count: number
+  organisations_count: number
   created_at: string
   updated_at: string
 }
@@ -56,6 +58,8 @@ export async function GET(request: NextRequest): Promise<ExportResponse> {
           opportuniteRattachements: true,
           ressourceRattachements: true,
           evenementRattachements: true,
+          centreRattachements: true,
+          organisationRattachements: true,
         },
       },
     },
@@ -70,6 +74,8 @@ export async function GET(request: NextRequest): Promise<ExportResponse> {
     opportunites_count: p._count.opportuniteRattachements,
     ressources_count: p._count.ressourceRattachements,
     evenements_count: p._count.evenementRattachements,
+    centres_count: p._count.centreRattachements,
+    organisations_count: p._count.organisationRattachements,
     created_at: p.createdAt.toISOString(),
     updated_at: p.updatedAt.toISOString(),
   }))

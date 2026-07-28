@@ -5,6 +5,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 import { AdminPartenairesTable, type PartenaireRow } from './AdminPartenairesTable'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = { title: 'Partenaires — Admin CJS' }
 
@@ -43,6 +44,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         email: true,
         estVerifie: true,
         _count: { select: { opportunites: true } },
+        // GUIC-684 — rattachements existants, pour préremplir la fiche.
+        programmes: { select: { principal: true, programme: { select: { slug: true } } } },
       },
       orderBy: { nom: 'asc' },
       skip: (page - 1) * PAGE_SIZE,
@@ -50,6 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     }),
     prisma.organisation.count({ where }),
   ])
+  const programmes = await loadProgrammeOptions(prisma)
 
   const items: PartenaireRow[] = rows.map((o) => ({
     id: o.id,
@@ -61,6 +65,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     email: o.email,
     estVerifie: o.estVerifie,
     opportunitesCount: o._count.opportunites,
+    programmeSlugs: o.programmes.map((l) => l.programme.slug),
+    programmePrincipalSlug:
+      (o.programmes.find((l) => l.principal) ?? o.programmes[0])?.programme.slug ?? null,
   }))
 
   return (
@@ -71,6 +78,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       totalPages={Math.ceil(total / PAGE_SIZE)}
       verifieFilter={sp.verifie === 'oui' ? 'oui' : sp.verifie === 'non' ? 'non' : 'tous'}
       search={q}
+      programmes={programmes}
     />
   )
 }

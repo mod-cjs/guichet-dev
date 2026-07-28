@@ -421,6 +421,7 @@ model Organisation {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   opportunites Opportunite[]
+  programmes   OrganisationProgramme[]
 
   @@index([cjsUid])
   @@map("organisations")
@@ -708,6 +709,7 @@ model Centre {
   insertions       Insertion[]
   // Lot 3 — Bibliothèque physique (GUIC-274) : exemplaires localisés dans ce centre
   exemplaires      Exemplaire[]
+  programmes       CentreProgramme[]
 
   @@index([region])
   @@index([slug])
@@ -1150,9 +1152,11 @@ model Programme {
   opportunites Opportunite[]
 
   // Rattachements M:N (GUIC-684) — un contenu peut relever de plusieurs programmes.
-  opportuniteRattachements OpportuniteProgramme[]
-  ressourceRattachements   RessourceProgramme[]
-  evenementRattachements   EvenementProgramme[]
+  opportuniteRattachements  OpportuniteProgramme[]
+  ressourceRattachements    RessourceProgramme[]
+  evenementRattachements    EvenementProgramme[]
+  centreRattachements       CentreProgramme[]
+  organisationRattachements OrganisationProgramme[]
 
   @@map("programmes")
 }
@@ -1209,6 +1213,37 @@ model EvenementProgramme {
   @@id([evenementId, programmeId])
   @@index([programmeId])
   @@map("evenements_programmes")
+}
+
+/// Centres où un programme est déployé (GUIC-684 — extension acteurs).
+/// FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui
+/// existe indépendamment des programmes qui s'y déploient.
+model CentreProgramme {
+  centreId    String  @map("centre_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  centre    Centre    @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([centreId, programmeId])
+  @@index([programmeId])
+  @@map("centres_programmes")
+}
+
+/// Organisations partenaires d'un programme (GUIC-684 — extension acteurs).
+/// FACULTATIF : un partenaire peut publier des offres sans relever d'un programme.
+model OrganisationProgramme {
+  organisationId String  @map("organisation_id") @db.VarChar(36)
+  programmeId    String  @map("programme_id") @db.VarChar(36)
+  principal      Boolean @default(false)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme    Programme    @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([organisationId, programmeId])
+  @@index([programmeId])
+  @@map("organisations_programmes")
 }
 
 /// Types d'opportunité — remplace l'enum TypeOpportunite (qui survit pendant migration).

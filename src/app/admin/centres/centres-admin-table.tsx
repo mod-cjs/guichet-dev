@@ -9,6 +9,7 @@ import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { regionLabel } from '@/lib/regions'
 import { Region } from '@prisma/client'
 import { CentreFormModal } from './CentreFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { supprimerCentre } from './actions'
 
 // Grille du tableau desktop : Centre · Jeunes · Agents · Actions.
@@ -32,6 +33,9 @@ export interface CentreRow {
   conseillersCount: number
   responsable: string
   ville: string | null
+  /** GUIC-684 — programmes déployés dans ce centre (préremplissage du formulaire). */
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
   createdAt: Date
   _count: {
     profilsRattaches: number
@@ -42,6 +46,8 @@ export interface CentreRow {
 interface CentresAdminTableProps {
   centres: CentreRow[]
   total: number
+  /** GUIC-684 — programmes proposés au rattachement d'un centre. */
+  programmes?: ProgrammeOption[]
 }
 
 // ─── Skeleton loading (exported for Suspense fallback) ────────────────────────
@@ -113,7 +119,7 @@ export function CentresAdminTableSkeleton() {
 
 // ─── Main table component ────────────────────────────────────────────────────
 
-export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
+export function CentresAdminTable({ centres, total, programmes = [] }: CentresAdminTableProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editCentre, setEditCentre] = useState<CentreRow | undefined>(undefined)
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -487,6 +493,7 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
       isOpen={modalOpen}
       onClose={() => setModalOpen(false)}
       centre={editCentre}
+      programmes={programmes}
       onSuccess={(action) =>
         setFeedback({
           message: action === 'create' ? 'Centre créé.' : 'Centre mis à jour.',

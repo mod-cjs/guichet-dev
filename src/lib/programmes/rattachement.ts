@@ -118,6 +118,27 @@ export async function replaceProgrammes(
   )
 }
 
+/**
+ * Variante FACULTATIVE : une liste vide purge les rattachements au lieu d'échouer.
+ *
+ * Deux fonctions nommées plutôt qu'un booléen d'option : au point d'appel,
+ * `replaceProgrammesOptionnels(...)` dit quel régime s'applique, là où un
+ * `{ autoriserVide: true }` obligerait à revenir lire la signature. Le régime est
+ * une décision métier (contenus = obligatoire, acteurs = facultatif), pas un détail.
+ */
+export async function replaceProgrammesOptionnels(
+  tx: ProgrammeLecteur,
+  port: JonctionPort,
+  slugs: string[],
+  options: ReplaceProgrammesOptions = {},
+): Promise<void> {
+  if (slugs.length === 0) {
+    await port.purge()
+    return
+  }
+  await replaceProgrammes(tx, port, slugs, options)
+}
+
 /** Extrait le slug du programme principal d'une liste de rattachements chargée. */
 export function slugPrincipal(
   rattachements: { principal: boolean; programme: { slug: string } }[] | undefined | null,

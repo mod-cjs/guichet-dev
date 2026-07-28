@@ -214,6 +214,22 @@ async function projectRelations(): Promise<Record<string, number>> {
   counts.PORTE += await mergeRels('PORTE', 'Programme', 'id', 'Evenement', 'id',
     evenementsProg.map(e => ({ from: e.programmeId, to: e.evenementId, principal: e.principal })))
 
+  // GUIC-684 — ACTEURS. Deux relations distinctes plutôt qu'un PORTE générique :
+  // un centre HÉBERGE le déploiement d'un programme, une organisation en est
+  // PARTENAIRE. Confondre les deux rendrait « quels centres déploient YEAH ? »
+  // impossible à distinguer de « quels partenaires ? » côté Cypher.
+  const centresProg = await prisma.centreProgramme.findMany({
+    select: { centreId: true, programmeId: true, principal: true },
+  })
+  counts.DEPLOYE_A = await mergeRels('DEPLOYE_A', 'Programme', 'id', 'Centre', 'id',
+    centresProg.map(c => ({ from: c.programmeId, to: c.centreId, principal: c.principal })))
+
+  const organisationsProg = await prisma.organisationProgramme.findMany({
+    select: { organisationId: true, programmeId: true, principal: true },
+  })
+  counts.ASSOCIE_A = await mergeRels('ASSOCIE_A', 'Programme', 'id', 'Organisation', 'id',
+    organisationsProg.map(o => ({ from: o.programmeId, to: o.organisationId, principal: o.principal })))
+
   // RELEVE_DE / SITUE_A (enums réifiés).
   counts.RELEVE_DE = await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle',
     opps.filter(o => o.domaine).map(o => ({ from: o.id, to: String(o.domaine) })))

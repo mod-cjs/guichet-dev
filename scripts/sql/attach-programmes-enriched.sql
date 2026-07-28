@@ -99,7 +99,45 @@ WHERE NOT EXISTS (
 );
 
 -- ─────────────────────────────────────────────────────────────
--- 5. Contrôle — affiché en fin d'exécution
+-- 5. Centres — programmes déployés (FACULTATIF côté produit, mais on peuple le
+--    dataset pour que le graphe expose la relation DEPLOYE_A). Un centre porte
+--    plusieurs programmes : les hubs régionaux en accueillent 2.
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO centres_programmes (centre_id, programme_id, principal)
+SELECT c.id, p.id, 1
+FROM centres c
+JOIN programmes p ON p.slug = ELT(1 + CRC32(c.id) % 4, 'yaakaar', 'yeah', 'yjc', 'edupop')
+WHERE NOT EXISTS (SELECT 1 FROM centres_programmes cp WHERE cp.centre_id = c.id);
+
+INSERT INTO centres_programmes (centre_id, programme_id, principal)
+SELECT c.id, p2.id, 0
+FROM centres c
+JOIN centres_programmes princ ON princ.centre_id = c.id AND princ.principal = 1
+JOIN programmes p2 ON p2.slug = ELT(1 + CRC32(CONCAT(c.id, 'c2')) % 4, 'yaakaar', 'yeah', 'yjc', 'edupop')
+WHERE CRC32(CONCAT(c.id, 'second')) % 10 < 4       -- ~40 % des centres
+  AND p2.id <> princ.programme_id
+  AND NOT EXISTS (
+    SELECT 1 FROM centres_programmes cp WHERE cp.centre_id = c.id AND cp.programme_id = p2.id
+  );
+
+-- ─────────────────────────────────────────────────────────────
+-- 6. Organisations partenaires — programme d'engagement
+-- ─────────────────────────────────────────────────────────────
+INSERT INTO organisations_programmes (organisation_id, programme_id, principal)
+SELECT o.id, p.id, 1
+FROM organisations o
+JOIN programmes p ON p.slug = (
+  CASE
+    WHEN o.secteur IN ('Agriculture', 'Environnement') THEN 'yeah'
+    WHEN o.secteur = 'Entrepreneuriat'                 THEN 'yaakaar'
+    WHEN o.secteur IN ('Education', 'Culture')         THEN 'edupop'
+    ELSE 'yjc'
+  END
+)
+WHERE NOT EXISTS (SELECT 1 FROM organisations_programmes op WHERE op.organisation_id = o.id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 7. Contrôle — affiché en fin d'exécution
 -- ─────────────────────────────────────────────────────────────
 SELECT 'opportunites sans programme' AS controle,
        COUNT(*) AS valeur
@@ -116,4 +154,8 @@ SELECT 'rattachements opportunites', COUNT(*) FROM opportunites_programmes
 UNION ALL
 SELECT 'rattachements ressources', COUNT(*) FROM ressources_programmes
 UNION ALL
-SELECT 'rattachements evenements', COUNT(*) FROM evenements_programmes;
+SELECT 'rattachements evenements', COUNT(*) FROM evenements_programmes
+UNION ALL
+SELECT 'rattachements centres', COUNT(*) FROM centres_programmes
+UNION ALL
+SELECT 'rattachements organisations', COUNT(*) FROM organisations_programmes;

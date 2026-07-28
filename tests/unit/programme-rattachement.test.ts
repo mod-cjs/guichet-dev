@@ -42,6 +42,7 @@ const PROGRAMMES = [
 
 import {
   replaceProgrammes,
+  replaceProgrammesOptionnels,
   assertAuMoinsUnProgramme,
   ProgrammeInconnuError,
   ProgrammeRequisError,
@@ -113,6 +114,39 @@ describe('replaceProgrammes — rattachement générique', () => {
     await replaceProgrammes(tx(), port, ['yjc'])
 
     expect(port.creer).toHaveBeenCalledWith([{ programmeId: 'p-yjc', principal: true }])
+  })
+})
+
+// GUIC-684 — régime FACULTATIF (centres, organisations) : un acteur existe
+// indépendamment des programmes qui s'y déploient.
+describe('replaceProgrammesOptionnels — régime facultatif', () => {
+  let port: ReturnType<typeof makePort>
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    port = makePort()
+    programmeModel.findMany.mockResolvedValue(PROGRAMMES)
+  })
+
+  function tx() {
+    return { programme: programmeModel } as never
+  }
+
+  it('purge sans échouer quand la liste est vide', async () => {
+    await replaceProgrammesOptionnels(tx(), port, [])
+    expect(port.purge).toHaveBeenCalled()
+    expect(port.creer).not.toHaveBeenCalled()
+  })
+
+  it('se comporte comme le régime obligatoire dès qu’il y a un slug', async () => {
+    await replaceProgrammesOptionnels(tx(), port, ['yeah'])
+    expect(port.creer).toHaveBeenCalledWith([{ programmeId: 'p-yeah', principal: true }])
+  })
+
+  it('refuse quand même un slug inconnu', async () => {
+    await expect(
+      replaceProgrammesOptionnels(tx(), port, ['inexistant']),
+    ).rejects.toBeInstanceOf(ProgrammeInconnuError)
   })
 })
 

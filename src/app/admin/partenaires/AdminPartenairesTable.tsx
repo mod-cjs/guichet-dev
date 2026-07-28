@@ -8,6 +8,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { basculerVerifiePartenaire } from './actions'
 import { PartenaireFormModal, type PartenaireValues } from './PartenaireFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 export interface PartenaireRow {
   id: string
@@ -19,6 +20,9 @@ export interface PartenaireRow {
   email: string | null
   estVerifie: boolean
   opportunitesCount: number
+  /** GUIC-684 — programmes dont ce partenaire relève (préremplissage). */
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
 }
 
 export interface AdminPartenairesTableProps {
@@ -28,6 +32,8 @@ export interface AdminPartenairesTableProps {
   totalPages?: number
   verifieFilter?: 'tous' | 'oui' | 'non'
   search?: string
+  /** GUIC-684 — programmes proposés au rattachement. */
+  programmes?: ProgrammeOption[]
 }
 
 const FILTERS: { value: 'tous' | 'oui' | 'non'; label: string }[] = [
@@ -98,7 +104,7 @@ function Row({ item, onResult, onEdit }: {
 }
 
 /** AdminPartenairesTable (GUIC-510) — gestion des organisations recruteurs. */
-export function AdminPartenairesTable({ items, total, currentPage = 1, totalPages = 1, verifieFilter = 'tous', search = '' }: AdminPartenairesTableProps) {
+export function AdminPartenairesTable({ items, total, currentPage = 1, totalPages = 1, verifieFilter = 'tous', search = '', programmes = [] }: AdminPartenairesTableProps) {
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [editing, setEditing] = useState<PartenaireValues | null>(null)
 
@@ -158,6 +164,7 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
           isOpen
           onClose={() => setEditing(null)}
           partenaire={editing}
+          programmes={programmes}
           onSuccess={() => setFeedback({ message: 'Partenaire mis à jour.', variant: 'success' })}
         />
       )}

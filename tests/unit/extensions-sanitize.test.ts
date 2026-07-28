@@ -12,16 +12,27 @@ const orgUpdate = jest.fn().mockResolvedValue({ id: 'org-1' })
 const orgFindFirst = jest.fn().mockResolvedValue({ id: 'org-1' })
 const rcCreate = jest.fn().mockResolvedValue({ id: 'rc-1', centreId: 'c1' })
 const centreFindUnique = jest.fn().mockResolvedValue({ id: 'c1' })
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    organisation: {
-      update: (...a: unknown[]) => orgUpdate(...a),
-      findFirst: (...a: unknown[]) => orgFindFirst(...a),
+// GUIC-684 — `modifierPartenaire` passe en transaction : le mock rejoue le callback
+// avec les mêmes délégués, plus ceux du rattachement aux programmes.
+jest.mock('@/lib/prisma', () => {
+  const organisation = {
+    update: (...a: unknown[]) => orgUpdate(...a),
+    findFirst: (...a: unknown[]) => orgFindFirst(...a),
+  }
+  const tx = {
+    organisation,
+    programme: { findMany: jest.fn(async () => []) },
+    organisationProgramme: { deleteMany: jest.fn(), createMany: jest.fn() },
+  }
+  return {
+    prisma: {
+      organisation,
+      ressourceCentre: { create: (...a: unknown[]) => rcCreate(...a) },
+      centre: { findUnique: (...a: unknown[]) => centreFindUnique(...a) },
+      $transaction: (cb: (t: typeof tx) => unknown) => cb(tx),
     },
-    ressourceCentre: { create: (...a: unknown[]) => rcCreate(...a) },
-    centre: { findUnique: (...a: unknown[]) => centreFindUnique(...a) },
-  },
-}))
+  }
+})
 
 import { getSession } from '@/lib/auth'
 import { modifierPartenaire } from '@/app/admin/partenaires/actions'

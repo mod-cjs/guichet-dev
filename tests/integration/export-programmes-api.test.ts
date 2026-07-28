@@ -61,5 +61,8 @@ describe('GUIC-684 — GET /api/v1/export/programmes', () => {
     expect(typeof yeah.opportunites_count).toBe('number')
     expect(typeof yeah.ressources_count).toBe('number')
     expect(typeof yeah.evenements_count).toBe('number')
+    // GUIC-684 — acteurs : centres où le programme est déployé, partenaires associés.
+    expect(typeof yeah.centres_count).toBe('number')
+    expect(typeof yeah.organisations_count).toBe('number')
   })
 })
