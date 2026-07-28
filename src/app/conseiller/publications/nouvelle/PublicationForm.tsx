@@ -9,12 +9,13 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { creerPublication } from '../actions'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 const TYPE_OPTIONS = (['Atelier', 'Formation', 'Forum', 'Conference', 'Webinar', 'Cours'] as const).map((v) => ({ value: v, label: v }))
 const TARIF_OPTIONS = [{ value: 'true', label: 'Gratuit' }, { value: 'false', label: 'Payant' }]
 
 /** GUIC-477 — Formulaire complet de création d'une publication (éditeur riche). */
-export function PublicationForm() {
+export function PublicationForm({ programmes = [] }: { programmes?: ProgrammeOption[] }) {
   const router = useRouter()
   const [titre, setTitre] = useState('')
   const [type, setType] = useState<string>('Atelier')
@@ -24,11 +25,18 @@ export function PublicationForm() {
   const [lieu, setLieu] = useState('')
   const [capacite, setCapacite] = useState('')
   const [gratuit, setGratuit] = useState(true)
+  // GUIC-684 — la publication doit relever d'au moins un programme.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>([])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
   const submit = () => {
     setError(null)
+    if (programmeSlugs.length === 0) {
+      setError('Sélectionne au moins un programme de rattachement.')
+      return
+    }
     start(async () => {
       const res = await creerPublication({
         titre,
@@ -39,6 +47,8 @@ export function PublicationForm() {
         lieu,
         capaciteMax: capacite.trim() ? Number(capacite) : null,
         estGratuit: gratuit,
+        programmeSlugs,
+        programmePrincipalSlug: programmePrincipal,
       })
       if (res.error) setError(res.error.message)
       else router.push('/conseiller/publications')
@@ -48,6 +58,15 @@ export function PublicationForm() {
   return (
     <div className="bg-white rounded-gj-lg p-space-5 flex flex-col gap-space-4" style={{ border: '1.5px solid var(--gj-line)' }}>
       <Input id="pub-titre" label="Titre" required value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. Atelier CV & lettre de motivation" />
+      {programmes.length > 0 && (
+        <ProgrammesField
+          options={programmes}
+          value={programmeSlugs}
+          onChange={setProgrammeSlugs}
+          principal={programmePrincipal}
+          onPrincipalChange={setProgrammePrincipal}
+        />
+      )}
 
       <RichTextEditor id="pub-description" label="Description" value={description} onChange={setDescription} />
 

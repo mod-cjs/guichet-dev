@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { getRecruteurContext } from '@/lib/loaders/recruteur'
 import { Icon } from '@/components/ui/Icon'
 import { NouvelleOffreForm } from '../NouvelleOffreForm'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = { title: 'Nouvelle offre — Espace Recruteur' }
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,10 @@ export default async function Page() {
   if (!session || !session.roles.includes('recruteur')) redirect('/auth/connexion')
 
   const ctx = await getRecruteurContext(session.cjsUid)
-  const skills = await prisma.skill.findMany({ select: { id: true, libelle: true }, orderBy: { libelle: 'asc' } })
+  const [skills, programmes] = await Promise.all([
+    prisma.skill.findMany({ select: { id: true, libelle: true }, orderBy: { libelle: 'asc' } }),
+    loadProgrammeOptions(prisma),
+  ])
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
@@ -35,7 +39,7 @@ export default async function Page() {
           <p className="text-[12.5px] mt-[4px]">Contactez l&apos;équipe CJS pour rattacher votre entreprise avant de publier une offre.</p>
         </div>
       ) : (
-        <NouvelleOffreForm companyName={ctx.organisationNom} skills={skills} />
+        <NouvelleOffreForm companyName={ctx.organisationNom} skills={skills} programmes={programmes} />
       )}
     </div>
   )
