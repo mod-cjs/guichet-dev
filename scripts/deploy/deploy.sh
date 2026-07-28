@@ -190,6 +190,15 @@ switch_and_verify() {
 # Idempotent : on ne remplace QUE le bloc marqué GUICHET-CRON, les autres lignes du crontab
 # (sauvegardes système, certificats…) sont conservées telles quelles.
 sync_crontab() {
+  # OPT-IN EXPLICITE. Réécrire un crontab est un effet de bord SUR LA MACHINE, pas sur le
+  # dépôt : lancé depuis un poste de développement ou un harnais de test, il modifierait le
+  # crontab de la personne (constaté le 28/07 — la suite de tests exécute vraiment ce script).
+  # La CD l'active sur le serveur ; partout ailleurs, la fonction ne fait rien.
+  if [[ "${SYNC_CRONTAB:-0}" != "1" ]]; then
+    log "Synchronisation du crontab ignorée (SYNC_CRONTAB≠1 — hors serveur)."
+    return 0
+  fi
+
   local racine="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
   local generateur="$racine/scripts/cron/generate-crontab.sh"
   local genere="$(mktemp)" nouveau="$(mktemp)"

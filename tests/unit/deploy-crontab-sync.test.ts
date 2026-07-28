@@ -36,6 +36,18 @@ describe('deploy.sh — synchronisation du crontab', () => {
     expect(deploy).toMatch(/grep\s+-v/)
   })
 
+  it('N’AGIT QUE sur opt-in explicite — un poste de dev ou un test ne doit jamais voir son crontab réécrit', () => {
+    const bloc = deploy.slice(deploy.indexOf('sync_crontab()'))
+    expect(bloc).toMatch(/SYNC_CRONTAB/)
+    expect(bloc).toMatch(/\$\{SYNC_CRONTAB:-0\}/) // défaut : inactif
+  })
+
+  it('la CD active l’opt-in sur le serveur (prod et staging)', () => {
+    for (const wf of ['.github/workflows/cd-deploy.yml', '.github/workflows/cd-staging.yml']) {
+      expect(R(wf)).toMatch(/export SYNC_CRONTAB=1/)
+    }
+  })
+
   it('refuse d’installer un crontab généré vide (jq absent, jobs.json cassé)', () => {
     const bloc = deploy.slice(deploy.indexOf('sync_crontab()'))
     expect(bloc).toMatch(/-s\s|wc -l|vide/i)
@@ -44,6 +56,15 @@ describe('deploy.sh — synchronisation du crontab', () => {
   it('un échec de synchronisation est ANNONCÉ, jamais silencieux', () => {
     const bloc = deploy.slice(deploy.indexOf('sync_crontab()'), deploy.indexOf('# ── 0. Preflight'))
     expect(bloc).toMatch(/err\s/)
+  })
+})
+
+describe('generate-crontab.sh — toutes les lignes portent le marqueur', () => {
+  it('les commentaires aussi, sinon le filtre les laisse et le crontab enfle à chaque passage', () => {
+    const gen = R('scripts/cron/generate-crontab.sh')
+    const lignesEmises = gen.split('\n').filter(l => /^echo "#/.test(l.trim()))
+    expect(lignesEmises.length).toBeGreaterThan(0)
+    for (const l of lignesEmises) expect(l).toMatch(/GUICHET-CRON/)
   })
 })
 

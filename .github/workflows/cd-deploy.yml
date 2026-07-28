@@ -86,4 +86,7 @@ jobs:
             export GUICHET_IMAGE="${{ needs.build-push.outputs.image }}"
             export COMPOSE_PROJECT_NAME="guichet" # namespace prod, distinct du staging
             echo "${{ github.ref_name }}" > /var/lib/guichet/deploy-stamp
+            # GUIC-683 — le déploiement met le crontab serveur à jour depuis jobs.json.
+            # Opt-in explicite : ailleurs (poste de dev, tests), deploy.sh n'y touche pas.
+            export SYNC_CRONTAB=1
             bash scripts/deploy/deploy.sh
