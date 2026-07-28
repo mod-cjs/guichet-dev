@@ -7,27 +7,45 @@
 import neo4j, { type Session, type QueryResult } from 'neo4j-driver'
 import { getNeo4jDriver, neo4jDatabase } from '@/lib/neo4j'
 import { logger } from '@/lib/logger'
+import { numEnv } from '../env'
 import { allowedNiveaux } from './niveau'
 import {
   COLLABORATIVE_RECO,
   ELIGIBLE_OPPORTUNITES,
   FORMATIONS_FOR_SKILLS,
+  GRAPH_POPULATED,
+  LIVRES_DISPONIBLES,
+  MARCHE_COMPETENCES,
+  MARCHE_ORGANISATIONS,
+  MARCHE_PAR_DOMAINE,
+  MARCHE_PAR_REGION,
+  MARCHE_PAR_TYPE,
   MULTI_ENTITY_PATH,
+  RESSOURCES_POUR_COMPETENCES,
   SEARCH_OPPORTUNITES,
   SKILL_GAP_MISSING,
 } from './cypher-templates'
 import {
   clampLimit,
+  GraphEmptyError,
   type CompetenceRef,
   type GraphHealth,
+  type GraphLivreDispo,
   type GraphOpportunite,
   type GraphPort,
+  type GraphRessourcePrepa,
   type GraphUserScope,
+  type LivreSearchCriteria,
+  type MarketCriteria,
+  type MarketOverview,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
   type SkillGapResult,
 } from './port'
+
+/** Durée de validité de la sentinelle « graphe peuplé » (évite un COUNT par requête vide). */
+const POPULATED_TTL_MS = numEnv('YAYE_GRAPH_POPULATED_TTL_MS', 60_000)
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null
@@ -45,8 +63,20 @@ function toOpp(rec: { get(k: string): unknown }): GraphOpportunite {
   }
 }
 
+export interface Neo4jAdapterOptions {
+  /** Horloge injectable (tests). */
+  now?: () => number
+}
+
 export class Neo4jGraphAdapter implements GraphPort {
   readonly backend = 'neo4j' as const
+  /** Échéance de validité de la sentinelle « graphe peuplé ». */
+  private populatedUntil = 0
+  private readonly now: () => number
+
+  constructor(opts: Neo4jAdapterOptions = {}) {
+    this.now = opts.now ?? (() => Date.now())
+  }
 
   private session(): Session {
     return getNeo4jDriver().session({
@@ -65,6 +95,21 @@ export class Neo4jGraphAdapter implements GraphPort {
     }
   }
 
+  /**
+   * Distingue « aucun résultat métier » de « read-model VIDE ».
+   * Le cron nocturne reconstruit le graphe en `wipe:true` : pendant cette fenêtre, toute
+   * traversée renverrait 0 ligne et Yaye répondrait « je n'ai rien trouvé » au lieu de
+   * basculer sur Prisma. On ne paie le COUNT que sur un résultat vide, et au plus une
+   * fois par `POPULATED_TTL_MS`.
+   */
+  private async guardEmpty<T>(rows: T[]): Promise<T[]> {
+    if (rows.length > 0 || this.now() < this.populatedUntil) return rows
+    const populated = await this.read(GRAPH_POPULATED, {}, res => Boolean(res.records[0]?.get('populated')))
+    if (!populated) throw new GraphEmptyError('read-model vide (reprojection en cours ?)')
+    this.populatedUntil = this.now() + POPULATED_TTL_MS
+    return rows
+  }
+
   async healthcheck(): Promise<GraphHealth> {
     try {
       await this.read('RETURN 1 AS ok', {}, () => null)
@@ -76,7 +121,7 @@ export class Neo4jGraphAdapter implements GraphPort {
   }
 
   async searchOpportunites(criteria: OpportuniteSearchCriteria): Promise<GraphOpportunite[]> {
-    return this.read(
+    const rows = await this.read(
       SEARCH_OPPORTUNITES,
       {
         domaine: str(criteria.domaine),
@@ -87,6 +132,7 @@ export class Neo4jGraphAdapter implements GraphPort {
       },
       res => res.records.map(toOpp),
     )
+    return this.guardEmpty(rows)
   }
 
   async skillGap(scope: GraphUserScope, opportuniteId: string): Promise<SkillGapResult> {
@@ -94,7 +140,12 @@ export class Neo4jGraphAdapter implements GraphPort {
       const raw = (res.records[0]?.get('manquantes') ?? []) as Array<{ slug: string | null; libelle: string }>
       return raw.map(c => ({ slug: c.slug ?? null, libelle: c.libelle } as CompetenceRef))
     })
-    if (manquantes.length === 0) return { manquantes, formations: [] }
+    // Un graphe vide renverrait « aucune compétence manquante » — pire qu'un « rien trouvé » :
+    // Yaye affirmerait à tort que le jeune a tout ce qu'il faut. On qualifie donc le vide.
+    if (manquantes.length === 0) {
+      await this.guardEmpty(manquantes)
+      return { manquantes, formations: [] }
+    }
     const slugs = manquantes.map(c => c.slug).filter((s): s is string => Boolean(s))
     const formations = slugs.length
       ? await this.read(FORMATIONS_FOR_SKILLS, { slugs, limit: neo4j.int(clampLimit()) }, res => res.records.map(toOpp))
@@ -108,15 +159,16 @@ export class Neo4jGraphAdapter implements GraphPort {
       { uid: scope.cjsUid },
       res => str(res.records[0]?.get('niveau')),
     )
-    return this.read(
+    const rows = await this.read(
       ELIGIBLE_OPPORTUNITES,
       { uid: scope.cjsUid, allowedNiveaux: allowedNiveaux(niveau), limit: neo4j.int(clampLimit(limit)) },
       res => res.records.map(toOpp),
     )
+    return this.guardEmpty(rows)
   }
 
   async collaborativeReco(scope: GraphUserScope, limit?: number): Promise<RecoAggregate[]> {
-    return this.read(COLLABORATIVE_RECO, { uid: scope.cjsUid, limit: neo4j.int(clampLimit(limit)) }, res =>
+    const rows = await this.read(COLLABORATIVE_RECO, { uid: scope.cjsUid, limit: neo4j.int(clampLimit(limit)) }, res =>
       res.records.map(r => ({
         id: String(r.get('id')),
         slug: String(r.get('slug')),
@@ -124,10 +176,11 @@ export class Neo4jGraphAdapter implements GraphPort {
         popularite: toInt(r.get('popularite')),
       })),
     )
+    return this.guardEmpty(rows)
   }
 
   async multiEntityPath(criteria: { domaine?: string; region?: string; limit?: number }): Promise<MultiEntityPath[]> {
-    return this.read(
+    const rows = await this.read(
       MULTI_ENTITY_PATH,
       { domaine: str(criteria.domaine), region: str(criteria.region), limit: neo4j.int(clampLimit(criteria.limit)) },
       res =>
@@ -140,6 +193,84 @@ export class Neo4jGraphAdapter implements GraphPort {
           programmeNom: str(r.get('programmeNom')),
         })),
     )
+    return this.guardEmpty(rows)
+  }
+
+  async livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]> {
+    const rows = await this.read(
+      LIVRES_DISPONIBLES,
+      {
+        q: criteria.q?.trim() ? criteria.q.trim() : null,
+        theme: criteria.theme?.trim() ? criteria.theme.trim() : null,
+        region: str(criteria.region),
+        limit: neo4j.int(clampLimit(criteria.limit)),
+      },
+      res =>
+        res.records.map(r => ({
+          livreId: String(r.get('livreId')),
+          titre: String(r.get('titre')),
+          auteur: String(r.get('auteur')),
+          theme: String(r.get('theme')),
+          exemplaireId: String(r.get('exemplaireId')),
+          centreId: String(r.get('centreId')),
+          centreNom: String(r.get('centreNom')),
+          region: str(r.get('region')),
+          rayon: String(r.get('rayon')),
+          etagere: String(r.get('etagere')),
+          position: String(r.get('position')),
+        })),
+    )
+    return this.guardEmpty(rows)
+  }
+
+  /**
+   * Recherche GLOBALE. Cinq agrégations parallèles sur les offres ouvertes ; le total
+   * est dérivé du palmarès par type (mêmes filtres, donc même population).
+   * ⚠️ Aucune de ces requêtes ne touche `:Beneficiaire` (invariant CDP).
+   */
+  async apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    const params = {
+      region: str(criteria.region),
+      domaine: str(criteria.domaine),
+      limit: neo4j.int(clampLimit(criteria.limit)),
+    }
+    const counts = (cypher: string) =>
+      this.read(cypher, params, res =>
+        res.records
+          .filter(r => r.get('cle') != null)
+          .map(r => ({ cle: String(r.get('cle')), n: toInt(r.get('n')) })),
+      )
+
+    const [parType, parDomaine, parRegion, competences, organisations] = await Promise.all([
+      counts(MARCHE_PAR_TYPE),
+      counts(MARCHE_PAR_DOMAINE),
+      counts(MARCHE_PAR_REGION),
+      counts(MARCHE_COMPETENCES),
+      counts(MARCHE_ORGANISATIONS),
+    ])
+
+    const total = parType.reduce((a, b) => a + b.n, 0)
+    if (total === 0) await this.guardEmpty([])
+    return { total, parType, parDomaine, parRegion, competences, organisations }
+  }
+
+  async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {
+    const cleaned = slugs.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim())
+    if (cleaned.length === 0) return []
+    const rows = await this.read(
+      RESSOURCES_POUR_COMPETENCES,
+      { slugs: cleaned, limit: neo4j.int(clampLimit(limit)) },
+      res =>
+        res.records.map(r => ({
+          id: String(r.get('id')),
+          titre: String(r.get('titre')),
+          type: String(r.get('type')),
+          theme: String(r.get('theme')),
+          niveau: str(r.get('niveau')),
+          competences: ((r.get('competences') ?? []) as unknown[]).map(String),
+        })),
+    )
+    return this.guardEmpty(rows)
   }
 }
 

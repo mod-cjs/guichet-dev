@@ -102,6 +102,24 @@ function getAuth(): GoogleAuth {
   return _auth
 }
 
+/**
+ * Jeton OAuth GCP frais (ADC / compte de service). Exposé pour les APIs Vertex qui
+ * n'ont PAS d'équivalent OpenAI-compatible — les embeddings passent par l'API native
+ * `:predict` (cf. vertex-embeddings.ts). Une seule instance `GoogleAuth` pour tout le
+ * processus : la mise en cache du jeton est gérée par la lib.
+ */
+export async function getGcpAccessToken(): Promise<string | null> {
+  return (await getAuth().getAccessToken()) ?? null
+}
+
+/** Projet et région Vertex actifs (nulls si non configurés). */
+export function vertexProjectLocation(): { project: string | null; location: string } {
+  return {
+    project: process.env.GOOGLE_CLOUD_PROJECT?.trim() || null,
+    location: process.env.GOOGLE_CLOUD_LOCATION?.trim() || DEFAULT_LOCATION,
+  }
+}
+
 /** Un client OpenAI-compat par base URL (endpoint partagé + éventuels endpoints dédiés). */
 const _clients = new Map<string, OpenAI>()
 

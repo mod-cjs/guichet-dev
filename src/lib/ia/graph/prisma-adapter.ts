@@ -11,13 +11,26 @@ import { Domaine, Region, TypeOpportunite } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
 import { logger } from '@/lib/logger'
 import { allowedNiveaux } from './niveau'
-import { buildSkillIndex, matchSkills, parseCompetences, type SkillRef } from './skills-normalize'
+import {
+  buildSkillIndex,
+  matchThemeToCategorieSkills,
+  parseCompetences,
+  type SkillRef,
+  type SkillWithCategorie,
+} from './skills-normalize'
+import { matchSkillsHybrid, prepareSemanticMatcher } from './skills-embeddings'
 import {
   clampLimit,
   type GraphHealth,
+  type GraphLivreDispo,
   type GraphOpportunite,
   type GraphPort,
+  type GraphRessourcePrepa,
   type GraphUserScope,
+  type LivreSearchCriteria,
+  type MarketCount,
+  type MarketCriteria,
+  type MarketOverview,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -92,18 +105,36 @@ export class PrismaGraphAdapter implements GraphPort {
       prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } }),
     ])
     const index = buildSkillIndex(skills as SkillRef[])
+    const competences = parseCompetences(profil?.competences)
+
+    const [certs, diplomes] = profil
+      ? await Promise.all([
+          prisma.certificatMoodle.findMany({ where: { profilId: profil.id }, select: { formation: true } }),
+          prisma.diplome.findMany({ where: { profilId: profil.id }, select: { intitule: true } }),
+        ])
+      : [[], []]
+
+    // Même appariement HYBRIDE que la projection (GUIC-677) : sans ça, le fallback
+    // Prisma déclarerait « manquante » une compétence que le graphe, lui, relie.
+    //
+    // ⚠️ CHEMIN DE RÉPONSE : lecture de cache STRICTE. Ce code s'exécute pendant que
+    // l'usager attend, et le fallback Prisma est la configuration de PRODUCTION (Neo4j
+    // non provisionné). Sans ce plafond, la première question « qu'est-ce qui me manque ? »
+    // après un déploiement vectorisait les 114 libellés du référentiel — ~32 secondes
+    // d'attente mesurées. Le référentiel est préchauffé par le cron, comme le catalogue.
+    const semantic = await prepareSemanticMatcher(
+      skills as SkillRef[],
+      [...competences, ...certs.map(c => c.formation), ...diplomes.map(d => d.intitule)],
+      { maxNew: 0 },
+    )
+
     const mastered = new Set<string>()
-    for (const comp of parseCompetences(profil?.competences)) {
-      for (const m of matchSkills(comp, index)) mastered.add(m.id)
+    for (const comp of competences) {
+      for (const m of matchSkillsHybrid(comp, index, semantic)) mastered.add(m.id)
     }
-    if (profil) {
-      const [certs, diplomes] = await Promise.all([
-        prisma.certificatMoodle.findMany({ where: { profilId: profil.id }, select: { formation: true } }),
-        prisma.diplome.findMany({ where: { profilId: profil.id }, select: { intitule: true } }),
-      ])
-      for (const c of certs) for (const m of matchSkills(c.formation, index)) mastered.add(m.id)
-      for (const d of diplomes) for (const m of matchSkills(d.intitule, index)) mastered.add(m.id)
-    }
+    for (const c of certs) for (const m of matchSkillsHybrid(c.formation, index, semantic)) mastered.add(m.id)
+    for (const d of diplomes) for (const m of matchSkillsHybrid(d.intitule, index, semantic)) mastered.add(m.id)
+
     return { mastered, allSkills: skills as SkillRef[] }
   }
 
@@ -235,5 +266,157 @@ export class PrismaGraphAdapter implements GraphPort {
     }
     logger.debug('[graph:prisma] multiEntityPath best-effort', { count: out.length })
     return out
+  }
+
+  /**
+   * Parité avec les templates `MARCHE_*` (recherche globale).
+   * ⚠️ Invariant CDP : agrégats sur les OFFRES uniquement — aucun décompte de personnes,
+   * de candidatures ni de profils.
+   */
+  async apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    const where: Prisma.OpportuniteWhereInput = { ...publishedNotExpired() }
+    if (inEnum(Region, criteria.region)) where.region = criteria.region
+    if (inEnum(Domaine, criteria.domaine)) where.domaine = criteria.domaine
+    const take = clampLimit(criteria.limit)
+
+    const [parType, parDomaine, parRegion, skillGroups, orgGroups] = await Promise.all([
+      prisma.opportunite.groupBy({ by: ['type'], where, _count: { _all: true }, orderBy: { _count: { type: 'desc' } }, take }),
+      prisma.opportunite.groupBy({ by: ['domaine'], where, _count: { _all: true }, orderBy: { _count: { domaine: 'desc' } }, take }),
+      prisma.opportunite.groupBy({ by: ['region'], where, _count: { _all: true }, orderBy: { _count: { region: 'desc' } }, take }),
+      prisma.opportuniteSkill.groupBy({
+        by: ['skillId'],
+        where: { requise: true, opportunite: where },
+        _count: { _all: true },
+      }),
+      prisma.opportunite.groupBy({
+        by: ['organisationId'],
+        where: { ...where, organisationId: { not: null } },
+        _count: { _all: true },
+      }),
+    ])
+
+    // Palmarès compétences : on résout les libellés APRÈS le tri (une seule requête).
+    const topSkills = [...skillGroups].sort((a, b) => b._count._all - a._count._all).slice(0, take)
+    const skillLabels = topSkills.length
+      ? await prisma.skill.findMany({
+          where: { id: { in: topSkills.map(s => s.skillId) } },
+          select: { id: true, libelle: true },
+        })
+      : []
+    const labelById = new Map(skillLabels.map(s => [s.id, s.libelle]))
+
+    const topOrgs = [...orgGroups].sort((a, b) => b._count._all - a._count._all).slice(0, take)
+    const orgNames = topOrgs.length
+      ? await prisma.organisation.findMany({
+          where: { id: { in: topOrgs.map(o => o.organisationId!) } },
+          select: { id: true, nom: true },
+        })
+      : []
+    const nomById = new Map(orgNames.map(o => [o.id, o.nom]))
+
+    const toCounts = (rows: Array<{ _count: { _all: number } } & Record<string, unknown>>, key: string): MarketCount[] =>
+      rows
+        .filter(r => r[key] != null)
+        .map(r => ({ cle: String(r[key]), n: r._count._all }))
+        .sort((a, b) => b.n - a.n)
+
+    return {
+      total: parType.reduce((a, b) => a + b._count._all, 0),
+      parType: toCounts(parType, 'type'),
+      parDomaine: toCounts(parDomaine, 'domaine'),
+      parRegion: toCounts(parRegion, 'region'),
+      competences: topSkills.flatMap(s => {
+        const libelle = labelById.get(s.skillId)
+        return libelle ? [{ cle: libelle, n: s._count._all }] : []
+      }),
+      organisations: topOrgs.flatMap(o => {
+        const nom = o.organisationId ? nomById.get(o.organisationId) : undefined
+        return nom ? [{ cle: nom, n: o._count._all }] : []
+      }),
+    }
+  }
+
+  /**
+   * Parité avec `LIVRES_DISPONIBLES` : exemplaires DISPONIBLES + emplacement, filtrés
+   * par mots-clés (titre/auteur), thème et région du centre.
+   */
+  async livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]> {
+    const q = criteria.q?.trim()
+    const theme = criteria.theme?.trim()
+    const where: Prisma.ExemplaireWhereInput = { statut: 'disponible' }
+    if (inEnum(Region, criteria.region)) where.centre = { region: criteria.region }
+    const livreWhere: Prisma.LivreWhereInput = {}
+    if (q) livreWhere.OR = [{ titre: { contains: q } }, { auteur: { contains: q } }]
+    if (theme) livreWhere.theme = { contains: theme }
+    if (Object.keys(livreWhere).length > 0) where.livre = livreWhere
+
+    const rows = await prisma.exemplaire.findMany({
+      where,
+      select: {
+        id: true, rayon: true, etagere: true, position: true,
+        livre: { select: { id: true, titre: true, auteur: true, theme: true } },
+        centre: { select: { id: true, nom: true, region: true } },
+      },
+      orderBy: { livre: { titre: 'asc' } },
+      take: clampLimit(criteria.limit),
+    })
+
+    return rows.map(e => ({
+      livreId: e.livre.id,
+      titre: e.livre.titre,
+      auteur: e.livre.auteur,
+      theme: e.livre.theme,
+      exemplaireId: e.id,
+      centreId: e.centre.id,
+      centreNom: e.centre.nom,
+      region: e.centre.region ? String(e.centre.region) : null,
+      rayon: e.rayon,
+      etagere: e.etagere,
+      position: e.position,
+    }))
+  }
+
+  /**
+   * Parité avec `RESSOURCES_POUR_COMPETENCES` : la relation PREPARE est projetée depuis
+   * `Ressource.theme` ↔ `Skill.categorie` (spec 02 §4) — on rejoue ici EXACTEMENT la même
+   * dérivation (`matchThemeToCategorieSkills`) pour que le fallback renvoie le même ensemble.
+   */
+  async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {
+    const wanted = new Set(slugs.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()))
+    if (wanted.size === 0) return []
+
+    const skills = await prisma.skill.findMany({ select: { id: true, slug: true, libelle: true, categorie: true } })
+    const cibles = new Map(skills.filter(s => wanted.has(s.slug)).map(s => [s.id, s.libelle]))
+    if (cibles.size === 0) return []
+
+    const ressources = await prisma.ressource.findMany({
+      where: { estPublic: true },
+      select: { id: true, titre: true, type: true, theme: true, niveau: true },
+    })
+
+    // Parité avec la projection PREPARE : repli sémantique quand le thème ne correspond
+    // à aucune catégorie de compétence (GUIC-677).
+    const semantic = await prepareSemanticMatcher(skills as SkillRef[], ressources.map(r => r.theme), { maxNew: 0 })
+
+    const out: GraphRessourcePrepa[] = []
+    for (const r of ressources) {
+      const parCategorie = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+      const prepares = parCategorie.length > 0
+        ? parCategorie
+        : (semantic?.match(r.theme) ?? []).map(m => m.id)
+      const competences = prepares.flatMap(id => (cibles.has(id) ? [cibles.get(id)!] : []))
+      if (competences.length === 0) continue
+      out.push({
+        id: r.id,
+        titre: r.titre,
+        type: String(r.type),
+        theme: r.theme,
+        niveau: r.niveau ? String(r.niveau) : null,
+        competences: [...new Set(competences)],
+      })
+    }
+    return out
+      .sort((a, b) => b.competences.length - a.competences.length)
+      .slice(0, clampLimit(limit))
   }
 }

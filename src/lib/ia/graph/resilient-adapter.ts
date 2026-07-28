@@ -8,9 +8,14 @@
 import { logger } from '@/lib/logger'
 import type {
   GraphHealth,
+  GraphLivreDispo,
   GraphOpportunite,
   GraphPort,
+  GraphRessourcePrepa,
   GraphUserScope,
+  LivreSearchCriteria,
+  MarketCriteria,
+  MarketOverview,
   MultiEntityPath,
   OpportuniteSearchCriteria,
   RecoAggregate,
@@ -76,5 +81,14 @@ export class ResilientGraphAdapter implements GraphPort {
   }
   multiEntityPath(criteria: { domaine?: string; region?: string; limit?: number }): Promise<MultiEntityPath[]> {
     return this.run((p) => p.multiEntityPath(criteria))
+  }
+  livresDisponibles(criteria: LivreSearchCriteria): Promise<GraphLivreDispo[]> {
+    return this.run((p) => p.livresDisponibles(criteria))
+  }
+  ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {
+    return this.run((p) => p.ressourcesPourCompetences(slugs, limit))
+  }
+  apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
+    return this.run((p) => p.apercuMarche(criteria))
   }
 }

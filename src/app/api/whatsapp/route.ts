@@ -12,7 +12,8 @@ import { prisma } from '@/lib/prisma'
 import { runAgent } from '@/lib/ia/agent'
 import { sendYayeBlocksToWhatsApp, shouldSuggestWeb, webSwitchMessage } from '@/lib/ia/format-whatsapp'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
-import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadContext, appendTurns, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { resolveWhatsAppSessionId } from '@/lib/ia/whatsapp-session'
 import { loadSummary, updateSummary } from '@/lib/ia/memory'
 import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import { redis } from '@/lib/redis'
@@ -91,34 +92,39 @@ async function handleWhatsAppText(from: string, text: string): Promise<void> {
   const ctxKey = userContextKey(conv.cjsUid)
   const history = await loadContext(ctxKey)
   const memo = await loadSummary(conv.cjsUid) // mémoire long terme (cross-canal)
+  // Session ROULANTE (GUIC-678) : l'id de conversation est éternel — il agrégeait tous
+  // les logs d'un usager dans une seule session et bloquait toute nouvelle escalade tant
+  // qu'une précédente restait ouverte. La MÉMOIRE, elle, reste portée par le cjs_uid.
+  const sessionId = await resolveWhatsAppSessionId(conv.id)
   const result = await runAgent({
     message: text,
     history,
     memo,
     cjsUid: conv.cjsUid,
     roles: ['beneficiaire'], // WhatsApp = bénéficiaires ; le staff passe par le web
-    sessionId: conv.id,
+    sessionId,
     canal: 'whatsapp',
   })
 
   // Formateur multi-canal (Lot 5) : texte + boutons/listes interactives Meta.
   const { formats } = await sendYayeBlocksToWhatsApp(from, result.blocks)
-  const logBase = { sessionId: conv.id, cjsUid: conv.cjsUid, role: 'beneficiaire', canal: 'whatsapp' as const }
+  const logBase = { sessionId, cjsUid: conv.cjsUid, role: 'beneficiaire', canal: 'whatsapp' as const }
   await logAgentEvent({ ...logBase, typeEvenement: 'format_canal', formatCanal: formats.join('+') })
   await logAgentEvent({ ...logBase, typeEvenement: 'contenu_transmis', payload: { formats, blocs: result.blocks.map(b => b.kind) } })
 
   // Bascule web après plusieurs échanges (deep link SSO), une seule fois.
   if (shouldSuggestWeb(history.length)) await sendTextMessage(from, webSwitchMessage())
 
-  await saveContext(
+  // Ajout ATOMIQUE (GUIC-678) : un message web reçu au même moment ne perd plus son tour.
+  await appendTurns(
     ctxKey,
-    [...history, { role: 'user', content: text }, { role: 'assistant', content: result.reply }],
+    [{ role: 'user', content: text }, { role: 'assistant', content: result.reply }],
     TTL_USER,
   )
   // Capture durable du verbatim (pseudonymisé, purgeable) pour rendre la conversation
   // jugeable par le juge LLM — même store que le web. No-op si le flag est OFF (CDP).
   await recordWebTurn({
-    sessionId: conv.id,
+    sessionId,
     cjsUid: conv.cjsUid,
     tourIndex: Math.floor(history.length / 2),
     userText: text,

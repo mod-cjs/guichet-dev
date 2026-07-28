@@ -6,6 +6,7 @@ import { recalculerEtPersisterScore } from '@/lib/profil-loader'
 import { ExperienceSchema, MAX_EXPERIENCES } from '@/lib/profil-schemas'
 import type { ApiResponse } from '@/types/api'
 import type { ExperienceResponse } from '@/types/profil'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<ExperienceResponse>>> {
   const session = await getSession(request)
@@ -53,6 +54,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   })
 
   const completionScore = await recalculerEtPersisterScore(session.cjsUid)
+  // A_EXERCE pèse dans le tri d'éligibilité (expérience) → reprojection immédiate.
+  fireBeneficiaireGraphSync(session.cjsUid)
 
   return NextResponse.json({
     data: {

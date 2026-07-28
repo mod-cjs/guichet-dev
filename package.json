@@ -19,6 +19,7 @@
     "yaye:eval": "tsx scripts/yaye-eval-local.ts",
     "yaye:reproject": "tsx scripts/yaye-graph-reproject.ts",
     "yaye:latency": "tsx scripts/yaye-graph-latency.ts",
+    "yaye:warm": "tsx scripts/yaye-warm-search.ts",
     "db:load:enriched": "bash scripts/load-enriched-db.sh",
     "db:diversify:enriched": "docker exec -i guichet_mariadb mariadb -uroot -proot yaye_poc_enriched < scripts/sql/diversify-enriched.sql",
     "db:seed": "prisma db seed",

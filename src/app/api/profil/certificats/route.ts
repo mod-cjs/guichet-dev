@@ -16,6 +16,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import type { ApiResponse } from '@/types/api'
 import type { CertificatItem } from '@/types/profil'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 
 const SELECT_FIELDS = {
   id: true, formation: true, obtenuLe: true, urlCertificat: true, fichierUrl: true,
@@ -130,6 +131,9 @@ export async function POST(
     urlCertificat: created.urlCertificat,
     fichierUrl:    created.fichierUrl,
   }
+
+  // Un certificat ATTESTE des compétences (dérivée floue) → rafraîchit MAITRISE.
+  fireBeneficiaireGraphSync(session.cjsUid)
 
   return NextResponse.json({ data: item }, { status: 201 })
 }

@@ -14,10 +14,11 @@ import { getSlotModel } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
-import { buildGraphContext, GRAPH_PREAMBLE } from './graph-context'
+import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
+import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, capOpportunites, type YayeBlock } from './blocks'
 import { finalizeReply, detectMetaLeakage } from './reply-guard'
@@ -131,6 +132,7 @@ Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH
 - Conseil personnalisé ("une offre pour moi", "suis-je éligible ?") → récupère **d'abord le profil**.
 - Question d'état ("où en sont mes candidatures ?", "mes favoris") → utilise les **données temps réel**.
 - **Raisonnement** sur les opportunités ("suis-je prêt pour cette offre ?", "qu'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).
+- **Question générale sur le marché** ("quels secteurs recrutent à Thiès ?", "qu'est-ce qui embauche en ce moment ?", "quelles compétences sont demandées ?", "y a-t-il beaucoup d'offres en agro ?") → **query_knowledge_graph** avec l'intention \`apercu_marche\`. Donne les chiffres tels quels (ce sont des **offres**, jamais des personnes), en une ou deux phrases, et propose d'enchaîner sur une recherche ciblée.
 - **Réserver une salle ou un véhicule** d'un centre → d'abord **get_reservable_resources** pour trouver la ressource et son identifiant. Puis **collecte ce qui manque, une info à la fois** : date (AAAA-MM-JJ), créneau (HH:MM–HH:MM), nombre de personnes, et un **motif d'au moins 20 caractères**. Quand tu as tout, appelle **reserve_resource SANS confirmer** pour afficher le récapitulatif, demande « Je confirme ? », et n'appelle **reserve_resource avec confirm=true qu'APRÈS un oui explicite**. Ne réserve **jamais** sans cet accord.
 - **Badge / carte CJS** ("mon badge", "ma carte", "le QR pour entrer au centre") → utilise **get_badge**.
 - **Bibliothèque / livres des centres** ("un livre sur…", "emprunter un livre", "où est ce livre") → d'abord **search_library** (titre/auteur/thème) pour trouver le livre, l'exemplaire disponible et son emplacement (centre · rayon · étagère · position). Pour emprunter, prends l'**exemplaireId** d'un exemplaire disponible, appelle **borrow_book SANS confirmer** pour le récapitulatif, puis **confirm=true seulement APRÈS un oui explicite** — rappelle que l'emprunt se finalise **au scan du badge au centre**. Pour « mes emprunts » / « quand rendre » → **get_active_loans**.
@@ -194,8 +196,9 @@ const ROUTER_PROMPT =
   "décider le ou les outils à appeler pour traiter la demande, avec leurs arguments. " +
   "Si la demande porte sur des données de l'utilisateur ou du catalogue — offres/opportunités, " +
   'formations, candidatures, profil, badge/carte CJS, agenda/événements, notifications, ' +
-  "réservations, bibliothèque, centres, recommandations, ce qu'il manque pour une offre — tu DOIS " +
-  "appeler l'outil correspondant. En cas de détresse ou de danger, appelle escalate_to_advisor. " +
+  "réservations, bibliothèque, centres, recommandations, ce qu'il manque pour une offre, " +
+  "ou une question générale sur le MARCHÉ (« quels secteurs recrutent », « qu'est-ce qui embauche ») " +
+  "— tu DOIS appeler l'outil correspondant. En cas de détresse ou de danger, appelle escalate_to_advisor. " +
   "N'invente JAMAIS le résultat, n'écris pas de réponse en prose, ne décris pas l'action. " +
   'ACTIONS D\'ÉCRITURE (réserver, postuler, emprunter) en 2 temps : 1) à la demande, appelle ' +
   "l'outil d'écriture avec confirm=false (récap) ; 2) quand la personne CONFIRME (« oui », « vas-y », " +
@@ -447,10 +450,8 @@ function maxRoundsEscaladeBlock(reference: string): YayeBlock {
   return {
     kind: 'escalade',
     reference,
-    title: 'Demande transmise à un conseiller',
-    message:
-      'Un conseiller du CJS va prendre le relais et te répondra ici même. ' +
-      'Garde cette référence si tu veux la rappeler.',
+    title: escaladeTitre({ dejaEnCours: false }),
+    message: escaladeMessage({ danger: false, dejaEnCours: false }),
   }
 }
 
@@ -466,7 +467,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     canal: p.canal,
   }
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       // Danger repéré → on FORCE l'escalade conseiller (crée la trace + notifie), même si le modèle l'aurait ratée.
@@ -483,8 +484,10 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
   const messages = buildMessages({ ...p, graphContext })
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
@@ -629,7 +632,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
 
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       const gstate: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
@@ -647,8 +650,10 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
   const messages = buildMessages({ ...p, graphContext })
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
