@@ -1,24 +1,16 @@
-# CURRENT_TASK — GUIC-680
+# CURRENT_TASK — GUIC-682 (stacké sur GUIC-680)
 
-**Épic** GUIC-679 · Refonte console admin — langage « registre » + thème clair/sombre
-**Story** GUIC-680 · Fondation thème clair/sombre + Tableau de bord au langage registre
-**Branche** `feature/GUIC-680-refonte-admin-dashboard-theme` (worktree `.claude/worktrees/admin-refonte`, depuis `origin/dev`)
-**Spec** `.agent_context/specs/admin-console-refonte.md` §2.1
+**Épic** GUIC-679 · Story GUIC-682 · Centres en grille de cartes letterhead (registre)
+**Branche** `feature/GUIC-682-refonte-admin-centres` (worktree `admin-refonte`, depuis GUIC-680, indépendante de 681)
 
-## Décisions (validées avec le lead)
-- Thèmes **clair + sombre commutables** (défaut = **clair**, = état réel actuel du contenu admin → non-breaking).
-- Paradigme **cartes-grille + slide-over** (adopté progressivement, écran par écran).
-- Portée thème = **contenu admin uniquement** (`[data-admin-theme="dark"]`), sans impacter jeune/recruteur/conseiller.
-- 1 écran = 1 PR vers `dev`. Retrait du rail `accent` de `Card` = **ticket séparé** (blast radius tous espaces).
-
-## Plan d'exécution (incréments)
-1. **Fondation thème** *(en cours)* : helper pur testé (`src/lib/admin-theme.ts`) · tokens `--gj-edge`/`--gj-lift` + scope `[data-admin-theme="dark"]` dans `tokens.css`.
-2. **Toggle UI** : `ThemeToggle` (primitive) + provider client dans le layout admin, wiring topbar.
-3. **Dashboard registre** : cartes plates edge/lift, en-têtes teintés, call-outs, en clair ET sombre.
-4. **Vérif** : `npm run validate` + `tsc` + Playwright 2 thèmes 0 erreur.
+## Incréments
+1. ✅ Helper `centre-accent` (accent par région, réutilise `*-soft`/`*-ink` existants — pas de nouveau token → pas de conflit tokens.css entre branches). TDD 4/4.
+2. ✅ `CentreCard` (letterhead région + stats Jeunes/Agents + footer Ressources/Éditer/Supprimer, **zéro hex**). TDD 5/5. Story. Visuel clair+sombre OK.
+3. ⏳ **Rewire `centres-admin-table.tsx`** (506 l.) → grille de `CentreCard` (garder Ajouter + skeleton + modal + toast + delete). Map CentreRow→CentreCardData (jeunes=_count.profilsRattaches, agents=_count.agents).
+4. ⏳ **Réécrire `tests/unit/admin-centres.test.tsx`** : retirer sentinelle anti-doublon desktop/mobile + en-têtes colonnes ; garder no-hex, prefill édition, delete error/success, create, empty. MAJ « ≥2 par centre » → 1 grille.
+5. ⏳ Suite complète + tsc + build, puis commits RED/GREEN + push miroir.
 
 ## Garde-fous
-- TDD strict : commit `test(RED)` séparé AVANT `feat(GREEN)`.
-- `npm run validate` avant commit ; `tsc` complet avant push.
-- **Ne pas committer/push sans go explicite du lead.**
-- Commits `feat|test(m8-admin): [GUIC-680] …` + `Closes GUIC-680`, auteur `mod-cjs`, zéro mention IA.
+- TDD ; hook pre-commit `tests/**` → bypass documenté `SKIP_TDD_CHECK=1` sur GREEN.
+- Suite complète locale AVANT push (attrape régressions). Ne pas régresser delete/edit/create.
+- Commits `[GUIC-682]` + `Closes GUIC-682`, `mod-cjs`, zéro mention IA. Push mouhammadouod uniquement.

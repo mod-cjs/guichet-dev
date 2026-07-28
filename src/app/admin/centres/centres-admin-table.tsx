@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
-import { regionLabel } from '@/lib/regions'
 import { Region } from '@prisma/client'
 import { CentreFormModal } from './CentreFormModal'
 import { supprimerCentre } from './actions'
+import { CentreCard } from '@/components/ui/CentreCard'
 
 // Grille du tableau desktop : Centre · Jeunes · Agents · Actions.
 // (Les colonnes « Insertions/mois » et « Taux d'insertion » ont été retirées :
@@ -210,275 +209,42 @@ export function CentresAdminTable({ centres, total }: CentresAdminTableProps) {
           </Button>
         </div>
 
-        {/* ── Desktop table ───────────────────────────────────────────────── */}
-        <div
-          className="hidden md:block"
-          style={{
-            background: 'var(--gj-surface)',
-            border: '1.5px solid var(--gj-line)',
-            borderRadius: 14,
-            overflow: 'hidden',
-          }}
-          aria-label="Liste des centres CJS"
-        >
-          {/* Header row */}
+        {/* ── Grille de cartes letterhead (GUIC-682) ────────────────────── */}
+        {centres.length === 0 ? (
           <div
-            role="row"
-            aria-rowindex={1}
+            aria-label="Liste des centres CJS"
             style={{
-              display: 'grid',
-              gridTemplateColumns: GRID,
-              gap: 14,
-              padding: '12px 18px',
-              borderBottom: '1.5px solid var(--gj-line)',
-              background: 'var(--gj-bg)',
-              fontSize: 10.5,
-              fontWeight: 800,
+              background: 'var(--gj-surface)',
+              border: '1.5px solid var(--gj-line)',
+              borderRadius: 14,
+              padding: '48px 18px',
+              textAlign: 'center',
               color: 'var(--gj-grey)',
-              textTransform: 'uppercase',
-              letterSpacing: '.4px',
+              fontSize: 14,
             }}
           >
-            <span>Centre</span>
-            <span>Jeunes</span>
-            <span>Agents</span>
-            <span>Actions</span>
+            <Icon name="pin" size={40} style={{ color: 'var(--gj-line-strong)', display: 'block', margin: '0 auto 12px' }} />
+            Aucun centre dans le réseau.
           </div>
-
-          {/* Empty state */}
-          {centres.length === 0 && (
-            <div
-              style={{
-                padding: '48px 18px',
-                textAlign: 'center',
-                color: 'var(--gj-grey)',
-                fontSize: 14,
-              }}
-            >
-              <Icon
-                name="pin"
-                size={40}
-                style={{ color: 'var(--gj-line-strong)', display: 'block', margin: '0 auto 12px' }}
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[14px]" aria-label="Liste des centres CJS">
+            {centres.map((centre) => (
+              <CentreCard
+                key={centre.id}
+                centre={{
+                  id: centre.id,
+                  nom: centre.nom,
+                  region: centre.region,
+                  estActif: centre.estActif,
+                  jeunes: centre._count.profilsRattaches,
+                  agents: centre._count.agents,
+                }}
+                onEdit={() => openEdit(centre)}
+                onDelete={() => handleDelete(centre)}
               />
-              Aucun centre dans le réseau.
-            </div>
-          )}
-
-          {/* Data rows */}
-          {centres.map((centre) => {
-            const jeunes = centre._count.profilsRattaches
-            const agents = centre._count.agents
-            const label = regionLabel(centre.region) ?? centre.region
-
-            return (
-              <div
-                key={centre.id}
-                role="row"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: GRID,
-                  gap: 14,
-                  padding: '13px 18px',
-                  borderBottom: '1px solid var(--gj-line)',
-                  alignItems: 'center',
-                }}
-              >
-                {/* Centre col */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 9,
-                      flexShrink: 0,
-                      background: 'var(--gj-teal-soft)',
-                      color: 'var(--gj-teal-deep)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon name="pin" size={16} />
-                  </span>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 800,
-                        color: 'var(--gj-ink)',
-                      }}
-                    >
-                      {centre.nom}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--gj-grey)' }}>{label}</div>
-                  </div>
-                </div>
-
-                {/* Jeunes */}
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)' }}>
-                  {jeunes.toLocaleString('fr-FR')}
-                </span>
-
-                {/* Agents */}
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-grey)' }}>
-                  {agents}
-                </span>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 6, justifySelf: 'end' }}>
-                  <Link
-                    href={`/admin/centres/${centre.id}/ressources`}
-                    aria-label={`Ressources de ${centre.nom}`}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: '1.5px solid var(--gj-line)',
-                      background: 'var(--gj-surface)',
-                      color: 'var(--gj-teal-deep)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon name="resources" size={15} />
-                  </Link>
-                  <button
-                    type="button"
-                    aria-label="Modifier"
-                    onClick={() => openEdit(centre)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: '1.5px solid var(--gj-line)',
-                      background: 'var(--gj-surface)',
-                      color: 'var(--gj-teal-deep)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon name="settings" size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Supprimer"
-                    onClick={() => handleDelete(centre)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: '1.5px solid var(--gj-line)',
-                      background: 'var(--gj-surface)',
-                      color: 'var(--gj-red)',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon name="block" size={15} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* ── Mobile card list ─────────────────────────────────────────────── */}
-        <div
-          className="md:hidden flex flex-col"
-          style={{ gap: 10, marginTop: 12 }}
-          aria-label="Liste des centres (vue mobile)"
-        >
-          {centres.length === 0 && (
-            <p
-              style={{
-                padding: '32px 0',
-                textAlign: 'center',
-                color: 'var(--gj-grey)',
-                fontSize: 14,
-              }}
-            >
-              Aucun centre dans le réseau.
-            </p>
-          )}
-          {centres.map((centre) => {
-            const jeunes = centre._count.profilsRattaches
-            const agents = centre._count.agents
-            const label = regionLabel(centre.region) ?? centre.region
-
-            return (
-              <div
-                key={centre.id}
-                style={{
-                  background: 'var(--gj-surface)',
-                  border: '1px solid var(--gj-line)',
-                  borderRadius: 13,
-                  padding: 13,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                  <span
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 10,
-                      flexShrink: 0,
-                      background: 'var(--gj-teal-soft)',
-                      color: 'var(--gj-teal-deep)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon name="pin" size={18} />
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{ fontSize: 14, fontWeight: 800, color: 'var(--gj-ink)' }}
-                    >
-                      {centre.nom}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--gj-grey)' }}>
-                      {label} · {jeunes.toLocaleString('fr-FR')} jeunes · {agents} agents
-                    </div>
-                  </div>
-                </div>
-
-                {/* H2 — actions accessibles aussi sur mobile (était lecture seule) */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(centre)}
-                    style={{
-                      flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      minHeight: 38, borderRadius: 9, border: '1.5px solid var(--gj-line)',
-                      background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)',
-                      fontSize: 12.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    <Icon name="settings" size={15} /> Modifier
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(centre)}
-                    aria-label={`Supprimer ${centre.nom}`}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 44, minHeight: 38, borderRadius: 9, border: '1.5px solid var(--gj-line)',
-                      background: 'var(--gj-surface)', color: 'var(--gj-red)', cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    <Icon name="block" size={15} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>
