@@ -42,10 +42,23 @@ interface ProgrammeLecteur {
   }
 }
 
-/** Sous-ensemble du délégué d'une table de jonction (forme commune aux 3). */
-interface JonctionDelegate {
-  deleteMany(args: { where: Record<string, string> }): Promise<unknown>
-  createMany(args: { data: Record<string, string | boolean>[] }): Promise<unknown>
+/** Une ligne de rattachement, indépendamment de la table de destination. */
+export interface RattachementRow {
+  programmeId: string
+  principal: boolean
+}
+
+/**
+ * Port d'écriture vers une table de jonction. Les délégués Prisma sont typés par
+ * table (`RessourceProgrammeCreateManyInput`…), donc non interchangeables : chaque
+ * appelant fournit deux fermetures typées plutôt qu'un délégué transtypé. Aucun
+ * `as` ne traverse cette frontière.
+ */
+export interface JonctionPort {
+  /** Supprime tous les rattachements de l'entité. */
+  purge(): Promise<unknown>
+  /** Crée les rattachements (la clé étrangère est ajoutée par l'appelant). */
+  creer(rows: RattachementRow[]): Promise<unknown>
 }
 
 export interface ReplaceProgrammesOptions {
@@ -65,17 +78,13 @@ export function assertAuMoinsUnProgramme(slugs: string[] | undefined | null): as
 /**
  * Remplace l'intégralité des rattachements d'une entité (purge puis recréation).
  *
- * @param tx        client Prisma (ou transaction) — sert à résoudre les slugs
- * @param jonction  délégué de la table de jonction (`tx.opportuniteProgramme`…)
- * @param cleEntite nom de la clé étrangère côté entité (`opportuniteId`…)
- * @param entiteId  identifiant de l'entité rattachée
- * @param slugs     slugs des programmes — au moins un, doublons tolérés
+ * @param tx      client Prisma (ou transaction) — sert à résoudre les slugs
+ * @param port    écriture vers la table de jonction de l'entité concernée
+ * @param slugs   slugs des programmes — au moins un, doublons tolérés
  */
 export async function replaceProgrammes(
   tx: ProgrammeLecteur,
-  jonction: JonctionDelegate,
-  cleEntite: string,
-  entiteId: string,
+  port: JonctionPort,
   slugs: string[],
   options: ReplaceProgrammesOptions = {},
 ): Promise<void> {
@@ -100,14 +109,13 @@ export async function replaceProgrammes(
       ? options.principalSlug
       : demandes[0]
 
-  await jonction.deleteMany({ where: { [cleEntite]: entiteId } })
-  await jonction.createMany({
-    data: demandes.map((slug) => ({
-      [cleEntite]: entiteId,
+  await port.purge()
+  await port.creer(
+    demandes.map((slug) => ({
       programmeId: parSlug.get(slug) as string,
       principal: slug === principal,
     })),
-  })
+  )
 }
 
 /** Extrait le slug du programme principal d'une liste de rattachements chargée. */

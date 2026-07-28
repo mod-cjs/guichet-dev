@@ -106,7 +106,7 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     expect(item?.statut).toBe('approuvee')
 
     // ── US-6 : PUBLICATION (→ Opportunite brouillon) ───────────────────────
-    const { opportuniteId } = await publierItem(item!.id)
+    const { opportuniteId } = await publierItem(item!.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, include: { typeRef: true } })
     expect(opp?.statut).toBe('brouillon')
     expect(opp?.titre).toBe(`${PREFIX} Développeur`)

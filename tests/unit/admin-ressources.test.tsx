@@ -254,21 +254,36 @@ describe('GUIC-455 — AdminRessourcesTable Lot 11 contenu médiathèque', () =>
   })
 })
 
+// GUIC-684 — rattachement obligatoire : le formulaire reçoit les programmes actifs.
+const PROGRAMMES = [{ slug: 'yeah', nom: 'YEAH' }, { slug: 'edupop', nom: 'EduPop' }]
+
 describe('GUIC-463 — RessourceFormModal', () => {
   it('given création + champs remplis, when submit, then appelle creerRessource', async () => {
-    render(<RessourceFormModal isOpen onClose={() => {}} />)
+    render(<RessourceFormModal isOpen onClose={() => {}} programmes={PROGRAMMES} />)
     fireEvent.change(screen.getByLabelText(/^titre/i), { target: { value: 'Nouveau guide' } })
     // La description est un éditeur riche (Tiptap) — non pilotable via fireEvent.change
     // en jsdom ; ce test vérifie titre + url, pas le corps riche.
     fireEvent.change(screen.getByLabelText(/^thème/i), { target: { value: 'Emploi' } })
     fireEvent.change(screen.getByLabelText(/URL/i), { target: { value: 'https://example.org/x.pdf' } })
+    fireEvent.click(screen.getByRole('button', { name: 'YEAH' }))
     fireEvent.click(screen.getByRole('button', { name: /créer/i }))
     await waitFor(() => expect(mockCreer).toHaveBeenCalledTimes(1))
-    expect(mockCreer.mock.calls[0][0]).toMatchObject({ titre: 'Nouveau guide', url: 'https://example.org/x.pdf' })
+    expect(mockCreer.mock.calls[0][0]).toMatchObject({
+      titre: 'Nouveau guide',
+      url: 'https://example.org/x.pdf',
+      programmeSlugs: ['yeah'],
+    })
   })
 
   it('given édition, when submit, then appelle modifierRessource(id, …)', async () => {
-    render(<RessourceFormModal isOpen onClose={() => {}} ressource={MOCK_RESSOURCES[0]} />)
+    render(
+      <RessourceFormModal
+        isOpen
+        onClose={() => {}}
+        programmes={PROGRAMMES}
+        ressource={{ ...MOCK_RESSOURCES[0], programmeSlugs: ['yeah'] }}
+      />,
+    )
     fireEvent.click(screen.getByRole('button', { name: /enregistrer/i }))
     await waitFor(() => expect(mockModifier).toHaveBeenCalledTimes(1))
     expect(mockModifier.mock.calls[0][0]).toBe('r1')

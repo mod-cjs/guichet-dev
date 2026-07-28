@@ -22,12 +22,14 @@ const programmeModel = {
   findMany: jest.fn() as MockFn,
 }
 
-/** Délégué de jonction (forme commune aux 3 tables). */
-function makeJonction() {
+/**
+ * Port de jonction : deux fermetures fournies par l'appelant (la clé étrangère est
+ * de sa responsabilité), ce qui évite de transtyper les délégués Prisma typés par table.
+ */
+function makePort() {
   return {
-    deleteMany: jest.fn() as MockFn,
-    createMany: jest.fn() as MockFn,
-    findMany: jest.fn() as MockFn,
+    purge: jest.fn() as MockFn,
+    creer: jest.fn() as MockFn,
   }
 }
 
@@ -46,11 +48,11 @@ import {
 } from '@/lib/programmes/rattachement'
 
 describe('replaceProgrammes — rattachement générique', () => {
-  let jonction: ReturnType<typeof makeJonction>
+  let port: ReturnType<typeof makePort>
 
   beforeEach(() => {
     jest.clearAllMocks()
-    jonction = makeJonction()
+    port = makePort()
     programmeModel.findMany.mockResolvedValue(PROGRAMMES)
   })
 
@@ -59,67 +61,58 @@ describe('replaceProgrammes — rattachement générique', () => {
   }
 
   it('purge les rattachements existants avant de recréer (pas d’accumulation)', async () => {
-    await replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', ['yeah'])
+    await replaceProgrammes(tx(), port, ['yeah'])
 
-    expect(jonction.deleteMany).toHaveBeenCalledWith({ where: { opportuniteId: 'o-1' } })
-    const ordre = jonction.deleteMany.mock.invocationCallOrder[0]
-    expect(jonction.createMany.mock.invocationCallOrder[0]).toBeGreaterThan(ordre)
+    expect(port.purge).toHaveBeenCalled()
+    const ordre = port.purge.mock.invocationCallOrder[0]
+    expect(port.creer.mock.invocationCallOrder[0]).toBeGreaterThan(ordre)
   })
 
   it('rend le PREMIER programme principal quand aucun n’est désigné', async () => {
-    await replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', ['yeah', 'edupop'])
+    await replaceProgrammes(tx(), port, ['yeah', 'edupop'])
 
-    expect(jonction.createMany).toHaveBeenCalledWith({
-      data: [
-        { opportuniteId: 'o-1', programmeId: 'p-yeah', principal: true },
-        { opportuniteId: 'o-1', programmeId: 'p-edupop', principal: false },
-      ],
-    })
+    expect(port.creer).toHaveBeenCalledWith([
+      { programmeId: 'p-yeah', principal: true },
+      { programmeId: 'p-edupop', principal: false },
+    ])
   })
 
   it('respecte le principal explicitement désigné', async () => {
-    await replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', ['yeah', 'edupop'], {
-      principalSlug: 'edupop',
-    })
+    await replaceProgrammes(tx(), port, ['yeah', 'edupop'], { principalSlug: 'edupop' })
 
-    expect(jonction.createMany).toHaveBeenCalledWith({
-      data: [
-        { opportuniteId: 'o-1', programmeId: 'p-yeah', principal: false },
-        { opportuniteId: 'o-1', programmeId: 'p-edupop', principal: true },
-      ],
-    })
+    expect(port.creer).toHaveBeenCalledWith([
+      { programmeId: 'p-yeah', principal: false },
+      { programmeId: 'p-edupop', principal: true },
+    ])
   })
 
   it('n’écrit JAMAIS deux principaux, même si le slug principal est dupliqué', async () => {
-    await replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', ['yeah', 'yeah', 'edupop'])
+    await replaceProgrammes(tx(), port, ['yeah', 'yeah', 'edupop'])
 
-    const { data } = jonction.createMany.mock.calls[0][0]
-    expect(data.filter((r: { principal: boolean }) => r.principal)).toHaveLength(1)
+    const rows = port.creer.mock.calls[0][0]
+    expect(rows.filter((r: { principal: boolean }) => r.principal)).toHaveLength(1)
     // Doublon écarté : 2 lignes, pas 3 (la PK composite refuserait le doublon).
-    expect(data).toHaveLength(2)
+    expect(rows).toHaveLength(2)
   })
 
   it('refuse une liste vide — un contenu doit relever d’au moins un programme', async () => {
-    await expect(
-      replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', []),
-    ).rejects.toBeInstanceOf(ProgrammeRequisError)
-    expect(jonction.deleteMany).not.toHaveBeenCalled()
+    await expect(replaceProgrammes(tx(), port, [])).rejects.toBeInstanceOf(ProgrammeRequisError)
+    expect(port.purge).not.toHaveBeenCalled()
   })
 
   it('refuse un slug inconnu plutôt que de perdre le rattachement en silence', async () => {
     await expect(
-      replaceProgrammes(tx(), jonction as never, 'opportuniteId', 'o-1', ['yeah', 'inexistant']),
+      replaceProgrammes(tx(), port, ['yeah', 'inexistant']),
     ).rejects.toBeInstanceOf(ProgrammeInconnuError)
-    expect(jonction.createMany).not.toHaveBeenCalled()
+    expect(port.creer).not.toHaveBeenCalled()
+    // La purge non plus : on n'ampute pas les rattachements existants sur une erreur.
+    expect(port.purge).not.toHaveBeenCalled()
   })
 
-  it('fonctionne à l’identique sur une autre entité (clé étrangère paramétrée)', async () => {
-    await replaceProgrammes(tx(), jonction as never, 'ressourceId', 'r-9', ['yjc'])
+  it('reste agnostique de l’entité — le port porte la clé étrangère', async () => {
+    await replaceProgrammes(tx(), port, ['yjc'])
 
-    expect(jonction.deleteMany).toHaveBeenCalledWith({ where: { ressourceId: 'r-9' } })
-    expect(jonction.createMany).toHaveBeenCalledWith({
-      data: [{ ressourceId: 'r-9', programmeId: 'p-yjc', principal: true }],
-    })
+    expect(port.creer).toHaveBeenCalledWith([{ programmeId: 'p-yjc', principal: true }])
   })
 })
 

@@ -19,10 +19,12 @@ import { EvenementFormModal } from '@/app/admin/evenements/EvenementFormModal'
 import { creerEvenement } from '@/app/admin/evenements/actions'
 
 const CENTRES = [{ id: 'c1', nom: 'Dakar Plateau' }, { id: 'c2', nom: 'Guédiawaye' }]
+// GUIC-684 — rattachement obligatoire : le formulaire reçoit les programmes actifs.
+const PROGRAMMES = [{ slug: 'edupop', nom: 'EduPop' }, { slug: 'yjc', nom: 'YJC' }]
 
 describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
   it('propose le type « Cours » et un sélecteur de centre', () => {
-    render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} />)
+    render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} programmes={PROGRAMMES} />)
     expect(screen.getByRole('option', { name: 'Cours' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Centre \(cours\/session/)).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Guédiawaye' })).toBeInTheDocument()
@@ -32,7 +34,7 @@ describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
     // delay: null → pas de setTimeout entre frappes ; évite que le remplissage du
     // formulaire soit affamé en CPU sous forte parallélisation (submit non déclenché).
     const user = userEvent.setup({ delay: null })
-    render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} />)
+    render(<EvenementFormModal isOpen onClose={() => {}} centres={CENTRES} programmes={PROGRAMMES} />)
     await user.type(screen.getByLabelText(/^Titre/), 'Préparation BAC')
     // La description est un éditeur riche (Tiptap) — non simulable en jsdom ;
     // ce test vérifie le passage de type + centreId, pas le corps riche.
@@ -40,11 +42,13 @@ describe('GUIC-474 — EvenementFormModal (cours au centre)', () => {
     await user.type(screen.getByLabelText(/Date de début/), '2026-07-10T09:00')
     await user.type(screen.getByLabelText(/^Lieu/), 'Salle 2')
     await user.selectOptions(screen.getByLabelText(/Centre \(cours\/session/), 'c2')
+    await user.click(screen.getByRole('button', { name: 'EduPop' }))
     await user.click(screen.getByRole('button', { name: /Créer/ }))
 
     expect(creerEvenement).toHaveBeenCalledTimes(1)
     const arg = (creerEvenement as jest.Mock).mock.calls[0][0]
     expect(arg.type).toBe('Cours')
     expect(arg.centreId).toBe('c2')
+    expect(arg.programmeSlugs).toEqual(['edupop'])
   })
 })

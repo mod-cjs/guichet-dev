@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
 import { OpportuniteForm } from '../OpportuniteForm'
 import { SUBTYPE_SLUGS, loadFormTypes } from '../form-types'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = { title: 'Nouvelle opportunité — Admin CJS' }
 
@@ -14,7 +15,10 @@ export default async function Page() {
   const session = await getSession()
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
-  const types = await loadFormTypes(prisma)
+  const [types, programmes] = await Promise.all([
+    loadFormTypes(prisma),
+    loadProgrammeOptions(prisma),
+  ])
 
   return (
     <div className="container-page py-space-6 max-w-[var(--gj-container-md)]">
@@ -26,7 +30,10 @@ export default async function Page() {
         Retour à la gestion
       </Link>
       <h1 className="text-fs-500 font-black text-color-text-primary mb-space-4">Nouvelle opportunité</h1>
-      <OpportuniteForm types={types.length ? types : SUBTYPE_SLUGS.map((s) => ({ slug: s, libelle: s }))} />
+      <OpportuniteForm
+        types={types.length ? types : SUBTYPE_SLUGS.map((s) => ({ slug: s, libelle: s }))}
+        programmes={programmes}
+      />
     </div>
   )
 }

@@ -301,6 +301,7 @@ type Tx = Pick<
   | 'opportuniteVolontariat'
   | 'opportuniteSkill'
   | 'opportuniteTag'
+  | 'opportuniteProgramme'
 >
 
 /** Sync KG en arrière-plan (import paresseux + fail-soft) — ne bloque jamais l'écriture. */
@@ -485,10 +486,12 @@ export class OpportuniteService {
    */
   private async replaceProgrammes(tx: Tx, opportuniteId: string, base: Partial<BaseInput>): Promise<void> {
     await replaceProgrammes(
-      tx as unknown as Parameters<typeof replaceProgrammes>[0],
-      (tx as unknown as { opportuniteProgramme: Parameters<typeof replaceProgrammes>[1] }).opportuniteProgramme,
-      'opportuniteId',
-      opportuniteId,
+      tx,
+      {
+        purge: () => tx.opportuniteProgramme.deleteMany({ where: { opportuniteId } }),
+        creer: (rows) =>
+          tx.opportuniteProgramme.createMany({ data: rows.map((r) => ({ opportuniteId, ...r })) }),
+      },
       base.programmeSlugs ?? [],
       { principalSlug: base.programmePrincipalSlug ?? null },
     )

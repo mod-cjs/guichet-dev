@@ -8,6 +8,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { sanitizeRichHtml } from '@/lib/sanitize-html'
+import { replaceProgrammes, assertAuMoinsUnProgramme } from '@/lib/programmes/rattachement'
 import type { CJSSession } from '@/types/user'
 
 /** Garde de rôle — fail-closed. Retourne la session (acteur d'audit). */
@@ -32,6 +33,9 @@ const evenementSchema = z.object({
   centreId: z.string().trim().optional().nullable(),
   capaciteMax: z.coerce.number().int().positive().optional().nullable(),
   estGratuit: z.boolean().optional().default(true),
+  // GUIC-684 — rattachement aux programmes sectoriels (au moins un, décision PO).
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().optional().nullable(),
 })
 type EvenementInput = z.input<typeof evenementSchema>
 
@@ -64,12 +68,39 @@ async function assertCentre(centreId: string | null | undefined): Promise<void> 
   if (!c) throw new Error('CENTRE_INTROUVABLE')
 }
 
+/** Transaction Prisma restreinte aux délégués utilisés ici. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+/** GUIC-684 — (re)pose les rattachements aux programmes dans la transaction courante. */
+async function rattacherProgrammes(
+  tx: Tx,
+  evenementId: string,
+  data: { programmeSlugs: string[]; programmePrincipalSlug?: string | null },
+): Promise<void> {
+  await replaceProgrammes(
+    tx,
+    {
+      purge: () => tx.evenementProgramme.deleteMany({ where: { evenementId } }),
+      creer: (rows) => tx.evenementProgramme.createMany({ data: rows.map((r) => ({ evenementId, ...r })) }),
+    },
+    data.programmeSlugs,
+    { principalSlug: data.programmePrincipalSlug ?? null },
+  )
+}
+
 /** Créer un événement (admin). */
 export async function creerEvenement(input: EvenementInput): Promise<{ id: string }> {
   await assertAdmin()
   const data = evenementSchema.parse(input)
+  assertAuMoinsUnProgramme(data.programmeSlugs)
   await assertCentre(data.centreId)
-  const e = await prisma.evenement.create({ data: toData(data), select: { id: true } })
+
+  // Transaction : un événement sans rattachement ne doit jamais exister en base.
+  const e = await prisma.$transaction(async (tx) => {
+    const created = await tx.evenement.create({ data: toData(data), select: { id: true } })
+    await rattacherProgrammes(tx, created.id, data)
+    return created
+  })
   revalidate()
   return e
 }
@@ -79,8 +110,13 @@ export async function modifierEvenement(id: string, input: EvenementInput): Prom
   await assertAdmin()
   const eid = idSchema.parse(id)
   const data = evenementSchema.parse(input)
+  assertAuMoinsUnProgramme(data.programmeSlugs)
   await assertCentre(data.centreId)
-  await prisma.evenement.update({ where: { id: eid }, data: toData(data) })
+
+  await prisma.$transaction(async (tx) => {
+    await tx.evenement.update({ where: { id: eid }, data: toData(data) })
+    await rattacherProgrammes(tx, eid, data)
+  })
   revalidate()
   return { ok: true }
 }

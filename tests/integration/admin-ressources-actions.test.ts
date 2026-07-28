@@ -35,6 +35,8 @@ const valid = {
   url: 'https://example.org/guide.pdf',
   categorie: 'Démarches',
   estPublic: true,
+  // GUIC-684 — rattachement obligatoire à au moins un programme.
+  programmeSlugs: ['yeah'],
 }
 
 const created: string[] = []
