@@ -7,11 +7,15 @@
  * pour couvrir un catalogue de 4 200 offres. Sept nuits pendant lesquelles la recherche
  * sémantique reste muette sur l'essentiel du catalogue.
  *
- * En passant à l'heure, l'amorçage se termine dans la JOURNÉE qui suit le déploiement,
- * sans que personne ait à lancer quoi que ce soit. Et une fois le catalogue couvert, le
- * cron devient un no-op de quelques centaines de millisecondes : il ne s'arrête pas pour
- * autant, car il vectorise ensuite les offres publiées dans la journée, sans attendre la
- * nuit suivante.
+ * En passant à l'heure, l'amorçage se termine dans la JOURNÉE qui suit le déploiement.
+ * Et une fois le catalogue couvert, le cron devient un no-op de quelques centaines de
+ * millisecondes : il ne s'arrête pas pour autant, car il vectorise ensuite les offres
+ * publiées dans la journée, sans attendre la nuit suivante.
+ *
+ * ⚠️ PRÉREQUIS OVH (piège B8 de la checklist go-live) : sur OVH, Vercel Cron n'existe plus.
+ * Déclarer la tâche dans `scripts/cron/jobs.json` ne suffit pas — il faut RÉGÉNÉRER ET
+ * INSTALLER le crontab serveur (`scripts/cron/generate-crontab.sh`). Sans cette étape,
+ * AUCUN cron du Guichet ne s'exécute, celui-ci comme les autres.
  *
  * ⚠️ FAIL-SOFT en aval : `warmSkillVectors` et `warmOpportuniteVectors` n'échouent jamais
  * pour une raison métier (endpoint muet, quota, base indisponible) — elles rendent un
@@ -25,7 +29,12 @@ import { logger } from '@/lib/logger'
 import { warmOpportuniteVectors, warmSkillVectors } from '@/lib/ia/search-warmup'
 import type { ApiResponse } from '@/types/api'
 
-/** Le préchauffage se borne lui-même à 180 s ; on laisse de la marge à la fonction. */
+/**
+ * Borne de durée. En PRODUCTION (OVH), les tâches sont lancées par un crontab système via
+ * `scripts/cron/run-job.sh`, qui n'impose aucune limite : la vraie protection est le budget
+ * de temps du préchauffage lui-même (180 s par défaut), calibré pour qu'un passage se termine
+ * bien avant le suivant. Cette valeur ne sert qu'aux déploiements de type Vercel.
+ */
 export const maxDuration = 300
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
