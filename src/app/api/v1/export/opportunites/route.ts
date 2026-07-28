@@ -34,6 +34,7 @@ const EXPORT_INCLUDE = {
   volontariat: true,
   skills: { include: { skill: true } },
   tags: { include: { tag: true } },
+  programmes: { include: { programme: true } },
 } as const
 
 type ExportResponse = NextResponse<ApiResponse<OpportuniteExportDTO[]>>

@@ -67,7 +67,7 @@ function typeRef(slug: string, actionLabel = 'Postuler'): OpportuniteRow['typeRe
   }
 }
 
-function progRef(slug: string): OpportuniteRow['programme'] {
+function progRef(slug: string): NonNullable<OpportuniteRow['programme']> {
   return {
     id: `prog-${slug}`,
     slug,
@@ -191,6 +191,31 @@ describe('toOpportuniteDetailDTO', () => {
     expect(out.skills).toEqual([{ slug: 'react', libelle: 'React', requise: true }])
     expect(out.tags).toEqual([{ slug: 'urgent', libelle: 'Urgent' }])
   })
+
+  // GUIC-684 — rattachement M:N : `programmes` est la nouvelle source, `programme`
+  // (singulier) reste servi depuis le PRINCIPAL pour préserver le contrat existant.
+  it('expose tous les programmes rattachés et dérive `programme` du principal', () => {
+    const row = baseRow({
+      typeRef: typeRef('formation'),
+      programmes: [
+        { principal: false, programme: progRef('edupop') },
+        { principal: true, programme: progRef('yeah') },
+      ],
+    })
+    const out = toOpportuniteDetailDTO(row)
+    expect(out.programmes).toEqual([
+      { slug: 'edupop', nom: 'Programme edupop' },
+      { slug: 'yeah', nom: 'Programme yeah' },
+    ])
+    expect(out.programme).toEqual({ slug: 'yeah', nom: 'Programme yeah' })
+  })
+
+  it('retombe sur la colonne dépréciée tant qu’une row n’est pas backfillée', () => {
+    const row = baseRow({ typeRef: typeRef('stage'), programme: progRef('yjc') })
+    const out = toOpportuniteDetailDTO(row)
+    expect(out.programme).toEqual({ slug: 'yjc', nom: 'Programme yjc' })
+    expect(out.programmes).toEqual([{ slug: 'yjc', nom: 'Programme yjc' }])
+  })
 })
 
 // ─── toOpportuniteExportDTO (Data Hub aplati) ──────────────────────────────
@@ -223,6 +248,7 @@ describe('toOpportuniteExportDTO', () => {
     const out = toOpportuniteExportDTO(row)
     expect(out.type).toBe('emploi')
     expect(out.programme_slug).toBe('yaakaar')
+    expect(out.programmes_slugs).toEqual(['yaakaar'])
     expect(out.emploi_type_contrat).toBe('CDI')
     expect(out.emploi_duree_contrat_mois).toBe(24)
     expect(out.emploi_teletravail).toBe(true)

@@ -45,6 +45,7 @@ import type {
   TypeMobilite,
   TypeVolontariat,
 } from '@prisma/client'
+import { replaceProgrammes } from '@/lib/programmes/rattachement'
 
 // ─────────────────────────────────────────────
 // Types entrée (création)
@@ -70,8 +71,14 @@ export interface BaseInput {
   mission?: string | null
   profilRecherche?: string | null
   conditions?: string | null
-  /** Slug du programme sectoriel — résolu en `programmeId` dans la transaction. */
-  programmeSlug?: string | null
+  /**
+   * Slugs des programmes sectoriels de rattachement (GUIC-684 — M:N).
+   * Le premier devient `principal` sauf désignation explicite via `programmePrincipalSlug`.
+   * Au moins un est exigé à la création.
+   */
+  programmeSlugs?: string[]
+  /** Programme à marquer principal parmi `programmeSlugs` (défaut : le premier). */
+  programmePrincipalSlug?: string | null
   organisationId?: string | null
   organisationLibelle: string
   domaine: Domaine
@@ -184,9 +191,11 @@ export type CreateOpportuniteInput =
 
 interface OpportuniteCore extends Opportunite {
   typeRef: OpportuniteType | null
+  /** Rattachement 1:N historique — DÉPRÉCIÉ (GUIC-684), lire `programmes`. */
   programme: Programme | null
   skills: (OpportuniteSkill & { skill: Skill })[]
   tags: (OpportuniteTag & { tag: Tag })[]
+  programmes: { principal: boolean; programme: Programme }[]
 }
 
 export type OpportuniteAvecDetails =
@@ -257,6 +266,7 @@ const DETAIL_INCLUDE = {
   volontariat: true,
   skills: { include: { skill: true } },
   tags: { include: { tag: true } },
+  programmes: { include: { programme: true } },
 } satisfies Prisma.OpportuniteInclude
 
 export interface ListFilter {
@@ -313,8 +323,6 @@ export class OpportuniteService {
       if (!type) {
         throw new Error(`OpportuniteType introuvable pour slug=${input.type}`)
       }
-      const programmeId = await this.resolveProgrammeId(tx as unknown as Tx, input.base.programmeSlug)
-
       const created = await tx.opportunite.create({
         data: {
           slug: input.base.slug,
@@ -327,7 +335,6 @@ export class OpportuniteService {
           type: legacyTypeFromSlug(input.type),
           organisation: input.base.organisationLibelle,
           typeId: type.id,
-          programmeId,
           organisationId: input.base.organisationId ?? null,
           organisationLibelle: input.base.organisationLibelle,
           niveauEtudeMin: input.base.niveauEtudeMin ?? null,
@@ -344,6 +351,7 @@ export class OpportuniteService {
       await this.createSubtype(tx as unknown as Tx, created.id, input)
       await this.replaceSkills(tx as unknown as Tx, created.id, input.base.skills ?? [])
       await this.replaceTags(tx as unknown as Tx, created.id, input.base.tags ?? [])
+      await this.replaceProgrammes(tx as unknown as Tx, created.id, input.base)
 
       const reloaded = await tx.opportunite.findUnique({
         where: { id: created.id },
@@ -370,7 +378,10 @@ export class OpportuniteService {
       ...(filter.domaine ? { domaine: filter.domaine } : {}),
       ...(filter.region ? { region: filter.region } : {}),
       ...(filter.typeSlug ? { typeRef: { slug: filter.typeSlug } } : {}),
-      ...(filter.programmeSlug ? { programme: { slug: filter.programmeSlug } } : {}),
+      // GUIC-684 — le rattachement vit dans la jonction : `some` couvre 1..N programmes.
+      ...(filter.programmeSlug
+        ? { programmes: { some: { programme: { slug: filter.programmeSlug } } } }
+        : {}),
     }
     const rows = await this.db.opportunite.findMany({
       where,
@@ -412,9 +423,6 @@ export class OpportuniteService {
       const slug = existing.typeRef?.slug as SousTypeSlug | undefined
 
       if (patch.base) {
-        const programmeId = patch.base.programmeSlug !== undefined
-          ? await this.resolveProgrammeId(tx as unknown as Tx, patch.base.programmeSlug)
-          : undefined
         await tx.opportunite.update({
           where: { id },
           data: {
@@ -435,7 +443,6 @@ export class OpportuniteService {
             ...(patch.base.lienExterne !== undefined ? { lienExterne: patch.base.lienExterne } : {}),
             ...(patch.base.statut !== undefined ? { statut: patch.base.statut } : {}),
             ...(patch.base.niveauEtudeMin !== undefined ? { niveauEtudeMin: patch.base.niveauEtudeMin } : {}),
-            ...(programmeId !== undefined ? { programmeId } : {}),
           },
         })
         if (patch.base.skills !== undefined) {
@@ -443,6 +450,9 @@ export class OpportuniteService {
         }
         if (patch.base.tags !== undefined) {
           await this.replaceTags(tx as unknown as Tx, id, patch.base.tags)
+        }
+        if (patch.base.programmeSlugs !== undefined) {
+          await this.replaceProgrammes(tx as unknown as Tx, id, patch.base)
         }
       }
 
@@ -468,11 +478,20 @@ export class OpportuniteService {
 
   // ───────── helpers privés ─────────
 
-  private async resolveProgrammeId(tx: Tx, slug: string | null | undefined): Promise<string | null> {
-    if (!slug) return null
-    const p = await tx.programme.findUnique({ where: { slug } })
-    if (!p) throw new Error(`Programme introuvable pour slug=${slug}`)
-    return p.id
+  /**
+   * Rattachement aux programmes (GUIC-684) — délègue au helper générique partagé
+   * avec les ressources et les événements. La colonne `programme_id` n'est plus
+   * écrite : elle reste en base le temps de la transition (drop ultérieur).
+   */
+  private async replaceProgrammes(tx: Tx, opportuniteId: string, base: Partial<BaseInput>): Promise<void> {
+    await replaceProgrammes(
+      tx as unknown as Parameters<typeof replaceProgrammes>[0],
+      (tx as unknown as { opportuniteProgramme: Parameters<typeof replaceProgrammes>[1] }).opportuniteProgramme,
+      'opportuniteId',
+      opportuniteId,
+      base.programmeSlugs ?? [],
+      { principalSlug: base.programmePrincipalSlug ?? null },
+    )
   }
 
   private async createSubtype(tx: Tx, opportuniteId: string, input: CreateOpportuniteInput): Promise<void> {
