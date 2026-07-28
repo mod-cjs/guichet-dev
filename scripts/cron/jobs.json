@@ -7,6 +7,7 @@
     { "path": "/api/cron/cleanup-checkins", "schedule": "0 3 * * *", "desc": "Purge des check-ins expirés" },
     { "path": "/api/cron/reservations-batch", "schedule": "0 4 * * *", "desc": "Traitement batch des réservations" },
     { "path": "/api/cron/yaye-graph-sync", "schedule": "30 2 * * *", "desc": "Synchronisation du graphe Yaye" },
+    { "path": "/api/cron/yaye-warm-search", "schedule": "5 * * * *", "desc": "Amorçage du cache de vecteurs Yaye — se termine seul, puis no-op (GUIC-683)" },
     { "path": "/api/cron/yaye-reco-precompute", "schedule": "45 2 * * *", "desc": "Précalcul des recommandations Yaye" },
     { "path": "/api/cron/yaye-eval", "schedule": "15 3 * * *", "desc": "Évaluation qualité Yaye" },
     { "path": "/api/cron/veille-sources", "schedule": "0 * * * *", "desc": "Robot de découverte de la curation d'opportunités (GUIC-597)" }
