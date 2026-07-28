@@ -332,6 +332,19 @@
   --gj-edge:        inset 0 1px 0 rgba(255,255,255,.85);
   --gj-lift:        0 14px 30px -18px rgba(16,45,37,.22), inset 0 1px 0 rgba(255,255,255,.9);
   --gj-content-bg:  #F4F7F5;
+
+  /* Palette secteur / Domaine — triplets RGB (GUIC-681).
+     Letterhead des cartes partenaire : tint via rgba(var(--gj-sector-x), .16),
+     pastille pleine via rgb(var(--gj-sector-x)). Translucide ⇒ OK clair ET sombre. */
+  --gj-sector-agriculture:     46,160,90;
+  --gj-sector-numerique:       47,111,214;
+  --gj-sector-entrepreneuriat: 224,169,59;
+  --gj-sector-citoyennete:     0,122,92;
+  --gj-sector-environnement:   22,150,120;
+  --gj-sector-sante:           214,69,52;
+  --gj-sector-education:       124,92,214;
+  --gj-sector-culture:         214,92,160;
+  --gj-sector-autre:           120,130,128;
 }
 
 /* =========================================================

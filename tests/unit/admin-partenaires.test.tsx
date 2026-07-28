@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 jest.mock('@/app/admin/partenaires/actions', () => ({
   basculerVerifiePartenaire: jest.fn().mockResolvedValue({ ok: true }),
@@ -13,8 +14,8 @@ const ITEMS: PartenaireRow[] = [
   { id: 'o2', nom: 'Baobab SARL', secteur: null, region: null, email: null, estVerifie: false, opportunitesCount: 0 },
 ]
 
-describe('GUIC-510 — AdminPartenairesTable', () => {
-  it('liste les partenaires avec badge de vérification', () => {
+describe('GUIC-510/681 — AdminPartenairesTable (grille de cartes + dossier)', () => {
+  it('grille : une carte par partenaire avec badge de vérification', () => {
     render(<AdminPartenairesTable items={ITEMS} total={2} />)
     expect(screen.getByText('Sonatel')).toBeInTheDocument()
     expect(screen.getByText('Baobab SARL')).toBeInTheDocument()
@@ -22,15 +23,20 @@ describe('GUIC-510 — AdminPartenairesTable', () => {
     expect(screen.getByText('Non vérifié')).toBeInTheDocument()
   })
 
-  it('propose Vérifier sur un non-vérifié et Dévérifier sur un vérifié', () => {
+  it('clic carte → dossier slide-over avec Vérifier/Dévérifier + Éditer', async () => {
     render(<AdminPartenairesTable items={ITEMS} total={2} />)
-    expect(screen.getByRole('button', { name: /^Dévérifier/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Vérifier/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Sonatel/ }))
+    const dialog = await screen.findByRole('dialog')
+    // Sonatel est vérifié -> action Dévérifier
+    expect(within(dialog).getByRole('button', { name: /^Dévérifier/ })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /Éditer/ })).toBeInTheDocument()
   })
 
-  it('lien Détail par partenaire', () => {
+  it('dossier : lien vers la fiche complète du partenaire', async () => {
     render(<AdminPartenairesTable items={ITEMS} total={2} />)
-    expect(screen.getAllByRole('link', { name: /Détail/ })[0]).toHaveAttribute('href', '/admin/partenaires/o1')
+    await userEvent.click(screen.getByRole('button', { name: /Sonatel/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('link', { name: /Fiche complète/ })).toHaveAttribute('href', '/admin/partenaires/o1')
   })
 
   it('filtres de vérification (Tous / Vérifiés / Non vérifiés)', () => {
