@@ -9,6 +9,8 @@ import {
   type LangueRessourceValue,
 } from '@/lib/loaders/ressources'
 import { RessourcesClient } from '@/components/ressources'
+import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = {
   title: 'Ressources',
@@ -59,10 +61,15 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
     langue: asEnum<LangueRessourceValue>(pickString(sp.langue), LANGUES),
     categories: pickArray(sp.categorie),
     date: asEnum<DateBucket>(pickString(sp.date), DATES) ?? 'all',
+    // GUIC-684 — filtre par programme sectoriel (multi).
+    programmes: pickArray(sp.programme),
     page: Math.max(1, Number(pickString(sp.page)) || 1),
   }
 
-  const { items, total, page, pageSize } = await listRessources(filtres)
+  const [{ items, total, page, pageSize }, programmes] = await Promise.all([
+    listRessources(filtres),
+    loadProgrammeOptions(prisma),
+  ])
 
   return (
     <div className="container-page py-space-6">
@@ -86,6 +93,7 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
           page={page}
           pageSize={pageSize}
           initialFilters={filtres}
+          programmes={programmes}
         />
       </Suspense>
     </div>
