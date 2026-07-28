@@ -10,6 +10,7 @@ import {
   type StatutEvenement,
 } from './AdminEvenementsTable'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
+import { RattachementMasseBanner } from '@/components/admin/RattachementMasseBanner'
 import { PublicationsAValider, type PublicationAValider } from './PublicationsAValider'
 
 export const metadata: Metadata = { title: 'Événements — Admin CJS' }
@@ -119,11 +120,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     programmePrincipalSlug:
       (e.programmes.find((l) => l.principal) ?? e.programmes[0])?.programme.slug ?? null,
   }))
-  const programmes = await loadProgrammeOptions(prisma)
+  const [programmes, sansProgramme] = await Promise.all([
+    loadProgrammeOptions(prisma),
+    prisma.evenement.count({ where: { programmes: { none: {} } } }),
+  ])
 
   return (
     <>
       <PublicationsAValider items={publicationsAValider} />
+      <RattachementMasseBanner
+        entite="evenement"
+        sansProgramme={sansProgramme}
+        programmes={programmes}
+        libelle="événements"
+      />
       <AdminEvenementsTable
       evenements={rows}
       total={total}

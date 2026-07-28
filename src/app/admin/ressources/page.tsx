@@ -5,6 +5,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { AdminRessourcesTable, type TypeRessource } from './AdminRessourcesTable'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
+import { RattachementMasseBanner } from '@/components/admin/RattachementMasseBanner'
 
 export const metadata: Metadata = {
   title: 'Contenu · médiathèque — Admin CJS',
@@ -78,7 +79,10 @@ export default async function Page({
     // Compteurs Publié/Brouillon (filtrés par la recherche, pas par les autres filtres).
     prisma.ressource.groupBy({ by: ['estPublic'], where: qWhere, _count: { _all: true } }),
   ])
-  const programmes = await loadProgrammeOptions(prisma)
+  const [programmes, sansProgramme] = await Promise.all([
+    loadProgrammeOptions(prisma),
+    prisma.ressource.count({ where: { programmes: { none: {} } } }),
+  ])
 
   // Aplatit les rattachements pour la table (slugs + principal).
   const rows = ressources.map(({ programmes: liens, ...r }) => ({
@@ -92,7 +96,14 @@ export default async function Page({
   const draftCount = statutGrouped.find((g) => !g.estPublic)?._count._all ?? 0
 
   return (
-    <AdminRessourcesTable
+    <>
+      <RattachementMasseBanner
+        entite="ressource"
+        sansProgramme={sansProgramme}
+        programmes={programmes}
+        libelle="ressources"
+      />
+      <AdminRessourcesTable
       ressources={rows}
       total={total}
       currentPage={page}
@@ -103,6 +114,7 @@ export default async function Page({
       publishedCount={publishedCount}
       draftCount={draftCount}
       programmes={programmes}
-    />
+      />
+    </>
   )
 }
