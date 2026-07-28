@@ -22,6 +22,7 @@
     "yaye:warm": "tsx scripts/yaye-warm-search.ts",
     "db:load:enriched": "bash scripts/load-enriched-db.sh",
     "db:diversify:enriched": "docker exec -i guichet_mariadb mariadb -uroot -proot yaye_poc_enriched < scripts/sql/diversify-enriched.sql",
+    "db:programmes:enriched": "docker exec -i guichet_mariadb mariadb -uroot -proot -t yaye_poc_enriched < scripts/sql/attach-programmes-enriched.sql",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",

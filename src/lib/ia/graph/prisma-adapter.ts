@@ -240,7 +240,8 @@ export class PrismaGraphAdapter implements GraphPort {
       where,
       select: {
         id: true, slug: true, titre: true,
-        programme: { select: { nom: true } },
+        // GUIC-684 — rattachement M:N : on retient le programme porteur.
+        programmes: { select: { principal: true, programme: { select: { nom: true } } } },
         skills: { where: { requise: true }, select: { skillId: true, skill: { select: { libelle: true } } }, take: 1 },
       },
       take: limit,
@@ -261,7 +262,8 @@ export class PrismaGraphAdapter implements GraphPort {
         id: o.id, slug: o.slug, titre: o.titre,
         competence: req?.skill.libelle ?? null,
         formationTitre,
-        programmeNom: o.programme?.nom ?? null,
+        programmeNom:
+          (o.programmes.find((r) => r.principal) ?? o.programmes[0])?.programme.nom ?? null,
       })
     }
     logger.debug('[graph:prisma] multiEntityPath best-effort', { count: out.length })

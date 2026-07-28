@@ -36,6 +36,8 @@ const formationOpp = {
   bourse: null, concours: null, appelAProjets: null, financement: null, mentorat: null, mobilite: null, volontariat: null,
   skills: [{ skillId: 's1', requise: true }, { skillId: 's2', requise: false }],
   tags: [{ tagId: 'tag1' }],
+  // GUIC-684 — rattachement M:N : la source des arêtes FINANCE est la jonction.
+  programmes: [{ programmeId: 'p1', principal: true }],
 }
 
 beforeEach(() => {
@@ -73,6 +75,38 @@ test('formation : schéma + nœud commun + label Formation + REQUIERT/DEVELOPPE/
 
   // purge des arêtes re-projetées AVANT re-merge (MERGE additif → sinon arêtes fantômes)
   expect(cy.deleteRelsOfTypes).toHaveBeenCalledWith('Opportunite', 'id', 'o1', expect.arrayContaining(['REQUIERT', 'ETIQUETTE']))
+})
+
+// GUIC-684 — une opportunité cofinancée doit produire UNE arête FINANCE PAR programme.
+test('multi-programme : une arête FINANCE par programme rattaché', async () => {
+  mockFindUnique.mockResolvedValueOnce({
+    ...formationOpp,
+    programmes: [
+      { programmeId: 'p1', principal: true },
+      { programmeId: 'p2', principal: false },
+    ],
+  })
+  await projectOpportunite('o1')
+
+  const finance = cy.mergeRels.mock.calls.find(c => c[0] === 'FINANCE')
+  expect(finance).toBeTruthy()
+  // `principal` porté par l'arête : les templates qui n'attendent qu'un programme
+  // filtrent dessus au lieu de multiplier les lignes de résultat.
+  expect(finance![5]).toEqual([
+    { from: 'p1', to: 'o1', principal: true },
+    { from: 'p2', to: 'o1', principal: false },
+  ])
+})
+
+test('retrait d’un programme : l’arête FINANCE est purgée avant re-merge', async () => {
+  mockFindUnique.mockResolvedValueOnce(formationOpp)
+  await projectOpportunite('o1')
+
+  // Sans FINANCE dans la purge, retirer un programme laisserait une arête fantôme
+  // (MERGE est additif) — le graphe affirmerait un financement qui n'existe plus.
+  expect(cy.deleteRelsOfTypes).toHaveBeenCalledWith(
+    'Opportunite', 'id', 'o1', expect.arrayContaining(['FINANCE']),
+  )
 })
 
 test('purge : ne touche pas aux arêtes pilotées ailleurs (A_POSTULE, INSCRIT_A…)', async () => {

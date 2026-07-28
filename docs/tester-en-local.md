@@ -134,6 +134,26 @@ npm run db:load:enriched     # crée yaye_poc_enriched + importe le dump (idempo
 > (script déterministe [scripts/sql/diversify-enriched.sql](../scripts/sql/diversify-enriched.sql),
 > reconstruit aussi les sous-types polymorphes). Relancer ensuite `npm run yaye:reproject`.
 
+> **Rattachement aux programmes (GUIC-684)** — le dump contient les 4 programmes mais
+> **aucun contenu ne s'y rattache** : 4 nœuds `:Programme` orphelins dans le graphe et
+> 0 arête `[:FINANCE]`, donc aucune question par programme n'a de réponse.
+> Après chargement : `npm run db:programmes:enriched`
+> ([scripts/sql/attach-programmes-enriched.sql](../scripts/sql/attach-programmes-enriched.sql),
+> déterministe et idempotent). Rattache les 4 340 opportunités par cohérence métier
+> (Emploi/Stage → YJC, Formation/Bourse → EduPop, Agriculture → YEAH, Entrepreneuriat →
+> Yaakaar) + un **second programme sur ~30 %** — sans quoi le chemin multi-programme ne
+> serait jamais exercé. Relancer ensuite `npm run yaye:reproject`.
+
+**Pipeline complet après un rechargement brut :**
+
+```bash
+npm run db:load:enriched        # dump + réconciliation des migrations Prisma
+npm run db:diversify:enriched   # types d'opportunités + organisations réalistes
+npm run db:programmes:enriched  # rattachements aux programmes (GUIC-684)
+npx tsx scripts/enrich-taxonomie.ts   # compétences fines
+npm run yaye:reproject          # MariaDB → Neo4j `enriched`
+```
+
 > Variante « parité prod stricte » (sans volumétrie) — base `guichet_jeunesse` via Prisma :
 > `npx prisma migrate deploy && npx prisma db seed` (pointer `DATABASE_URL` dessus).
 

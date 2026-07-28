@@ -179,7 +179,9 @@ export const MULTI_ENTITY_PATH = `
   WHERE o.statut = 'publiee'
     AND ($domaine IS NULL OR o.domaine = $domaine)
     AND ($region  IS NULL OR o.region  = $region)
-  OPTIONAL MATCH (p:Programme)-[:FINANCE]->(o)
+  // GUIC-684 — une opportunité peut relever de plusieurs programmes : sans le filtre
+  // sur l'arête porteuse, cette clause MULTIPLIERAIT les lignes de résultat.
+  OPTIONAL MATCH (p:Programme)-[:FINANCE { principal: true }]->(o)
   RETURN o.id AS id, o.slug AS slug, o.titre AS titre,
          comp.libelle AS competence, f.titre AS formationTitre, p.nom AS programmeNom
   LIMIT $limit
