@@ -32,7 +32,6 @@ function baseRow(overrides: Partial<OpportuniteRow> = {}): OpportuniteRow {
     type: 'Stage',
     organisation: 'CJS legacy',
     typeId: null,
-    programmeId: null,
     organisationLibelle: null,
     niveauEtudeMin: null,
     domaine: 'Numerique',
@@ -67,7 +66,7 @@ function typeRef(slug: string, actionLabel = 'Postuler'): OpportuniteRow['typeRe
   }
 }
 
-function progRef(slug: string): NonNullable<OpportuniteRow['programme']> {
+function progRef(slug: string): NonNullable<OpportuniteRow['programmes']>[number]['programme'] {
   return {
     id: `prog-${slug}`,
     slug,
@@ -165,7 +164,7 @@ describe('toOpportuniteDetailDTO', () => {
     const row = baseRow({
       organisationLibelle: 'CJS officiel',
       typeRef: typeRef('stage'),
-      programme: progRef('yjc'),
+      programmes: [{ principal: true, programme: progRef('yjc') }],
       stage: {
         opportuniteId: 'opp-1',
         dureeMois: 6,
@@ -210,11 +209,13 @@ describe('toOpportuniteDetailDTO', () => {
     expect(out.programme).toEqual({ slug: 'yeah', nom: 'Programme yeah' })
   })
 
-  it('retombe sur la colonne dépréciée tant qu’une row n’est pas backfillée', () => {
-    const row = baseRow({ typeRef: typeRef('stage'), programme: progRef('yjc') })
+  // GUIC-684 — la colonne `programme_id` est SUPPRIMÉE : la jonction est la seule
+  // source. Une row sans rattachement ne « retombe » sur rien, elle est vide.
+  it('n’expose aucun programme quand la jonction est vide', () => {
+    const row = baseRow({ typeRef: typeRef('stage') })
     const out = toOpportuniteDetailDTO(row)
-    expect(out.programme).toEqual({ slug: 'yjc', nom: 'Programme yjc' })
-    expect(out.programmes).toEqual([{ slug: 'yjc', nom: 'Programme yjc' }])
+    expect(out.programme).toBeNull()
+    expect(out.programmes).toEqual([])
   })
 })
 
@@ -235,7 +236,7 @@ describe('toOpportuniteExportDTO', () => {
   it('aplati un EMPLOI complet avec type slug et préfixes', () => {
     const row = baseRow({
       typeRef: typeRef('emploi'),
-      programme: progRef('yaakaar'),
+      programmes: [{ principal: true, programme: progRef('yaakaar') }],
       emploi: {
         opportuniteId: 'opp-1',
         typeContrat: 'CDI',

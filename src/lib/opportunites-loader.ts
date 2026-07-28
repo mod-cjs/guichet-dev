@@ -225,7 +225,10 @@ export async function listOpportunites(
  */
 const DETAIL_INCLUDE = {
   typeRef: true,
-  programme: true,
+  // GUIC-684 — rattachements aux programmes : sans cet include, le badge de la
+  // fiche publique n'a rien à afficher. Le repli sur l'ancienne colonne masquait
+  // l'oubli ; sa suppression le rend visible.
+  programmes: { include: { programme: true } },
   emploi: true,
   stage: true,
   formation: true,

@@ -457,7 +457,6 @@ model Opportunite {
 
   // Nouveaux champs polymorphiques (nullable durant migration data — 178b/c)
   typeId              String?       @map("type_id") @db.VarChar(36)
-  programmeId         String?       @map("programme_id") @db.VarChar(36)
   organisationLibelle String?       @map("organisation_libelle") @db.VarChar(200)
   niveauEtudeMin      NiveauEtudes? @map("niveau_etude_min")
 
@@ -484,7 +483,6 @@ model Opportunite {
 
   org       Organisation?    @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   typeRef   OpportuniteType? @relation(fields: [typeId], references: [id])
-  programme Programme?       @relation(fields: [programmeId], references: [id], onDelete: SetNull)
 
   // Sous-types 1:1 (un seul des dix non-null — invariant applicatif)
   // Spec §19 — 4 sous-types ajoutés post-audit guichetjeunesse.sn (2026-06-01)
@@ -510,7 +508,6 @@ model Opportunite {
   @@index([statut, deletedAt])
   @@index([type, domaine])
   @@index([typeId, domaine])
-  @@index([programmeId])
   @@index([region])
   @@index([deadline])
   @@fulltext([titre, description])
@@ -1147,11 +1144,8 @@ model Programme {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  /// Rattachement historique 1:N — DÉPRÉCIÉ (GUIC-684). Plus écrit par le code ;
-  /// conservé le temps de la transition, drop dans un ticket de suite.
-  opportunites Opportunite[]
-
   // Rattachements M:N (GUIC-684) — un contenu peut relever de plusieurs programmes.
+  // La colonne 1:N historique `opportunites.programme_id` a été supprimée.
   opportuniteRattachements  OpportuniteProgramme[]
   ressourceRattachements    RessourceProgramme[]
   evenementRattachements    EvenementProgramme[]

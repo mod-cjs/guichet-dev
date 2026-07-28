@@ -191,8 +191,6 @@ export type CreateOpportuniteInput =
 
 interface OpportuniteCore extends Opportunite {
   typeRef: OpportuniteType | null
-  /** Rattachement 1:N historique — DÉPRÉCIÉ (GUIC-684), lire `programmes`. */
-  programme: Programme | null
   skills: (OpportuniteSkill & { skill: Skill })[]
   tags: (OpportuniteTag & { tag: Tag })[]
   programmes: { principal: boolean; programme: Programme }[]
@@ -253,7 +251,6 @@ export type OpportuniteAvecDetails =
 
 const DETAIL_INCLUDE = {
   typeRef: true,
-  programme: true,
   emploi: true,
   stage: true,
   formation: true,

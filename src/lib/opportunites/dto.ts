@@ -49,7 +49,6 @@ import type { OpportuniteListItem } from '@/types/opportunite'
  */
 export interface OpportuniteRow extends Opportunite {
   typeRef?: OpportuniteType | null
-  programme?: Programme | null
   emploi?: OpportuniteEmploi | null
   stage?: OpportuniteStage | null
   formation?: OpportuniteFormation | null
@@ -141,7 +140,7 @@ export interface OpportuniteDetailDTO {
   statut: StatutOpportunite
 
   // Champs polymorphiques (additifs — null si row non encore migrée)
-  /** Programme principal — contrat historique préservé (GUIC-684). */
+  /** Programme principal — contrat historique préservé, servi depuis la jonction. */
   programme: ProgrammeRefDTO | null
   /** Tous les programmes de rattachement (GUIC-684 — M:N). */
   programmes: ProgrammeRefDTO[]
@@ -164,23 +163,18 @@ function toIso(value: Date | string | null | undefined): string | null {
 }
 
 /**
- * Rattachements aux programmes (GUIC-684). Lit la jonction M:N ; retombe sur la
- * colonne dépréciée `programme` tant qu'une row n'est pas backfillée — sans ce
- * repli, une base à moitié migrée servirait des listes vides sans erreur.
+ * Rattachements aux programmes (GUIC-684). La jonction M:N est la SEULE source :
+ * la colonne `programme_id` a été supprimée après recopie de son contenu.
  */
 function programmesRefs(row: OpportuniteRow): ProgrammeRefDTO[] {
-  if (row.programmes && row.programmes.length > 0) {
-    return row.programmes.map((r) => ({ slug: r.programme.slug, nom: r.programme.nom }))
-  }
-  return row.programme ? [{ slug: row.programme.slug, nom: row.programme.nom }] : []
+  return (row.programmes ?? []).map((r) => ({ slug: r.programme.slug, nom: r.programme.nom }))
 }
 
 /** Programme principal — celui affiché quand une seule place est disponible. */
 function programmePrincipalRef(row: OpportuniteRow): ProgrammeRefDTO | null {
   const rattachements = row.programmes ?? []
   const principal = rattachements.find((r) => r.principal) ?? rattachements[0]
-  if (principal) return { slug: principal.programme.slug, nom: principal.programme.nom }
-  return row.programme ? { slug: row.programme.slug, nom: row.programme.nom } : null
+  return principal ? { slug: principal.programme.slug, nom: principal.programme.nom } : null
 }
 
 /** Renvoie le nom d'organisation : preferentiellement `organisationLibelle` (nouveau), sinon legacy. */
