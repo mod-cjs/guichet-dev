@@ -142,7 +142,52 @@ describe('listOpportunites — recherche', () => {
   })
 })
 
+// GUIC-684 — filtre par programme : le rattachement vit dans une table de jonction,
+// donc EXISTS(...) et non une colonne. Le COUNT doit porter le MÊME filtre que la
+// liste, sinon la pagination annonce plus de résultats qu'elle n'en sert.
+describe('listOpportunites — filtre programme', () => {
+  it('ajoute une clause EXISTS sur la jonction, paramétrée', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const { sql, values } = rowsSql()
+    expect(sql).toMatch(/EXISTS\s*\(/i)
+    expect(sql).toContain('opportunites_programmes')
+    expect(values).toContain('yeah')
+  })
+
+  it('accepte plusieurs programmes (multi-select)', async () => {
+    await listOpportunites({ ...base, programme: ['yeah', 'edupop'] })
+    const { sql, values } = rowsSql()
+    expect(sql).toMatch(/IN\s*\(/i)
+    expect(values).toEqual(expect.arrayContaining(['edupop', 'yeah']))
+  })
+
+  it('applique le MÊME filtre au COUNT qu’à la liste', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const countSql = (mockQueryRaw.mock.calls[1][0] as { sql: string }).sql
+    expect(countSql).toContain('opportunites_programmes')
+  })
+
+  it('n’ajoute aucune clause quand le filtre est absent', async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('opportunites_programmes')
+  })
+})
+
 describe('listOpportunites — cache Redis', () => {
+  // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
+  // résultat NON filtré mis en cache par la requête précédente.
+  it('distingue les résultats par programme dans la clé de cache', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const cleYeah = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, programme: 'edupop' })
+    const cleEdupop = mockRedisSet.mock.calls[0][0] as string
+
+    expect(cleYeah).not.toBe(cleEdupop)
+    expect(cleYeah).toContain('yeah')
+  })
+
   it('sert le résultat depuis le cache sans frapper la BDD', async () => {
     const first = await listOpportunites(base)
     mockRedisGet.mockResolvedValue(JSON.stringify(first))

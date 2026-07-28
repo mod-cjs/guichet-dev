@@ -9,6 +9,8 @@ export interface FiltresValue {
   domaine?: string
   type?: string
   region?: string
+  /** GUIC-684 — slug du programme sectoriel de rattachement. */
+  programme?: string
   /** Filtre rémunération — "yes" = uniquement payées. */
   remuneration?: 'yes' | 'no'
   /** Plage deadline — "7" = J-7, "30" = J-30, undef = sans limite. */
@@ -30,12 +32,15 @@ export interface FiltresPanelProps {
     type?: FacetCounts
     domaine?: FacetCounts
     region?: FacetCounts
+    programme?: FacetCounts
     deadline?: FacetCounts
     remuneration?: FacetCounts
   }
   /** Callback explicite "Appliquer" — optionnel : par défaut les changements
    *  sont propagés immédiatement via onChange. */
   onApply?: () => void
+  /** GUIC-684 — programmes actifs proposés au filtrage (source : table Programme). */
+  programmes?: { slug: string; nom: string }[]
 }
 
 // Valeurs d'enum (alignées sur prisma/schema.prisma) — figées côté client.
@@ -78,7 +83,7 @@ function humanizeDomaine(value: string): string {
 }
 
 function countActive(v: FiltresValue): number {
-  return [v.domaine, v.type, v.region, v.remuneration, v.deadline].filter(Boolean).length
+  return [v.domaine, v.type, v.region, v.programme, v.remuneration, v.deadline].filter(Boolean).length
 }
 
 interface FilterCheckProps {
@@ -182,8 +187,9 @@ export function FiltresPanel({
   resultsCount,
   counts,
   onApply,
+  programmes = [],
 }: FiltresPanelProps) {
-  const pick = (key: 'domaine' | 'type' | 'region', v: string) =>
+  const pick = (key: 'domaine' | 'type' | 'region' | 'programme', v: string) =>
     onChange({ ...value, [key]: value[key] === v ? undefined : v })
 
   const toggleRemun = (v: 'yes' | 'no') =>
@@ -274,6 +280,22 @@ export function FiltresPanel({
             ))}
           </div>
         </Section>
+
+        {programmes.length > 0 && (
+          <Section title="Programme">
+            <div className="flex flex-wrap gap-[6px] pt-space-1">
+              {programmes.map((p) => (
+                <Chip
+                  key={p.slug}
+                  selected={value.programme === p.slug}
+                  onClick={() => pick('programme', p.slug)}
+                >
+                  {p.nom}
+                </Chip>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <Section title="Rémunération">
           <ul className="space-y-0">

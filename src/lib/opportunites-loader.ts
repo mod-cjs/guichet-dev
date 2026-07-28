@@ -78,6 +78,9 @@ function cacheKey(f: OpportuniteFiltres): string {
     asArray(f.domaine).join(','),
     asArray(f.type).join(','),
     asArray(f.region).join(','),
+    // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
+    // résultat NON filtré mis en cache par la requête précédente.
+    asArray(f.programme).join(','),
     f.sortBy,
     f.page,
   ].join('|')
@@ -138,6 +141,22 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
   const regions = asArray(f.region)
   if (regions.length === 1) conditions.push(Prisma.sql`region = ${regions[0]}`)
   else if (regions.length > 1) conditions.push(Prisma.sql`region IN (${Prisma.join(regions)})`)
+
+  // GUIC-684 — le rattachement aux programmes vit dans une table de jonction :
+  // EXISTS plutôt qu'une jointure, pour ne pas dupliquer les lignes d'une
+  // opportunité rattachée à plusieurs programmes (ni fausser le COUNT).
+  const programmes = asArray(f.programme)
+  if (programmes.length > 0) {
+    const slugs =
+      programmes.length === 1
+        ? Prisma.sql`p.slug = ${programmes[0]}`
+        : Prisma.sql`p.slug IN (${Prisma.join(programmes)})`
+    conditions.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM opportunites_programmes op
+      JOIN programmes p ON p.id = op.programme_id
+      WHERE op.opportunite_id = opportunites.id AND ${slugs}
+    )`)
+  }
 
   const q = (f.q ?? '').trim()
   if (q) {

@@ -14,6 +14,8 @@ import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite
 
 interface OpportunitesClientProps {
   initialRegion: string | null
+  /** GUIC-684 — programmes actifs proposés au filtrage (source : table Programme). */
+  programmes?: { slug: string; nom: string }[]
 }
 
 type Filters = FiltresValue & { q: string }
@@ -29,6 +31,7 @@ function readFilters(sp: URLSearchParams): Filters {
     domaine: sp.get('domaine') ?? undefined,
     type: sp.get('type') ?? undefined,
     region: sp.get('region') ?? undefined,
+    programme: sp.get('programme') ?? undefined,
     remuneration:
       sp.get('remuneration') === 'yes' || sp.get('remuneration') === 'no'
         ? (sp.get('remuneration') as 'yes' | 'no')
@@ -48,6 +51,7 @@ function urlQuery(f: Filters): string {
   if (f.domaine) p.set('domaine', f.domaine)
   if (f.type) p.set('type', f.type)
   if (f.region) p.set('region', f.region)
+  if (f.programme) p.set('programme', f.programme)
   if (f.remuneration) p.set('remuneration', f.remuneration)
   if (f.deadline) p.set('deadline', f.deadline)
   if (f.sortBy !== 'recent') p.set('sort_by', f.sortBy)
@@ -63,7 +67,7 @@ function apiQuery(f: Filters, page: number): string {
 
 const PAGE_SIZE = 20
 
-export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
+export function OpportunitesClient({ initialRegion, programmes = [] }: OpportunitesClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const filters = useMemo(() => readFilters(searchParams), [searchParams])
@@ -190,6 +194,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       filters.domaine ||
       filters.type ||
       filters.region ||
+      filters.programme ||
       filters.remuneration ||
       filters.deadline,
   )
@@ -197,6 +202,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
     filters.domaine,
     filters.type,
     filters.region,
+    filters.programme,
     filters.remuneration,
     filters.deadline,
   ].filter(Boolean).length
@@ -223,6 +229,13 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
       key: `reg-${filters.region}`,
       label: regionLabel(filters.region) ?? filters.region,
       onRemove: () => pushFilters({ ...filters, region: undefined }),
+    })
+  }
+  if (filters.programme) {
+    activeChips.push({
+      key: `prog-${filters.programme}`,
+      label: programmes.find((p) => p.slug === filters.programme)?.nom ?? filters.programme,
+      onRemove: () => pushFilters({ ...filters, programme: undefined }),
     })
   }
   if (filters.remuneration) {
@@ -321,6 +334,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
               onChange={(next) => pushFilters({ ...filters, ...next })}
               onReset={resetFilters}
               resultsCount={total}
+              programmes={programmes}
             />
           </div>
         </aside>
@@ -422,6 +436,7 @@ export function OpportunitesClient({ initialRegion }: OpportunitesClientProps) {
         onClose={() => setFiltersOpen(false)}
         value={filters}
         totalCount={total}
+        programmes={programmes}
         onApply={(next) => {
           pushFilters({ ...filters, ...next })
         }}
