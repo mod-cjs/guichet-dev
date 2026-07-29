@@ -6,7 +6,21 @@
 jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
-jest.mock('@/lib/prisma', () => ({ prisma: { organisation: { update: jest.fn() } } }))
+// GUIC-684 — la modification passe en transaction (champs + rattachement programmes).
+jest.mock('@/lib/prisma', () => {
+  const organisation = { update: jest.fn() }
+  const tx = {
+    organisation,
+    programme: { findMany: jest.fn(async () => []) },
+    organisationProgramme: { deleteMany: jest.fn(), createMany: jest.fn() },
+  }
+  return {
+    prisma: {
+      organisation,
+      $transaction: (cb: (t: typeof tx) => unknown) => cb(tx),
+    },
+  }
+})
 
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'

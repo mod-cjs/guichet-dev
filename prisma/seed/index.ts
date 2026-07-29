@@ -50,6 +50,7 @@ import { seedOpportunites } from './opportunites'
 import { seedProgrammes } from './programmes'
 import { seedOpportuniteTypes } from './opportunite-types'
 import { seedRessources } from './ressources'
+import { rattacherOpportunites, rattacherRessources } from './programme-rattachements'
 import { seedSkills } from './skills'
 import { seedTags } from './tags'
 import { seedNotifications } from './notifications'
@@ -72,6 +73,15 @@ async function main() {
   // Ressources M6 (GUIC-239)
   const nbRessources = await seedRessources(prisma)
   console.log(`Seed Guichet Jeunesse — ${nbRessources} ressources insérées (GUIC-239).`)
+
+  // GUIC-684 — rattachement aux programmes. Sans cette étape, une base fraîche est
+  // entièrement orpheline : le rattachement étant obligatoire à la création, l'admin
+  // d'un environnement neuf est bloqué dès la première fiche qu'il ouvre.
+  const nbOppProg = await rattacherOpportunites(prisma)
+  const nbResProg = await rattacherRessources(prisma)
+  console.log(
+    `Seed GUIC-684 — ${nbOppProg} opportunités et ${nbResProg} ressources rattachées à un programme.`,
+  )
 
   // Notifications démo (GUIC-247) — idempotent, premier user actif.
   const nbNotifs = await seedNotifications(prisma)

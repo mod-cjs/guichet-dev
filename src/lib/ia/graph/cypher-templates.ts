@@ -165,6 +165,35 @@ export const MARCHE_ORGANISATIONS = `
   ORDER BY n DESC LIMIT $limit
 `
 
+/**
+ * GUIC-684 — Répartition du marché par PROGRAMME sectoriel. Traverse FINANCE, qui
+ * était projetée sans jamais être lue. Sans ce template, la dimension programme
+ * existe dans le graphe mais reste invisible pour Yaye.
+ * `count(DISTINCT o)` : une offre cofinancée compte une fois PAR programme (c'est
+ * le sens de la question), mais jamais deux fois pour le même.
+ */
+export const MARCHE_PAR_PROGRAMME = `
+  MATCH (p:Programme)-[:FINANCE]->(o:Opportunite) ${MARCHE_WHERE}
+  RETURN p.nom AS cle, count(DISTINCT o) AS n
+  ORDER BY n DESC LIMIT $limit
+`
+
+/**
+ * GUIC-684 — Acteurs d'un programme : centres où il est DÉPLOYÉ, organisations qui
+ * y sont ASSOCIÉES. Deux relations distinctes justement pour que la question
+ * « quels centres ? » ne se confonde pas avec « quels partenaires ? ».
+ * `collect` : une seule ligne en retour, quel que soit le nombre d'acteurs.
+ */
+export const ACTEURS_DU_PROGRAMME = `
+  MATCH (p:Programme { slug: $slug })
+  OPTIONAL MATCH (p)-[:DEPLOYE_A]->(c:Centre)
+  WITH p, collect(DISTINCT { nom: c.nom, region: c.region }) AS centres
+  OPTIONAL MATCH (p)-[:ASSOCIE_A]->(o:Organisation)
+  RETURN p.nom AS programme,
+         [x IN centres WHERE x.nom IS NOT NULL] AS centres,
+         [x IN collect(DISTINCT { nom: o.nom }) WHERE x.nom IS NOT NULL] AS organisations
+`
+
 /** Sentinelle « le read-model est-il peuplé ? » (détection de graphe vide, C.2). */
 export const GRAPH_POPULATED = `
   MATCH (o:Opportunite) RETURN count(o) > 0 AS populated
@@ -179,7 +208,9 @@ export const MULTI_ENTITY_PATH = `
   WHERE o.statut = 'publiee'
     AND ($domaine IS NULL OR o.domaine = $domaine)
     AND ($region  IS NULL OR o.region  = $region)
-  OPTIONAL MATCH (p:Programme)-[:FINANCE]->(o)
+  // GUIC-684 — une opportunité peut relever de plusieurs programmes : sans le filtre
+  // sur l'arête porteuse, cette clause MULTIPLIERAIT les lignes de résultat.
+  OPTIONAL MATCH (p:Programme)-[:FINANCE { principal: true }]->(o)
   RETURN o.id AS id, o.slug AS slug, o.titre AS titre,
          comp.libelle AS competence, f.titre AS formationTitre, p.nom AS programmeNom
   LIMIT $limit

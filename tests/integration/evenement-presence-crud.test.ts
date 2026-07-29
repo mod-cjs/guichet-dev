@@ -53,6 +53,8 @@ describe('GUIC-474 — présence événement (DB réelle)', () => {
       lieu: 'Salle test',
       centreId,
       estGratuit: true,
+      // GUIC-684 — rattachement obligatoire à au moins un programme.
+      programmeSlugs: ['yjc'],
     })
     evId = id
 

@@ -11,6 +11,8 @@ export interface EvenementFiltres {
   q?: string
   /** Filtre type (un seul). */
   type?: TypeEvenementValue
+  /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
+  programmes?: string[]
   /** Page (1-indexé). */
   page?: number
 }
@@ -27,6 +29,12 @@ export interface EvenementListItem {
   estGratuit: boolean
   capaciteMax: number | null
   organisation: string | null
+  /**
+   * GUIC-684 — slugs des programmes de rattachement (filtrage côté client).
+   * Optionnel : seule la liste publique les charge — le détail et « mes
+   * inscriptions » n'en ont pas besoin et ne paient donc pas la jointure.
+   */
+  programmes?: string[]
 }
 
 export interface EvenementListResult {
@@ -48,6 +56,8 @@ const CARD_SELECT = {
   estGratuit: true,
   capaciteMax: true,
   centre: { select: { nom: true } },
+  // GUIC-684 — rattachement aux programmes (l'agenda filtre côté client).
+  programmes: { select: { programme: { select: { slug: true } } } },
 } satisfies Prisma.EvenementSelect
 
 /**
@@ -66,6 +76,13 @@ export async function listEvenements(
 
   if (filtres.type) {
     where.type = filtres.type
+  }
+
+  // GUIC-684 — rattachement M:N : `some` pour qu'un événement porté par deux
+  // programmes n'apparaisse qu'une fois (et que le COUNT reste juste).
+  const programmes = (filtres.programmes ?? []).map((p) => p.trim()).filter(Boolean)
+  if (programmes.length) {
+    where.programmes = { some: { programme: { slug: { in: programmes } } } }
   }
 
   if (filtres.q && filtres.q.trim()) {
@@ -103,6 +120,7 @@ export async function listEvenements(
       : null,
     lieu: r.lieu,
     estGratuit: r.estGratuit,
+    programmes: r.programmes.map((l) => l.programme.slug),
     capaciteMax: r.capaciteMax,
     organisation: r.centre?.nom ?? null,
   }))

@@ -235,6 +235,39 @@ model Opportunite {
 - `cjsUid` (String, UUID v4) sur toutes les tables liées à un utilisateur CJS
 - Les noms de tables (`@@map`) sont en snake_case pluriel français
 
+### Générer une migration — le piège du bruit MariaDB
+
+**MariaDB n'a pas de type JSON natif** : `JSON` y est un alias de
+`longtext … CHECK (json_valid(col))`. `prisma migrate diff` compare donc le `longtext`
+réellement présent en base au `Json` déclaré dans `schema.prisma`, et émet un
+`MODIFY … JSON` pour **chaque** colonne JSON du schéma — à chaque génération.
+
+Ces ~45 lignes n'ont aucun effet (vérifié sur MariaDB 10.11 : `SHOW CREATE TABLE`
+identique avant/après application), et l'une d'elles est même **invalide** :
+
+```sql
+ALTER TABLE `centres` MODIFY `services` JSON NOT NULL DEFAULT [];  -- échoue en MariaDB
+```
+
+Ce n'est donc pas une dérive à réconcilier — une migration de réconciliation serait
+un no-op dont le bruit reviendrait au diff suivant. Il faut le **filtrer à la
+génération** :
+
+```bash
+export SHADOW_DATABASE_URL="mysql://…/yaye_migration_test"   # cf. GUIC-581
+npx prisma migrate diff \
+  --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script \
+  | bash scripts/prisma-filtrer-bruit-mariadb.sh \
+  > prisma/migrations/<horodatage>_<nom>/migration.sql
+```
+
+Le filtre ne touche QUE les `MODIFY … JSON` : un vrai changement de type, un
+`DROP COLUMN` sur une colonne JSON ou un `CREATE TABLE` passent intacts
+(sentinelle : `tests/unit/prisma-migration-bruit-mariadb.test.ts`).
+
+⚠️ Générer dans un dossier temporaire **puis** déplacer : `--from-migrations` relit
+`prisma/migrations/`, donc un dossier de migration vide déjà créé fait échouer la commande.
+
 ---
 
 ## 6. Design system et styles

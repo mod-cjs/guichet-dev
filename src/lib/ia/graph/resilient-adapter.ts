@@ -16,6 +16,7 @@ import type {
   LivreSearchCriteria,
   MarketCriteria,
   MarketOverview,
+  ProgrammeActeurs,
   MultiEntityPath,
   OpportuniteSearchCriteria,
   RecoAggregate,
@@ -90,5 +91,8 @@ export class ResilientGraphAdapter implements GraphPort {
   }
   apercuMarche(criteria: MarketCriteria): Promise<MarketOverview> {
     return this.run((p) => p.apercuMarche(criteria))
+  }
+  acteursDuProgramme(slug: string): Promise<ProgrammeActeurs> {
+    return this.run((p) => p.acteursDuProgramme(slug))
   }
 }

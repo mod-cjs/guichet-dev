@@ -4,6 +4,8 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { AdminRessourcesTable, type TypeRessource } from './AdminRessourcesTable'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
+import { RattachementMasseBanner } from '@/components/admin/RattachementMasseBanner'
 
 export const metadata: Metadata = {
   title: 'Contenu · médiathèque — Admin CJS',
@@ -66,6 +68,8 @@ export default async function Page({
         theme: true,
         vues: true,
         estPublic: true,
+        // GUIC-684 — rattachements existants, pour préremplir le formulaire d'édition.
+        programmes: { select: { principal: true, programme: { select: { slug: true } } } },
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -75,14 +79,32 @@ export default async function Page({
     // Compteurs Publié/Brouillon (filtrés par la recherche, pas par les autres filtres).
     prisma.ressource.groupBy({ by: ['estPublic'], where: qWhere, _count: { _all: true } }),
   ])
+  const [programmes, sansProgramme] = await Promise.all([
+    loadProgrammeOptions(prisma),
+    prisma.ressource.count({ where: { programmes: { none: {} } } }),
+  ])
+
+  // Aplatit les rattachements pour la table (slugs + principal).
+  const rows = ressources.map(({ programmes: liens, ...r }) => ({
+    ...r,
+    programmeSlugs: liens.map((l) => l.programme.slug),
+    programmePrincipalSlug: (liens.find((l) => l.principal) ?? liens[0])?.programme.slug ?? null,
+  }))
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const publishedCount = statutGrouped.find((g) => g.estPublic)?._count._all ?? 0
   const draftCount = statutGrouped.find((g) => !g.estPublic)?._count._all ?? 0
 
   return (
-    <AdminRessourcesTable
-      ressources={ressources}
+    <>
+      <RattachementMasseBanner
+        entite="ressource"
+        sansProgramme={sansProgramme}
+        programmes={programmes}
+        libelle="ressources"
+      />
+      <AdminRessourcesTable
+      ressources={rows}
       total={total}
       currentPage={page}
       totalPages={totalPages}
@@ -91,6 +113,8 @@ export default async function Page({
       type={typeFilter}
       publishedCount={publishedCount}
       draftCount={draftCount}
-    />
+      programmes={programmes}
+      />
+    </>
   )
 }

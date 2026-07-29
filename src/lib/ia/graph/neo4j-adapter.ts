@@ -17,6 +17,8 @@ import {
   LIVRES_DISPONIBLES,
   MARCHE_COMPETENCES,
   MARCHE_ORGANISATIONS,
+  MARCHE_PAR_PROGRAMME,
+  ACTEURS_DU_PROGRAMME,
   MARCHE_PAR_DOMAINE,
   MARCHE_PAR_REGION,
   MARCHE_PAR_TYPE,
@@ -38,6 +40,7 @@ import {
   type LivreSearchCriteria,
   type MarketCriteria,
   type MarketOverview,
+  type ProgrammeActeurs,
   type MultiEntityPath,
   type OpportuniteSearchCriteria,
   type RecoAggregate,
@@ -241,17 +244,41 @@ export class Neo4jGraphAdapter implements GraphPort {
           .map(r => ({ cle: String(r.get('cle')), n: toInt(r.get('n')) })),
       )
 
-    const [parType, parDomaine, parRegion, competences, organisations] = await Promise.all([
-      counts(MARCHE_PAR_TYPE),
-      counts(MARCHE_PAR_DOMAINE),
-      counts(MARCHE_PAR_REGION),
-      counts(MARCHE_COMPETENCES),
-      counts(MARCHE_ORGANISATIONS),
-    ])
+    const [parType, parDomaine, parRegion, competences, organisations, programmes] =
+      await Promise.all([
+        counts(MARCHE_PAR_TYPE),
+        counts(MARCHE_PAR_DOMAINE),
+        counts(MARCHE_PAR_REGION),
+        counts(MARCHE_COMPETENCES),
+        counts(MARCHE_ORGANISATIONS),
+        counts(MARCHE_PAR_PROGRAMME),
+      ])
 
     const total = parType.reduce((a, b) => a + b.n, 0)
     if (total === 0) await this.guardEmpty([])
-    return { total, parType, parDomaine, parRegion, competences, organisations }
+    return { total, parType, parDomaine, parRegion, competences, organisations, programmes }
+  }
+
+  /** GUIC-684 — acteurs d'un programme (centres de déploiement, partenaires associés). */
+  async acteursDuProgramme(slug: string): Promise<ProgrammeActeurs> {
+    const vide: ProgrammeActeurs = { programme: null, centres: [], organisations: [] }
+    const propre = typeof slug === 'string' ? slug.trim() : ''
+    if (!propre) return vide
+
+    return this.read(ACTEURS_DU_PROGRAMME, { slug: propre }, res => {
+      const rec = res.records[0]
+      if (!rec) return vide
+      const liste = (cle: string) =>
+        (rec.get(cle) as Array<Record<string, unknown>> | null) ?? []
+      return {
+        programme: rec.get('programme') != null ? String(rec.get('programme')) : null,
+        centres: liste('centres').map(c => ({
+          nom: String(c.nom),
+          region: c.region != null ? String(c.region) : null,
+        })),
+        organisations: liste('organisations').map(o => ({ nom: String(o.nom) })),
+      }
+    })
   }
 
   async ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]> {

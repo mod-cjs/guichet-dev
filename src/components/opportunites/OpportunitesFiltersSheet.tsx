@@ -52,6 +52,8 @@ export interface OpportunitesFiltersSheetProps {
   totalCount: number
   /** Appelé quand l'utilisateur clique "Appliquer". */
   onApply: (next: FiltresValue) => void
+  /** GUIC-684 — programmes actifs proposés au filtrage. */
+  programmes?: { slug: string; nom: string }[]
 }
 
 function emptyDraft(sortBy: FiltresValue['sortBy']): FiltresValue {
@@ -116,6 +118,7 @@ export function OpportunitesFiltersSheet({
   value,
   totalCount,
   onApply,
+  programmes = [],
 }: OpportunitesFiltersSheetProps) {
   // Tampon local — la sélection n'est validée qu'au clic "Appliquer".
   const [draft, setDraft] = useState<FiltresValue>(value)
@@ -128,7 +131,7 @@ export function OpportunitesFiltersSheet({
 
   const activeCount = countActive(draft)
 
-  const toggle = <K extends 'type' | 'domaine' | 'region'>(key: K, v: string) => {
+  const toggle = <K extends 'type' | 'domaine' | 'region' | 'programme'>(key: K, v: string) => {
     setDraft((d) => ({ ...d, [key]: d[key] === v ? undefined : (v as FiltresValue[K]) }))
   }
 
@@ -196,6 +199,23 @@ export function OpportunitesFiltersSheet({
             ))}
           </div>
         </section>
+
+        {programmes.length > 0 && (
+          <section>
+            <SectionLabel>Programme</SectionLabel>
+            <div className="flex flex-wrap gap-space-1">
+              {programmes.map((p) => (
+                <PillToggle
+                  key={p.slug}
+                  selected={draft.programme === p.slug}
+                  onClick={() => toggle('programme', p.slug)}
+                >
+                  {p.nom}
+                </PillToggle>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section>
           <SectionLabel>Échéance</SectionLabel>

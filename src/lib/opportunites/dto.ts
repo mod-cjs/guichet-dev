@@ -49,7 +49,6 @@ import type { OpportuniteListItem } from '@/types/opportunite'
  */
 export interface OpportuniteRow extends Opportunite {
   typeRef?: OpportuniteType | null
-  programme?: Programme | null
   emploi?: OpportuniteEmploi | null
   stage?: OpportuniteStage | null
   formation?: OpportuniteFormation | null
@@ -62,6 +61,8 @@ export interface OpportuniteRow extends Opportunite {
   volontariat?: OpportuniteVolontariat | null
   skills?: (OpportuniteSkill & { skill: Skill })[]
   tags?: (OpportuniteTag & { tag: Tag })[]
+  /** Rattachements M:N (GUIC-684) — source de vérité, `programme` n'est qu'un repli. */
+  programmes?: { principal: boolean; programme: Programme }[]
 }
 
 // ─────────────────────────────────────────────
@@ -139,7 +140,10 @@ export interface OpportuniteDetailDTO {
   statut: StatutOpportunite
 
   // Champs polymorphiques (additifs — null si row non encore migrée)
+  /** Programme principal — contrat historique préservé, servi depuis la jonction. */
   programme: ProgrammeRefDTO | null
+  /** Tous les programmes de rattachement (GUIC-684 — M:N). */
+  programmes: ProgrammeRefDTO[]
   typeSlug: SousTypeSlug | null   // `OpportuniteType.slug`
   actionLabel: string | null      // depuis OpportuniteType.actionLabel
   requiresFileUpload: boolean
@@ -156,6 +160,21 @@ export interface OpportuniteDetailDTO {
 function toIso(value: Date | string | null | undefined): string | null {
   if (!value) return null
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
+}
+
+/**
+ * Rattachements aux programmes (GUIC-684). La jonction M:N est la SEULE source :
+ * la colonne `programme_id` a été supprimée après recopie de son contenu.
+ */
+function programmesRefs(row: OpportuniteRow): ProgrammeRefDTO[] {
+  return (row.programmes ?? []).map((r) => ({ slug: r.programme.slug, nom: r.programme.nom }))
+}
+
+/** Programme principal — celui affiché quand une seule place est disponible. */
+function programmePrincipalRef(row: OpportuniteRow): ProgrammeRefDTO | null {
+  const rattachements = row.programmes ?? []
+  const principal = rattachements.find((r) => r.principal) ?? rattachements[0]
+  return principal ? { slug: principal.programme.slug, nom: principal.programme.nom } : null
 }
 
 /** Renvoie le nom d'organisation : preferentiellement `organisationLibelle` (nouveau), sinon legacy. */
@@ -220,9 +239,9 @@ export function toOpportuniteListItemArray(rows: OpportuniteRow[]): OpportuniteL
 export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDTO {
   const sub = pickSousType(row)
   const typeSlug = (row.typeRef?.slug as SousTypeSlug | undefined) ?? null
-  const programme = row.programme
-    ? { slug: row.programme.slug, nom: row.programme.nom }
-    : null
+  const programmes = programmesRefs(row)
+  // Contrat préservé : `programme` (singulier) = le PRINCIPAL des rattachements.
+  const programme = programmePrincipalRef(row)
   const skills: SkillRefDTO[] = (row.skills ?? []).map((s) => ({
     slug: s.skill.slug,
     libelle: s.skill.libelle,
@@ -250,6 +269,7 @@ export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDT
     vues: row.vues,
     statut: row.statut,
     programme,
+    programmes,
     typeSlug,
     actionLabel: row.typeRef?.actionLabel ?? null,
     requiresFileUpload: row.typeRef?.requiresFileUpload ?? false,
@@ -271,7 +291,8 @@ export interface OpportuniteExportDTO {
   titre: string
   description: string
   type: string                       // typeRef.slug si présent, sinon type legacy en lowercase
-  programme_slug: string | null
+  programme_slug: string | null      // programme PRINCIPAL — contrat historique
+  programmes_slugs: string[]         // tous les rattachements (GUIC-684)
   domaine: string
   region: string | null
   organisation: string
@@ -394,7 +415,8 @@ export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDT
     titre: row.titre,
     description: row.description,
     type: typeSlug,
-    programme_slug: row.programme?.slug ?? null,
+    programme_slug: programmePrincipalRef(row)?.slug ?? null,
+    programmes_slugs: programmesRefs(row).map((p) => p.slug),
     domaine: row.domaine,
     region: row.region ?? null,
     organisation: organisationLabel(row),

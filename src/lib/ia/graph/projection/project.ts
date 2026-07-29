@@ -186,14 +186,49 @@ async function projectRelations(): Promise<Record<string, number>> {
 
   const opps = await prisma.opportunite.findMany({
     where: { deletedAt: null },
-    select: { id: true, typeId: true, programmeId: true, organisationId: true, domaine: true, region: true },
+    select: {
+      id: true, typeId: true, organisationId: true, domaine: true, region: true,
+      // GUIC-684 — rattachement M:N (la colonne `programmeId` est dépréciée).
+      programmes: { select: { programmeId: true, principal: true } },
+    },
   })
   counts.EST_DE_TYPE = await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id',
     opps.filter(o => o.typeId).map(o => ({ from: o.id, to: o.typeId })))
   counts.FINANCE = await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id',
-    opps.filter(o => o.programmeId).map(o => ({ from: o.programmeId, to: o.id })))
+    opps.flatMap(o => o.programmes.map(p => ({ from: p.programmeId, to: o.id, principal: p.principal }))))
   counts.PUBLIE = await mergeRels('PUBLIE', 'Organisation', 'id', 'Opportunite', 'id',
     opps.filter(o => o.organisationId).map(o => ({ from: o.organisationId, to: o.id })))
+
+  // GUIC-684 — PORTE : rattachement des ressources et événements à leurs programmes.
+  // Nom distinct de FINANCE : un programme ne « finance » pas une fiche pédagogique,
+  // il la porte.
+  const ressourcesProg = await prisma.ressourceProgramme.findMany({
+    select: { ressourceId: true, programmeId: true, principal: true },
+  })
+  counts.PORTE = await mergeRels('PORTE', 'Programme', 'id', 'RessourcePedagogique', 'id',
+    ressourcesProg.map(r => ({ from: r.programmeId, to: r.ressourceId, principal: r.principal })))
+
+  const evenementsProg = await prisma.evenementProgramme.findMany({
+    select: { evenementId: true, programmeId: true, principal: true },
+  })
+  counts.PORTE += await mergeRels('PORTE', 'Programme', 'id', 'Evenement', 'id',
+    evenementsProg.map(e => ({ from: e.programmeId, to: e.evenementId, principal: e.principal })))
+
+  // GUIC-684 — ACTEURS. Deux relations distinctes plutôt qu'un PORTE générique :
+  // un centre HÉBERGE le déploiement d'un programme, une organisation en est
+  // PARTENAIRE. Confondre les deux rendrait « quels centres déploient YEAH ? »
+  // impossible à distinguer de « quels partenaires ? » côté Cypher.
+  const centresProg = await prisma.centreProgramme.findMany({
+    select: { centreId: true, programmeId: true, principal: true },
+  })
+  counts.DEPLOYE_A = await mergeRels('DEPLOYE_A', 'Programme', 'id', 'Centre', 'id',
+    centresProg.map(c => ({ from: c.programmeId, to: c.centreId, principal: c.principal })))
+
+  const organisationsProg = await prisma.organisationProgramme.findMany({
+    select: { organisationId: true, programmeId: true, principal: true },
+  })
+  counts.ASSOCIE_A = await mergeRels('ASSOCIE_A', 'Programme', 'id', 'Organisation', 'id',
+    organisationsProg.map(o => ({ from: o.programmeId, to: o.organisationId, principal: o.principal })))
 
   // RELEVE_DE / SITUE_A (enums réifiés).
   counts.RELEVE_DE = await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle',
@@ -440,6 +475,8 @@ export async function projectOpportunite(id: string): Promise<boolean> {
       emploi: true, stage: true, formation: true, bourse: true, concours: true,
       appelAProjets: true, financement: true, mentorat: true, mobilite: true, volontariat: true,
       skills: true, tags: true,
+      // GUIC-684 — le rattachement aux programmes vit dans la jonction (1..N).
+      programmes: { select: { programmeId: true, principal: true } },
     },
   })
   if (!o || o.deletedAt) return false
@@ -472,7 +509,14 @@ export async function projectOpportunite(id: string): Promise<boolean> {
 
   // Relations cœur.
   if (o.typeId) await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id', [{ from: o.id, to: o.typeId }])
-  if (o.programmeId) await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id', [{ from: o.programmeId, to: o.id }])
+  // Une arête par programme rattaché : une opportunité cofinancée relève de plusieurs.
+  // `principal` sur l'arête permet aux templates de ne retenir QUE le programme porteur
+  // là où une seule valeur est attendue — sans quoi le multi-programme dupliquerait les
+  // lignes de résultat renvoyées à Yaye.
+  if (o.programmes.length > 0) {
+    await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id',
+      o.programmes.map(p => ({ from: p.programmeId, to: o.id, principal: p.principal })))
+  }
   if (o.organisationId) await mergeRels('PUBLIE', 'Organisation', 'id', 'Opportunite', 'id', [{ from: o.organisationId, to: o.id }])
   if (o.domaine) await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle', [{ from: o.id, to: String(o.domaine) }])
   if (o.region) await mergeRels('SITUE_A', 'Opportunite', 'id', 'Region', 'nom', [{ from: o.id, to: String(o.region) }])

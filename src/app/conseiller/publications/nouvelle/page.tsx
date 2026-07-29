@@ -5,6 +5,8 @@ import { conseillerSansRattachement } from '@/lib/auth/espace-guards'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { Icon } from '@/components/ui/Icon'
 import { PublicationForm } from './PublicationForm'
+import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +16,9 @@ export default async function NouvellePublicationPage() {
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
   if (!ctx) return conseillerSansRattachement(session.roles)
+
+  // GUIC-684 — programmes proposés au rattachement de la publication.
+  const programmes = await loadProgrammeOptions(prisma)
 
   return (
     <div className="flex flex-col gap-space-4" style={{ maxWidth: 820, margin: '0 auto' }}>
@@ -26,7 +31,7 @@ export default async function NouvellePublicationPage() {
           Atelier, formation ou événement pour {ctx.centreNom}.
         </p>
       </div>
-      <PublicationForm />
+      <PublicationForm programmes={programmes} />
     </div>
   )
 }

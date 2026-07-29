@@ -9,6 +9,8 @@ import {
   type EvenementRow,
   type StatutEvenement,
 } from './AdminEvenementsTable'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
+import { RattachementMasseBanner } from '@/components/admin/RattachementMasseBanner'
 import { PublicationsAValider, type PublicationAValider } from './PublicationsAValider'
 
 export const metadata: Metadata = { title: 'Événements — Admin CJS' }
@@ -60,6 +62,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         estGratuit: true,
         centre: { select: { nom: true } },
         _count: { select: { inscriptions: true } },
+        // GUIC-684 — rattachements existants, pour préremplir le formulaire d'édition.
+        programmes: { select: { principal: true, programme: { select: { slug: true } } } },
       },
       orderBy: { dateDebut: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
@@ -112,11 +116,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     dateFinIso: e.dateFin ? e.dateFin.toISOString() : null,
     centreId: e.centreId,
     estGratuit: e.estGratuit,
+    programmeSlugs: e.programmes.map((l) => l.programme.slug),
+    programmePrincipalSlug:
+      (e.programmes.find((l) => l.principal) ?? e.programmes[0])?.programme.slug ?? null,
   }))
+  const [programmes, sansProgramme] = await Promise.all([
+    loadProgrammeOptions(prisma),
+    prisma.evenement.count({ where: { programmes: { none: {} } } }),
+  ])
 
   return (
     <>
       <PublicationsAValider items={publicationsAValider} />
+      <RattachementMasseBanner
+        entite="evenement"
+        sansProgramme={sansProgramme}
+        programmes={programmes}
+        libelle="événements"
+      />
       <AdminEvenementsTable
       evenements={rows}
       total={total}
@@ -125,6 +142,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       currentPage={page}
       totalPages={totalPages}
       centres={centres}
+      programmes={programmes}
     />
     </>
   )

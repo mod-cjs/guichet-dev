@@ -7,6 +7,7 @@ import { Icon } from '@/components/ui/Icon'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { Pagination } from '@/components/ui/Pagination'
 import { EvenementFormModal, type EvenementFormValues } from './EvenementFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { supprimerEvenement } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -36,6 +37,10 @@ export interface EvenementRow {
   dateFinIso: string | null
   centreId: string | null
   estGratuit: boolean
+  /** GUIC-684 — programmes rattachés (slugs) ; vide pour un événement antérieur. */
+  programmeSlugs?: string[]
+  /** GUIC-684 — programme principal parmi les rattachés. */
+  programmePrincipalSlug?: string | null
 }
 
 export interface AdminEvenementsTableProps {
@@ -47,6 +52,8 @@ export interface AdminEvenementsTableProps {
   totalPages?: number
   /** Centres proposables au rattachement d'un événement (GUIC-474). */
   centres?: { id: string; nom: string }[]
+  /** GUIC-684 — programmes actifs proposés au rattachement. */
+  programmes?: ProgrammeOption[]
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -206,6 +213,7 @@ export function AdminEvenementsTable({
   currentPage = 1,
   totalPages = 1,
   centres = [],
+  programmes = [],
 }: AdminEvenementsTableProps) {
   const paginationBase = activeStatut
     ? `/admin/evenements?statut=${activeStatut}`
@@ -419,6 +427,7 @@ export function AdminEvenementsTable({
       onClose={() => setModalOpen(false)}
       evenement={editEvent}
       centres={centres}
+      programmes={programmes}
       onSuccess={(action) =>
         setFeedback({
           message: action === 'create' ? 'Événement créé.' : 'Événement mis à jour.',

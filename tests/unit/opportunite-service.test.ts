@@ -39,6 +39,7 @@ const mocks = {
   opportuniteVolontariat: makeModel(),
   opportuniteSkill: makeModel(),
   opportuniteTag: makeModel(),
+  opportuniteProgramme: makeModel(),
 }
 
 // Pour `$transaction(cb)` : on rejoue le callback avec les mêmes mocks.
@@ -71,6 +72,8 @@ function baseInput(overrides: Record<string, unknown> = {}): Record<string, unkn
     organisationLibelle: 'CJS',
     domaine: 'Numerique',
     region: 'Dakar',
+    // GUIC-684 — toute opportunité relève d'au moins un programme (décision PO).
+    programmeSlugs: ['yeah'],
     ...overrides,
   }
 }
@@ -104,6 +107,8 @@ beforeEach(() => {
   jest.clearAllMocks()
   // Programme.findUnique : retourne null par défaut (pas de programme)
   mocks.programme.findUnique.mockResolvedValue(null)
+  // GUIC-684 — résolution des slugs de rattachement (jonction M:N).
+  mocks.programme.findMany.mockResolvedValue([programmeRow('yeah')])
 })
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -229,9 +234,11 @@ describe('OpportuniteService.create', () => {
     expect(mocks.opportunite.create).not.toHaveBeenCalled()
   })
 
-  it('résout `programmeSlug` en `programmeId` dans la transaction', async () => {
+  // GUIC-684 — le rattachement passe de la colonne `programme_id` (1 seul) à la
+  // table de jonction `opportunites_programmes` (1..N). La colonne n'est plus écrite.
+  it('rattache les programmes via la jonction, le premier étant principal', async () => {
     mocks.opportuniteType.findUnique.mockResolvedValue(typeRow('stage'))
-    mocks.programme.findUnique.mockResolvedValue(programmeRow('yjc'))
+    mocks.programme.findMany.mockResolvedValue([programmeRow('yjc'), programmeRow('edupop')])
     mocks.opportunite.create.mockResolvedValue({ id: 'opp-2' })
     mocks.opportuniteStage.create.mockResolvedValue({})
     mocks.opportunite.findUnique.mockResolvedValue(
@@ -242,12 +249,63 @@ describe('OpportuniteService.create', () => {
     await svc.create({
       type: 'stage',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      base: baseInput({ programmeSlug: 'yjc' }) as any,
+      base: baseInput({ programmeSlugs: ['yjc', 'edupop'] }) as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       details: { dureeMois: 3 } as any,
     })
-    expect(mocks.programme.findUnique).toHaveBeenCalledWith({ where: { slug: 'yjc' } })
-    expect(mocks.opportunite.create.mock.calls[0][0].data.programmeId).toBe('prog-yjc')
+
+    expect(mocks.opportuniteProgramme.createMany).toHaveBeenCalledWith({
+      data: [
+        { opportuniteId: 'opp-2', programmeId: 'prog-yjc', principal: true },
+        { opportuniteId: 'opp-2', programmeId: 'prog-edupop', principal: false },
+      ],
+    })
+    // La colonne dépréciée n'est plus alimentée.
+    expect(mocks.opportunite.create.mock.calls[0][0].data.programmeId).toBeUndefined()
+  })
+
+  it('refuse la création sans aucun programme', async () => {
+    mocks.opportuniteType.findUnique.mockResolvedValue(typeRow('emploi'))
+    mocks.opportunite.create.mockResolvedValue({ id: 'opp-x' })
+
+    const svc = new OpportuniteService(prismaMock as never)
+    await expect(
+      svc.create({
+        type: 'emploi',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        base: baseInput({ programmeSlugs: [] }) as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        details: { typeContrat: 'CDI' } as any,
+      }),
+    ).rejects.toThrow('PROGRAMME_REQUIS')
+  })
+
+  it('remplace les rattachements à la mise à jour (purge + recréation)', async () => {
+    mocks.opportunite.findUnique.mockResolvedValue({ id: 'opp-9', typeRef: typeRow('emploi') })
+    mocks.programme.findMany.mockResolvedValue([programmeRow('yeah')])
+    mocks.opportunite.update.mockResolvedValue({})
+
+    const svc = new OpportuniteService(prismaMock as never)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await svc.update('opp-9', { base: { programmeSlugs: ['yeah'] } as any }).catch(() => undefined)
+
+    expect(mocks.opportuniteProgramme.deleteMany).toHaveBeenCalledWith({
+      where: { opportuniteId: 'opp-9' },
+    })
+    expect(mocks.opportuniteProgramme.createMany).toHaveBeenCalledWith({
+      data: [{ opportuniteId: 'opp-9', programmeId: 'prog-yeah', principal: true }],
+    })
+  })
+
+  it('filtre la liste sur un programme via la jonction', async () => {
+    mocks.opportunite.findMany.mockResolvedValue([])
+
+    const svc = new OpportuniteService(prismaMock as never)
+    await svc.findManyWithDetails({ programmeSlug: 'yeah' })
+
+    expect(mocks.opportunite.findMany.mock.calls[0][0].where).toMatchObject({
+      programmes: { some: { programme: { slug: 'yeah' } } },
+    })
   })
 
   it('attache les skills et tags (replaceSkills + replaceTags appelés)', async () => {

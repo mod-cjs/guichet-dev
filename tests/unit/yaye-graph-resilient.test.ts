@@ -25,8 +25,11 @@ function fakePort(label: string, mode: { throws?: boolean } = {}): GraphPort {
     multiEntityPath: jest.fn(async () => []),
     livresDisponibles: jest.fn(async () => []),
     ressourcesPourCompetences: jest.fn(async () => []),
+    // GUIC-684 — nouvelle méthode du port : le double doit rester complet, sinon
+    // le test ne prouve plus que l'adaptateur résilient couvre TOUT le contrat.
+    acteursDuProgramme: jest.fn(async () => ({ programme: null, centres: [], organisations: [] })),
     apercuMarche: jest.fn(async () => ({
-      total: 0, parType: [], parDomaine: [], parRegion: [], competences: [], organisations: [],
+      total: 0, parType: [], parDomaine: [], parRegion: [], competences: [], organisations: [], programmes: [],
     })),
   }
 }

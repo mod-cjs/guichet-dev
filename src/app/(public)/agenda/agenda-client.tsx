@@ -13,6 +13,8 @@ interface Props {
   initialItems: EvenementListItem[]
   total: number
   isAuthenticated?: boolean
+  /** GUIC-684 — programmes actifs proposés au filtrage. */
+  programmes?: { slug: string; nom: string }[]
 }
 
 const PAGE_SIZE = 6
@@ -25,10 +27,17 @@ type Vue = 'liste' | 'calendrier'
  * - Toggle Liste / Calendrier
  * - Inscription rapide depuis la carte (idem GUIC-23)
  */
-export function AgendaClient({ initialItems, total, isAuthenticated = false }: Props) {
+export function AgendaClient({
+  initialItems,
+  total,
+  isAuthenticated = false,
+  programmes = [],
+}: Props) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [type, setType] = useState<TypeEvenementValue | 'all'>('all')
+  // GUIC-684 — filtre par programme (côté client, comme les autres filtres agenda).
+  const [programmesActifs, setProgrammesActifs] = useState<string[]>([])
   const [quand, setQuand] = useState<QuandFilter>('tous')
   const [visible, setVisible] = useState(PAGE_SIZE)
   const [vue, setVue] = useState<Vue>('liste')
@@ -104,6 +113,12 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
     const q = query.trim().toLowerCase()
     return initialItems.filter((ev) => {
       if (type !== 'all' && ev.type !== type) return false
+      if (
+        programmesActifs.length > 0 &&
+        !(ev.programmes ?? []).some((slug) => programmesActifs.includes(slug))
+      ) {
+        return false
+      }
       if (!quandFilter(ev)) return false
       if (!q) return true
       return (
@@ -112,7 +127,7 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
         ev.lieu.toLowerCase().includes(q)
       )
     })
-  }, [initialItems, query, type, quandFilter])
+  }, [initialItems, query, type, programmesActifs, quandFilter])
 
   const shown = filtered.slice(0, visible)
   const hasMore = filtered.length > visible
@@ -178,6 +193,13 @@ export function AgendaClient({ initialItems, total, isAuthenticated = false }: P
           onQuandChange={setQuand}
           counts={counts}
           onReset={resetFilters}
+          programmes={programmes}
+          programmesActifs={programmesActifs}
+          onProgrammeToggle={(slug) =>
+            setProgrammesActifs((cur) =>
+              cur.includes(slug) ? cur.filter((s) => s !== slug) : [...cur, slug],
+            )
+          }
         />
       </div>
 

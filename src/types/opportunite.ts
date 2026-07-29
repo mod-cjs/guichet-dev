@@ -28,6 +28,8 @@ export interface OpportuniteFiltres {
   domaine?: Domaine | Domaine[]
   type?: TypeOpportunite | TypeOpportunite[]
   region?: Region | Region[]
+  /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
+  programme?: string | string[]
   page: number
   sortBy: OpportuniteSortBy
 }

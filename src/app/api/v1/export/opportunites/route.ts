@@ -21,7 +21,6 @@ import type { ApiResponse } from '@/types/api'
 /** Inclusions Prisma — table mère + relations polymorphiques + jonctions. */
 const EXPORT_INCLUDE = {
   typeRef: true,
-  programme: true,
   emploi: true,
   stage: true,
   formation: true,
@@ -34,6 +33,7 @@ const EXPORT_INCLUDE = {
   volontariat: true,
   skills: { include: { skill: true } },
   tags: { include: { tag: true } },
+  programmes: { include: { programme: true } },
 } as const
 
 type ExportResponse = NextResponse<ApiResponse<OpportuniteExportDTO[]>>

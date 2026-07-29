@@ -13,6 +13,11 @@ interface Props {
   /** Compteurs par type pour l'affichage des badges. */
   counts: Record<TypeEvenementValue | 'all', number>
   onReset: () => void
+  /** GUIC-684 — programmes actifs proposés au filtrage. */
+  programmes?: { slug: string; nom: string }[]
+  /** Slugs de programmes actuellement sélectionnés. */
+  programmesActifs?: string[]
+  onProgrammeToggle?: (slug: string) => void
 }
 
 const TYPES: { value: TypeEvenementValue | 'all'; label: string }[] = [
@@ -43,6 +48,9 @@ export function EvenementFilters({
   onQuandChange,
   counts,
   onReset,
+  programmes = [],
+  programmesActifs = [],
+  onProgrammeToggle,
 }: Props) {
   return (
     <aside
@@ -96,6 +104,25 @@ export function EvenementFilters({
           })}
         </ul>
       </fieldset>
+
+      {programmes.length > 0 && onProgrammeToggle && (
+        <fieldset className="border-0 p-0 m-0 flex flex-col gap-space-2">
+          <legend className="text-fs-100 font-bold uppercase tracking-wider text-color-text-secondary mb-space-1">
+            Programme
+          </legend>
+          <div className="flex flex-wrap gap-space-2" role="group" aria-label="Filtres par programme">
+            {programmes.map((p) => (
+              <Chip
+                key={p.slug}
+                selected={programmesActifs.includes(p.slug)}
+                onClick={() => onProgrammeToggle(p.slug)}
+              >
+                {p.nom}
+              </Chip>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <fieldset className="border-0 p-0 m-0 flex flex-col gap-space-2">
         <legend className="text-fs-100 font-bold uppercase tracking-wider text-color-text-secondary mb-space-1">

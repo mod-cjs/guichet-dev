@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { creerRessource, modifierRessource } from './actions'
 import type { RessourceRow } from './AdminRessourcesTable'
 
@@ -22,9 +23,17 @@ export interface RessourceFormModalProps {
   ressource?: RessourceRow
   /** Appelé après succès (création/édition) — la liste affiche un toast. */
   onSuccess?: (action: 'create' | 'update') => void
+  /** Programmes actifs proposés au rattachement (GUIC-684). */
+  programmes?: ProgrammeOption[]
 }
 
-export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: RessourceFormModalProps) {
+export function RessourceFormModal({
+  isOpen,
+  onClose,
+  ressource,
+  onSuccess,
+  programmes = [],
+}: RessourceFormModalProps) {
   const editing = Boolean(ressource)
   const [titre, setTitre] = useState(ressource?.titre ?? '')
   const [description, setDescription] = useState(ressource?.description ?? '')
@@ -33,6 +42,11 @@ export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: Re
   const [url, setUrl] = useState(ressource?.url ?? '')
   const [categorie, setCategorie] = useState(ressource?.categorie ?? '')
   const [estPublic, setEstPublic] = useState(ressource?.estPublic ?? true)
+  // GUIC-684 — rattachement obligatoire (vide pour une ressource antérieure au ticket).
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(ressource?.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(
+    ressource?.programmePrincipalSlug ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -47,6 +61,13 @@ export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: Re
       url,
       categorie: categorie.trim() || null,
       estPublic,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
+    }
+    // Garde côté client — le serveur refuse aussi (PROGRAMME_REQUIS).
+    if (programmeSlugs.length === 0) {
+      setError('Sélectionne au moins un programme de rattachement.')
+      return
     }
     startTransition(async () => {
       try {
@@ -73,6 +94,13 @@ export function RessourceFormModal({ isOpen, onClose, ressource, onSuccess }: Re
         <Input id="ress-theme" label="Thème" required value={theme} onChange={(e) => setTheme(e.target.value)} />
         <Input id="ress-url" label="URL" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} />
         <Input id="ress-categorie" label="Catégorie" value={categorie} onChange={(e) => setCategorie(e.target.value)} />
+        <ProgrammesField
+          options={programmes}
+          value={programmeSlugs}
+          onChange={setProgrammeSlugs}
+          principal={programmePrincipal}
+          onPrincipalChange={setProgrammePrincipal}
+        />
         <Select
           id="ress-statut"
           label="Statut"

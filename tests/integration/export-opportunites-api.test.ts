@@ -33,7 +33,6 @@ function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     type: 'Stage',
     organisation: 'CJS legacy',
     typeId: null,
-    programmeId: null,
     organisationLibelle: null,
     niveauEtudeMin: null,
     domaine: 'Numerique',
@@ -49,7 +48,7 @@ function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     updatedAt: NOW,
     deletedAt: null,
     typeRef: null,
-    programme: null,
+    programmes: [],
     emploi: null,
     stage: null,
     formation: null,
@@ -118,10 +117,15 @@ describe('GET /api/v1/export/opportunites', () => {
         requiresFileUpload: true, fileLabel: 'CV', decisionAuthority: null, actif: true, ordre: 0,
         createdAt: NOW, updatedAt: NOW,
       },
-      programme: {
-        id: 'p1', slug: 'yaakaar', nom: 'Yaakaar', description: 'd',
-        gradientToken: 'tk', actif: true, createdAt: NOW, updatedAt: NOW,
-      },
+      // GUIC-684 — la colonne `programme_id` est supprimée : le rattachement vient
+      // de la jonction, `programme_slug` reste servi depuis le principal.
+      programmes: [{
+        principal: true,
+        programme: {
+          id: 'p1', slug: 'yaakaar', nom: 'Yaakaar', description: 'd',
+          gradientToken: 'tk', actif: true, createdAt: NOW, updatedAt: NOW,
+        },
+      }],
       emploi: {
         opportuniteId: 'opp-1', typeContrat: 'CDI', dureeContratMois: 12,
         experienceRequise: '2 ans', teletravail: true, niveauEtudeMin: 'BAC_PLUS_3',

@@ -396,7 +396,7 @@ const getRecommendations: AgentTool = {
 // GraphPort (Neo4j ou fallback Prisma). Portée RBAC : bornée au cjsUid connecté.
 const GRAPH_INTENTS = [
   'recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours',
-  'livre_disponible', 'ressources_competences', 'apercu_marche',
+  'livre_disponible', 'ressources_competences', 'apercu_marche', 'acteurs_programme',
 ] as const
 type GraphIntent = (typeof GRAPH_INTENTS)[number]
 
@@ -420,7 +420,10 @@ const queryKnowledgeGraph: AgentTool = {
         "MANQUENT pour une offre donnée (opportuniteId) — « avec quoi je me prépare ? ».\n" +
         "- `apercu_marche` : question GÉNÉRALE sur le marché — « quels secteurs recrutent à Thiès ? », " +
         "« qu'est-ce qui embauche en ce moment ? », « quelles compétences sont demandées en agro ? ». " +
-        "Renvoie des VOLUMES d'offres (jamais de chiffres sur les usagers).",
+        "Renvoie des VOLUMES d'offres (jamais de chiffres sur les usagers).\n" +
+        "- `acteurs_programme` : qui porte un programme CJS sur le terrain — « quels centres " +
+        "déploient YEAH ? », « qui sont les partenaires de Yaakaar ? ». Requiert `programme` " +
+        "(slug : yaakaar, yeah, yjc, edupop).",
       parameters: {
         type: 'object',
         properties: {
@@ -431,6 +434,7 @@ const queryKnowledgeGraph: AgentTool = {
           type: { type: 'string', enum: Object.values(TypeOpportunite), description: "Filtre type (recherche)" },
           q: { type: 'string', description: 'Mots-clés : titre (recherche) ou titre/auteur (livre_disponible)' },
           theme: { type: 'string', description: 'Thème du livre (livre_disponible)' },
+          programme: { type: 'string', description: "Slug du programme (acteurs_programme) : yaakaar, yeah, yjc, edupop" },
         },
         required: ['intent'],
       },
@@ -562,6 +566,28 @@ const queryKnowledgeGraph: AgentTool = {
             organisationsActives: apercu.organisations,
           },
           graph: { template: 'apercu_marche', nodesReturned: apercu.total },
+        }
+      }
+      case 'acteurs_programme': {
+        // GUIC-684 — sans slug on interrogerait tout le graphe pour rien : on refuse,
+        // l'agent redemande. Les acteurs ne sont pas des cards → data brute pour le LLM.
+        const slug = str(args.programme)
+        if (!slug) return { ok: false, error: 'programme requis pour acteurs_programme (slug : yaakaar, yeah, yjc, edupop)' }
+        const acteurs = await graph.acteursDuProgramme(slug)
+        return {
+          ok: true,
+          data: {
+            intent,
+            programme: acteurs.programme,
+            centres: acteurs.centres,
+            organisations: acteurs.organisations,
+            count_centres: acteurs.centres.length,
+            count_organisations: acteurs.organisations.length,
+          },
+          graph: {
+            template: 'acteurs_programme',
+            nodesReturned: acteurs.centres.length + acteurs.organisations.length,
+          },
         }
       }
       case 'ressources_competences': {

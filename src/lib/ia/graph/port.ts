@@ -140,6 +140,9 @@ export interface MarketOverview {
   competences: MarketCount[]
   /** Organisations qui publient le plus sur ce périmètre. */
   organisations: MarketCount[]
+  /** GUIC-684 — répartition par programme sectoriel (une offre cofinancée compte
+   *  pour chacun de ses programmes). */
+  programmes: MarketCount[]
 }
 
 /** Périmètre d'un aperçu de marché (facultatif : tout le Sénégal si vide). */
@@ -201,6 +204,16 @@ export interface GraphPort {
   ressourcesPourCompetences(slugs: string[], limit?: number): Promise<GraphRessourcePrepa[]>
   /** Recherche GLOBALE : photographie agrégée du marché des offres ouvertes (jamais de personnes). */
   apercuMarche(criteria: MarketCriteria): Promise<MarketOverview>
+  /** GUIC-684 — acteurs d'un programme : centres de déploiement + partenaires associés. */
+  acteursDuProgramme(slug: string): Promise<ProgrammeActeurs>
+}
+
+/** Acteurs rattachés à un programme sectoriel (GUIC-684). */
+export interface ProgrammeActeurs {
+  /** Nom lisible du programme ; `null` si le slug est inconnu du graphe. */
+  programme: string | null
+  centres: { nom: string; region: string | null }[]
+  organisations: { nom: string }[]
 }
 
 export const DEFAULT_LIMIT = 5

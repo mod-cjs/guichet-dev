@@ -21,6 +21,8 @@ export interface RessourceFiltres {
   categories?: string[]
   /** `recent` = 30 derniers jours ; `year` = année en cours. */
   date?: DateBucket
+  /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
+  programmes?: string[]
   page?: number
 }
 
@@ -97,6 +99,13 @@ export async function listRessources(
 
   const dateMin = dateLowerBound(filtres.date)
   if (dateMin) where.createdAt = { gte: dateMin }
+
+  // GUIC-684 — rattachement M:N : `some` (et non une jointure) pour qu'une ressource
+  // rattachée à deux programmes n'apparaisse qu'une fois et que le COUNT reste juste.
+  const programmes = (filtres.programmes ?? []).map((p) => p.trim()).filter(Boolean)
+  if (programmes.length) {
+    where.programmes = { some: { programme: { slug: { in: programmes } } } }
+  }
 
   if (filtres.q && filtres.q.trim()) {
     const q = filtres.q.trim()

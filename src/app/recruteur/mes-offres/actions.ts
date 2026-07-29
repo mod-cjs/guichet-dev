@@ -17,6 +17,7 @@ import { OpportuniteService, type CreateOpportuniteInput } from '@/lib/services/
 import { getRecruteurContext } from '@/lib/loaders/recruteur'
 import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import { generateUniqueSlug } from '@/lib/slug'
+import { assertAuMoinsUnProgramme } from '@/lib/programmes/rattachement'
 import type { CJSSession } from '@/types/user'
 
 // ── Enums (miroir prisma/schema.prisma) ─────────────────────────────────────────
@@ -34,6 +35,10 @@ const baseSchema = z.object({
   deadline: z.string().trim().nullish(),
   // GUIC-515 — compétences requises (ids Skill) → alimentent le score d'adéquation IA.
   skills: z.array(z.string().min(1)).max(15).optional(),
+  // GUIC-684 — programme(s) de rattachement : le recruteur les choisit à la création.
+  // L'admin peut les corriger à la modération, mais l'offre n'entre jamais sans.
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().nullish(),
 })
 
 const emploiSchema = baseSchema.extend({
@@ -83,6 +88,8 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
   if (!ctx.organisationId || !ctx.organisationNom) throw new Error('NO_ORGANISATION')
 
   const parsed = inputSchema.parse(raw)
+  // Échoue AVANT de réserver un slug : pas de trace d'une offre qui n'existera pas.
+  assertAuMoinsUnProgramme(parsed.programmeSlugs)
 
   const slug = await generateUniqueSlug(parsed.titre, async (s) =>
     (await prisma.opportunite.findUnique({ where: { slug: s }, select: { id: true } })) !== null,
@@ -103,6 +110,8 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
     statut: 'brouillon' as const,
     recruteurUid: session.cjsUid,
     skills: (parsed.skills ?? []).map((skillId) => ({ skillId })),
+    programmeSlugs: parsed.programmeSlugs,
+    programmePrincipalSlug: parsed.programmePrincipalSlug ?? null,
   }
 
   const input: CreateOpportuniteInput =
