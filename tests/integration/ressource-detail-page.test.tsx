@@ -29,6 +29,13 @@ jest.mock('@/lib/auth', () => ({
   getSession: jest.fn(async () => null),
 }))
 
+// `after` exécuté inline pour observer le tracking. Pas de `requireActual` ici :
+// en environnement jsdom, charger `next/server` échoue (globale `Request` absente)
+// et la page n'a besoin que de `after`.
+jest.mock('next/server', () => ({
+  after: (cb: () => unknown) => cb(),
+}))
+
 const mockNotFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
 })

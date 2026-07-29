@@ -161,6 +161,31 @@ describe('GUIC-688 — socle consultations', () => {
       expect(dernierCreate().sujetHash).toBe(hashSujet('uid-1'))
     })
 
+    // GUIC-688 — sans user-agent, tout le trafic anonyme d'un environnement mal
+    // configuré (pas d'IP dans les headers) partagerait UN seul sujet, et la garde
+    // de 30 min n'enregistrerait qu'une consultation pour tout le monde.
+    it('distingue deux visiteurs anonymes de même IP par leur user-agent', async () => {
+      await trackConsultation({
+        typeEntite: 'opportunite', entiteId: 'opp-1', typeEvent: 'consultation',
+        canal: 'web', ip: '10.0.0.1', userAgent: 'Firefox/1',
+      })
+      const premier = dernierCreate().sujetHash
+
+      await trackConsultation({
+        typeEntite: 'opportunite', entiteId: 'opp-1', typeEvent: 'consultation',
+        canal: 'web', ip: '10.0.0.1', userAgent: 'Chrome/2',
+      })
+      expect(dernierCreate().sujetHash).not.toBe(premier)
+    })
+
+    it('n’écrit pas le user-agent en clair', async () => {
+      await trackConsultation({
+        typeEntite: 'centre', entiteId: 'c-1', typeEvent: 'consultation',
+        canal: 'web', ip: '10.0.0.1', userAgent: 'Mozilla/5.0 (SM-A105F)',
+      })
+      expect(JSON.stringify(dernierCreate())).not.toContain('SM-A105F')
+    })
+
     it('n’écrit JAMAIS l’IP en clair et laisse cjsUid null pour un anonyme', async () => {
       await trackConsultation({
         typeEntite: 'opportunite',
