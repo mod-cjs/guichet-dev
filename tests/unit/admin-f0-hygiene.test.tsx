@@ -28,6 +28,7 @@ jest.mock('@/app/admin/ressources/actions', () => ({
 jest.mock('next/navigation', () => ({
   usePathname: () => '/admin',
   useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 jest.mock('@/components/centres/CentresMapGoogle', () => ({
   CentresMapGoogle: () => <div data-testid="centres-map" />,
@@ -41,10 +42,8 @@ import {
   AdminRessourcesTable,
   type RessourceRow,
 } from '@/app/admin/ressources/AdminRessourcesTable'
-import {
-  AdminDashboardClient,
-  type DashboardData,
-} from '@/app/admin/tableau-de-bord/AdminDashboardClient'
+import { AdminDashboardClient } from '@/app/admin/tableau-de-bord/AdminDashboardClient'
+import type { AdminDashboardData as DashboardData } from '@/lib/loaders/admin-dashboard'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 const MOD_ITEMS: ModerationItem[] = [
@@ -73,12 +72,10 @@ const RES_ROWS: RessourceRow[] = [
 ]
 
 const DASH: DashboardData = {
-  kpis: { jeunesInscrits: 22_400, centresActifs: 14, aModerer: 5, insertionsMois: 120, jeunesNouveauxMois: 0, insertionsDeltaPct: null },
-  growthSeries: [{ month: 'Mai', cumulative: 22400 }],
-  accountSplit: [{ label: 'Bénéficiaires', value: 20000, color: 'var(--gj-teal)' }],
-  monthlyCandidatures: [{ m: 'Mai', v: 120 }],
-  centres: [],
-  secondaires: [],
+  briefing: [{ key: 'moderation', count: 5, context: 'à traiter', tone: 'warn', href: '/admin/opportunites', cta: 'Traiter la file' }],
+  funnel: [], funnelConversion: 0, kpis: [], centres: [], centresGeo: [],
+  yaye: { escaladesOuvertes: 0, escaladesDanger: 0, autoResolution: null, satisfaction: null, sessions: 0, conversations: 0 },
+  pulse: [], upcoming: [], oppByType: [], regionScoped: false,
 }
 
 // ── Modération : Aperçu = route admin (brouillon visible, MOD-01) ────────────
@@ -124,10 +121,10 @@ describe('GUIC-461 (F0) — Ressources : Modifier mobile branché', () => {
 })
 
 // ── Dashboard : KPI "À modérer" cliquable ───────────────────────────────────
-describe('GUIC-461 (F0) — Dashboard : KPI À modérer cliquable', () => {
-  it('le KPI "À modérer" est un lien vers /admin/opportunites', () => {
-    render(<AdminDashboardClient data={DASH} />)
-    const link = screen.getByRole('link', { name: /à modérer/i })
+describe('GUIC-461/679 — Dashboard : priorité Modération cliquable', () => {
+  it('la carte briefing "Modération" est un lien vers /admin/opportunites', () => {
+    render(<AdminDashboardClient data={DASH} filters={{ periode: "12mois", region: "all" }} />)
+    const link = screen.getByRole('link', { name: /modération/i })
     expect(link).toHaveAttribute('href', '/admin/opportunites')
   })
 })

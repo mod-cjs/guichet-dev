@@ -1,243 +1,127 @@
 /**
- * GUIC-451 — Tableau de bord admin Lot 11 (sombre + doré)
- * TDD strict : RED d'abord, puis GREEN après implémentation.
- *
- * On teste uniquement le composant client (AdminDashboardClient) avec
- * des données mockées — les appels Prisma serveur ne sont pas couverts ici.
+ * GUIC-451/679 — AdminDashboardClient (tableau de bord poussé : task-first + funnel héros).
  */
 import { render, screen } from '@testing-library/react'
 import { AdminDashboardClient } from '@/app/admin/tableau-de-bord/AdminDashboardClient'
-import type { DashboardData } from '@/app/admin/tableau-de-bord/AdminDashboardClient'
+import type { AdminDashboardData } from '@/lib/loaders/admin-dashboard'
+import type { DashboardFilters } from '@/lib/dashboard-filters'
 
-// ── Mock next/navigation (AdminDashboardClient peut importer des liens) ────
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/admin/tableau-de-bord',
   useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
-
-// ── Mock Icon (SVG sprite non disponible dans jsdom) ──────────────────────
-jest.mock('@/components/ui/Icon', () => ({
-  Icon: ({ name, title }: { name: string; title?: string }) => (
-    <svg data-testid={`icon-${name}`} aria-label={title ?? name} />
-  ),
-}))
-
-// ── Mock CentresMapGoogle (Google Maps JS API indispo en jsdom) ───────────
 jest.mock('@/components/centres/CentresMapGoogle', () => ({
-  CentresMapGoogle: ({ centres }: { centres: { id: string; nom: string }[] }) => (
-    <div data-testid="centres-map">{centres.map((c) => c.nom).join(', ')}</div>
+  CentresMapGoogle: ({ centresForList }: { centresForList: { nom: string }[] }) => (
+    <div data-testid="centres-map">{centresForList.map((c) => c.nom).join(', ')}</div>
   ),
 }))
 
-const MOCK_DATA: DashboardData = {
-  kpis: {
-    jeunesInscrits: 22_400,
-    centresActifs: 14,
-    aModerer: 5,
-    insertionsMois: 120,
-    jeunesNouveauxMois: 1240,
-    insertionsDeltaPct: 12,
-  },
-  growthSeries: [
-    { month: 'Nov', cumulative: 12000 },
-    { month: 'Déc', cumulative: 14000 },
-    { month: 'Jan', cumulative: 16000 },
-    { month: 'Fév', cumulative: 18000 },
-    { month: 'Mar', cumulative: 20000 },
-    { month: 'Avr', cumulative: 21000 },
-    { month: 'Mai', cumulative: 22400 },
+const FILTERS: DashboardFilters = { periode: '12mois', region: 'all' }
+
+const DATA: AdminDashboardData = {
+  briefing: [
+    { key: 'moderation', count: 4, context: 'la plus ancienne attend 5 j (SLA < 48 h dépassé)', tone: 'crit', href: '/admin/opportunites', cta: 'Traiter la file' },
+    { key: 'escalades', count: 3, context: '1 signalée(s) DANGER — à reprendre en priorité', tone: 'crit', href: '/admin/yaye/escalades', cta: 'Voir les escalades' },
+    { key: 'curation', count: 8, context: 'la plus ancienne depuis 8 j', tone: 'info', href: '/admin/curation', cta: 'Ouvrir la file' },
   ],
-  accountSplit: [
-    { label: 'Bénéficiaires', value: 20000, color: 'var(--gj-teal)' },
-    { label: 'Conseillers', value: 1800, color: 'var(--gj-teal-deep)' },
-    { label: 'Recruteurs', value: 600, color: 'var(--gj-blue)' },
+  funnel: [
+    { key: 'recue', label: 'Reçues', count: 200, pctOfTop: 1, conversion: null, dropoff: false },
+    { key: 'preselection', label: 'Présélection', count: 144, pctOfTop: 0.72, conversion: 0.72, dropoff: false },
+    { key: 'entretien', label: 'Entretien', count: 100, pctOfTop: 0.5, conversion: 0.69, dropoff: false },
+    { key: 'retenue', label: 'Retenues', count: 28, pctOfTop: 0.14, conversion: 0.28, dropoff: true },
+    { key: 'insertion', label: 'Insertion', count: 22, pctOfTop: 0.11, conversion: 0.79, dropoff: false },
   ],
-  monthlyCandidatures: [
-    { m: 'Nov', v: 80 },
-    { m: 'Déc', v: 95 },
-    { m: 'Jan', v: 110 },
-    { m: 'Fév', v: 100 },
-    { m: 'Mar', v: 115 },
-    { m: 'Avr', v: 118 },
-    { m: 'Mai', v: 120 },
+  funnelConversion: 11,
+  kpis: [
+    { key: 'jeunes', label: 'Jeunes inscrits', value: '20 593', delta: '+12 ce mois', deltaUp: true },
+    { key: 'offres', label: 'Offres publiées', value: '41' },
+    { key: 'insertions', label: 'Insertions ce mois', value: '22', delta: '11% du parcours', deltaUp: true },
+    { key: 'partenaires', label: 'Partenaires vérifiés', value: '7' },
   ],
   centres: [
-    { id: 'c1', nom: 'CJS Dakar', latitude: 14.69, longitude: -17.44, region: 'Dakar', slug: 'cjs-dakar' },
-    { id: 'c2', nom: 'CJS Thiès', latitude: 14.79, longitude: -16.93, region: 'Thiès', slug: 'cjs-thies' },
+    { id: 'c1', nom: 'CJS Dakar', region: 'Dakar', slug: 'dakar', jeunes: 542, reservationsEnAttente: 3, frequentation30j: 40, insertions: 7 },
   ],
-  secondaires: [
-    { label: "Taux d'insertion moyen", value: '61%', icon: 'trending' },
-    { label: 'Candidatures (mois)', value: '4 312', icon: 'document' },
-    { label: 'Ateliers tenus', value: '186', icon: 'calendar' },
-    { label: 'Partenaires actifs', value: '412', icon: 'employment' },
+  centresGeo: [
+    { id: 'c1', nom: 'CJS Dakar', latitude: 14.7, longitude: -17.4, region: 'Dakar', slug: 'dakar' },
+    { id: 'c2', nom: 'CJS Thiès', latitude: 14.8, longitude: -16.9, region: 'Thies', slug: 'thies' },
   ],
+  yaye: { escaladesOuvertes: 3, escaladesDanger: 1, autoResolution: 81, satisfaction: 82, sessions: 48, conversations: 9 },
+  pulse: [{ action: 'opportunite.publiee', resume: 'Offre publiée', ago: "à l'instant" }],
+  upcoming: [{ label: 'Atelier CV', when: '2 août', kind: 'evenement' }],
+  oppByType: [
+    { type: 'Emploi', label: 'Emploi', total: 9, aModerer: 1 },
+    { type: 'Formation', label: 'Formation', total: 9, aModerer: 0 },
+  ],
+  regionScoped: false,
 }
 
-describe('GUIC-451 — AdminDashboardClient', () => {
-  beforeEach(() => {
-    render(<AdminDashboardClient data={MOCK_DATA} />)
+describe('GUIC-451/679 — AdminDashboardClient', () => {
+  beforeEach(() => render(<AdminDashboardClient data={DATA} filters={FILTERS} />))
+
+  it('affiche le titre "Tableau de bord national"', () => {
+    expect(screen.getByRole('heading', { name: /tableau de bord national/i })).toBeInTheDocument()
   })
 
-  // ── Présence nationale (carte Google Maps) — GUIC-467 ──────────────────────
-  it('affiche la carte « Présence nationale »', () => {
-    expect(screen.getByRole('heading', { name: /présence nationale/i })).toBeInTheDocument()
+  it('briefing : les 3 priorités avec contexte actionnable', () => {
+    expect(screen.getByText(/SLA < 48 h dépassé/i)).toBeInTheDocument()
+    expect(screen.getByText(/DANGER — à reprendre en priorité/i)).toBeInTheDocument()
+    expect(screen.getByText(/la plus ancienne depuis 8 j/i)).toBeInTheDocument()
   })
 
-  it('passe les centres géolocalisés à la carte', () => {
+  it('briefing : Modération pointe /admin/opportunites', () => {
+    expect(screen.getByRole('link', { name: /modération/i })).toHaveAttribute('href', '/admin/opportunites')
+  })
+
+  it('funnel : titre + conversion globale + étapes', () => {
+    expect(screen.getByRole('heading', { name: /parcours des candidatures/i })).toBeInTheDocument()
+    expect(screen.getByText(/11% du dépôt à l.insertion/i)).toBeInTheDocument()
+    expect(screen.getByText('Présélection')).toBeInTheDocument()
+  })
+
+  it('funnel : surligne le POINT DE FUITE', () => {
+    expect(screen.getByText(/point de fuite/i)).toBeInTheDocument()
+  })
+
+  it('KPIs requalifiés avec tendance', () => {
+    expect(screen.getByText(/jeunes inscrits/i)).toBeInTheDocument()
+    expect(screen.getByText(/insertions ce mois/i)).toBeInTheDocument()
+    expect(screen.getByText(/partenaires vérifiés/i)).toBeInTheDocument()
+    expect(screen.getByText(/\+12 ce mois/i)).toBeInTheDocument()
+    // les KPIs redondants/ambigus ont été retirés
+    expect(screen.queryByText(/centres actifs/i)).toBeNull()
+    expect(screen.queryByText(/taux d.insertion/i)).toBeNull()
+  })
+
+  it('réseau : centres à suivre + carte géolocalisée', () => {
+    expect(screen.getByRole('heading', { name: /centres à suivre/i })).toBeInTheDocument()
+    expect(screen.getByText(/3 rés. en attente/i)).toBeInTheDocument()
     const map = screen.getByTestId('centres-map')
     expect(map).toHaveTextContent('CJS Dakar')
     expect(map).toHaveTextContent('CJS Thiès')
   })
 
-  // ── Deltas KPI — GUIC-467 (F6) ─────────────────────────────────────────────
-  it('affiche le delta « nouveaux ce mois » sous le KPI jeunes', () => {
-    expect(screen.getByText(/\+1\s?240 ce mois/i)).toBeInTheDocument()
+  it('Yaye : auto-résolution + satisfaction + escalades danger', () => {
+    expect(screen.getByText('81%')).toBeInTheDocument()
+    expect(screen.getByText('82%')).toBeInTheDocument()
+    expect(screen.getByText(/1 danger/i)).toBeInTheDocument()
   })
 
-  it('affiche le delta % des insertions vs mois dernier', () => {
-    expect(screen.getByText(/\+12% vs mois dernier/i)).toBeInTheDocument()
+  it('opportunités par type (actionable)', () => {
+    expect(screen.getByRole('heading', { name: /opportunités par type/i })).toBeInTheDocument()
+    expect(screen.getByText('Emploi')).toBeInTheDocument()
   })
 
-  // ── Indicateurs secondaires — GUIC-467 (F6) ────────────────────────────────
-  it('affiche les indicateurs secondaires (taux insertion, candidatures, ateliers, partenaires)', () => {
-    expect(screen.getByText(/taux d.insertion moyen/i)).toBeInTheDocument()
-    expect(screen.getByText('61%')).toBeInTheDocument()
-    expect(screen.getByText(/ateliers tenus/i)).toBeInTheDocument()
-    expect(screen.getByText(/partenaires actifs/i)).toBeInTheDocument()
-  })
-
-  // ── Titre page ────────────────────────────────────────────────────────────
-  it('affiche le titre "Tableau de bord national"', () => {
-    expect(
-      screen.getByRole('heading', { name: /tableau de bord national/i })
-    ).toBeInTheDocument()
-  })
-
-  // ── 4 labels KPI ────────────────────────────────────────────────────────
-  it('affiche le label KPI "Jeunes inscrits"', () => {
-    expect(screen.getByText(/jeunes inscrits/i)).toBeInTheDocument()
-  })
-
-  it('affiche le label KPI "Centres actifs"', () => {
-    expect(screen.getByText(/centres actifs/i)).toBeInTheDocument()
-  })
-
-  it('affiche le label KPI "À modérer"', () => {
-    expect(screen.getByText(/à modérer/i)).toBeInTheDocument()
-  })
-
-  it('affiche le label KPI "Candidatures retenues" (ex-"Insertions ce mois")', () => {
-    // Plusieurs occurrences possibles (KPI + titre BarChart) — on vérifie l'existence.
-    expect(screen.getAllByText(/candidatures retenues/i).length).toBeGreaterThan(0)
-  })
-
-  // ── Valeurs KPI ───────────────────────────────────────────────────────────
-  it('affiche la valeur KPI jeunes inscrits (22 400)', () => {
-    // toLocaleString('fr-FR') utilise   (espace fine insécable) comme
-    // séparateur de milliers — on matche avec une regex permissive.
-    expect(screen.getByText(/22[ \s]?400/)).toBeInTheDocument()
-  })
-
-  it('affiche la valeur KPI centres actifs (14)', () => {
-    // "14" apparaît au moins une fois
-    expect(screen.getAllByText('14').length).toBeGreaterThan(0)
-  })
-
-  // ── Titres des cards charts ──────────────────────────────────────────────
-  it('affiche la card "Croissance des inscriptions"', () => {
-    expect(
-      screen.getByRole('heading', { name: /croissance des inscriptions/i })
-    ).toBeInTheDocument()
-  })
-
-  it('affiche la card "Répartition des comptes"', () => {
-    expect(
-      screen.getByRole('heading', { name: /répartition des comptes/i })
-    ).toBeInTheDocument()
-  })
-
-  it('affiche la card "Candidatures retenues / mois" (ex-"Insertions par mois")', () => {
-    expect(
-      screen.getByRole('heading', { name: /candidatures retenues \/ mois/i })
-    ).toBeInTheDocument()
-  })
-
-  // ── Call-out modération ──────────────────────────────────────────────────
-  it('affiche le call-out de modération', () => {
-    // GUIC-461 : la KPI "À modérer" est désormais aussi un lien → plusieurs liens /modérer/.
-    expect(screen.getAllByRole('link', { name: /modérer/i }).length).toBeGreaterThan(0)
-  })
-
-  it('tous les liens de modération pointent vers /admin/opportunites', () => {
-    const links = screen.getAllByRole('link', { name: /modérer/i })
-    expect(links.length).toBeGreaterThan(0)
-    links.forEach((l) => expect(l).toHaveAttribute('href', '/admin/opportunites'))
-  })
-
-  // ── Légende Donut ────────────────────────────────────────────────────────
-  it('affiche les labels de la légende Donut (Bénéficiaires, Conseillers, Recruteurs)', () => {
-    expect(screen.getByText(/bénéficiaires/i)).toBeInTheDocument()
-    expect(screen.getByText(/conseillers/i)).toBeInTheDocument()
-    expect(screen.getByText(/recruteurs/i)).toBeInTheDocument()
-  })
-
-  // ── Prop typée : vérification que DashboardData est correctement accepté ──
-  it('accepte une prop data typée DashboardData avec insertionsMois null → affiche "—"', () => {
-    const dataAvecNull: DashboardData = {
-      ...MOCK_DATA,
-      kpis: { ...MOCK_DATA.kpis, insertionsMois: null },
-    }
-    render(<AdminDashboardClient data={dataAvecNull} />)
-    // "—" doit être présent au moins une fois (KPI insertions → —)
-    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  it('pouls : activité récente + ce qui arrive', () => {
+    expect(screen.getByRole('heading', { name: /activité récente/i })).toBeInTheDocument()
+    expect(screen.getByText('Offre publiée')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /ce qui arrive/i })).toBeInTheDocument()
+    expect(screen.getByText('Atelier CV')).toBeInTheDocument()
   })
 })
 
-// ── Tests unitaires des primitives SVG ──────────────────────────────────────
-
-import { Spark } from '@/components/admin/charts/Spark'
-import { LineChart } from '@/components/admin/charts/LineChart'
-import { BarChart } from '@/components/admin/charts/BarChart'
-import { Donut } from '@/components/admin/charts/Donut'
-
-describe('GUIC-451 — Chart primitives SVG', () => {
-  it('Spark — rend un <svg> sans erreur', () => {
-    const { container } = render(<Spark data={[10, 20, 15, 30, 25]} />)
-    expect(container.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('Spark — tolère un tableau à un seul élément', () => {
-    const { container } = render(<Spark data={[42]} />)
-    expect(container.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('LineChart — rend un <svg> avec des données', () => {
-    const { container } = render(
-      <LineChart
-        data={[100, 200, 300, 250, 400]}
-        labels={['Jan', 'Fév', 'Mar', 'Avr', 'Mai']}
-      />
-    )
-    expect(container.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('BarChart — rend un <svg> avec des données', () => {
-    const { container } = render(
-      <BarChart data={[{ m: 'Jan', v: 50 }, { m: 'Fév', v: 80 }]} />
-    )
-    expect(container.querySelector('svg')).toBeInTheDocument()
-  })
-
-  it('Donut — rend un <svg> avec des segments', () => {
-    const { container } = render(
-      <Donut
-        data={[
-          { label: 'A', value: 300, color: 'var(--gj-teal)' },
-          { label: 'B', value: 200, color: 'var(--gj-blue)' },
-        ]}
-        total={22400}
-      />
-    )
-    expect(container.querySelector('svg')).toBeInTheDocument()
+describe('GUIC-679 — briefing vide', () => {
+  it('affiche "rien ne requiert ton attention"', () => {
+    render(<AdminDashboardClient data={{ ...DATA, briefing: [] }} filters={FILTERS} />)
+    expect(screen.getByText(/rien ne requiert ton attention/i)).toBeInTheDocument()
   })
 })
