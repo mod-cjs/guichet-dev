@@ -53,7 +53,7 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
     >
       {/* Lien étiré — carte cliquable vers le détail. */}
       <Link
-        href={`/opportunites/${opp.slug}`}
+        href={`/opportunites/${opp.slug}?src=ia`}
         onClick={onNavigate}
         aria-label={`Voir l'opportunité : ${opp.titre}`}
         className="absolute inset-0"
@@ -110,7 +110,7 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
 
         {/* CTA à la couleur du type — z-10 pour passer au-dessus du lien étiré. */}
         <Link
-          href={`/opportunites/${opp.slug}?postuler=1`}
+          href={`/opportunites/${opp.slug}?postuler=1&src=ia`}
           onClick={onNavigate}
           aria-label={`${ctaLabel} : ${opp.titre}`}
           className={`relative z-10 self-start rounded-gj-lg ${TONE_SOLID_BG[tone]} text-white

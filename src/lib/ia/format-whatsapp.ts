@@ -14,6 +14,15 @@ const MAX_ITEMS = 10 // liste interactive Meta : 10 éléments max
 /** Au-delà de N échanges WhatsApp, on invite (une fois) à passer sur le web. */
 const WEB_SWITCH_AFTER_EXCHANGES = 5
 
+/**
+ * GUIC-688 — tout lien de catalogue envoyé sur WhatsApp porte `src=wa`. Sans ce
+ * marqueur, le clic retombe sur le web et se confond avec le trafic organique :
+ * on ne saurait pas que WhatsApp a produit la visite.
+ */
+function lienWa(chemin: string): string {
+  return `${APP_URL}${chemin}?src=wa`
+}
+
 export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
   const parts: string[] = []
 
@@ -26,7 +35,7 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
       const lines = b.items.slice(0, MAX_ITEMS).map((o, i) => {
         const meta = [o.type, o.region].filter(Boolean).join(' · ')
         return `${i + 1}. *${o.titre}*` + (meta ? `\n   ${meta}` : '') +
-          (o.note ? `\n   ${o.note}` : '') + `\n   ${APP_URL}/opportunites/${o.slug}`
+          (o.note ? `\n   ${o.note}` : '') + `\n   ${lienWa(`/opportunites/${o.slug}`)}`
       })
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'evenements') {
@@ -34,16 +43,16 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
       const lines = b.items.slice(0, MAX_ITEMS).map((e, i) => {
         const quand = dfmt.format(new Date(e.dateDebut))
         const meta = [quand, e.centre ?? e.lieu].filter(Boolean).join(' · ')
-        return `${i + 1}. *${e.titre}*\n   ${meta}\n   ${APP_URL}/agenda/${e.id}`
+        return `${i + 1}. *${e.titre}*\n   ${meta}\n   ${lienWa(`/agenda/${e.id}`)}`
       })
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'ressources') {
-      const lines = b.items.slice(0, MAX_ITEMS).map((r, i) => `${i + 1}. *${r.titre}* (${r.type} · ${r.theme})\n   ${APP_URL}/ressources/${r.id}`)
+      const lines = b.items.slice(0, MAX_ITEMS).map((r, i) => `${i + 1}. *${r.titre}* (${r.type} · ${r.theme})\n   ${lienWa(`/ressources/${r.id}`)}`)
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'centres') {
       const lines = b.items.slice(0, MAX_ITEMS).map((c, i) => {
         const lieu = [c.ville, c.adresse].filter(Boolean).join(' · ')
-        return `${i + 1}. *${c.nom}*\n   ${lieu}` + (c.telephone ? `\n   ${c.telephone}` : '') + (c.slug ? `\n   ${APP_URL}/centres/${c.slug}` : '')
+        return `${i + 1}. *${c.nom}*\n   ${lieu}` + (c.telephone ? `\n   ${c.telephone}` : '') + (c.slug ? `\n   ${lienWa(`/centres/${c.slug}`)}` : '')
       })
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'notifications') {

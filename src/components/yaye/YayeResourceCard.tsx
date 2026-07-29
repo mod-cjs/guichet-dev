@@ -26,7 +26,7 @@ export function YayeResourceCard({ res, onNavigate }: { res: YayeRessourceItem; 
       data-type={res.type}
       className="relative bg-gj-surface border-[1.5px] border-gj-line rounded-gj-lg p-space-3 flex items-center gap-space-3"
     >
-      <Link href={`/ressources/${res.id}`} onClick={onNavigate} aria-label={`Ouvrir la ressource : ${res.titre}`} className="absolute inset-0" />
+      <Link href={`/ressources/${res.id}?src=ia`} onClick={onNavigate} aria-label={`Ouvrir la ressource : ${res.titre}`} className="absolute inset-0" />
       <span aria-hidden className="w-9 h-9 rounded-gj-md bg-gj-teal-soft text-gj-teal-deep inline-flex items-center justify-center shrink-0">
         <Icon name={icon} size={17} />
       </span>
