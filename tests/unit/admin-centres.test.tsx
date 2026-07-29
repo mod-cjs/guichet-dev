@@ -81,7 +81,7 @@ describe('GUIC-457/682 — CentresAdminTable (grille de cartes)', () => {
 
   it('lien Ressources par carte', () => {
     render(<CentresAdminTable centres={MOCK_CENTRES} total={2} />)
-    expect(screen.getAllByRole('link', { name: /ressources/i })[0]).toHaveAttribute('href', '/admin/centres/c1/ressources')
+    expect(screen.getAllByRole('link', { name: /ressources/i })[0]).toHaveAttribute('href', '/admin/centres/c1?tab=ressources')
   })
 
   // C1 — la modale d'édition s'ouvre PRÉ-REMPLIE (sentinelle key={editCentre?.id}).

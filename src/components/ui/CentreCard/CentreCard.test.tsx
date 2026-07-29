@@ -20,9 +20,14 @@ describe('CentreCard', () => {
     expect(screen.getByText(/^Inactif$/)).toBeInTheDocument()
   })
 
-  it('lien Ressources vers la sous-page du centre', () => {
+  it('la carte ouvre la fiche du centre (GUIC-687)', () => {
     render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
-    expect(screen.getByRole('link', { name: /Ressources/ })).toHaveAttribute('href', '/admin/centres/c1/ressources')
+    expect(screen.getByRole('link', { name: /fiche de/i })).toHaveAttribute('href', '/admin/centres/c1')
+  })
+
+  it('lien Ressources vers l\'onglet ressources de la fiche', () => {
+    render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
+    expect(screen.getByRole('link', { name: /Ressources/ })).toHaveAttribute('href', '/admin/centres/c1?tab=ressources')
   })
 
   it('Modifier / Supprimer déclenchent les callbacks avec le centre', async () => {
