@@ -84,6 +84,36 @@ describe('GUIC-688 — impressions des blocs Yaye', () => {
       )
     })
 
+    // GUIC-688 — les livres n'ont pas de bloc dédié : l'outil bibliothèque les
+    // surface via un bloc `action` dont les boutons portent les identifiants.
+    it('émet des impressions de livres depuis un bloc action de la bibliothèque', async () => {
+      await trackBlockImpressions(
+        {
+          kind:    'action',
+          title:   '2 livres disponibles',
+          actions: [],
+          buttons: [
+            { label: 'Petit Prince', href: '/jeune/bibliotheque/l1?src=ia' },
+            { label: 'Ségou',        href: '/jeune/bibliotheque/l2?src=ia' },
+          ],
+        },
+        { canal: 'web', cjsUid: 'uid-1', sessionId: 'sess-1' },
+      )
+
+      expect(mockTrackImpressions).toHaveBeenCalledWith(
+        ['l1', 'l2'],
+        expect.objectContaining({ typeEntite: 'livre', canal: 'ia_web' }),
+      )
+    })
+
+    it('ignore un bloc action sans lien de catalogue', async () => {
+      await trackBlockImpressions(
+        { kind: 'action', title: 'Rappel', actions: [], buttons: [{ label: 'Mon profil', href: '/jeune/profil' }] },
+        { canal: 'web', cjsUid: 'uid-1', sessionId: 'sess-1' },
+      )
+      expect(mockTrackImpressions).not.toHaveBeenCalled()
+    })
+
     it('n’émet rien pour un bloc sans contenu de catalogue', async () => {
       await trackBlockImpressions({ kind: 'text', text: 'bonjour' }, { canal: 'web', cjsUid: 'uid-1', sessionId: 's' })
       expect(mockTrackImpressions).not.toHaveBeenCalled()

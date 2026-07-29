@@ -90,4 +90,29 @@ test('notifications → titres + contenu', () => {
   ] }])
   expect(out).toContain('Échéance')
   expect(out).toContain('Offre X ferme demain')
+  // GUIC-688 — un lien de notification est un lien de catalogue comme un autre :
+  // sans marqueur, le clic se confond avec le trafic web organique.
+  expect(out).toContain('/opportunites/x?src=wa')
+})
+
+test('lien de notification déjà porteur d’une query → src ajouté en second paramètre', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Deadline', titre: 'Échéance', contenu: 'Postule', lien: '/opportunites/x?postuler=1', metaPill: 'J-1', lu: false },
+  ] }])
+  expect(out).toContain('/opportunites/x?postuler=1&src=wa')
+})
+
+test('lien externe de notification laissé intact (ce n’est pas notre trafic)', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Info', titre: 'Partenaire', contenu: 'Voir', lien: 'https://exemple.org/page', metaPill: null, lu: true },
+  ] }])
+  expect(out).toContain('https://exemple.org/page')
+  expect(out).not.toContain('exemple.org/page?src=wa')
+})
+
+test('cards issues d’une reco → le clic porte aussi l’origine', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'opportunites', items: [
+    { id: 'o1', slug: 'dev-web', titre: 'Développeur web', type: 'Emploi', organisation: 'ACME', region: 'Dakar', deadline: null, origine: 'reco' },
+  ] }])
+  expect(out).toContain('/opportunites/dev-web?src=wa&from=reco')
 })
