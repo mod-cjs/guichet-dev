@@ -21,7 +21,7 @@ test('opportunités → liste numérotée + deep link', () => {
   ])
   expect(out).toContain('1. *Développeur web*')
   expect(out).toContain('Emploi · Dakar')
-  expect(out).toContain('/opportunites/dev-web')
+  expect(out).toContain('/opportunites/dev-web?src=wa')
 })
 
 test('tronque à 4096 caractères max (contrainte Meta)', () => {
@@ -65,7 +65,7 @@ test('événements → liste avec date + lieu + deep link agenda', () => {
   ])
   expect(out).toContain('Forum emploi')
   expect(out).toContain('CJS Thiès')
-  expect(out).toContain('/agenda/ev1')
+  expect(out).toContain('/agenda/ev1?src=wa')
 })
 
 test('ressources → liste PDF/guide + lien', () => {
@@ -73,7 +73,7 @@ test('ressources → liste PDF/guide + lien', () => {
     { id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null },
   ] }])
   expect(out).toContain('Guide CV')
-  expect(out).toContain('/ressources/r1')
+  expect(out).toContain('/ressources/r1?src=wa')
 })
 
 test('centres → nom + adresse + lien slug', () => {
@@ -81,7 +81,7 @@ test('centres → nom + adresse + lien slug', () => {
     { id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar', adresse: 'Rue 1', telephone: '+221990000000', services: ['WiFi'] },
   ] }])
   expect(out).toContain('CJS Dakar')
-  expect(out).toContain('/centres/cjs-dakar')
+  expect(out).toContain('/centres/cjs-dakar?src=wa')
 })
 
 test('notifications → titres + contenu', () => {
