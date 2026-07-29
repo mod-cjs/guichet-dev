@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 7 — Centres CJS · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<script src="image-slot.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="cjs-card.jsx"></script>
+<script type="text/babel" src="web-dashboard.jsx"></script>
+<script type="text/babel" src="centres-data.jsx"></script>
+<script type="text/babel" src="centres-web.jsx"></script>
+<script type="text/babel" src="centres-mobile.jsx"></script>
+
+<script type="text/babel">
+const WEB_W = 1280;
+const WEB_H = 1180;
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 7 — Centres CJS"
+    subtitle="Carte du Sénégal · détail centre · ressources réservables · réservation & statuts · carte CJS QR"
+  >
+    <DCSection
+      id="web"
+      title="A · Web — Centres & réservations"
+      subtitle="Carte du Sénégal + annuaire · détail · ressources · réservation · mes réservations · carte CJS"
+    >
+      <DCArtboard id="w1" label="Tous les centres · carte Sénégal + annuaire" width={WEB_W} height={WEB_H}>
+        <WebCentres view="all" />
+      </DCArtboard>
+      <DCArtboard id="w2" label="Détail d'un centre + ressources" width={WEB_W} height={WEB_H}>
+        <WebCentres view="detail" />
+      </DCArtboard>
+      <DCArtboard id="w3" label="Ressources réservables (liste)" width={WEB_W} height={WEB_H}>
+        <WebCentres view="resources" />
+      </DCArtboard>
+      <DCArtboard id="w4" label="Réservation · formulaire + récap" width={WEB_W} height={WEB_H}>
+        <WebCentres view="reserve" />
+      </DCArtboard>
+      <DCArtboard id="w5" label="Mes réservations · statuts" width={WEB_W} height={WEB_H}>
+        <WebCentres view="myresa" />
+      </DCArtboard>
+      <DCArtboard id="w6" label="Ma carte CJS · QR + infos" width={WEB_W} height={WEB_H}>
+        <WebCentres view="card" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection
+      id="mobile"
+      title="B · Mobile — Centres & réservations"
+      subtitle="Carte + liste · détail · ressources · réservation · mes réservations · carte CJS"
+    >
+      <DCArtboard id="m1" label="Tous les centres · carte + liste" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="all" />
+      </DCArtboard>
+      <DCArtboard id="m2" label="Détail d'un centre + ressources" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="detail" />
+      </DCArtboard>
+      <DCArtboard id="m3" label="Ressources réservables (liste)" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="resources" />
+      </DCArtboard>
+      <DCArtboard id="m4" label="Réservation · formulaire" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="reserve" />
+      </DCArtboard>
+      <DCArtboard id="m5" label="Mes réservations · statuts" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="myresa" />
+      </DCArtboard>
+      <DCArtboard id="m6" label="Ma carte CJS · QR + infos" width={PHONE_W} height={PHONE_H}>
+        <MobileCentresApp start="card" />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="lot-nav.js"></script>
+<script src="toast.js"></script>
+<script src="accessibility.js"></script>
+<script src="yaye-fab.js"></script>
+</body>
+</html>

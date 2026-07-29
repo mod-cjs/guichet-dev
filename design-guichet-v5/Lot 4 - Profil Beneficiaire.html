@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Lot 4 — Profil Bénéficiaire · Guichet Jeunesse</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<script src="image-slot.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;font-family:var(--gj-font-sans)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="phone.jsx"></script>
+<script type="text/babel" src="web-dashboard.jsx"></script>
+<script type="text/babel" src="profil-web.jsx"></script>
+<script type="text/babel" src="profil-mobile.jsx"></script>
+
+<script type="text/babel">
+const WEB_W = 1280;
+const WEB_H = 1280;
+const PHONE_W = 390;
+const PHONE_H = 844;
+
+const App = () => (
+  <DesignCanvas
+    title="Lot 4 — Profil Bénéficiaire"
+    subtitle="Consultation + édition · web (sidebar) + mobile (onglet Profil)"
+  >
+    <DCSection
+      id="web"
+      title="A · Web — Mon profil"
+      subtitle="Sidebar 260 + en-tête profil · colonne infos + rail complétion/documents/inclusion"
+    >
+      <DCArtboard id="w1" label="Consultation · profil 72%" width={WEB_W} height={WEB_H}>
+        <WebProfile />
+      </DCArtboard>
+      <DCArtboard id="w2" label="Édition · formulaire" width={WEB_W} height={WEB_H}>
+        <WebProfile editing />
+      </DCArtboard>
+      <DCArtboard id="w3" label="Inclusion & accessibilité" width={WEB_W} height={WEB_H}>
+        <WebProfile editing="incl" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection
+      id="mobile"
+      title="B · Mobile — Onglet Profil"
+      subtitle="Consultation scrollable + écran d'édition (formulaire)"
+    >
+      <DCArtboard id="m1" label="Consultation · profil 72%" width={PHONE_W} height={PHONE_H}>
+        <MobileProfileApp start="view" />
+      </DCArtboard>
+      <DCArtboard id="m2" label="Édition · formulaire" width={PHONE_W} height={PHONE_H}>
+        <MobileProfileApp start="edit" />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+<script src="lot-nav.js"></script>
+<script src="toast.js"></script>
+<script src="accessibility.js"></script>
+<script src="yaye-fab.js"></script>
+</body>
+</html>
