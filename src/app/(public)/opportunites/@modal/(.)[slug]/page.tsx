@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail } from '@/lib/opportunites-loader'
 import { trackVuePage } from '@/lib/analytics/consultation-server'
@@ -21,13 +22,13 @@ export default async function InterceptedOpportuniteDetail({
 
   // GUIC-688 — même garde de dédoublonnage que la page pleine : ouvrir la
   // modale puis la page complète ne compte qu'une consultation.
-  await trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'opportunite',
     entiteId:   detail.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session?.cjsUid ?? null,
-  })
+  }))
   // GUIC-361 — Auto-fill complet : agrège claims SSO + ProfilJeune.
   const viewer = await getViewerInfoForCandidature(session)
 

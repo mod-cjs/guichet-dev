@@ -89,6 +89,13 @@ export const ConsultationInputSchema = z.object({
   cjsUid:     z.string().regex(CJS_UID_RE).optional(),
   /** Utilisée uniquement pour dériver le sujet des visiteurs anonymes — jamais stockée. */
   ip:         z.string().max(64).optional(),
+  /**
+   * Complète l'IP pour distinguer les visiteurs anonymes. Sans lui, un
+   * environnement où le proxy n'injecte pas l'IP ferait partager UN seul sujet
+   * à tout le trafic anonyme : la garde de 30 min n'enregistrerait alors qu'une
+   * consultation pour l'ensemble des visiteurs. Jamais stocké, seulement haché.
+   */
+  userAgent:  z.string().max(512).optional(),
   origine:    z.enum(ORIGINES_CONSULTATION).optional(),
   sessionId:  z.string().max(36).optional(),
 })
@@ -186,9 +193,11 @@ export async function trackConsultation(input: ConsultationInput): Promise<void>
   try {
     const parsed = ConsultationInputSchema.parse(input)
 
-    // Sujet : l'utilisateur connecté d'abord, l'IP en repli, une constante si
-    // ni l'un ni l'autre (rendu serveur sans requête identifiable).
-    const sujet = parsed.cjsUid ?? parsed.ip ?? 'anonyme'
+    // Sujet : l'utilisateur connecté d'abord ; sinon l'empreinte IP + user-agent,
+    // qui évite que tous les anonymes se confondent en un seul sujet. Constante
+    // en dernier recours (rendu serveur sans requête identifiable).
+    const empreinte = [parsed.ip, parsed.userAgent].filter(Boolean).join('|')
+    const sujet = parsed.cjsUid ?? (empreinte || 'anonyme')
     const sujetHash = hashSujet(sujet)
 
     const premiereVue = await redis.set(cleDedup(parsed, sujetHash), '1', 'EX', CONSULTATION_DEDUP_TTL_SECONDS, 'NX')

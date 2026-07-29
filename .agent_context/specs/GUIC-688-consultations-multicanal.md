@@ -82,9 +82,12 @@ Volumétrie estimée (22 000 utilisateurs) : ~2–5 M lignes/an. Les 3 index com
 Calqué sur [centre-events.ts](../../src/lib/analytics/centre-events.ts) (whitelist Zod, fail-soft, cap).
 
 - `hashSujet(subject: string): string` — SHA-256 salé par `CONSULTATION_HASH_SALT` (fallback documenté si absent).
+  Le sujet anonyme est l'empreinte **IP + user-agent** : avec l'IP seule, un environnement où le proxy ne l'injecte pas
+  ferait partager un unique sujet à tout le trafic anonyme, et la garde de 30 min n'enregistrerait qu'une consultation
+  pour l'ensemble des visiteurs. Ni l'IP ni le user-agent ne sont stockés.
 - `trackConsultation(input): Promise<void>` :
   1. Validation Zod (`ConsultationInputSchema`)
-  2. Sujet = `cjsUid` si présent, sinon IP ; hashé dans tous les cas
+  2. Sujet = `cjsUid` si présent, sinon l'empreinte IP + user-agent ; hashé dans tous les cas
   3. Garde Redis `consult:<typeEvent>:<typeEntite>:<entiteId>:<sujetHash>` `SET NX EX 1800` → sortie si déjà vu
   4. `prisma.consultation.create`
   5. Si `typeEvent = consultation` et l'entité porte un compteur (`opportunite`, `ressource`) → `increment` du cache
@@ -104,9 +107,13 @@ Calqué sur [centre-events.ts](../../src/lib/analytics/centre-events.ts) (whitel
 | [centres/[slug]](../../src/app/(public)/centres/[slug]/page.tsx) | `centre` | nouveau + double écriture `centre_viewed` |
 | [jeune/bibliotheque/[id]](../../src/app/jeune/(app)/bibliotheque/[id]/page.tsx) | `livre` | nouveau |
 
-`incrementVue` / `incrementRessourceVues` sont conservés comme façades minces déléguant au helper (les tests existants et l'API `/api/opportunites/[slug]` continuent de fonctionner).
+`incrementVue` et `incrementRessourceVues` sont **supprimés** : un seul chemin de comptage, sinon les trois modèles continueraient de diverger. La route `/api/opportunites/[slug]` appelle directement `trackConsultation`.
 
 Le `searchParams.src` est lu sur chaque page détail → `canal` + `origine`.
+
+Toutes les pages diffèrent l'écriture avec **`after()`** (`next/server`) et non un `void` flottant : sur un runtime
+serverless, une promesse non attendue peut être abandonnée quand la réponse part, et l'écriture serait perdue sans
+erreur. `after()` s'exécute après la réponse — ni blocage du TTFB, ni perte. Sentinelle : `tests/unit/consultations-callsites.test.ts`.
 
 ⚠️ **Effet visible attendu** : le compteur `Ressource.vues` va mécaniquement ralentir sa progression (il comptait chaque rendu). À annoncer au PO — ce n'est pas une régression.
 

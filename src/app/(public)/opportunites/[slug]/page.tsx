@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
@@ -57,13 +58,14 @@ export default async function OpportuniteDetailPage({
   // GUIC-367 — fire-and-forget : ne pas bloquer la 1ʳᵉ peinture sur l'écriture
   // Redis + Prisma. GUIC-688 — `src`/`from` attribuent le clic au canal réel
   // (chat IA, WhatsApp) plutôt qu'au trafic web organique.
-  void trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'opportunite',
     entiteId:   detail.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session?.cjsUid ?? null,
-  })
+  }))
+
   // GUIC-361 — Auto-fill complet du formulaire de candidature : on agrège la
   // session SSO + ProfilJeune pour pré-remplir email, niveau, situation,
   // biographie, compétences, etc.

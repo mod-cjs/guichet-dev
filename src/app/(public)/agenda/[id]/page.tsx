@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { Card, Icon, Badge, Breadcrumbs, RichContent } from '@/components/ui'
 import { htmlToPlainText } from '@/lib/rich-html'
@@ -56,13 +57,13 @@ export default async function EvenementDetailPage({ params, searchParams }: Page
 
   // GUIC-688 — les événements n'étaient tracés nulle part jusqu'ici.
   const sp = (await searchParams) ?? {}
-  void trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'evenement',
     entiteId:   evenement.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session?.cjsUid ?? null,
-  })
+  }))
 
   // GUIC-25 (M7 SEO) — données structurées Event + fil d'Ariane
   const jsonLd = await getEvenementJsonLd(id)

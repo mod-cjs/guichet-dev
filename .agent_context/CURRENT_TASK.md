@@ -16,7 +16,10 @@
 - [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
 - [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
 - [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
-- [x] tsc 0 erreur · lint sans nouveau warning · 47 tests ciblés verts
+- [x] Durcissement : `after()` au lieu de `void` (perte d'écriture serverless) · user-agent dans le sujet anonyme ·
+      sentinelle sur les 6 callsites · liens de notification WhatsApp · `from=reco` · impressions livres
+- [x] tsc 0 erreur · lint sans nouveau warning · 163 tests ciblés verts · suite complète sans régression (27 suites
+      rouges, toutes sur `pool timeout` faute de base locale — identiques à la ligne de base)
 - [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
 - [ ] PR vers `dev`
 

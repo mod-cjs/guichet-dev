@@ -41,6 +41,15 @@ export async function ipDepuisHeaders(): Promise<string> {
   return fwd?.split(',')[0]?.trim() || 'no-ip'
 }
 
+/**
+ * User-agent brut — complète l'IP pour distinguer les visiteurs anonymes. Il
+ * n'est jamais stocké : le socle le hache avec l'IP pour produire le sujet.
+ */
+export async function userAgentDepuisHeaders(): Promise<string | undefined> {
+  const h = await headers()
+  return h.get('user-agent')?.slice(0, 512) || undefined
+}
+
 /** `?from=` → origine métier. `reco` est l'alias court utilisé dans les liens. */
 export function origineFromParam(from?: string | string[] | null): OrigineConsultationValue {
   const valeur = premier(from)
@@ -66,7 +75,7 @@ export interface TrackVuePageInput {
  */
 export async function trackVuePage(input: TrackVuePageInput): Promise<void> {
   try {
-    const ip = await ipDepuisHeaders()
+    const [ip, userAgent] = await Promise.all([ipDepuisHeaders(), userAgentDepuisHeaders()])
 
     await trackConsultation({
       typeEntite: input.typeEntite,
@@ -75,6 +84,7 @@ export async function trackVuePage(input: TrackVuePageInput): Promise<void> {
       canal:      canalFromSrc(premier(input.src)),
       ...(input.cjsUid ? { cjsUid: input.cjsUid } : {}),
       ip,
+      ...(userAgent ? { userAgent } : {}),
       origine:    origineFromParam(input.from),
     })
   } catch {

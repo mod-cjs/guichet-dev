@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { getRessourceById, getRessourcesRelated } from '@/lib/loaders/ressources'
 import { getSession } from '@/lib/auth'
@@ -54,13 +55,13 @@ export default async function RessourceDetailPage({ params, searchParams }: Ress
   // dédoublonnage 30 min qui manquait ici (le compteur montait à chaque rendu).
   const session = await getSession()
   const sp = (await searchParams) ?? {}
-  await trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'ressource',
     entiteId:   detail.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session?.cjsUid ?? null,
-  })
+  }))
 
   const pageUrl = `/ressources/${detail.id}`
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -50,13 +51,13 @@ export default async function CentreDetailPage({ params, searchParams }: RoutePa
   // GUIC-688 — trace serveur. `centre_viewed` continue d'être émis côté client
   // vers `/api/v1/track` : double écriture assumée le temps de la transition.
   const sp = (await searchParams) ?? {}
-  void trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'centre',
     entiteId:   centre.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session?.cjsUid ?? null,
-  })
+  }))
 
   let userCentrePrincipalId: string | null = null
   if (session) {

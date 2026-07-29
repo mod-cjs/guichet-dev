@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { after } from 'next/server'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getLivre, BiblioDomainError } from '@/lib/bibliotheque/service'
@@ -53,13 +54,13 @@ export default async function BiblioLivreDetailPage({
 
   // GUIC-688 — page réservée aux connectés : la consultation est toujours nominative.
   const sp = (await searchParams) ?? {}
-  void trackVuePage({
+  after(() => trackVuePage({
     typeEntite: 'livre',
     entiteId:   livre.id,
     src:        sp.src,
     from:       sp.from,
     cjsUid:     session.cjsUid,
-  })
+  }))
 
   const emplacementsDisponibles = livre.emplacements
 

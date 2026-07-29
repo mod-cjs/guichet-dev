@@ -45,6 +45,7 @@ export async function GET(
     typeEvent:  'consultation',
     canal:      canalFromSrc(request.nextUrl.searchParams.get('src')),
     ip:         clientIp(request),
+    userAgent:  request.headers.get('user-agent')?.slice(0, 512) || undefined,
   })
 
   return NextResponse.json({ data: detail })
