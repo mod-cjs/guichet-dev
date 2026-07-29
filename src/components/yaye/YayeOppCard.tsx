@@ -116,13 +116,14 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
           </div>
         )}
 
-        {/* CTA à la couleur du type — z-10 pour passer au-dessus du lien étiré. */}
+        {/* GUIC-691 — CTA de conversion : magenta, pas la couleur du type. En v5 la
+            couleur de type sert à REPÉRER l'offre, le magenta à AGIR : les confondre
+            noie l'action dans le décor. z-10 pour passer au-dessus du lien étiré. */}
         <Link
           href={`/opportunites/${opp.slug}?postuler=1&${suffixeTracage(opp).slice(1)}`}
           onClick={onNavigate}
           aria-label={`${ctaLabel} : ${opp.titre}`}
-          className={`relative z-10 self-start rounded-gj-lg ${TONE_SOLID_BG[tone]} text-white
-            px-space-3 py-[6px] text-fs-200 font-bold inline-flex items-center gap-1`}
+          className="gj-cta gj-cta--sm relative z-10 self-start"
         >
           {ctaLabel}
           <Icon name="arrow-right" size={13} aria-hidden />
