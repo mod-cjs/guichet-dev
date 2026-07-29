@@ -42,7 +42,8 @@ export function useAdminTheme(): AdminThemeCtx {
  * d'hydratation). La logique pure vient de `@/lib/admin-theme` (testée).
  */
 export function AdminThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<AdminTheme>('light')
+  // Défaut = SOMBRE (identité admin v3 / maquette). Le clair est opt-in.
+  const [theme, setTheme] = useState<AdminTheme>('dark')
 
   useEffect(() => {
     setTheme(readStoredTheme(typeof window !== 'undefined' ? window.localStorage : null))
@@ -58,9 +59,12 @@ export function AdminThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AdminThemeContext.Provider value={{ theme, toggle }}>
+      {/* Wrapper de SCOPE : enveloppe barre mobile + sidebar + contenu pour que
+          la sidebar suive aussi le thème (comme la maquette). display:contents
+          => aucun impact sur le layout, mais l'attribut cascade les tokens. */}
       <div
-        className="flex-1 flex flex-col min-w-0 md:min-h-0"
-        style={{ background: 'var(--gj-content-bg)' }}
+        className="gj-admin-scope"
+        style={{ display: 'contents' }}
         {...(theme === 'dark' ? { [ADMIN_THEME_ATTR]: 'dark' } : {})}
       >
         {children}

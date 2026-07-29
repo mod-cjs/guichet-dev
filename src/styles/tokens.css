@@ -314,18 +314,30 @@
      15 · Lot 11 — Administration (sombre + doré)
      NE PAS réutiliser --gj-ink (#111).
      ========================================================= */
-  --gj-admin-bg:              #11201C;
+  /* Chrome admin (sidebar) — reproduit la maquette à l'identique. Le sombre est
+     le DÉFAUT (appliqué via [data-admin-theme="dark"], ci-dessous) ; ces valeurs
+     :root sont la variante CLAIRE (maquette en thème clair). Le doré reste vif. */
   --gj-admin-gold-stop:       #E0A93B;
-  --gj-admin-gold:            linear-gradient(135deg, var(--gj-yellow), #E0A93B);
-  --gj-admin-on-gold:         #11201C;
-  --gj-admin-fg:              #ffffff;
-  --gj-admin-fg-72:           rgba(255,255,255,.72);
-  --gj-admin-fg-60:           rgba(255,255,255,.60);
-  --gj-admin-fg-40:           rgba(255,255,255,.40);
-  --gj-admin-surface:         rgba(255,255,255,.05);
-  --gj-admin-border:          rgba(255,255,255,.10);
-  --gj-admin-border-soft:     rgba(255,255,255,.07);
-  --gj-admin-badge-muted-bg:  rgba(255,255,255,.12);
+  --gj-admin-gold-1:          #FBCB1E;                /* maquette --gold-grad start */
+  --gj-admin-gold-flat:       #F4B930;                /* maquette --gold */
+  --gj-admin-gold:            #F4B930;                /* APLAT (zéro gradient — anti-générique) */
+  --gj-admin-on-gold:         #11201C;                /* maquette --on-gold */
+  --gj-admin-bg:              #F4F7F5;                /* maquette clair --bg-2 */
+  --gj-admin-gold-2:          #946510;                /* wordmark sur clair */
+  --gj-admin-fg:              #0F2A22;                /* texte sombre sur clair */
+  --gj-admin-fg-72:           rgba(15,42,34,.74);
+  --gj-admin-fg-60:           rgba(15,42,34,.56);
+  --gj-admin-fg-40:           rgba(15,42,34,.42);
+  --gj-admin-surface:         rgba(16,45,37,.05);
+  --gj-admin-border:          rgba(16,45,37,.12);
+  --gj-admin-border-soft:     rgba(16,45,37,.08);
+  --gj-admin-badge-muted-bg:  rgba(16,45,37,.08);
+  --gj-admin-crit:            #CE4130;
+  --gj-admin-crit-dim:        rgba(206,65,48,.13);
+  --gj-admin-warn:            #A9790A;
+  --gj-admin-warn-dim:        rgba(169,121,10,.15);
+  --gj-admin-good:            #12A25E;
+  --gj-admin-logo-filter:     none;                   /* logo naturel sur sidebar claire */
 
   /* Refonte « registre » (GUIC-680) — élévation par défaut = thème CLAIR.
      Repos plat (liseré de lumière, aucune ombre ambiante) ; --gj-lift au survol. */
@@ -356,6 +368,9 @@
 [data-admin-theme="dark"] {
   --gj-surface:      #152620;
   --gj-content-bg:   #0D1A16;
+  /* fonds page/tertiaires : sombres (sinon pilule "Année" invisible en topbar sombre) */
+  --gj-bg:           #0D1A16;
+  --gj-bg-teal-soft: #11201C;
   --gj-ink:          #F5F8F6;
   --gj-grey:         rgba(245,248,246,.62);
   --gj-grey-2:       rgba(245,248,246,.46);
@@ -372,6 +387,24 @@
   --gj-blue-ink:     #7FB0FF;
   --gj-edge:         inset 0 1px 0 rgba(255,255,255,.055);
   --gj-lift:         0 14px 34px -18px rgba(0,0,0,.66), inset 0 1px 0 rgba(255,255,255,.06);
+
+  /* Chrome admin (sidebar) — variante SOMBRE = DÉFAUT, à l'identique de la maquette. */
+  --gj-admin-bg:              #101F1A;                /* maquette --bg-2 */
+  --gj-admin-gold-2:          #E7A93A;                /* maquette --gold-2 (wordmark) */
+  --gj-admin-fg:              #F5F8F6;                /* maquette --fg */
+  --gj-admin-fg-72:           rgba(245,248,246,.74);  /* --fg-2 */
+  --gj-admin-fg-60:           rgba(245,248,246,.56);  /* --fg-3 */
+  --gj-admin-fg-40:           rgba(245,248,246,.42);  /* --fg-4 */
+  --gj-admin-surface:         rgba(255,255,255,.05);  /* --el-1 */
+  --gj-admin-border:          rgba(255,255,255,.10);  /* --line */
+  --gj-admin-border-soft:     rgba(255,255,255,.07);
+  --gj-admin-badge-muted-bg:  rgba(255,255,255,.085); /* --el-4 */
+  --gj-admin-crit:            #FF6E5F;                /* --crit */
+  --gj-admin-crit-dim:        rgba(255,110,95,.15);
+  --gj-admin-warn:            #F9C400;                /* --warn */
+  --gj-admin-warn-dim:        rgba(249,196,0,.15);
+  --gj-admin-good:            #3BD68B;                /* --good */
+  --gj-admin-logo-filter:     brightness(0) invert(1); /* logo blanc sur sidebar sombre */
 }
 
 /* =========================================================

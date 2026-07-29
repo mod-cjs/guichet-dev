@@ -29,50 +29,61 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     where: { statut: 'brouillon', deletedAt: null },
   })
 
+  // Compteurs informatifs (badges muted sidebar) — fail-soft (0 si indispo).
+  const [centresCount, usersCount, curationCount] = await Promise.all([
+    prisma.centre.count().catch(() => 0),
+    prisma.utilisateur.count().catch(() => 0),
+    prisma.itemCuration.count({ where: { statut: 'a_valider' } }).catch(() => 0),
+  ])
+
   return (
     <>
       <SkipLink />
 
-      {/* ── Barre mobile contexte sombre (Lot 11) ─────────────────────── */}
-      <div
-        className="md:hidden sticky top-0 flex items-center px-space-3
-          border-b border-white/10"
-        style={{
-          zIndex: 199,
-          paddingTop: 'var(--safe-top)',
-          minHeight: 'var(--gj-topbar-h)',
-          background: 'var(--gj-admin-bg)',
-          color: 'var(--gj-admin-fg)',
-        }}
-      >
-        {/* espace pour le bouton hamburger rendu dans AdminSidebar */}
-        <span
-          className="font-bold ml-10"
-          style={{ fontSize: 14, color: 'var(--gj-admin-fg)' }}
+      {/* Scope de thème : enveloppe barre mobile + sidebar + contenu →
+          la sidebar suit le thème comme la maquette (défaut = sombre). */}
+      <AdminThemeProvider>
+        {/* ── Barre mobile ─────────────────────────────────────────────── */}
+        <div
+          className="md:hidden sticky top-0 flex items-center px-space-3 border-b"
+          style={{
+            zIndex: 199,
+            paddingTop: 'var(--safe-top)',
+            minHeight: 'var(--gj-topbar-h)',
+            background: 'var(--gj-admin-bg)',
+            color: 'var(--gj-admin-fg)',
+            borderColor: 'var(--gj-admin-border)',
+          }}
         >
-          Administration
-        </span>
-      </div>
+          <span className="font-bold ml-10" style={{ fontSize: 14, color: 'var(--gj-admin-fg)' }}>
+            Administration
+          </span>
+        </div>
 
-      <div className="flex min-h-screen md:h-screen md:overflow-hidden">
-        <AdminSidebar
-          userName={userName}
-          userRole={userRole}
-          userInitials={userInitials}
-          escaladeCount={escaladeCount}
-          moderationCount={aModerer}
-        />
+        <div className="flex min-h-screen md:h-screen md:overflow-hidden">
+          <AdminSidebar
+            userName={userName}
+            userRole={userRole}
+            userInitials={userInitials}
+            escaladeCount={escaladeCount}
+            moderationCount={aModerer}
+            centresCount={centresCount}
+            usersCount={usersCount}
+            curationCount={curationCount}
+          />
 
-        {/* Colonne de contenu (topbar + main) = scope du thème clair/sombre admin.
-            La sidebar reste hors scope (chrome sombre inchangé). */}
-        <AdminThemeProvider>
-          <AdminTopBar notificationCount={aModerer} />
-
-          <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto">
-            {children}
-          </main>
-        </AdminThemeProvider>
-      </div>
+          {/* Colonne de contenu (topbar + main) */}
+          <div
+            className="flex-1 flex flex-col min-w-0 md:min-h-0"
+            style={{ background: 'var(--gj-content-bg)' }}
+          >
+            <AdminTopBar notificationCount={aModerer} />
+            <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto">
+              {children}
+            </main>
+          </div>
+        </div>
+      </AdminThemeProvider>
     </>
   )
 }

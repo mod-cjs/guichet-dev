@@ -61,8 +61,7 @@ export function PartenaireCard({ partenaire, onOpen }: PartenaireCardProps) {
           gap: 12,
           padding: '14px 15px',
           borderBottom: '1px solid var(--gj-line)',
-          background:
-            'linear-gradient(115deg, rgba(var(--sc), .18), rgba(var(--sc), .05) 55%, transparent)',
+          background: 'rgba(var(--sc), .12)',
         }}
       >
         {logoUrl ? (

@@ -15,6 +15,8 @@ interface NavItem {
   count?: number | null
   /** Affiche le badge en rouge (urgence) plutôt que muted */
   urgent?: boolean
+  /** Ton du badge informatif (compteur non urgent) : muted (défaut) ou doré. */
+  tone?: 'muted' | 'gold'
 }
 
 interface NavSection {
@@ -33,9 +35,19 @@ export interface AdminSidebarProps {
   moderationCount?: number | null
   /** Compteur d'escalades Yaye en attente (badge doré sur l'item Escalades). Null = absent. */
   escaladeCount?: number | null
+  /** Compteur de centres (badge muted). */
+  centresCount?: number | null
+  /** Compteur d'utilisateurs (badge muted, abrégé k). */
+  usersCount?: number | null
+  /** Compteur d'items de curation à valider (badge muted). */
+  curationCount?: number | null
 }
 
-/* ── Données de navigation (4 sections Lot 11) ──────────────────────────── */
+/* ── Navigation curée (fidèle maquette) — GUIC-679 ────────────────────────
+   Les écrans secondaires (Fréquentation, Analytics, Types, Sources, Monitoring,
+   Sessions/Modèle Yaye, Onboarding) sont RE-LOGÉS comme onglets dans leur
+   page-hub (Centre, Événements, Opportunités, Curation, Yaye) au fil des écrans ;
+   Notifications/Statistiques/Onboarding rejoignent « Système & Exploitation ». */
 
 const SECTIONS: NavSection[] = [
   {
@@ -46,42 +58,48 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Pilotage',
     items: [
-      { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS' },
-      { id: 'bibliotheque', href: '/admin/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
-      { id: 'analytics-centres', href: '/admin/analytics/centres', icon: 'chart', label: 'Fréquentation centres' },
-      { id: 'analytics-evenements', href: '/admin/analytics/evenements', icon: 'calendar', label: 'Analytics événements' },
-      { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs' },
-      { id: 'partenaires', href: '/admin/partenaires', icon: 'engagement', label: 'Partenaires' },
+      { id: 'centres', href: '/admin/centres', icon: 'pin', label: 'Centres CJS', tone: 'muted' },
+      { id: 'utilisateurs', href: '/admin/utilisateurs', icon: 'users', label: 'Utilisateurs', tone: 'muted' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
-      { id: 'onboarding', href: '/admin/onboarding', icon: 'target', label: 'Onboarding' },
-      { id: 'stats', href: '/admin/data-hub', icon: 'trending', label: 'Statistiques' },
+      { id: 'partenaires', href: '/admin/partenaires', icon: 'engagement', label: 'Partenaires' },
     ],
   },
   {
     title: 'Gouvernance',
     items: [
       { id: 'moderation', href: '/admin/opportunites', icon: 'shield', label: 'Modération', urgent: true },
+      { id: 'curation', href: '/admin/curation', icon: 'check-circle', label: 'Curation' },
       { id: 'opportunites-gestion', href: '/admin/opportunites/gestion', icon: 'employment', label: 'Opportunités' },
-      { id: 'types', href: '/admin/types-opportunite', icon: 'target', label: 'Types d’opportunité' },
-      { id: 'sources-veille', href: '/admin/sources-veille', icon: 'trending', label: 'Sources de veille' },
-      { id: 'curation', href: '/admin/curation', icon: 'check-circle', label: 'File de curation' },
-      { id: 'curation-monitoring', href: '/admin/curation/monitoring', icon: 'chart', label: 'Monitoring veille' },
-      { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
-      { id: 'contenu', href: '/admin/ressources', icon: 'resources', label: 'Contenu' },
-      { id: 'notifications', href: '/admin/notifications', icon: 'bell', label: 'Notifications' },
       { id: 'audit', href: '/admin/journal-audit', icon: 'document', label: 'Journal d’audit' },
     ],
   },
   {
-    title: 'Assistant IA',
+    title: 'Contenu',
+    items: [
+      { id: 'bibliotheque', href: '/admin/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
+      { id: 'evenements', href: '/admin/evenements', icon: 'calendar', label: 'Événements' },
+    ],
+  },
+  {
+    title: 'Assistant IA — Yaye',
     items: [
       { id: 'yaye-metriques', href: '/admin/analytics/yaye', icon: 'chart', label: 'Métriques Yaye' },
-      { id: 'yaye-sessions', href: '/admin/yaye/sessions', icon: 'chat', label: 'Sessions Yaye' },
-      { id: 'yaye-escalades', href: '/admin/yaye/escalades', icon: 'bell', label: 'Escalades' },
-      { id: 'yaye-modele', href: '/admin/yaye/modele', icon: 'settings', label: 'Modèle IA' },
+      { id: 'yaye-escalades', href: '/admin/yaye/escalades', icon: 'bell', label: 'Escalades', urgent: true },
+    ],
+  },
+  {
+    title: 'Système',
+    items: [
+      { id: 'systeme', href: '/admin/systeme', icon: 'settings', label: 'Système & Exploitation' },
     ],
   },
 ]
+
+/** Abrège un compteur pour le badge (22510 → "22.5k"). */
+function fmtBadge(n: number): string {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+  return String(n)
+}
 
 /** Tous les hrefs de nav — sert à ne garder actif que l'entrée la plus spécifique. */
 const ALL_HREFS = SECTIONS.flatMap((s) => s.items.map((i) => i.href))
@@ -91,24 +109,24 @@ const STORAGE_KEY = 'gj-admin-sidebar-collapsed'
 /* ── Styles partagés (inline — référencent uniquement les CSS vars admin) ─ */
 
 const sectionHeaderStyle: React.CSSProperties = {
-  fontSize: 9.5,
+  fontSize: 9,
   color: 'var(--gj-admin-fg-40)',
   fontWeight: 800,
-  letterSpacing: '.5px',
+  letterSpacing: '.12em',
   textTransform: 'uppercase',
-  padding: '14px 10px 5px',
+  padding: '15px 10px 5px',
 }
 
 const linkBaseStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 11,
-  padding: '10px',
+  padding: '8px 11px',
   borderRadius: 9,
-  fontSize: 13,
+  fontSize: 12.5,
   color: 'var(--gj-admin-fg-72)',
   fontWeight: 600,
-  minHeight: 40,
+  minHeight: 36,
   background: 'transparent',
   width: '100%',
   textDecoration: 'none',
@@ -137,12 +155,18 @@ export function AdminSidebar({
   userInitials = 'AN',
   moderationCount = null,
   escaladeCount = null,
+  centresCount = null,
+  usersCount = null,
+  curationCount = null,
 }: AdminSidebarProps) {
   const pathname = usePathname() ?? ''
-  // Compteurs dynamiques par item (badge). Rouge pour les items urgents (modération),
-  // doré pour les autres (escalades Yaye en attente).
+  // Compteurs dynamiques par item (badge) : rouge (urgent, modération),
+  // doré (escalades Yaye), muted (informatifs : centres, utilisateurs, curation).
   const itemCounts: Record<string, number | null> = {
     moderation: moderationCount,
+    curation: curationCount,
+    centres: centresCount,
+    utilisateurs: usersCount,
     'yaye-escalades': escaladeCount,
   }
   const [open, setOpen] = useState(false)
@@ -204,9 +228,9 @@ export function AdminSidebar({
         aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
         aria-expanded={open}
       >
-        <span className="block w-5 h-0.5 bg-white" />
-        <span className="block w-5 h-0.5 bg-white" />
-        <span className="block w-5 h-0.5 bg-white" />
+        <span className="block w-5 h-0.5" style={{ background: 'var(--gj-admin-fg)' }} />
+        <span className="block w-5 h-0.5" style={{ background: 'var(--gj-admin-fg)' }} />
+        <span className="block w-5 h-0.5" style={{ background: 'var(--gj-admin-fg)' }} />
       </button>
 
       {/* ── Overlay mobile ────────────────────────────────────────────── */}
@@ -251,14 +275,14 @@ export function AdminSidebar({
           <img
             src="/logo-guichet.png"
             alt="Guichet Jeunesse.sn"
-            style={{ height: 27, width: 'auto', filter: 'brightness(0) invert(1)' }}
+            style={{ height: 27, width: 'auto', filter: 'var(--gj-admin-logo-filter)' }}
           />
           {!collapsed && (
             <span
               style={{
                 fontSize: 9,
                 fontWeight: 800,
-                color: 'var(--gj-yellow)',
+                color: 'var(--gj-admin-gold-2)',
                 letterSpacing: '.5px',
                 textTransform: 'uppercase',
                 lineHeight: 1.2,
@@ -272,62 +296,6 @@ export function AdminSidebar({
             </span>
           )}
         </div>
-
-        {/* ── Carte utilisateur ───────────────────────────────────────── */}
-        {!collapsed && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 11,
-              padding: 11,
-              background: 'var(--gj-admin-surface)',
-              border: '1px solid var(--gj-admin-border)',
-              borderRadius: 12,
-              marginBottom: 8,
-            }}
-          >
-            <span
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: '50%',
-                flexShrink: 0,
-                background: 'var(--gj-admin-gold)',
-                color: 'var(--gj-admin-on-gold)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 13,
-              }}
-              aria-hidden
-            >
-              {userInitials}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  lineHeight: 1.2,
-                  color: 'var(--gj-admin-fg)',
-                }}
-              >
-                {userName}
-              </div>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  color: 'var(--gj-admin-fg-60)',
-                  marginTop: 2,
-                }}
-              >
-                {userRole}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── Sections de navigation ──────────────────────────────────── */}
         <nav
@@ -355,13 +323,13 @@ export function AdminSidebar({
                     style={{
                       ...linkBaseStyle,
                       justifyContent: collapsed ? 'center' : 'flex-start',
-                      padding: collapsed ? '10px 0' : '10px',
+                      padding: collapsed ? '8px 0' : '8px 11px',
                       // Item actif : gradient doré --gj-admin-gold (rendu navigateur ;
                       // jsdom n'évalue pas var() sur le shorthand background).
                       ...(on ? linkActiveStyle : {}),
                     }}
                   >
-                    <Icon name={item.icon} size={18} />
+                    <Icon name={item.icon} size={16} style={{ opacity: on ? 1 : 0.82 }} />
                     {!collapsed && (
                       <>
                         <span style={{ flex: 1 }}>{item.label}</span>
@@ -369,15 +337,23 @@ export function AdminSidebar({
                           <span
                             style={{
                               marginLeft: 'auto',
-                              background: item.urgent ? 'var(--gj-red)' : 'var(--gj-admin-gold)',
-                              color: item.urgent ? 'var(--gj-surface)' : 'var(--gj-admin-on-gold)',
+                              background: item.urgent
+                                ? 'var(--gj-admin-crit-dim)'
+                                : item.tone === 'muted'
+                                  ? 'var(--gj-admin-badge-muted-bg)'
+                                  : 'var(--gj-admin-warn-dim)',
+                              color: item.urgent
+                                ? 'var(--gj-admin-crit)'
+                                : item.tone === 'muted'
+                                  ? 'var(--gj-admin-fg-60)'
+                                  : 'var(--gj-admin-warn)',
                               fontSize: 9.5,
                               fontWeight: 800,
-                              padding: '2px 7px',
-                              borderRadius: 10,
+                              padding: '1px 7px',
+                              borderRadius: 999,
                             }}
                           >
-                            {badgeCount}
+                            {fmtBadge(badgeCount as number)}
                           </span>
                         )}
                       </>
@@ -400,40 +376,57 @@ export function AdminSidebar({
             gap: 4,
           }}
         >
-          {/* Statut systèmes — masqué en mode collapsed */}
+          {/* Statut compact + carte utilisateur en pied (façon maquette) */}
           {!collapsed && (
-            <div
-              style={{
-                padding: 11,
-                background: 'var(--gj-admin-surface)',
-                border: '1px solid var(--gj-admin-border)',
-                borderRadius: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 9,
-                marginBottom: 4,
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'var(--gj-green)',
-                  flexShrink: 0,
-                }}
-                aria-hidden
-              />
+            <>
               <div
                 style={{
-                  fontSize: 10.5,
-                  color: 'var(--gj-admin-fg)',
-                  lineHeight: 1.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 11,
+                  color: 'var(--gj-admin-fg-60)',
+                  padding: '2px 4px',
                 }}
               >
-                Tous les systèmes opérationnels
+                <span
+                  aria-hidden
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: 'var(--gj-admin-good)',
+                    flexShrink: 0,
+                    boxShadow: '0 0 0 3px rgba(59,214,139,.15)',
+                  }}
+                />
+                Services opérationnels
               </div>
-            </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 7, borderRadius: 9 }}>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                    background: 'var(--gj-admin-gold)',
+                    color: 'var(--gj-admin-on-gold)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 900,
+                    fontSize: 11.5,
+                  }}
+                >
+                  {userInitials}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.2, color: 'var(--gj-admin-fg)' }}>{userName}</div>
+                  <div style={{ fontSize: 10, color: 'var(--gj-admin-fg-60)', marginTop: 1 }}>{userRole}</div>
+                </div>
+              </div>
+            </>
           )}
 
           {/* Toggle collapse — desktop uniquement */}

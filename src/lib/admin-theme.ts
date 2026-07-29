@@ -21,20 +21,20 @@ export function nextTheme(current: AdminTheme): AdminTheme {
   return current === 'dark' ? 'light' : 'dark'
 }
 
-/** Normalise une valeur quelconque : seul `"dark"` est sombre, sinon clair. */
+/** Normalise une valeur quelconque : seul `"light"` est clair, sinon SOMBRE (défaut). */
 export function normalizeTheme(value: string | null | undefined): AdminTheme {
-  return value === 'dark' ? 'dark' : 'light'
+  return value === 'light' ? 'light' : 'dark'
 }
 
 type Getter = Pick<Storage, 'getItem'>
 type Setter = Pick<Storage, 'setItem'>
 
-/** Lit le thème stocké ; retombe sur `light` si absent ou storage illisible. */
+/** Lit le thème stocké ; retombe sur `dark` (défaut admin) si absent ou storage illisible. */
 export function readStoredTheme(storage?: Getter | null): AdminTheme {
   try {
     return normalizeTheme(storage?.getItem(ADMIN_THEME_KEY) ?? null)
   } catch {
-    return 'light'
+    return 'dark'
   }
 }
 
