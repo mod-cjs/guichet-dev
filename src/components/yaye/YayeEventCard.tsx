@@ -81,7 +81,7 @@ export function YayeEventCard({ ev, onNavigate }: { ev: YayeEvenementItem; onNav
       className="relative bg-gj-surface border-[1.5px] border-gj-line rounded-gj-lg overflow-hidden flex flex-col"
     >
       <Link
-        href={`/agenda/${ev.id}`}
+        href={`/agenda/${ev.id}?src=ia`}
         onClick={onNavigate}
         aria-label={`Voir l'événement : ${ev.titre}`}
         className="absolute inset-0"
@@ -118,7 +118,7 @@ export function YayeEventCard({ ev, onNavigate }: { ev: YayeEvenementItem; onNav
 
       <div className="px-space-3 pb-space-3">
         <Link
-          href={`/agenda/${ev.id}`}
+          href={`/agenda/${ev.id}?src=ia`}
           onClick={onNavigate}
           aria-label={`S'inscrire à ${ev.titre}`}
           className={`relative z-10 self-start rounded-gj-lg ${TONE_SOLID[tone]} text-white px-space-3 py-[6px] text-fs-200 font-bold inline-flex items-center gap-1`}

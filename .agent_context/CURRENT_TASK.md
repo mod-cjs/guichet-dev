@@ -1,10 +1,32 @@
-# CURRENT_TASK — GUIC-690 Fondation design v5
+# CURRENT_TASK — GUIC-688 · Consultations multicanal (web · IA · WhatsApp)
 
-**Branche** : `feature/GUIC-690-design-v5-fondation-tokens` (worktree `.claude/worktrees/design-v5`, depuis origin/dev a12890d8)
-**Épic** : GUIC-689 — migration design v5 hors admin.
-**Spec** : `.agent_context/specs/design-v5-fondation.md` · **Registre d'écarts** : `.agent_context/specs/design-v5-deviations.md`
+**Spec** : `.agent_context/specs/GUIC-688-consultations-multicanal.md` · **Branche** : `feature/GUIC-688-consultations-multicanal` (depuis `dev`) · **JIRA** : [GUIC-688](https://consortiumjeunesse.atlassian.net/browse/GUIC-688) (Story, m13-data)
 
-Étapes : extraction (chore) → tests RED tokens → GREEN (tokens.css + design-tokens.ts + Lexend next/font + design-preview) → validate + Playwright → PR dev + miroir.
+## Décisions PO
+- **Nominatif** : `cjsUid` pour les connectés, `sujetHash` (SHA-256 salé) sinon. Jamais d'IP en clair.
+- **Dédoublonnage** : 30 min, identique sur les 3 canaux.
+- **Compteurs `vues`** : conservés comme cache dénormalisé, alimentés par le helper.
+- **Rétention / purge / anonymisation** : **hors périmètre — on conserve tout, sans limite de durée**.
+- **Programme / Organisation** : enum prévu, pas d'instrumentation (aucune page bénéficiaire).
 
-⚠ Coordination : ne pas toucher `src/app/admin/**`, AdminSidebar, CentreCard/PartenaireCard/ThemeToggle, tokens `--gj-admin-*`/`--gj-edge`/`--gj-lift`. Seul fichier partagé : `tokens.css` (palette globale seulement).
-⚠ É-04 en attente : focus ring ambre v5 rejeté (WCAG 1.4.11) — statu quo #00B287, arbitrage lead demandé dans la PR.
+## État
+- [x] Ticket GUIC-688 créé + spec rédigée + branche créée depuis `dev`
+- [x] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
+- [x] Étape 2 — Socle `src/lib/analytics/consultations.ts` (RED → GREEN, 28 tests)
+- [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
+- [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
+- [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
+- [x] Durcissement : `after()` au lieu de `void` (perte d'écriture serverless) · user-agent dans le sujet anonyme ·
+      sentinelle sur les 6 callsites · liens de notification WhatsApp · `from=reco` · impressions livres
+- [x] tsc 0 erreur · lint sans nouveau warning · 163 tests ciblés verts · suite complète sans régression (27 suites
+      rouges, toutes sur `pool timeout` faute de base locale — identiques à la ligne de base)
+- [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
+- [ ] PR vers `dev`
+
+## Points d'attention
+- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières : à confronter à `prisma migrate diff` dès que la base est joignable.
+- 28 suites d'intégration rouges en local, toutes sur `pool timeout` (base éteinte) — indépendantes de ce ticket.
+- Le compteur `Ressource.vues` va ralentir sa progression (garde Redis ajoutée) : attendu, à annoncer au PO.
+- `CONSULTATION_HASH_SALT` à poser en production (documenté dans `.env.example`).
+
+## Hors périmètre : dashboards · exports CSV · rollup journalier · retrait de `CentreEvent.centre_viewed` · rétention/purge.

@@ -268,21 +268,7 @@ export async function getOpportuniteDetailForAdmin(id: string): Promise<Opportun
   return toOpportuniteDetailDTO(o as OpportuniteRow)
 }
 
-/**
- * Incrémente le compteur `vues`, best-effort et dédoublonné par IP.
- * Clé Redis `vue:<slug>:<ip>` TTL 30 min — l'incrément n'a lieu qu'à la
- * première vue de cette IP. N'échoue jamais (erreurs avalées).
- */
-export async function incrementVue(slug: string, ip: string): Promise<void> {
-  try {
-    const firstView = await redis.set(`vue:${slug}:${ip}`, '1', 'EX', 1800, 'NX')
-    if (firstView) {
-      await prisma.opportunite.update({
-        where: { slug },
-        data: { vues: { increment: 1 } },
-      })
-    }
-  } catch (err) {
-    logger.warn('[opportunites-loader] incrément des vues échoué', { err })
-  }
-}
+// GUIC-688 — `incrementVue` a été retiré : le comptage des vues passe désormais
+// par `src/lib/analytics/consultations.ts`, commun aux trois canaux (web, chat
+// IA, WhatsApp). Le compteur `Opportunite.vues` reste alimenté par ce socle et
+// garde donc exactement la même sémantique pour les dashboards existants.
