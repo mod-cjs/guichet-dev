@@ -31,6 +31,14 @@ import type { YayeOppItem } from '@/lib/ia/blocks'
  * Toute la carte est cliquable → détail `/opportunites/[slug]` ; le CTA (au-dessus du
  * lien étiré) ouvre la candidature (`?postuler=1`).
  */
+/**
+ * GUIC-688 — marqueurs de traçage du lien : `src=ia` attribue le clic au chat,
+ * `from=reco` le rattache à la recommandation dont la card est issue.
+ */
+function suffixeTracage(opp: YayeOppItem): string {
+  return opp.origine === 'reco' ? '?src=ia&from=reco' : '?src=ia'
+}
+
 export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?: () => void }) {
   const dl = buildDeadlineInfo(opp.deadline)
   const region = regionLabel(opp.region)
@@ -53,7 +61,7 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
     >
       {/* Lien étiré — carte cliquable vers le détail. */}
       <Link
-        href={`/opportunites/${opp.slug}?src=ia`}
+        href={`/opportunites/${opp.slug}${suffixeTracage(opp)}`}
         onClick={onNavigate}
         aria-label={`Voir l'opportunité : ${opp.titre}`}
         className="absolute inset-0"
@@ -110,7 +118,7 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
 
         {/* CTA à la couleur du type — z-10 pour passer au-dessus du lien étiré. */}
         <Link
-          href={`/opportunites/${opp.slug}?postuler=1&src=ia`}
+          href={`/opportunites/${opp.slug}?postuler=1&${suffixeTracage(opp).slice(1)}`}
           onClick={onNavigate}
           aria-label={`${ctaLabel} : ${opp.titre}`}
           className={`relative z-10 self-start rounded-gj-lg ${TONE_SOLID_BG[tone]} text-white

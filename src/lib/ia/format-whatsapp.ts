@@ -18,9 +18,24 @@ const WEB_SWITCH_AFTER_EXCHANGES = 5
  * GUIC-688 — tout lien de catalogue envoyé sur WhatsApp porte `src=wa`. Sans ce
  * marqueur, le clic retombe sur le web et se confond avec le trafic organique :
  * on ne saurait pas que WhatsApp a produit la visite.
+ *
+ * `origine` ajoute `from=reco` quand la card vient d'une recommandation : le
+ * clic reste alors rattachable à la reco, pas seulement l'affichage.
  */
-function lienWa(chemin: string): string {
-  return `${APP_URL}${chemin}?src=wa`
+function lienWa(chemin: string, origine?: string | null): string {
+  const separateur = chemin.includes('?') ? '&' : '?'
+  const from = origine === 'reco' ? '&from=reco' : ''
+  return `${APP_URL}${chemin}${separateur}src=wa${from}`
+}
+
+/**
+ * Lien porté par une notification : il peut être interne (chemin relatif) ou
+ * pointer vers un partenaire. On ne marque QUE nos propres liens — réécrire une
+ * URL externe serait à la fois faux et inutile (le clic n'atterrit pas chez nous).
+ */
+function lienNotification(lien: string): string {
+  if (lien.startsWith('http')) return lien
+  return lienWa(lien)
 }
 
 export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
@@ -35,7 +50,7 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
       const lines = b.items.slice(0, MAX_ITEMS).map((o, i) => {
         const meta = [o.type, o.region].filter(Boolean).join(' · ')
         return `${i + 1}. *${o.titre}*` + (meta ? `\n   ${meta}` : '') +
-          (o.note ? `\n   ${o.note}` : '') + `\n   ${lienWa(`/opportunites/${o.slug}`)}`
+          (o.note ? `\n   ${o.note}` : '') + `\n   ${lienWa(`/opportunites/${o.slug}`, o.origine)}`
       })
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'evenements') {
@@ -56,7 +71,7 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
       })
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'notifications') {
-      const lines = b.items.slice(0, MAX_ITEMS).map(n => `${n.lu ? '•' : '»'} *${n.titre}* — ${n.contenu}` + (n.lien ? `\n   ${n.lien.startsWith('http') ? n.lien : APP_URL + n.lien}` : ''))
+      const lines = b.items.slice(0, MAX_ITEMS).map(n => `${n.lu ? '•' : '»'} *${n.titre}* — ${n.contenu}` + (n.lien ? `\n   ${lienNotification(n.lien)}` : ''))
       if (lines.length) parts.push(lines.join('\n'))
     } else if (b.kind === 'quick_replies') {
       // Pas de boutons en texte brut : on invite à répondre par l'une des options.

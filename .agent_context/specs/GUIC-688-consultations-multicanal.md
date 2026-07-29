@@ -116,9 +116,13 @@ Le `searchParams.src` est lu sur chaque page détail → `canal` + `origine`.
 - [agent.ts](../../src/lib/ia/agent.ts) : `nodesReturned` enrichi des identifiants (`{ count, ids }`) — [rollups.ts](../../src/lib/ia/metrics/rollups.ts) lit `count`, le champ reste rétro-compatible.
 - Les liens des cards portent `?src=ia` → le clic est attribué au canal IA côté web.
 
+Les **livres** n'ont pas de bloc dédié : l'outil bibliothèque les surface dans un bloc `action` dont les boutons pointent vers `/jeune/bibliotheque/<id>`. Les identifiants sont récupérés depuis ces liens plutôt que d'introduire un type de bloc et une card — le rendu de Yaye reste inchangé.
+
+Les cards issues de `get_recommendations` portent `origine: 'reco'` : leur lien ajoute `from=reco`, ce qui rattache la **consultation** à la reco (l'impression, elle, l'est déjà via le nom de l'outil). Même marquage sur le carrousel de recommandations du tableau de bord jeune ([dashboard.ts](../../src/lib/loaders/dashboard.ts)), qui est l'autre surface de reco.
+
 ## 8. Canal WhatsApp
 
-[format-whatsapp.ts](../../src/lib/ia/format-whatsapp.ts) : les URLs émises portent `?src=wa`. Les impressions sont déjà émises par `tools.ts` (canal `whatsapp` via le contexte agent), pas de double comptage.
+[format-whatsapp.ts](../../src/lib/ia/format-whatsapp.ts) : les URLs émises portent `?src=wa`, y compris les liens de **notification** (les liens externes sont laissés intacts — le clic n'atterrit pas chez nous). Les impressions sont déjà émises par `tools.ts` (canal `whatsapp` via le contexte agent), pas de double comptage.
 
 ## 9. Tests (TDD RED → GREEN)
 

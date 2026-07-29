@@ -38,6 +38,22 @@ export function canalDepuisAgent(canal: CanalAgent): CanalConsultationValue {
   return canal === 'whatsapp' ? 'whatsapp' : 'ia_web'
 }
 
+/**
+ * Les livres n'ont pas de bloc dédié : l'outil bibliothèque les surface dans un
+ * bloc `action` dont les boutons pointent vers `/jeune/bibliotheque/<id>`. On
+ * récupère les identifiants là plutôt que d'inventer un type de bloc — la sortie
+ * de Yaye et son rendu restent inchangés.
+ */
+const LIEN_LIVRE = /\/jeune\/bibliotheque\/([^/?#]+)/
+
+function livresDepuisBoutons(block: YayeBlock): string[] {
+  if (block.kind !== 'action') return []
+  const boutons = block.buttons ?? []
+  return boutons
+    .map((b) => b.href?.match(LIEN_LIVRE)?.[1])
+    .filter((id): id is string => Boolean(id))
+}
+
 export interface BlockImpressionContext {
   canal:      CanalAgent
   cjsUid:     string
@@ -52,11 +68,14 @@ export interface BlockImpressionContext {
  */
 export async function trackBlockImpressions(block: YayeBlock, ctx: BlockImpressionContext): Promise<void> {
   try {
-    const typeEntite = entiteDepuisBlock(block.kind)
+    const livres = livresDepuisBoutons(block)
+    const typeEntite = livres.length > 0 ? 'livre' : entiteDepuisBlock(block.kind)
     if (!typeEntite) return
 
     const items = (block as { items?: { id?: string }[] }).items ?? []
-    const ids = items.map((i) => i.id).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    const ids = livres.length > 0
+      ? livres
+      : items.map((i) => i.id).filter((id): id is string => typeof id === 'string' && id.length > 0)
     if (ids.length === 0) return
 
     await trackImpressions(ids, {
