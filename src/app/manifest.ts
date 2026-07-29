@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 // GUIC-25 (M7 SEO / PWA) — manifest web. Couleurs littérales obligatoires
-// (JSON manifest, non résolvable via var CSS) : gj-teal #009F76.
+// (JSON manifest, non résolvable via var CSS) : gj-teal charte v5 (GUIC-690).
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Guichet Jeunesse — Consortium Jeunesse Sénégal',
@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#009F76',
+    theme_color: '#027f7e',
     lang: 'fr',
     dir: 'ltr',
     categories: ['education', 'government', 'social'],

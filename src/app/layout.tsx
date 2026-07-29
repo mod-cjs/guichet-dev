@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Lexend } from 'next/font/google'
 import { MobileTopShell, MobileBottomShell } from '@/components/layout/MobileAppShell'
 import { appUrl } from '@/lib/app-url'
 import '@/styles/globals.css'
@@ -51,9 +52,19 @@ export const metadata: Metadata = {
     : {}),
 }
 
+// GUIC-690 (design v5) — Lexend, police d'interface de la charte Yaakaar 2030.
+// Self-hostée au build par next/font (zéro requête runtime vers Google — réseau
+// intermittent + CSP). La variable alimente --gj-font-sans dans tokens.css,
+// fallback stack système si le chargement échoue. É-06 au registre d'écarts.
+const lexend = Lexend({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-lexend',
+})
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={lexend.variable}>
       <body className="antialiased">
         {/* Top bar mobile : DOIT être avant {children} pour que sticky top-0 fonctionne */}
         <MobileTopShell />
