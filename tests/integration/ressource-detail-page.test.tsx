@@ -11,12 +11,22 @@
 const mockGetRessourceById = jest.fn<any, [string]>()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockGetRessourcesRelated = jest.fn<any, [string, number | undefined]>()
-const mockIncrementVues = jest.fn<Promise<void>, [string]>(async () => {})
+// GUIC-688 — le comptage des vues est passé du loader au socle `consultations`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockTrackVuePage = jest.fn<Promise<void>, [any]>(async () => {})
 
 jest.mock('@/lib/loaders/ressources', () => ({
   getRessourceById: (id: string) => mockGetRessourceById(id),
   getRessourcesRelated: (id: string, take?: number) => mockGetRessourcesRelated(id, take),
-  incrementRessourceVues: (id: string) => mockIncrementVues(id),
+}))
+
+jest.mock('@/lib/analytics/consultation-server', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  trackVuePage: (input: any) => mockTrackVuePage(input),
+}))
+
+jest.mock('@/lib/auth', () => ({
+  getSession: jest.fn(async () => null),
 }))
 
 const mockNotFound = jest.fn(() => {
@@ -70,7 +80,9 @@ describe('GUIC-363 — /ressources/[id] page détail', () => {
     expect(screen.getByTestId('ressource-detail-hero')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: /Guide entrepreneuriat/i })).toBeInTheDocument()
     expect(screen.getByText('PDF')).toBeInTheDocument()
-    expect(mockIncrementVues).toHaveBeenCalledWith('r-123')
+    expect(mockTrackVuePage).toHaveBeenCalledWith(
+      expect.objectContaining({ typeEntite: 'ressource', entiteId: 'r-123' }),
+    )
   })
 
   it('appelle notFound() quand la ressource est introuvable', async () => {
