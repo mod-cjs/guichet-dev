@@ -14,29 +14,29 @@ describe('admin-theme (helper pur du thème clair/sombre admin)', () => {
     expect(nextTheme('dark')).toBe('light')
   })
 
-  it('normalise : seul "dark" est sombre, tout le reste = clair (défaut sûr)', () => {
+  it('normalise : seul "light" est clair, tout le reste = SOMBRE (défaut admin)', () => {
     expect(normalizeTheme('dark')).toBe('dark')
     expect(normalizeTheme('light')).toBe('light')
-    expect(normalizeTheme(null)).toBe('light')
-    expect(normalizeTheme(undefined)).toBe('light')
-    expect(normalizeTheme('nimporte')).toBe('light')
+    expect(normalizeTheme(null)).toBe('dark')
+    expect(normalizeTheme(undefined)).toBe('dark')
+    expect(normalizeTheme('nimporte')).toBe('dark')
   })
 
-  it('lit le thème stocké et retombe sur clair si absent/illisible', () => {
+  it('lit le thème stocké et retombe sur SOMBRE si absent/illisible', () => {
     const store = new Map<string, string>()
     const storage = {
       getItem: (k: string) => store.get(k) ?? null,
     }
-    expect(readStoredTheme(storage)).toBe('light')
-    store.set(ADMIN_THEME_KEY, 'dark')
     expect(readStoredTheme(storage)).toBe('dark')
-    // storage qui throw (mode privé) -> clair, pas de crash
+    store.set(ADMIN_THEME_KEY, 'light')
+    expect(readStoredTheme(storage)).toBe('light')
+    // storage qui throw (mode privé) -> sombre (défaut), pas de crash
     const throwing = {
       getItem: () => {
         throw new Error('SecurityError')
       },
     }
-    expect(readStoredTheme(throwing)).toBe('light')
+    expect(readStoredTheme(throwing)).toBe('dark')
   })
 
   it('persiste le thème sous la bonne clé (et avale les erreurs de storage)', () => {

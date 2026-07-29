@@ -42,57 +42,49 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/partenaires')
   })
 
-  // GUIC-472 — la fréquentation des centres est clarifiée (check-ins) et distincte
-  // des analytics événements.
-  it('rend le lien "Fréquentation centres" vers /admin/analytics/centres', () => {
-    render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /fréquentation centres/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/analytics/centres')
-  })
-
-  it('rend le lien "Analytics événements" vers /admin/analytics/evenements', () => {
-    render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /analytics événements/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/analytics/evenements')
-  })
-
-  it('rend le lien "Statistiques" vers /admin/data-hub', () => {
-    render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /statistiques/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/data-hub')
-  })
-
+  // Nav curée (fidélité maquette GUIC-679). Les écrans secondaires (Fréquentation,
+  // Analytics, Types, Sources, Monitoring, Sessions/Modèle Yaye, Notifications,
+  // Statistiques) sortent de la sidebar → onglets de leur page-hub / « Système ».
   it('rend le lien "Modération" vers /admin/opportunites', () => {
     render(<AdminSidebar />)
     const link = screen.getAllByRole('link', { name: /modération/i })[0]
     expect(link).toHaveAttribute('href', '/admin/opportunites')
   })
 
-  // G1 — CRUD types d'opportunité : item de gouvernance.
-  it('rend le lien "Types d’opportunité" vers /admin/types-opportunite', () => {
+  it('rend le lien "Curation" vers /admin/curation', () => {
     render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /types d.opportunit/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/types-opportunite')
+    const link = screen.getAllByRole('link', { name: /^curation$/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/curation')
+  })
+
+  it('rend le lien "Opportunités" vers /admin/opportunites/gestion', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /^opportunités$/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/opportunites/gestion')
+  })
+
+  it('rend le lien "Bibliothèque" vers /admin/bibliotheque', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /bibliothèque/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/bibliotheque')
   })
 
   it('rend le lien "Événements" vers /admin/evenements', () => {
     render(<AdminSidebar />)
-    // Exact : ne pas confondre avec « Analytics événements » (GUIC-472).
     const link = screen.getAllByRole('link', { name: /^événements$/i })[0]
     expect(link).toHaveAttribute('href', '/admin/evenements')
   })
 
-  it('rend le lien "Contenu" vers /admin/ressources', () => {
+  it('rend le lien "Escalades" vers /admin/yaye/escalades', () => {
     render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /contenu/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/ressources')
+    const link = screen.getAllByRole('link', { name: /^escalades$/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/yaye/escalades')
   })
 
-  // GUIC-550 — configuration du centre de notifications multicanal.
-  it('rend le lien "Notifications" vers /admin/notifications', () => {
+  it('rend le lien "Système & Exploitation" vers /admin/systeme', () => {
     render(<AdminSidebar />)
-    const link = screen.getAllByRole('link', { name: /^notifications$/i })[0]
-    expect(link).toHaveAttribute('href', '/admin/notifications')
+    const link = screen.getAllByRole('link', { name: /système & exploitation/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/systeme')
   })
 
   // G3 — journal d'audit : écran de consultation de la traçabilité.

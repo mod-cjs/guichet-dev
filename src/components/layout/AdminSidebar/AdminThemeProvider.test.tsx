@@ -15,20 +15,20 @@ function Consumer() {
 describe('AdminThemeProvider', () => {
   beforeEach(() => window.localStorage.clear())
 
-  it('démarre en clair (aucun scope) puis bascule en sombre (data-admin-theme)', async () => {
+  it('démarre en SOMBRE par défaut (scope data-admin-theme=dark) puis bascule en clair', async () => {
     const { container } = render(
       <AdminThemeProvider>
         <Consumer />
       </AdminThemeProvider>,
     )
-    const scope = container.querySelector('[class*="flex-1"]') as HTMLElement
-    expect(scope).not.toHaveAttribute('data-admin-theme')
-    expect(screen.getByRole('button')).toHaveTextContent('theme:light')
+    const scope = container.querySelector('.gj-admin-scope') as HTMLElement
+    expect(scope).toHaveAttribute('data-admin-theme', 'dark')
+    expect(screen.getByRole('button')).toHaveTextContent('theme:dark')
 
     await userEvent.click(screen.getByRole('button'))
 
-    expect(screen.getByRole('button')).toHaveTextContent('theme:dark')
-    expect(scope).toHaveAttribute('data-admin-theme', 'dark')
+    expect(screen.getByRole('button')).toHaveTextContent('theme:light')
+    expect(scope).not.toHaveAttribute('data-admin-theme')
   })
 
   it('persiste le choix (relecture au montage suivant)', async () => {
@@ -37,6 +37,7 @@ describe('AdminThemeProvider', () => {
         <Consumer />
       </AdminThemeProvider>,
     )
+    // défaut sombre -> on bascule en clair, qui doit être persisté
     await userEvent.click(screen.getByRole('button'))
     first.unmount()
 
@@ -45,8 +46,8 @@ describe('AdminThemeProvider', () => {
         <Consumer />
       </AdminThemeProvider>,
     )
-    // au remontage, l'effet relit le storage -> sombre
-    expect(await screen.findByText('theme:dark')).toBeInTheDocument()
+    // au remontage, l'effet relit le storage -> clair
+    expect(await screen.findByText('theme:light')).toBeInTheDocument()
   })
 
   it('useAdminTheme hors provider lève une erreur', () => {

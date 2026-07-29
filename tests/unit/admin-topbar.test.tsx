@@ -40,6 +40,7 @@ describe('AdminTopBar', () => {
 
   it('expose la bascule de thème clair/sombre (GUIC-680)', () => {
     renderTopBar()
-    expect(screen.getByRole('button', { name: /th[èe]me sombre/i })).toBeInTheDocument()
+    // Défaut = sombre → le toggle propose « Passer en thème clair ».
+    expect(screen.getByRole('button', { name: /passer en th[èe]me (clair|sombre)/i })).toBeInTheDocument()
   })
 })
