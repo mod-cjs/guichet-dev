@@ -85,6 +85,7 @@ export function CentreCard({ centre, onEdit, onDelete }: CentreCardProps) {
 
   return (
     <div className="gj-registre-card" style={rootStyle}>
+     <Link href={`/admin/centres/${id}`} aria-label={`Fiche de ${nom}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       {/* Letterhead teinté région */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 15px', borderBottom: '1px solid var(--gj-line)', background: 'var(--soft)' }}>
         <span
@@ -117,10 +118,11 @@ export function CentreCard({ centre, onEdit, onDelete }: CentreCardProps) {
           <span style={statLabel}>Agents</span>
         </div>
       </div>
+     </Link>
 
       {/* Footer actions */}
       <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderTop: '1px solid var(--gj-line)' }}>
-        <Link href={`/admin/centres/${id}/ressources`} aria-label={`Ressources de ${nom}`} style={footBtn}>
+        <Link href={`/admin/centres/${id}?tab=ressources`} aria-label={`Ressources de ${nom}`} style={footBtn}>
           <Icon name="resources" size={14} /> Ressources
         </Link>
         <button type="button" aria-label={`Modifier ${nom}`} onClick={() => onEdit(centre)} style={{ ...footBtn, marginLeft: 'auto', color: 'var(--gj-teal-deep)', borderColor: 'var(--gj-teal)' }}>
