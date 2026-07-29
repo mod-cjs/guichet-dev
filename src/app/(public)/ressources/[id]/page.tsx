@@ -1,11 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import {
-  getRessourceById,
-  getRessourcesRelated,
-  incrementRessourceVues,
-} from '@/lib/loaders/ressources'
+import { getRessourceById, getRessourcesRelated } from '@/lib/loaders/ressources'
+import { getSession } from '@/lib/auth'
+import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero'
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
 import { Breadcrumbs } from '@/components/ui'
@@ -26,6 +24,7 @@ export const dynamic = 'force-dynamic'
 
 interface RessourceDetailPageProps {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ src?: string | string[]; from?: string | string[] }>
 }
 
 export async function generateMetadata({
@@ -44,14 +43,24 @@ export async function generateMetadata({
   }
 }
 
-export default async function RessourceDetailPage({ params }: RessourceDetailPageProps) {
+export default async function RessourceDetailPage({ params, searchParams }: RessourceDetailPageProps) {
   const { id } = await params
   const detail = await getRessourceById(id)
   if (!detail) notFound()
 
   const related = await getRessourcesRelated(detail.id, 3)
-  // Best-effort, non bloquant (le loader avale ses erreurs).
-  await incrementRessourceVues(detail.id)
+
+  // GUIC-688 — passe par le socle commun : ajoute au passage la garde de
+  // dédoublonnage 30 min qui manquait ici (le compteur montait à chaque rendu).
+  const session = await getSession()
+  const sp = (await searchParams) ?? {}
+  await trackVuePage({
+    typeEntite: 'ressource',
+    entiteId:   detail.id,
+    src:        sp.src,
+    from:       sp.from,
+    cjsUid:     session?.cjsUid ?? null,
+  })
 
   const pageUrl = `/ressources/${detail.id}`
 

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getLivre, BiblioDomainError } from '@/lib/bibliotheque/service'
+import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { Card, Icon } from '@/components/ui'
 import { EmpruntButton } from './emprunt-button'
 
@@ -28,8 +29,10 @@ export async function generateMetadata({
 
 export default async function BiblioLivreDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ src?: string | string[]; from?: string | string[] }>
 }) {
   const session = await getSession()
   if (!session) {
@@ -47,6 +50,16 @@ export default async function BiblioLivreDetailPage({
     }
     throw err
   }
+
+  // GUIC-688 — page réservée aux connectés : la consultation est toujours nominative.
+  const sp = (await searchParams) ?? {}
+  void trackVuePage({
+    typeEntite: 'livre',
+    entiteId:   livre.id,
+    src:        sp.src,
+    from:       sp.from,
+    cjsUid:     session.cjsUid,
+  })
 
   const emplacementsDisponibles = livre.emplacements
 

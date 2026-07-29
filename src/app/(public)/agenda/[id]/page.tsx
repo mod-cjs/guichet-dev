@@ -7,6 +7,7 @@ import { EvenementDetailHero } from '@/components/evenements/EvenementDetailHero
 import { EvenementInscriptionCta } from '@/components/evenements/EvenementInscriptionCta'
 import { getEvenementById } from '@/lib/loaders/evenements'
 import { getSession } from '@/lib/auth'
+import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { prisma } from '@/lib/prisma'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { getEvenementJsonLd } from '@/lib/seo/loaders'
@@ -18,6 +19,7 @@ export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ src?: string | string[]; from?: string | string[] }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -47,10 +49,20 @@ const FULL_DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
 })
 const TIME_FMT = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
-export default async function EvenementDetailPage({ params }: PageProps) {
+export default async function EvenementDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const [evenement, session] = await Promise.all([getEvenementById(id), getSession()])
   if (!evenement) notFound()
+
+  // GUIC-688 — les événements n'étaient tracés nulle part jusqu'ici.
+  const sp = (await searchParams) ?? {}
+  void trackVuePage({
+    typeEntite: 'evenement',
+    entiteId:   evenement.id,
+    src:        sp.src,
+    from:       sp.from,
+    cjsUid:     session?.cjsUid ?? null,
+  })
 
   // GUIC-25 (M7 SEO) — données structurées Event + fil d'Ariane
   const jsonLd = await getEvenementJsonLd(id)
