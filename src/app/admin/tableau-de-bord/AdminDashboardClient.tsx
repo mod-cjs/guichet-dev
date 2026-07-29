@@ -1,580 +1,295 @@
 'use client'
 
 import Link from 'next/link'
+import type { CSSProperties } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
-import { Spark } from '@/components/admin/charts/Spark'
-import { LineChart } from '@/components/admin/charts/LineChart'
-import { BarChart, type BarChartItem } from '@/components/admin/charts/BarChart'
-import { Donut, type DonutSegment } from '@/components/admin/charts/Donut'
 import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
+import { DashboardFilterBar } from './DashboardFilterBar'
+import { regionLabel } from '@/lib/regions'
+import { periodeLabel } from '@/lib/dashboard-filters'
+import type { DashboardFilters } from '@/lib/dashboard-filters'
+import type { AdminDashboardData, BriefingItem, FunnelStep } from '@/lib/loaders/admin-dashboard'
 
-// ── Types exportés (utilisés aussi par la page serveur) ──────────────────────
+// ── Tokens de ton (aplats, theme-aware — ZÉRO gradient) ──────────────────────
+const TONE: Record<'crit' | 'warn' | 'info', { soft: string; ink: string }> = {
+  crit: { soft: 'var(--gj-red-soft)', ink: 'var(--gj-red)' },
+  warn: { soft: 'var(--gj-yellow-soft)', ink: 'var(--gj-yellow-ink)' },
+  info: { soft: 'var(--gj-blue-soft)', ink: 'var(--gj-blue-ink)' },
+}
+const BRIEF_ICON: Record<BriefingItem['key'], IconName> = { moderation: 'shield', escalades: 'alert', curation: 'check-circle' }
+const BRIEF_LABEL: Record<BriefingItem['key'], string> = { moderation: 'Modération', escalades: 'Escalades Yaye', curation: 'Curation' }
 
-export interface DashboardCentre {
-  id: string
-  nom: string
-  latitude: number
-  longitude: number
-  region: string
-  slug: string
+const card: CSSProperties = { background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 15, boxShadow: 'var(--gj-edge)' }
+const h2: CSSProperties = { fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)', margin: 0 }
+const eyebrow: CSSProperties = { fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }
+
+function Sub({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 2 }}>{children}</div>
+}
+function iconBadge(name: IconName, soft: string, ink: string, size = 26) {
+  return <span style={{ display: 'inline-grid', placeItems: 'center', width: size, height: size, borderRadius: 8, background: soft, color: ink, boxShadow: 'var(--gj-edge)', flexShrink: 0 }}><Icon name={name} size={size <= 26 ? 15 : 17} /></span>
 }
 
-export interface GrowthPoint {
-  month: string
-  cumulative: number
-}
-
-export interface DashboardKPIs {
-  jeunesInscrits: number
-  centresActifs: number
-  aModerer: number
-  /** Candidatures retenues ce mois (statut=Retenue) — null si aucune, affiche "—". */
-  insertionsMois: number | null
-  /** Nouveaux inscrits ce mois (delta jeunes). */
-  jeunesNouveauxMois: number
-  /** Variation des insertions vs mois précédent (%), null si non calculable. */
-  insertionsDeltaPct: number | null
-}
-
-/** Indicateur secondaire (bandeau de mini-KPIs) — données réelles uniquement. */
-export interface SecondaryKpi {
-  label: string
-  value: string
-  icon: IconName
-}
-
-export interface DashboardData {
-  kpis: DashboardKPIs
-  growthSeries: GrowthPoint[]
-  accountSplit: DonutSegment[]
-  monthlyCandidatures: BarChartItem[]
-  /** Centres géolocalisés pour la carte « Présence nationale ». */
-  centres: DashboardCentre[]
-  /** Indicateurs secondaires (taux d'insertion, candidatures, ateliers, partenaires…). */
-  secondaires: SecondaryKpi[]
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmt(n: number): string {
-  return n.toLocaleString('fr-FR')
-}
-
-interface KpiDef {
-  label: string
-  value: string
-  tone: 'teal' | 'blue' | 'green' | 'yellow'
-  icon: 'users' | 'pin' | 'shield' | 'trending'
-  spark: number[]
-  urgent?: boolean
-  /** Si défini, la carte KPI devient un lien vers cette destination. */
-  href?: string
-  /** Ligne de variation sous la valeur (ex « +1 240 ce mois »). */
-  delta?: string
-  /** Sens de la variation (vert si true, neutre/jaune sinon). */
-  deltaUp?: boolean
-}
-
-function buildKpis(kpis: DashboardKPIs, growthSeries: GrowthPoint[]): KpiDef[] {
-  // Sparkline inscriptions : données cumulées des 7 derniers mois
-  const sparkGrowth = growthSeries.map((g) => g.cumulative)
-
-  return [
-    {
-      label: 'Jeunes inscrits',
-      value: fmt(kpis.jeunesInscrits),
-      tone: 'teal',
-      icon: 'users',
-      spark: sparkGrowth.length > 0 ? sparkGrowth : [kpis.jeunesInscrits],
-      delta: `+${fmt(kpis.jeunesNouveauxMois)} ce mois`,
-      deltaUp: true,
-    },
-    {
-      label: 'Centres actifs',
-      value: fmt(kpis.centresActifs),
-      tone: 'blue',
-      icon: 'pin',
-      spark: [kpis.centresActifs],
-    },
-    {
-      label: 'À modérer',
-      value: fmt(kpis.aModerer),
-      tone: 'yellow',
-      icon: 'shield',
-      spark: [kpis.aModerer],
-      urgent: kpis.aModerer > 0,
-      href: '/admin/opportunites',
-    },
-    {
-      // Candidatures avec statut=Retenue ce mois (libellé honnête — distinct du modèle Insertion).
-      label: 'Candidatures retenues',
-      value: kpis.insertionsMois != null ? fmt(kpis.insertionsMois) : '—',
-      tone: 'green',
-      icon: 'trending',
-      spark:
-        kpis.insertionsMois != null
-          ? [Math.max(0, kpis.insertionsMois - 10), kpis.insertionsMois]
-          : [0],
-      delta:
-        kpis.insertionsDeltaPct != null
-          ? `${kpis.insertionsDeltaPct >= 0 ? '+' : ''}${kpis.insertionsDeltaPct}% vs mois dernier`
-          : undefined,
-      deltaUp: (kpis.insertionsDeltaPct ?? 0) >= 0,
-    },
-  ]
-}
-
-// Tone → tokens CSS
-const TONE_BG: Record<string, string> = {
-  teal: 'var(--gj-teal-soft)',
-  blue: 'var(--gj-blue-soft)',
-  green: 'var(--gj-green-soft)',
-  yellow: 'var(--gj-yellow-soft)',
-}
-const TONE_FG: Record<string, string> = {
-  teal: 'var(--gj-teal-deep)',
-  blue: 'var(--gj-blue-ink)',
-  green: 'var(--gj-green-ink)',
-  yellow: 'var(--gj-yellow-ink)',
-}
-
-// ── Composant principal ───────────────────────────────────────────────────────
-
-interface Props {
-  data: DashboardData
-}
-
-export function AdminDashboardClient({ data }: Props) {
-  const { kpis, growthSeries, accountSplit, monthlyCandidatures, centres, secondaires } = data
-  const kpiDefs = buildKpis(kpis, growthSeries)
-
-  const growthLabels = growthSeries.map((g) => g.month)
-  const growthValues = growthSeries.map((g) => g.cumulative)
-
-  const totalComptes = accountSplit.reduce((s, d) => s + d.value, 0)
-
+// ── Briefing (héros task-first, compact) ─────────────────────────────────────
+function Briefing({ items }: { items: BriefingItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="gj-registre-card" style={{ ...card, padding: 15, display: 'flex', alignItems: 'center', gap: 12 }}>
+        {iconBadge('check-circle', 'var(--gj-green-soft)', 'var(--gj-green-ink)', 34)}
+        <div>
+          <div style={{ fontSize: 14.5, fontWeight: 900, color: 'var(--gj-ink)' }}>Rien ne requiert ton attention.</div>
+          <Sub>Modération, escalades et curation sont à jour.</Sub>
+        </div>
+      </div>
+    )
+  }
   return (
-    <div
-      style={{
-        padding: '22px 28px 40px',
-        overflowY: 'auto',
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-      }}
-    >
-      {/* ── En-tête ────────────────────────────────────────────────────────── */}
-      <div>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 900,
-            color: 'var(--gj-ink)',
-            margin: 0,
-          }}
-        >
-          Tableau de bord national
-        </h1>
-        <p
-          style={{
-            fontSize: 13,
-            color: 'var(--gj-grey)',
-            marginTop: 4,
-            marginBottom: 0,
-          }}
-        >
-          Vue d&apos;ensemble du réseau Guichet Jeunesse &middot;{' '}
-          {kpis.centresActifs} centres &middot; mis à jour à l&apos;instant.
-        </p>
-      </div>
-
-      {/* ── 4 cartes KPI ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gap: 14,
-        }}
-        // Mobile 2×2, desktop 4 — colonnes pilotées par Tailwind (responsive)
-        className="grid grid-cols-2 sm:grid-cols-4"
-      >
-        {kpiDefs.map((k, i) => {
-          const baseStyle = {
-            background: 'var(--gj-surface)',
-            border: `1.5px solid ${k.urgent ? 'var(--gj-yellow)' : 'var(--gj-line)'}`,
-            borderRadius: 14,
-            padding: 16,
-            display: 'block',
-          }
-          const inner = (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <span
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: TONE_BG[k.tone],
-                    color: TONE_FG[k.tone],
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    boxShadow: 'var(--gj-edge)',
-                  }}
-                >
-                  <Icon name={k.icon} size={18} />
-                </span>
-                {k.spark.length > 0 && (
-                  <Spark data={k.spark} color={TONE_FG[k.tone]} />
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 26,
-                  fontWeight: 900,
-                  color: 'var(--gj-ink)',
-                  marginTop: 10,
-                  lineHeight: 1,
-                }}
-              >
-                {k.value}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--gj-ink)',
-                  marginTop: 5,
-                }}
-              >
-                {k.label}
-              </div>
-              {k.delta && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    marginTop: 3,
-                    color: k.deltaUp ? 'var(--gj-green-ink)' : 'var(--gj-yellow-ink)',
-                  }}
-                >
-                  {k.delta}
-                </div>
-              )}
-            </>
-          )
-          return k.href ? (
-            <Link
-              key={i}
-              href={k.href}
-              aria-label={k.label}
-              className="gj-registre-card is-interactive"
-              style={{ ...baseStyle, cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
-            >
-              {inner}
-            </Link>
-          ) : (
-            <div
-              key={i}
-              className={`gj-registre-card${k.urgent ? ' is-interactive' : ''}`}
-              style={{ ...baseStyle, cursor: k.urgent ? 'pointer' : 'default' }}
-            >
-              {inner}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px]">
+      {items.map((b) => {
+        const t = TONE[b.tone]
+        return (
+          <Link key={b.key} href={b.href} className="gj-registre-card is-interactive" style={{ ...card, padding: 14, display: 'flex', flexDirection: 'column', gap: 7, textDecoration: 'none', color: 'inherit', borderColor: b.tone === 'crit' ? 'var(--gj-red)' : 'var(--gj-line)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              {iconBadge(BRIEF_ICON[b.key], t.soft, t.ink)}
+              <span style={{ ...eyebrow, color: t.ink, flex: 1 }}>{BRIEF_LABEL[b.key]}</span>
+              <b style={{ fontSize: 28, fontWeight: 900, lineHeight: 1, color: 'var(--gj-ink)', fontVariantNumeric: 'tabular-nums' }}>{b.count}</b>
             </div>
-          )
-        })}
-      </div>
-
-      {/* ── Indicateurs secondaires (mini-KPIs, données réelles) ──────────── */}
-      {secondaires.length > 0 && (
-        <div
-          style={{ display: 'grid', gap: 10, marginBottom: 20 }}
-          className="grid-cols-2 sm:grid-cols-4"
-        >
-          {secondaires.map((s, i) => (
-            <div
-              key={i}
-              className="gj-registre-card"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--gj-surface)',
-                border: '1.5px solid var(--gj-line)',
-                borderRadius: 12,
-                padding: '10px 12px',
-              }}
-            >
-              <span
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 8,
-                  flexShrink: 0,
-                  background: 'var(--gj-teal-soft)',
-                  color: 'var(--gj-teal-deep)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name={s.icon} size={15} />
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--gj-ink)', lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 2 }}>{s.label}</div>
-              </div>
+            <div style={{ fontSize: 12, color: 'var(--gj-grey)', lineHeight: 1.4 }}>{b.context}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: t.ink, marginTop: 2, paddingTop: 9, borderTop: '1px solid var(--gj-line)' }}>
+              {b.cta} <Icon name="arrow-right" size={14} />
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Grille LineChart + Donut ──────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gap: 20,
-          alignItems: 'start',
-        }}
-        // Mobile 1 colonne, desktop 1.3fr/1fr — responsive (évite l'overflow horizontal mobile)
-        className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr]"
-      >
-        {/* LineChart : Croissance des inscriptions */}
-        <div
-          className="gj-registre-card"
-          style={{
-            background: 'var(--gj-surface)',
-            border: '1.5px solid var(--gj-line)',
-            borderRadius: 14,
-            padding: 18,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              marginBottom: 14,
-            }}
-          >
-            <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>
-              Croissance des inscriptions
-            </h2>
-            {growthValues.length >= 2 && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  color: 'var(--gj-green-ink)',
-                }}
-              >
-                {growthValues[0] > 0
-                  ? `+${Math.round(((growthValues[growthValues.length - 1] - growthValues[0]) / growthValues[0]) * 100)}% sur ${growthValues.length} mois`
-                  : ''}
-              </span>
-            )}
-          </div>
-          {growthValues.length > 0 ? (
-            <LineChart data={growthValues} labels={growthLabels} />
-          ) : (
-            <p style={{ color: 'var(--gj-grey)', fontSize: 13 }}>—</p>
-          )}
-        </div>
-
-        {/* Donut : Répartition des comptes */}
-        <div
-          className="gj-registre-card"
-          style={{
-            background: 'var(--gj-surface)',
-            border: '1.5px solid var(--gj-line)',
-            borderRadius: 14,
-            padding: 18,
-          }}
-        >
-          <h2 style={{ fontSize: 16, fontWeight: 900, marginBottom: 14, marginTop: 0 }}>
-            Répartition des comptes
-          </h2>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 18,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Donut data={accountSplit} total={totalComptes} />
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 9,
-                minWidth: 120,
-              }}
-            >
-              {accountSplit.map((d, i) => (
-                <div
-                  key={i}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-                >
-                  <span
-                    style={{
-                      width: 11,
-                      height: 11,
-                      borderRadius: 3,
-                      background: d.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 12.5,
-                      color: 'var(--gj-grey)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {d.label}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: 800,
-                      color: 'var(--gj-ink)',
-                    }}
-                  >
-                    {fmt(d.value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Présence nationale (carte Google Maps des centres) ───────────── */}
-      <div
-        className="gj-registre-card"
-        style={{
-          background: 'var(--gj-surface)',
-          border: '1.5px solid var(--gj-line)',
-          borderRadius: 14,
-          padding: 18,
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 900, color: 'var(--gj-ink)' }}>Présence nationale</h2>
-          <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>
-            {centres.length} centre{centres.length > 1 ? 's' : ''} géolocalisé{centres.length > 1 ? 's' : ''}
-          </span>
-        </div>
-        <CentresMapGoogle
-          centres={centres.map((c) => ({ id: c.id, nom: c.nom, latitude: c.latitude, longitude: c.longitude }))}
-          centresForList={centres.map((c) => ({ id: c.id, nom: c.nom, region: c.region, slug: c.slug }))}
-          height={320}
-          zoom={6}
-          disableUI
-        />
-      </div>
-
-      {/* ── BarChart + call-out modération ───────────────────────────────── */}
-      <div
-        className="gj-registre-card"
-        style={{
-          background: 'var(--gj-surface)',
-          border: '1.5px solid var(--gj-line)',
-          borderRadius: 14,
-          padding: 18,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            marginBottom: 14,
-          }}
-        >
-          <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0 }}>
-            Candidatures retenues / mois
-          </h2>
-          <Link
-            href="/admin/data-hub"
-            style={{
-              background: 'transparent',
-              color: 'var(--gj-teal-deep)',
-              fontWeight: 800,
-              fontSize: 12.5,
-              textDecoration: 'none',
-            }}
-          >
-            Détails →
           </Link>
-        </div>
+        )
+      })}
+    </div>
+  )
+}
 
-        {monthlyCandidatures.length > 0 ? (
-          <BarChart data={monthlyCandidatures} />
-        ) : (
-          <p style={{ color: 'var(--gj-grey)', fontSize: 13 }}>—</p>
-        )}
-
-        {/* Call-out modération */}
-        {kpis.aModerer > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              gap: 9,
-              alignItems: 'center',
-              marginTop: 14,
-              padding: '11px 13px',
-              background: 'var(--gj-yellow-soft)',
-              borderRadius: 10,
-            }}
-          >
-            <Icon
-              name="shield"
-              size={17}
-              style={{ color: 'var(--gj-yellow-ink)', flexShrink: 0 }}
-            />
-            <div
-              style={{
-                flex: 1,
-                fontSize: 12.5,
-                color: 'var(--gj-yellow-ink)',
-                fontWeight: 600,
-              }}
-            >
-              <b>{fmt(kpis.aModerer)} publication{kpis.aModerer > 1 ? 's' : ''}</b>{' '}
-              en attente de modération.
+// ── Funnel (héros mission) ───────────────────────────────────────────────────
+const STEP_HREF: Record<string, string> = {
+  recue: '/admin/candidatures', preselection: '/admin/candidatures?etape=preselection',
+  entretien: '/admin/candidatures?etape=entretien', retenue: '/admin/candidatures?statut=retenue', insertion: '/admin/candidatures?statut=retenue',
+}
+function Funnel({ steps, conversion }: { steps: FunnelStep[]; conversion: number }) {
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 3 }}>
+        <h2 style={h2}>Parcours des candidatures</h2>
+        <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--gj-teal-deep)' }}>{conversion}% du dépôt à l&apos;insertion</span>
+      </div>
+      <Sub>Le taux de conversion à chaque étape révèle où le parcours se perd.</Sub>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 13 }}>
+        {steps.map((s) => (
+          <Link key={s.key} href={STEP_HREF[s.key] ?? '/admin/candidatures'} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)' }}>
+                {s.label}
+                {s.dropoff && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red)' }}>
+                    <Icon name="alert" size={11} /> point de fuite
+                  </span>
+                )}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {s.conversion !== null && <span style={{ fontSize: 11.5, fontWeight: 700, color: s.dropoff ? 'var(--gj-red)' : 'var(--gj-grey)' }}>{Math.round(s.conversion * 100)}%</span>}
+                <b style={{ fontSize: 14, fontWeight: 900, color: 'var(--gj-ink)', fontVariantNumeric: 'tabular-nums' }}>{s.count.toLocaleString('fr-FR')}</b>
+              </span>
             </div>
-            <Link
-              href="/admin/opportunites"
-              style={{
-                background: 'var(--gj-yellow)',
-                color: 'var(--gj-admin-on-gold)',
-                border: 0,
-                padding: '7px 13px',
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 12,
-                textDecoration: 'none',
-                display: 'inline-block',
-                minHeight: 44,
-                lineHeight: '30px',
-              }}
-            >
-              Modérer
-            </Link>
-          </div>
+            <div style={{ height: 10, borderRadius: 6, background: 'var(--gj-bg)', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(3, s.pctOfTop * 100)}%`, height: '100%', borderRadius: 6, background: s.dropoff ? 'var(--gj-red)' : s.key === 'insertion' ? 'var(--gj-green-ink)' : 'var(--gj-teal-deep)' }} />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── KPIs 2×2 (rail, compact) ─────────────────────────────────────────────────
+const KPI_ICON: Record<string, IconName> = { jeunes: 'users', offres: 'employment', insertions: 'trending', partenaires: 'engagement' }
+function Kpis({ kpis }: { kpis: AdminDashboardData['kpis'] }) {
+  return (
+    <div className="grid grid-cols-2 gap-[12px]">
+      {kpis.map((k) => (
+        <div key={k.key} className="gj-registre-card" style={{ ...card, padding: 13 }}>
+          {iconBadge(KPI_ICON[k.key] ?? 'chart', 'var(--gj-teal-soft)', 'var(--gj-teal-deep)', 28)}
+          <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--gj-ink)', marginTop: 8, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
+          <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 4 }}>{k.label}</div>
+          {k.delta && <div style={{ fontSize: 10.5, fontWeight: 700, marginTop: 3, color: k.deltaUp ? 'var(--gj-green-ink)' : 'var(--gj-grey)' }}>{k.delta}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Réseau — centres à suivre (liste seule) ──────────────────────────────────
+function ReseauList({ centres }: { centres: AdminDashboardData['centres'] }) {
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 18 }}>
+      <h2 style={h2}>Réseau — centres à suivre</h2>
+      <Sub>Classés par réservations en attente puis fréquentation (30 j).</Sub>
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column' }}>
+        {centres.map((c) => (
+          <Link key={c.id} href="/admin/centres" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--gj-line)', textDecoration: 'none', color: 'inherit' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{c.nom}</div>
+              <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 1 }}>{c.jeunes.toLocaleString('fr-FR')} jeunes · {c.insertions} insertions</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {c.reservationsEnAttente > 0 && <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>{c.reservationsEnAttente} rés. en attente</span>}
+              <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)' }}>{c.frequentation30j} visites</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Carte compacte (rail) ────────────────────────────────────────────────────
+function MapCard({ geo }: { geo: AdminDashboardData['centresGeo'] }) {
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h2 style={h2}>Présence nationale</h2>
+        <span style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{geo.length} centres</span>
+      </div>
+      <CentresMapGoogle centres={geo.map((c) => ({ id: c.id, nom: c.nom, latitude: c.latitude, longitude: c.longitude }))} centresForList={geo.map((c) => ({ id: c.id, nom: c.nom, region: c.region, slug: c.slug }))} height={190} zoom={6} disableUI />
+    </div>
+  )
+}
+
+// ── Yaye (rail, compact) ─────────────────────────────────────────────────────
+function YayeBlock({ y }: { y: AdminDashboardData['yaye'] }) {
+  const metrics = [
+    { label: 'Auto-résolution', value: y.autoResolution != null ? `${y.autoResolution}%` : '—', good: (y.autoResolution ?? 0) >= 70 },
+    { label: 'Satisfaction', value: y.satisfaction != null ? `${y.satisfaction}%` : '—', good: (y.satisfaction ?? 0) >= 70 },
+    { label: 'Sessions', value: y.sessions.toLocaleString('fr-FR') },
+    { label: 'Actions générées', value: y.conversations.toLocaleString('fr-FR') },
+  ]
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={h2}>Assistant Yaye</h2>
+        {y.escaladesOuvertes > 0 ? (
+          <Link href="/admin/yaye/escalades" style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: y.escaladesDanger > 0 ? 'var(--gj-red-soft)' : 'var(--gj-yellow-soft)', color: y.escaladesDanger > 0 ? 'var(--gj-red)' : 'var(--gj-yellow-ink)', textDecoration: 'none' }}>
+            {y.escaladesOuvertes} escalade{y.escaladesOuvertes > 1 ? 's' : ''}{y.escaladesDanger > 0 ? ` · ${y.escaladesDanger} danger` : ''}
+          </Link>
+        ) : (
+          <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)' }}>à jour</span>
         )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-[12px] gap-y-[11px]" style={{ marginTop: 13 }}>
+        {metrics.map((m) => (
+          <div key={m.label}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: m.good === false ? 'var(--gj-yellow-ink)' : 'var(--gj-ink)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{m.value}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 3 }}>{m.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const OPP_COLOR: Record<string, string> = {
+  Emploi: '--gj-sector-numerique', Stage: '--gj-sector-entrepreneuriat', Formation: '--gj-sector-education',
+  Bourse: '--gj-sector-sante', Volontariat: '--gj-sector-environnement', 'Appel à projets': '--gj-sector-culture',
+}
+function OppByType({ rows }: { rows: AdminDashboardData['oppByType'] }) {
+  const max = Math.max(1, ...rows.map((r) => r.total))
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 16 }}>
+      <h2 style={h2}>Opportunités par type</h2>
+      <Sub>{rows.reduce((s, r) => s + r.total, 0)} offres · <b style={{ color: 'var(--gj-yellow-ink)' }}>+N</b> = en attente.</Sub>
+      <div style={{ marginTop: 11, display: 'flex', flexDirection: 'column', gap: 9 }}>
+        {rows.map((r) => (
+          <div key={r.type} style={{ display: 'grid', gridTemplateColumns: '95px 1fr auto', gap: 9, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gj-ink)' }}>{r.label}</span>
+            <div style={{ height: 8, borderRadius: 999, background: 'var(--gj-bg)', overflow: 'hidden' }}>
+              <div style={{ width: `${(r.total / max) * 100}%`, height: '100%', borderRadius: 999, background: `rgb(var(${OPP_COLOR[r.label] ?? '--gj-sector-autre'}))` }} />
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gj-ink)', textAlign: 'right', minWidth: 34 }}>
+              {r.total}{r.aModerer > 0 && <Link href="/admin/opportunites" style={{ marginLeft: 5, fontSize: 10.5, color: 'var(--gj-yellow-ink)', textDecoration: 'none' }}>+{r.aModerer}</Link>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Activité récente (colonne gauche) ────────────────────────────────────────
+function Activity({ pulse }: { pulse: AdminDashboardData['pulse'] }) {
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 18 }}>
+      <h2 style={h2}>Activité récente</h2>
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column' }}>
+        {pulse.length === 0 ? <Sub>Aucune activité enregistrée.</Sub> : pulse.map((p, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--gj-line)' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--gj-teal-deep)', marginTop: 6, flexShrink: 0 }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--gj-ink)' }}>{p.resume}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 1 }}>{p.ago}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Link href="/admin/journal-audit" style={{ display: 'inline-block', marginTop: 10, fontSize: 12, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none' }}>Journal d&apos;audit →</Link>
+    </div>
+  )
+}
+
+// ── Ce qui arrive (rail) ─────────────────────────────────────────────────────
+function Upcoming({ upcoming }: { upcoming: AdminDashboardData['upcoming'] }) {
+  return (
+    <div className="gj-registre-card" style={{ ...card, padding: 16 }}>
+      <h2 style={h2}>Ce qui arrive</h2>
+      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column' }}>
+        {upcoming.length === 0 ? <Sub>Rien de programmé.</Sub> : upcoming.map((u, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--gj-line)' }}>
+            {iconBadge(u.kind === 'curation' ? 'check-circle' : 'calendar', u.kind === 'curation' ? 'var(--gj-yellow-soft)' : 'var(--gj-teal-soft)', u.kind === 'curation' ? 'var(--gj-yellow-ink)' : 'var(--gj-teal-deep)')}
+            <div style={{ minWidth: 0, flex: 1, fontSize: 12.5, color: 'var(--gj-ink)' }}>{u.label}</div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gj-grey)', flexShrink: 0 }}>{u.when}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Composant principal — layout COCKPIT 2 colonnes ──────────────────────────
+export type { AdminDashboardData }
+
+export function AdminDashboardClient({ data, filters }: { data: AdminDashboardData; filters: DashboardFilters }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1360, margin: '0 auto', width: '100%' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 23, fontWeight: 900, color: 'var(--gj-ink)', margin: 0 }}>
+            Tableau de bord {data.regionScoped ? `— ${regionLabel(filters.region)}` : 'national'}
+          </h1>
+          <Sub>Ce qui demande ton attention, et comment la mission avance · {periodeLabel(filters.periode).toLowerCase()}.</Sub>
+        </div>
+        <DashboardFilterBar filters={filters} />
+      </div>
+
+      {/* Priorités — pleine largeur en tête */}
+      <Briefing items={data.briefing} />
+
+      {/* Cockpit : décision (gauche, resserrée) · contexte (rail droit) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-[16px] items-start">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <Funnel steps={data.funnel} conversion={data.funnelConversion} />
+          <ReseauList centres={data.centres} />
+          <Activity pulse={data.pulse} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <Kpis kpis={data.kpis} />
+          <YayeBlock y={data.yaye} />
+          <OppByType rows={data.oppByType} />
+          <Upcoming upcoming={data.upcoming} />
+          <MapCard geo={data.centresGeo} />
+        </div>
       </div>
     </div>
   )
