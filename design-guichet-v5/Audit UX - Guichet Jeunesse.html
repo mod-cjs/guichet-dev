@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Audit UX & Design — Guichet Jeunesse Sénégal</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--gj-bg);font-family:var(--gj-font-sans);color:var(--gj-ink)}
+  .gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+  .page{max-width:880px;margin:0 auto;padding:56px 60px 80px}
+  .cover{background:linear-gradient(135deg,var(--gj-teal-deep) 0%,var(--gj-ink-teal) 100%);color:#fff;border-radius:20px;padding:40px 42px;position:relative;overflow:hidden;margin-bottom:40px}
+  .cover .glow{position:absolute;right:-60px;top:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(249,196,0,.2),transparent 62%);pointer-events:none}
+  .cover .eyebrow{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--gj-yellow);display:flex;align-items:center;gap:8px}
+  .cover h1{font-size:32px;font-weight:900;line-height:1.12;margin:14px 0 0}
+  .cover p{font-size:15px;line-height:1.6;opacity:.92;margin:12px 0 0;max-width:620px}
+  .cover .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+  .cover .pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700}
+  h2.sec{font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--gj-grey);margin:44px 0 16px;padding-bottom:10px;border-bottom:2px solid var(--gj-line)}
+  .card{background:#fff;border:1.5px solid var(--gj-line);border-radius:16px;padding:22px 24px;margin-bottom:14px;break-inside:avoid}
+  .card h3{font-size:16px;font-weight:900;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  .card .sub{font-size:12.5px;color:var(--gj-grey);margin-bottom:12px}
+  .card ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .card li{display:flex;gap:10px;font-size:13.5px;line-height:1.55;color:var(--gj-ink)}
+  .card li svg{width:16px;height:16px;flex-shrink:0;margin-top:2px}
+  .ok svg{color:var(--gj-green-ink)} .warn svg{color:var(--gj-yellow-ink)} .bad svg{color:var(--gj-red-ink)}
+  .score{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:12px;font-weight:900;padding:4px 12px;border-radius:999px;flex-shrink:0}
+  .s-good{background:var(--gj-green-soft);color:var(--gj-green-ink)}
+  .s-mid{background:var(--gj-yellow-soft);color:var(--gj-yellow-ink)}
+  .s-low{background:var(--gj-red-soft);color:var(--gj-red-ink)}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1.5px solid var(--gj-line);border-radius:14px;overflow:hidden;font-size:13px}
+  th{background:var(--gj-bg);text-align:left;padding:11px 14px;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--gj-grey)}
+  td{padding:11px 14px;border-top:1px solid var(--gj-line);vertical-align:top;line-height:1.5}
+  .prio{font-weight:900;white-space:nowrap}
+  .foot{margin-top:48px;padding-top:20px;border-top:2px solid var(--gj-line);font-size:12px;color:var(--gj-grey-2);text-align:center;line-height:1.6}
+  @media print{body{background:#fff}.page{padding:0 0 30px}.cover{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <span class="glow"></span>
+    <div class="eyebrow"><svg class="gj-icon" style="width:15px;height:15px"><use href="#i-eye"/></svg>Audit UX &amp; Design</div>
+    <h1>Guichet Jeunesse Sénégal<br>État des lieux de l'expérience utilisateur</h1>
+    <p>Revue systématique des 15 lots (web + mobile, 4 profils) : diagnostic design écran par écran, audit UX par heuristiques, et plan d'action priorisé.</p>
+    <div class="meta">
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-calendar"/></svg>Juillet 2026</span>
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-target"/></svg>15 lots · ~140 écrans</span>
+      <span class="pill"><svg class="gj-icon" style="width:13px;height:13px;color:var(--gj-yellow)"><use href="#i-users"/></svg>Bénéficiaire · Conseiller · Recruteur · Admin</span>
+    </div>
+  </section>
+
+  <!-- ================= PARTIE A : AUDIT DESIGN ================= -->
+  <h2 class="sec">A · Audit design — par lot</h2>
+
+  <div class="card"><h3>Lots 1-2 · Onboarding &amp; dashboard bénéficiaire<span class="score s-mid">À alléger</span></h3>
+    <ul class="warn">
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Dashboard encore textuel : cartes d'action et recommandations à 4-5 lignes — appliquer la règle « 3 textes max » + tuiles pictogrammes.</li>
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Écran « Recommandations Yaye » : aligner sur les nouvelles tuiles sectorielles des offres.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 3 · Opportunités<span class="score s-good">Tuiles livrées</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Cartes d'offres désormais en « affiches » : tuile sectorielle + monogramme employeur (web + mobile).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Détail d'offre = mur de texte : ajouter bandeau sectoriel en tête + prérequis en check-list visuelle (✓/✗).</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 4 · Profil<span class="score s-mid">Correct</span></h3>
+    <ul class="warn"><li><svg class="gj-icon"><use href="#i-alert"/></svg>« Identité &amp; contact » : 9 champs d'un bloc — grouper par icônes de section, secondaire derrière « Voir plus ».</li></ul>
+  </div>
+  <div class="card"><h3>Lot 5 · Événements<span class="score s-good">Le plus visuel</span></h3>
+    <ul class="warn">
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>« Mes événements » : lignes textuelles — ajouter mini-cover à gauche.</li>
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Calendrier mobile : remplacer les points par un picto de type dans la case.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 6 · Médiathèque<span class="score s-good">Étagères livrées</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Couvertures de livres CSS + étagères (bénéficiaire web/mobile + admin contenu).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Lecteur PDF : sommaire à renforcer (numéros de chapitre plus grands) ; bandeau visuel de rayon sur la page catégorie.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 7 · Centres CJS<span class="score s-mid">Photos attendues</span></h3>
+    <ul class="warn">
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Services en chips texte — passer aux pictogrammes de services (wifi, salle, véhicule, imprimante).</li>
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Le lot qui bénéficierait le plus de vraies photos (bâtiments, ateliers) : prévoir des zones d'image.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 8 · Conseiller<span class="score s-mid">Files à humaniser</span></h3>
+    <ul>
+      <li class="bad"><svg class="gj-icon"><use href="#i-close"/></svg>Files de réservations : 3 lignes de texte + motif italique = lecture lente. Passer en « carte personne » (avatar 48px, tuile ressource, statut en fond teinté).</li>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Check-in QR et agenda : bons écrans, à conserver.</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lots 9-10 · Candidatures &amp; Recruteur<span class="score s-good">Solides</span></h3>
+    <ul class="warn">
+      <li><svg class="gj-icon"><use href="#i-alert"/></svg>Cohérence : ajouter la tuile sectorielle partout où une offre apparaît (pipeline Lot 9, « Mes offres » Lot 10).</li>
+    </ul>
+  </div>
+  <div class="card"><h3>Lot 11 · Admin<span class="score s-good">Data-viz riche</span></h3>
+    <ul class="warn"><li><svg class="gj-icon"><use href="#i-alert"/></svg>Modération &amp; partenaires : cartes textuelles — miniature de la publication modérée + monogrammes plus grands.</li></ul>
+  </div>
+  <div class="card"><h3>Lots 12-13-15 · Compléments, états, Yaye<span class="score s-good">À jour</span></h3>
+    <ul class="ok"><li><svg class="gj-icon"><use href="#i-check-circle"/></svg>Messagerie, états système et composants Yaye conformes aux derniers retours (cartes typées, sans montant imposé, actions propres).</li></ul>
+  </div>
+
+  <!-- ================= PARTIE B : AUDIT UX ================= -->
+  <h2 class="sec">B · Audit UX — par heuristique</h2>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-menu"/></svg>1. Navigation &amp; architecture<span class="score s-good">Bon</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Identité de navigation claire par rôle (teal / teal foncé / bleu / sombre-or) : on sait toujours où l'on est.</li>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Parité web ↔ mobile assurée (onglet « Plus » pour les sections secondaires des back-offices).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Fil d'Ariane non systématique sur le web (présent médiathèque/centres, absent ailleurs) — à généraliser au-delà de 2 niveaux.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Le « Plus » mobile cache des fonctions importantes (Agenda conseiller, Entretiens recruteur) : vérifier l'usage réel et promouvoir si besoin.</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-target"/></svg>2. Parcours critiques<span class="score s-good">Fluides</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Postuler : 1 écran + pré-remplissage Yaye + pièces réutilisées du profil — friction minimale, excellent pour le public cible.</li>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Réservation de ressources : statut asynchrone (attente/acceptée/refusée) bien matérialisé, avec porte de sortie (proposer un créneau).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Onboarding : prévoir un parcours « sans smartphone personnel » (inscription assistée au centre) — persona fréquent au Sénégal.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Candidature : pas d'état « brouillon repris plus tard » visible côté bénéficiaire (utile en connectivité instable).</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-light"/></svg>3. Charge cognitive<span class="score s-mid">Le chantier principal</span></h3>
+    <ul>
+      <li class="bad"><svg class="gj-icon"><use href="#i-close"/></svg>Trop de texte au premier niveau (dashboard, files conseiller, détail d'offre) : la lecture remplace la reconnaissance. Traité en cours via signalétique (tuiles, couvertures).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Certains écrans cumulent 4+ familles d'information (détail centre) — hiérarchiser en onglets ou sections repliables.</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-chat"/></svg>4. Feedback &amp; visibilité du système<span class="score s-mid">À compléter</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>États système couverts (Lot 13 : chargement, erreur, hors-ligne, vide) et états de fichier exhaustifs (Lot 15).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Les toasts de confirmation existent dans la bibliothèque mais ne sont pas posés après chaque action (accepter une réservation, publier une offre…) — à systématiser.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Pas d'indicateur de fraîcheur des données (« mis à jour il y a X min ») hors dashboard admin.</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-shield"/></svg>5. Prévention &amp; gestion des erreurs<span class="score s-good">Bon</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Erreurs de fichier explicites avec action de rattrapage (format, taille) ; bouton d'envoi désactivé tant que le dossier est incomplet, avec compteur des manquants.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Validation inline des formulaires montrée dans la bibliothèque mais pas déclinée sur tous les formulaires réels.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Actions destructives (retirer une candidature, suspendre un partenaire) sans modale de confirmation systématique.</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-eye"/></svg>6. Accessibilité &amp; inclusion<span class="score s-good">Différenciant</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Panneau d'accessibilité universel (contraste, tailles, lecture vocale, guide), labels accessibles auto, cibles ≥44px, langues nationales (démo wolof/pulaar fonctionnelle).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Ordre de tabulation à valider écran par écran en intégration ; contraste AA à re-tester après tout nouvel usage du jaune sur fond clair.</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Mode FALC annoncé mais sans déclinaison de contenu réelle — nécessite un travail éditorial.</li>
+    </ul>
+  </div>
+
+  <div class="card"><h3><svg class="gj-icon" style="width:18px;height:18px;color:var(--gj-teal-deep)"><use href="#i-check-circle"/></svg>7. Confiance &amp; transparence<span class="score s-good">Bon</span></h3>
+    <ul>
+      <li class="ok"><svg class="gj-icon"><use href="#i-check-circle"/></svg>Consentement RGPD/loi 2008-12, badges « partenaire vérifié », modération avant publication, sources citées par Yaye (« basé sur ton profil + 142 offres »).</li>
+      <li class="warn"><svg class="gj-icon"><use href="#i-alert"/></svg>Ajouter un « pourquoi cette recommandation ? » cliquable sur les suggestions Yaye pour renforcer l'explicabilité.</li>
+    </ul>
+  </div>
+
+  <!-- ================= PLAN D'ACTION ================= -->
+  <h2 class="sec">C · Plan d'action priorisé</h2>
+  <table>
+    <thead><tr><th>Priorité</th><th>Action</th><th>Lots</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td class="prio" style="color:var(--gj-red-ink)">P1</td><td>Détail d'offre visuel : bandeau sectoriel + prérequis en check-list ✓/✗</td><td>3</td><td>Faible</td></tr>
+      <tr><td class="prio" style="color:var(--gj-red-ink)">P1</td><td>Files conseiller en « cartes personnes » (avatar, tuile ressource, statut teinté)</td><td>8</td><td>Moyen</td></tr>
+      <tr><td class="prio" style="color:var(--gj-red-ink)">P1</td><td>Dashboard bénéficiaire allégé : tuiles pictos + règle 3 textes max</td><td>2</td><td>Moyen</td></tr>
+      <tr><td class="prio" style="color:var(--gj-yellow-ink)">P2</td><td>Tuile sectorielle partout où une offre apparaît (reco, candidatures, offres recruteur)</td><td>2 · 9 · 10</td><td>Faible</td></tr>
+      <tr><td class="prio" style="color:var(--gj-yellow-ink)">P2</td><td>Pictogrammes de services + zones photos réelles des centres</td><td>7</td><td>Moyen</td></tr>
+      <tr><td class="prio" style="color:var(--gj-yellow-ink)">P2</td><td>Toasts de confirmation systématiques après chaque action</td><td>tous</td><td>Faible</td></tr>
+      <tr><td class="prio" style="color:var(--gj-teal-deep)">P3</td><td>Confirmations d'actions destructives + brouillon de candidature</td><td>3 · 9 · 11</td><td>Faible</td></tr>
+      <tr><td class="prio" style="color:var(--gj-teal-deep)">P3</td><td>« Pourquoi cette recommandation ? » sur Yaye · fil d'Ariane généralisé</td><td>15 · web</td><td>Faible</td></tr>
+    </tbody>
+  </table>
+
+  <div class="foot">Guichet Jeunesse Sénégal — Audit UX &amp; Design · Juillet 2026<br>Document interne · pour impression : Cmd/Ctrl + P</div>
+</div>
+<script src="lot-nav.js"></script>
+</body>
+</html>
