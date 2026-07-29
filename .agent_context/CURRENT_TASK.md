@@ -11,16 +11,19 @@
 
 ## État
 - [x] Ticket GUIC-688 créé + spec rédigée + branche créée depuis `dev`
-- [ ] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
-- [ ] Étape 2 — Socle `src/lib/analytics/consultations.ts` (TDD RED → GREEN)
-- [ ] Étape 3 — Canal web (5 pages détail + bascule des 2 compteurs existants)
-- [ ] Étape 4 — Canal IA (impressions `tools.ts` + `nodesReturned` + `?src=ia`)
-- [ ] Étape 5 — Canal WhatsApp (`?src=wa`)
-- [ ] `npm run validate` vert
+- [x] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
+- [x] Étape 2 — Socle `src/lib/analytics/consultations.ts` (RED → GREEN, 28 tests)
+- [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
+- [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
+- [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
+- [x] tsc 0 erreur · lint sans nouveau warning · 47 tests ciblés verts
+- [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
+- [ ] PR vers `dev`
 
 ## Points d'attention
-- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières.
-- 13 tests rouges préexistants sur `dev` (mocks Prisma obsolètes) — ne pas les compter dans le résultat.
+- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières : à confronter à `prisma migrate diff` dès que la base est joignable.
+- 28 suites d'intégration rouges en local, toutes sur `pool timeout` (base éteinte) — indépendantes de ce ticket.
 - Le compteur `Ressource.vues` va ralentir sa progression (garde Redis ajoutée) : attendu, à annoncer au PO.
+- `CONSULTATION_HASH_SALT` à poser en production (documenté dans `.env.example`).
 
 ## Hors périmètre : dashboards · exports CSV · rollup journalier · retrait de `CentreEvent.centre_viewed` · rétention/purge.
