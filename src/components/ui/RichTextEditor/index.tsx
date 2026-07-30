@@ -105,7 +105,7 @@ export function RichTextEditor({
       )}
 
       <div
-        className={`rounded-gj-md border-[1.5px] bg-white transition-colors
+        className={`gj-rte rounded-gj-md border-[1.5px] bg-white transition-colors
           focus-within:ring-[3px] focus-within:ring-[var(--focus-ring-soft)]
           ${error ? 'border-gj-red focus-within:border-gj-red' : 'border-gj-line focus-within:border-gj-teal-deep'}
           ${disabled ? 'opacity-60' : ''}`}

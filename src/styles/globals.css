@@ -129,3 +129,11 @@
   background: var(--gj-surface);
   color: var(--gj-ink);
 }
+/* Éditeur riche (RichTextEditor, wrapper codé bg-white) : même traitement que les champs. */
+[data-admin-theme="dark"] .gj-rte {
+  background: var(--gj-bg);
+  border-color: var(--gj-line-strong);
+}
+[data-admin-theme="dark"] .gj-rte .ProseMirror {
+  color: var(--gj-ink);
+}
