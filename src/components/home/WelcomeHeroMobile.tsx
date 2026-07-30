@@ -11,6 +11,11 @@ const STATS = [
  * Hero d'accueil mobile — affiché < 1024px (la variante desktop a son propre layout split).
  * Container max-w-[480px] centré pour ne pas s'étirer sur tablette portrait.
  * Landing publique : stats CJS en snapshot (pas d'appel DB sur `/`).
+ *
+ * Conforme `design-guichet-v5/onboarding.jsx#Onboard1Welcome` (GUIC-689) :
+ * titre trois-piliers visible sans défilement à 390px, UN SEUL bouton plein
+ * (« Explorer les opportunités », jaune — CTA sur fond sombre), inscription
+ * en lien secondaire souligné.
  */
 export function WelcomeHeroMobile() {
   return (
@@ -20,7 +25,7 @@ export function WelcomeHeroMobile() {
         minHeight: 'calc(100dvh - 3rem)',
         maxWidth: 480,
         background: 'var(--gj-ink-teal)',
-        color: '#fff',
+        color: 'var(--gj-surface)',
       }}
     >
       <section
@@ -37,13 +42,14 @@ export function WelcomeHeroMobile() {
             right: -100,
             width: 340,
             height: 340,
-            background: 'radial-gradient(circle, rgba(249,196,0,.28) 0%, transparent 60%)',
+            background:
+              'radial-gradient(circle, color-mix(in srgb, var(--gj-yellow) 28%, transparent) 0%, transparent 60%)',
           }}
         />
         <span
           className="relative inline-flex items-center gap-1 self-start text-fs-100 font-black uppercase"
           style={{
-            background: 'rgba(249,196,0,.22)',
+            background: 'color-mix(in srgb, var(--gj-yellow) 22%, transparent)',
             color: 'var(--gj-yellow)',
             padding: '5px 10px',
             borderRadius: 999,
@@ -57,13 +63,13 @@ export function WelcomeHeroMobile() {
           className="relative font-black"
           style={{ fontSize: 32, lineHeight: 1.1, marginTop: 24 }}
         >
-          Trouve ta prochaine opportunité.
+          Emploi, formation, financement — au même endroit.
         </h1>
         <p
           className="relative text-fs-300"
           style={{ marginTop: 14, opacity: 0.85, lineHeight: 1.5 }}
         >
-          Emploi · stage · bourse · projet. Pour les 16–35 ans, partout au Sénégal.
+          Pour les 16–35 ans, partout au Sénégal. Yaye t&apos;accompagne — en français ou en Wolof.
         </p>
 
         <div
@@ -71,7 +77,7 @@ export function WelcomeHeroMobile() {
           style={{
             margin: '32px -22px 0',
             height: 220,
-            background: 'linear-gradient(135deg, #C49A5A, #7A5C3A)',
+            background: 'var(--gj-photo-slot)',
           }}
         >
           <div
@@ -80,7 +86,7 @@ export function WelcomeHeroMobile() {
           />
           <div
             className="absolute flex items-center gap-1 text-fs-100 font-bold"
-            style={{ left: 22, right: 22, bottom: 18, color: '#fff' }}
+            style={{ left: 22, right: 22, bottom: 18, color: 'var(--gj-surface)' }}
           >
             <Icon name="sparkle" size={14} style={{ color: 'var(--gj-yellow)' }} aria-hidden />
             <span>« Grâce au Guichet, j&apos;ai trouvé mon stage en 3 semaines. » — Aïssatou, 23 ans, Thiès</span>
@@ -114,7 +120,7 @@ export function WelcomeHeroMobile() {
         }}
       >
         <Link
-          href="/auth/connexion"
+          href="/opportunites"
           className="inline-flex items-center justify-center gap-2 w-full font-black no-underline"
           style={{
             background: 'var(--gj-yellow)',
@@ -126,23 +132,25 @@ export function WelcomeHeroMobile() {
             padding: '0 18px',
           }}
         >
-          <span>Créer mon profil</span>
+          <span>Explorer les opportunités</span>
           <Icon name="arrow-right" size={16} aria-hidden />
         </Link>
         <Link
-          href="/opportunites"
-          className="inline-flex items-center justify-center w-full font-bold no-underline mt-space-2"
+          href="/auth/connexion"
+          className="inline-flex items-center justify-center w-full font-bold mt-space-2"
           style={{
             background: 'transparent',
-            color: '#fff',
-            border: '1.5px solid rgba(255,255,255,.4)',
+            color: 'var(--gj-surface)',
+            border: 0,
             fontSize: 14,
-            minHeight: 48,
+            minHeight: 44,
             borderRadius: 12,
             padding: '0 18px',
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
           }}
         >
-          Voir les opportunités
+          Créer mon compte · j&apos;ai déjà un compte
         </Link>
       </div>
     </div>

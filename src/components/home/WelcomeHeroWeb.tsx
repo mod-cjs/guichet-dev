@@ -13,16 +13,22 @@ const STATS = [
  * Hero d'accueil desktop — affiché ≥ 1024px.
  *
  * Split layout (1.1fr / 1fr) :
- * - Gauche : eyebrow, titre 56px, lead, 2 CTAs, stats row
+ * - Gauche : eyebrow, titre 56px (trois piliers en jaune), lead, CTA plein
+ *   unique + lien secondaire, stats row
  * - Droite : stack de cards visuelles (photo testimonial, opp preview, Yaye)
  *
- * Conforme `design-guichet-v2/web-onboarding.jsx#WebOnboard1Landing`.
+ * Conforme `design-guichet-v5/web-onboarding.jsx#WebOnboard1Landing` (GUIC-689) :
+ * « impact immédiat » — la proposition de valeur nomme emploi/formation/
+ * financement, une seule action pleine (« Explorer les opportunités », jaune,
+ * CTA sur fond sombre), inscription en lien souligné, pastilles type/urgence
+ * distinctes sur la carte d'offre.
  */
 export function WelcomeHeroWeb() {
   return (
     <section
-      className="relative overflow-hidden text-white"
+      className="relative overflow-hidden"
       style={{
+        color: 'var(--gj-surface)',
         background: 'linear-gradient(135deg, var(--gj-teal-deep) 0%, var(--gj-ink-teal) 100%)',
       }}
     >
@@ -35,7 +41,8 @@ export function WelcomeHeroWeb() {
           top: -120,
           width: 540,
           height: 540,
-          background: 'radial-gradient(circle, rgba(249,196,0,.22) 0%, transparent 60%)',
+          background:
+            'radial-gradient(circle, color-mix(in srgb, var(--gj-yellow) 22%, transparent) 0%, transparent 60%)',
         }}
       />
 
@@ -54,7 +61,7 @@ export function WelcomeHeroWeb() {
           <span
             className="inline-flex items-center gap-2 self-start font-black uppercase"
             style={{
-              background: 'rgba(249,196,0,.22)',
+              background: 'color-mix(in srgb, var(--gj-yellow) 22%, transparent)',
               color: 'var(--gj-yellow)',
               padding: '6px 12px',
               borderRadius: 999,
@@ -68,21 +75,23 @@ export function WelcomeHeroWeb() {
 
           <h1
             className="font-black"
-            style={{ fontSize: 56, lineHeight: 1.05, marginTop: 22, letterSpacing: '-1.2px' }}
+            style={{ fontSize: 48, lineHeight: 1.12, marginTop: 22, letterSpacing: '-1px', maxWidth: 560 }}
           >
-            Ton avenir,<br />commence ici.
+            Accédez aux opportunités d&apos;<b style={{ color: 'var(--gj-yellow)' }}>emploi</b>, de{' '}
+            <b style={{ color: 'var(--gj-yellow)' }}>formation</b> et de{' '}
+            <b style={{ color: 'var(--gj-yellow)' }}>financement</b>.
           </h1>
 
           <p
             style={{ fontSize: 17, lineHeight: 1.55, marginTop: 18, opacity: 0.9, maxWidth: 540 }}
           >
-            Emploi · stage · bourse · projet · formation. Toutes les opportunités pour les{' '}
-            <b>16–35 ans au Sénégal</b>, en un seul endroit. Yaye t&apos;accompagne — en français ou en Wolof.
+            Pour les <b>16–35 ans au Sénégal</b>, en un seul endroit. Yaye t&apos;accompagne — en
+            français ou en Wolof.
           </p>
 
-          <div className="flex gap-3" style={{ marginTop: 32 }}>
+          <div className="flex items-center" style={{ marginTop: 32, gap: 18 }}>
             <Link
-              href="/auth/connexion"
+              href="/opportunites"
               className="inline-flex items-center justify-center gap-2 font-black no-underline"
               style={{
                 background: 'var(--gj-yellow)',
@@ -93,23 +102,24 @@ export function WelcomeHeroWeb() {
                 borderRadius: 12,
               }}
             >
-              Créer mon compte gratuit
+              Explorer les opportunités
               <Icon name="arrow-right" size={16} aria-hidden />
             </Link>
             <Link
-              href="/opportunites"
-              className="inline-flex items-center justify-center font-bold no-underline"
+              href="/auth/connexion"
+              className="inline-flex items-center justify-center font-bold"
               style={{
-                background: 'rgba(255,255,255,.08)',
-                color: '#fff',
-                border: '1.5px solid rgba(255,255,255,.3)',
+                background: 'transparent',
+                color: 'var(--gj-surface)',
+                border: 0,
                 fontSize: 14,
-                minHeight: 56,
-                padding: '0 24px',
-                borderRadius: 12,
+                minHeight: 44,
+                padding: '0 4px',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
               }}
             >
-              Voir les opportunités
+              Créer mon compte · ou continuer avec WhatsApp
             </Link>
           </div>
 
@@ -145,7 +155,7 @@ export function WelcomeHeroWeb() {
             style={{
               height: 220,
               borderRadius: 18,
-              background: 'linear-gradient(135deg, #C49A5A 0%, #7A5C3A 100%)',
+              background: 'var(--gj-photo-slot)',
               boxShadow: '0 20px 50px rgba(0,0,0,.35)',
             }}
           >
@@ -153,7 +163,7 @@ export function WelcomeHeroWeb() {
               className="absolute inset-0"
               style={{ background: 'linear-gradient(180deg, transparent 30%, rgba(10,40,32,.7) 100%)' }}
             />
-            <div className="absolute" style={{ left: 22, right: 22, bottom: 18, color: '#fff' }}>
+            <div className="absolute" style={{ left: 22, right: 22, bottom: 18, color: 'var(--gj-surface)' }}>
               <div
                 className="font-black uppercase"
                 style={{
@@ -174,7 +184,7 @@ export function WelcomeHeroWeb() {
           <div
             className="flex flex-col"
             style={{
-              background: '#fff',
+              background: 'var(--gj-surface)',
               borderRadius: 14,
               padding: 18,
               color: 'var(--gj-ink)',
@@ -184,19 +194,35 @@ export function WelcomeHeroWeb() {
               width: 320,
             }}
           >
-            <span
-              className="self-start font-black uppercase"
-              style={{
-                fontSize: 9.5,
-                background: 'var(--gj-red-soft)',
-                color: 'var(--gj-red-ink)',
-                padding: '3px 8px',
-                borderRadius: 999,
-                letterSpacing: '.4px',
-              }}
-            >
-              Urgent · J-3
-            </span>
+            {/* Type et urgence : DEUX pastilles distinctes (retour design V3 §2) */}
+            <div className="flex items-center" style={{ gap: 6 }}>
+              <span
+                className="font-black uppercase"
+                style={{
+                  fontSize: 11,
+                  background: 'var(--cat-financement-soft)',
+                  color: 'var(--cat-financement-ink)',
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  letterSpacing: '.4px',
+                }}
+              >
+                Financement
+              </span>
+              <span
+                className="font-black uppercase"
+                style={{
+                  fontSize: 11,
+                  background: 'var(--gj-red)',
+                  color: 'var(--gj-surface)',
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  letterSpacing: '.4px',
+                }}
+              >
+                J-3
+              </span>
+            </div>
             <div className="flex items-center" style={{ gap: 10 }}>
               <div
                 className="inline-flex items-center justify-center flex-shrink-0"
@@ -239,9 +265,35 @@ export function WelcomeHeroWeb() {
             }}
           >
             <YayeAvatar size={48} withBadge />
-            <div className="flex-1" style={{ color: '#fff' }}>
-              <div className="font-black" style={{ fontSize: 13 }}>
-                Yaye
+            <div className="flex-1" style={{ color: 'var(--gj-surface)' }}>
+              <div className="flex items-center" style={{ gap: 6 }}>
+                <span
+                  data-testid="yaye-wordmark"
+                  className="font-black"
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'var(--gj-font-yaye-wordmark)',
+                    background: 'linear-gradient(135deg, var(--gj-surface), var(--gj-yellow))',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  Yaye
+                </span>
+                <span
+                  className="font-black uppercase"
+                  style={{
+                    fontSize: 9.5,
+                    background: 'var(--gj-yellow)',
+                    color: 'var(--gj-ink)',
+                    padding: '1px 6px',
+                    borderRadius: 999,
+                    letterSpacing: '.4px',
+                  }}
+                >
+                  IA
+                </span>
               </div>
               <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2, lineHeight: 1.45 }}>
                 « Dis-moi ce que tu cherches — je m&apos;occupe du reste. »

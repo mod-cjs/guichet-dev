@@ -117,4 +117,9 @@ describe('sentinelle hex — composants hero', () => {
     const src = readFileSync(resolve(ROOT, rel), 'utf-8')
     expect(src).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
+
+  it('page.tsx : pas de fallback rgba divergent sur les tokens (GUIC-689)', () => {
+    const src = readFileSync(resolve(ROOT, 'src/app/(public)/page.tsx'), 'utf-8')
+    expect(src).not.toMatch(/var\(--gj-[\w-]+,\s*rgba/)
+  })
 })
