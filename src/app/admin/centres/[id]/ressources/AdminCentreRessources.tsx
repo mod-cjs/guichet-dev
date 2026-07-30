@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import Link from 'next/link'
+import { useState, useTransition, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
@@ -24,7 +23,6 @@ export interface RessourceCentreItem {
 
 export interface AdminCentreRessourcesProps {
   centreId: string
-  centreNom: string
   items: RessourceCentreItem[]
 }
 
@@ -58,43 +56,35 @@ function Row({ item, onEdit, onResult }: {
     })
   }
 
+  const active = item.estActive
+  const mini: CSSProperties = { width: 34, height: 34, borderRadius: 8, border: '1px solid var(--gj-line)', background: 'transparent', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }
   return (
-    <div className="rounded-[14px] p-[16px] flex items-start gap-[12px] flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-      <div className="flex-1 min-w-[220px]">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }}>
-            {TYPE_LABEL[item.type]}
-          </span>
-          {!item.estActive && (
-            <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>
-              Inactive
-            </span>
-          )}
-          <span className="text-[15px] font-black" style={{ color: 'var(--gj-ink)' }}>{item.nom}</span>
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto', gap: 13, alignItems: 'center', background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 11, padding: '11px 14px' }}>
+      <span aria-hidden style={{ width: 38, height: 38, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--gj-bg)', color: 'var(--gj-yellow-ink)', flexShrink: 0, fontWeight: 900, fontSize: 15 }}>{TYPE_LABEL[item.type].charAt(0)}</span>
+      <div style={{ minWidth: 0 }}>
+        <b style={{ fontSize: 13.5, color: 'var(--gj-ink)', display: 'block' }}>{item.nom}</b>
+        <div style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>
+          {TYPE_LABEL[item.type]} · {item.capacite}{item.capaciteUnit ? ` ${item.capaciteUnit}` : ' place(s)'} · créneau {item.dureeMinCreneauMin} min{item.requiresJustif ? ' · justificatif requis' : ''}
         </div>
-        <p className="text-[12.5px] mt-[4px]" style={{ color: 'var(--gj-grey)' }}>
-          Capacité {item.capacite}{item.capaciteUnit ? ` ${item.capaciteUnit}` : ''} · créneau {item.dureeMinCreneauMin} min
-          {item.requiresJustif ? ' · justificatif requis' : ''}
-        </p>
       </div>
-
-      <div className="flex items-center gap-[8px] flex-wrap">
-        <button type="button" onClick={() => onEdit(item)} className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px]" style={{ background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-teal)' }}>
-          <Icon name="settings" size={14} /> Éditer
+      <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', background: active ? 'var(--gj-green-soft)' : 'var(--gj-line)', color: active ? 'var(--gj-green-ink)' : 'var(--gj-grey)' }}>{active ? 'Active' : 'Inactive'}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button type="button" aria-label="Éditer" onClick={() => onEdit(item)} style={mini}><Icon name="settings" size={14} /></button>
+        <button
+          type="button" role="switch" aria-checked={active} aria-label={active ? 'Désactiver' : 'Activer'} disabled={pending}
+          onClick={() => run(() => basculerActiveRessourceCentre(item.id, !active), active ? `« ${item.nom} » désactivée.` : `« ${item.nom} » activée.`)}
+          style={{ width: 40, height: 22, borderRadius: 999, border: 0, position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background .15s', background: active ? 'var(--gj-admin-gold)' : 'var(--gj-line-strong)', opacity: pending ? 0.6 : 1 }}
+        >
+          <span aria-hidden style={{ position: 'absolute', top: 2, left: active ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: 'var(--color-text-on-dark)', transition: 'left .15s' }} />
         </button>
-        <button type="button" disabled={pending} onClick={() => run(() => basculerActiveRessourceCentre(item.id, !item.estActive), item.estActive ? `« ${item.nom} » désactivée.` : `« ${item.nom} » activée.`)} className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] disabled:opacity-60" style={{ background: 'var(--gj-surface)', color: 'var(--gj-grey)', border: '1.5px solid var(--gj-line)' }}>
-          <Icon name={item.estActive ? 'eye-off' : 'eye'} size={14} /> {item.estActive ? 'Désactiver' : 'Activer'}
-        </button>
-        <button type="button" disabled={pending} onClick={() => run(() => supprimerRessourceCentre(item.id), `« ${item.nom} » supprimée.`, `Supprimer « ${item.nom} » ?`)} className="inline-flex items-center justify-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] disabled:opacity-60" style={{ background: 'var(--gj-surface)', color: 'var(--gj-red-ink)', border: '1.5px solid var(--gj-red)' }}>
-          <Icon name="close" size={14} /> Supprimer
-        </button>
+        <button type="button" aria-label="Supprimer" disabled={pending} onClick={() => run(() => supprimerRessourceCentre(item.id), `« ${item.nom} » supprimée.`, `Supprimer « ${item.nom} » ?`)} style={{ ...mini, color: 'var(--gj-red-ink)', borderColor: 'var(--gj-red)' }}><Icon name="close" size={14} /></button>
       </div>
     </div>
   )
 }
 
 /** AdminCentreRessources (GUIC-473) — CRUD des ressources réservables d'un centre. */
-export function AdminCentreRessources({ centreId, centreNom, items }: AdminCentreRessourcesProps) {
+export function AdminCentreRessources({ centreId, items }: AdminCentreRessourcesProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<RessourceCentreValues | undefined>(undefined)
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -103,28 +93,22 @@ export function AdminCentreRessources({ centreId, centreNom, items }: AdminCentr
   function openEdit(r: RessourceCentreValues) { setEditing(r); setModalOpen(true) }
 
   return (
-    <div style={{ padding: '22px 28px 40px' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
-        <Link href="/admin/centres" className="inline-flex items-center gap-[6px] text-fs-200 font-bold text-gj-teal-deep hover:underline mb-space-3">
-          <Icon name="chevron-left" size={15} /> Retour aux centres
-        </Link>
-
-        <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Ressources — {centreNom}</h1>
-            <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{items.length} ressource{items.length > 1 ? 's' : ''} réservable{items.length > 1 ? 's' : ''}</p>
-          </div>
-          <button type="button" onClick={openCreate} className="inline-flex items-center justify-center gap-[6px] font-black text-[13px] rounded-[10px] px-[16px] py-[10px] min-h-[44px]" style={{ background: 'var(--gj-teal)', color: '#fff' }}>
-            <Icon name="plus" size={15} /> Nouvelle ressource
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <h6 style={{ margin: 0, paddingBottom: 9, borderBottom: '1px solid var(--gj-line)', fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', display: 'inline-flex', alignItems: 'center', gap: 9, flex: 1 }}>
+            <span aria-hidden style={{ width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flexShrink: 0 }} />
+            Ressources réservables · {items.length}
+          </h6>
+          <button type="button" onClick={openCreate} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', background: 'transparent', color: 'var(--gj-ink)', border: '1px solid var(--gj-line-strong)' }}>
+            <Icon name="plus" size={15} /> Ajouter une ressource
           </button>
         </div>
 
         {items.length === 0 ? (
-          <div className="rounded-[14px] p-[32px] text-center" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
-            <p className="text-[14px] font-bold">Aucune ressource réservable pour ce centre.</p>
-          </div>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune ressource réservable pour ce centre.</p>
         ) : (
-          <div className="flex flex-col gap-[12px]">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             {items.map((item) => <Row key={item.id} item={item} onEdit={openEdit} onResult={(m, v) => setFeedback({ message: m, variant: v })} />)}
           </div>
         )}

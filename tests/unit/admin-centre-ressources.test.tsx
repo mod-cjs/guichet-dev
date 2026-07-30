@@ -18,33 +18,40 @@ const ITEMS: RessourceCentreItem[] = [
   { id: 'r2', type: 'Vehicule', nom: 'Bus CJS', description: null, capacite: 1, capaciteUnit: null, dureeMinCreneauMin: 120, requiresJustif: true, estActive: false, reservationsCount: 2 },
 ]
 
-describe('GUIC-473 — AdminCentreRessources', () => {
-  it('liste les ressources avec type + capacité', () => {
-    render(<AdminCentreRessources centreId="c1" centreNom="Dakar Plateau" items={ITEMS} />)
-    expect(screen.getByText(/Ressources — Dakar Plateau/)).toBeInTheDocument()
+describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maquette)', () => {
+  it('panneau « Ressources réservables » + lignes compactes', () => {
+    render(<AdminCentreRessources centreId="c1" items={ITEMS} />)
+    expect(screen.getByText(/Ressources réservables/)).toBeInTheDocument()
     expect(screen.getByText('Salle A')).toBeInTheDocument()
     expect(screen.getByText('Bus CJS')).toBeInTheDocument()
-    expect(screen.getByText('Salle')).toBeInTheDocument()
+    // Type + capacité en méta
+    expect(screen.getByText(/Salle · 20 personnes · créneau 60 min/)).toBeInTheDocument()
+  })
+
+  it('ne réintroduit pas le chrome pleine page (pas de « Retour aux centres » ni H1 dupliqué)', () => {
+    render(<AdminCentreRessources centreId="c1" items={ITEMS} />)
+    expect(screen.queryByText(/Retour aux centres/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Ressources — /i })).toBeNull()
   })
 
   it('marque une ressource inactive', () => {
-    render(<AdminCentreRessources centreId="c1" centreNom="X" items={ITEMS} />)
+    render(<AdminCentreRessources centreId="c1" items={ITEMS} />)
     expect(screen.getByText('Inactive')).toBeInTheDocument()
   })
 
-  it('affiche le CTA « Nouvelle ressource »', () => {
-    render(<AdminCentreRessources centreId="c1" centreNom="X" items={ITEMS} />)
-    expect(screen.getByRole('button', { name: /Nouvelle ressource/ })).toBeInTheDocument()
+  it('CTA « Ajouter une ressource »', () => {
+    render(<AdminCentreRessources centreId="c1" items={ITEMS} />)
+    expect(screen.getByRole('button', { name: /Ajouter une ressource/ })).toBeInTheDocument()
   })
 
-  it('propose Désactiver sur une ressource active et Activer sur une inactive', () => {
-    render(<AdminCentreRessources centreId="c1" centreNom="X" items={ITEMS} />)
-    expect(screen.getByRole('button', { name: /Désactiver/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Activer/ })).toBeInTheDocument()
+  it('toggle switch : Désactiver sur active, Activer sur inactive', () => {
+    render(<AdminCentreRessources centreId="c1" items={ITEMS} />)
+    expect(screen.getByRole('switch', { name: /Désactiver/ })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: /Activer/ })).toBeInTheDocument()
   })
 
   it('état vide', () => {
-    render(<AdminCentreRessources centreId="c1" centreNom="X" items={[]} />)
+    render(<AdminCentreRessources centreId="c1" items={[]} />)
     expect(screen.getByText(/Aucune ressource réservable/)).toBeInTheDocument()
   })
 })

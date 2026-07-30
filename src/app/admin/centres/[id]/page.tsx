@@ -262,7 +262,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </div>
         </div>
       )}
-      {tab === 'ressources' && <AdminCentreRessources centreId={id} centreNom={centre.nom} items={ressourceItems} />}
+      {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
     </div>
   )
