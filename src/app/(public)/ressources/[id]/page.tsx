@@ -10,6 +10,7 @@ import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
 import { Breadcrumbs } from '@/components/ui'
 import { RessourceDetailClient } from './ressource-detail-client'
+import { getSession } from '@/lib/auth'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
@@ -49,7 +50,10 @@ export default async function RessourceDetailPage({ params }: RessourceDetailPag
   const detail = await getRessourceById(id)
   if (!detail) notFound()
 
-  const related = await getRessourcesRelated(detail.id, 3)
+  const [related, session] = await Promise.all([
+    getRessourcesRelated(detail.id, 3),
+    getSession(),
+  ])
   // Best-effort, non bloquant (le loader avale ses erreurs).
   await incrementRessourceVues(detail.id)
 
@@ -82,7 +86,7 @@ export default async function RessourceDetailPage({ params }: RessourceDetailPag
 
       <div className="mt-space-4 flex flex-col gap-space-5">
         <RessourceDetailHero detail={detail} />
-        <RessourceDetailClient detail={detail} pageUrl={pageUrl} />
+        <RessourceDetailClient detail={detail} pageUrl={pageUrl} userIsConnected={Boolean(session)} />
         <RessourceRelatedList items={related} />
       </div>
     </div>

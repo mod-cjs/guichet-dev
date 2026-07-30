@@ -23,6 +23,9 @@ interface RessourcesClientProps {
   initialFilters: RessourceFiltres
   /** GUIC-684 — programmes actifs proposés au filtrage. */
   programmes?: { slug: string; nom: string }[]
+  /** GUIC-689 — session calculée côté serveur (motif /centres) : sans elle,
+   *  l'hydratation des favoris 401-erait en console pour chaque anonyme. */
+  userIsConnected?: boolean
 }
 
 const FILTRES: { value: TypeRessourceValue | 'all'; label: string }[] = [
@@ -49,6 +52,7 @@ export function RessourcesClient({
   page,
   initialFilters,
   programmes = [],
+  userIsConnected = false,
 }: RessourcesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -86,6 +90,7 @@ export function RessourcesClient({
   // ── Favoris ────────────────────────────────────────────────────────────
   const [favoriIds, setFavoriIds] = useState<Set<string>>(new Set())
   useEffect(() => {
+    if (!userIsConnected) return
     let cancelled = false
     fetch('/api/favoris/ressources/ids', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -97,7 +102,7 @@ export function RessourcesClient({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [userIsConnected])
 
   // ── Helpers d'écriture dans l'URL ──────────────────────────────────────
   const buildParams = useCallback(
