@@ -58,8 +58,8 @@ describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maque
   it('sous-section Réservations : chips de filtre + table + statut', () => {
     render(
       <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
-        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false },
-        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false },
+        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false, motif: 'Préparation entretien', nombrePersonnes: 1, justif: true, raison: null },
+        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false, motif: 'Rédaction CV', nombrePersonnes: 1, justif: false, raison: 'Créneau indisponible' },
       ]} />,
     )
     expect(screen.getByText(/Réservations/)).toBeInTheDocument()
@@ -73,8 +73,8 @@ describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maque
   it('filtre « Refusées » ne garde que les réservations refusées', () => {
     render(
       <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
-        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false },
-        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false },
+        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false, motif: 'Préparation entretien', nombrePersonnes: 1, justif: true, raison: null },
+        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false, motif: 'Rédaction CV', nombrePersonnes: 1, justif: false, raison: 'Créneau indisponible' },
       ]} />,
     )
     fireEvent.click(screen.getByRole('tab', { name: 'Refusées' }))

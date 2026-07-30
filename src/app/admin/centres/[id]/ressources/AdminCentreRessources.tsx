@@ -29,6 +29,10 @@ export interface ReservationRow {
   creneau: string
   statut: string
   passee: boolean
+  motif: string
+  nombrePersonnes: number
+  justif: boolean
+  raison: string | null
 }
 
 export interface AdminCentreRessourcesProps {
@@ -114,6 +118,55 @@ function Row({ item, onEdit, onResult }: {
 
 const FIELD_SEARCH = 'rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[8px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)] w-full max-w-[240px]'
 
+const td: CSSProperties = { padding: 12, borderBottom: '1px solid var(--gj-line)', verticalAlign: 'top' }
+
+/** Ligne de réservation : détail inline (motif + justif) + ligne dépliable (personnes, raison). */
+function ReservationRowView({ r, view, open, onToggle }: { r: ReservationRow; view: { label: string; bg: string; fg: string }; open: boolean; onToggle: () => void }) {
+  return (
+    <>
+      <tr onClick={onToggle} style={{ cursor: 'pointer' }}>
+        <td style={{ ...td, color: 'var(--gj-ink)' }}>
+          <b style={{ fontWeight: 700 }}>{r.jeune}</b>
+          <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 2, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {r.motif || 'Sans motif'}{r.justif ? ' · justif. joint' : ''}
+          </div>
+        </td>
+        <td style={{ ...td, color: 'var(--gj-grey)' }}>{r.ressource}</td>
+        <td style={{ ...td, color: 'var(--gj-grey)', whiteSpace: 'nowrap' }}>{r.date} · {r.creneau}</td>
+        <td style={td}>
+          <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', background: view.bg, color: view.fg }}>{view.label}</span>
+        </td>
+        <td style={{ ...td, textAlign: 'right', color: 'var(--gj-grey)' }}>
+          <span aria-hidden style={{ display: 'inline-block', transition: 'transform .15s', transform: open ? 'rotate(90deg)' : 'none', fontSize: 15, lineHeight: 1 }}>›</span>
+        </td>
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan={5} style={{ padding: '0 12px 14px', borderBottom: '1px solid var(--gj-line)' }}>
+            <div style={{ background: 'var(--gj-bg)', border: '1px solid var(--gj-line)', borderRadius: 10, padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px 18px' }}>
+              {[
+                ['Jeune', r.jeune],
+                ['Ressource', r.ressource],
+                ['Date', r.date],
+                ['Créneau', r.creneau],
+                ['Personnes', String(r.nombrePersonnes)],
+                ['Justificatif', r.justif ? 'Joint' : 'Aucun'],
+                ['Motif', r.motif || '—'],
+                ...(r.raison ? [['Raison refus / annulation', r.raison] as [string, string]] : []),
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', marginBottom: 3 }}>{k}</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', lineHeight: 1.4 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
 /** AdminCentreRessources (GUIC-473) — CRUD des ressources réservables d'un centre. */
 export function AdminCentreRessources({ centreId, items, reservations = [] }: AdminCentreRessourcesProps) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -121,6 +174,7 @@ export function AdminCentreRessources({ centreId, items, reservations = [] }: Ad
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [rzFilter, setRzFilter] = useState('all')
   const [rzSearch, setRzSearch] = useState('')
+  const [rzOpen, setRzOpen] = useState<string | null>(null)
 
   function openCreate() { setEditing(undefined); setModalOpen(true) }
   function openEdit(r: RessourceCentreValues) { setEditing(r); setModalOpen(true) }
@@ -180,26 +234,20 @@ export function AdminCentreRessources({ centreId, items, reservations = [] }: Ad
           <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune réservation{reservations.length ? ' pour ce filtre' : ' pour ce centre'}.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 660, fontSize: 13 }}>
               <thead>
                 <tr>
-                  {['Jeune', 'Ressource', 'Date · créneau', 'Statut'].map((h) => (
-                    <th key={h} style={{ textAlign: 'left', fontSize: 10, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', padding: '0 12px 10px', borderBottom: '1px solid var(--gj-line)' }}>{h}</th>
+                  {['Jeune', 'Ressource', 'Date · créneau', 'Statut', ''].map((h, k) => (
+                    <th key={h || `c${k}`} style={{ textAlign: k === 4 ? 'right' : 'left', fontSize: 10, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', padding: '0 12px 10px', borderBottom: '1px solid var(--gj-line)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rzView.map((r) => {
                   const view = (r.passee && r.statut !== 'EnAttente') ? STATUT_VIEW.Passee : (STATUT_VIEW[r.statut] ?? STATUT_VIEW.Passee)
+                  const open = rzOpen === r.id
                   return (
-                    <tr key={r.id}>
-                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-ink)', fontWeight: 700 }}>{r.jeune}</td>
-                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-grey)' }}>{r.ressource}</td>
-                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-grey)' }}>{r.date} · {r.creneau}</td>
-                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)' }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', background: view.bg, color: view.fg }}>{view.label}</span>
-                      </td>
-                    </tr>
+                    <ReservationRowView key={r.id} r={r} view={view} open={open} onToggle={() => setRzOpen(open ? null : r.id)} />
                   )
                 })}
               </tbody>

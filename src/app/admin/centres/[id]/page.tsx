@@ -109,6 +109,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         take: 60,
         select: {
           id: true, statut: true, dateReservee: true, creneauDebut: true, creneauFin: true,
+          motif: true, nombrePersonnes: true, justifFileUrl: true, raisonRefusOuAnnul: true,
           ressource: { select: { nom: true } },
           utilisateur: { select: { prenom: true, nom: true } },
         },
@@ -124,6 +125,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       creneau: `${x.creneauDebut}–${x.creneauFin}`,
       statut: String(x.statut),
       passee: x.dateReservee < today,
+      motif: x.motif,
+      nombrePersonnes: x.nombrePersonnes,
+      justif: Boolean(x.justifFileUrl),
+      raison: x.raisonRefusOuAnnul,
     }))
   }
   const analytics = tab === 'frequentation'
