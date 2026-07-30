@@ -12,6 +12,9 @@ interface RessourceDetailClientProps {
   detail: RessourceDetail
   /** URL canonique de cette page (pour partage). */
   pageUrl: string
+  /** GUIC-689 — session calculée côté serveur (motif /centres) : sans elle,
+   *  l'hydratation du favori 401-erait en console pour chaque anonyme. */
+  userIsConnected?: boolean
 }
 
 const CTA_LABEL: Record<TypeRessourceValue, string> = {
@@ -44,13 +47,15 @@ const CTA_ICON: Record<TypeRessourceValue, IconName> = {
  * Favoris : pattern hérité de `ResourceCard` / `RessourcesClient` (toggle POST,
  * redirige vers /auth/connexion en cas de 401).
  */
-export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClientProps) {
+export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false }: RessourceDetailClientProps) {
   const router = useRouter()
   const [isFavori, setIsFavori] = useState(false)
   const [favoriPending, setFavoriPending] = useState(false)
 
-  // Hydrate l'état favori au montage (best-effort, ignoré si non authentifié).
+  // Hydrate l'état favori au montage — uniquement connecté (GUIC-689 : en
+  // anonyme le 401 systématique polluait la console de chaque visiteur).
   useEffect(() => {
+    if (!userIsConnected) return
     let cancelled = false
     fetch('/api/favoris/ressources/ids', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -63,7 +68,7 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
     return () => {
       cancelled = true
     }
-  }, [detail.id])
+  }, [detail.id, userIsConnected])
 
   const toggleFavori = async () => {
     if (favoriPending) return
