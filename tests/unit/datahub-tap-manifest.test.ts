@@ -1,0 +1,103 @@
+/**
+ * M13 / Data Hub — manifeste du tap Singer (lot 7).
+ *
+ * Le tap construit ses flux à partir de ce fichier : une erreur ici ne casse pas la
+ * compilation, elle casse l'extraction en production. D'où des assertions sur les points
+ * qui la font échouer silencieusement — clés exprimées dans la mauvaise forme, watermark
+ * absent du schéma servi, colonne interdite ayant fui jusqu'au catalogue.
+ */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { buildTapManifest, renderTapManifest } from '@/lib/datahub/tap-manifest'
+import { streams } from '@/lib/datahub/streams'
+import { CHAMPS_INTERDITS } from '@/lib/datahub/stream-types'
+
+const manifest = buildTapManifest()
+
+describe('manifeste du tap — couverture', () => {
+  it('déclare exactement les flux du contrat', () => {
+    expect(manifest.streams.map((s) => s.name).sort()).toEqual(Object.keys(streams).sort())
+  })
+
+  it('pointe chaque flux vers sa route d\'export', () => {
+    for (const stream of manifest.streams) {
+      expect(stream.path).toBe(`/api/v1/export/${stream.name}`)
+      expect(stream.replication_method).toBe('INCREMENTAL')
+    }
+  })
+})
+
+describe('manifeste du tap — clés', () => {
+  it('exprime les clés sous leur nom EXPORTÉ, seul connu du tap', () => {
+    const utilisateurs = manifest.streams.find((s) => s.name === 'utilisateurs')!
+    // `cjsUid` côté Prisma, `cjs_uid` côté entrepôt : le tap ne voit que la forme servie.
+    expect(utilisateurs.primary_keys).toEqual(['cjs_uid'])
+    expect(utilisateurs.replication_key).toBe('updated_at')
+  })
+
+  it('inclut toujours la clé primaire et le watermark dans le schéma servi', () => {
+    for (const stream of manifest.streams) {
+      // Un watermark absent du schéma ferait échouer le bookmark du SDK à l'exécution.
+      expect(Object.keys(stream.schema.properties)).toContain(stream.replication_key)
+      for (const cle of stream.primary_keys) {
+        expect(Object.keys(stream.schema.properties)).toContain(cle)
+      }
+    }
+  })
+
+  it('exprime le watermark des flux append-only sous sa forme propre', () => {
+    expect(manifest.streams.find((s) => s.name === 'checkins')!.replication_key).toBe('effectue_a')
+    expect(manifest.streams.find((s) => s.name === 'consultations')!.replication_key).toBe('created_at')
+  })
+})
+
+describe('manifeste du tap — schémas', () => {
+  it('exprime les types en tableau, comme l\'attend Singer', () => {
+    const props = manifest.streams.find((s) => s.name === 'utilisateurs')!.schema.properties
+    expect((props.cjs_uid as { type: unknown }).type).toEqual(['string'])
+    // Nullable : la nullabilité est portée par le type, pas par un drapeau séparé.
+    expect((props.deleted_at as { type: unknown }).type).toEqual(['string', 'null'])
+  })
+
+  it('propage la documentation jusqu\'au catalogue', () => {
+    for (const stream of manifest.streams) {
+      for (const [nom, prop] of Object.entries(stream.schema.properties)) {
+        const description = (prop as { description?: string }).description
+        expect(`${stream.name}.${nom}: ${description ?? ''}`).toMatch(/: .{10,}/)
+      }
+    }
+  })
+
+  it('porte le tier de gouvernance, exploitable par dbt', () => {
+    const props = manifest.streams.find((s) => s.name === 'utilisateurs')!.schema.properties
+    expect((props.cjs_uid as Record<string, unknown>)['x-cjs-tier']).toBe('pseudonyme')
+    expect((props.region as Record<string, unknown>)['x-cjs-tier']).toBe('public')
+  })
+
+  it('ne laisse fuir aucune colonne interdite jusqu\'au catalogue', () => {
+    const nus = CHAMPS_INTERDITS.filter((c) => !c.includes('.'))
+    for (const stream of manifest.streams) {
+      for (const nom of Object.keys(stream.schema.properties)) {
+        expect(nus).not.toContain(nom)
+      }
+    }
+  })
+})
+
+describe('manifeste du tap — fichier livré', () => {
+  const CHEMIN = join(
+    process.cwd(),
+    'etl',
+    'plugins',
+    'extractors',
+    'tap-guichet',
+    'tap_guichet',
+    'streams.json'
+  )
+
+  it('correspond exactement à sa régénération', () => {
+    // Même sentinelle que pour l'OpenAPI : sans elle, la commande de génération est une
+    // commande que personne ne pense à lancer.
+    expect(readFileSync(CHEMIN, 'utf8')).toBe(renderTapManifest())
+  })
+})
