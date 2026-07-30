@@ -32,7 +32,14 @@ export const streams = {
       region: { as: 'region', tier: 'public' },
       commune: { as: 'commune', tier: 'public' },
       genre: { as: 'genre', tier: 'public' },
-      dateNaissance: { as: 'tranche_age', tier: 'public', transform: trancheAge },
+      dateNaissance: {
+        as: 'tranche_age',
+        tier: 'public',
+        transform: trancheAge,
+        outputType: 'string',
+        description:
+          "Tranche d'âge à la date d'extraction : -18, 18-24, 25-29, 30-34, 35+, ou inconnu quand la date de naissance est absente ou aberrante. Dérivée d'une donnée identifiante qui, elle, n'est jamais exportée.",
+      },
       statut: { as: 'statut', tier: 'public' },
       role: { as: 'role', tier: 'public' },
       onboardingComplete: { as: 'onboarding_complete', tier: 'public' },

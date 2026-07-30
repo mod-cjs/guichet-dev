@@ -55,6 +55,21 @@ export interface FieldSpec<M extends ModelName, K extends ScalarField<M>> {
    * (`dateNaissance` → `tranche_age`).
    */
   transform?: (value: Scalars<M>[K]) => unknown
+  /**
+   * Type de la valeur exportée. Obligatoire dès qu'une transformation est posée — sans
+   * elle, le contrat publié décrirait le type de la colonne SOURCE et mentirait aux
+   * consommateurs : `tranche_age` serait annoncé comme une date. Inutile sinon, le type
+   * étant alors déduit du schéma Prisma.
+   */
+  outputType?: 'string' | 'integer' | 'number' | 'boolean'
+  /**
+   * Description de la valeur exportée. Obligatoire dès qu'une transformation est posée,
+   * pour la même raison qu'`outputType` : sans elle, le contrat publié reprend la
+   * documentation de la colonne SOURCE et décrit `tranche_age` comme « la date de
+   * naissance déclarée ». Le lecteur du contrat serait trompé sur ce qu'il reçoit.
+   * Inutile sinon, la documentation venant alors du `///` du schéma.
+   */
+  description?: string
 }
 
 export interface StreamSpec<M extends ModelName> {

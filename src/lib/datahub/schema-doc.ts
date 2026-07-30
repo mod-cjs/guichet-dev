@@ -22,6 +22,10 @@ export interface FieldDoc {
   field: string
   /** Nom physique de la colonne — `@map(...)` s'il existe, sinon le nom du champ. */
   column: string
+  /** Type Prisma déclaré, sans le `?` d'optionalité (`String`, `DateTime`, `Region`…). */
+  type: string
+  /** Le champ accepte `null`. */
+  optional: boolean
   /** Documentation `///` aplatie sur une ligne, `null` si absente. */
   doc: string | null
 }
@@ -41,12 +45,31 @@ const MODEL_OPEN = /^model\s+(\w+)\s*\{/
 const MAP_ATTR = /@map\("([^"]+)"\)/
 const BLOCK_MAP_ATTR = /@@map\("([^"]+)"\)/
 /** Un champ commence par un identifiant suivi d'un type — écarte `@@index`, `}`, etc. */
-const FIELD_LINE = /^(\w+)\s+\S+/
+const FIELD_LINE = /^(\w+)\s+(\S+)/
 
 /** Aplatit un bloc `///` multi-ligne en une chaîne unique, ou `null` s'il est vide. */
 function flatten(lines: string[]): string | null {
   const text = lines.map((l) => l.trim()).filter(Boolean).join(' ').trim()
   return text.length > 0 ? text : null
+}
+
+/**
+ * Valeurs de chaque énumération du schéma, par nom.
+ *
+ * Un contrat de données qui annonce `statut: string` sans dire lesquels oblige l'analyste
+ * à deviner ou à interroger la base. Les valeurs font partie de la documentation.
+ */
+export function parseEnums(source: string): Record<string, string[]> {
+  const enums: Record<string, string[]> = {}
+  for (const match of source.matchAll(/^enum\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
+    enums[match[1]] = match[2]
+      .split('\n')
+      .map((l) => l.trim())
+      // Une valeur d'enum est un identifiant nu : écarte `@@map`, `///`, `//` et le vide.
+      .map((l) => /^(\w+)(\s*\/\/.*)?$/.exec(l)?.[1])
+      .filter((v): v is string => v !== undefined)
+  }
+  return enums
 }
 
 export function parseSchemaDoc(source: string): ModelDoc[] {
@@ -107,9 +130,14 @@ export function parseSchemaDoc(source: string): ModelDoc[] {
 
     const field = FIELD_LINE.exec(line)
     if (field) {
+      const declared = field[2]
       current.fields.push({
         field: field[1],
         column: MAP_ATTR.exec(line)?.[1] ?? field[1],
+        // `String?` → type `String`, optionnel. `String[]` reste tel quel : une liste
+        // n'est pas nullable au sens Prisma.
+        type: declared.replace(/[?]$/, ''),
+        optional: declared.endsWith('?'),
         doc: flatten(pending),
       })
     }
