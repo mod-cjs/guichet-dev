@@ -27,6 +27,12 @@ jest.mock('@/lib/prisma', () => ({
 const mockNotFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
 })
+// GUIC-688 — la page diffère son tracking via `after()`. En jsdom, charger le vrai
+// `next/server` échoue (globale `Request` absente) : on n'expose que `after`.
+jest.mock('next/server', () => ({
+  after: (cb: () => unknown) => cb(),
+}))
+
 jest.mock('next/navigation', () => ({
   notFound: () => mockNotFound(),
   useRouter: () => ({ push: jest.fn(), prefetch: jest.fn() }),

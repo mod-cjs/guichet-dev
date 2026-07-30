@@ -9,12 +9,17 @@ import { NextRequest } from 'next/server'
 
 const mockFindFirst = jest.fn()
 const mockUpdate = jest.fn()
+// GUIC-688 — la route passe par le socle `consultations` : la trace est écrite
+// dans `consultations`, le compteur `vues` reste alimenté comme cache.
+const mockConsultationCreate = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     opportunite: {
       findFirst: (...a: unknown[]) => mockFindFirst(...a),
       update: (...a: unknown[]) => mockUpdate(...a),
     },
+    consultation:     { create: (...a: unknown[]) => mockConsultationCreate(...a) },
+    recommandationIA: { updateMany: jest.fn() },
   },
 }))
 
@@ -90,9 +95,38 @@ describe('GET /api/opportunites/[slug]', () => {
     mockRedisSet.mockResolvedValue('OK') // clé posée → première vue de cette IP
     await route.GET(req(), ctx)
     expect(mockUpdate).toHaveBeenCalledWith({
-      where: { slug: 'stage-agriculture' },
+      where: { id: 'o1' },
       data: { vues: { increment: 1 } },
     })
+  })
+
+  it('enregistre la consultation avec le canal web par défaut', async () => {
+    await route.GET(req(), ctx)
+    expect(mockConsultationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        typeEntite: 'opportunite',
+        entiteId:   'o1',
+        typeEvent:  'consultation',
+        canal:      'web',
+      }),
+    })
+  })
+
+  it('attribue la consultation au canal WhatsApp quand le lien porte src=wa', async () => {
+    const request = new NextRequest('http://localhost/api/opportunites/stage-agriculture?src=wa', {
+      headers: { 'x-real-ip': '10.0.0.1' },
+    })
+    await route.GET(request, ctx)
+    expect(mockConsultationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ canal: 'whatsapp' }),
+    })
+  })
+
+  it('n’écrit jamais l’IP en clair', async () => {
+    await route.GET(req(), ctx)
+    const data = mockConsultationCreate.mock.calls[0][0].data as Record<string, unknown>
+    expect(JSON.stringify(data)).not.toContain('10.0.0.1')
+    expect(data.sujetHash).toMatch(/^[a-f0-9]{64}$/)
   })
 
   it('n’incrémente pas les vues si l’IP a déjà été comptée (dédoublonnage)', async () => {

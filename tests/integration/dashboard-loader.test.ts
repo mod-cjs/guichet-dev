@@ -79,7 +79,7 @@ describe('loadDashboardData', () => {
       id:    'opp-1',
       title: 'Bourse Agri',
       tone:  'urgent',
-      href:  '/opportunites/bourse-agri',
+      href:  '/opportunites/bourse-agri?from=reco',
     })
     expect(data.recoOpps[0].tag).toMatch(/J-3/)
   })

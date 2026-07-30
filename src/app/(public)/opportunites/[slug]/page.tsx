@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
-import { headers } from 'next/headers'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
-import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
+import { getOpportuniteDetail } from '@/lib/opportunites-loader'
+import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
@@ -42,21 +43,29 @@ export async function generateMetadata({
 
 export default async function OpportuniteDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<{ src?: string | string[]; from?: string | string[] }>
 }) {
   const { slug } = await params
   const detail = await getOpportuniteDetail(slug)
   if (!detail) notFound()
 
-  // GUIC-367 — fire-and-forget : ne pas bloquer la 1ʳᵉ peinture
-  // sur l'écriture Redis + Prisma du compteur de vues. La fonction
-  // avale déjà toutes ses erreurs.
-  const h = await headers()
-  const ip = h.get('x-real-ip') ?? h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'no-ip'
-  void incrementVue(slug, ip)
-
   const session = await getSession()
+  const sp = (await searchParams) ?? {}
+
+  // GUIC-367 — fire-and-forget : ne pas bloquer la 1ʳᵉ peinture sur l'écriture
+  // Redis + Prisma. GUIC-688 — `src`/`from` attribuent le clic au canal réel
+  // (chat IA, WhatsApp) plutôt qu'au trafic web organique.
+  after(() => trackVuePage({
+    typeEntite: 'opportunite',
+    entiteId:   detail.id,
+    src:        sp.src,
+    from:       sp.from,
+    cjsUid:     session?.cjsUid ?? null,
+  }))
+
   // GUIC-361 — Auto-fill complet du formulaire de candidature : on agrège la
   // session SSO + ProfilJeune pour pré-remplir email, niveau, situation,
   // biographie, compétences, etc.

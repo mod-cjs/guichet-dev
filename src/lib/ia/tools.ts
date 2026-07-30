@@ -374,8 +374,10 @@ const getRecommendations: AgentTool = {
     // La raison (réelle, issue du graphe) est portée PAR la card (note), pas renvoyée
     // au LLM : sinon il l'énumère en prose sans connaître les titres → « Opportunité 1, 2… ».
     const noteById = new Map(recos.map(r => [r.opportuniteId, r.raison || null]))
+    // `origine: 'reco'` (GUIC-688) : le lien de la card portera `from=reco`, sinon
+    // le clic issu d'une recommandation serait compté comme une visite directe.
     const items = (await loadOppItems(recos.map(r => r.opportuniteId)))
-      .map(it => ({ ...it, note: noteById.get(it.id) ?? null }))
+      .map(it => ({ ...it, note: noteById.get(it.id) ?? null, origine: 'reco' as const }))
     return {
       ok: true,
       // Fix 4 — signal de succès LISIBLE pour le modèle (sans titres) : les résultats sont
@@ -541,7 +543,8 @@ const queryKnowledgeGraph: AgentTool = {
                 })),
                 buttons: ids.slice(0, 3).map(id => ({
                   label: parLivre.get(id)!.titre.length > 28 ? `${parLivre.get(id)!.titre.slice(0, 25)}…` : parLivre.get(id)!.titre,
-                  href: `${base}/jeune/bibliotheque/${id}`,
+                  // `src=ia` (GUIC-688) : le clic vers la fiche livre reste attribué au chat.
+                  href: `${base}/jeune/bibliotheque/${id}?src=ia`,
                 })),
               }
             : undefined,

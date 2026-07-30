@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { getCentreBySlug } from '@/lib/loaders/centres'
 import { CentreDetailClient } from './centre-detail-client'
 import { JsonLd } from '@/components/seo/JsonLd'
@@ -9,6 +11,7 @@ import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
 
 interface RouteParams {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<{ src?: string | string[]; from?: string | string[] }>
 }
 
 export async function generateMetadata({
@@ -38,12 +41,24 @@ export async function generateMetadata({
  *
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 3.
  */
-export default async function CentreDetailPage({ params }: RouteParams) {
+export default async function CentreDetailPage({ params, searchParams }: RouteParams) {
   const { slug } = await params
   const centre = await getCentreBySlug(slug)
   if (!centre) notFound()
 
   const session = await getSession()
+
+  // GUIC-688 — trace serveur. `centre_viewed` continue d'être émis côté client
+  // vers `/api/v1/track` : double écriture assumée le temps de la transition.
+  const sp = (await searchParams) ?? {}
+  after(() => trackVuePage({
+    typeEntite: 'centre',
+    entiteId:   centre.id,
+    src:        sp.src,
+    from:       sp.from,
+    cjsUid:     session?.cjsUid ?? null,
+  }))
+
   let userCentrePrincipalId: string | null = null
   if (session) {
     // Lecture défensive : `centrePrincipalId` n'existe sur ProfilJeune qu'après W0.

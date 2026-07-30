@@ -1647,6 +1647,75 @@ model CentreEvent {
 }
 
 // ─────────────────────────────────────────────
+// M13 — CONSULTATIONS MULTICANAL (GUIC-688)
+// Trace unifiée « qui a vu quoi, par quel canal » pour les éléments consultables
+// par un bénéficiaire. Remplace à terme les compteurs dénormalisés isolés
+// (`Opportunite.vues`, `Ressource.vues`) et `CentreEvent.centre_viewed`, qui
+// restent alimentés en parallèle le temps de la transition.
+// Source : src/lib/analytics/consultations.ts (fail-soft, dédoublonnage Redis 30 min).
+// ─────────────────────────────────────────────
+
+/// Entités dont la visualisation est traçable. `programme` et `organisation`
+/// sont déclarés pour la complétude du domaine mais ne sont pas instrumentés :
+/// aucune page consultable par un bénéficiaire n'existe (admin uniquement).
+enum EntiteConsultable {
+  opportunite
+  ressource
+  evenement
+  centre
+  livre
+  programme
+  organisation
+
+  @@map("entite_consultable")
+}
+
+/// `impression` = l'élément a été AFFICHÉ (card Yaye, liste WhatsApp) sans action.
+/// `consultation` = l'élément a été OUVERT (page détail). Les deux ne se comparent
+/// jamais entre eux : mélanger les deux fausserait tout taux de conversion.
+enum TypeConsultation {
+  impression
+  consultation
+
+  @@map("type_consultation")
+}
+
+/// Canal d'origine. Distinct de `CanalAgent` (web|whatsapp) qui ne sait pas
+/// séparer le web classique du chat IA rendu dans le web.
+enum CanalConsultation {
+  web
+  ia_web
+  whatsapp
+
+  @@map("canal_consultation")
+}
+
+/// Table INSERT-only. Aucune FK polymorphe (non supporté par Prisma) : l'intégrité
+/// repose sur l'applicatif, comme `CentreEvent`. Aucune rétention/purge (décision PO
+/// GUIC-688 : on conserve tout).
+model Consultation {
+  id         BigInt            @id @default(autoincrement())
+  typeEntite EntiteConsultable @map("type_entite")
+  entiteId   String            @map("entite_id") @db.VarChar(36)
+  typeEvent  TypeConsultation  @map("type_event")
+  canal      CanalConsultation
+  /// Null si visiteur anonyme — `sujetHash` reste renseigné dans tous les cas.
+  cjsUid     String?           @map("cjs_uid") @db.VarChar(36)
+  /// SHA-256 de (cjsUid ?? IP) + sel. Jamais d'IP en clair en base.
+  sujetHash  String            @map("sujet_hash") @db.Char(64)
+  /// reco_ia | recherche | favoris | notification | direct | ia | wa
+  origine    String?           @db.VarChar(30)
+  /// Corrèle avec `AgentLog.sessionId` pour les canaux IA/WhatsApp.
+  sessionId  String?           @map("session_id") @db.VarChar(36)
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  @@index([typeEntite, entiteId, createdAt])
+  @@index([cjsUid, createdAt])
+  @@index([canal, typeEvent, createdAt])
+  @@map("consultations")
+}
+
+// ─────────────────────────────────────────────
 // M12 — IA : TRAÇABILITÉ AGENT YAYE (GUIC-259)
 // Trace technique par événement (distincte de MessageWhatsApp = transcript,
 // et de CentreEvent = KPI). Cf. .agent_context/specs/yaye/06-agent-logs-tracabilite.md
