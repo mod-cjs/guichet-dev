@@ -318,6 +318,7 @@ model Utilisateur {
   @@index([telephone])
   @@index([statut])
   @@index([role])
+  @@index([updatedAt, cjsUid])
   @@map("utilisateurs")
 }
 
@@ -360,6 +361,7 @@ model ProfilJeune {
   centrePrincipal Centre?            @relation("ProfilCentrePrincipal", fields: [centrePrincipalId], references: [id])
 
   @@index([centrePrincipalId])
+  @@index([updatedAt, id])
   @@map("profils_jeunes")
 }
 
@@ -511,6 +513,7 @@ model Opportunite {
   @@index([region])
   @@index([deadline])
   @@fulltext([titre, description])
+  @@index([updatedAt, id])
   @@map("opportunites")
 }
 
@@ -550,6 +553,7 @@ model Candidature {
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
   @@index([opportuniteId])
+  @@index([updatedAt, id])
   @@map("candidatures")
 }
 
@@ -710,6 +714,7 @@ model Centre {
 
   @@index([region])
   @@index([slug])
+  @@index([updatedAt, id])
   @@map("centres")
 }
 
@@ -772,6 +777,7 @@ model Evenement {
   programmes   EvenementProgramme[]
 
   @@index([dateDebut, statut])
+  @@index([updatedAt, id])
   @@map("evenements")
 }
 
@@ -787,6 +793,7 @@ model InscriptionEvenement {
   evenement   Evenement   @relation(fields: [evenementId], references: [id])
 
   @@unique([cjsUid, evenementId])
+  @@index([updatedAt, id])
   @@map("inscriptions_evenements")
 }
 
@@ -817,6 +824,7 @@ model Ressource {
   @@index([type, theme])
   @@index([niveau])
   @@index([langue])
+  @@index([updatedAt, id])
   @@map("ressources")
 }
 
@@ -1152,6 +1160,7 @@ model Programme {
   centreRattachements       CentreProgramme[]
   organisationRattachements OrganisationProgramme[]
 
+  @@index([updatedAt, id])
   @@map("programmes")
 }
 
@@ -1591,6 +1600,9 @@ model Reservation {
   raisonRefusOuAnnul String?           @map("raison_refus_ou_annul") @db.Text
   noShow             Boolean           @default(false) @map("no_show")
   createdAt          DateTime          @default(now()) @map("created_at")
+  // M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation)
+  // sans qu'aucune colonne ne datait la modification.
+  updatedAt          DateTime          @updatedAt @map("updated_at")
   decisionA          DateTime?         @map("decision_a")
   annuleeA           DateTime?         @map("annulee_a")
 
@@ -1603,6 +1615,7 @@ model Reservation {
   @@index([centreId, statut, dateReservee])
   @@index([ressourceId, dateReservee, statut])
   @@index([statut, dateReservee])
+  @@index([updatedAt, id])
   @@map("reservations")
 }
 
@@ -1626,6 +1639,7 @@ model CheckIn {
 
   @@index([centreId, effectueA])
   @@index([cjsUid, effectueA])
+  @@index([effectueA, id])
   @@map("check_ins")
 }
 
@@ -1712,6 +1726,7 @@ model Consultation {
   @@index([typeEntite, entiteId, createdAt])
   @@index([cjsUid, createdAt])
   @@index([canal, typeEvent, createdAt])
+  @@index([createdAt, id])
   @@map("consultations")
 }
 
@@ -2008,6 +2023,9 @@ model Emprunt {
   dateRetourPrevue DateTime?     @map("date_retour_prevue")
   renduA           DateTime?     @map("rendu_a")
   createdAt        DateTime      @default(now()) @map("created_at")
+  // M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour)
+  // sans qu'aucune colonne ne datait la modification.
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
   exemplaire  Exemplaire  @relation(fields: [exemplaireId], references: [id])
@@ -2015,6 +2033,7 @@ model Emprunt {
   @@index([cjsUid, statut])
   @@index([exemplaireId, statut])
   @@index([statut, dateRetourPrevue])
+  @@index([updatedAt, id])
   @@map("emprunts")
 }
 
