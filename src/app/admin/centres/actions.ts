@@ -120,6 +120,40 @@ export async function definirActifCentre(id: string, actif: boolean): Promise<{ 
   return { ok: true }
 }
 
+export interface UtilisateurRattachable { cjsUid: string; nom: string; sousTitre: string }
+
+/**
+ * Rechercher des utilisateurs à rattacher à un centre (onglet Équipe & accès).
+ * Exclut ceux déjà rattachés à CE centre. Recherche par prénom/nom/email.
+ */
+export async function rechercherUtilisateursPourRattachement(
+  centreId: string,
+  q: string,
+): Promise<UtilisateurRattachable[]> {
+  await assertAdmin()
+  const cid = idSchema.parse(centreId)
+  const term = q.trim()
+  if (term.length < 2) return []
+
+  const dejaRattaches = await prisma.agentCentre.findMany({ where: { centreId: cid }, select: { cjsUid: true } })
+  const exclus = dejaRattaches.map((a) => a.cjsUid)
+
+  const users = await prisma.utilisateur.findMany({
+    where: {
+      cjsUid: { notIn: exclus.length ? exclus : ['__none__'] },
+      OR: [{ prenom: { contains: term } }, { nom: { contains: term } }, { email: { contains: term } }],
+    },
+    select: { cjsUid: true, prenom: true, nom: true, email: true, role: true },
+    take: 8,
+    orderBy: [{ nom: 'asc' }],
+  })
+  return users.map((u) => ({
+    cjsUid: u.cjsUid,
+    nom: `${u.prenom} ${u.nom}`.trim() || u.cjsUid.slice(0, 8),
+    sousTitre: u.email ?? u.role ?? '—',
+  }))
+}
+
 /** Supprimer un centre (admin). Échoue si des jeunes/agents y sont rattachés (FK). */
 export async function supprimerCentre(id: string): Promise<{ ok: true }> {
   await assertAdmin()
