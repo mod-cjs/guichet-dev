@@ -144,3 +144,23 @@ describe('contrat d\'export — dictionnaire opposable', () => {
     expect(nonDocumentes).toEqual([])
   })
 })
+
+describe('contrat d\'export — nature des clés primaires', () => {
+  it('déclare bigint exactement là où le schéma en porte un', () => {
+    const attendu: string[] = []
+    const declare: string[] = []
+
+    for (const [stream, def] of entries) {
+      const type = models
+        .find((m) => m.model === def.model)
+        ?.fields.find((f) => f.field === def.primaryKey)?.type
+      if (type === 'BigInt') attendu.push(stream)
+      if ((def as { primaryKeyKind?: string }).primaryKeyKind === 'bigint') declare.push(stream)
+    }
+
+    // Une déclaration manquante fait échouer l'extraction à l'exécution : Prisma refuse
+    // une chaîne là où il attend un BigInt. Une déclaration en trop la fait échouer aussi.
+    expect(declare.sort()).toEqual(attendu.sort())
+    expect(attendu).toContain('consultations')
+  })
+})
