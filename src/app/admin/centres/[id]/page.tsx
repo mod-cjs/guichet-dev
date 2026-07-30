@@ -22,6 +22,7 @@ import { AdminCentreRessources, type RessourceCentreItem } from './ressources/Ad
 export const metadata: Metadata = { title: 'Fiche centre — Admin CJS' }
 
 const JOUR_ORDER: Record<string, number> = { Lundi: 0, Mardi: 1, Mercredi: 2, Jeudi: 3, Vendredi: 4, Samedi: 5, Dimanche: 6 }
+const ROLE_AGENT_LABEL: Record<string, string> = { conseiller: 'Conseiller', directeur: 'Directeur', admin_centre: 'Admin centre' }
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }
 
 /** En-tête de section fidèle maquette : tiret doré + filet (`.dps h6`). */
@@ -105,6 +106,22 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const analytics = tab === 'frequentation'
     ? await getCentresAnalytics({ from: new Date(Date.now() - 90 * 86_400_000), to: new Date(), centreIds: [id] })
     : null
+
+  // Onglet Équipe & accès : agents rattachés (AgentCentre ↔ Utilisateur par cjs_uid).
+  let agents: { cjsUid: string; nom: string; role: string }[] = []
+  if (tab === 'equipe') {
+    const rels = await prisma.agentCentre.findMany({
+      where: { centreId: id }, select: { cjsUid: true, role: true }, orderBy: { createdAt: 'asc' }, take: 24,
+    })
+    const users = await prisma.utilisateur.findMany({
+      where: { cjsUid: { in: rels.map((r) => r.cjsUid) } }, select: { cjsUid: true, nom: true, prenom: true },
+    })
+    const umap = new Map(users.map((u) => [u.cjsUid, u]))
+    agents = rels.map((r) => {
+      const u = umap.get(r.cjsUid)
+      return { cjsUid: r.cjsUid, nom: u ? `${u.prenom} ${u.nom}`.trim() : r.cjsUid.slice(0, 8), role: String(r.role) }
+    })
+  }
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
@@ -213,6 +230,38 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </div>
       )}
 
+      {tab === 'equipe' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={card}>
+            <SectionH6>Agents rattachés · {centre._count.agents}</SectionH6>
+            {agents.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun agent rattaché à ce centre.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {agents.map((a) => (
+                  <div key={a.cjsUid} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, display: 'inline-grid', placeItems: 'center', fontSize: 12, fontWeight: 900, background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', color: 'var(--gj-yellow-ink)' }}>{initials(a.nom).toUpperCase()}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <b style={{ fontSize: 13, color: 'var(--gj-ink)', display: 'block' }}>{a.nom}</b>
+                      <span style={{ fontSize: 11.5, color: 'var(--gj-grey)', display: 'block' }}>{ROLE_AGENT_LABEL[a.role] ?? a.role}</span>
+                    </div>
+                  </div>
+                ))}
+                {centre._count.agents > agents.length && (
+                  <div style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 4 }}>+ {centre._count.agents - agents.length} autres agents rattachés</div>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={card}>
+            <SectionH6>Note</SectionH6>
+            <p style={{ fontSize: 12.5, color: 'var(--gj-grey)', margin: 0, lineHeight: 1.55 }}>
+              Un conseiller peut être rattaché à plusieurs centres et basculer via le sélecteur de centre actif.
+              Les rôles (conseiller / directeur / admin centre) sont posés côté SSO.
+            </p>
+          </div>
+        </div>
+      )}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} centreNom={centre.nom} items={ressourceItems} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
     </div>
