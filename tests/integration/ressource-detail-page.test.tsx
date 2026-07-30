@@ -44,6 +44,12 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), prefetch: jest.fn() }),
 }))
 
+// GUIC-689 — la page lit la session (userIsConnected) via @/lib/auth, qui
+// tire `jose` (ESM, non transformé par jest). Hors sujet ici : on neutralise.
+jest.mock('@/lib/auth', () => ({
+  getSession: jest.fn(async () => null),
+}))
+
 // Le client utilise fetch au montage pour les IDs favoris — on neutralise.
 jest.mock(
   '@/app/(public)/ressources/[id]/ressource-detail-client',
