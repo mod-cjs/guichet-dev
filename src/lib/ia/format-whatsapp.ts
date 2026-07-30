@@ -59,6 +59,9 @@ export function formatBlocksForWhatsApp(blocks: YayeBlock[]): string {
     } else if (b.kind === 'carte_cjs') {
       // La carte visuelle ne se rend pas sur WhatsApp → texte + lien vers la carte web.
       parts.push([`*Ta carte CJS* — ${b.user.matricule}`, `Ouvre-la ici : ${APP_URL}/jeune/ma-carte`].join('\n'))
+    } else if (b.kind === 'sources') {
+      // Caption de provenance : purement visuelle (web), pas de rendu en texte WhatsApp.
+      continue
     } else {
       // action : on résume en texte (les boutons riches n'existent pas en texte brut)
       const head = [b.title, b.subtitle].filter(Boolean).join(' — ')

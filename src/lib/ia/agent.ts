@@ -445,6 +445,21 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   return { role: 'tool', tool_call_id: call.id, content: toolContent }
 }
 
+/**
+ * Libellé de la ligne de sources (règle v5 non négociable — cf. `blocks.ts`).
+ * GÉNÉRIQUE et VOLONTAIREMENT SANS CHIFFRE : le contexte (mémoire long terme +
+ * graphe profil × catalogue, cf. `buildContextBlock`) est TOUJOURS mobilisé sur
+ * ce chemin de réponse — c'est un énoncé vrai de la méthode, pas un décompte
+ * ponctuel qu'on ne peut garantir exact (un chiffre faux serait pire qu'aucun
+ * libellé). N'est ajouté qu'aux réponses RÉELLEMENT générées par le modèle —
+ * jamais aux court-circuits pre-screen ni aux escalades (cf. `runAgent`/`streamAgent`).
+ */
+const SOURCES_LABEL = 'Basé sur ton profil et le catalogue du Guichet'
+
+function sourcesBlock(): YayeBlock {
+  return { kind: 'sources', label: SOURCES_LABEL }
+}
+
 /** Bloc d'accusé de réception pour l'escalade de garde-fou (max rounds). */
 function maxRoundsEscaladeBlock(reference: string): YayeBlock {
   return {
@@ -582,8 +597,14 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind), tokensIn: usage.in, tokensOut: usage.out },
       })
-      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]))), toolsUsed, toolCalls: state.toolCalls }
+      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils,
+      // puis la ligne de sources (règle v5) — la seule vraie réponse RÉDIGÉE par le modèle.
+      return {
+        reply,
+        blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks, sourcesBlock()]))),
+        toolsUsed,
+        toolCalls: state.toolCalls,
+      }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -748,7 +769,13 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]))), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
+      yield {
+        type: 'done',
+        reply,
+        blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks, sourcesBlock()]))),
+        toolsUsed: state.toolsUsed,
+        toolCalls: state.toolCalls,
+      }
       return
     }
 

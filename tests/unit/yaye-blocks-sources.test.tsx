@@ -32,4 +32,11 @@ describe('YayeBlocks — bloc "sources" (ligne de provenance)', () => {
     const blocks: YayeBlock[] = [{ kind: 'sources', label: 'Basé sur le catalogue du Guichet' }]
     expect(() => render(<YayeBlocks blocks={blocks} />)).not.toThrow()
   })
+
+  it('taille de texte discrète mais LISIBLE (--fs-100 = 11px, jamais en-dessous — cf. tokens.css)', () => {
+    const blocks: YayeBlock[] = [{ kind: 'sources', label: 'Basé sur le catalogue du Guichet' }]
+    render(<YayeBlocks blocks={blocks} />)
+    const label = screen.getByText('Basé sur le catalogue du Guichet')
+    expect(label.closest('.text-fs-100')).toBeTruthy()
+  })
 })
