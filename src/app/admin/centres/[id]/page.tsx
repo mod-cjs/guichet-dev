@@ -13,7 +13,9 @@ import { parseTab } from '@/lib/centre-fiche-tabs'
 import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
 import { serviceLabel } from '@/lib/centre-services'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
+import { getBibliothequeStats, getEmpruntsBibliotheque } from '@/lib/loaders/conseiller-bibliotheque'
 import { CentreFicheTabs } from './CentreFicheTabs'
+import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
 import { CentreFrequentation } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
 import { CentreLifecycleActions } from './CentreLifecycleActions'
@@ -151,6 +153,21 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     })
   }
 
+  // Onglet Bibliothèque : KPIs + emprunts en cours (exemplaires localisés dans ce centre).
+  let biblioKpis: BiblioKpis = { exemplaires: 0, enCours: 0, enRetard: 0, titres: 0 }
+  let biblioEmprunts: BiblioEmpruntRow[] = []
+  if (tab === 'biblio') {
+    const [stats, emprunts] = await Promise.all([
+      getBibliothequeStats(id),
+      getEmpruntsBibliotheque(id, ['en_cours', 'en_retard'], now),
+    ])
+    biblioKpis = { exemplaires: stats.exemplaires, enCours: stats.enCours, enRetard: stats.enRetard, titres: stats.titres }
+    biblioEmprunts = emprunts.map((e) => ({
+      id: e.id, titre: e.livreTitre, auteur: e.livreAuteur, emprunteur: e.emprunteur,
+      emprunteLe: e.dateLabel, retourPrevu: e.retourLabel, statut: String(e.statut), enRetard: e.enRetard,
+    }))
+  }
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
       <Link href="/admin/centres" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-teal-deep)', textDecoration: 'none', marginBottom: 14 }}>
@@ -261,6 +278,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
+      {tab === 'biblio' && <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />}
     </div>
   )
 }
