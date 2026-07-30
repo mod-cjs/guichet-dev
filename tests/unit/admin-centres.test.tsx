@@ -77,6 +77,24 @@ describe('GUIC-457/682 — CentresAdminTable', () => {
     expect(screen.getByRole('button', { name: /créer le centre/i })).toBeInTheDocument()
   })
 
+  it('services : ajout d’un service personnalisé (chaîne libre)', () => {
+    render(<CentresAdminTable centres={MOCK} stats={STATS} />)
+    fireEvent.click(screen.getByRole('button', { name: /ajouter un centre/i }))
+    fireEvent.change(screen.getByLabelText(/autre service/i), { target: { value: 'Salle informatique' } })
+    fireEvent.click(screen.getByRole('button', { name: /^ajouter$/i }))
+    expect(screen.getByText('Salle informatique')).toBeInTheDocument()
+  })
+
+  it('horaires : éditeur 7 jours, Lundi ouvert / Dimanche fermé par défaut', () => {
+    render(<CentresAdminTable centres={MOCK} stats={STATS} />)
+    fireEvent.click(screen.getByRole('button', { name: /ajouter un centre/i }))
+    const grp = screen.getByRole('group', { name: /horaires/i })
+    expect(within(grp).getByText('Lundi')).toBeInTheDocument()
+    expect(within(grp).getByText('Dimanche')).toBeInTheDocument()
+    expect(within(grp).getByRole('button', { name: /lundi : ouvert/i })).toBeInTheDocument()
+    expect(within(grp).getByRole('button', { name: /dimanche : fermé/i })).toBeInTheDocument()
+  })
+
   it('filtre "Actifs" masque les centres inactifs', () => {
     render(<CentresAdminTable centres={MOCK} stats={STATS} />)
     expect(screen.getByRole('link', { name: /fiche de CJS Kolda/i })).toBeInTheDocument()

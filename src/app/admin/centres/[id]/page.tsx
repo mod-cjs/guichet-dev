@@ -15,6 +15,7 @@ import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreFrequentation } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
+import { CentreLifecycleActions } from './CentreLifecycleActions'
 import { AdminCentreRessources, type RessourceCentreItem } from './ressources/AdminCentreRessources'
 
 export const metadata: Metadata = { title: 'Fiche centre — Admin CJS' }
@@ -84,8 +85,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
 
   const editValues = {
     id: centre.id, nom: centre.nom, region: String(centre.region), adresse: centre.adresse,
-    latitude: centre.latitude, longitude: centre.longitude, telephone: centre.telephone,
-    responsable: centre.responsable,
+    ville: centre.ville, latitude: centre.latitude, longitude: centre.longitude,
+    telephone: centre.telephone, email: centre.email, responsable: centre.responsable,
+    services, estActif: centre.estActif,
+    horaires: centre.horaires.map((h) => ({ jour: String(h.jour), ouvert: h.ouvert, ouvreA: h.ouvreA, fermeA: h.fermeA })),
   }
 
   // ── Données de l'onglet actif ──────────────────────────────────────────────
@@ -126,7 +129,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             <Icon name="pin" size={13} /> {regionLabel(String(centre.region)) ?? centre.region}{centre.adresse ? ` · ${centre.adresse}` : ''}
           </div>
         </div>
-        <CentreEditButton centre={editValues} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <CentreEditButton centre={editValues} />
+          <CentreLifecycleActions centreId={centre.id} estActif={centre.estActif} />
+        </div>
       </div>
 
       {/* Onglets */}

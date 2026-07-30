@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
-import { Prisma, Region, CentreService } from '@prisma/client'
+import { Prisma, Region, Jour } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
@@ -32,8 +32,19 @@ const centreSchema = z.object({
     (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
     z.string().trim().email('E-mail invalide').max(255).nullable().optional(),
   ),
-  // Services : sous-ensemble de l'enum CentreService (stocké en Json string[]).
-  services: z.array(z.nativeEnum(CentreService)).optional().default([]),
+  // Services : chaînes libres (presets de l'enum OU services personnalisés) — stocké en Json string[].
+  services: z.array(z.string().trim().min(1).max(60)).optional().default([]),
+  // Horaires d'ouverture (relation CentreHoraire, une ligne par jour).
+  horaires: z
+    .array(
+      z.object({
+        jour: z.nativeEnum(Jour),
+        ouvert: z.boolean(),
+        ouvreA: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+        fermeA: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+      }),
+    )
+    .optional(),
   estActif: z.boolean().optional().default(true),
 })
 
@@ -62,11 +73,25 @@ function toData(data: z.output<typeof centreSchema>) {
   }
 }
 
+/** Lignes CentreHoraire à créer (une par jour fourni). */
+function horaireCreate(data: z.output<typeof centreSchema>) {
+  return (data.horaires ?? []).map((h) => ({
+    jour: h.jour,
+    ouvert: h.ouvert,
+    ouvreA: h.ouvert ? h.ouvreA : null,
+    fermeA: h.ouvert ? h.fermeA : null,
+  }))
+}
+
 /** Créer un centre (admin). */
 export async function creerCentre(input: CentreInput): Promise<{ id: string }> {
   await assertAdmin()
   const data = centreSchema.parse(input)
-  const c = await prisma.centre.create({ data: toData(data), select: { id: true } })
+  const horaires = horaireCreate(data)
+  const c = await prisma.centre.create({
+    data: { ...toData(data), ...(horaires.length ? { horaires: { create: horaires } } : {}) },
+    select: { id: true },
+  })
   revalidate()
   return c
 }
@@ -76,7 +101,21 @@ export async function modifierCentre(id: string, input: CentreInput): Promise<{ 
   await assertAdmin()
   const cid = idSchema.parse(id)
   const data = centreSchema.parse(input)
-  await prisma.centre.update({ where: { id: cid }, data: toData(data) })
+  // Horaires fournis → on remplace intégralement le jeu (deleteMany + create). Absents → inchangés.
+  const horairesWrite =
+    data.horaires !== undefined
+      ? { horaires: { deleteMany: {}, create: horaireCreate(data) } }
+      : {}
+  await prisma.centre.update({ where: { id: cid }, data: { ...toData(data), ...horairesWrite } })
+  revalidate()
+  return { ok: true }
+}
+
+/** Suspendre/réactiver un centre (bascule estActif) — réversible, préserve les rattachements. */
+export async function definirActifCentre(id: string, actif: boolean): Promise<{ ok: true }> {
+  await assertAdmin()
+  const cid = idSchema.parse(id)
+  await prisma.centre.update({ where: { id: cid }, data: { estActif: actif } })
   revalidate()
   return { ok: true }
 }
