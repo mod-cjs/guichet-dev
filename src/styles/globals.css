@@ -20,8 +20,13 @@
      Sur une surface sombre (footer navy, hero, sidebars), le teal-deep tombe
      à 1,9:1 : les conteneurs sombres portent `data-surface="dark"` et leurs
      liens héritent alors de la couleur du conteneur. */
-  a:not([data-surface="dark"] a) { color: var(--color-text-link); }
-  a:not([data-surface="dark"] a):hover { color: var(--gj-teal-deep-2); }
+  /* `:where()` est indispensable ici : il porte une spécificité NULLE, donc la
+     règle reste à (0,0,1) comme un `a` nu et continue de céder devant la
+     moindre classe utilitaire. Avec un `:not()` direct, la règle passerait à
+     (0,1,2) et repeindrait tous les liens portant déjà une classe de couleur
+     (pastilles blanches sur les covers d'événements, etc.). */
+  a:where(:not([data-surface="dark"] a)) { color: var(--color-text-link); }
+  a:where(:not([data-surface="dark"] a)):hover { color: var(--gj-teal-deep-2); }
   a:focus-visible,
   button:focus-visible,
   [role="button"]:focus-visible,

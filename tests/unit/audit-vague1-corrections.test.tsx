@@ -65,9 +65,17 @@ describe('F-1 — liens du footer lisibles sur le navy', () => {
 
   it('la règle globale a{} de globals.css ne s’applique plus aux surfaces sombres', () => {
     const css = readFileSync(resolve(ROOT, 'src/styles/globals.css'), 'utf-8')
-    // La règle nue `a { color: ... }` doit être scopée (:not/:where) pour ne pas
-    // repeindre les liens posés sur fond sombre.
+    // La règle nue `a { color: ... }` doit être scopée pour ne pas repeindre
+    // les liens posés sur fond sombre.
     expect(css).not.toMatch(/^\s{2}a\s*\{\s*color:/m)
+  })
+
+  it('le scope reste à spécificité nulle (:where) — sinon il écrase les classes utilitaires', () => {
+    const css = readFileSync(resolve(ROOT, 'src/styles/globals.css'), 'utf-8')
+    // Régression observée au rendu : `a:not(...)` monte à (0,1,2) et repeint
+    // les pastilles blanches posées sur les covers d'événements.
+    expect(css).toMatch(/a:where\(:not\(\[data-surface="dark"\] a\)\)/)
+    expect(css).not.toMatch(/^\s*a:not\(/m)
   })
 })
 
