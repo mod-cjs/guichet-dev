@@ -101,9 +101,10 @@ describe('<WelcomeHeroWeb /> — v5', () => {
     expect(screen.queryByText(/urgent · j-3/i)).not.toBeInTheDocument()
   })
 
-  it('wordmark Yaye : pastille IA présente', () => {
+  it('wordmark Yaye : pastille IA présente, une seule (pas de doublon avatar)', () => {
     render(<WelcomeHeroWeb />)
     expect(screen.getByTestId('yaye-wordmark')).toBeInTheDocument()
+    expect(screen.getAllByText('IA')).toHaveLength(1)
   })
 })
 

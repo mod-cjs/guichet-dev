@@ -264,7 +264,8 @@ export function WelcomeHeroWeb() {
               transform: 'translateY(-30px)',
             }}
           >
-            <YayeAvatar size={48} withBadge />
+            {/* pastille IA portée par le wordmark ci-dessous — pas de doublon sur l'avatar */}
+            <YayeAvatar size={48} />
             <div className="flex-1" style={{ color: 'var(--gj-surface)' }}>
               <div className="flex items-center" style={{ gap: 6 }}>
                 <span
