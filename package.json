@@ -53,7 +53,9 @@
     "storybook:public": "storybook build --output-dir public/storybook --quiet",
     "db:comments": "tsx scripts/db/sync-comments.ts",
     "datahub:openapi": "tsx scripts/datahub/generate-openapi.ts",
-    "datahub:tap": "tsx scripts/datahub/generate-tap-manifest.ts"
+    "datahub:tap": "tsx scripts/datahub/generate-tap-manifest.ts",
+    "datahub:dbt": "tsx scripts/datahub/generate-dbt-sources.ts",
+    "datahub:generate": "npm run datahub:openapi && npm run datahub:tap && npm run datahub:dbt"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",

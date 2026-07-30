@@ -1,0 +1,17 @@
+name: guichet_datahub
+version: '2.0.0'
+config-version: 2
+profile: guichet_datahub
+
+model-paths: ['models']
+target-path: 'target'
+clean-targets: ['target', 'dbt_packages']
+
+models:
+  guichet_datahub:
+    marts:
+      # Matérialisé en table plutôt qu'en vue : les marts sont lus par des outils BI qui
+      # relancent la même agrégation à chaque rafraîchissement d'un tableau de bord.
+      # Recalculer en direct sur consultations serait intenable.
+      +materialized: table
+      +schema: marts

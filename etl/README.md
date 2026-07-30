@@ -66,8 +66,28 @@ curl -H "Authorization: Bearer $TAP_GUICHET_AUTH_TOKEN" \
 
 À comparer aux `COUNT(*)` de l'entrepôt sur la même fenêtre.
 
-## Limite connue
+## Modélisation dbt
 
-Les suppressions dures (cascades) ne sont pas capturables par watermark. Le traitement
+`transform/models/sources.yml` est **généré** comme le manifeste du tap
+(`npm run datahub:dbt`), avec descriptions, tier de gouvernance, tests d'unicité sur les
+clés et détection de fraîcheur.
+
+Il n'y a **pas de couche staging**. C'est délibéré : le renommage et le typage qu'elle
+assure habituellement ont déjà eu lieu dans le contrat d'export. Une couche de plus ne
+ferait que recopier des colonnes déjà propres.
+
+Les marts couvrent GUIC-149 : `v_users_summary`, `v_opportunities_summary`,
+`v_centers_summary`, `v_programs_summary`.
+
+## Limites connues
+
+**Rattachements des programmes.** `v_programs_summary` est livré dégradé. Les compteurs
+demandés par GUIC-149 vivent dans cinq tables de jonction sans horodatage ni clé primaire
+simple — aucun watermark n'y est disponible, donc le contrat ne peut pas les servir. Deux
+issues, à arbitrer : une migration ajoutant des horodatages, ou un support de la
+réplication FULL_TABLE dans le contrat. La seconde est recommandée : ces tables sont
+petites, et modifier le schéma métier pour satisfaire l'outillage se paie ailleurs.
+
+**Suppressions dures.** Les cascades ne sont pas capturables par watermark. Le traitement
 retenu est un rafraîchissement hebdomadaire des clés seules, qui permet à dbt de marquer
 les absents — non encore implémenté (spec §8.5).

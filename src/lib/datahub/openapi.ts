@@ -18,44 +18,7 @@ import { join } from 'node:path'
 import { parseSchemaDoc, parseEnums, type FieldDoc } from './schema-doc'
 import { allDescriptors, type StreamDescriptor } from './descriptor'
 import { streams } from './streams'
-
-// ── Émission YAML ────────────────────────────────────────────────────────────────
-
-type YamlValue = string | number | boolean | null | YamlValue[] | { [key: string]: YamlValue }
-
-const KEY_NU = /^[A-Za-z_][A-Za-z0-9_]*$/
-
-function emitKey(key: string): string {
-  return KEY_NU.test(key) ? key : JSON.stringify(key)
-}
-
-function emit(value: YamlValue, indent = 0): string {
-  const pad = '  '.repeat(indent)
-
-  if (value === null) return 'null'
-  if (typeof value === 'string') return JSON.stringify(value)
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) return '[]'
-    // La première clé d'un objet en liste se place juste après le tiret ; les suivantes
-    // s'alignent dessous, d'où le rendu à `indent + 1`. Retirer seulement le saut de
-    // ligne laisserait l'indentation du rendu et désalignerait le mapping — YAML invalide.
-    return value
-      .map((item) => `\n${pad}- ${emit(item, indent + 1).replace(/^\n\s*/, '')}`)
-      .join('')
-  }
-
-  const entries = Object.entries(value)
-  if (entries.length === 0) return '{}'
-  return entries
-    .map(([k, v]) => {
-      const rendered = emit(v, indent + 1)
-      const scalaire = !rendered.startsWith('\n')
-      return `\n${pad}${emitKey(k)}:${scalaire ? ` ${rendered}` : rendered}`
-    })
-    .join('')
-}
+import { emitYaml, type YamlValue } from './yaml'
 
 // ── Correspondance des types ─────────────────────────────────────────────────────
 
@@ -269,5 +232,5 @@ export function buildOpenApiDocument(schemaPath?: string): string {
     paths,
   }
 
-  return `# GÉNÉRÉ — ne pas éditer à la main. Source : src/lib/datahub/streams.ts + prisma/schema.prisma\n# Régénérer : npm run datahub:openapi\n${emit(document).replace(/^\n/, '')}\n`
+  return `# GÉNÉRÉ — ne pas éditer à la main. Source : src/lib/datahub/streams.ts + prisma/schema.prisma\n# Régénérer : npm run datahub:openapi\n${emitYaml(document).replace(/^\n/, '')}\n`
 }
