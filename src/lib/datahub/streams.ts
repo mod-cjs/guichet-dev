@@ -229,6 +229,7 @@ export const streams = {
   /** Audience multicanal (GUIC-688). Append-only, le plus gros volume du pipeline. */
   consultations: defineStream('Consultation', {
     primaryKey: 'id',
+    primaryKeyKind: 'bigint',
     replicationKey: 'createdAt',
     fields: {
       id: { as: 'id', tier: 'pseudonyme' },

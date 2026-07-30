@@ -79,6 +79,14 @@ export interface StreamSpec<M extends ModelName> {
   replicationKey: DateField<M>
   /** Colonne de suppression logique, si le modèle en a une (spec §3, DA-5). */
   softDelete?: DateField<M>
+  /**
+   * Nature de la clé primaire côté base. Prisma exige un `BigInt` là où le schéma en
+   * déclare un ; lui passer la chaîne portée par le curseur lève une erreur de type à
+   * l'exécution. Déclaré ici plutôt que déduit — le DMMF n'est plus exposé à l'exécution
+   * en Prisma 7 — et vérifié contre le schéma par un test, pour que la déclaration ne
+   * puisse pas dériver.
+   */
+  primaryKeyKind?: 'string' | 'bigint'
   fields: { [K in ScalarField<M>]?: FieldSpec<M, K> }
 }
 
