@@ -142,7 +142,7 @@ export function CentresAllClient({
       <header className="mx-auto max-w-screen-xl px-space-4 pt-space-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1
-            className="text-fs-500 font-black m-0"
+            className="text-fs-800 font-black m-0"
             style={{ color: 'var(--gj-ink)' }}
           >
             Centres CJS
@@ -161,8 +161,8 @@ export function CentresAllClient({
               href="/jeune/mes-reservations-centres"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
-                border: '1px solid var(--gj-teal-deep)',
-                color: 'var(--gj-teal-deep)',
+                border: '1.5px solid var(--gj-line)',
+                color: 'var(--gj-ink)',
                 minHeight: 44,
               }}
             >

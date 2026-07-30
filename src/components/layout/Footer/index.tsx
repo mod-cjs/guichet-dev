@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export function Footer() {
   return (
-    <footer className="bg-gj-ink text-white mt-16">
+    <footer className="bg-gj-ink-teal text-white mt-16">
       <div className="container-page py-space-7 grid grid-cols-1 md:grid-cols-3 gap-space-6">
         <div>
           <h3 className="text-gj-yellow font-bold text-fs-300 mb-space-3">Guichet Jeunesse</h3>

@@ -26,10 +26,12 @@ const baseDetail: RessourceDetail = {
 
 describe('<RessourceDetailHero /> — inclusion Wolof', () => {
   it('langue Wolof : affiche le bandeau « Version audio en Wolof disponible »', () => {
-    render(<RessourceDetailHero detail={{ ...baseDetail, langue: 'Wolof' }} />)
+    const { container } = render(<RessourceDetailHero detail={{ ...baseDetail, langue: 'Wolof' }} />)
     expect(screen.getByText('Version audio en Wolof disponible')).toBeInTheDocument()
     // Plus de badge grey générique portant exactement "Wolof".
     expect(screen.queryByText('Wolof', { exact: true })).toBeNull()
+    // Icône du bandeau : sprite "play" (réf resources-web.jsx:261, #i-play).
+    expect(container.querySelector('svg use[href="/icons.svg#i-play"]')).not.toBeNull()
   })
 
   it('langue FR : garde le badge grey simple, pas de bandeau audio', () => {
