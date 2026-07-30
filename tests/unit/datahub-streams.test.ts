@@ -23,7 +23,12 @@ const models = parseSchemaDoc(
 
 /** Toutes les colonnes exportées, à plat : (flux, modèle, champ Prisma, spec). */
 const exported = entries.flatMap(([stream, def]) =>
-  Object.entries(def.fields as Record<string, { as: string; tier: string; transform?: unknown }>)
+  Object.entries(
+    def.fields as Record<
+      string,
+      { as: string; tier: string; transform?: unknown; outputType?: string; description?: string }
+    >
+  )
     .map(([field, spec]) => ({ stream, model: def.model, field, spec }))
 )
 
@@ -48,6 +53,24 @@ describe('contrat d\'export — confidentialité', () => {
       .filter((e) => e.spec.transform === undefined)
       .map((e) => `${e.stream}.${e.field}`)
     expect(brutes).toEqual([])
+  })
+
+  it('déclare le type de sortie de toute colonne transformée', () => {
+    // Sans lui, le contrat publié annoncerait le type de la colonne SOURCE :
+    // `tranche_age` serait décrit comme une date. Le consommateur serait trompé.
+    const sansType = exported
+      .filter((e) => e.spec.transform !== undefined && e.spec.outputType === undefined)
+      .map((e) => `${e.stream}.${e.field}`)
+    expect(sansType).toEqual([])
+  })
+
+  it('décrit la sortie de toute colonne transformée, et non sa source', () => {
+    // Sans description propre, le contrat publié reprend le /// de la colonne source :
+    // `tranche_age` s'y retrouve décrite comme « la date de naissance déclarée ».
+    const sansDescription = exported
+      .filter((e) => e.spec.transform !== undefined && !e.spec.description)
+      .map((e) => `${e.stream}.${e.field}`)
+    expect(sansDescription).toEqual([])
   })
 
   it('renomme la colonne dérivée pour que le nom ne trahisse pas la source', () => {

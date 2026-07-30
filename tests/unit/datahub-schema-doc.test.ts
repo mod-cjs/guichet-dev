@@ -9,7 +9,7 @@
  * `@prisma/internals` n'existe plus en Prisma 7 : le parsing est fait ici, sur un
  * fichier unique et de structure régulière, plutôt que via une dépendance.
  */
-import { parseSchemaDoc, type ModelDoc } from '@/lib/datahub/schema-doc'
+import { parseSchemaDoc, parseEnums, type ModelDoc } from '@/lib/datahub/schema-doc'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -130,5 +130,60 @@ describe('parseSchemaDoc — sur le schéma réel du Guichet', () => {
   it('capture les watermarks ajoutés au lot 1', () => {
     const doc = byName(models, 'Reservation').fields.find((f) => f.column === 'updated_at')?.doc
     expect(doc).toMatch(/watermark/i)
+  })
+})
+
+describe('parseSchemaDoc — types déclarés', () => {
+  it('sépare le type de son optionalité', () => {
+    const [m] = parseSchemaDoc(`
+model Foo {
+  id     String    @id
+  region Region?
+  vues   Int       @default(0)
+  tags   String[]
+}
+`)
+    expect(m.fields.map((f) => [f.field, f.type, f.optional])).toEqual([
+      ['id', 'String', false],
+      ['region', 'Region', true],
+      ['vues', 'Int', false],
+      // Une liste n'est pas nullable au sens Prisma : le `[]` reste dans le type.
+      ['tags', 'String[]', false],
+    ])
+  })
+
+  it('type les colonnes réelles du schéma du Guichet', () => {
+    const source = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8')
+    const u = byName(parseSchemaDoc(source), 'Utilisateur')
+    expect(u.fields.find((f) => f.field === 'updatedAt')?.type).toBe('DateTime')
+    expect(u.fields.find((f) => f.field === 'deletedAt')?.optional).toBe(true)
+    expect(u.fields.find((f) => f.field === 'genre')?.type).toBe('Genre')
+  })
+})
+
+describe('parseEnums', () => {
+  it('relève les valeurs et écarte les attributs de bloc', () => {
+    const e = parseEnums(`
+enum Genre {
+  M
+  F
+
+  @@map("genre")
+}
+`)
+    expect(e.Genre).toEqual(['M', 'F'])
+  })
+
+  it('écarte les commentaires en fin de valeur', () => {
+    const e = parseEnums('enum V {\n  QrCard // scan de la carte\n  Manuel\n}\n')
+    expect(e.V).toEqual(['QrCard', 'Manuel'])
+  })
+
+  it('relève les énumérations réelles du Guichet', () => {
+    const e = parseEnums(readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8'))
+    expect(e.Genre).toEqual(['M', 'F'])
+    expect(e.StatutCompte).toEqual(['actif', 'inactif', 'anonymise'])
+    expect(e.Region).toHaveLength(14)
+    expect(e.ZoneHabitation).toEqual(['rural', 'urbain'])
   })
 })
