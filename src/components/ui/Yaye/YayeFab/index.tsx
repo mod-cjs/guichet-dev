@@ -2,7 +2,12 @@
 import type { ButtonHTMLAttributes } from 'react'
 
 export interface YayeFabProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label'> {
-  /** Position depuis le bas (en px). Défaut 76 pour laisser place à BottomNav. */
+  /**
+   * Position depuis le bas (en px). Par défaut, le dégagement est piloté par
+   * le token `--gj-fab-offset` (globals.css) : 24px sur une page nue, remonté
+   * automatiquement au-dessus d'une BottomNav ou d'une barre d'action épinglée
+   * (`data-fab-clearance`) — règle du handoff v5 (GUIC-689).
+   */
   bottom?: number
   /** Position depuis la droite (en px). Défaut 16. */
   right?: number
@@ -20,7 +25,7 @@ export interface YayeFabProps extends Omit<ButtonHTMLAttributes<HTMLButtonElemen
  * - Respecte la safe-area bottom iOS
  */
 export function YayeFab({
-  bottom = 76,
+  bottom,
   right = 16,
   'aria-label': ariaLabel = 'Parler à Yaye',
   className = '',
@@ -37,7 +42,10 @@ export function YayeFab({
         width: 56,
         height: 56,
         right,
-        bottom: `calc(${bottom}px + var(--safe-bottom))`,
+        bottom:
+          typeof bottom === 'number'
+            ? `calc(${bottom}px + var(--safe-bottom))`
+            : 'calc(var(--gj-fab-offset, 24px) + var(--safe-bottom))',
         backgroundImage: 'var(--gj-yaye-gradient)',
         color: 'var(--gj-surface)',
         border: 0,

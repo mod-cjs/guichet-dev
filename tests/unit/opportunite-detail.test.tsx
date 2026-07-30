@@ -118,7 +118,7 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     renderDetail()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(baseDetail.titre)
     expect(screen.getByText('Sonatel')).toBeInTheDocument()
-    // Badge fusionné : contient "stage" (humanize) — plusieurs nœuds possibles (h1 + badge).
+    // Deux pastilles distinctes (catégorie + urgence) — plusieurs nœuds possibles (h1 + pastille).
     expect(screen.getAllByText(/stage/i).length).toBeGreaterThan(0)
   })
 
@@ -209,5 +209,64 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     expect(li).not.toBeNull()
     // SQL n'est pas requise → ne doit pas apparaître dans la liste « Compétences requises ».
     expect(screen.queryByText('SQL')).toBeNull()
+  })
+
+  // ── GUIC-689 — HeroBadge : deux pastilles distinctes (catégorie + urgence) ──
+  it('rend une pastille catégorie ET une pastille urgence séparées quand la deadline est proche', () => {
+    const soon: Detail = {
+      ...baseDetail,
+      deadline: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    }
+    renderDetail(soon)
+    expect(screen.getByTestId('hero-badge-categorie')).toBeInTheDocument()
+    expect(screen.getByTestId('hero-badge-urgence')).toBeInTheDocument()
+    expect(screen.getByTestId('hero-badge-urgence').className).toMatch(/bg-gj-red/)
+  })
+
+  it('masque la pastille urgence quand la deadline est lointaine (badge fusionné supprimé)', () => {
+    const lointaine: Detail = {
+      ...baseDetail,
+      deadline: new Date(Date.now() + 60 * 86_400_000).toISOString(),
+    }
+    renderDetail(lointaine)
+    expect(screen.getByTestId('hero-badge-categorie')).toBeInTheDocument()
+    expect(screen.queryByTestId('hero-badge-urgence')).not.toBeInTheDocument()
+  })
+
+  // ── GUIC-689 — CTA de conversion magenta ────────────────────────────────────
+  it('le CTA "Postuler maintenant" porte la couleur d’action de conversion (bg-gj-action)', async () => {
+    renderDetail()
+    const cta = await screen.findByRole('button', { name: /postuler maintenant/i })
+    expect(cta.className).toMatch(/bg-gj-action/)
+  })
+
+  it('le lien "Se connecter pour postuler" (anonyme) porte la couleur d’action de conversion', () => {
+    renderDetail(baseDetail, { viewer: null })
+    const link = screen.getByRole('link', { name: /se connecter pour postuler/i })
+    expect(link.className).toMatch(/bg-gj-action/)
+  })
+
+  // ── GUIC-689 (F-6) — enums bruts affichés lisiblement ────────────────────────
+  it('formate la région via regionLabel (Saint_Louis → Saint-Louis, pas "saint louis")', () => {
+    const detail: Detail = { ...baseDetail, region: 'Saint_Louis' } as unknown as Detail
+    renderDetail(detail)
+    expect(screen.getAllByText('Saint-Louis').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Saint_Louis')).toBeNull()
+    expect(screen.queryByText('saint louis')).toBeNull()
+  })
+
+  it('conserve les acronymes de type de contrat en majuscules (CDD, pas "cdd")', () => {
+    const detail: Detail = {
+      ...baseDetail,
+      details: { type: 'emploi', payload: { typeContrat: 'cdd', teletravail: false } },
+    } as unknown as Detail
+    renderDetail(detail)
+    expect(screen.getByText('CDD')).toBeInTheDocument()
+    expect(screen.queryByText('cdd')).toBeNull()
+  })
+
+  it('capitalise le type d’opportunité sans tout mettre en minuscules ("Stage", pas "stage" brut)', () => {
+    renderDetail() // baseDetail.type === 'STAGE'
+    expect(screen.getAllByText('Stage').length).toBeGreaterThan(0)
   })
 })

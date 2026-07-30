@@ -50,4 +50,20 @@ describe('<Button />', () => {
     rerender(<Button size="lg">x</Button>)
     expect(screen.getByRole('button').className).toMatch(/min-h-\[var\(--tap-comfortable\)\]/)
   })
+
+  // GUIC-689 — CTA de conversion magenta : `cta` est le SEUL variant qui porte
+  // `--gj-action`. `primary` reste teal (navigation/action générique).
+  it('applique la variant cta (magenta de conversion)', () => {
+    render(<Button variant="cta">Postuler</Button>)
+    const btn = screen.getByRole('button')
+    expect(btn.className).toMatch(/bg-gj-action(?!-)/)
+    expect(btn.className).toMatch(/hover:bg-gj-action-deep/)
+  })
+
+  it('la variant primary reste teal — jamais magenta (une seule cta par écran)', () => {
+    render(<Button variant="primary">Continuer</Button>)
+    const btn = screen.getByRole('button')
+    expect(btn.className).toMatch(/bg-gj-teal(?!-)/)
+    expect(btn.className).not.toMatch(/gj-action/)
+  })
 })

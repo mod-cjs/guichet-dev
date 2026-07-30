@@ -51,7 +51,10 @@ describe('<OppCard />', () => {
 
   it("rend un lien étiré vers /opportunites/<slug>", () => {
     render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
-    const link = screen.getByRole('link', { name: /stage data science/i })
+    // GUIC-689 — le CTA secondaire porte désormais aussi un aria-label avec le
+    // titre (« Voir l'offre : {titre} ») : on cible spécifiquement le lien
+    // étiré (« Voir l'opportunité : {titre} ») pour éviter l'ambiguïté.
+    const link = screen.getByRole('link', { name: /voir l'opportunité : stage data science/i })
     expect(link).toHaveAttribute('href', '/opportunites/stage-data-science')
   })
 
@@ -80,10 +83,18 @@ describe('<OppCard />', () => {
     expect(screen.queryByTestId('match-score')).not.toBeInTheDocument()
   })
 
-  it("colorise la bordure en rouge quand deadline urgente", () => {
+  it("conserve la bordure gj-line même quand deadline urgente (GUIC-689 — l'urgence est portée par la pastille, pas la carte)", () => {
     const item = { ...baseItem, deadline: new Date(Date.now() + 2 * 86_400_000).toISOString() }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} />)
     const card = screen.getByTestId('opp-card')
-    expect(card.className).toMatch(/border-gj-red/)
+    expect(card.className).toMatch(/border-gj-line\b/)
+    expect(card.className).not.toMatch(/border-gj-red/)
+  })
+
+  it('le bouton favori respecte la cible tactile 44px (GUIC-689)', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const favori = screen.getByRole('button', { name: /ajouter aux favoris/i })
+    expect(favori.className).toMatch(/w-\[44px\]/)
+    expect(favori.className).toMatch(/h-\[44px\]/)
   })
 })

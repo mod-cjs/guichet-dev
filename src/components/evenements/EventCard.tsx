@@ -21,13 +21,15 @@ interface EventCardProps {
 const MONTH_SHORT = new Intl.DateTimeFormat('fr-FR', { month: 'short' })
 const TIME_FMT = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
-/** Couleur de l'accent date selon le type d'événement. */
-const TYPE_ACCENT: Record<TypeEvenementValue, { bg: string; text: string; badge: 'teal' | 'yellow' | 'red' | 'blue' | 'green' }> = {
+/** Couleur de l'accent date selon le type d'événement.
+ *  GUIC-689 — le rouge est réservé à l'urgence d'échéance : Conférence
+ *  reprend le teal de la référence v5 (`events-data.jsx` EV_TONES). */
+const TYPE_ACCENT: Record<TypeEvenementValue, { bg: string; text: string; badge: 'teal' | 'yellow' | 'blue' | 'green' }> = {
   Formation:  { bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',   badge: 'teal' },
   Atelier:    { bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink',  badge: 'yellow' },
   Forum:      { bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',    badge: 'blue' },
   Webinar:    { bg: 'bg-gj-green-soft',  text: 'text-gj-green-ink',   badge: 'green' },
-  Conference: { bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',     badge: 'red' },
+  Conference: { bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',   badge: 'teal' },
 }
 
 /** Carte événement (M5 — refonte v2 / GUIC-23 inscription). */
@@ -50,8 +52,11 @@ export function EventCard({
   let ctaAria: string
   let ctaVariant: 'primary' | 'ghost' | 'secondary' = 'primary'
   if (!isAuthenticated) {
+    // GUIC-689 — bouton de RANGÉE : secondaire. L'action pleine appartient à
+    // la fiche détail (une seule action pleine par écran, règle v5).
     ctaLabel = "Se connecter pour s'inscrire"
     ctaAria = `Se connecter pour s'inscrire à ${item.titre}`
+    ctaVariant = 'ghost'
   } else if (isInscrit) {
     ctaLabel = 'Se désinscrire'
     ctaAria = `Se désinscrire de ${item.titre}`

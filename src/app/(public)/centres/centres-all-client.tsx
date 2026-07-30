@@ -12,6 +12,7 @@ import {
 } from '@/components/centres'
 import { EmptyState } from '@/components/ui'
 import { Icon } from '@/components/ui/Icon'
+import { regionLabel } from '@/lib/regions'
 
 export interface CentresAllCentre extends CentreRowCentre {
   latitude: number
@@ -77,27 +78,40 @@ export function CentresAllClient({
     track('centres_index_viewed', { source: 'direct' })
   }, [])
 
+  // GUIC-689 (F-6) — les chips `<CentreRegionFilter>` (Wave 7 figée, hors
+  // périmètre) affichent tel quel la valeur reçue dans `regions`/`counts` : on
+  // lui passe donc directement le LIBELLÉ lisible (« Saint-Louis ») plutôt que
+  // la value brute Prisma (« Saint_Louis »). La value/état de filtre devient
+  // ce même libellé (bijectif pour les 14 régions connues), donc le filtrage
+  // ci-dessous compare aussi via `regionLabel` — jamais la value brute seule.
   const regionsList = useMemo(() => {
-    const set = new Set(centres.map((c) => c.region))
+    const set = new Set(centres.map((c) => regionLabel(c.region) ?? c.region))
     return Array.from(set).sort()
   }, [centres])
 
   const regionCounts = useMemo(() => {
     const map: Record<string, number> = {}
     for (const c of centres) {
-      map[c.region] = (map[c.region] ?? 0) + 1
+      const label = regionLabel(c.region) ?? c.region
+      map[label] = (map[label] ?? 0) + 1
     }
     return map
   }, [centres])
 
   const filtered = useMemo(() => {
     if (region === 'all') return centres
-    return centres.filter((c) => c.region === region)
+    return centres.filter((c) => (regionLabel(c.region) ?? c.region) === region)
   }, [centres, region])
 
   const handleRegionChange = (v: string) => {
     setRegion(v)
-    track('centre_filter_applied', { filter: 'region', value: v })
+    // L'état de filtre porte désormais le LIBELLÉ (cf. plus haut), mais les KPI
+    // doivent continuer de recevoir la value brute Prisma : sans ça, une même
+    // région serait comptée sous deux formes (« Saint_Louis » avant/après ce
+    // changement d'affichage) dans les stats de fréquentation.
+    const valueBrute =
+      v === 'all' ? v : centres.find((c) => (regionLabel(c.region) ?? c.region) === v)?.region ?? v
+    track('centre_filter_applied', { filter: 'region', value: valueBrute })
   }
 
   const handleCentreClick = (slug: string, id: string) => {
@@ -142,7 +156,7 @@ export function CentresAllClient({
       <header className="mx-auto max-w-screen-xl px-space-4 pt-space-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1
-            className="text-fs-500 font-black m-0"
+            className="text-fs-800 font-black m-0"
             style={{ color: 'var(--gj-ink)' }}
           >
             Centres CJS
@@ -161,8 +175,8 @@ export function CentresAllClient({
               href="/jeune/mes-reservations-centres"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-gj-md text-fs-200 font-bold"
               style={{
-                border: '1px solid var(--gj-teal-deep)',
-                color: 'var(--gj-teal-deep)',
+                border: '1.5px solid var(--gj-line)',
+                color: 'var(--gj-ink)',
                 minHeight: 44,
               }}
             >

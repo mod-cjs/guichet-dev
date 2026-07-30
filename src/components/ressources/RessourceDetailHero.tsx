@@ -5,11 +5,13 @@ interface RessourceDetailHeroProps {
   detail: RessourceDetail
 }
 
+/** GUIC-689 — le rouge est réservé à l'urgence d'échéance : le type PDF prend
+ *  la famille « document » cyan, cohérente avec les catégories v5. */
 const TYPE_META: Record<
   TypeRessourceValue,
-  { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green' }
+  { icon: IconName; bg: string; text: string; badge: 'blue' | 'teal' | 'yellow' | 'green' }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red'    },
+  PDF:   { icon: 'document', bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'blue'   },
   Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal'   },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow' },
@@ -42,7 +44,9 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
           <div className="flex flex-wrap items-center gap-space-1 mb-space-2">
             <Badge variant={meta.badge}>{detail.type}</Badge>
             {detail.niveau && <Badge variant="grey">{detail.niveau}</Badge>}
-            {detail.langue && <Badge variant="grey">{detail.langue}</Badge>}
+            {detail.langue && detail.langue !== 'Wolof' && (
+              <Badge variant="grey">{detail.langue}</Badge>
+            )}
           </div>
           <h1
             id="ressource-detail-title"
@@ -54,6 +58,15 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
             {detail.theme}
             {detail.categorie ? ` · ${detail.categorie}` : ''}
           </p>
+          {detail.langue === 'Wolof' && (
+            <div
+              className="inline-flex items-center gap-space-1 mt-space-2 rounded-gj-md
+                bg-gj-teal-soft text-gj-teal-deep text-fs-200 font-bold px-space-3 py-space-1"
+            >
+              <Icon name="play" size={14} />
+              Version audio en Wolof disponible
+            </div>
+          )}
         </div>
       </div>
 

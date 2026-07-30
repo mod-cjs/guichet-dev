@@ -37,7 +37,7 @@ export function ProgrammeBadges({ programmes, surFondSombre = false }: Programme
               ].join(' ')}
               style={
                 gradient
-                  ? { background: gradient, color: '#fff' }
+                  ? { background: gradient, color: 'var(--gj-surface)' }
                   : { background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)' }
               }
             >

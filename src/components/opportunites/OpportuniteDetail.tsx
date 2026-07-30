@@ -7,6 +7,7 @@ import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
 import { YayeMatchCard } from './YayeMatchCard'
 import { ProgrammeBadges } from './ProgrammeBadges'
+import { TYPE_CAT, type CatFamily } from './opportunite-type-meta'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 import {
@@ -15,6 +16,7 @@ import {
   URGENT_DAYS_THRESHOLD,
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
+import { regionLabel } from '@/lib/regions'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -32,7 +34,30 @@ interface OpportuniteDetailProps {
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-const humanize = (v: string) => v.replace(/_/g, ' ').toLowerCase()
+
+// GUIC-689 (F-6) — acronymes courants des enums métier : ils doivent rester en
+// majuscules (jamais "cdd"/"pdf" en toutes lettres minuscules).
+const ACRONYMES_CONNUS = new Set(['CDD', 'CDI', 'PDF', 'CV', 'ONG'])
+
+/**
+ * Formate un enum brut (`SNAKE_CASE`, `PascalCase` ou toute casse Prisma) en
+ * libellé lisible : chaque mot est capitalisé (première lettre en majuscule,
+ * reste en minuscules), sauf les acronymes connus qui restent en MAJUSCULES.
+ *
+ * ⚠️ Ne PAS utiliser pour une région : `detail.region` passe par `regionLabel()`
+ * (accents + tiret — « Saint_Louis » → « Saint-Louis », « Thies » → « Thiès »),
+ * que ce formatage générique ne sait pas reproduire.
+ */
+const humanize = (v: string) =>
+  v
+    .split('_')
+    .filter(Boolean)
+    .map((word) =>
+      ACRONYMES_CONNUS.has(word.toUpperCase())
+        ? word.toUpperCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join(' ')
 
 /**
  * Nombre de jours restants avant la deadline (peut être négatif si dépassée).
@@ -47,40 +72,58 @@ function joursAvantDeadline(deadlineIso: string | null): number | null {
 
 interface HeroBadgeProps {
   typeLabel: string
+  catFamily: CatFamily
   deadlineIso: string | null
   expired: boolean
 }
 
+/** Fond plein + texte blanc par famille catégorie (contraste AA sur hero sombre). */
+const CAT_HERO_CLASSES: Record<CatFamily, string> = {
+  'cat-emploi':      'bg-cat-emploi',
+  'cat-stage':       'bg-cat-stage',
+  'cat-formation':   'bg-cat-formation',
+  'cat-financement': 'bg-cat-financement',
+  'cat-evenement':   'bg-cat-evenement',
+  'cat-volontariat': 'bg-cat-volontariat',
+  'cat-neutre':      'bg-cat-neutre',
+}
+
 /**
- * Badge fusionné « TYPE · CLÔTURE J-X » (1 seule pill avec séparateur visuel).
- * Couleur rouge si urgent (≤ URGENT_DAYS_THRESHOLD jours) ou expiré, sinon teal-deep.
+ * GUIC-689 — deux pastilles distinctes (catégorie + urgence), plus de badge
+ * fusionné « TYPE · CLÔTURE J-X » (« Reponse au retour design V3 » §2). Le
+ * rouge n'est jamais utilisé pour la catégorie : il ne signale que l'urgence
+ * de la deadline (≤ URGENT_DAYS_THRESHOLD jours) ou l'expiration.
  */
-function HeroBadge({ typeLabel, deadlineIso, expired }: HeroBadgeProps) {
+function HeroBadge({ typeLabel, catFamily, deadlineIso, expired }: HeroBadgeProps) {
   const jours = joursAvantDeadline(deadlineIso)
   const urgent = expired || (jours !== null && jours <= URGENT_DAYS_THRESHOLD)
-  const visible = jours !== null && jours <= DEADLINE_VISIBLE_DAYS
 
   let deadlineLabel: string | null = null
   if (expired) deadlineLabel = 'CLÔTURÉE'
-  else if (jours === null) deadlineLabel = null
-  else if (jours <= 0) deadlineLabel = 'CLÔTURE AUJOURD’HUI'
-  else if (visible) deadlineLabel = `CLÔTURE J-${jours}`
+  else if (jours !== null && jours <= 0) deadlineLabel = 'CLÔTURE AUJOURD’HUI'
+  else if (jours !== null && jours <= URGENT_DAYS_THRESHOLD) deadlineLabel = `CLÔTURE J-${jours}`
 
   return (
-    <span
-      className={`inline-flex items-center gap-2 text-fs-100 font-extrabold uppercase
-        tracking-wide text-white px-space-2 py-1 rounded-full
-        ${urgent ? 'bg-gj-red' : 'bg-gj-teal'}`}
-    >
-      <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
-      <span>{typeLabel}</span>
-      {deadlineLabel && (
-        <>
-          <span aria-hidden>·</span>
-          <span>{deadlineLabel}</span>
-        </>
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        data-testid="hero-badge-categorie"
+        className={`inline-flex items-center gap-2 text-fs-100 font-extrabold uppercase
+          tracking-wide text-white px-space-2 py-1 rounded-full
+          ${CAT_HERO_CLASSES[catFamily]}`}
+      >
+        <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
+        <span>{typeLabel}</span>
+      </span>
+      {urgent && deadlineLabel && (
+        <span
+          data-testid="hero-badge-urgence"
+          className="inline-flex items-center text-fs-100 font-extrabold uppercase
+            tracking-wide text-white bg-gj-red px-space-2 py-1 rounded-full"
+        >
+          {deadlineLabel}
+        </span>
       )}
-    </span>
+    </div>
   )
 }
 
@@ -173,7 +216,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
   // Chips meta inline du hero (région / rémunération / délai indicatif).
   const heroChips = useMemo(() => {
     const chips: { icon: 'pin' | 'funding' | 'clock'; label: string }[] = []
-    if (detail.region) chips.push({ icon: 'pin', label: humanize(detail.region) })
+    if (detail.region) chips.push({ icon: 'pin', label: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) chips.push({ icon: 'funding', label: detail.remuneration })
     const jours = joursAvantDeadline(detail.deadline)
     if (jours !== null && jours > 0 && jours <= DEADLINE_VISIBLE_DAYS) {
@@ -188,7 +231,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
       { label: 'Type', value: humanize(detail.type) },
       { label: 'Domaine', value: humanize(detail.domaine) },
     ]
-    if (detail.region) out.push({ label: 'Région', value: humanize(detail.region) })
+    if (detail.region) out.push({ label: 'Région', value: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) out.push({ label: 'Rémunération', value: detail.remuneration })
     out.push({
       label: 'Échéance',
@@ -252,17 +295,22 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           </div>
         </div>
 
-        <HeroBadge typeLabel={humanize(detail.type)} deadlineIso={detail.deadline} expired={expired} />
+        <HeroBadge
+          typeLabel={humanize(detail.type)}
+          catFamily={TYPE_CAT[detail.type] ?? 'cat-neutre'}
+          deadlineIso={detail.deadline}
+          expired={expired}
+        />
 
         <h1
           className="text-color-text-onDark mt-space-2 font-black"
-          style={{ fontSize: 20, lineHeight: 1.2, color: '#fff' }}
+          style={{ fontSize: 20, lineHeight: 1.2, color: 'var(--gj-surface)' }}
         >
           {detail.titre}
         </h1>
         <p className="text-fs-200 opacity-90 mt-1">
           <b>{detail.organisation}</b>
-          {detail.region ? <> · {humanize(detail.region)}</> : null}
+          {detail.region ? <> · {regionLabel(detail.region) ?? detail.region}</> : null}
         </p>
 
         {/* GUIC-684 — de quel programme CJS relève cette offre. */}
@@ -437,7 +485,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <a
             href={loginUrl(`${opportuniteSlugUrl(detail.slug)}?postuler=1`)}
             className="flex-1 inline-flex items-center justify-center gap-2
-              bg-gj-teal-deep text-white font-extrabold rounded-gj-md
+              bg-gj-action hover:bg-gj-action-deep text-white font-extrabold rounded-gj-md
               min-h-[50px] px-space-4"
           >
             Se connecter pour postuler
@@ -446,7 +494,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         ) : (
           <>
             <Button
-              variant="primary"
+              variant="cta"
               size="lg"
               className="flex-1"
               disabled={ctaDisabled}
