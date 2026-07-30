@@ -27,8 +27,16 @@ describe('CentreEquipe', () => {
     expect(screen.getByText(/\+ 3 autres/i)).toBeInTheDocument()
   })
 
-  it('chaque agent a un bouton de retrait', () => {
+  it('les 2 boutons maquette sont sous la carte (Ajouter + Gérer le multi-centre)', () => {
     render(<CentreEquipe centreId="c1" staffCount={2} agents={AGENTS} />)
+    expect(screen.getByRole('button', { name: /Ajouter un conseiller/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Gérer le multi-centre/i })).toBeInTheDocument()
+  })
+
+  it('pas de retrait visible par défaut ; « Gérer le multi-centre » révèle les retraits', () => {
+    render(<CentreEquipe centreId="c1" staffCount={2} agents={AGENTS} />)
+    expect(screen.queryByRole('button', { name: /Retirer Awa Ndiaye/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Gérer le multi-centre/i }))
     expect(screen.getByRole('button', { name: /Retirer Awa Ndiaye/i })).toBeInTheDocument()
   })
 
