@@ -105,7 +105,13 @@ export function CentresAllClient({
 
   const handleRegionChange = (v: string) => {
     setRegion(v)
-    track('centre_filter_applied', { filter: 'region', value: v })
+    // L'état de filtre porte désormais le LIBELLÉ (cf. plus haut), mais les KPI
+    // doivent continuer de recevoir la value brute Prisma : sans ça, une même
+    // région serait comptée sous deux formes (« Saint_Louis » avant/après ce
+    // changement d'affichage) dans les stats de fréquentation.
+    const valueBrute =
+      v === 'all' ? v : centres.find((c) => (regionLabel(c.region) ?? c.region) === v)?.region ?? v
+    track('centre_filter_applied', { filter: 'region', value: valueBrute })
   }
 
   const handleCentreClick = (slug: string, id: string) => {

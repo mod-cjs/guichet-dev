@@ -157,3 +157,18 @@ describe('F-7 — bouton flottant Yaye : dégagement piloté par token', () => {
     expect(src).toContain('data-fab-clearance')
   })
 })
+
+describe('F-6 — stabilité des KPI centres', () => {
+  it('le filtre région envoie la value brute au tracking, pas le libellé affiché', () => {
+    const src = readFileSync(
+      resolve(ROOT, 'src/app/(public)/centres/centres-all-client.tsx'),
+      'utf-8',
+    )
+    // Les chips affichent « Saint-Louis » (lisible), mais les KPI de
+    // fréquentation doivent continuer de recevoir « Saint_Louis » — sinon une
+    // même région est comptée sous deux formes de part et d'autre du déploiement.
+    const bloc = src.slice(src.indexOf('handleRegionChange'), src.indexOf('handleRegionChange') + 600)
+    expect(bloc).toMatch(/valueBrute/)
+    expect(bloc).not.toMatch(/value:\s*v\s*\}/)
+  })
+})
