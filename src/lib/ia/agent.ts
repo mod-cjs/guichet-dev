@@ -15,6 +15,7 @@ import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
 import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
+import { buildSourcesLabel, type SourcesInput } from './sources-label'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -446,18 +447,19 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
 }
 
 /**
- * Libellé de la ligne de sources (règle v5 non négociable — cf. `blocks.ts`).
- * GÉNÉRIQUE et VOLONTAIREMENT SANS CHIFFRE : le contexte (mémoire long terme +
- * graphe profil × catalogue, cf. `buildContextBlock`) est TOUJOURS mobilisé sur
- * ce chemin de réponse — c'est un énoncé vrai de la méthode, pas un décompte
- * ponctuel qu'on ne peut garantir exact (un chiffre faux serait pire qu'aucun
- * libellé). N'est ajouté qu'aux réponses RÉELLEMENT générées par le modèle —
- * jamais aux court-circuits pre-screen ni aux escalades (cf. `runAgent`/`streamAgent`).
+ * Ligne de sources (règle v5 non négociable — cf. `blocks.ts`), DÉRIVÉE de ce
+ * qui a réellement servi : `buildContextBlock` renvoie une chaîne vide quand ni
+ * mémo ni contexte graphe ne sont disponibles (nouvel inscrit, graphe pas
+ * encore construit, échec de chargement), et une réponse peut être rédigée sans
+ * qu'aucun outil catalogue n'ait été appelé. Un libellé posé en dur affirmerait
+ * alors des sources qui n'ont pas servi — une caution fabriquée est pire que
+ * pas de ligne, donc on n'émet rien dans ce cas (cf. `buildSourcesLabel`).
+ * N'est ajoutée qu'aux réponses RÉELLEMENT générées par le modèle — jamais aux
+ * court-circuits pre-screen ni aux escalades.
  */
-const SOURCES_LABEL = 'Basé sur ton profil et le catalogue du Guichet'
-
-function sourcesBlock(): YayeBlock {
-  return { kind: 'sources', label: SOURCES_LABEL }
+function sourcesBlocks(input: SourcesInput): YayeBlock[] {
+  const label = buildSourcesLabel(input)
+  return label ? [{ kind: 'sources', label }] : []
 }
 
 /** Bloc d'accusé de réception pour l'escalade de garde-fou (max rounds). */
@@ -601,7 +603,15 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       // puis la ligne de sources (règle v5) — la seule vraie réponse RÉDIGÉE par le modèle.
       return {
         reply,
-        blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks, sourcesBlock()]))),
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed }),
+            ]),
+          ),
+        ),
         toolsUsed,
         toolCalls: state.toolCalls,
       }
@@ -772,7 +782,15 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
       yield {
         type: 'done',
         reply,
-        blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks, sourcesBlock()]))),
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...state.blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed: state.toolsUsed }),
+            ]),
+          ),
+        ),
         toolsUsed: state.toolsUsed,
         toolCalls: state.toolCalls,
       }

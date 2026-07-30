@@ -297,16 +297,29 @@ test('trop de tours d’outils sans réponse → escalade conseiller + log erreu
 
 // ── Ligne de sources (GUIC-689 vague 2 — règle v5 "aucune réponse sans sources") ──
 // Design v5 `yaye-web.jsx:58` : légende sous la réponse (« basé sur ton profil + 142
-// offres »). Ici : libellé GÉNÉRIQUE et VRAI (pas de décompte inventé), présent sur
-// TOUTE réponse réellement générée par le modèle, ABSENT sur les court-circuits
-// scriptés/escalade (une ligne de sources y serait mensongère).
-describe('bloc "sources" — honnêteté systématique (GUIC-689)', () => {
-  test('réponse directe sans outil : dernier bloc = sources, libellé non vide', async () => {
+// offres »). Ici : libellé DÉRIVÉ de ce qui a réellement servi (jamais de décompte
+// inventé, jamais de source affirmée à tort — cf. `sources-label.ts`). Absent des
+// court-circuits scriptés/escalade, ET absent quand ni contexte personnel ni outil
+// n'ont été mobilisés : une caution fabriquée est pire que pas de ligne.
+describe('bloc "sources" — honnêteté (GUIC-689)', () => {
+  test('réponse sans contexte ni outil : PAS de ligne de sources (rien n’a servi)', async () => {
     mockLlm.load([say(''), say('Le programme YEAH t’accompagne vers l’emploi.')])
     const r = await runAgent({ ...DEFAULT_BASE, message: 'Explique-moi le programme YEAH' })
+    expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
+
+  test('profil chargé (contexte graphe) : la ligne cite le profil, pas le catalogue', async () => {
+    mockLlm.load([say(''), say('Le programme YEAH t’accompagne vers l’emploi.')])
+    const r = await runAgent({
+      ...DEFAULT_BASE,
+      graphContext: 'profil: bénéficiaire à Thiès, agriculture',
+      message: 'Explique-moi le programme YEAH',
+    })
     const last = r.blocks[r.blocks.length - 1]
     expect(last.kind).toBe('sources')
-    expect((last as { label: string }).label.trim().length).toBeGreaterThan(0)
+    const label = (last as { label: string }).label
+    expect(label).toMatch(/profil/i)
+    expect(label).not.toMatch(/catalogue/i)
   })
 
   test('réponse avec cards : la ligne de sources arrive APRÈS les cards', async () => {
@@ -361,9 +374,15 @@ describe('bloc "sources" — honnêteté systématique (GUIC-689)', () => {
     expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
   })
 
-  test('streamAgent : le "done" final porte aussi la ligne de sources', async () => {
+  test('streamAgent : le "done" final porte la ligne de sources quand du contexte a servi', async () => {
     mockLlm.load([say(''), say('Bonjour, ravie de t’aider.')])
-    const evs = await collectStream(streamAgent({ ...DEFAULT_BASE, message: 'Explique-moi le programme YEAH' }))
+    const evs = await collectStream(
+      streamAgent({
+        ...DEFAULT_BASE,
+        graphContext: 'profil: bénéficiaire à Thiès',
+        message: 'Explique-moi le programme YEAH',
+      }),
+    )
     const done = evs.find((e) => e.type === 'done')
     expect(done?.type === 'done' && done.blocks.some((b) => b.kind === 'sources')).toBe(true)
   })
