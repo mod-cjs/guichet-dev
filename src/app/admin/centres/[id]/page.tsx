@@ -11,6 +11,7 @@ import { regionLabel } from '@/lib/regions'
 import { centreRgb } from '@/lib/centre-accent'
 import { parseTab } from '@/lib/centre-fiche-tabs'
 import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
+import { serviceLabel } from '@/lib/centre-services'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreFrequentation } from './CentreFrequentation'
@@ -143,14 +144,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {/* Contenu de l'onglet — Vue d'ensemble (fidélité maquette) */}
       {tab === 'vue' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Carte GPS + Contact côte à côte */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[16px] items-stretch">
+          {/* Carte GPS + Contact côte à côte (maquette : 1.25fr / 1fr) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-[16px] items-start">
             <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
               <CentresMapGoogle centres={[{ id: centre.id, nom: centre.nom, latitude: centre.latitude, longitude: centre.longitude }]} centresForList={[{ id: centre.id, nom: centre.nom, region: String(centre.region), slug: centre.slug ?? '' }]} height={280} zoom={13} disableUI />
             </div>
-            <div style={card}>
+            <div>
               <SectionH6>Contact</SectionH6>
-              <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 16px', margin: 0 }}>
+              <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 16px', margin: 0, background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 11, padding: '14px 15px', boxShadow: 'var(--gj-edge)' }}>
                 {[['Responsable', centre.responsable], ['Téléphone', centre.telephone], ['E-mail', centre.email], ['Adresse', centre.adresse]].filter(([, v]) => v).map(([k, v]) => (
                   <div key={k as string}>
                     <dt style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)', marginBottom: 4 }}>{k}</dt>
@@ -161,14 +162,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             </div>
           </div>
 
-          {/* 4 KPIs pleine largeur (fidélité maquette : 28px + trend vert) */}
+          {/* 4 tuiles KPI (maquette .ktile : valeur 21px + delta vert en texte simple) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-[12px]">
             {kpis.map((k) => (
-              <div key={k.label} style={{ ...card, padding: '15px 16px' }}>
-                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--gj-ink)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
-                <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', marginTop: 6 }}>{k.label}</div>
+              <div key={k.label} style={{ ...card, padding: '13px 15px' }}>
+                <b style={{ fontSize: 21, fontWeight: 900, color: 'var(--gj-ink)', display: 'block', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{k.value}</b>
+                <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', display: 'block', marginTop: 6 }}>{k.label}</span>
                 {k.trend && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', marginTop: 6 }}>{k.trend}</span>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gj-green-ink)', marginTop: 4 }}>{k.trend}</div>
                 )}
               </div>
             ))}
@@ -181,8 +182,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                 {services.map((s) => (
                   <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--gj-ink)', background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 9, padding: '8px 11px' }}>
-                    <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gj-green-ink)', flexShrink: 0 }} />
-                    {s.replace(/_/g, ' ')}
+                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gj-green-ink)', flexShrink: 0 }} />
+                    {serviceLabel(s)}
                   </span>
                 ))}
               </div>
