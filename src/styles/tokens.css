@@ -376,6 +376,15 @@
   --gj-grey-2:       rgba(245,248,246,.46);
   --gj-line:         rgba(255,255,255,.10);
   --gj-line-strong:  rgba(255,255,255,.18);
+  /* GUIC-687 — tokens sémantiques de texte : déclarés au :root en var(--gj-ink), ils y sont
+     FIGÉS à l'encre claire et hérités tels quels ici (une custom prop non re-déclarée garde sa
+     valeur calculée au :root). On les RE-déclare donc dans le scope sombre pour qu'ils repointent
+     sur l'encre sombre — sinon titres/labels des primitives partagées (Modal, Input) restent à
+     l'encre claire figée (près du noir) sur fond sombre, illisibles. */
+  --color-text-primary:   var(--gj-ink);
+  --color-text-secondary: var(--gj-grey);
+  --color-text-muted:     var(--gj-grey-2);
+  --color-text-link:      var(--gj-teal-deep);
   /* teintes douces -> translucides + encres éclaircies pour le contraste sur sombre */
   --gj-teal-soft:    rgba(0,122,92,.22);
   --gj-teal-deep:    #35D6A0;

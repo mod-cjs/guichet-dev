@@ -109,3 +109,23 @@
   background: var(--gj-surface);
   color: var(--gj-ink);
 }
+
+/* GUIC-687 — champs de formulaire (Input/Select/Textarea partagés, codés bg-white) en
+   thème sombre admin : sinon champ blanc + texte hérité clair = illisible. Le champ prend
+   le fond de page (plus sombre que la surface du dialogue → effet « creusé »), texte clair,
+   bordure visible. Spécificité (0,1,1) > .bg-white (0,1,0), sans !important ; scope admin
+   sombre uniquement → aucun impact sur les autres espaces. Cases/radios exclues. */
+[data-admin-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: var(--gj-bg);
+  color: var(--gj-ink);
+  border-color: var(--gj-line-strong);
+}
+[data-admin-theme="dark"] :is(input, textarea)::placeholder {
+  color: var(--gj-ink);
+  opacity: 0.42;
+}
+/* Liste déroulante native : chaque option hérite du fond du système, pas du champ. */
+[data-admin-theme="dark"] select option {
+  background: var(--gj-surface);
+  color: var(--gj-ink);
+}
