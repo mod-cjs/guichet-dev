@@ -62,6 +62,57 @@ describe('<CandidatureCard />', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GUIC-689 — code couleur catégories + ergonomie (audit v5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('<CandidatureCard /> — badge type par catégorie (GUIC-689, finding A)', () => {
+  it('rend le chip OpportuniteTypeChip (data-cat) pour un type direct — jamais le Tag teal par défaut', () => {
+    const { container } = render(<CandidatureCard item={make({ type: 'Formation' })} />)
+    const chip = container.querySelector('[data-cat="cat-formation"]')
+    expect(chip).toBeInTheDocument()
+    expect(chip).toHaveTextContent('Formation')
+  })
+
+  it('type sans équivalent enum (Concours) : badge de repli cat-neutre, jamais teal par défaut', () => {
+    render(<CandidatureCard item={make({ type: 'Concours' })} />)
+    const badge = screen.getByTestId('candidature-type-badge')
+    expect(badge).toHaveTextContent('Concours')
+    expect(badge.className).toMatch(/cat-neutre/)
+  })
+})
+
+describe('<CandidatureCard /> — tuile sectorielle par catégorie (GUIC-689, finding B)', () => {
+  it('la tuile est colorée par la catégorie du type, pas par le statut du pipeline', () => {
+    render(<CandidatureCard item={make({ type: 'Emploi', currentStep: 'Decision', decision: 'Refusee' })} />)
+    const tile = screen.getByTestId('candidature-tile')
+    expect(tile.className).toMatch(/bg-cat-emploi\b/)
+    expect(tile.className).not.toMatch(/bg-gj-red/)
+  })
+
+  it('deux candidatures de type différent à la même étape ont des tuiles de couleur différente', () => {
+    const { rerender } = render(<CandidatureCard item={make({ type: 'Stage', currentStep: 'Envoyee' })} />)
+    const tileStage = screen.getByTestId('candidature-tile').className
+    rerender(<CandidatureCard item={make({ type: 'Bourse', currentStep: 'Envoyee' })} />)
+    const tileBourse = screen.getByTestId('candidature-tile').className
+    expect(tileStage).not.toBe(tileBourse)
+  })
+})
+
+describe('<CandidatureCard /> — lien étiré (GUIC-689, finding C)', () => {
+  it("la carte entière ouvre le détail via un lien étiré, avec un aria-label explicite", () => {
+    render(<CandidatureCard item={make({ id: 'stretch-1', opportuniteTitre: 'Titre X' })} />)
+    const stretched = screen.getByRole('link', { name: /Voir la candidature : Titre X/i })
+    expect(stretched).toHaveAttribute('href', '/jeune/mes-candidatures/stretch-1')
+    expect(stretched.className).toMatch(/absolute inset-0/)
+  })
+
+  it('le lien explicite "Voir le détail" reste présent (non-régression)', () => {
+    render(<CandidatureCard item={make({ currentStep: 'Envoyee' })} />)
+    expect(screen.getByRole('link', { name: /Voir le détail/i })).toBeInTheDocument()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GUIC-252 — différenciation par état (tile + bloc contextuel + CTA)
 // ─────────────────────────────────────────────────────────────────────────────
 
