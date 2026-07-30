@@ -30,6 +30,7 @@ jest.mock('@/components/centres', () => {
 })
 
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { CentresAllClient, type CentresAllCentre } from '@/app/(public)/centres/centres-all-client'
 
 const baseCentre: CentresAllCentre = {
@@ -185,4 +186,27 @@ describe('<CentresAllClient /> — fixes W2', () => {
   // fs dans tests/unit/design-v5-tokens-hygiene.test.ts — jsdom (cssstyle)
   // ne sait pas sérialiser un style inline utilisant var() (cf. investigation
   // GUIC-689 : `el.style.color = 'var(--x)'` est silencieusement ignoré).
+
+  // ──────────────── GUIC-689 (F-6) — chips de région lisibles ────────────────
+  it('affiche le libellé lisible de la région dans la chip ("Saint-Louis", pas "Saint_Louis")', () => {
+    const centreSaintLouis: CentresAllCentre = { ...baseCentre, id: 'c2', region: 'Saint_Louis' }
+    render(<CentresAllClient centres={[baseCentre, centreSaintLouis]} userIsConnected={false} />)
+    expect(screen.getAllByText('Saint-Louis').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Saint_Louis')).not.toBeInTheDocument()
+  })
+
+  it('filtre toujours correctement les centres après clic sur une chip région (comparaison par libellé)', async () => {
+    const centreSaintLouis: CentresAllCentre = {
+      ...baseCentre,
+      id: 'c2',
+      slug: 'cjs-saint-louis',
+      nom: 'CJS Saint-Louis',
+      region: 'Saint_Louis',
+    }
+    render(<CentresAllClient centres={[baseCentre, centreSaintLouis]} userIsConnected={false} />)
+    const chip = screen.getAllByRole('radio', { name: /saint-louis/i })[0]
+    await userEvent.click(chip)
+    expect(screen.getAllByText('CJS Saint-Louis').length).toBeGreaterThan(0)
+    expect(screen.queryByText('CJS Dakar')).not.toBeInTheDocument()
+  })
 })

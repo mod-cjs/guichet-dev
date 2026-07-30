@@ -245,4 +245,28 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     const link = screen.getByRole('link', { name: /se connecter pour postuler/i })
     expect(link.className).toMatch(/bg-gj-action/)
   })
+
+  // ── GUIC-689 (F-6) — enums bruts affichés lisiblement ────────────────────────
+  it('formate la région via regionLabel (Saint_Louis → Saint-Louis, pas "saint louis")', () => {
+    const detail: Detail = { ...baseDetail, region: 'Saint_Louis' } as unknown as Detail
+    renderDetail(detail)
+    expect(screen.getAllByText('Saint-Louis').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Saint_Louis')).toBeNull()
+    expect(screen.queryByText('saint louis')).toBeNull()
+  })
+
+  it('conserve les acronymes de type de contrat en majuscules (CDD, pas "cdd")', () => {
+    const detail: Detail = {
+      ...baseDetail,
+      details: { type: 'emploi', payload: { typeContrat: 'cdd', teletravail: false } },
+    } as unknown as Detail
+    renderDetail(detail)
+    expect(screen.getByText('CDD')).toBeInTheDocument()
+    expect(screen.queryByText('cdd')).toBeNull()
+  })
+
+  it('capitalise le type d’opportunité sans tout mettre en minuscules ("Stage", pas "stage" brut)', () => {
+    renderDetail() // baseDetail.type === 'STAGE'
+    expect(screen.getAllByText('Stage').length).toBeGreaterThan(0)
+  })
 })
