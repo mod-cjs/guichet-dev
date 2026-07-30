@@ -22,15 +22,17 @@ const TYPE_GRADIENT: Record<TypeEvenementValue, string> = {
   Forum:      'linear-gradient(135deg, var(--gj-blue), var(--gj-blue-ink))',
   Formation:  'linear-gradient(135deg, var(--gj-yellow), var(--gj-yellow-ink))',
   Webinar:    'linear-gradient(135deg, var(--gj-green), var(--gj-green-ink))',
-  Conference: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink))',
+  Conference: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))',
 }
 
-const TYPE_BADGE: Record<TypeEvenementValue, 'teal' | 'blue' | 'yellow' | 'green' | 'red'> = {
+/** GUIC-689 — le rouge code l'urgence d'échéance, jamais un type
+ *  (réf v5 `events-data.jsx` : conférence = teal). */
+const TYPE_BADGE: Record<TypeEvenementValue, 'teal' | 'blue' | 'yellow' | 'green'> = {
   Atelier: 'teal',
   Forum: 'blue',
   Formation: 'yellow',
   Webinar: 'green',
-  Conference: 'red',
+  Conference: 'teal',
 }
 
 const TYPE_ICON: Record<TypeEvenementValue, 'learning' | 'employment' | 'project' | 'video' | 'engagement'> = {
@@ -71,8 +73,11 @@ export function EvenementCard({
   let ctaAria: string
   let ctaVariant: 'primary' | 'ghost' = 'primary'
   if (!isAuthenticated) {
+    // GUIC-689 — bouton de RANGÉE : secondaire (une seule action pleine par
+    // écran ; la conversion vit sur la fiche détail).
     ctaLabel = 'Se connecter'
     ctaAria = `Se connecter pour s'inscrire à ${item.titre}`
+    ctaVariant = 'ghost'
   } else if (isInscrit) {
     ctaLabel = 'Inscrit·e'
     ctaAria = `Désinscription de ${item.titre}`

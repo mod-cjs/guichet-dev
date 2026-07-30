@@ -111,7 +111,10 @@ export function WelcomeHeroMobile() {
         </div>
       </section>
 
+      {/* Barre d'action de fin d'écran : signalée au bouton flottant Yaye pour
+          qu'il remonte au-dessus (GUIC-689, règle handoff v5). */}
       <div
+        data-fab-clearance
         className="flex-shrink-0 px-space-5"
         style={{
           background: 'var(--gj-ink-teal)',

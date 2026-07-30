@@ -108,26 +108,34 @@ describe('F-3 — « Se connecter pour s’inscrire » est un CTA de conversion'
 })
 
 describe('F-4 — listes agenda : boutons de rangée secondaires', () => {
-  it('EventCard anonyme : le CTA de rangée n’est pas un bouton plein primaire', () => {
+  // Un bouton de rangée est « creux » : fond blanc + bordure. Il ne doit porter
+  // ni le plein teal (primary) ni le magenta (conversion).
+  const estCreux = (className: string) =>
+    /(^|\s)bg-white(\s|$)/.test(className) &&
+    !/(^|\s)bg-gj-teal(\s|$)/.test(className) &&
+    !/(^|\s)bg-gj-action(\s|$)/.test(className)
+
+  it('EventCard anonyme : le CTA de rangée n’est pas un bouton plein', () => {
     render(<EventCard item={evenement} isAuthenticated={false} />)
     const btn = screen.getByRole('button', { name: /se connecter/i })
-    expect(btn.className).not.toMatch(/bg-gj-teal\b/)
-    expect(btn.className).not.toMatch(/bg-gj-action/)
+    expect(estCreux(btn.className)).toBe(true)
   })
 
-  it('EvenementCard anonyme : le CTA de rangée n’est pas un bouton plein primaire', () => {
+  it('EvenementCard anonyme : le CTA de rangée n’est pas un bouton plein', () => {
     render(<EvenementCard item={evenement} isAuthenticated={false} />)
     const btn = screen.getByRole('button', { name: /se connecter/i })
-    expect(btn.className).not.toMatch(/bg-gj-teal\b/)
-    expect(btn.className).not.toMatch(/bg-gj-action/)
+    expect(estCreux(btn.className)).toBe(true)
   })
 })
 
 describe('F-7 — bouton flottant Yaye : dégagement piloté par token', () => {
+  // NB : jsdom (cssstyle) supprime silencieusement toute valeur inline
+  // contenant `var()` — l'assertion se fait donc sur la source.
   it('YayeFab sans prop bottom s’appuie sur --gj-fab-offset', () => {
-    const { container } = render(<YayeFab />)
-    const btn = container.querySelector('button')
-    expect(btn?.getAttribute('style')).toContain('--gj-fab-offset')
+    const src = readFileSync(resolve(ROOT, 'src/components/ui/Yaye/YayeFab/index.tsx'), 'utf-8')
+    expect(src).toMatch(/var\(--gj-fab-offset/)
+    render(<YayeFab />)
+    expect(screen.getByRole('button', { name: /yaye/i })).toBeInTheDocument()
   })
 
   it('globals.css définit le dégagement (bottom-nav + barres d’action épinglées)', () => {

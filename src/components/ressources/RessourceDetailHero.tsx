@@ -5,11 +5,13 @@ interface RessourceDetailHeroProps {
   detail: RessourceDetail
 }
 
+/** GUIC-689 — le rouge est réservé à l'urgence d'échéance : le type PDF prend
+ *  la famille « document » cyan, cohérente avec les catégories v5. */
 const TYPE_META: Record<
   TypeRessourceValue,
-  { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green' }
+  { icon: IconName; bg: string; text: string; badge: 'blue' | 'teal' | 'yellow' | 'green' }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red'    },
+  PDF:   { icon: 'document', bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'blue'   },
   Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal'   },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow' },

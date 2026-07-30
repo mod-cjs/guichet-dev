@@ -86,7 +86,10 @@ export function EvenementInscriptionCta({
   // (non connecté, désinscription) gardent leur style actuel.
   let variant: 'primary' | 'ghost' | 'cta' = 'primary'
   if (!isAuthenticated) {
+    // Même geste de conversion que « Se connecter pour postuler » côté offre :
+    // c'est l'action unique de la fiche, elle porte le magenta.
     label = "Se connecter pour s'inscrire"
+    variant = 'cta'
   } else if (inscrit) {
     label = 'Se désinscrire'
     variant = 'ghost'
