@@ -87,16 +87,29 @@ function typeOuvert(
 
 // ── Construction du document ─────────────────────────────────────────────────────
 
-function proprietes(
+/**
+ * Forme résolue d'une colonne exportée : type JSON, nullabilité, énumération,
+ * description et tier. Partagée par l'OpenAPI et les schémas du tap Singer, pour que les
+ * deux contrats publiés ne puissent pas diverger.
+ */
+export interface ColonneResolue {
+  type: string | string[]
+  format?: string
+  enum?: string[]
+  description: string
+  tier: string
+}
+
+export function resoudreColonnes(
   descriptor: StreamDescriptor,
   fields: FieldDoc[],
   enums: Record<string, string[]>
-): Record<string, YamlValue> {
+): Record<string, ColonneResolue> {
   const specs = streams[descriptor.name as keyof typeof streams].fields as Record<
     string,
     { outputType?: string; description?: string }
   >
-  const out: Record<string, YamlValue> = {}
+  const out: Record<string, ColonneResolue> = {}
 
   for (const column of descriptor.columns) {
     const field = fields.find((f) => f.field === column.field)
@@ -112,14 +125,27 @@ function proprietes(
 
     const base = typeOuvert(field, spec?.outputType, enums)
     out[column.as] = {
-      ...base,
-      // Une transformation change le type : `nullable` ne se déduit plus de la source.
+      ...(base as { type: string; format?: string; enum?: string[] }),
+      // Une transformation change le type : la nullabilité ne se déduit plus de la source.
       ...(field.optional && !column.transform
-        ? { type: [base.type as string, 'null'] as YamlValue }
+        ? { type: [base.type as string, 'null'] }
         : {}),
       description,
-      'x-cjs-tier': column.tier,
+      tier: column.tier,
     }
+  }
+  return out
+}
+
+function proprietes(
+  descriptor: StreamDescriptor,
+  fields: FieldDoc[],
+  enums: Record<string, string[]>
+): Record<string, YamlValue> {
+  const out: Record<string, YamlValue> = {}
+  for (const [nom, colonne] of Object.entries(resoudreColonnes(descriptor, fields, enums))) {
+    const { tier, ...reste } = colonne
+    out[nom] = { ...(reste as Record<string, YamlValue>), 'x-cjs-tier': tier }
   }
   return out
 }
