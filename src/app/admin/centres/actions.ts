@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
-import { Region } from '@prisma/client'
+import { Prisma, Region, CentreService } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
@@ -27,6 +27,13 @@ const centreSchema = z.object({
     .regex(/^\+221\d{9}$/, 'Téléphone au format E.164 sénégalais : +221XXXXXXXXX'),
   responsable: z.string().trim().min(1, 'Responsable requis'),
   ville: z.string().trim().max(100).optional().nullable(),
+  // E-mail optionnel : chaîne vide → null (le champ n'est pas requis dans la maquette).
+  email: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    z.string().trim().email('E-mail invalide').max(255).nullable().optional(),
+  ),
+  // Services : sous-ensemble de l'enum CentreService (stocké en Json string[]).
+  services: z.array(z.nativeEnum(CentreService)).optional().default([]),
   estActif: z.boolean().optional().default(true),
 })
 
@@ -49,6 +56,8 @@ function toData(data: z.output<typeof centreSchema>) {
     telephone: data.telephone,
     responsable: data.responsable,
     ville: data.ville ?? null,
+    email: data.email ?? null,
+    services: (data.services ?? []) as Prisma.InputJsonValue,
     estActif: data.estActif,
   }
 }

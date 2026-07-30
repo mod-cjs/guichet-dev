@@ -8,18 +8,29 @@ import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
 import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
 import { regionLabel } from '@/lib/regions'
-import { centreAccent } from '@/lib/centre-accent'
+import { centreRgb } from '@/lib/centre-accent'
 import { parseTab } from '@/lib/centre-fiche-tabs'
+import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreFrequentation } from './CentreFrequentation'
+import { CentreEditButton } from './CentreEditButton'
 import { AdminCentreRessources, type RessourceCentreItem } from './ressources/AdminCentreRessources'
 
 export const metadata: Metadata = { title: 'Fiche centre — Admin CJS' }
 
 const JOUR_ORDER: Record<string, number> = { Lundi: 0, Mardi: 1, Mercredi: 2, Jeudi: 3, Vendredi: 4, Samedi: 5, Dimanche: 6 }
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }
-const h2: CSSProperties = { fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)', margin: '0 0 12px' }
+
+/** En-tête de section fidèle maquette : tiret doré + filet (`.dps h6`). */
+function SectionH6({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '0 0 12px', paddingBottom: 9, borderBottom: '1px solid var(--gj-line)', fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)' }}>
+      <span aria-hidden style={{ width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flex: 'none' }} />
+      {children}
+    </div>
+  )
+}
 
 function initials(nom: string): string {
   const parts = nom.replace(/^CJS\s+/i, '').trim().split(/\s+/).filter(Boolean)
@@ -45,16 +56,37 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   })
   if (!centre) notFound()
 
-  const accent = centreAccent(String(centre.region))
+  const rgb = centreRgb(String(centre.region))
   const services = Array.isArray(centre.services) ? (centre.services as string[]) : []
   const horaires = [...centre.horaires].sort((a, b) => (JOUR_ORDER[a.jour] ?? 9) - (JOUR_ORDER[b.jour] ?? 9))
+  const now = new Date()
+  const jourAuj = jourCourant(now)
+  const statut = statutOuverture(horaires, now)
 
-  const kpis = [
-    { label: 'Jeunes rattachés', value: centre._count.profilsRattaches.toLocaleString('fr-FR') },
-    { label: 'Agents', value: String(centre._count.agents) },
-    { label: 'Ressources', value: String(centre._count.ressources) },
-    { label: 'Insertions', value: String(centre._count.insertions) },
+  // Métriques de la Vue d'ensemble (fidélité maquette : 4 KPIs + trend réel).
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const [frequentationMois, frequentationPrev, ressourcesActives] = await Promise.all([
+    prisma.checkIn.count({ where: { centreId: id, effectueA: { gte: monthStart } } }),
+    prisma.checkIn.count({ where: { centreId: id, effectueA: { gte: prevMonthStart, lt: monthStart } } }),
+    prisma.ressourceCentre.count({ where: { centreId: id, estActive: true } }),
+  ])
+  const jeunes = centre._count.profilsRattaches
+  const tauxInsertion = jeunes > 0 ? Math.round((centre._count.insertions / jeunes) * 100) : 0
+  const freqDeltaPct = frequentationPrev > 0 ? Math.round(((frequentationMois - frequentationPrev) / frequentationPrev) * 100) : null
+
+  const kpis: { value: string; label: string; trend?: string }[] = [
+    { value: jeunes.toLocaleString('fr-FR'), label: 'Jeunes suivis' },
+    { value: frequentationMois.toLocaleString('fr-FR'), label: 'Fréquentation / mois', trend: freqDeltaPct != null && freqDeltaPct >= 0 ? `+${freqDeltaPct}%` : freqDeltaPct != null ? `${freqDeltaPct}%` : undefined },
+    { value: `${tauxInsertion} %`, label: "Taux d'insertion" },
+    { value: String(ressourcesActives), label: 'Ressources actives' },
   ]
+
+  const editValues = {
+    id: centre.id, nom: centre.nom, region: String(centre.region), adresse: centre.adresse,
+    latitude: centre.latitude, longitude: centre.longitude, telephone: centre.telephone,
+    responsable: centre.responsable,
+  }
 
   // ── Données de l'onglet actif ──────────────────────────────────────────────
   let ressourceItems: RessourceCentreItem[] = []
@@ -76,31 +108,25 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <Icon name="chevron-left" size={15} /> Retour aux centres
       </Link>
 
-      {/* Header letterhead (couleur région) */}
-      <div style={{ ...card, padding: 0, overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: `var(${accent.soft})`, borderBottom: '1px solid var(--gj-line)' }}>
-          <span aria-hidden style={{ width: 52, height: 52, borderRadius: 13, flexShrink: 0, display: 'inline-grid', placeItems: 'center', color: 'var(--color-text-on-dark)', fontWeight: 900, fontSize: 17, background: `var(${accent.ink})`, boxShadow: 'var(--gj-edge)' }}>
-            {initials(centre.nom).toUpperCase()}
-          </span>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--gj-ink)', margin: 0 }}>{centre.nom}</h1>
-            <div style={{ fontSize: 12.5, color: 'var(--gj-grey)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Icon name="pin" size={13} /> {regionLabel(String(centre.region)) ?? centre.region}
-              {centre.adresse ? ` · ${centre.adresse}` : ''}
-            </div>
+      {/* Header letterhead (couleur région) — statut d'ouverture + Éditer (maquette) */}
+      <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 14, background: `rgba(${rgb}, .13)`, marginBottom: 16 }}>
+        <span aria-hidden style={{ width: 52, height: 52, borderRadius: 13, flexShrink: 0, display: 'inline-grid', placeItems: 'center', color: 'var(--color-text-on-dark)', fontWeight: 900, fontSize: 17, background: `rgb(${rgb})`, boxShadow: 'var(--gj-edge)' }}>
+          {initials(centre.nom).toUpperCase()}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+            <span style={{ borderRadius: 999, fontSize: 10.5, fontWeight: 800, padding: '3px 10px', background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>{regionLabel(String(centre.region)) ?? centre.region}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 800, color: statut.ouvert ? 'var(--gj-green-ink)' : 'var(--gj-grey)' }}>
+              <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: statut.ouvert ? 'var(--gj-green-ink)' : 'var(--gj-grey)' }} />
+              {statut.label}
+            </span>
           </div>
-          <span style={{ flexShrink: 0, borderRadius: 999, fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 10px', background: centre.estActif ? 'var(--gj-green-soft)' : 'var(--gj-line)', color: centre.estActif ? 'var(--gj-green-ink)' : 'var(--gj-grey)' }}>
-            {centre.estActif ? 'Actif' : 'Inactif'}
-          </span>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--gj-ink)', margin: '4px 0 0' }}>{centre.nom}</h1>
+          <div style={{ fontSize: 12.5, color: 'var(--gj-grey)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+            <Icon name="pin" size={13} /> {regionLabel(String(centre.region)) ?? centre.region}{centre.adresse ? ` · ${centre.adresse}` : ''}
+          </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 0 }}>
-          {kpis.map((k, i) => (
-            <div key={k.label} style={{ textAlign: 'center', padding: '14px 8px', borderLeft: i % 4 === 0 ? 'none' : '1px solid var(--gj-line)', borderTop: i >= 2 ? '1px solid var(--gj-line)' : 'none' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--gj-ink)', fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
-              <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', marginTop: 3 }}>{k.label}</div>
-            </div>
-          ))}
-        </div>
+        <CentreEditButton centre={editValues} />
       </div>
 
       {/* Onglets */}
@@ -108,50 +134,74 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <CentreFicheTabs centreId={id} active={tab} />
       </div>
 
-      {/* Contenu de l'onglet */}
+      {/* Contenu de l'onglet — Vue d'ensemble (fidélité maquette) */}
       {tab === 'vue' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-[16px] items-start">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Carte GPS + Contact côte à côte */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[16px] items-stretch">
+            <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+              <CentresMapGoogle centres={[{ id: centre.id, nom: centre.nom, latitude: centre.latitude, longitude: centre.longitude }]} centresForList={[{ id: centre.id, nom: centre.nom, region: String(centre.region), slug: centre.slug ?? '' }]} height={280} zoom={13} disableUI />
+            </div>
             <div style={card}>
-              <h2 style={h2}>Coordonnées</h2>
-              <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', margin: 0 }}>
-                {[['Responsable', centre.responsable], ['Téléphone', centre.telephone], ['Email', centre.email], ['Ville', centre.ville]].filter(([, v]) => v).map(([k, v]) => (
+              <SectionH6>Contact</SectionH6>
+              <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 16px', margin: 0 }}>
+                {[['Responsable', centre.responsable], ['Téléphone', centre.telephone], ['E-mail', centre.email], ['Adresse', centre.adresse]].filter(([, v]) => v).map(([k, v]) => (
                   <div key={k as string}>
-                    <dt style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)' }}>{k}</dt>
-                    <dd style={{ margin: 0, fontSize: 13.5, color: 'var(--gj-ink)', wordBreak: 'break-word' }}>{v}</dd>
+                    <dt style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)', marginBottom: 4 }}>{k}</dt>
+                    <dd style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--gj-ink)', wordBreak: 'break-word' }}>{v}</dd>
                   </div>
                 ))}
               </dl>
-              {services.length > 0 && (
-                <>
-                  <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)', margin: '14px 0 8px' }}>Services</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {services.map((s) => (
-                      <span key={s} style={{ fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)' }}>{s.replace(/_/g, ' ')}</span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <div style={card}>
-              <h2 style={h2}>Horaires</h2>
-              {horaires.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--gj-grey)' }}>Aucun horaire renseigné.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {horaires.map((hr) => (
-                    <div key={hr.jour} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--gj-line)', fontSize: 13 }}>
-                      <span style={{ color: 'var(--gj-ink)', fontWeight: 600 }}>{hr.jour}</span>
-                      <span style={{ color: hr.ouvert ? 'var(--gj-ink)' : 'var(--gj-grey)' }}>{hr.ouvert && hr.ouvreA ? `${hr.ouvreA} – ${hr.fermeA}` : 'Fermé'}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
+
+          {/* 4 KPIs pleine largeur (fidélité maquette : 28px + trend vert) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-[12px]">
+            {kpis.map((k) => (
+              <div key={k.label} style={{ ...card, padding: '15px 16px' }}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--gj-ink)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{k.value}</div>
+                <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', marginTop: 6 }}>{k.label}</div>
+                {k.trend && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', marginTop: 6 }}>{k.trend}</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Services proposés — grille + puce ronde (maquette .svcgrid) */}
+          {services.length > 0 && (
+            <div style={card}>
+              <SectionH6>Services proposés</SectionH6>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                {services.map((s) => (
+                  <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--gj-ink)', background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 9, padding: '8px 11px' }}>
+                    <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gj-green-ink)', flexShrink: 0 }} />
+                    {s.replace(/_/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Horaires — jour courant surligné */}
           <div style={card}>
-            <h2 style={h2}>Localisation</h2>
-            <CentresMapGoogle centres={[{ id: centre.id, nom: centre.nom, latitude: centre.latitude, longitude: centre.longitude }]} centresForList={[{ id: centre.id, nom: centre.nom, region: String(centre.region), slug: centre.slug ?? '' }]} height={280} zoom={13} disableUI />
+            <SectionH6>Horaires d&apos;ouverture</SectionH6>
+            {horaires.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--gj-grey)' }}>Aucun horaire renseigné.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {horaires.map((hr) => {
+                  const auj = hr.jour === jourAuj
+                  const c = auj ? 'var(--gj-yellow-ink)' : 'var(--gj-ink)'
+                  return (
+                    <div key={hr.jour} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--gj-line)', fontSize: 13 }}>
+                      <span style={{ color: c, fontWeight: auj ? 800 : 600 }}>{hr.jour}{auj ? ' · aujourd’hui' : ''}</span>
+                      <span style={{ color: hr.ouvert ? c : 'var(--gj-grey)', fontWeight: auj ? 800 : 400 }}>{hr.ouvert && hr.ouvreA ? `${hr.ouvreA} – ${hr.fermeA}` : 'Fermé'}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

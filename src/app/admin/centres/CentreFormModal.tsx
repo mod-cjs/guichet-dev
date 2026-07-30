@@ -2,48 +2,41 @@
 
 import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { regionLabel } from '@/lib/regions'
-import { Region } from '@prisma/client'
+import { CENTRE_SERVICES } from '@/lib/centre-services'
+import type { Region, CentreService } from '@prisma/client'
 import { creerCentre, modifierCentre } from './actions'
 
-const REGIONS = [
+const REGIONS: Region[] = [
   'Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga',
   'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou',
-]
-const REGION_OPTIONS = REGIONS.map((r) => ({ value: r, label: regionLabel(r) ?? r }))
-const STATUT_OPTIONS = [
-  { value: 'true', label: 'Actif' },
-  { value: 'false', label: 'Inactif' },
-]
+] as Region[]
 
-// B1 — messages de validation natifs en FRANÇAIS (au lieu des tooltips browser EN).
-function setFrValidity(el: HTMLInputElement) {
-  const v = el.validity
-  if (v.valueMissing) el.setCustomValidity('Ce champ est requis.')
-  else if (v.patternMismatch) el.setCustomValidity('Format attendu : +221 suivi de 9 chiffres.')
-  else if (v.rangeOverflow || v.rangeUnderflow) el.setCustomValidity('Valeur hors des limites autorisées.')
-  else if (v.badInput) el.setCustomValidity('Valeur numérique attendue.')
-  else el.setCustomValidity('')
-}
-const frInval = {
-  onInvalid: (e: React.FormEvent<HTMLInputElement>) => setFrValidity(e.currentTarget),
-  onInput: (e: React.FormEvent<HTMLInputElement>) => e.currentTarget.setCustomValidity(''),
-}
+// Styles fidèles à la maquette (console admin, `.fmodal`) — tokens uniquement, thème-conscients.
+const LABEL = 'block text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-color-text-muted mb-[7px]'
+const FIELD =
+  'w-full rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[10px] ' +
+  'text-[13px] text-color-text-primary font-[inherit] outline-none transition-colors ' +
+  'focus:border-[color:var(--gj-admin-gold)]'
+const FROW = 'grid grid-cols-2 gap-[14px]'
+const SEG_BTN = 'rounded-[9px] border px-2 py-[10px] text-[12.5px] font-bold transition-colors'
+const SEG_OFF = 'border-[color:var(--gj-line-strong)] bg-transparent text-color-text-secondary hover:text-color-text-primary'
+const SEG_ON = 'border-transparent bg-[var(--gj-admin-gold)] text-[color:var(--gj-admin-on-gold)]'
 
 /** Valeurs initiales pour l'édition (sous-ensemble des champs Centre éditables). */
 export interface CentreFormValues {
   id?: string
   nom?: string
   region?: string
+  ville?: string | null
   adresse?: string
   latitude?: number
   longitude?: number
   telephone?: string
+  email?: string | null
   responsable?: string
-  ville?: string | null
+  services?: string[]
   estActif?: boolean
 }
 
@@ -56,19 +49,33 @@ export interface CentreFormModalProps {
   onSuccess?: (action: 'create' | 'update') => void
 }
 
+function Fld({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className={LABEL}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
 export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFormModalProps) {
   const editing = Boolean(centre?.id)
   const [nom, setNom] = useState(centre?.nom ?? '')
   const [region, setRegion] = useState<string>(centre?.region ?? 'Dakar')
+  const [ville, setVille] = useState(centre?.ville ?? '')
   const [adresse, setAdresse] = useState(centre?.adresse ?? '')
   const [latitude, setLatitude] = useState(centre?.latitude != null ? String(centre.latitude) : '')
   const [longitude, setLongitude] = useState(centre?.longitude != null ? String(centre.longitude) : '')
   const [telephone, setTelephone] = useState(centre?.telephone ?? '')
+  const [email, setEmail] = useState(centre?.email ?? '')
   const [responsable, setResponsable] = useState(centre?.responsable ?? '')
-  const [ville, setVille] = useState(centre?.ville ?? '')
-  const [estActif, setEstActif] = useState(centre?.estActif ?? true)
+  const [services, setServices] = useState<string[]>(centre?.services ?? [])
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  function toggleService(value: string) {
+    setServices((prev) => (prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]))
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -76,13 +83,15 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
     const input = {
       nom,
       region: region as Region,
+      ville: ville.trim() || null,
       adresse,
       latitude: Number(latitude),
       longitude: Number(longitude),
       telephone,
+      email: email.trim() || null,
       responsable,
-      ville: ville.trim() || null,
-      estActif,
+      services: services as CentreService[],
+      estActif: centre?.estActif ?? true,
     }
     startTransition(async () => {
       try {
@@ -97,29 +106,95 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
       } catch {
         setError(
           'Échec — vérifie les champs : téléphone au format +221XXXXXXXXX, ' +
-            'latitude (-90 à 90) et longitude (-180 à 180) numériques, région valide.',
+            'e-mail valide, latitude (-90 à 90) et longitude (-180 à 180) numériques.',
         )
       }
     })
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Modifier le centre' : 'Ajouter un centre'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
-        <Input id="centre-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} {...frInval} />
-        <Select id="centre-region" label="Région" options={REGION_OPTIONS} value={region} onChange={(e) => setRegion(e.target.value)} />
-        <Input id="centre-adresse" label="Adresse" required value={adresse} onChange={(e) => setAdresse(e.target.value)} {...frInval} />
-        <Input id="centre-latitude" label="Latitude" type="number" step="any" min={-90} max={90} required value={latitude} onChange={(e) => setLatitude(e.target.value)} {...frInval} />
-        <Input id="centre-longitude" label="Longitude" type="number" step="any" min={-180} max={180} required value={longitude} onChange={(e) => setLongitude(e.target.value)} {...frInval} />
-        <Input id="centre-telephone" label="Téléphone (format +221XXXXXXXXX)" type="tel" inputMode="tel" pattern="\+221[0-9]{9}" placeholder="+221770000000" required value={telephone} onChange={(e) => setTelephone(e.target.value)} {...frInval} />
-        <Input id="centre-responsable" label="Responsable" required value={responsable} onChange={(e) => setResponsable(e.target.value)} {...frInval} />
-        <Input id="centre-ville" label="Ville" value={ville ?? ''} onChange={(e) => setVille(e.target.value)} />
-        <Select id="centre-statut" label="Statut" options={STATUT_OPTIONS} value={String(estActif)} onChange={(e) => setEstActif(e.target.value === 'true')} />
-        {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
-        <div className="flex items-center justify-end gap-space-2 mt-space-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>Annuler</Button>
-          <Button type="submit" variant="primary" disabled={pending}>{editing ? 'Enregistrer' : 'Créer'}</Button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editing ? `Éditer · ${centre?.nom ?? 'centre'}` : 'Nouveau centre'}
+      maxWidth="max-w-[640px]"
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}
+            className="!bg-transparent !text-color-text-secondary border border-[color:var(--gj-line-strong)] hover:!text-color-text-primary">
+            Annuler
+          </Button>
+          <Button type="submit" form="centre-form" variant="primary" disabled={pending}
+            className="!bg-[var(--gj-admin-gold)] !text-[color:var(--gj-admin-on-gold)] hover:!opacity-90">
+            {editing ? 'Enregistrer' : 'Créer le centre'}
+          </Button>
+        </>
+      }
+    >
+      <form id="centre-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px]">
+        <Fld label="Nom" htmlFor="centre-nom">
+          <input id="centre-nom" className={FIELD} required placeholder="CJS …" value={nom} onChange={(e) => setNom(e.target.value)} />
+        </Fld>
+
+        <div className={FROW}>
+          <Fld label="Région" htmlFor="centre-region">
+            <select id="centre-region" className={FIELD} value={region} onChange={(e) => setRegion(e.target.value)}>
+              {REGIONS.map((r) => (
+                <option key={r} value={r}>{regionLabel(r) ?? r}</option>
+              ))}
+            </select>
+          </Fld>
+          <Fld label="Ville" htmlFor="centre-ville">
+            <input id="centre-ville" className={FIELD} value={ville ?? ''} onChange={(e) => setVille(e.target.value)} />
+          </Fld>
         </div>
+
+        <Fld label="Adresse" htmlFor="centre-adresse">
+          <input id="centre-adresse" className={FIELD} required value={adresse} onChange={(e) => setAdresse(e.target.value)} />
+        </Fld>
+
+        <div className={FROW}>
+          <Fld label="Latitude" htmlFor="centre-latitude">
+            <input id="centre-latitude" className={FIELD} type="number" step="any" min={-90} max={90} required value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+          </Fld>
+          <Fld label="Longitude" htmlFor="centre-longitude">
+            <input id="centre-longitude" className={FIELD} type="number" step="any" min={-180} max={180} required value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+          </Fld>
+        </div>
+
+        <div className={FROW}>
+          <Fld label="Téléphone" htmlFor="centre-telephone">
+            <input id="centre-telephone" className={FIELD} type="tel" inputMode="tel" pattern="\+221[0-9]{9}" placeholder="+221770000000" required value={telephone} onChange={(e) => setTelephone(e.target.value)} />
+          </Fld>
+          <Fld label="E-mail" htmlFor="centre-email">
+            <input id="centre-email" className={FIELD} type="email" placeholder="contact@cjs.sn" value={email ?? ''} onChange={(e) => setEmail(e.target.value)} />
+          </Fld>
+        </div>
+
+        <Fld label="Responsable" htmlFor="centre-responsable">
+          <input id="centre-responsable" className={FIELD} required value={responsable} onChange={(e) => setResponsable(e.target.value)} />
+        </Fld>
+
+        <Fld label="Services">
+          <div className="flex flex-wrap gap-[6px]" role="group" aria-label="Services">
+            {CENTRE_SERVICES.map((s) => {
+              const on = services.includes(s.value)
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleService(s.value)}
+                  className={`flex-1 min-w-[104px] ${SEG_BTN} ${on ? SEG_ON : SEG_OFF}`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
+          </div>
+        </Fld>
+
+        {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
       </form>
     </Modal>
   )

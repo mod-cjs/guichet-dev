@@ -7,8 +7,12 @@
 jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 
 const mockFindMany = jest.fn()
+const mockGroupBy = jest.fn()
 jest.mock('@/lib/prisma', () => ({
-  prisma: { centre: { findMany: (...a: unknown[]) => mockFindMany(...a) } },
+  prisma: {
+    centre: { findMany: (...a: unknown[]) => mockFindMany(...a) },
+    agentCentre: { groupBy: (...a: unknown[]) => mockGroupBy(...a) },
+  },
 }))
 
 const mockRedirect = jest.fn((path: string) => {
@@ -32,6 +36,7 @@ const mockGetSession = getSession as jest.Mock
 beforeEach(() => {
   jest.clearAllMocks()
   mockFindMany.mockResolvedValue([])
+  mockGroupBy.mockResolvedValue([])
 })
 
 describe('GUIC-461 (F0) — garde admin /admin/centres', () => {

@@ -1,48 +1,51 @@
 /** @jest-environment jsdom */
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { CentreCard, type CentreCardData } from './index'
 
-const base: CentreCardData = { id: 'c1', nom: 'Centre de Dakar', region: 'Dakar', estActif: true, jeunes: 542, agents: 7 }
+const base: CentreCardData = {
+  id: 'c1', nom: 'CJS Dakar', region: 'Dakar', estActif: true,
+  staff: 8, jeunes: 8940, insertion: 42, ouvert: true, fermeA: '17:00',
+  services: ['WiFi', 'Bibliotheque', 'Coworking', 'Ateliers', 'Conseiller'],
+}
 
-describe('CentreCard', () => {
-  it('affiche nom, région, badge Actif et les stats jeunes/agents', () => {
-    render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
-    expect(screen.getByText('Centre de Dakar')).toBeInTheDocument()
+describe('CentreCard (fidélité maquette : 3 stats + footer)', () => {
+  it('affiche nom, région, badge Actif et les 3 stats Staff/Jeunes/Insertion', () => {
+    render(<CentreCard centre={base} />)
+    expect(screen.getByText('CJS Dakar')).toBeInTheDocument()
     expect(screen.getByText('Dakar')).toBeInTheDocument()
     expect(screen.getByText(/^Actif$/)).toBeInTheDocument()
-    expect(screen.getByText('542')).toBeInTheDocument()
-    expect(screen.getByText('7')).toBeInTheDocument()
+    expect(screen.getByText('8')).toBeInTheDocument()       // staff
+    expect(screen.getByText('8 940')).toBeInTheDocument()   // jeunes
+    expect(screen.getByText('42%')).toBeInTheDocument()     // insertion
+    expect(screen.getByText(/Staff/i)).toBeInTheDocument()
+    expect(screen.getByText(/Insertion/i)).toBeInTheDocument()
   })
 
-  it('inactif → badge Inactif', () => {
-    render(<CentreCard centre={{ ...base, estActif: false }} onEdit={() => {}} onDelete={() => {}} />)
+  it('footer : statut d’ouverture + services (max 3 + compteur)', () => {
+    render(<CentreCard centre={base} />)
+    expect(screen.getByText(/Ouvert · ferme 17:00/)).toBeInTheDocument()
+    expect(screen.getByText('WiFi')).toBeInTheDocument()
+    expect(screen.getByText('+2')).toBeInTheDocument() // 5 services → 3 affichés + « +2 »
+  })
+
+  it('fermé : statut Fermé', () => {
+    render(<CentreCard centre={{ ...base, ouvert: false, fermeA: null }} />)
+    expect(screen.getByText(/^Fermé$/)).toBeInTheDocument()
+  })
+
+  it('inactif : badge Inactif', () => {
+    render(<CentreCard centre={{ ...base, estActif: false }} />)
     expect(screen.getByText(/^Inactif$/)).toBeInTheDocument()
   })
 
-  it('la carte ouvre la fiche du centre (GUIC-687)', () => {
-    render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
+  it('toute la carte ouvre la fiche du centre', () => {
+    render(<CentreCard centre={base} />)
     expect(screen.getByRole('link', { name: /fiche de/i })).toHaveAttribute('href', '/admin/centres/c1')
   })
 
-  it('lien Ressources vers l\'onglet ressources de la fiche', () => {
-    render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
-    expect(screen.getByRole('link', { name: /Ressources/ })).toHaveAttribute('href', '/admin/centres/c1?tab=ressources')
-  })
-
-  it('Modifier / Supprimer déclenchent les callbacks avec le centre', async () => {
-    const onEdit = jest.fn()
-    const onDelete = jest.fn()
-    render(<CentreCard centre={base} onEdit={onEdit} onDelete={onDelete} />)
-    await userEvent.click(screen.getByRole('button', { name: /modifier/i }))
-    await userEvent.click(screen.getByRole('button', { name: /supprimer/i }))
-    expect(onEdit).toHaveBeenCalledWith(base)
-    expect(onDelete).toHaveBeenCalledWith(base)
-  })
-
-  it('n’utilise aucune valeur hex inline (tokens gj-* uniquement)', () => {
-    const { container } = render(<CentreCard centre={base} onEdit={() => {}} onDelete={() => {}} />)
-    const styles = Array.from(container.querySelectorAll('[style]')).map((el) => el.getAttribute('style') ?? '').join(' ')
-    expect(styles).not.toMatch(/#[0-9a-fA-F]{3,6}(?![0-9a-fA-F])/)
+  it('applique la couleur de région via --cc (rgb, pas de hex en dur)', () => {
+    const { container } = render(<CentreCard centre={base} />)
+    const root = container.querySelector('a') as HTMLElement
+    expect(root.style.getPropertyValue('--cc')).toMatch(/^\d+,\d+,\d+$/)
   })
 })
