@@ -170,4 +170,19 @@ describe('<CentresAllClient /> — fixes W2', () => {
     )
     expect(screen.queryByLabelText(/Légende de la carte/i)).not.toBeInTheDocument()
   })
+
+  // ──────────────── GUIC-689 — hygiène tokens design v5 ────────────────
+
+  it('GUIC-689 — h1 "Centres CJS" en text-fs-800 (aligné agenda/ressources)', () => {
+    render(<CentresAllClient centres={[baseCentre]} userIsConnected={false} />)
+    const h1 = screen.getByRole('heading', { level: 1, name: /Centres CJS/i })
+    expect(h1.className).toMatch(/text-fs-800/)
+    expect(h1.className).not.toMatch(/text-fs-500/)
+  })
+
+  // Note : la vérification précise border/couleur du bouton desktop "Mes
+  // réservations" (var(--gj-line)/var(--gj-ink)) est couverte par sentinelle
+  // fs dans tests/unit/design-v5-tokens-hygiene.test.ts — jsdom (cssstyle)
+  // ne sait pas sérialiser un style inline utilisant var() (cf. investigation
+  // GUIC-689 : `el.style.color = 'var(--x)'` est silencieusement ignoré).
 })

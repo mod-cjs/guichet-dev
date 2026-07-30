@@ -31,3 +31,18 @@ describe('GUIC-661 — overlay de déconnexion', () => {
     expect(root.className).toMatch(/\bbg-/)
   })
 })
+
+describe('GUIC-689 — icône succès via le sprite (design v5)', () => {
+  it('affiche <Icon name="check-circle" /> sur fond bg-gj-green-soft', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({} as Response)) as unknown as typeof fetch
+    const { container, findByText } = render(<DeconnexionPage />)
+
+    await findByText('Vous êtes déconnecté')
+
+    const use = container.querySelector('svg use[href="/icons.svg#i-check-circle"]')
+    expect(use).not.toBeNull()
+    const wrapper = use?.closest('div')
+    expect(wrapper?.className).toMatch(/bg-gj-green-soft/)
+    expect(wrapper?.className).not.toMatch(/bg-green-50/)
+  })
+})
