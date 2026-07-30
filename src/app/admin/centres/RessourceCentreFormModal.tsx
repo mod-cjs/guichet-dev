@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { htmlToPlainText } from '@/lib/rich-html'
+import { ImageUploadField } from './ImageUploadField'
 import { creerRessourceCentre, modifierRessourceCentre } from './ressources-actions'
 
 /**
@@ -168,14 +169,13 @@ export function RessourceCentreFormModal({ isOpen, onClose, centreId, ressource 
           </Fld>
         </div>
 
-        <div className={FROW}>
-          <Fld label="Durée min. d’un créneau (min)" htmlFor="rc-duree">
-            <input id="rc-duree" className={FIELD} type="number" min={15} step={15} required value={dureeMinCreneauMin} onChange={(e) => setDuree(e.target.value)} />
-          </Fld>
-          <Fld label="Image (URL, optionnel)" htmlFor="rc-image">
-            <input id="rc-image" className={FIELD} type="url" placeholder="https://…" value={imageUrl ?? ''} onChange={(e) => setImageUrl(e.target.value)} />
-          </Fld>
-        </div>
+        <Fld label="Durée min. d’un créneau (min)" htmlFor="rc-duree">
+          <input id="rc-duree" className={`${FIELD} max-w-[200px]`} type="number" min={15} step={15} required value={dureeMinCreneauMin} onChange={(e) => setDuree(e.target.value)} />
+        </Fld>
+
+        <Fld label="Image (optionnel)">
+          <ImageUploadField value={imageUrl ?? ''} onChange={setImageUrl} disabled={pending} />
+        </Fld>
 
         <div className={FROW}>
           <Fld label="Justificatif requis ?">
