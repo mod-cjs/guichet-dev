@@ -16,6 +16,7 @@ import {
   URGENT_DAYS_THRESHOLD,
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
+import { regionLabel } from '@/lib/regions'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -33,7 +34,30 @@ interface OpportuniteDetailProps {
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-const humanize = (v: string) => v.replace(/_/g, ' ').toLowerCase()
+
+// GUIC-689 (F-6) — acronymes courants des enums métier : ils doivent rester en
+// majuscules (jamais "cdd"/"pdf" en toutes lettres minuscules).
+const ACRONYMES_CONNUS = new Set(['CDD', 'CDI', 'PDF', 'CV', 'ONG'])
+
+/**
+ * Formate un enum brut (`SNAKE_CASE`, `PascalCase` ou toute casse Prisma) en
+ * libellé lisible : chaque mot est capitalisé (première lettre en majuscule,
+ * reste en minuscules), sauf les acronymes connus qui restent en MAJUSCULES.
+ *
+ * ⚠️ Ne PAS utiliser pour une région : `detail.region` passe par `regionLabel()`
+ * (accents + tiret — « Saint_Louis » → « Saint-Louis », « Thies » → « Thiès »),
+ * que ce formatage générique ne sait pas reproduire.
+ */
+const humanize = (v: string) =>
+  v
+    .split('_')
+    .filter(Boolean)
+    .map((word) =>
+      ACRONYMES_CONNUS.has(word.toUpperCase())
+        ? word.toUpperCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join(' ')
 
 /**
  * Nombre de jours restants avant la deadline (peut être négatif si dépassée).
@@ -192,7 +216,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
   // Chips meta inline du hero (région / rémunération / délai indicatif).
   const heroChips = useMemo(() => {
     const chips: { icon: 'pin' | 'funding' | 'clock'; label: string }[] = []
-    if (detail.region) chips.push({ icon: 'pin', label: humanize(detail.region) })
+    if (detail.region) chips.push({ icon: 'pin', label: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) chips.push({ icon: 'funding', label: detail.remuneration })
     const jours = joursAvantDeadline(detail.deadline)
     if (jours !== null && jours > 0 && jours <= DEADLINE_VISIBLE_DAYS) {
@@ -207,7 +231,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
       { label: 'Type', value: humanize(detail.type) },
       { label: 'Domaine', value: humanize(detail.domaine) },
     ]
-    if (detail.region) out.push({ label: 'Région', value: humanize(detail.region) })
+    if (detail.region) out.push({ label: 'Région', value: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) out.push({ label: 'Rémunération', value: detail.remuneration })
     out.push({
       label: 'Échéance',
@@ -286,7 +310,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         </h1>
         <p className="text-fs-200 opacity-90 mt-1">
           <b>{detail.organisation}</b>
-          {detail.region ? <> · {humanize(detail.region)}</> : null}
+          {detail.region ? <> · {regionLabel(detail.region) ?? detail.region}</> : null}
         </p>
 
         {/* GUIC-684 — de quel programme CJS relève cette offre. */}

@@ -12,6 +12,7 @@ import {
 } from '@/components/centres'
 import { EmptyState } from '@/components/ui'
 import { Icon } from '@/components/ui/Icon'
+import { regionLabel } from '@/lib/regions'
 
 export interface CentresAllCentre extends CentreRowCentre {
   latitude: number
@@ -77,22 +78,29 @@ export function CentresAllClient({
     track('centres_index_viewed', { source: 'direct' })
   }, [])
 
+  // GUIC-689 (F-6) — les chips `<CentreRegionFilter>` (Wave 7 figée, hors
+  // périmètre) affichent tel quel la valeur reçue dans `regions`/`counts` : on
+  // lui passe donc directement le LIBELLÉ lisible (« Saint-Louis ») plutôt que
+  // la value brute Prisma (« Saint_Louis »). La value/état de filtre devient
+  // ce même libellé (bijectif pour les 14 régions connues), donc le filtrage
+  // ci-dessous compare aussi via `regionLabel` — jamais la value brute seule.
   const regionsList = useMemo(() => {
-    const set = new Set(centres.map((c) => c.region))
+    const set = new Set(centres.map((c) => regionLabel(c.region) ?? c.region))
     return Array.from(set).sort()
   }, [centres])
 
   const regionCounts = useMemo(() => {
     const map: Record<string, number> = {}
     for (const c of centres) {
-      map[c.region] = (map[c.region] ?? 0) + 1
+      const label = regionLabel(c.region) ?? c.region
+      map[label] = (map[label] ?? 0) + 1
     }
     return map
   }, [centres])
 
   const filtered = useMemo(() => {
     if (region === 'all') return centres
-    return centres.filter((c) => c.region === region)
+    return centres.filter((c) => (regionLabel(c.region) ?? c.region) === region)
   }, [centres, region])
 
   const handleRegionChange = (v: string) => {
