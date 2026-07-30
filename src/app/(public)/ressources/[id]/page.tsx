@@ -9,7 +9,6 @@ import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
 import { Breadcrumbs } from '@/components/ui'
 import { RessourceDetailClient } from './ressource-detail-client'
-import { getSession } from '@/lib/auth'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
