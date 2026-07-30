@@ -1,0 +1,68 @@
+version: 1
+default_environment: dev
+project_id: guichet-datahub
+
+# ─────────────────────────────────────────────────────────────────────────────
+# M13 — Pipeline ETL du Data Hub CJS (spec .agent_context/specs/M13-etl-meltano.md).
+#
+# Le tap est le SEUL consommateur de l'API d'export du Guichet : les outils BI lisent
+# PostgreSQL, jamais le Guichet. Cadence quotidienne, conformément à GUIC-13.
+#
+# ⚠ AUCUN SECRET ICI. `auth_token` et les identifiants PostgreSQL viennent de
+# l'environnement du runner qui exécute le pipeline. Le dépôt porte le code et la
+# configuration, jamais les accès.
+# ─────────────────────────────────────────────────────────────────────────────
+
+plugins:
+  extractors:
+    - name: tap-guichet
+      namespace: tap_guichet
+      pip_url: -e plugins/extractors/tap-guichet
+      executable: tap-guichet
+      capabilities:
+        - catalog
+        - state
+        - discover
+      settings:
+        - name: api_url
+        - name: auth_token
+          kind: password
+        - name: start_date
+          kind: date_iso8601
+        - name: page_size
+          kind: integer
+        - name: lookback_minutes
+          kind: integer
+      config:
+        api_url: https://guichet.cjs.sn
+        page_size: 1000
+        # Ne pas descendre à zéro : voir la description du réglage dans le tap.
+        lookback_minutes: 5
+
+  loaders:
+    - name: target-postgres
+      variant: meltanolabs
+      pip_url: meltanolabs-target-postgres
+      config:
+        # Schéma dédié : les modèles dbt lisent ici et écrivent ailleurs, de sorte qu'un
+        # rechargement complet ne détruise jamais la couche exposée aux outils BI.
+        default_target_schema: guichet_raw
+        # Indispensable : le recouvrement du tap produit volontairement des doublons,
+        # que seul un upsert sur la clé primaire absorbe.
+        load_method: upsert
+
+  transformers:
+    - name: dbt-postgres
+      variant: dbt-labs
+      pip_url: dbt-core~=1.8.0 dbt-postgres~=1.8.0
+
+environments:
+  - name: dev
+  - name: prod
+
+schedules:
+  - name: guichet-quotidien
+    extractor: tap-guichet
+    loader: target-postgres
+    transform: run
+    interval: '@daily'
