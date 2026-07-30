@@ -1,8 +1,15 @@
 'use client'
 import Link from 'next/link'
-import { Card, Icon, Tag } from '@/components/ui'
+import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
+import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
+import {
+  mockTypeToOpportuniteType,
+  catFamilyForMockType,
+  CAT_TILE_CLASSES,
+  CAT_BADGE_SOFT_CLASSES,
+} from './candidature-type-compat'
 import type { CandidatureMock } from './types'
 
 export interface CandidatureCardProps {
@@ -61,26 +68,6 @@ function topPillStyle(item: CandidatureMock): PillStyle {
   }
 }
 
-/** Teinte du tile (carré 48 px) entourant l'icône métier — alignée sur la pill. */
-function tileTone(item: CandidatureMock): string {
-  if (item.currentStep === 'Decision' && item.decision === 'Acceptee') {
-    return 'bg-gj-green-soft text-gj-green-ink'
-  }
-  if (item.currentStep === 'Decision' && item.decision === 'Refusee') {
-    return 'bg-gj-red-soft text-gj-red-ink'
-  }
-  switch (item.currentStep) {
-    case 'Brouillon':
-      return 'bg-gj-yellow-soft text-gj-yellow-ink'
-    case 'EnRevue':
-    case 'Entretien':
-      return 'bg-gj-blue-soft text-gj-blue'
-    case 'Envoyee':
-    default:
-      return 'bg-gj-teal-soft text-gj-teal-deep'
-  }
-}
-
 interface ContextualBlock {
   tone: string
   icon: IconName
@@ -136,24 +123,43 @@ function contextualBlockFor(item: CandidatureMock): ContextualBlock | null {
  *  - bloc contextuel coloré par état (brouillon, entretien, décision)
  *  - CTA conditionnel (Reprendre / Préparer / Voir suite / Voir similaires)
  *  - les états silencieux (Envoyée, EnRevue) gardent un simple lien « Voir le détail ».
+ *
+ * GUIC-689 (audit v5) ajoute :
+ *  - badge type recoloré par catégorie (`OpportuniteTypeChip` / compat locale
+ *    pour `Concours`, sans équivalent `TypeOpportunite`) au lieu du `Tag`
+ *    teal par défaut — finding A
+ *  - tuile 48 px recolorée par la catégorie du type, plus par le statut du
+ *    pipeline (qui reste porté par la pill dédiée) — finding B
+ *  - lien étiré : toute la carte ouvre le détail, CTA internes en z-[1]
+ *    (pattern `OppCard`) — finding C
  */
 export function CandidatureCard({ item, iconMetier }: CandidatureCardProps) {
   const pill = topPillStyle(item)
-  const tile = tileTone(item)
+  const catFamily = catFamilyForMockType(item.type)
+  const enumType = mockTypeToOpportuniteType(item.type)
   const icon = iconMetier ?? iconMetierFor(item.type)
   const block = contextualBlockFor(item)
+  const href = `/jeune/mes-candidatures/${item.id}`
 
   return (
     <Card
       as="article"
-      className="flex flex-col gap-space-2"
+      className="relative flex flex-col gap-space-2"
       aria-labelledby={`candidature-title-${item.id}`}
     >
+      {/* Lien étiré — toute la carte ouvre le détail (pattern OppCard, GUIC-689). */}
+      <Link
+        href={href}
+        aria-label={`Voir la candidature : ${item.opportuniteTitre}`}
+        className="absolute inset-0 rounded-gj-lg focus:outline-none
+          focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]"
+      />
+
       <div className="flex items-start gap-space-3">
         <div
           className={[
             'w-12 h-12 rounded-gj-md flex items-center justify-center shrink-0',
-            tile,
+            CAT_TILE_CLASSES[catFamily],
           ].join(' ')}
           data-testid="candidature-tile"
         >
@@ -161,7 +167,20 @@ export function CandidatureCard({ item, iconMetier }: CandidatureCardProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-space-2 flex-wrap">
-            <Tag>{item.type}</Tag>
+            {enumType ? (
+              <OpportuniteTypeChip type={enumType} />
+            ) : (
+              <span
+                data-testid="candidature-type-badge"
+                className={[
+                  'inline-flex items-center px-space-2 py-[2px] rounded-gj-pill',
+                  'text-fs-100 font-black uppercase tracking-[0.4px] leading-none whitespace-nowrap',
+                  CAT_BADGE_SOFT_CLASSES[catFamily],
+                ].join(' ')}
+              >
+                {item.type}
+              </span>
+            )}
             <span
               data-testid="candidature-status-pill"
               className={[
@@ -206,7 +225,7 @@ export function CandidatureCard({ item, iconMetier }: CandidatureCardProps) {
         </div>
       ) : null}
 
-      <div className="flex justify-end pt-space-1">
+      <div className="relative z-[1] flex justify-end pt-space-1">
         {block?.cta ? (
           <Link
             href={block.cta.href}
@@ -216,10 +235,7 @@ export function CandidatureCard({ item, iconMetier }: CandidatureCardProps) {
             {block.cta.label}
           </Link>
         ) : (
-          <Link
-            href={`/jeune/mes-candidatures/${item.id}`}
-            className="text-fs-200 font-bold text-gj-teal-deep hover:underline"
-          >
+          <Link href={href} className="text-fs-200 font-bold text-gj-teal-deep hover:underline">
             Voir le détail →
           </Link>
         )}

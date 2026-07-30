@@ -1,7 +1,10 @@
 import Link from 'next/link'
-import { Card, Icon, Tag } from '@/components/ui'
+import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
+import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
+import { TYPE_CAT } from '@/components/opportunites/opportunite-type-meta'
+import { CAT_TILE_CLASSES } from './candidature-type-compat'
 import type { CandidatureDetailDTO } from '@/lib/candidature-detail-loader'
 import type { CandidatureDecision, PipelineStep } from './types'
 
@@ -83,6 +86,10 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const pipeline = pipelineFromStatut(candidature.statut)
   const pill = STATUT_PILL[candidature.statut]
   const icon = iconForType(candidature.opportunite.type)
+  // GUIC-689 (finding A/B) — `candidature.opportunite.type` porte déjà le vrai
+  // `TypeOpportunite` Prisma (chargé par candidature-detail-loader.ts), pas
+  // besoin de compat : TYPE_CAT/OpportuniteTypeChip s'appliquent directement.
+  const catFamily = TYPE_CAT[candidature.opportunite.type] ?? 'cat-neutre'
   const lettre = candidature.lettreMotivation ?? ''
   const lettreLong = lettre.length > 500
   const lettrePreview = lettreLong ? `${lettre.slice(0, 500)}…` : lettre
@@ -109,13 +116,13 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         <div className="flex items-start gap-space-3">
           <div
             data-testid="detail-hero-tile"
-            className="w-14 h-14 rounded-gj-md bg-gj-teal-soft text-gj-teal-deep flex items-center justify-center shrink-0"
+            className={`w-14 h-14 rounded-gj-md flex items-center justify-center shrink-0 ${CAT_TILE_CLASSES[catFamily]}`}
           >
             <Icon name={icon} size={28} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-space-2 flex-wrap">
-              <Tag>{candidature.opportunite.type}</Tag>
+              <OpportuniteTypeChip type={candidature.opportunite.type} />
               <span
                 data-testid="detail-status-pill"
                 className={[
@@ -207,7 +214,7 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
       <div className="flex flex-col gap-space-2 sm:flex-row sm:justify-end">
         <Link
           href={`/opportunites/${candidature.opportunite.slug}`}
-          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
+          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 min-h-[var(--tap-min)] text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
           data-testid="detail-cta-opportunite"
         >
           Voir l&apos;opportunité
@@ -216,7 +223,7 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         {canWithdraw ? (
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-space-2 rounded-gj-md bg-gj-red-soft px-space-4 py-space-2 text-fs-200 font-bold text-gj-red-ink hover:bg-gj-red-soft/80"
+            className="inline-flex items-center justify-center gap-space-2 rounded-gj-md bg-gj-red-soft px-space-4 py-space-2 min-h-[var(--tap-min)] text-fs-200 font-bold text-gj-red-ink hover:bg-gj-red-soft/80"
             data-testid="detail-cta-withdraw"
           >
             Retirer ma candidature

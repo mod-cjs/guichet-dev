@@ -13,17 +13,17 @@ export interface CandidaturePipelineStepperProps {
 
 type StepState = 'done' | 'current' | 'todo'
 
+/**
+ * GUIC-689 (finding E) — réf design v5 `candidatures-web.jsx` (`CandStepper`) :
+ * teal pour tout ce qui est atteint (étape courante incluse, jamais de jaune
+ * « en cours »), `--gj-line` pour le reste, rouge UNIQUEMENT sur l'étape
+ * finale en cas de refus (jamais de vert pour une acceptation — le dot reste
+ * teal, la décision est déjà portée par la pill de statut).
+ */
 function stateClasses(state: StepState, isFinal: boolean, decision: CandidatureDecision): string {
-  if (state === 'done') return 'bg-gj-teal'
-  if (state === 'current') {
-    if (isFinal) {
-      if (decision === 'Acceptee') return 'bg-gj-green'
-      if (decision === 'Refusee') return 'bg-gj-red'
-      return 'bg-gj-yellow'
-    }
-    return 'bg-gj-yellow'
-  }
-  return 'bg-gj-line'
+  if (state === 'todo') return 'bg-gj-line'
+  if (isFinal && decision === 'Refusee') return 'bg-gj-red'
+  return 'bg-gj-teal'
 }
 
 function labelClasses(state: StepState): string {
