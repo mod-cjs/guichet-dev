@@ -1600,8 +1600,8 @@ model Reservation {
   raisonRefusOuAnnul String?           @map("raison_refus_ou_annul") @db.Text
   noShow             Boolean           @default(false) @map("no_show")
   createdAt          DateTime          @default(now()) @map("created_at")
-  // M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation)
-  // sans qu'aucune colonne ne datait la modification.
+  /// M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation)
+  /// sans qu'aucune colonne ne datait la modification.
   updatedAt          DateTime          @updatedAt @map("updated_at")
   decisionA          DateTime?         @map("decision_a")
   annuleeA           DateTime?         @map("annulee_a")
@@ -2023,8 +2023,8 @@ model Emprunt {
   dateRetourPrevue DateTime?     @map("date_retour_prevue")
   renduA           DateTime?     @map("rendu_a")
   createdAt        DateTime      @default(now()) @map("created_at")
-  // M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour)
-  // sans qu'aucune colonne ne datait la modification.
+  /// M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour)
+  /// sans qu'aucune colonne ne datait la modification.
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
