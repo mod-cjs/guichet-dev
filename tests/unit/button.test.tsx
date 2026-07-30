@@ -54,7 +54,6 @@ describe('<Button />', () => {
   // GUIC-689 — CTA de conversion magenta : `cta` est le SEUL variant qui porte
   // `--gj-action`. `primary` reste teal (navigation/action générique).
   it('applique la variant cta (magenta de conversion)', () => {
-    // @ts-expect-error — GUIC-689 RED : le variant `cta` n'existe pas encore (ajouté en GREEN).
     render(<Button variant="cta">Postuler</Button>)
     const btn = screen.getByRole('button')
     expect(btn.className).toMatch(/bg-gj-action(?!-)/)

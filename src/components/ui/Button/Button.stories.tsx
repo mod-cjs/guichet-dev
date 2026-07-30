@@ -6,7 +6,7 @@ const meta: Meta<typeof Button> = {
   title: 'UI/Button',
   component: Button,
   argTypes: {
-    variant: { control: 'select', options: ['primary', 'secondary', 'ghost', 'text', 'danger'] },
+    variant: { control: 'select', options: ['primary', 'secondary', 'ghost', 'text', 'danger', 'cta'] },
     size: { control: 'select', options: ['sm', 'md', 'lg'] },
   },
   args: { children: 'Action' },
@@ -16,11 +16,15 @@ export default meta
 
 type Story = StoryObj<typeof Button>
 
+// `primary` = action générique / de navigation (teal) — usage libre, plusieurs par écran.
 export const Primary: Story = { args: { variant: 'primary' } }
 export const Secondary: Story = { args: { variant: 'secondary' } }
 export const Ghost: Story = { args: { variant: 'ghost' } }
 export const Text: Story = { args: { variant: 'text', children: 'En savoir plus' } }
 export const Danger: Story = { args: { variant: 'danger', children: 'Supprimer' } }
+// GUIC-689 — `cta` = action de CONVERSION (Postuler, Envoyer ma candidature,
+// S'inscrire…). Magenta charte CJS — UNE SEULE par écran, jamais interverti avec `primary`.
+export const Cta: Story = { args: { variant: 'cta', children: 'Postuler maintenant' } }
 
 export const Loading: Story = { args: { loading: true } }
 export const Disabled: Story = { args: { disabled: true } }
@@ -39,7 +43,7 @@ export const WithIcon: Story = {
 export const AllVariants: Story = {
   render: () => (
     <div style={{ display: 'grid', gap: 12 }}>
-      {(['primary', 'secondary', 'ghost', 'text', 'danger'] as const).map((v) => (
+      {(['primary', 'secondary', 'ghost', 'text', 'danger', 'cta'] as const).map((v) => (
         <div key={v} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button variant={v} size="sm">{v} sm</Button>
           <Button variant={v} size="md">{v} md</Button>

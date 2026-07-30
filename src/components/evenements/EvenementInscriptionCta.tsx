@@ -81,7 +81,10 @@ export function EvenementInscriptionCta({
   }
 
   let label: string
-  let variant: 'primary' | 'ghost' = 'primary'
+  // GUIC-689 — CTA de conversion magenta : `cta` UNIQUEMENT pour l'état
+  // inscriptible (« S'inscrire — c'est gratuit »). Les états secondaires
+  // (non connecté, désinscription) gardent leur style actuel.
+  let variant: 'primary' | 'ghost' | 'cta' = 'primary'
   if (!isAuthenticated) {
     label = "Se connecter pour s'inscrire"
   } else if (inscrit) {
@@ -89,6 +92,7 @@ export function EvenementInscriptionCta({
     variant = 'ghost'
   } else {
     label = "S'inscrire — c'est gratuit"
+    variant = 'cta'
   }
 
   return (

@@ -67,7 +67,7 @@ describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
         complet
       />,
     )
-    const btn = screen.getByRole('button', { name: /^complet$/i })
+    const btn = screen.getByRole('button', { name: /événement complet/i })
     expect(btn.className).not.toMatch(/bg-gj-action/)
   })
 })

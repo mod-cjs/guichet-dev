@@ -51,7 +51,10 @@ describe('<OppCard />', () => {
 
   it("rend un lien étiré vers /opportunites/<slug>", () => {
     render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
-    const link = screen.getByRole('link', { name: /stage data science/i })
+    // GUIC-689 — le CTA secondaire porte désormais aussi un aria-label avec le
+    // titre (« Voir l'offre : {titre} ») : on cible spécifiquement le lien
+    // étiré (« Voir l'opportunité : {titre} ») pour éviter l'ambiguïté.
+    const link = screen.getByRole('link', { name: /voir l'opportunité : stage data science/i })
     expect(link).toHaveAttribute('href', '/opportunites/stage-data-science')
   })
 

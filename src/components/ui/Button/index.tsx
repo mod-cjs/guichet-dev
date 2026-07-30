@@ -1,6 +1,6 @@
 import { ButtonHTMLAttributes } from 'react'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'text' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'text' | 'danger' | 'cta'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -10,11 +10,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
+  // `primary` = action générique / navigation (teal) — jamais la couleur de conversion.
   primary:   'bg-gj-teal text-white hover:bg-gj-teal-deep',
   secondary: 'bg-gj-yellow text-gj-ink hover:opacity-90',
   ghost:     'bg-white text-gj-teal-deep border-[1.5px] border-gj-teal-deep hover:bg-gj-teal-soft',
   text:      'bg-transparent text-gj-teal font-bold px-1 hover:underline',
   danger:    'bg-gj-red text-white hover:opacity-90',
+  // GUIC-689 — `cta` = action de CONVERSION (Postuler, Envoyer, S'inscrire…).
+  // Une seule par écran (magenta charte CJS) — ne jamais intervertir avec `primary`.
+  cta:       'bg-gj-action text-white hover:bg-gj-action-deep',
 }
 
 const SIZES: Record<ButtonSize, string> = {
