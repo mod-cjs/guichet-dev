@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 jest.mock('@/app/admin/centres/ressources-actions', () => ({
   creerRessourceCentre: jest.fn().mockResolvedValue({ id: 'x' }),
@@ -53,5 +53,32 @@ describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maque
   it('état vide', () => {
     render(<AdminCentreRessources centreId="c1" items={[]} />)
     expect(screen.getByText(/Aucune ressource réservable/)).toBeInTheDocument()
+  })
+
+  it('sous-section Réservations : chips de filtre + table + statut', () => {
+    render(
+      <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
+        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false },
+        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false },
+      ]} />,
+    )
+    expect(screen.getByText(/Réservations/)).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'En attente' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Passées' })).toBeInTheDocument()
+    expect(screen.getByText('Awa Ndiaye')).toBeInTheDocument()
+    expect(screen.getByText('Acceptée')).toBeInTheDocument()
+    expect(screen.getByText('Refusée')).toBeInTheDocument()
+  })
+
+  it('filtre « Refusées » ne garde que les réservations refusées', () => {
+    render(
+      <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
+        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false },
+        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false },
+      ]} />,
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Refusées' }))
+    expect(screen.queryByText('Awa Ndiaye')).toBeNull()
+    expect(screen.getByText('Modou Fall')).toBeInTheDocument()
   })
 })

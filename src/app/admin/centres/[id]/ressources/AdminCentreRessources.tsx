@@ -21,10 +21,39 @@ export interface RessourceCentreItem {
   reservationsCount: number
 }
 
+export interface ReservationRow {
+  id: string
+  jeune: string
+  ressource: string
+  date: string
+  creneau: string
+  statut: string
+  passee: boolean
+}
+
 export interface AdminCentreRessourcesProps {
   centreId: string
   items: RessourceCentreItem[]
+  reservations?: ReservationRow[]
 }
+
+// Vue de statut réservation (fidèle maquette : ton + libellé). « Passée » = dérivé (date passée).
+const STATUT_VIEW: Record<string, { label: string; bg: string; fg: string }> = {
+  EnAttente: { label: 'En attente', bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' },
+  Acceptee: { label: 'Acceptée', bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' },
+  Refusee: { label: 'Refusée', bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' },
+  AnnuleeParJeune: { label: 'Annulée (jeune)', bg: 'var(--gj-line)', fg: 'var(--gj-grey)' },
+  AnnuleeParCentre: { label: 'Annulée (centre)', bg: 'var(--gj-line)', fg: 'var(--gj-grey)' },
+  Passee: { label: 'Passée', bg: 'var(--gj-line)', fg: 'var(--gj-grey)' },
+  NonHonoree: { label: 'Non honorée', bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' },
+}
+const RESA_FILTERS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Toutes' },
+  { value: 'EnAttente', label: 'En attente' },
+  { value: 'Acceptee', label: 'Acceptées' },
+  { value: 'Refusee', label: 'Refusées' },
+  { value: 'Passee', label: 'Passées' },
+]
 
 const TYPE_LABEL: Record<TypeRessourceCentre, string> = {
   Salle: 'Salle',
@@ -83,14 +112,25 @@ function Row({ item, onEdit, onResult }: {
   )
 }
 
+const FIELD_SEARCH = 'rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[8px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)] w-full max-w-[240px]'
+
 /** AdminCentreRessources (GUIC-473) — CRUD des ressources réservables d'un centre. */
-export function AdminCentreRessources({ centreId, items }: AdminCentreRessourcesProps) {
+export function AdminCentreRessources({ centreId, items, reservations = [] }: AdminCentreRessourcesProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<RessourceCentreValues | undefined>(undefined)
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
+  const [rzFilter, setRzFilter] = useState('all')
+  const [rzSearch, setRzSearch] = useState('')
 
   function openCreate() { setEditing(undefined); setModalOpen(true) }
   function openEdit(r: RessourceCentreValues) { setEditing(r); setModalOpen(true) }
+
+  const rzView = reservations.filter((r) => {
+    if (rzFilter === 'Passee' && !r.passee) return false
+    if (rzFilter !== 'all' && rzFilter !== 'Passee' && r.statut !== rzFilter) return false
+    const q = rzSearch.trim().toLowerCase()
+    return q === '' || r.jeune.toLowerCase().includes(q)
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -110,6 +150,60 @@ export function AdminCentreRessources({ centreId, items }: AdminCentreRessources
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             {items.map((item) => <Row key={item.id} item={item} onEdit={openEdit} onResult={(m, v) => setFeedback({ message: m, variant: v })} />)}
+          </div>
+        )}
+      </div>
+
+      {/* Sous-section Réservations (fidèle maquette : recherche + chips + table) */}
+      <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <h6 style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+            <span aria-hidden style={{ width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flexShrink: 0 }} />
+            Réservations
+          </h6>
+          <input className={FIELD_SEARCH} placeholder="Rechercher un jeune…" aria-label="Rechercher un jeune" value={rzSearch} onChange={(e) => setRzSearch(e.target.value)} />
+        </div>
+
+        <div role="tablist" aria-label="Filtrer les réservations" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {RESA_FILTERS.map((f) => {
+            const on = rzFilter === f.value
+            return (
+              <button key={f.value} type="button" role="tab" aria-selected={on} onClick={() => setRzFilter(f.value)}
+                style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', border: on ? '1px solid transparent' : '1px solid var(--gj-line)', background: on ? 'var(--gj-admin-gold)' : 'transparent', color: on ? 'var(--gj-admin-on-gold)' : 'var(--gj-grey)' }}>
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {rzView.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune réservation{reservations.length ? ' pour ce filtre' : ' pour ce centre'}.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: 13 }}>
+              <thead>
+                <tr>
+                  {['Jeune', 'Ressource', 'Date · créneau', 'Statut'].map((h) => (
+                    <th key={h} style={{ textAlign: 'left', fontSize: 10, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', padding: '0 12px 10px', borderBottom: '1px solid var(--gj-line)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rzView.map((r) => {
+                  const view = (r.passee && r.statut !== 'EnAttente') ? STATUT_VIEW.Passee : (STATUT_VIEW[r.statut] ?? STATUT_VIEW.Passee)
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-ink)', fontWeight: 700 }}>{r.jeune}</td>
+                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-grey)' }}>{r.ressource}</td>
+                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)', color: 'var(--gj-grey)' }}>{r.date} · {r.creneau}</td>
+                      <td style={{ padding: 12, borderBottom: '1px solid var(--gj-line)' }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', background: view.bg, color: view.fg }}>{view.label}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

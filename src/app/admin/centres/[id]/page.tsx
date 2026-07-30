@@ -17,7 +17,7 @@ import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreFrequentation } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
 import { CentreLifecycleActions } from './CentreLifecycleActions'
-import { AdminCentreRessources, type RessourceCentreItem } from './ressources/AdminCentreRessources'
+import { AdminCentreRessources, type RessourceCentreItem, type ReservationRow } from './ressources/AdminCentreRessources'
 import { CentreEquipe, type CentreAgent } from './CentreEquipe'
 
 export const metadata: Metadata = { title: 'Fiche centre — Admin CJS' }
@@ -95,13 +95,36 @@ export default async function Page({ params, searchParams }: { params: Promise<{
 
   // ── Données de l'onglet actif ──────────────────────────────────────────────
   let ressourceItems: RessourceCentreItem[] = []
+  let reservations: ReservationRow[] = []
   if (tab === 'ressources') {
-    const r = await prisma.ressourceCentre.findMany({
-      where: { centreId: id },
-      orderBy: [{ type: 'asc' }, { nom: 'asc' }],
-      select: { id: true, type: true, nom: true, description: true, capacite: true, capaciteUnit: true, dureeMinCreneauMin: true, requiresJustif: true, estActive: true, _count: { select: { reservations: true } } },
-    })
+    const [r, resa] = await Promise.all([
+      prisma.ressourceCentre.findMany({
+        where: { centreId: id },
+        orderBy: [{ type: 'asc' }, { nom: 'asc' }],
+        select: { id: true, type: true, nom: true, description: true, capacite: true, capaciteUnit: true, dureeMinCreneauMin: true, requiresJustif: true, estActive: true, _count: { select: { reservations: true } } },
+      }),
+      prisma.reservation.findMany({
+        where: { centreId: id },
+        orderBy: [{ dateReservee: 'desc' }, { creneauDebut: 'desc' }],
+        take: 60,
+        select: {
+          id: true, statut: true, dateReservee: true, creneauDebut: true, creneauFin: true,
+          ressource: { select: { nom: true } },
+          utilisateur: { select: { prenom: true, nom: true } },
+        },
+      }),
+    ])
     ressourceItems = r.map((x) => ({ id: x.id, type: x.type, nom: x.nom, description: x.description, capacite: x.capacite, capaciteUnit: x.capaciteUnit, dureeMinCreneauMin: x.dureeMinCreneauMin, requiresJustif: x.requiresJustif, estActive: x.estActive, reservationsCount: x._count.reservations }))
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    reservations = resa.map((x) => ({
+      id: x.id,
+      jeune: `${x.utilisateur.prenom} ${x.utilisateur.nom}`.trim(),
+      ressource: x.ressource.nom,
+      date: x.dateReservee.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+      creneau: `${x.creneauDebut}–${x.creneauFin}`,
+      statut: String(x.statut),
+      passee: x.dateReservee < today,
+    }))
   }
   const analytics = tab === 'frequentation'
     ? await getCentresAnalytics({ from: new Date(Date.now() - 90 * 86_400_000), to: new Date(), centreIds: [id] })
@@ -231,7 +254,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       )}
 
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
-      {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} />}
+      {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
     </div>
   )
