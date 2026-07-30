@@ -8,11 +8,13 @@
  * `undefined !== undefined` est faux. Cas déjà vécu sur un environnement où la variable
  * n'avait pas été propagée.
  *
- * Aujourd'hui l'exposition est nulle — `utilisateurs` et `formations` sont des stubs qui
- * renvoient `data: []`. Elle cesse de l'être dès leur implémentation (cf.
- * `.agent_context/specs/M13-etl-meltano.md` §11, lot 0). Ce test verrouille l'invariant
- * sur les QUATRE routes pour qu'aucune ne puisse régresser isolément — c'est exactement
- * ce qui s'est produit : la garde avait été durcie sur `opportunites` sans être propagée.
+ * Ce test verrouille l'invariant sur les routes historiques restantes, pour qu'aucune ne
+ * puisse régresser isolément — c'est exactement ce qui s'était produit : la garde avait été
+ * durcie sur `opportunites` sans être propagée aux trois soeurs.
+ *
+ * Les stubs `utilisateurs` et `formations` ont été retirés au lot 5 : le premier est servi
+ * par la route dynamique pilotée par le contrat, le second n'a jamais existé comme flux —
+ * une formation est une opportunité dont le type vaut Formation.
  */
 import { NextRequest } from 'next/server'
 
@@ -30,8 +32,6 @@ jest.mock('@/lib/prisma', () => ({
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const ROUTES: ReadonlyArray<{ stream: string; mod: { GET: (r: NextRequest) => Promise<Response> } }> = [
-  { stream: 'utilisateurs', mod: require('@/app/api/v1/export/utilisateurs/route') },
-  { stream: 'formations', mod: require('@/app/api/v1/export/formations/route') },
   { stream: 'opportunites', mod: require('@/app/api/v1/export/opportunites/route') },
   { stream: 'programmes', mod: require('@/app/api/v1/export/programmes/route') },
 ]
