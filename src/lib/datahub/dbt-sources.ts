@@ -3,7 +3,7 @@
  *
  * Cinquième et dernier artefact dérivé du dictionnaire. Une description écrite dans
  * `schema.prisma` atteint donc : les `COMMENT` MariaDB, l'OpenAPI publié, le catalogue
- * Singer, les commentaires de colonnes PostgreSQL via le loader, et `dbt docs`. Une seule
+ * Singer, `dbt docs`, et — pour les modèles dbt uniquement — les `COMMENT` PostgreSQL. Une seule
  * prose, jamais recopiée.
  *
  * DEUX APPORTS AU-DELÀ DE LA DOCUMENTATION

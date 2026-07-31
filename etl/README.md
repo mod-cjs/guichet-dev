@@ -23,8 +23,15 @@ Un test échoue si le fichier committé diverge de sa régénération. Ajouter u
 Hub ne demande donc de toucher ni au tap, ni à `meltano.yml` — seulement au contrat, qui
 est vérifié par `tsc` et par les gardes de confidentialité.
 
-Les descriptions rédigées dans `schema.prisma` voyagent jusqu'au bout : Singer les propage
-dans le catalogue et le loader les écrit en commentaires de colonnes PostgreSQL.
+Les descriptions rédigées dans `schema.prisma` voyagent jusqu'au catalogue Singer et
+jusqu'à `dbt docs`.
+
+⚠ **Elles n'atterrissent PAS automatiquement en commentaires de colonnes PostgreSQL sur la
+couche brute.** Les targets Singer ne posent pas de `COMMENT` — à vérifier si un jour un
+variant le fait. Le dictionnaire consultable repose donc sur deux mécanismes distincts :
+`dbt docs generate` pour tout le périmètre, et `persist_docs` (activé dans
+`dbt_project.yml`) qui écrit les `COMMENT` sur les **modèles dbt** — ceux que lisent les
+outils BI.
 
 ## Démarrer
 
