@@ -32,6 +32,10 @@ describe('NotificationsClient — dégradé Yaye câblé sur le token (GUIC-689)
   it("aucun hex en dur dans tout le fichier (tokens gj-* uniquement)", () => {
     expect(read()).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
+
+  it("le ternaire isYaye pointe précisément vers le token (pas juste présent ailleurs dans le fichier)", () => {
+    expect(read()).toMatch(/isYaye\s*\n\s*\?\s*'var\(--gj-yaye-gradient\)'/)
+  })
 })
 
 describe('NotificationsClient — plancher typographique 11px (--fs-100)', () => {
