@@ -342,7 +342,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         orderBy: { dateDebut: 'desc' },
         skip: evenementsInfo.skip,
         take: PAGE_SIZE,
-        select: { id: true, titre: true, dateDebut: true, capaciteMax: true, statut: true, _count: { select: { inscriptions: true } } },
+        select: {
+          id: true, titre: true, description: true, type: true, dateDebut: true, dateFin: true, lieu: true,
+          capaciteMax: true, estGratuit: true, statut: true, _count: { select: { inscriptions: true } },
+        },
       }),
       prisma.insertion.findMany({
         where: insWhere,
@@ -360,6 +363,11 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       inscrits: e._count.inscriptions,
       capacite: e.capaciteMax,
       statut: String(e.statut),
+      edit: {
+        id: e.id, titre: e.titre, description: e.description, type: String(e.type), statut: String(e.statut),
+        dateDebut: e.dateDebut.toISOString(), dateFin: e.dateFin ? e.dateFin.toISOString() : null,
+        lieu: e.lieu, centreId: id, capaciteMax: e.capaciteMax, estGratuit: e.estGratuit,
+      },
     }))
     insertionsRows = ins.map((p) => ({
       id: p.id,
@@ -485,7 +493,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} info={catalogueInfo} />
         </div>
       )}
-      {tab === 'evenements' && <CentreEvenements evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} evInfo={evenementsInfo} insInfo={insertionsInfo} />}
+      {tab === 'evenements' && <CentreEvenements centreId={id} centreNom={centre.nom} evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} evInfo={evenementsInfo} insInfo={insertionsInfo} />}
     </div>
   )
 }
