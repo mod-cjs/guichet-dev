@@ -55,4 +55,16 @@ describe('src/components/dashboard/ — retrait du code mort (GUIC-689)', () => 
     expect(content).toMatch(/\bDashboardKPIs\b/)
     expect(fs.existsSync(path.join(DASHBOARD_DIR, 'DashboardKPIs.tsx'))).toBe(true)
   })
+
+  it('le commentaire "Legacy (v1)" (bloc mort) a disparu du barrel', () => {
+    const content = fs.readFileSync(path.join(DASHBOARD_DIR, 'index.ts'), 'utf-8')
+    expect(content).not.toMatch(/Legacy \(v1\)/)
+  })
+
+  it('le reste du barrel (v2 + Phase 2B/1 + mock-data) est intact', () => {
+    const content = fs.readFileSync(path.join(DASHBOARD_DIR, 'index.ts'), 'utf-8')
+    for (const still of ['WebDashHero', 'WebDashKPIs', 'MiniOppCard', 'YayeNudgeCard', 'MOCK_KPIS']) {
+      expect(content).toMatch(new RegExp(`\\b${still}\\b`))
+    }
+  })
 })
