@@ -18,7 +18,7 @@ export type { DashCenterItem }         from './WebDashCenters'
 export { WebDashProfileNudge }         from './WebDashProfileNudge'
 export { WebDashYayePanel }            from './WebDashYayePanel'
 export { OpportunitesRecoCarousel }    from './OpportunitesRecoCarousel'
-export type { OppRecoCard, OppTone }   from './OpportunitesRecoCarousel'
+export type { OppRecoCard }            from './OpportunitesRecoCarousel'
 
 // Phase 2B/1 — GUIC-187 (dashboard bénéficiaire mobile)
 // NB: KPIItem est exporté par WebDashKPIs (v2) ci-dessus ; DashboardKPIs (v1)

@@ -35,10 +35,10 @@ export default async function TableauDeBordPage() {
   const completionScore = profil?.completionScore ?? 0
   const { recoOpps, events, centres, tracker } = dashboard
 
-  // J-N affiché dans le hero : on prend la deadline la plus urgente parmi les
-  // recos (premier tag de la forme « ... · J-N »).
-  const firstJTag = recoOpps[0]?.tag.match(/J-(\d+)/)
-  const joursAvantCloture = firstJTag ? Number(firstJTag[1]) : null
+  // J-N affiché dans le hero : deadline la plus urgente parmi les recos.
+  // GUIC-689 — lu directement sur le champ dédié (avant : extrait à la regex
+  // d'un libellé fusionné « Type · J-N », qui n'existe plus).
+  const joursAvantCloture = recoOpps[0]?.joursRestants ?? null
 
   const kpis: KPIItem[] = [
     {

@@ -34,7 +34,7 @@ function card(over: Record<string, unknown> = {}): OppRecoCard {
 describe('GUIC-689 — deux pastilles distinctes (type / urgence)', () => {
   it('la catégorie a sa propre pastille, colorée par la famille --cat-*', () => {
     render(<OpportunitesRecoCarousel items={[card({ type: 'Stage' })]} />)
-    const chip = screen.getByTestId('reco-categorie')
+    const chip = document.querySelector('[data-cat]') as HTMLElement
     expect(chip).toHaveTextContent(/stage/i)
     expect(chip.className).toMatch(/cat-stage/)
   })
@@ -44,7 +44,7 @@ describe('GUIC-689 — deux pastilles distinctes (type / urgence)', () => {
     const urgence = screen.getByTestId('reco-urgence')
     expect(urgence).toHaveTextContent('J-3')
     // la catégorie ne porte jamais le rouge de l'urgence
-    expect(screen.getByTestId('reco-categorie').className).not.toMatch(/red/)
+    expect((document.querySelector('[data-cat]') as HTMLElement).className).not.toMatch(/red/)
   })
 
   it('sans échéance proche : aucune pastille d’urgence', () => {

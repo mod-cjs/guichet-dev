@@ -105,21 +105,6 @@ function parseDomainesInteret(value: unknown): Domaine[] {
   return out
 }
 
-/** Tonalité d'une card opportunité selon urgence (J-N). */
-function recoTone(jours: number | null): OppRecoCard['tone'] {
-  if (jours !== null && jours <= 7)  return 'urgent'
-  if (jours !== null && jours <= 14) return 'info'
-  return 'partner'
-}
-
-/** Tag affiché en haut de card reco. */
-function recoTag(jours: number | null, type: string): string {
-  const typeLabel = type.replace(/_/g, ' ')
-  if (jours === null)   return typeLabel
-  if (jours === 0)      return `${typeLabel} · Aujourd'hui`
-  return `${typeLabel} · J-${jours}`
-}
-
 export async function loadDashboardData(cjsUid: string): Promise<DashboardData> {
   const now = new Date()
 
@@ -222,8 +207,10 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
     const orgLine = o.region ? `${orgLibelle} · ${o.region}` : orgLibelle
     return {
       id:    o.id,
-      tag:   recoTag(jours, String(o.type)),
-      tone:  recoTone(jours),
+      // GUIC-689 — la carte porte le TYPE (catégorie : couleur + picto) et
+      // l'échéance SÉPARÉMENT ; la couleur n'est plus déduite de l'urgence.
+      type:  o.type,
+      joursRestants: jours,
       title: o.titre,
       org:   orgLine,
       meta: [
