@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import type { Prisma, StatutReservation } from '@prisma/client'
 import { Icon } from '@/components/ui/Icon'
 import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
 import { regionLabel } from '@/lib/regions'
@@ -122,6 +123,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   // ── Données de l'onglet actif ──────────────────────────────────────────────
   let ressourceItems: RessourceCentreItem[] = []
   let reservations: ReservationRow[] = []
+  let reservationsInfo: PageInfo = paginate(0, 1)
   if (tab === 'ressources') {
     const [r, resa] = await Promise.all([
       prisma.ressourceCentre.findMany({
@@ -129,28 +131,46 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         orderBy: [{ type: 'asc' }, { nom: 'asc' }],
         select: { id: true, type: true, nom: true, description: true, capacite: true, capaciteUnit: true, dureeMinCreneauMin: true, requiresJustif: true, estActive: true, _count: { select: { reservations: true } } },
       }),
-      prisma.reservation.findMany({
-        where: { centreId: id },
-        orderBy: [{ dateReservee: 'desc' }, { creneauDebut: 'desc' }],
-        take: 60,
-        select: {
-          id: true, statut: true, dateReservee: true, creneauDebut: true, creneauFin: true,
-          motif: true, nombrePersonnes: true, justifFileUrl: true, raisonRefusOuAnnul: true,
-          ressource: { select: { nom: true } },
-          utilisateur: { select: { prenom: true, nom: true } },
-        },
-      }),
+      (async () => {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const stat = parseQuery(sp.rzStat)
+        const rzQ = parseQuery(sp.rzQ)
+        const where: Prisma.ReservationWhereInput = {
+          centreId: id,
+          ...(rzQ ? { utilisateur: { OR: [{ prenom: { contains: rzQ } }, { nom: { contains: rzQ } }] } } : {}),
+          ...(stat === 'Passee'
+            ? { dateReservee: { lt: today } }
+            : ['EnAttente', 'Acceptee', 'Refusee'].includes(stat)
+              ? { statut: stat as StatutReservation }
+              : {}),
+        }
+        const total = await prisma.reservation.count({ where })
+        const info = paginate(total, parsePage(sp.rzPage), PAGE_SIZE)
+        const rows = await prisma.reservation.findMany({
+          where,
+          orderBy: [{ dateReservee: 'desc' }, { creneauDebut: 'desc' }],
+          skip: info.skip,
+          take: PAGE_SIZE,
+          select: {
+            id: true, statut: true, dateReservee: true, creneauDebut: true, creneauFin: true,
+            motif: true, nombrePersonnes: true, justifFileUrl: true, raisonRefusOuAnnul: true,
+            ressource: { select: { nom: true } },
+            utilisateur: { select: { prenom: true, nom: true } },
+          },
+        })
+        return { rows, info, today }
+      })(),
     ])
     ressourceItems = r.map((x) => ({ id: x.id, type: x.type, nom: x.nom, description: x.description, capacite: x.capacite, capaciteUnit: x.capaciteUnit, dureeMinCreneauMin: x.dureeMinCreneauMin, requiresJustif: x.requiresJustif, estActive: x.estActive, reservationsCount: x._count.reservations }))
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    reservations = resa.map((x) => ({
+    reservationsInfo = resa.info
+    reservations = resa.rows.map((x) => ({
       id: x.id,
       jeune: `${x.utilisateur.prenom} ${x.utilisateur.nom}`.trim(),
       ressource: x.ressource.nom,
       date: x.dateReservee.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
       creneau: `${x.creneauDebut}–${x.creneauFin}`,
       statut: String(x.statut),
-      passee: x.dateReservee < today,
+      passee: x.dateReservee < resa.today,
       motif: x.motif,
       nombrePersonnes: x.nombrePersonnes,
       justif: Boolean(x.justifFileUrl),
@@ -381,7 +401,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       )}
 
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
-      {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
+      {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} reservationsInfo={reservationsInfo} reservationStatut={parseQuery(sp.rzStat) || 'all'} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} checkinsInfo={checkinsInfo} />}
       {tab === 'biblio' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

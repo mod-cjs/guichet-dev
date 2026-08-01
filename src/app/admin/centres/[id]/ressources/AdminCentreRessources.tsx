@@ -7,6 +7,10 @@ import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import type { TypeRessourceCentre } from '@prisma/client'
 import { basculerActiveRessourceCentre, supprimerRessourceCentre } from '../../ressources-actions'
 import { RessourceCentreFormModal, type RessourceCentreValues } from '../../RessourceCentreFormModal'
+import { paginate, type PageInfo } from '@/lib/centre-pagination'
+import { CentreSearch } from '../CentreSearch'
+import { CentrePager } from '../CentrePager'
+import { CentreFilterChips } from '../CentreFilterChips'
 
 export interface RessourceCentreItem {
   id: string
@@ -39,6 +43,8 @@ export interface AdminCentreRessourcesProps {
   centreId: string
   items: RessourceCentreItem[]
   reservations?: ReservationRow[]
+  reservationsInfo?: PageInfo
+  reservationStatut?: string
 }
 
 // Vue de statut réservation (fidèle maquette : ton + libellé). « Passée » = dérivé (date passée).
@@ -116,8 +122,6 @@ function Row({ item, onEdit, onResult }: {
   )
 }
 
-const FIELD_SEARCH = 'rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[8px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)] w-full max-w-[240px]'
-
 const td: CSSProperties = { padding: 12, borderBottom: '1px solid var(--gj-line)', verticalAlign: 'top' }
 
 /** Ligne de réservation : détail inline (motif + justif) + ligne dépliable (personnes, raison). */
@@ -168,23 +172,17 @@ function ReservationRowView({ r, view, open, onToggle }: { r: ReservationRow; vi
 }
 
 /** AdminCentreRessources (GUIC-473) — CRUD des ressources réservables d'un centre. */
-export function AdminCentreRessources({ centreId, items, reservations = [] }: AdminCentreRessourcesProps) {
+export function AdminCentreRessources({ centreId, items, reservations = [], reservationsInfo = paginate(0, 1), reservationStatut = 'all' }: AdminCentreRessourcesProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<RessourceCentreValues | undefined>(undefined)
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
-  const [rzFilter, setRzFilter] = useState('all')
-  const [rzSearch, setRzSearch] = useState('')
   const [rzOpen, setRzOpen] = useState<string | null>(null)
 
   function openCreate() { setEditing(undefined); setModalOpen(true) }
   function openEdit(r: RessourceCentreValues) { setEditing(r); setModalOpen(true) }
 
-  const rzView = reservations.filter((r) => {
-    if (rzFilter === 'Passee' && !r.passee) return false
-    if (rzFilter !== 'all' && rzFilter !== 'Passee' && r.statut !== rzFilter) return false
-    const q = rzSearch.trim().toLowerCase()
-    return q === '' || r.jeune.toLowerCase().includes(q)
-  })
+  // Réservations : filtrage/recherche/pagination désormais SERVEUR (rows déjà filtrées).
+  const rzView = reservations
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -208,30 +206,22 @@ export function AdminCentreRessources({ centreId, items, reservations = [] }: Ad
         )}
       </div>
 
-      {/* Sous-section Réservations (fidèle maquette : recherche + chips + table) */}
+      {/* Sous-section Réservations (recherche + filtres + pagination SERVEUR) */}
       <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
           <h6 style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
             <span aria-hidden style={{ width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flexShrink: 0 }} />
             Réservations
           </h6>
-          <input className={FIELD_SEARCH} placeholder="Rechercher un jeune…" aria-label="Rechercher un jeune" value={rzSearch} onChange={(e) => setRzSearch(e.target.value)} />
+          <CentreSearch prefix="rz" placeholder="Rechercher un jeune…" label="Rechercher un jeune" />
         </div>
 
-        <div role="tablist" aria-label="Filtrer les réservations" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          {RESA_FILTERS.map((f) => {
-            const on = rzFilter === f.value
-            return (
-              <button key={f.value} type="button" role="tab" aria-selected={on} onClick={() => setRzFilter(f.value)}
-                style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', border: on ? '1px solid transparent' : '1px solid var(--gj-line)', background: on ? 'var(--gj-admin-gold)' : 'transparent', color: on ? 'var(--gj-admin-on-gold)' : 'var(--gj-grey)' }}>
-                {f.label}
-              </button>
-            )
-          })}
+        <div style={{ marginBottom: 12 }}>
+          <CentreFilterChips param="rzStat" pageParam="rzPage" value={reservationStatut} options={RESA_FILTERS} />
         </div>
 
         {rzView.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune réservation{reservations.length ? ' pour ce filtre' : ' pour ce centre'}.</p>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune réservation{reservationsInfo.total === 0 ? ' pour ce centre' : ' pour ce filtre'}.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 660, fontSize: 13 }}>
@@ -254,6 +244,7 @@ export function AdminCentreRessources({ centreId, items, reservations = [] }: Ad
             </table>
           </div>
         )}
+        <CentrePager prefix="rz" info={reservationsInfo} label="réservations" />
       </div>
 
       <RessourceCentreFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} centreId={centreId} ressource={editing} />

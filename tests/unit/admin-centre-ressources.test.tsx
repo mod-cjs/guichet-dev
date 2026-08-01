@@ -6,12 +6,16 @@ jest.mock('@/app/admin/centres/ressources-actions', () => ({
   basculerActiveRessourceCentre: jest.fn().mockResolvedValue({ ok: true }),
   supprimerRessourceCentre: jest.fn().mockResolvedValue({ ok: true }),
 }))
-jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }))
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}))
 
 import {
   AdminCentreRessources,
   type RessourceCentreItem,
 } from '@/app/admin/centres/[id]/ressources/AdminCentreRessources'
+import { paginate } from '@/lib/centre-pagination'
 
 const ITEMS: RessourceCentreItem[] = [
   { id: 'r1', type: 'Salle', nom: 'Salle A', description: null, capacite: 20, capaciteUnit: 'personnes', dureeMinCreneauMin: 60, requiresJustif: false, estActive: true, reservationsCount: 0 },
@@ -55,9 +59,9 @@ describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maque
     expect(screen.getByText(/Aucune ressource réservable/)).toBeInTheDocument()
   })
 
-  it('sous-section Réservations : chips de filtre + table + statut', () => {
+  it('sous-section Réservations : chips de filtre + table + statut (rows fournies par le serveur)', () => {
     render(
-      <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
+      <AdminCentreRessources centreId="c1" items={ITEMS} reservationsInfo={paginate(2, 1)} reservations={[
         { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false, motif: 'Préparation entretien', nombrePersonnes: 1, justif: true, raison: null },
         { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false, motif: 'Rédaction CV', nombrePersonnes: 1, justif: false, raison: 'Créneau indisponible' },
       ]} />,
@@ -70,15 +74,13 @@ describe('GUIC-473/687 — AdminCentreRessources (onglet fiche, fidélité maque
     expect(screen.getByText('Refusée')).toBeInTheDocument()
   })
 
-  it('filtre « Refusées » ne garde que les réservations refusées', () => {
+  it('affiche le pager des réservations (X sur N)', () => {
     render(
-      <AdminCentreRessources centreId="c1" items={ITEMS} reservations={[
-        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false, motif: 'Préparation entretien', nombrePersonnes: 1, justif: true, raison: null },
-        { id: 'z2', jeune: 'Modou Fall', ressource: 'Bus CJS', date: '01 août', creneau: '14:00–15:00', statut: 'Refusee', passee: false, motif: 'Rédaction CV', nombrePersonnes: 1, justif: false, raison: 'Créneau indisponible' },
+      <AdminCentreRessources centreId="c1" items={ITEMS} reservationsInfo={paginate(30, 2)} reservations={[
+        { id: 'z1', jeune: 'Awa Ndiaye', ressource: 'Salle A', date: '02 août', creneau: '10:00–11:00', statut: 'Acceptee', passee: false, motif: '', nombrePersonnes: 1, justif: false, raison: null },
       ]} />,
     )
-    fireEvent.click(screen.getByRole('tab', { name: 'Refusées' }))
-    expect(screen.queryByText('Awa Ndiaye')).toBeNull()
-    expect(screen.getByText('Modou Fall')).toBeInTheDocument()
+    expect(screen.getByText(/sur/)).toBeInTheDocument()
+    expect(screen.getByText('30')).toBeInTheDocument()
   })
 })
