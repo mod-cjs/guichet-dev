@@ -2,13 +2,14 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import {
   listRessources,
+  getRessourcesHome,
   type RessourceFiltres,
   type DateBucket,
   type TypeRessourceValue,
   type NiveauRessourceValue,
   type LangueRessourceValue,
 } from '@/lib/loaders/ressources'
-import { RessourcesClient } from '@/components/ressources'
+import { RessourcesClient, MediathequeHome } from '@/components/ressources'
 import { prisma } from '@/lib/prisma'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
 
@@ -60,10 +61,41 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
     niveau: asEnum<NiveauRessourceValue>(pickString(sp.niveau), NIVEAUX),
     langue: asEnum<LangueRessourceValue>(pickString(sp.langue), LANGUES),
     categories: pickArray(sp.categorie),
+    // GUIC-689 (Lot F2) — filtre thème exact, poussé par la grille « Explorer
+    // par catégorie » de l'écran d'accueil médiathèque.
+    theme: pickString(sp.theme)?.trim() || undefined,
     date: asEnum<DateBucket>(pickString(sp.date), DATES) ?? 'all',
     // GUIC-684 — filtre par programme sectoriel (multi).
     programmes: pickArray(sp.programme),
     page: Math.max(1, Number(pickString(sp.page)) || 1),
+  }
+
+  // GUIC-689 (Lot F2) — bascule franche : aucun paramètre de recherche/filtre
+  // actif → écran d'accueil médiathèque (bandeau recherche + catégories +
+  // étagères). Dès qu'un filtre est actif (y compris `page` > 1, ex. lien
+  // partagé/rechargé), on retombe sur la vue LISTE actuelle, inchangée.
+  const hasActiveFiltres =
+    Boolean(filtres.q) ||
+    Boolean(filtres.type) ||
+    Boolean(filtres.niveau) ||
+    Boolean(filtres.langue) ||
+    Boolean(filtres.theme) ||
+    Boolean(filtres.categories && filtres.categories.length) ||
+    (filtres.date !== undefined && filtres.date !== 'all') ||
+    Boolean(filtres.programmes && filtres.programmes.length) ||
+    (filtres.page ?? 1) > 1
+
+  if (!hasActiveFiltres) {
+    const home = await getRessourcesHome()
+    return (
+      <div className="container-page py-space-6">
+        <MediathequeHome
+          categories={home.categories}
+          recentes={home.recentes}
+          populaires={home.populaires}
+        />
+      </div>
+    )
   }
 
   const [{ items, total, page, pageSize }, programmes] = await Promise.all([

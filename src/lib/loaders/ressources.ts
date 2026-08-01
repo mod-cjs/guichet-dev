@@ -23,6 +23,13 @@ export interface RessourceFiltres {
   date?: DateBucket
   /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
   programmes?: string[]
+  /**
+   * GUIC-689 (Lot F2) — filtre exact par thème (`Ressource.theme`). Alimente
+   * la navigation « Explorer par catégorie » de l'écran d'accueil médiathèque
+   * (`categorie` n'est renseignée sur aucune ressource en base : `theme`,
+   * lui, est obligatoire et rempli à 100 % — cf. `getRessourcesHome`).
+   */
+  theme?: string
   page?: number
 }
 
@@ -61,6 +68,25 @@ const CARD_SELECT = {
   createdAt: true,
 } satisfies Prisma.RessourceSelect
 
+type RessourceCardRow = Prisma.RessourceGetPayload<{ select: typeof CARD_SELECT }>
+
+/** Mappe une row Prisma (`CARD_SELECT`) vers le DTO public `RessourceListItem`. */
+function toListItem(r: RessourceCardRow): RessourceListItem {
+  return {
+    id: r.id,
+    titre: r.titre,
+    description: r.description,
+    type: r.type as TypeRessourceValue,
+    theme: r.theme,
+    url: r.url,
+    vues: r.vues,
+    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
+    langue: (r.langue ?? null) as LangueRessourceValue | null,
+    categorie: r.categorie ?? null,
+    createdAt: r.createdAt.toISOString(),
+  }
+}
+
 /** Borne basse de date selon le bucket sélectionné. */
 function dateLowerBound(bucket: DateBucket | undefined): Date | null {
   if (!bucket || bucket === 'all') return null
@@ -91,6 +117,7 @@ export async function listRessources(
   if (filtres.type) where.type = filtres.type
   if (filtres.niveau) where.niveau = filtres.niveau
   if (filtres.langue) where.langue = filtres.langue
+  if (filtres.theme && filtres.theme.trim()) where.theme = filtres.theme.trim()
   if (filtres.categories && filtres.categories.length) {
     where.categorie = { in: filtres.categories.map((c) => c.trim()).filter(Boolean) }
   } else if (filtres.categorie && filtres.categorie.trim()) {
@@ -127,19 +154,7 @@ export async function listRessources(
     prisma.ressource.count({ where }),
   ])
 
-  const items: RessourceListItem[] = rows.map((r) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  const items: RessourceListItem[] = rows.map(toListItem)
 
   return { items, total, page, pageSize: PAGE_SIZE }
 }
@@ -163,19 +178,7 @@ export async function listRessourcesFavoris(
     prisma.ressourceFavorite.count({ where: { cjsUid } }),
   ])
 
-  const items: RessourceListItem[] = favoris.map(({ ressource: r }) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  const items: RessourceListItem[] = favoris.map(({ ressource: r }) => toListItem(r))
 
   return { items, total, page: safePage, pageSize: PAGE_SIZE }
 }
@@ -212,17 +215,7 @@ export async function getRessourceById(id: string): Promise<RessourceDetail | nu
   })
   if (!r) return null
   return {
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
+    ...toListItem(r),
     updatedAt: r.updatedAt.toISOString(),
   }
 }
@@ -255,19 +248,7 @@ export async function getRessourcesRelated(
     take,
   })
 
-  return rows.map((r) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  return rows.map(toListItem)
 }
 
 /**
@@ -282,5 +263,83 @@ export async function incrementRessourceVues(ressourceId: string): Promise<void>
     })
   } catch {
     // best-effort : ne jamais casser la page détail si l'update échoue.
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GUIC-689 (Lot F2) — écran d'accueil médiathèque (`ResHomeContent` design v5).
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Thème (`Ressource.theme`) et nombre de ressources publiques associées. */
+export interface RessourceCategorieCount {
+  theme: string
+  count: number
+}
+
+export interface RessourcesHomeData {
+  /** Thèmes les plus représentés (`theme` — rempli à 100 %, contrairement à
+   *  `categorie` qui n'est renseignée sur aucune ressource en base au
+   *  30/07/2026 : cf. décision loader dans le rapport GUIC-689 Lot F2). */
+  categories: RessourceCategorieCount[]
+  /** Dernières ressources ajoutées (`createdAt` desc). Libellé honnête :
+   *  il n'existe pas de champ `featured`/`misEnAvant` en base. */
+  recentes: RessourceListItem[]
+  /** Ressources les plus consultées (`vues` desc). Il n'existe AUCUN
+   *  compteur de téléchargements — `vues` compte des consultations de la
+   *  fiche détail (cf. `incrementRessourceVues`), jamais des téléchargements. */
+  populaires: RessourceListItem[]
+}
+
+export interface RessourcesHomeOptions {
+  /** Nombre d'items par étagère (défaut 10). */
+  limit?: number
+  /** Nombre de catégories affichées dans la grille (défaut 5). */
+  categoriesLimit?: number
+}
+
+/**
+ * Données de l'écran d'accueil médiathèque : 3 requêtes agrégées en
+ * parallèle (pas de N+1 — aucune requête par item) :
+ *  1. `groupBy(theme)` compté + trié desc → grille « Explorer par catégorie ».
+ *  2. `findMany` trié `createdAt desc` → étagère « Ajoutées récemment ».
+ *  3. `findMany` trié `vues desc, createdAt desc` → étagère « Les plus consultées ».
+ *
+ * Une unique requête SQL combinant les 3 nécessiterait du SQL brut (interdit
+ * hors `DECISIONS.md`) : Prisma ne sait pas combiner un `groupBy` et deux
+ * tris différents sur la table dans un seul appel.
+ */
+export async function getRessourcesHome(
+  options: RessourcesHomeOptions = {},
+): Promise<RessourcesHomeData> {
+  const limit = options.limit ?? 10
+  const categoriesLimit = options.categoriesLimit ?? 5
+  const where: Prisma.RessourceWhereInput = { estPublic: true }
+
+  const [categoryRows, recentRows, popularRows] = await Promise.all([
+    prisma.ressource.groupBy({
+      by: ['theme'],
+      where,
+      _count: { theme: true },
+      orderBy: { _count: { theme: 'desc' } },
+      take: categoriesLimit,
+    }),
+    prisma.ressource.findMany({
+      where,
+      select: CARD_SELECT,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    }),
+    prisma.ressource.findMany({
+      where,
+      select: CARD_SELECT,
+      orderBy: [{ vues: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+    }),
+  ])
+
+  return {
+    categories: categoryRows.map((r) => ({ theme: r.theme, count: r._count.theme })),
+    recentes: recentRows.map(toListItem),
+    populaires: popularRows.map(toListItem),
   }
 }

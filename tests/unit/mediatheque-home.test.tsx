@@ -119,4 +119,32 @@ describe('<MediathequeHome />', () => {
     expect(screen.getByText('Aucune ressource publiée pour le moment')).toBeInTheDocument()
     expect(screen.queryByText('Explorer par catégorie')).not.toBeInTheDocument()
   })
+
+  it('« Ajoutées récemment » — Tout voir renvoie vers le filtre de date existant (?date=recent)', () => {
+    render(
+      <MediathequeHome
+        categories={[]}
+        recentes={[makeItem({ id: 'r1' })]}
+        populaires={[]}
+      />,
+    )
+    expect(screen.getByRole('link', { name: /Tout voir/ })).toHaveAttribute(
+      'href',
+      '/ressources?date=recent',
+    )
+  })
+
+  it('« Les plus consultées » — le lien de bas de liste ne prétend pas garder le tri par vues', () => {
+    render(
+      <MediathequeHome
+        categories={[]}
+        recentes={[]}
+        populaires={[makeItem({ id: 'p1' })]}
+      />,
+    )
+    expect(screen.getByRole('link', { name: /Toutes les ressources/ })).toHaveAttribute(
+      'href',
+      '/ressources',
+    )
+  })
 })
