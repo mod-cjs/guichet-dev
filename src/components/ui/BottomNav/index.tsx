@@ -10,20 +10,30 @@ interface NavItem {
 }
 
 /**
- * 5 onglets de la nav bénéficiaire mobile (refonte v2).
+ * 5 onglets de la nav bénéficiaire mobile — signature v5 (GUIC-689 Lot E1).
  * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
  * aucun emoji comme icône de nav.
  *
- * Note : item Profil retiré (accessible via AppTopbar mobile, icône user
- * en haut). Remplacé par Centres pour exposer la cartographie YEAH —
- * cf GUIC-205 sous-PR A.
+ * Conforme `design-guichet-v5/phone.jsx:181-185` (confirmé dans
+ * `screens.jsx` et `mobile-flows.jsx`) : Accueil / Explorer / Candidatures /
+ * Centres CJS / Profil.
+ *
+ * Décision produit (lead) : Agenda et Ressources quittent la bottom-nav au
+ * profit de Candidatures et Profil — « Mes candidatures » est un parcours
+ * central du produit qui n'était présent dans AUCUNE chrome persistante
+ * mobile jusqu'ici (introuvable au doigt). Agenda/Ressources restent
+ * accessibles via la sidebar desktop et les liens de contenu.
+ *
+ * Historique : item Profil retiré en v2 (cf ancienne note GUIC-205) puis
+ * remplacé par Centres ; les deux coexistent désormais dans la signature v5
+ * (5 colonnes toujours respectées).
  */
 const ITEMS: NavItem[] = [
-  { href: '/',             icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites', icon: 'search',   label: 'Explorer' },
-  { href: '/agenda',       icon: 'calendar', label: 'Agenda' },
-  { href: '/ressources',   icon: 'document', label: 'Ressources' },
-  { href: '/centres',      icon: 'pin',      label: 'Centres' },
+  { href: '/',                        icon: 'home',     label: 'Accueil' },
+  { href: '/opportunites',            icon: 'search',   label: 'Explorer' },
+  { href: '/jeune/mes-candidatures',  icon: 'document', label: 'Candidatures' },
+  { href: '/centres',                 icon: 'pin',      label: 'Centres CJS' },
+  { href: '/jeune/mon-profil',        icon: 'user',     label: 'Profil' },
 ]
 
 interface BottomNavProps {
@@ -68,7 +78,7 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
             )}
             {badge && badge > 0 ? (
               <span className="absolute top-[2px] right-[14px] min-w-[16px] h-4 bg-gj-red text-white
-                rounded-[8px] text-[10px] font-bold px-[4px] flex items-center justify-center
+                rounded-[8px] text-fs-100 font-bold px-[4px] flex items-center justify-center
                 border-2 border-white">
                 {badge > 9 ? '9+' : badge}
               </span>

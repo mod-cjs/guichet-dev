@@ -33,7 +33,7 @@ export const WithBadges: Story = {
       <BottomNav
         badges={{
           '/opportunites': 3,
-          '/agenda': 12,
+          '/jeune/mes-candidatures': 12,
         }}
       />
     </Frame>

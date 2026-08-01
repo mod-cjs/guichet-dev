@@ -66,6 +66,10 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   // « Mes candidatures » est un parcours central et n'était jusqu'ici présent
   // dans AUCUNE chrome persistante mobile. Le remplacement d'Agenda/Ressources
   // par Candidatures/Profil est une décision produit rendue par le lead.
+  // Icônes vérifiées dans `ICON_NAMES` (src/components/ui/Icon/index.tsx)
+  // avant câblage : 'document' (Candidatures), 'pin' (Centres CJS existant),
+  // 'user' (Profil) — toutes déjà présentes dans le sprite `public/icons.svg`,
+  // aucune icône nouvelle ajoutée (hors périmètre).
   it('expose Accueil / Explorer / Candidatures / Centres CJS / Profil, dans cet ordre', () => {
     render(<BottomNav />)
     const links = screen.getAllByRole('link')
