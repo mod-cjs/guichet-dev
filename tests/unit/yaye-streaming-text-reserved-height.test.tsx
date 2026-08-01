@@ -90,4 +90,21 @@ describe('YayeStreamingText — hauteur réservée monotone (jamais décroissant
 
     expect(parseFloat(el.style.minHeight || '0')).toBeGreaterThanOrEqual(12)
   })
+
+  it('une nouvelle instance (nouveau tour de conversation) repart de zéro — pas de fuite de la hauteur du tour précédent', () => {
+    jest.useFakeTimers()
+    heights = [200]
+    const first = render(<YayeStreamingText text="Réponse précédente, assez longue pour être mesurée haute." />)
+    act(() => { jest.advanceTimersByTime(16) })
+    expect(parseFloat((screen.getByTestId('yaye-streaming') as HTMLElement).style.minHeight || '0')).toBeGreaterThanOrEqual(200)
+    first.unmount()
+
+    heights = [10]
+    call = 0
+    render(<YayeStreamingText text="Ok" />)
+    const el = screen.getByTestId('yaye-streaming') as HTMLElement
+    // Avant toute mesure sur la NOUVELLE instance, le min-height ne doit pas
+    // hériter du pic (200) du tour précédent.
+    expect(parseFloat(el.style.minHeight || '0')).toBeLessThan(200)
+  })
 })
