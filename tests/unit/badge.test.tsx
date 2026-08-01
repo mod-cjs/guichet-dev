@@ -23,7 +23,6 @@ describe('<Badge />', () => {
     ['new', 'border-gj-teal-deep'],
   ] as const)('variant=%s + bordered applique %s', (variant, expectedBorderClass) => {
     const { container } = render(
-      // @ts-expect-error GUIC-689 — prop `bordered` pas encore implémentée (RED)
       <Badge variant={variant} bordered>
         x
       </Badge>,

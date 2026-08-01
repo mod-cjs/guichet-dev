@@ -190,17 +190,31 @@ export function FileUpload({
       />
 
       {!ready && progress === null && (
-        <button
-          type="button"
-          onClick={openPicker}
-          disabled={disabled}
-          className="min-h-[var(--tap-min)] inline-flex items-center justify-center gap-space-2
-            px-space-4 py-space-2 rounded-gj-md border border-gj-line bg-white
-            text-color-text-primary hover:bg-gj-bg disabled:opacity-50"
+        <div
+          className="flex items-center gap-space-3 rounded-gj-lg border-2 border-dashed
+            border-gj-line-strong bg-gj-bg p-space-4"
         >
-          <Icon name="upload" />
-          <span>Choisir un fichier</span>
-        </button>
+          <span
+            className="w-[42px] h-[42px] rounded-gj-md bg-white text-gj-teal-deep
+              flex items-center justify-center flex-shrink-0"
+          >
+            <Icon name="upload" size={20} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-fs-200 font-bold text-color-text-primary">Choisir un fichier</p>
+            <p className="text-fs-100 text-gj-grey mt-[1px]">{MAX_CV_MB} Mo max</p>
+          </div>
+          <button
+            type="button"
+            onClick={openPicker}
+            disabled={disabled}
+            className="min-h-[var(--tap-min)] shrink-0 px-space-4 py-space-2 rounded-gj-md
+              border border-gj-line bg-white text-color-text-primary hover:bg-gj-bg
+              disabled:opacity-50"
+          >
+            Parcourir
+          </button>
+        </div>
       )}
 
       {progress !== null && (

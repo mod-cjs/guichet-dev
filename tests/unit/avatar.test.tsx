@@ -20,7 +20,6 @@ describe('<Avatar />', () => {
     ['recruteur', 'from-gj-blue', 'to-gj-blue-ink'],
     ['agent', 'from-gj-yellow', 'to-gj-yellow-deep'],
   ] as const)('tone=%s applique le dégradé %s → %s', (tone, from, to) => {
-    // @ts-expect-error GUIC-689 — prop `tone` pas encore implémentée (RED)
     const { container } = render(<Avatar prenom="A" nom="B" tone={tone} />)
     const inner = container.querySelector('.rounded-full') as HTMLElement
     expect(inner.className).toMatch(new RegExp(from))
@@ -28,7 +27,6 @@ describe('<Avatar />', () => {
   })
 
   it('affiche une pastille de présence quand online', () => {
-    // @ts-expect-error GUIC-689 — prop `online` pas encore implémentée (RED)
     render(<Avatar prenom="A" nom="B" online />)
     expect(screen.getByLabelText('En ligne')).toBeInTheDocument()
   })
