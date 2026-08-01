@@ -290,5 +290,11 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
       expect(screen.getByText(/^1\s248 vues$/)).toBeInTheDocument()
       expect(screen.queryByText(/1,248/)).toBeNull()
     })
+
+    it('porte l’icône « eye » du compteur de vues', () => {
+      renderDetail()
+      const chip = screen.getByText(/12 vues/).closest('span')
+      expect(chip?.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-eye')
+    })
   })
 })

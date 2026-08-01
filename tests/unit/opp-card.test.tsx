@@ -135,4 +135,10 @@ describe('F1.1 — Tuile sectorielle', () => {
     expect(tuile).toHaveAttribute('data-cat', 'cat-emploi')
     expect(tuile.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-employment')
   })
+
+  it('la tuile est purement décorative (aria-hidden) — l’information est déjà portée par le chip', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile).toHaveAttribute('aria-hidden')
+  })
 })
