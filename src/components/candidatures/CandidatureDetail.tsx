@@ -80,7 +80,8 @@ const STATUT_PILL: Record<
  *  - Stepper 5 étapes (réutilise CandidaturePipelineStepper)
  *  - Section « Ma candidature » (lettre motivation collapsible + lien CV)
  *  - Section « Échanges » (stub)
- *  - CTAs contextuels (Retirer si en cours, Voir l'opportunité)
+ *  - CTA « Voir l'opportunité » (GUIC-689 : pas de CTA de retrait — feature
+ *    inexistante, voir commentaire au niveau du bloc CTAs)
  */
 export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const pipeline = pipelineFromStatut(candidature.statut)
@@ -93,8 +94,6 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const lettre = candidature.lettreMotivation ?? ''
   const lettreLong = lettre.length > 500
   const lettrePreview = lettreLong ? `${lettre.slice(0, 500)}…` : lettre
-
-  const canWithdraw = candidature.statut === 'En_attente'
 
   return (
     <article className="flex flex-col gap-space-4">
@@ -220,15 +219,10 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
           Voir l&apos;opportunité
           <Icon name="arrow-right" size={16} />
         </Link>
-        {canWithdraw ? (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-space-2 rounded-gj-md bg-gj-red-soft px-space-4 py-space-2 min-h-[var(--tap-min)] text-fs-200 font-bold text-gj-red-ink hover:bg-gj-red-soft/80"
-            data-testid="detail-cta-withdraw"
-          >
-            Retirer ma candidature
-          </button>
-        ) : null}
+        {/* GUIC-689 (finding A3) — pas de bouton "Retirer ma candidature" : ni route
+            API ni statut Prisma `Retiree` n'existent. L'ajouter engagerait des
+            décisions produit (notification recruteur, réversibilité, CDP) hors
+            périmètre de ce ticket ; feature à traiter dans une story dédiée. */}
       </div>
     </article>
   )

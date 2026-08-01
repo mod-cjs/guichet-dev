@@ -39,7 +39,9 @@ describe('<WebDashYayePanel />', () => {
 
   it("ouvre le drawer Yaye via useYayePanel quand monté sans onOpen (GUIC-689 — CTA mort sur le dashboard)", () => {
     render(<WebDashYayePanel />)
-    fireEvent.click(screen.getByRole('button', { name: /Ouvrir le chat Yaye/i }))
+    const cta = screen.getByRole('button', { name: /Ouvrir le chat Yaye/i })
+    expect(cta).toHaveAttribute('aria-haspopup', 'dialog')
+    fireEvent.click(cta)
     expect(mockOpen).toHaveBeenCalledTimes(1)
   })
 })
