@@ -16,6 +16,7 @@ import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 import { getBibliothequeStats, getEmpruntsBibliotheque } from '@/lib/loaders/conseiller-bibliotheque'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
+import { CentreBiblioCatalogue, type CatalogueLivre } from './CentreBiblioCatalogue'
 import { CentreFrequentation } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
 import { CentreLifecycleActions } from './CentreLifecycleActions'
@@ -153,18 +154,36 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     })
   }
 
-  // Onglet Bibliothèque : KPIs + emprunts en cours (exemplaires localisés dans ce centre).
+  // Onglet Bibliothèque : KPIs + emprunts en cours + catalogue/fonds du centre.
   let biblioKpis: BiblioKpis = { exemplaires: 0, enCours: 0, enRetard: 0, titres: 0 }
   let biblioEmprunts: BiblioEmpruntRow[] = []
+  let biblioCatalogue: CatalogueLivre[] = []
   if (tab === 'biblio') {
-    const [stats, emprunts] = await Promise.all([
+    const [stats, emprunts, livres] = await Promise.all([
       getBibliothequeStats(id),
       getEmpruntsBibliotheque(id, ['en_cours', 'en_retard'], now),
+      prisma.livre.findMany({
+        where: { exemplaires: { some: { centreId: id } } },
+        orderBy: { titre: 'asc' },
+        take: 200,
+        select: {
+          id: true, titre: true, auteur: true, theme: true, isbn: true, niveau: true, langue: true, resume: true,
+          exemplaires: {
+            where: { centreId: id },
+            orderBy: { codeBarre: 'asc' },
+            select: { id: true, codeBarre: true, rayon: true, etagere: true, position: true, statut: true },
+          },
+        },
+      }),
     ])
     biblioKpis = { exemplaires: stats.exemplaires, enCours: stats.enCours, enRetard: stats.enRetard, titres: stats.titres }
     biblioEmprunts = emprunts.map((e) => ({
       id: e.id, titre: e.livreTitre, auteur: e.livreAuteur, emprunteur: e.emprunteur,
       emprunteLe: e.dateLabel, retourPrevu: e.retourLabel, statut: String(e.statut), enRetard: e.enRetard,
+    }))
+    biblioCatalogue = livres.map((l) => ({
+      id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme, isbn: l.isbn, niveau: l.niveau, langue: l.langue, resume: l.resume,
+      exemplaires: l.exemplaires.map((e) => ({ id: e.id, codeBarre: e.codeBarre, rayon: e.rayon, etagere: e.etagere, position: e.position, statut: String(e.statut) })),
     }))
   }
 
@@ -278,7 +297,12 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
-      {tab === 'biblio' && <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />}
+      {tab === 'biblio' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />
+          <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} />
+        </div>
+      )}
     </div>
   )
 }
