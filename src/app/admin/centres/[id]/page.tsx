@@ -18,7 +18,7 @@ import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
 import { CentreBiblioCatalogue, type CatalogueLivre } from './CentreBiblioCatalogue'
 import { CentreEvenements, type EvenementRow, type InsertionRow } from './CentreEvenements'
-import { CentreFrequentation } from './CentreFrequentation'
+import { CentreFrequentation, type CheckinRow } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
 import { CentreLifecycleActions } from './CentreLifecycleActions'
 import { AdminCentreRessources, type RessourceCentreItem, type ReservationRow } from './ressources/AdminCentreRessources'
@@ -42,6 +42,24 @@ function SectionH6({ children }: { children: React.ReactNode }) {
 function initials(nom: string): string {
   const parts = nom.replace(/^CJS\s+/i, '').trim().split(/\s+/).filter(Boolean)
   return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')
+}
+
+/** Durée de présence : « dwell 45 min » / « dwell 1 h 20 ». */
+function dwellLabel(min: number): string {
+  if (min < 60) return `dwell ${min} min`
+  const h = Math.floor(min / 60), m = min % 60
+  return `dwell ${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}`
+}
+
+/** Temps relatif court : « il y a 12 min » / « il y a 2 h » / « il y a 3 j ». */
+function relTime(d: Date, now: Date): string {
+  const s = Math.max(0, Math.floor((now.getTime() - d.getTime()) / 1000))
+  if (s < 60) return "à l'instant"
+  const m = Math.floor(s / 60)
+  if (m < 60) return `il y a ${m} min`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `il y a ${h} h`
+  return `il y a ${Math.floor(h / 24)} j`
 }
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
@@ -138,6 +156,24 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const analytics = tab === 'frequentation'
     ? await getCentresAnalytics({ from: new Date(Date.now() - 90 * 86_400_000), to: new Date(), centreIds: [id] })
     : null
+
+  // Check-ins récents (onglet Fréquentation) — lecture ; le scan est une action staff via QR.
+  let checkinsRows: CheckinRow[] = []
+  if (tab === 'frequentation') {
+    const ci = await prisma.checkIn.findMany({
+      where: { centreId: id },
+      orderBy: { effectueA: 'desc' },
+      take: 40,
+      select: { id: true, via: true, dwellMinutes: true, effectueA: true, utilisateur: { select: { prenom: true, nom: true } } },
+    })
+    checkinsRows = ci.map((c) => ({
+      id: c.id,
+      jeune: `${c.utilisateur.prenom} ${c.utilisateur.nom}`.trim(),
+      via: c.via === 'QrCard' ? 'QR MyCJSCard' : 'Manuel (staff)',
+      dwell: c.dwellMinutes != null ? dwellLabel(c.dwellMinutes) : null,
+      quand: relTime(c.effectueA, now),
+    }))
+  }
 
   // Onglet Équipe & accès : agents rattachés (AgentCentre ↔ Utilisateur par cjs_uid).
   let agents: CentreAgent[] = []
@@ -333,7 +369,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
 
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
-      {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} />}
+      {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} />}
       {tab === 'biblio' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />

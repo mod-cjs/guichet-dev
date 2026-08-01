@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react'
 import type { CentresAnalytics } from '@/lib/loaders/centres-analytics'
+import { CheckinsRecents, type CheckinRow } from './CheckinsRecents'
+
+export type { CheckinRow }
 
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 12, boxShadow: 'var(--gj-edge)', padding: '13px 15px' }
 
@@ -20,7 +23,7 @@ function SectionH6({ children }: { children: React.ReactNode }) {
  * Onglet Fréquentation de la fiche Centre (GUIC-687) — fidélité maquette cFreq :
  * 4 tuiles ktile + barres par jour de semaine (check-ins) + légende.
  */
-export function CentreFrequentation({ analytics }: { analytics: CentresAnalytics }) {
+export function CentreFrequentation({ analytics, checkins = [] }: { analytics: CentresAnalytics; checkins?: CheckinRow[] }) {
   const a = analytics.accesQr
   const kpis = [
     { label: 'Accès (90 j)', value: a.total.toLocaleString('fr-FR') },
@@ -70,6 +73,8 @@ export function CentreFrequentation({ analytics }: { analytics: CentresAnalytics
           </>
         )}
       </div>
+
+      <CheckinsRecents checkins={checkins} />
     </div>
   )
 }
