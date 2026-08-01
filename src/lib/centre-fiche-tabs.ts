@@ -4,7 +4,7 @@
  */
 import type { IconName } from '@/components/ui/Icon'
 
-export type CentreTab = 'vue' | 'equipe' | 'ressources' | 'frequentation' | 'biblio'
+export type CentreTab = 'vue' | 'equipe' | 'ressources' | 'frequentation' | 'biblio' | 'evenements'
 
 export const CENTRE_TABS: { value: CentreTab; label: string; icon: IconName }[] = [
   { value: 'vue', label: "Vue d'ensemble", icon: 'home' },
@@ -12,6 +12,7 @@ export const CENTRE_TABS: { value: CentreTab; label: string; icon: IconName }[] 
   { value: 'ressources', label: 'Ressources & réservations', icon: 'resources' },
   { value: 'frequentation', label: 'Fréquentation', icon: 'chart' },
   { value: 'biblio', label: 'Bibliothèque', icon: 'bookmark' },
+  { value: 'evenements', label: 'Événements & insertions', icon: 'calendar' },
 ]
 
 const VALUES = CENTRE_TABS.map((t) => t.value)

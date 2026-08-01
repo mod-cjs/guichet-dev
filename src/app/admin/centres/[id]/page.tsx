@@ -17,6 +17,7 @@ import { getBibliothequeStats, getEmpruntsBibliotheque } from '@/lib/loaders/con
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
 import { CentreBiblioCatalogue, type CatalogueLivre } from './CentreBiblioCatalogue'
+import { CentreEvenements, type EvenementRow, type InsertionRow } from './CentreEvenements'
 import { CentreFrequentation } from './CentreFrequentation'
 import { CentreEditButton } from './CentreEditButton'
 import { CentreLifecycleActions } from './CentreLifecycleActions'
@@ -187,6 +188,42 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     }))
   }
 
+  // Onglet Événements & insertions : événements du centre + insertions rattachées.
+  const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+  let evenementsRows: EvenementRow[] = []
+  let insertionsRows: InsertionRow[] = []
+  if (tab === 'evenements') {
+    const [evs, ins] = await Promise.all([
+      prisma.evenement.findMany({
+        where: { centreId: id },
+        orderBy: { dateDebut: 'desc' },
+        take: 30,
+        select: { id: true, titre: true, dateDebut: true, capaciteMax: true, statut: true, _count: { select: { inscriptions: true } } },
+      }),
+      prisma.insertion.findMany({
+        where: { centreId: id },
+        orderBy: { dateInsertion: 'desc' },
+        take: 30,
+        select: { id: true, type: true, dateInsertion: true, utilisateur: { select: { prenom: true, nom: true } } },
+      }),
+    ])
+    evenementsRows = evs.map((e) => ({
+      id: e.id,
+      jour: String(e.dateDebut.getDate()).padStart(2, '0'),
+      mois: MOIS[e.dateDebut.getMonth()],
+      titre: e.titre,
+      inscrits: e._count.inscriptions,
+      capacite: e.capaciteMax,
+      statut: String(e.statut),
+    }))
+    insertionsRows = ins.map((p) => ({
+      id: p.id,
+      jeune: `${p.utilisateur.prenom} ${p.utilisateur.nom}`.trim(),
+      detail: p.type ?? 'Insertion professionnelle',
+      date: p.dateInsertion.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+    }))
+  }
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
       <Link href="/admin/centres" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-teal-deep)', textDecoration: 'none', marginBottom: 14 }}>
@@ -303,6 +340,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} />
         </div>
       )}
+      {tab === 'evenements' && <CentreEvenements evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} />}
     </div>
   )
 }
