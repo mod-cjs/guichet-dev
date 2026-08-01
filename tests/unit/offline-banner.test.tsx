@@ -62,4 +62,12 @@ describe('<OfflineBanner /> (GUIC-689 — Lot 13)', () => {
     screen.getByRole('button', { name: 'Réessayer' }).click()
     expect(refreshMock).toHaveBeenCalledTimes(1)
   })
+
+  it('reste sticky en tête de zone (position: sticky, top: 0)', () => {
+    setOnlineState(false)
+    render(<OfflineBanner />)
+    const banner = screen.getByRole('status')
+    expect(banner.className).toMatch(/\bsticky\b/)
+    expect(banner.className).toMatch(/\btop-0\b/)
+  })
 })
