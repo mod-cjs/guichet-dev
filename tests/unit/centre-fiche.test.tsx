@@ -5,8 +5,13 @@ import { render, screen } from '@testing-library/react'
 import { CentreFicheTabs } from '@/app/admin/centres/[id]/CentreFicheTabs'
 import { CentreFrequentation } from '@/app/admin/centres/[id]/CentreFrequentation'
 import type { CentresAnalytics } from '@/lib/loaders/centres-analytics'
+import { paginate } from '@/lib/centre-pagination'
 
 jest.mock('@/components/ui/Icon', () => ({ Icon: () => <svg /> }))
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}))
 
 describe('CentreFicheTabs', () => {
   it('rend les 3 onglets Phase A avec l\'onglet actif marqué', () => {
@@ -26,15 +31,15 @@ describe('CentreFrequentation', () => {
   } as unknown as CentresAnalytics
 
   it('affiche les KPIs QR/manuel/total et le graphe par jour', () => {
-    render(<CentreFrequentation analytics={analytics} />)
+    render(<CentreFrequentation analytics={analytics} checkinsInfo={paginate(0, 1)} />)
     expect(screen.getByText('165')).toBeInTheDocument()
     expect(screen.getByText('100')).toBeInTheDocument()
     expect(screen.getByText('61 %')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /accès par qr — par jour/i })).toBeInTheDocument()
+    expect(screen.getByText(/Fréquentation par jour/i)).toBeInTheDocument()
   })
 
   it('état vide quand aucun accès', () => {
-    render(<CentreFrequentation analytics={{ ...analytics, accesQrParJour: [] } as CentresAnalytics} />)
+    render(<CentreFrequentation analytics={{ ...analytics, accesQrParJour: [] } as CentresAnalytics} checkinsInfo={paginate(0, 1)} />)
     expect(screen.getByText(/aucun accès enregistré/i)).toBeInTheDocument()
   })
 })

@@ -1,7 +1,13 @@
 /** @jest-environment jsdom */
-/** GUIC-687 — sous-section « Check-ins récents » (onglet Fréquentation) : liste + recherche. */
-import { render, screen, fireEvent } from '@testing-library/react'
+/** GUIC-687 — « Check-ins récents » (Fréquentation) : liste présentationnelle + pager serveur. */
+import { render, screen } from '@testing-library/react'
 import { CheckinsRecents, type CheckinRow } from '@/app/admin/centres/[id]/CheckinsRecents'
+import { paginate } from '@/lib/centre-pagination'
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}))
 
 const CHECKINS: CheckinRow[] = [
   { id: 'c1', jeune: 'Awa Ndiaye', via: 'QR MyCJSCard', dwell: 'dwell 45 min', quand: 'il y a 12 min' },
@@ -10,28 +16,23 @@ const CHECKINS: CheckinRow[] = [
 
 describe('CheckinsRecents', () => {
   it('liste les check-ins avec source, dwell et temps relatif', () => {
-    render(<CheckinsRecents checkins={CHECKINS} />)
+    render(<CheckinsRecents checkins={CHECKINS} info={paginate(2, 1)} />)
     expect(screen.getByText('Awa Ndiaye')).toBeInTheDocument()
     expect(screen.getByText(/QR MyCJSCard · dwell 45 min/)).toBeInTheDocument()
     expect(screen.getByText('Manuel (staff)')).toBeInTheDocument()
     expect(screen.getByText('il y a 12 min')).toBeInTheDocument()
   })
 
-  it('note le scan QR réservé au staff (pas de bouton Scanner ici)', () => {
-    render(<CheckinsRecents checkins={CHECKINS} />)
+  it('affiche le pager (X sur N) + note QR staff', () => {
+    render(<CheckinsRecents checkins={CHECKINS} info={paginate(2, 1)} />)
+    expect(screen.getByText(/sur/)).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument() // total
     expect(screen.getByText(/scan du QR badge/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Scanner/i })).toBeNull()
   })
 
-  it('recherche filtre par jeune / source', () => {
-    render(<CheckinsRecents checkins={CHECKINS} />)
-    fireEvent.change(screen.getByLabelText(/Rechercher un check-in/i), { target: { value: 'modou' } })
-    expect(screen.getByText('Modou Fall')).toBeInTheDocument()
-    expect(screen.queryByText('Awa Ndiaye')).toBeNull()
-  })
-
-  it('état vide', () => {
-    render(<CheckinsRecents checkins={[]} />)
+  it('état vide (total 0)', () => {
+    render(<CheckinsRecents checkins={[]} info={paginate(0, 1)} />)
     expect(screen.getByText(/Aucun check-in récent/i)).toBeInTheDocument()
   })
 })

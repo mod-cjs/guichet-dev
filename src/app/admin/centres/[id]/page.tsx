@@ -10,6 +10,7 @@ import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
 import { regionLabel } from '@/lib/regions'
 import { centreRgb } from '@/lib/centre-accent'
 import { parseTab } from '@/lib/centre-fiche-tabs'
+import { parsePage, parseQuery, paginate, PAGE_SIZE, type PageInfo } from '@/lib/centre-pagination'
 import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
 import { serviceLabel } from '@/lib/centre-services'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
@@ -62,12 +63,15 @@ function relTime(d: Date, now: Date): string {
   return `il y a ${Math.floor(h / 24)} j`
 }
 
-export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+type SP = Record<string, string | string[] | undefined>
+
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SP> }) {
   const session = await getSession()
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const { id } = await params
-  const tab = parseTab((await searchParams).tab)
+  const sp = await searchParams
+  const tab = parseTab(typeof sp.tab === 'string' ? sp.tab : undefined)
 
   const centre = await prisma.centre.findUnique({
     where: { id },
@@ -157,13 +161,22 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     ? await getCentresAnalytics({ from: new Date(Date.now() - 90 * 86_400_000), to: new Date(), centreIds: [id] })
     : null
 
-  // Check-ins récents (onglet Fréquentation) — lecture ; le scan est une action staff via QR.
+  // Check-ins récents (onglet Fréquentation) — recherche + pagination SERVEUR (par jeune).
   let checkinsRows: CheckinRow[] = []
+  let checkinsInfo: PageInfo = paginate(0, 1)
   if (tab === 'frequentation') {
+    const ciQ = parseQuery(sp.ciQ)
+    const ciWhere = {
+      centreId: id,
+      ...(ciQ ? { utilisateur: { OR: [{ prenom: { contains: ciQ } }, { nom: { contains: ciQ } }] } } : {}),
+    }
+    const ciTotal = await prisma.checkIn.count({ where: ciWhere })
+    checkinsInfo = paginate(ciTotal, parsePage(sp.ciPage), PAGE_SIZE)
     const ci = await prisma.checkIn.findMany({
-      where: { centreId: id },
+      where: ciWhere,
       orderBy: { effectueA: 'desc' },
-      take: 40,
+      skip: checkinsInfo.skip,
+      take: PAGE_SIZE,
       select: { id: true, via: true, dwellMinutes: true, effectueA: true, utilisateur: { select: { prenom: true, nom: true } } },
     })
     checkinsRows = ci.map((c) => ({
@@ -369,7 +382,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
 
       {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} />}
-      {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} />}
+      {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} checkinsInfo={checkinsInfo} />}
       {tab === 'biblio' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />
