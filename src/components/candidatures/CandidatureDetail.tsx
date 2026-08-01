@@ -127,7 +127,7 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
                 data-testid="detail-status-pill"
                 className={[
                   'inline-flex items-center rounded-gj-pill px-2 py-[2px]',
-                  'text-[10px] font-extrabold uppercase tracking-[0.04em]',
+                  'text-fs-100 font-extrabold uppercase tracking-[0.04em]',
                   pill.className,
                 ].join(' ')}
               >

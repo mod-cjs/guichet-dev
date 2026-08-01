@@ -99,3 +99,24 @@ describe('YayeSkeletonCards — shimmer câblé sur les tokens de squelette', ()
     expect(content()).not.toMatch(/--gj-bg-soft/)
   })
 })
+
+// GUIC-689 — le plancher vaut pour TOUT le code livré, pas seulement la
+// sidebar/topbar : l'audit de conformité a trouvé des textes sous 11px dans
+// des composants réécrits pendant les vagues 1 et 2 (dont une pastille que la
+// maquette v5 pose elle-même à 11px).
+describe('Sentinelle — plancher 11px sur les composants migrés v5', () => {
+  const MIGRATED = [
+    'src/components/home/WelcomeHeroWeb.tsx',
+    'src/components/home/WelcomeHeroMobile.tsx',
+    'src/components/candidatures/CandidatureCard.tsx',
+    'src/components/candidatures/CandidatureDetail.tsx',
+    'src/components/dashboard/OpportunitesRecoCarousel.tsx',
+  ]
+
+  it.each(MIGRATED)('%s : aucun texte sous 11px', (relPath) => {
+    const content = read(relPath)
+    const inline = [...content.matchAll(/fontSize:\s*(\d+(?:\.\d+)?)/g)].map((m) => parseFloat(m[1]))
+    const utility = [...content.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)].map((m) => parseFloat(m[1]))
+    expect([...inline, ...utility].filter((v) => v < 11)).toEqual([])
+  })
+})
