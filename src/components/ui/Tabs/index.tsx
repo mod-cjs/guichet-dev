@@ -30,7 +30,10 @@ export interface TabsProps<V extends string = string> {
  *
  * - role="tablist" + role="tab" + aria-selected, aria-controls (optionnel)
  * - Navigation clavier : ArrowLeft / ArrowRight (boucle), Home, End
- * - Sélection visuelle : border-bottom 2px var(--gj-teal-deep) + bold sur l'actif
+ * - Sélection visuelle (design v5, Lot 14 « Segmented ») : conteneur pilule
+ *   (fond blanc, bordure, radius 12, padding 5) — l'actif est un fond
+ *   var(--gj-teal-deep) plein + texte blanc, radius 8. Contrôle d'onglet
+ *   unique de la plateforme.
  * - Mobile : scroll horizontal autorisé (tablist de filtres, pas une nav)
  *   avec snap-x et scrollbar masquée. Desktop : flex-wrap.
  * - Tap-min 44px.
@@ -90,13 +93,17 @@ export function Tabs<V extends string = string>({
       role="tablist"
       aria-label={ariaLabel}
       className={[
+        // Conteneur pilule (design v5, Lot 14 « Segmented ») : fond blanc,
+        // bordure, radius 12, padding 5 — le contrôle d'onglet unique de la
+        // plateforme.
+        'inline-flex bg-gj-surface border-[1.5px] border-gj-line rounded-[12px] p-[5px]',
         // Mobile : scroll horizontal (filter tablist, not a nav).
         // Desktop (≥sm) : wrap normal.
-        'flex flex-nowrap sm:flex-wrap gap-space-1',
+        'flex-nowrap sm:flex-wrap gap-1.5',
         'overflow-x-auto sm:overflow-visible',
         'snap-x snap-mandatory sm:snap-none',
         'scrollbar-hide',
-        '-mx-space-2 px-space-2 sm:mx-0 sm:px-0',
+        'max-w-full',
         className,
       ].join(' ')}
     >
@@ -118,15 +125,15 @@ export function Tabs<V extends string = string>({
             onClick={() => onChange(item.value)}
             onKeyDown={handleKeyDown}
             className={[
-              'inline-flex items-center gap-2 px-space-3',
-              'min-h-[var(--tap-min)]',
+              'inline-flex items-center justify-center gap-2 px-space-3',
+              'min-h-[var(--tap-min)] rounded-gj-md',
               'snap-start shrink-0',
               'text-fs-300 leading-none whitespace-nowrap',
-              'border-b-2 transition-colors duration-200',
+              'transition-colors duration-200',
               'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]',
               active
-                ? 'border-gj-teal-deep text-gj-ink font-bold'
-                : 'border-transparent text-gj-grey hover:text-color-text-primary font-medium',
+                ? 'bg-gj-teal-deep text-white font-bold'
+                : 'bg-transparent text-gj-grey hover:text-color-text-primary font-medium',
             ].join(' ')}
           >
             <span>{item.label}</span>
@@ -138,7 +145,7 @@ export function Tabs<V extends string = string>({
                   'min-w-[20px] h-[20px] px-1.5',
                   'rounded-gj-pill text-fs-100 font-bold leading-none',
                   active
-                    ? 'bg-gj-teal-soft text-gj-teal-deep'
+                    ? 'bg-white/20 text-white'
                     : 'bg-gj-bg text-gj-grey',
                 ].join(' ')}
               >

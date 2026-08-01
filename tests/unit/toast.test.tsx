@@ -73,4 +73,19 @@ describe('<Toast />', () => {
     render(<Toast message="OK" onClose={() => {}} duration={0} />)
     expect(screen.queryByRole('button', { name: /annuler/i })).toBeNull()
   })
+
+  it('la pastille icône porte la sémantique par variant (Lot 14) — ambre = texte/icône noir (contraste AA)', () => {
+    render(<Toast message="Profil incomplet" variant="warning" onClose={() => {}} duration={0} />)
+    const dot = screen.getByRole('img')
+    expect(dot.className).toMatch(/bg-gj-yellow\b/)
+    expect(dot.className).toMatch(/text-gj-ink/)
+  })
+
+  it('la pastille icône est blanche sur fond vert/rouge/bleu (aplats "porteurs de texte blanc")', () => {
+    const { rerender } = render(<Toast message="OK" variant="success" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('img').className).toMatch(/bg-gj-green\b.*text-white|text-white.*bg-gj-green\b/)
+    rerender(<Toast message="OK" variant="danger" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('img').className).toMatch(/bg-gj-red\b/)
+    expect(screen.getByRole('img').className).toMatch(/text-white/)
+  })
 })

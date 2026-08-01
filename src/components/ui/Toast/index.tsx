@@ -7,6 +7,11 @@ import { Icon } from '../Icon'
 export type ToastVariant = 'info' | 'success' | 'warning' | 'danger' | 'error'
 export type ToastPosition = 'bottom-right' | 'bottom-center' | 'top-right'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 interface ToastProps {
   message: string
   detail?: string
@@ -22,21 +27,24 @@ interface ToastProps {
   onClose: () => void
   /** Callback déclenché à la fermeture (clic ou auto-dismiss). Alias optionnel. */
   onDismiss?: () => void
+  /** Action inline optionnelle (ex. "Annuler") — bouton ambre sur le fond sombre. */
+  action?: ToastAction
 }
 
 interface VariantStyle {
-  bg: string
-  fg: string
-  ring: string
+  /** Fond de la pastille portant l'icône (sémantique success/danger/info/warning). */
+  dot: string
+  /** Couleur de l'icône dans la pastille (contraste AA — noir sur ambre, blanc ailleurs). */
+  dotFg: string
   label: string
   defaultIcon: IconName
 }
 
 const VARIANTS: Record<Exclude<ToastVariant, 'error'>, VariantStyle> = {
-  info:    { bg: 'bg-gj-blue-soft',   fg: 'text-gj-blue-ink',   ring: 'border-gj-blue',   label: 'Information', defaultIcon: 'info' },
-  success: { bg: 'bg-gj-green-soft',  fg: 'text-gj-green-ink',  ring: 'border-gj-green',  label: 'Succès',      defaultIcon: 'check-circle' },
-  warning: { bg: 'bg-gj-yellow-soft', fg: 'text-gj-yellow-ink', ring: 'border-gj-yellow', label: 'Attention',   defaultIcon: 'alert' },
-  danger:  { bg: 'bg-gj-red-soft',    fg: 'text-gj-red-ink',    ring: 'border-gj-red',    label: 'Erreur',      defaultIcon: 'alert' },
+  info:    { dot: 'bg-gj-blue',   dotFg: 'text-white',  label: 'Information', defaultIcon: 'info' },
+  success: { dot: 'bg-gj-green',  dotFg: 'text-white',  label: 'Succès',      defaultIcon: 'check-circle' },
+  warning: { dot: 'bg-gj-yellow', dotFg: 'text-gj-ink', label: 'Attention',   defaultIcon: 'alert' },
+  danger:  { dot: 'bg-gj-red',    dotFg: 'text-white',  label: 'Erreur',      defaultIcon: 'alert' },
 }
 
 const POSITIONS: Record<ToastPosition, string> = {
@@ -46,10 +54,13 @@ const POSITIONS: Record<ToastPosition, string> = {
 }
 
 /**
- * Toast — notification éphémère du design system v2.
+ * Toast — notification éphémère du design system v5 (Lot 14).
  *
- * - 4 variants tinted (`info`, `success`, `warning`, `danger`) — `error` reste
- *   accepté comme alias de `danger` (compat ascendante).
+ * - Fond sombre unique (`var(--gj-ink)`, texte blanc) quel que soit le
+ *   variant — la sémantique (`info`/`success`/`warning`/`danger`) est
+ *   portée uniquement par la pastille colorée autour de l'icône.
+ *   `error` reste accepté comme alias de `danger` (compat ascendante).
+ * - Slot d'action inline optionnel (`action`) — bouton ambre, ex. « Annuler ».
  * - 3 positions (`bottom-right`, `bottom-center`, `top-right`).
  * - ARIA `role="status"` (`aria-live="assertive"` pour `danger`/`warning`,
  *   `polite` sinon).
@@ -66,6 +77,7 @@ export function Toast({
   bottomOffset = 0,
   onClose,
   onDismiss,
+  action,
 }: ToastProps) {
   const resolved: Exclude<ToastVariant, 'error'> =
     (variant ?? type ?? 'success') === 'error' ? 'danger' : ((variant ?? type ?? 'success') as Exclude<ToastVariant, 'error'>)
@@ -102,29 +114,38 @@ export function Toast({
       role="status"
       aria-live={isUrgent ? 'assertive' : 'polite'}
       className={`fixed left-space-3 md:left-auto ${POSITIONS[position]}
-        flex items-start gap-space-3 ${v.bg} ${v.fg} border-[1.5px] ${v.ring}
-        rounded-gj-lg p-space-3 shadow-gj-md max-w-[420px]`}
+        flex items-center gap-2.5 bg-gj-ink text-white
+        rounded-[11px] py-space-3 px-space-4 shadow-gj-md max-w-[420px]`}
       style={{
         ...vertical,
         zIndex: 'var(--gj-z-toast)',
       }}
     >
       <span
-        className="w-6 h-6 rounded-full bg-white/60 flex items-center justify-center flex-shrink-0"
+        className={`w-6 h-6 rounded-full ${v.dot} ${v.dotFg} flex items-center justify-center flex-shrink-0`}
         aria-label={v.label}
         role="img"
       >
-        <Icon name={iconName} size={16} />
+        <Icon name={iconName} size={13} />
       </span>
       <div className="flex-1 text-fs-300 leading-snug min-w-0">
         <strong className="block font-bold">{message}</strong>
         {detail && <span className="block opacity-90">{detail}</span>}
       </div>
+      {action ? (
+        <button
+          onClick={action.onClick}
+          className="text-gj-yellow font-bold text-fs-300 whitespace-nowrap
+            flex-shrink-0 min-h-[var(--tap-min)] px-1 flex items-center"
+        >
+          {action.label}
+        </button>
+      ) : null}
       <button
         onClick={handleDismiss}
         aria-label="Fermer"
         className="opacity-70 hover:opacity-100 transition-opacity
-          min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center -m-2"
+          min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center -m-2 flex-shrink-0"
       >
         <Icon name="close" size={16} />
       </button>

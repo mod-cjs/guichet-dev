@@ -66,4 +66,11 @@ describe('<Chip />', () => {
     expect(btn.className).toMatch(/text-white/)
     expect(btn.className).not.toMatch(/bg-gj-teal-soft/)
   })
+
+  it('sélectionné = bordure transparente (border:0 du Lot 14), non sélectionné garde la bordure ligne', () => {
+    render(<Chip selected>Dakar</Chip>)
+    expect(screen.getByRole('button', { name: /dakar/i }).className).toMatch(/border-transparent/)
+    render(<Chip>Kaolack</Chip>)
+    expect(screen.getByRole('button', { name: /kaolack/i }).className).toMatch(/border-gj-line\b/)
+  })
 })

@@ -62,4 +62,11 @@ describe('<Tabs />', () => {
     expect(tablist.className).toMatch(/bg-gj-surface/)
     expect(tablist.className).toMatch(/border-gj-line\b/)
   })
+
+  it('le compteur de l\'onglet actif passe en blanc translucide sur le fond teal-deep (Lot 14)', () => {
+    render(<Tabs value="all" onChange={() => {}} items={ITEMS} ariaLabel="Filtrer" />)
+    const activeCount = screen.getByRole('tab', { name: /toutes/i }).querySelector('[aria-hidden="true"]')
+    expect(activeCount?.className).toMatch(/bg-white\/20/)
+    expect(activeCount?.className).toMatch(/text-white/)
+  })
 })
