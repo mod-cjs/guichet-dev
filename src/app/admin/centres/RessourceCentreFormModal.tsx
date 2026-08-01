@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/Modal'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { htmlToPlainText } from '@/lib/rich-html'
-import { ImageUploadField } from './ImageUploadField'
+import { ImageUploadField } from '@/components/admin/ImageUploadField'
 import { creerRessourceCentre, modifierRessourceCentre } from './ressources-actions'
 
 /**

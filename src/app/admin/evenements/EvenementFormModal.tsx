@@ -5,6 +5,7 @@ import { TypeEvenement, StatutEvenement } from '@prisma/client'
 import { Modal } from '@/components/ui/Modal'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
+import { ImageUploadField } from '@/components/admin/ImageUploadField'
 import { creerEvenement, modifierEvenement } from './actions'
 
 const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference', 'Cours'] as const).map((v) => ({ value: v as string, label: v }))
@@ -60,6 +61,8 @@ export interface EvenementFormValues {
   centreId?: string | null
   capaciteMax?: number | null
   estGratuit?: boolean
+  /** Photo / visuel de l'événement (URL bucket). */
+  imageUrl?: string | null
 }
 
 export interface EvenementFormModalProps {
@@ -93,6 +96,7 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
   const [centreId, setCentreId] = useState(evenement?.centreId ?? '')
   const [capaciteMax, setCapaciteMax] = useState(evenement?.capaciteMax != null ? String(evenement.capaciteMax) : '')
   const [estGratuit, setEstGratuit] = useState(evenement?.estGratuit ?? true)
+  const [imageUrl, setImageUrl] = useState(evenement?.imageUrl ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -109,6 +113,7 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
       dateDebut: new Date(dateDebut),
       dateFin: dateFin.trim() ? new Date(dateFin) : null,
       lieu,
+      imageUrl: imageUrl.trim() || null,
       centreId: centreId || null,
       capaciteMax: capaciteMax.trim() ? Number(capaciteMax) : null,
       estGratuit,
@@ -170,6 +175,10 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
 
         <Fld label="Lieu" htmlFor="ev-lieu">
           <input id="ev-lieu" className={FIELD} required placeholder="Salle polyvalente, adresse…" value={lieu} onChange={(e) => setLieu(e.target.value)} />
+        </Fld>
+
+        <Fld label="Photo (optionnel)">
+          <ImageUploadField value={imageUrl ?? ''} onChange={setImageUrl} disabled={pending} />
         </Fld>
 
         <div className={FROW}>

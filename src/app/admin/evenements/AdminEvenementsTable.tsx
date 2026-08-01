@@ -36,6 +36,7 @@ export interface EvenementRow {
   dateFinIso: string | null
   centreId: string | null
   estGratuit: boolean
+  imageUrl: string | null
 }
 
 export interface AdminEvenementsTableProps {
@@ -232,6 +233,7 @@ export function AdminEvenementsTable({
       centreId: row.centreId,
       capaciteMax: row.capaciteMax,
       estGratuit: row.estGratuit,
+      imageUrl: row.imageUrl,
     })
     setModalOpen(true)
   }

@@ -28,7 +28,7 @@ const ROWS: EvenementRow[] = [
     dateDebutIso: '2026-07-12T09:00:00.000Z',
     dateFinIso: null,
     centreId: null,
-    estGratuit: true,
+    estGratuit: true, imageUrl: null,
   },
   {
     id: 'e2',
@@ -44,7 +44,7 @@ const ROWS: EvenementRow[] = [
     dateDebutIso: '2026-05-02T14:00:00.000Z',
     dateFinIso: null,
     centreId: null,
-    estGratuit: false,
+    estGratuit: false, imageUrl: null,
   },
 ]
 

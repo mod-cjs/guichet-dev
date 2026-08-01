@@ -55,6 +55,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         dateDebut: true,
         dateFin: true,
         lieu: true,
+        imageUrl: true,
         centreId: true,
         capaciteMax: true,
         estGratuit: true,
@@ -112,6 +113,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     dateFinIso: e.dateFin ? e.dateFin.toISOString() : null,
     centreId: e.centreId,
     estGratuit: e.estGratuit,
+    imageUrl: e.imageUrl,
   }))
 
   return (

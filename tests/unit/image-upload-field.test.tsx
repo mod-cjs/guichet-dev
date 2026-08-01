@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 /** GUIC-687 — ImageUploadField : upload vers /api/upload/image + aperçu + retrait. */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { ImageUploadField } from '@/app/admin/centres/ImageUploadField'
+import { ImageUploadField } from '@/components/admin/ImageUploadField'
 
 function pngFile() {
   return new File([new Uint8Array([137, 80, 78, 71])], 'photo.png', { type: 'image/png' })

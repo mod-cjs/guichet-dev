@@ -343,7 +343,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         skip: evenementsInfo.skip,
         take: PAGE_SIZE,
         select: {
-          id: true, titre: true, description: true, type: true, dateDebut: true, dateFin: true, lieu: true,
+          id: true, titre: true, description: true, type: true, dateDebut: true, dateFin: true, lieu: true, imageUrl: true,
           capaciteMax: true, estGratuit: true, statut: true, _count: { select: { inscriptions: true } },
         },
       }),
@@ -366,7 +366,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       edit: {
         id: e.id, titre: e.titre, description: e.description, type: String(e.type), statut: String(e.statut),
         dateDebut: e.dateDebut.toISOString(), dateFin: e.dateFin ? e.dateFin.toISOString() : null,
-        lieu: e.lieu, centreId: id, capaciteMax: e.capaciteMax, estGratuit: e.estGratuit,
+        lieu: e.lieu, imageUrl: e.imageUrl, centreId: id, capaciteMax: e.capaciteMax, estGratuit: e.estGratuit,
       },
     }))
     insertionsRows = ins.map((p) => ({

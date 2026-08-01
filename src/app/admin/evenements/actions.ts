@@ -28,6 +28,8 @@ const evenementSchema = z.object({
   dateDebut: z.coerce.date(),
   dateFin: z.coerce.date().optional().nullable(),
   lieu: z.string().trim().min(1, 'Lieu requis').max(200),
+  // Photo / visuel de l'événement (uploadée vers le bucket via /api/upload/image).
+  imageUrl: z.string().trim().max(500).optional().nullable(),
   // GUIC-474 — rattachement à un centre (requis pour les cours/sessions au centre).
   centreId: z.string().trim().optional().nullable(),
   capaciteMax: z.coerce.number().int().positive().optional().nullable(),
@@ -51,6 +53,7 @@ function toData(d: z.output<typeof evenementSchema>) {
     dateDebut: d.dateDebut,
     dateFin: d.dateFin ?? null,
     lieu: d.lieu,
+    imageUrl: d.imageUrl?.trim() || null,
     centreId: d.centreId?.trim() || null,
     capaciteMax: d.capaciteMax ?? null,
     estGratuit: d.estGratuit,
