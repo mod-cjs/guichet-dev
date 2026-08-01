@@ -68,10 +68,12 @@ describe('<CandidatureDetail /> — cibles tactiles CTA (GUIC-689, finding D)', 
     const cta = screen.getByTestId('detail-cta-opportunite')
     expect(cta.className).toMatch(/min-h-\[var\(--tap-min\)\]/)
   })
+})
 
-  it('le CTA "Retirer ma candidature" respecte le tap-min (44px)', () => {
+describe('<CandidatureDetail /> — pas de CTA retrait mensonger (GUIC-689, finding A3)', () => {
+  it('ne rend aucun bouton "Retirer ma candidature" (feature inexistante : ni route ni statut Retiree)', () => {
     render(<CandidatureDetail candidature={make({ statut: 'En_attente' })} />)
-    const cta = screen.getByTestId('detail-cta-withdraw')
-    expect(cta.className).toMatch(/min-h-\[var\(--tap-min\)\]/)
+    expect(screen.queryByTestId('detail-cta-withdraw')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Retirer ma candidature/i)).not.toBeInTheDocument()
   })
 })
