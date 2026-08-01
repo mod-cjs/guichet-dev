@@ -2,7 +2,7 @@
 /** GUIC-687 — gestion catalogue + fonds (admin) : liste, exemplaires dépliables, modal livre. */
 import { render, screen, fireEvent, within } from '@testing-library/react'
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }), useSearchParams: () => new URLSearchParams('') }))
 jest.mock('@/app/admin/centres/[id]/biblio-actions', () => ({
   creerLivreCentre: jest.fn().mockResolvedValue({ ok: true }),
   modifierLivreCentre: jest.fn().mockResolvedValue({ ok: true }),
@@ -14,6 +14,7 @@ jest.mock('@/app/admin/centres/[id]/biblio-actions', () => ({
 // RichTextEditor n'est pas utilisé ici, mais Modal l'est indirectement — pas de mock requis.
 
 import { CentreBiblioCatalogue, type CatalogueLivre } from '@/app/admin/centres/[id]/CentreBiblioCatalogue'
+import { paginate } from '@/lib/centre-pagination'
 
 const LIVRES: CatalogueLivre[] = [
   {
@@ -32,7 +33,7 @@ const LIVRES: CatalogueLivre[] = [
 
 describe('CentreBiblioCatalogue', () => {
   it('liste les titres avec compteur exemplaires / disponibles', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(2, 1)} />)
     expect(screen.getByText(/Catalogue & fonds · 2 titres/i)).toBeInTheDocument()
     expect(screen.getByText('Les Bouts de bois de Dieu')).toBeInTheDocument()
     // Compteur fragmenté (<b>2</b> ex. · 1 dispo) → matcher souple
@@ -40,12 +41,12 @@ describe('CentreBiblioCatalogue', () => {
   })
 
   it('note le comptoir QR réservé au staff', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(2, 1)} />)
     expect(screen.getByText(/comptoir.*scan du QR badge/i)).toBeInTheDocument()
   })
 
   it('déplier un livre affiche ses exemplaires (code-barres + emplacement + statut)', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(2, 1)} />)
     fireEvent.click(screen.getByRole('button', { expanded: false, name: /Les Bouts de bois de Dieu/ }))
     expect(screen.getByText('CJS-DK-0001')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Code-barres/i })).toBeInTheDocument()
@@ -55,7 +56,7 @@ describe('CentreBiblioCatalogue', () => {
   })
 
   it('un exemplaire emprunté ne peut pas être retiré (bouton désactivé)', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(2, 1)} />)
     fireEvent.click(screen.getByRole('button', { expanded: false, name: /Les Bouts de bois de Dieu/ }))
     const table = screen.getByRole('table')
     const rows = within(table).getAllByRole('row')
@@ -66,16 +67,15 @@ describe('CentreBiblioCatalogue', () => {
   })
 
   it('« Ajouter un livre » ouvre le formulaire (avec 1er exemplaire optionnel)', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(2, 1)} />)
     fireEvent.click(screen.getByRole('button', { name: /Ajouter un livre/i }))
     expect(screen.getByRole('heading', { name: /Ajouter un livre/i })).toBeInTheDocument()
     expect(screen.getByText(/Premier exemplaire dans ce centre/i)).toBeInTheDocument()
   })
 
-  it('recherche filtre par titre / auteur', () => {
-    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} />)
-    fireEvent.change(screen.getByLabelText(/Rechercher un livre/i), { target: { value: 'python' } })
-    expect(screen.getByText('Python facile')).toBeInTheDocument()
-    expect(screen.queryByText('Les Bouts de bois de Dieu')).toBeNull()
+  it('recherche serveur présente + pager', () => {
+    render(<CentreBiblioCatalogue centreId="c1" livres={LIVRES} info={paginate(30, 1)} />)
+    expect(screen.getByLabelText(/Rechercher un livre/i)).toBeInTheDocument()
+    expect(screen.getByText(/sur/)).toBeInTheDocument()
   })
 })

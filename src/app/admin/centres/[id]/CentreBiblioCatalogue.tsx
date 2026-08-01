@@ -1,11 +1,14 @@
 'use client'
 
-import { useMemo, useState, useTransition, type CSSProperties } from 'react'
+import { useState, useTransition, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
+import type { PageInfo } from '@/lib/centre-pagination'
+import { CentreSearch } from './CentreSearch'
+import { CentrePager } from './CentrePager'
 import {
   creerLivreCentre, modifierLivreCentre, supprimerLivreCentre,
   ajouterExemplaireCentre, modifierExemplaireCentre, supprimerExemplaireCentre,
@@ -20,7 +23,6 @@ export interface CatalogueLivre {
 
 const FIELD = 'w-full rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[9px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)]'
 const LABEL = 'block text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-color-text-muted mb-[6px]'
-const SEARCH = 'rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[8px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)] w-full max-w-[260px]'
 const mini: CSSProperties = { width: 30, height: 30, borderRadius: 8, border: '1px solid var(--gj-line)', background: 'transparent', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }
 const outlineBtn: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', background: 'transparent', color: 'var(--gj-ink)', border: '1px solid var(--gj-line-strong)' }
 
@@ -43,11 +45,10 @@ function toForm(l: CatalogueLivre): LivreForm { return { titre: l.titre, auteur:
  * Gestion du catalogue + fonds d'un centre (GUIC-687) — l'admin gère les LIVRES et les
  * EXEMPLAIRES du centre. Le comptoir (retrait/retour) reste au staff/conseiller (via QR).
  */
-export function CentreBiblioCatalogue({ centreId, livres }: { centreId: string; livres: CatalogueLivre[] }) {
+export function CentreBiblioCatalogue({ centreId, livres, info }: { centreId: string; livres: CatalogueLivre[]; info: PageInfo }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
-  const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; livre?: CatalogueLivre } | null>(null)
   const [form, setForm] = useState<LivreForm>(emptyLivre())
@@ -55,10 +56,7 @@ export function CentreBiblioCatalogue({ centreId, livres }: { centreId: string; 
   const [firstEx, setFirstEx] = useState({ codeBarre: '', rayon: '', etagere: '', position: '' })
   const [formErr, setFormErr] = useState<string | null>(null)
 
-  const view = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    return s === '' ? livres : livres.filter((l) => `${l.titre} ${l.auteur} ${l.theme} ${l.isbn ?? ''}`.toLowerCase().includes(s))
-  }, [q, livres])
+  const view = livres
 
   function notify(msg: string, variant: ToastVariant) { setToast({ msg, variant }) }
   function fail(code?: string) {
@@ -98,16 +96,16 @@ export function CentreBiblioCatalogue({ centreId, livres }: { centreId: string; 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <h6 style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
           <span aria-hidden style={{ width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flexShrink: 0 }} />
-          Catalogue &amp; fonds · {livres.length} titre{livres.length > 1 ? 's' : ''}
+          Catalogue &amp; fonds · {info.total} titre{info.total > 1 ? 's' : ''}
         </h6>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input className={SEARCH} placeholder="Rechercher un titre, un auteur…" aria-label="Rechercher un livre" value={q} onChange={(e) => setQ(e.target.value)} />
+          <CentreSearch prefix="cat" placeholder="Rechercher un titre, un auteur…" label="Rechercher un livre" />
           <button type="button" onClick={openCreate} style={outlineBtn}><Icon name="plus" size={15} /> Ajouter un livre</button>
         </div>
       </div>
 
       {view.length === 0 ? (
-        <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>{livres.length === 0 ? 'Aucun livre dans le fonds de ce centre. Ajoutez un titre pour démarrer.' : 'Aucun livre pour cette recherche.'}</p>
+        <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>{info.total === 0 ? 'Aucun livre dans le fonds de ce centre. Ajoutez un titre pour démarrer.' : 'Aucun livre pour cette recherche.'}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {view.map((l) => {
@@ -133,6 +131,8 @@ export function CentreBiblioCatalogue({ centreId, livres }: { centreId: string; 
           })}
         </div>
       )}
+
+      <CentrePager prefix="cat" info={info} label="titres" />
 
       <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 12, marginBottom: 0 }}>
         Le comptoir (retrait / retour) se fait au centre par le staff, via scan du QR badge.

@@ -15,7 +15,7 @@ import { parsePage, parseQuery, paginate, PAGE_SIZE, type PageInfo } from '@/lib
 import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
 import { serviceLabel } from '@/lib/centre-services'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
-import { getBibliothequeStats, getEmpruntsBibliotheque } from '@/lib/loaders/conseiller-bibliotheque'
+import { getBibliothequeStats } from '@/lib/loaders/conseiller-bibliotheque'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
 import { CentreBiblioCatalogue, type CatalogueLivre } from './CentreBiblioCatalogue'
@@ -238,18 +238,53 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     })
   }
 
-  // Onglet Bibliothèque : KPIs + emprunts en cours + catalogue/fonds du centre.
+  // Onglet Bibliothèque : KPIs + emprunts en cours (paginés) + catalogue/fonds (paginé).
   let biblioKpis: BiblioKpis = { exemplaires: 0, enCours: 0, enRetard: 0, titres: 0 }
   let biblioEmprunts: BiblioEmpruntRow[] = []
+  let empruntsInfo: PageInfo = paginate(0, 1)
   let biblioCatalogue: CatalogueLivre[] = []
+  let catalogueInfo: PageInfo = paginate(0, 1)
   if (tab === 'biblio') {
-    const [stats, emprunts, livres] = await Promise.all([
+    const empQ = parseQuery(sp.empQ)
+    const empWhere: Prisma.EmpruntWhereInput = {
+      exemplaire: { centreId: id },
+      statut: { in: ['en_cours', 'en_retard'] },
+      ...(empQ ? { OR: [
+        { utilisateur: { OR: [{ prenom: { contains: empQ } }, { nom: { contains: empQ } }] } },
+        { exemplaire: { centreId: id, livre: { OR: [{ titre: { contains: empQ } }, { auteur: { contains: empQ } }] } } },
+      ] } : {}),
+    }
+    const catQ = parseQuery(sp.catQ)
+    const catWhere: Prisma.LivreWhereInput = {
+      exemplaires: { some: { centreId: id } },
+      ...(catQ ? { OR: [{ titre: { contains: catQ } }, { auteur: { contains: catQ } }, { theme: { contains: catQ } }, { isbn: { contains: catQ } }] } : {}),
+    }
+
+    const [stats, empTotal, catTotal] = await Promise.all([
       getBibliothequeStats(id),
-      getEmpruntsBibliotheque(id, ['en_cours', 'en_retard'], now),
+      prisma.emprunt.count({ where: empWhere }),
+      prisma.livre.count({ where: catWhere }),
+    ])
+    empruntsInfo = paginate(empTotal, parsePage(sp.empPage), PAGE_SIZE)
+    catalogueInfo = paginate(catTotal, parsePage(sp.catPage), PAGE_SIZE)
+
+    const [emprunts, livres] = await Promise.all([
+      prisma.emprunt.findMany({
+        where: empWhere,
+        orderBy: { initieA: 'desc' },
+        skip: empruntsInfo.skip,
+        take: PAGE_SIZE,
+        select: {
+          id: true, statut: true, dateRetourPrevue: true, initieA: true,
+          utilisateur: { select: { prenom: true, nom: true } },
+          exemplaire: { select: { livre: { select: { titre: true, auteur: true } } } },
+        },
+      }),
       prisma.livre.findMany({
-        where: { exemplaires: { some: { centreId: id } } },
+        where: catWhere,
         orderBy: { titre: 'asc' },
-        take: 200,
+        skip: catalogueInfo.skip,
+        take: PAGE_SIZE,
         select: {
           id: true, titre: true, auteur: true, theme: true, isbn: true, niveau: true, langue: true, resume: true,
           exemplaires: {
@@ -260,10 +295,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         },
       }),
     ])
+    const empFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
     biblioKpis = { exemplaires: stats.exemplaires, enCours: stats.enCours, enRetard: stats.enRetard, titres: stats.titres }
     biblioEmprunts = emprunts.map((e) => ({
-      id: e.id, titre: e.livreTitre, auteur: e.livreAuteur, emprunteur: e.emprunteur,
-      emprunteLe: e.dateLabel, retourPrevu: e.retourLabel, statut: String(e.statut), enRetard: e.enRetard,
+      id: e.id, titre: e.exemplaire.livre.titre, auteur: e.exemplaire.livre.auteur,
+      emprunteur: `${e.utilisateur.prenom} ${e.utilisateur.nom}`.trim(),
+      emprunteLe: empFmt.format(e.initieA), retourPrevu: e.dateRetourPrevue ? empFmt.format(e.dateRetourPrevue) : null,
+      statut: String(e.statut),
+      enRetard: e.statut === 'en_retard' || (e.dateRetourPrevue != null && e.statut === 'en_cours' && e.dateRetourPrevue < now),
     }))
     biblioCatalogue = livres.map((l) => ({
       id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme, isbn: l.isbn, niveau: l.niveau, langue: l.langue, resume: l.resume,
@@ -419,8 +458,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} checkinsInfo={checkinsInfo} />}
       {tab === 'biblio' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} />
-          <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} />
+          <CentreBibliotheque kpis={biblioKpis} emprunts={biblioEmprunts} info={empruntsInfo} />
+          <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} info={catalogueInfo} />
         </div>
       )}
       {tab === 'evenements' && <CentreEvenements evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} />}

@@ -1,6 +1,7 @@
-'use client'
-
-import { useMemo, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
+import type { PageInfo } from '@/lib/centre-pagination'
+import { CentreSearch } from './CentreSearch'
+import { CentrePager } from './CentrePager'
 
 export interface BiblioEmpruntRow {
   id: string
@@ -16,7 +17,6 @@ export interface BiblioKpis { exemplaires: number; enCours: number; enRetard: nu
 
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 12, boxShadow: 'var(--gj-edge)', padding: '13px 15px' }
 const td: CSSProperties = { padding: 12, borderBottom: '1px solid var(--gj-line)', verticalAlign: 'top' }
-const FIELD_SEARCH = 'rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[8px] text-[13px] text-color-text-primary font-[inherit] outline-none focus:border-[color:var(--gj-admin-gold)] w-full max-w-[260px]'
 
 const STATUT_VIEW: Record<string, { label: string; bg: string; fg: string }> = {
   en_cours: { label: 'En cours', bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' },
@@ -38,12 +38,8 @@ function H6({ children }: { children: React.ReactNode }) {
  * (exemplaires, emprunts en cours, en retard, titres) + table des emprunts en cours
  * (recherche titre/jeune). Exemplaires physiques localisés dans ce centre (GUIC-274).
  */
-export function CentreBibliotheque({ kpis, emprunts }: { kpis: BiblioKpis; emprunts: BiblioEmpruntRow[] }) {
-  const [q, setQ] = useState('')
-  const view = useMemo(() => {
-    const s = q.trim().toLowerCase()
-    return s === '' ? emprunts : emprunts.filter((e) => `${e.titre} ${e.auteur} ${e.emprunteur}`.toLowerCase().includes(s))
-  }, [q, emprunts])
+export function CentreBibliotheque({ kpis, emprunts, info }: { kpis: BiblioKpis; emprunts: BiblioEmpruntRow[]; info: PageInfo }) {
+  const view = emprunts
 
   const tiles = [
     { label: 'Exemplaires', value: kpis.exemplaires },
@@ -66,11 +62,11 @@ export function CentreBibliotheque({ kpis, emprunts }: { kpis: BiblioKpis; empru
       <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
           <H6>Emprunts en cours</H6>
-          <input className={FIELD_SEARCH} placeholder="Rechercher un titre, un jeune…" aria-label="Rechercher un emprunt" value={q} onChange={(e) => setQ(e.target.value)} />
+          <CentreSearch prefix="emp" placeholder="Rechercher un titre, un jeune…" label="Rechercher un emprunt" />
         </div>
 
         {view.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun emprunt en cours{emprunts.length ? ' pour cette recherche' : ''}.</p>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun emprunt en cours{info.total === 0 ? '' : ' pour cette recherche'}.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600, fontSize: 13 }}>
@@ -103,6 +99,7 @@ export function CentreBibliotheque({ kpis, emprunts }: { kpis: BiblioKpis; empru
             </table>
           </div>
         )}
+        <CentrePager prefix="emp" info={info} label="emprunts" />
         <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 10, marginBottom: 0 }}>Comptoir · exemplaires physiques localisés dans ce centre.</p>
       </div>
     </div>
