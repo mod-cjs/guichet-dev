@@ -208,11 +208,25 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     }))
   }
 
-  // Onglet Équipe & accès : agents rattachés (AgentCentre ↔ Utilisateur par cjs_uid).
+  // Onglet Équipe & accès : agents rattachés (AgentCentre ↔ Utilisateur par cjs_uid) — pagination serveur.
   let agents: CentreAgent[] = []
+  let agentsInfo: PageInfo = paginate(0, 1)
   if (tab === 'equipe') {
+    const agQ = parseQuery(sp.agQ)
+    // Recherche par nom → restreindre aux cjsUid des utilisateurs correspondants.
+    let cjsUidFilter: string[] | undefined
+    if (agQ) {
+      const matches = await prisma.utilisateur.findMany({
+        where: { OR: [{ prenom: { contains: agQ } }, { nom: { contains: agQ } }] },
+        select: { cjsUid: true }, take: 500,
+      })
+      cjsUidFilter = matches.map((m) => m.cjsUid)
+    }
+    const agWhere = { centreId: id, ...(cjsUidFilter ? { cjsUid: { in: cjsUidFilter.length ? cjsUidFilter : ['__none__'] } } : {}) }
+    const agTotal = await prisma.agentCentre.count({ where: agWhere })
+    agentsInfo = paginate(agTotal, parsePage(sp.agPage), PAGE_SIZE)
     const rels = await prisma.agentCentre.findMany({
-      where: { centreId: id }, select: { id: true, cjsUid: true, role: true }, orderBy: { createdAt: 'asc' }, take: 24,
+      where: agWhere, select: { id: true, cjsUid: true, role: true }, orderBy: { createdAt: 'asc' }, skip: agentsInfo.skip, take: PAGE_SIZE,
     })
     const users = await prisma.utilisateur.findMany({
       where: { cjsUid: { in: rels.map((r) => r.cjsUid) } }, select: { cjsUid: true, nom: true, prenom: true },
@@ -400,7 +414,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </div>
       )}
 
-      {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} />}
+      {tab === 'equipe' && <CentreEquipe centreId={id} staffCount={centre._count.agents} agents={agents} info={agentsInfo} />}
       {tab === 'ressources' && <AdminCentreRessources centreId={id} items={ressourceItems} reservations={reservations} reservationsInfo={reservationsInfo} reservationStatut={parseQuery(sp.rzStat) || 'all'} />}
       {tab === 'frequentation' && analytics && <CentreFrequentation analytics={analytics} checkins={checkinsRows} checkinsInfo={checkinsInfo} />}
       {tab === 'biblio' && (

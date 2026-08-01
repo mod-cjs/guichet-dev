@@ -6,6 +6,9 @@ import { Icon } from '@/components/ui/Icon'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { rechercherUtilisateursPourRattachement, type UtilisateurRattachable } from '../actions'
 import { ajouterRattachementCentre, retirerRattachementCentre } from '../../utilisateurs/actions'
+import { type PageInfo } from '@/lib/centre-pagination'
+import { CentreSearch } from './CentreSearch'
+import { CentrePager } from './CentrePager'
 
 export interface CentreAgent { id: string; cjsUid: string; nom: string; role: string }
 
@@ -43,7 +46,7 @@ const FIELD = 'w-full rounded-[9px] border border-[color:var(--gj-line-strong)] 
  * (liste seule) → 2 boutons sous la carte (Ajouter un conseiller / Gérer le multi-centre)
  * → carte Note. Ajout = recherche inline ; Gérer = mode gestion (retrait par agent).
  */
-export function CentreEquipe({ centreId, staffCount, agents }: { centreId: string; staffCount: number; agents: CentreAgent[] }) {
+export function CentreEquipe({ centreId, staffCount, agents, info }: { centreId: string; staffCount: number; agents: CentreAgent[]; info: PageInfo }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
@@ -89,11 +92,14 @@ export function CentreEquipe({ centreId, staffCount, agents }: { centreId: strin
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Carte : liste des agents (fidèle maquette — pas d'action dans la carte) */}
+      {/* Carte : liste des agents (recherche + pagination serveur) */}
       <div style={card}>
-        <H6>Agents rattachés · {staffCount}</H6>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}><H6>Agents rattachés · {staffCount}</H6></div>
+          <CentreSearch prefix="ag" placeholder="Rechercher un agent…" label="Rechercher un agent" />
+        </div>
         {agents.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun agent rattaché à ce centre.</p>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun agent{info.total === 0 ? ' rattaché à ce centre' : ' pour cette recherche'}.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {agents.map((a) => (
@@ -111,11 +117,9 @@ export function CentreEquipe({ centreId, staffCount, agents }: { centreId: strin
                 )}
               </div>
             ))}
-            {staffCount > agents.length && (
-              <div style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 4 }}>+ {staffCount - agents.length} autres agents rattachés</div>
-            )}
           </div>
         )}
+        {(agents.length > 0 || info.total > 0) && <CentrePager prefix="ag" info={info} label="agents" />}
       </div>
 
       {/* 2 boutons SOUS la carte (maquette) */}
