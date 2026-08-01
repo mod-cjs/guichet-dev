@@ -17,7 +17,7 @@ const TYPE_META: Record<
   TypeRessourceValue,
   { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green'; cta: string }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red',    cta: 'Télécharger' },
+  PDF:   { icon: 'document', bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'blue',   cta: 'Télécharger' },
   Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue',   cta: 'Regarder'    },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal',   cta: 'Ouvrir'      },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow', cta: 'Lire'        },
