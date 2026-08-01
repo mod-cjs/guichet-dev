@@ -19,7 +19,7 @@ import { paginate } from '@/lib/centre-pagination'
 const LIVRES: CatalogueLivre[] = [
   {
     id: 'l1', titre: 'Les Bouts de bois de Dieu', auteur: 'Ousmane Sembène', theme: 'Littérature',
-    isbn: '9782266025676', niveau: 'Tous', langue: 'fr', resume: null,
+    isbn: '9782266025676', niveau: 'Tous', langue: 'fr', resume: null, exemplairesTotal: 2,
     exemplaires: [
       { id: 'x1', codeBarre: 'CJS-DK-0001', rayon: 'A', etagere: '2', position: '5', statut: 'disponible' },
       { id: 'x2', codeBarre: 'CJS-DK-0002', rayon: 'A', etagere: '2', position: '6', statut: 'emprunte' },
@@ -27,7 +27,7 @@ const LIVRES: CatalogueLivre[] = [
   },
   {
     id: 'l2', titre: 'Python facile', auteur: 'G. Swinnen', theme: 'Informatique',
-    isbn: null, niveau: null, langue: 'fr', resume: null, exemplaires: [],
+    isbn: null, niveau: null, langue: 'fr', resume: null, exemplairesTotal: 0, exemplaires: [],
   },
 ]
 

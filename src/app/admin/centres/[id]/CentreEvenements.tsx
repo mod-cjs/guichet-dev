@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { PageInfo } from '@/lib/centre-pagination'
 import { CentrePager } from './CentrePager'
+import { CentreSearch } from './CentreSearch'
 
 export interface EvenementRow {
   id: string
@@ -52,9 +53,12 @@ export function CentreEvenements({ evenements, insertions, tauxInsertion, evInfo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={card}>
-        <H6>Événements du centre</H6>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}><H6>Événements du centre</H6></div>
+          <div style={{ marginBottom: 12 }}><CentreSearch prefix="ev" placeholder="Rechercher un événement…" label="Rechercher un événement" /></div>
+        </div>
         {evenements.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun événement pour ce centre.</p>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucun événement{evInfo.total === 0 ? ' pour ce centre' : ' pour cette recherche'}.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {evenements.map((e) => {
@@ -83,12 +87,15 @@ export function CentreEvenements({ evenements, insertions, tauxInsertion, evInfo
       </div>
 
       <div style={card}>
-        <H6>Insertion professionnelle · {tauxInsertion} %</H6>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}><H6>Insertion professionnelle · {tauxInsertion} %</H6></div>
+          <div style={{ marginBottom: 12 }}><CentreSearch prefix="ins" placeholder="Rechercher un jeune…" label="Rechercher une insertion" /></div>
+        </div>
         <div style={{ height: 6, borderRadius: 999, background: 'var(--gj-line)', overflow: 'hidden', marginBottom: 14 }}>
           <span aria-hidden style={{ display: 'block', height: '100%', width: `${Math.min(100, tauxInsertion)}%`, borderRadius: 999, background: 'var(--gj-admin-gold)' }} />
         </div>
         {insertions.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune insertion rattachée à ce centre.</p>
+          <p style={{ fontSize: 13, color: 'var(--gj-grey)', margin: 0 }}>Aucune insertion{insInfo.total === 0 ? ' rattachée à ce centre' : ' pour cette recherche'}.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {insertions.map((p) => (

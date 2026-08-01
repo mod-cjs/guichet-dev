@@ -29,6 +29,7 @@ import { CentreEquipe, type CentreAgent } from './CentreEquipe'
 export const metadata: Metadata = { title: 'Fiche centre — Admin CJS' }
 
 const JOUR_ORDER: Record<string, number> = { Lundi: 0, Mardi: 1, Mercredi: 2, Jeudi: 3, Vendredi: 4, Samedi: 5, Dimanche: 6 }
+const EXEMPLAIRES_PAR_LIVRE = 50 // borne l'affichage des exemplaires d'un titre (rare > 50 par centre)
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, boxShadow: 'var(--gj-edge)', padding: 18 }
 
 /** En-tête de section fidèle maquette : tiret doré + filet (`.dps h6`). */
@@ -102,7 +103,9 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     prisma.ressourceCentre.count({ where: { centreId: id, estActive: true } }),
   ])
   const jeunes = centre._count.profilsRattaches
-  const tauxInsertion = jeunes > 0 ? Math.round((centre._count.insertions / jeunes) * 100) : 0
+  // Borné à 100 % : les insertions s'accumulent dans le temps alors que `jeunes` est l'effectif
+  // courant rattaché — le ratio brut peut dépasser 100 % sans que ce soit un « taux » lisible.
+  const tauxInsertion = jeunes > 0 ? Math.min(100, Math.round((centre._count.insertions / jeunes) * 100)) : 0
   const freqDeltaPct = frequentationPrev > 0 ? Math.round(((frequentationMois - frequentationPrev) / frequentationPrev) * 100) : null
 
   const kpis: { value: string; label: string; trend?: string }[] = [
@@ -287,9 +290,11 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         take: PAGE_SIZE,
         select: {
           id: true, titre: true, auteur: true, theme: true, isbn: true, niveau: true, langue: true, resume: true,
+          _count: { select: { exemplaires: { where: { centreId: id } } } },
           exemplaires: {
             where: { centreId: id },
             orderBy: { codeBarre: 'asc' },
+            take: EXEMPLAIRES_PAR_LIVRE,
             select: { id: true, codeBarre: true, rayon: true, etagere: true, position: true, statut: true },
           },
         },
@@ -306,6 +311,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     }))
     biblioCatalogue = livres.map((l) => ({
       id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme, isbn: l.isbn, niveau: l.niveau, langue: l.langue, resume: l.resume,
+      exemplairesTotal: l._count.exemplaires,
       exemplaires: l.exemplaires.map((e) => ({ id: e.id, codeBarre: e.codeBarre, rayon: e.rayon, etagere: e.etagere, position: e.position, statut: String(e.statut) })),
     }))
   }
@@ -317,22 +323,29 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   let evenementsInfo: PageInfo = paginate(0, 1)
   let insertionsInfo: PageInfo = paginate(0, 1)
   if (tab === 'evenements') {
+    const evQ = parseQuery(sp.evQ)
+    const insQ = parseQuery(sp.insQ)
+    const evWhere: Prisma.EvenementWhereInput = { centreId: id, ...(evQ ? { titre: { contains: evQ } } : {}) }
+    const insWhere: Prisma.InsertionWhereInput = {
+      centreId: id,
+      ...(insQ ? { utilisateur: { OR: [{ prenom: { contains: insQ } }, { nom: { contains: insQ } }] } } : {}),
+    }
     const [evTotal, insTotal] = await Promise.all([
-      prisma.evenement.count({ where: { centreId: id } }),
-      prisma.insertion.count({ where: { centreId: id } }),
+      prisma.evenement.count({ where: evWhere }),
+      prisma.insertion.count({ where: insWhere }),
     ])
     evenementsInfo = paginate(evTotal, parsePage(sp.evPage), PAGE_SIZE)
     insertionsInfo = paginate(insTotal, parsePage(sp.insPage), PAGE_SIZE)
     const [evs, ins] = await Promise.all([
       prisma.evenement.findMany({
-        where: { centreId: id },
+        where: evWhere,
         orderBy: { dateDebut: 'desc' },
         skip: evenementsInfo.skip,
         take: PAGE_SIZE,
         select: { id: true, titre: true, dateDebut: true, capaciteMax: true, statut: true, _count: { select: { inscriptions: true } } },
       }),
       prisma.insertion.findMany({
-        where: { centreId: id },
+        where: insWhere,
         orderBy: { dateInsertion: 'desc' },
         skip: insertionsInfo.skip,
         take: PAGE_SIZE,

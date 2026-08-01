@@ -32,7 +32,7 @@ describe('CentreEvenements', () => {
   })
 
   it('états vides', () => {
-    render(<CentreEvenements evenements={[]} insertions={[]} tauxInsertion={0} evInfo={paginate(2, 1)} insInfo={paginate(2, 1)} />)
+    render(<CentreEvenements evenements={[]} insertions={[]} tauxInsertion={0} evInfo={paginate(0, 1)} insInfo={paginate(0, 1)} />)
     expect(screen.getByText(/Aucun événement pour ce centre/i)).toBeInTheDocument()
     expect(screen.getByText(/Aucune insertion rattachée/i)).toBeInTheDocument()
   })

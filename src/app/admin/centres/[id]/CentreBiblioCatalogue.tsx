@@ -18,6 +18,8 @@ export interface CatalogueExemplaire { id: string; codeBarre: string; rayon: str
 export interface CatalogueLivre {
   id: string; titre: string; auteur: string; theme: string
   isbn: string | null; niveau: string | null; langue: string; resume: string | null
+  /** Total d'exemplaires du centre (peut dépasser `exemplaires.length` si tronqué à l'affichage). */
+  exemplairesTotal: number
   exemplaires: CatalogueExemplaire[]
 }
 
@@ -84,7 +86,7 @@ export function CentreBiblioCatalogue({ centreId, livres, info }: { centreId: st
   }
 
   function removeLivre(l: CatalogueLivre) {
-    if (!window.confirm(`Supprimer « ${l.titre} » et ses ${l.exemplaires.length} exemplaire(s) ? Action irréversible.`)) return
+    if (!window.confirm(`Supprimer « ${l.titre} » et ses ${l.exemplairesTotal} exemplaire(s) ? Action irréversible.`)) return
     startTransition(async () => {
       const r = await supprimerLivreCentre(centreId, l.id)
       if (r.ok) { notify('Livre supprimé.', 'success'); router.refresh() } else fail(r.error)
@@ -110,6 +112,7 @@ export function CentreBiblioCatalogue({ centreId, livres, info }: { centreId: st
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {view.map((l) => {
             const dispo = l.exemplaires.filter((e) => e.statut === 'disponible').length
+            const total = l.exemplairesTotal
             const open = openId === l.id
             return (
               <div key={l.id} style={{ border: '1px solid var(--gj-line)', borderRadius: 11, background: 'var(--gj-bg)', overflow: 'hidden' }}>
@@ -121,11 +124,11 @@ export function CentreBiblioCatalogue({ centreId, livres, info }: { centreId: st
                       <span style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{l.auteur} · {l.theme}{l.isbn ? ` · ISBN ${l.isbn}` : ''}</span>
                     </span>
                   </button>
-                  <span style={{ fontSize: 11.5, color: 'var(--gj-grey)', whiteSpace: 'nowrap' }}><b style={{ color: 'var(--gj-ink)' }}>{l.exemplaires.length}</b> ex. · {dispo} dispo</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--gj-grey)', whiteSpace: 'nowrap' }}><b style={{ color: 'var(--gj-ink)' }}>{total}</b> ex. · {dispo} dispo</span>
                   <button type="button" aria-label={`Éditer ${l.titre}`} onClick={() => openEdit(l)} style={mini}><Icon name="settings" size={14} /></button>
                   <button type="button" aria-label={`Supprimer ${l.titre}`} disabled={pending} onClick={() => removeLivre(l)} style={{ ...mini, color: 'var(--gj-red-ink)', borderColor: 'var(--gj-red)' }}><Icon name="close" size={14} /></button>
                 </div>
-                {open && <ExemplairesManager centreId={centreId} livre={l} pending={pending} run={startTransition} notify={notify} fail={fail} refresh={() => router.refresh()} />}
+                {open && <ExemplairesManager centreId={centreId} livre={l} total={total} pending={pending} run={startTransition} notify={notify} fail={fail} refresh={() => router.refresh()} />}
               </div>
             )
           })}
@@ -186,8 +189,8 @@ export function CentreBiblioCatalogue({ centreId, livres, info }: { centreId: st
   )
 }
 
-function ExemplairesManager({ centreId, livre, pending, run, notify, fail, refresh }: {
-  centreId: string; livre: CatalogueLivre; pending: boolean
+function ExemplairesManager({ centreId, livre, total, pending, run, notify, fail, refresh }: {
+  centreId: string; livre: CatalogueLivre; total: number; pending: boolean
   run: (cb: () => void) => void
   notify: (m: string, v: ToastVariant) => void
   fail: (code?: string) => void
@@ -252,6 +255,10 @@ function ExemplairesManager({ centreId, livre, pending, run, notify, fail, refre
             </tbody>
           </table>
         </div>
+      )}
+
+      {total > livre.exemplaires.length && (
+        <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 8, marginBottom: 0 }}>+ {total - livre.exemplaires.length} autres exemplaires (affichage limité aux {livre.exemplaires.length} premiers).</p>
       )}
 
       {adding ? (

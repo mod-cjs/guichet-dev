@@ -10,7 +10,7 @@ import { CENTRE_TABS, type CentreTab } from '@/lib/centre-fiche-tabs'
 export function CentreFicheTabs({ centreId, active }: { centreId: string; active: CentreTab }) {
   const base = `/admin/centres/${centreId}`
   return (
-    <div role="tablist" aria-label="Sections du centre" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--gj-line)', overflowX: 'auto' }}>
+    <div role="tablist" aria-label="Sections du centre" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid var(--gj-line)' }}>
       {CENTRE_TABS.map((t) => {
         const on = t.value === active
         const style: CSSProperties = {
