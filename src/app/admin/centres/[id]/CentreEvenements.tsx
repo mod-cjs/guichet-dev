@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react'
+import type { PageInfo } from '@/lib/centre-pagination'
+import { CentrePager } from './CentrePager'
 
 export interface EvenementRow {
   id: string
@@ -46,7 +48,7 @@ function initials(nom: string): string {
  * liste des événements du centre (date, titre, jauge d'inscriptions, statut) +
  * insertions professionnelles rattachées au centre (base du taux d'insertion national).
  */
-export function CentreEvenements({ evenements, insertions, tauxInsertion }: { evenements: EvenementRow[]; insertions: InsertionRow[]; tauxInsertion: number }) {
+export function CentreEvenements({ evenements, insertions, tauxInsertion, evInfo, insInfo }: { evenements: EvenementRow[]; insertions: InsertionRow[]; tauxInsertion: number; evInfo: PageInfo; insInfo: PageInfo }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={card}>
@@ -77,6 +79,7 @@ export function CentreEvenements({ evenements, insertions, tauxInsertion }: { ev
             })}
           </div>
         )}
+        <CentrePager prefix="ev" info={evInfo} label="événements" />
       </div>
 
       <div style={card}>
@@ -100,6 +103,7 @@ export function CentreEvenements({ evenements, insertions, tauxInsertion }: { ev
             ))}
           </div>
         )}
+        <CentrePager prefix="ins" info={insInfo} label="insertions" />
         <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 10, marginBottom: 0 }}>Insertions rattachées à ce centre — base du taux d&apos;insertion national.</p>
       </div>
     </div>

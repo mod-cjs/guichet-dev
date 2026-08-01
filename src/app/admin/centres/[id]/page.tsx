@@ -314,18 +314,28 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
   let evenementsRows: EvenementRow[] = []
   let insertionsRows: InsertionRow[] = []
+  let evenementsInfo: PageInfo = paginate(0, 1)
+  let insertionsInfo: PageInfo = paginate(0, 1)
   if (tab === 'evenements') {
+    const [evTotal, insTotal] = await Promise.all([
+      prisma.evenement.count({ where: { centreId: id } }),
+      prisma.insertion.count({ where: { centreId: id } }),
+    ])
+    evenementsInfo = paginate(evTotal, parsePage(sp.evPage), PAGE_SIZE)
+    insertionsInfo = paginate(insTotal, parsePage(sp.insPage), PAGE_SIZE)
     const [evs, ins] = await Promise.all([
       prisma.evenement.findMany({
         where: { centreId: id },
         orderBy: { dateDebut: 'desc' },
-        take: 30,
+        skip: evenementsInfo.skip,
+        take: PAGE_SIZE,
         select: { id: true, titre: true, dateDebut: true, capaciteMax: true, statut: true, _count: { select: { inscriptions: true } } },
       }),
       prisma.insertion.findMany({
         where: { centreId: id },
         orderBy: { dateInsertion: 'desc' },
-        take: 30,
+        skip: insertionsInfo.skip,
+        take: PAGE_SIZE,
         select: { id: true, type: true, dateInsertion: true, utilisateur: { select: { prenom: true, nom: true } } },
       }),
     ])
@@ -462,7 +472,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <CentreBiblioCatalogue centreId={id} livres={biblioCatalogue} info={catalogueInfo} />
         </div>
       )}
-      {tab === 'evenements' && <CentreEvenements evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} />}
+      {tab === 'evenements' && <CentreEvenements evenements={evenementsRows} insertions={insertionsRows} tauxInsertion={tauxInsertion} evInfo={evenementsInfo} insInfo={insertionsInfo} />}
     </div>
   )
 }
