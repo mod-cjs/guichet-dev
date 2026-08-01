@@ -42,12 +42,14 @@ describe('Sentinelle — plancher typographique 11px (GUIC-689, espace jeune)', 
 describe('BenefSidebar — hex en dur → tokens (GUIC-689)', () => {
   const src = () => read('src/components/layout/BenefSidebar/index.tsx')
 
-  it('la carte "Inclusion & accessibilité" ne contient plus #FFFFFF en dur', () => {
-    const content = src()
-    const idx = content.indexOf('Inclusion & accessibilité')
-    const block = content.slice(idx, idx + 700)
-    expect(block).not.toMatch(/#FFFFFF/i)
-    expect(block).toMatch(/var\(--gj-surface\)/)
+  // Assertion sur le fichier entier plutôt que sur une fenêtre autour d'un
+  // libellé : la fenêtre tombait sur un bloc de commentaire et ne prouvait rien.
+  it('aucun hex en dur dans la sidebar (tokens gj-* uniquement)', () => {
+    expect(src()).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  it('le blanc de la carte "Inclusion & accessibilité" passe par --gj-surface', () => {
+    expect(src()).toMatch(/var\(--gj-surface\)/)
   })
 })
 
@@ -84,15 +86,16 @@ describe('Sentinelle — retrait des fallbacks hex sur tokens existants (GUIC-68
   })
 })
 
-describe('YayeSkeletonCards — fallback gj-surface retiré, gj-bg-soft conservé (token absent)', () => {
+describe('YayeSkeletonCards — shimmer câblé sur les tokens de squelette', () => {
   const content = () => read('src/components/ui/Yaye/YayeSkeletonCards/index.tsx')
 
-  it('var(--gj-surface) sans fallback hex', () => {
-    expect(content()).not.toMatch(/var\(--gj-surface,\s*#[0-9a-fA-F]{3,8}\)/)
-    expect(content()).toMatch(/var\(--gj-surface\)/)
-  })
-
-  it('var(--gj-bg-soft, #eef1f0) conserve son fallback (token absent de tokens.css — signalé, pas inventé ici)', () => {
-    expect(content()).toMatch(/var\(--gj-bg-soft,\s*#eef1f0\)/)
+  // Le shimmer visait `--gj-bg-soft`, un token qui n'existe pas : le fallback
+  // hex faisait donc tout le travail. Les tokens dédiés (--gj-skel-from/-to)
+  // existent depuis la fondation v5 — c'est eux qu'il faut consommer.
+  it('utilise --gj-skel-from / --gj-skel-to, sans aucun fallback hex', () => {
+    expect(content()).toMatch(/var\(--gj-skel-from\)/)
+    expect(content()).toMatch(/var\(--gj-skel-to\)/)
+    expect(content()).not.toMatch(/var\(--gj-[a-z0-9-]+,\s*#[0-9a-fA-F]{3,8}\)/i)
+    expect(content()).not.toMatch(/--gj-bg-soft/)
   })
 })

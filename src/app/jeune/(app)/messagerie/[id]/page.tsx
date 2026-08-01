@@ -11,7 +11,7 @@ import { Icon } from '@/components/ui/Icon'
 export const metadata: Metadata = { title: 'Conversation' }
 export const dynamic = 'force-dynamic'
 
-const TEAL = 'var(--gj-teal-deep, #0F766E)'
+const TEAL = 'var(--gj-teal-deep)'
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()

@@ -46,8 +46,8 @@ export function EmpruntButton({ exemplaireId, centreNom }: Props) {
       <div
         className="flex items-center gap-space-2 text-fs-200 font-bold rounded-gj-md px-space-3"
         style={{
-          background: 'var(--gj-green-soft, #d1fae5)',
-          color: 'var(--gj-green-ink, #1a6b3c)',
+          background: 'var(--gj-green-soft)',
+          color: 'var(--gj-green-ink)',
           minHeight: 'var(--tap-min)',
         }}
       >

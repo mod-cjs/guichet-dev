@@ -7,7 +7,7 @@ import { InboxList } from '@/components/messagerie/views'
 export const metadata: Metadata = { title: 'Messagerie' }
 export const dynamic = 'force-dynamic'
 
-const TEAL = 'var(--gj-teal-deep, #0F766E)'
+const TEAL = 'var(--gj-teal-deep)'
 
 export default async function Page() {
   const session = await getSession()

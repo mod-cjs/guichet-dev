@@ -137,7 +137,7 @@ export default async function BiblioLivreDetailPage({
           <div
             className="flex items-center gap-space-2 text-fs-300 font-bold"
             style={{
-              color: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-ink, #1a6b3c)' : 'var(--gj-grey)',
+              color: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-ink)' : 'var(--gj-grey)',
             }}
           >
             <Icon name="check-circle" size={16} />

@@ -144,7 +144,7 @@ export function BenefTopBar({
           aria-hidden
           style={{
             fontFamily: 'ui-monospace, monospace',
-            fontSize: 10,
+            fontSize: 'var(--fs-100)',
             background: 'var(--gj-surface)',
             border: '1px solid var(--gj-line)',
             borderRadius: 4,
@@ -246,15 +246,15 @@ export function BenefTopBar({
               aria-hidden
               style={{
                 position: 'absolute',
-                top: 6,
-                right: 4,
-                minWidth: 16,
-                height: 16,
+                top: 5,
+                right: 3,
+                minWidth: 18,
+                height: 18,
                 padding: '0 4px',
-                borderRadius: 8,
+                borderRadius: 9,
                 background: 'var(--gj-red)',
                 color: 'var(--gj-surface)',
-                fontSize: 10,
+                fontSize: 'var(--fs-100)',
                 fontWeight: 700,
                 display: 'inline-flex',
                 alignItems: 'center',
