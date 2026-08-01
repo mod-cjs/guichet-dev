@@ -23,6 +23,10 @@ describe('GUIC-689 — bandeau hors-ligne monté globalement', () => {
     expect(layout).toMatch(/<OfflineBanner\s*\/>/)
   })
 
+  it('un seul montage global (pas de doublon par espace)', () => {
+    expect(layout.match(/<OfflineBanner/g) ?? []).toHaveLength(1)
+  })
+
   it('il est rendu avant le contenu (bandeau sticky en haut de page)', () => {
     const posBanner = layout.indexOf('<OfflineBanner')
     const posChildren = layout.indexOf('{children}')
