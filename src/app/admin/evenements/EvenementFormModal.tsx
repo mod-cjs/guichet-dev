@@ -3,23 +3,46 @@
 import { useState, useTransition } from 'react'
 import { TypeEvenement, StatutEvenement } from '@prisma/client'
 import { Modal } from '@/components/ui/Modal'
-import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { creerEvenement, modifierEvenement } from './actions'
 
-const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference', 'Cours'] as const).map((v) => ({ value: v, label: v }))
+const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference', 'Cours'] as const).map((v) => ({ value: v as string, label: v }))
 const STATUT_OPTIONS = [
   { value: 'a_venir', label: 'À venir' },
   { value: 'en_cours', label: 'En cours' },
   { value: 'termine', label: 'Terminé' },
   { value: 'annule', label: 'Annulé' },
 ]
-const GRATUIT_OPTIONS = [
-  { value: 'true', label: 'Gratuit' },
-  { value: 'false', label: 'Payant' },
-]
+
+// Styles fmodal (identiques aux modals Centre/Ressource — labels MAJ, champs sombres, seg dorés).
+const LABEL = 'block text-[10.5px] font-extrabold uppercase tracking-[0.04em] text-color-text-muted mb-[7px]'
+const FIELD =
+  'w-full rounded-[9px] border border-[color:var(--gj-line-strong)] bg-[var(--gj-bg)] px-3 py-[10px] ' +
+  'text-[13px] text-color-text-primary font-[inherit] outline-none transition-colors ' +
+  'focus:border-[color:var(--gj-admin-gold)]'
+const FROW = 'grid grid-cols-2 gap-[14px]'
+const SEG_BTN = 'rounded-[9px] border px-2 py-[10px] text-[12.5px] font-bold transition-colors'
+const SEG_OFF = 'border-[color:var(--gj-line-strong)] bg-transparent text-color-text-secondary hover:text-color-text-primary'
+const SEG_ON = 'border-transparent bg-[var(--gj-admin-gold)] text-[color:var(--gj-admin-on-gold)]'
+
+function Fld({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
+  return <div><label htmlFor={htmlFor} className={LABEL}>{label}</label>{children}</div>
+}
+function Seg<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <Fld label={label}>
+      <div className="flex flex-wrap gap-[6px]" role="group" aria-label={label}>
+        {options.map((o) => {
+          const on = value === o.value
+          return (
+            <button key={o.value} type="button" aria-pressed={on} onClick={() => onChange(o.value)} className={`flex-1 min-w-[92px] ${SEG_BTN} ${on ? SEG_ON : SEG_OFF}`}>{o.label}</button>
+          )
+        })}
+      </div>
+    </Fld>
+  )
+}
 
 /** Valeurs initiales pour l'édition. */
 export interface EvenementFormValues {
@@ -107,23 +130,65 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editing ? 'Modifier l\'événement' : 'Ajouter un événement'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
-        <Input id="ev-titre" label="Titre" required value={titre} onChange={(e) => setTitre(e.target.value)} />
-        <RichTextEditor id="ev-description" label="Description" value={description} onChange={setDescription} />
-        <Select id="ev-type" label="Type" options={TYPE_OPTIONS} value={type} onChange={(e) => setType(e.target.value)} />
-        <Input id="ev-date" label="Date de début" type="datetime-local" required value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
-        <Input id="ev-datefin" label="Date de fin (optionnel)" type="datetime-local" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
-        <Input id="ev-lieu" label="Lieu" required value={lieu} onChange={(e) => setLieu(e.target.value)} />
-        <Select id="ev-centre" label="Centre (cours/session au centre)" options={centreOptions} value={centreId} onChange={(e) => setCentreId(e.target.value)} />
-        <Input id="ev-capacite" label="Capacité max" type="number" value={capaciteMax} onChange={(e) => setCapaciteMax(e.target.value)} />
-        <Select id="ev-gratuit" label="Tarif" options={GRATUIT_OPTIONS} value={String(estGratuit)} onChange={(e) => setEstGratuit(e.target.value === 'true')} />
-        <Select id="ev-statut" label="Statut" options={STATUT_OPTIONS} value={statut} onChange={(e) => setStatut(e.target.value)} />
-        {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
-        <div className="flex items-center justify-end gap-space-2 mt-space-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>Annuler</Button>
-          <Button type="submit" variant="primary" disabled={pending}>{editing ? 'Enregistrer' : 'Créer'}</Button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editing ? "Modifier l'événement" : 'Ajouter un événement'}
+      maxWidth="max-w-[640px]"
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}
+            className="!bg-transparent !text-color-text-secondary border border-[color:var(--gj-line-strong)] hover:!text-color-text-primary">
+            Annuler
+          </Button>
+          <Button type="submit" form="ev-form" variant="primary" disabled={pending}
+            className="!bg-[var(--gj-admin-gold)] !text-[color:var(--gj-admin-on-gold)] hover:!opacity-90">
+            {editing ? 'Enregistrer' : "Créer l'événement"}
+          </Button>
+        </>
+      }
+    >
+      <form id="ev-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px]">
+        <Fld label="Titre" htmlFor="ev-titre">
+          <input id="ev-titre" className={FIELD} required placeholder="Forum de l'emploi…" value={titre} onChange={(e) => setTitre(e.target.value)} />
+        </Fld>
+
+        <Fld label="Description" htmlFor="ev-description">
+          <RichTextEditor id="ev-description" value={description} onChange={setDescription} />
+        </Fld>
+
+        <Seg label="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
+
+        <div className={FROW}>
+          <Fld label="Date de début" htmlFor="ev-date">
+            <input id="ev-date" className={FIELD} type="datetime-local" required value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
+          </Fld>
+          <Fld label="Date de fin (optionnel)" htmlFor="ev-datefin">
+            <input id="ev-datefin" className={FIELD} type="datetime-local" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
+          </Fld>
         </div>
+
+        <Fld label="Lieu" htmlFor="ev-lieu">
+          <input id="ev-lieu" className={FIELD} required placeholder="Salle polyvalente, adresse…" value={lieu} onChange={(e) => setLieu(e.target.value)} />
+        </Fld>
+
+        <div className={FROW}>
+          <Fld label="Centre (cours/session)" htmlFor="ev-centre">
+            <select id="ev-centre" className={FIELD} value={centreId} onChange={(e) => setCentreId(e.target.value)}>
+              {centreOptions.map((o) => <option key={o.value || 'none'} value={o.value}>{o.label}</option>)}
+            </select>
+          </Fld>
+          <Fld label="Capacité max" htmlFor="ev-capacite">
+            <input id="ev-capacite" className={FIELD} type="number" min={1} placeholder="Illimitée si vide" value={capaciteMax} onChange={(e) => setCapaciteMax(e.target.value)} />
+          </Fld>
+        </div>
+
+        <div className={FROW}>
+          <Seg label="Tarif" value={estGratuit ? 'true' : 'false'} options={[{ value: 'true', label: 'Gratuit' }, { value: 'false', label: 'Payant' }]} onChange={(v) => setEstGratuit(v === 'true')} />
+          <Seg label="Statut" value={statut} options={STATUT_OPTIONS} onChange={setStatut} />
+        </div>
+
+        {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
       </form>
     </Modal>
   )
