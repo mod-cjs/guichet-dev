@@ -58,4 +58,12 @@ describe('<Chip />', () => {
     const btn = screen.getByRole('button', { name: /test/i })
     expect(btn.className).toMatch(/min-h-\[42px\]/)
   })
+
+  it('sélectionné = fond teal-deep plein + texte blanc, sans bordure (design v5, Lot 14)', () => {
+    render(<Chip selected>Dakar</Chip>)
+    const btn = screen.getByRole('button', { name: /dakar/i })
+    expect(btn.className).toMatch(/bg-gj-teal-deep/)
+    expect(btn.className).toMatch(/text-white/)
+    expect(btn.className).not.toMatch(/bg-gj-teal-soft/)
+  })
 })
