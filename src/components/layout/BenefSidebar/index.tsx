@@ -240,7 +240,7 @@ export function BenefSidebar({
         />
         <div
           style={{
-            fontSize: 9.5,
+            fontSize: 'var(--fs-100)',
             color: 'var(--gj-teal-deep)',
             letterSpacing: '.5px',
             textTransform: 'uppercase',
@@ -314,7 +314,7 @@ export function BenefSidebar({
               <span
                 style={{
                   display: 'block',
-                  fontSize: 10.5,
+                  fontSize: 'var(--fs-100)',
                   color: 'var(--gj-grey)',
                   marginTop: 2,
                 }}
@@ -333,7 +333,7 @@ export function BenefSidebar({
           {section.title ? (
             <div
               style={{
-                fontSize: 9.5,
+                fontSize: 'var(--fs-100)',
                 color: 'var(--gj-grey)',
                 fontWeight: 800,
                 letterSpacing: '.4px',
@@ -369,9 +369,12 @@ export function BenefSidebar({
                       marginLeft: 'auto',
                       background: item.badgeMuted ? 'var(--gj-line)' : 'var(--gj-red)',
                       color: item.badgeMuted ? 'var(--gj-grey)' : 'var(--gj-surface)',
-                      fontSize: 9.5,
+                      fontSize: 'var(--fs-100)',
                       fontWeight: 800,
-                      padding: '2px 7px',
+                      lineHeight: 1,
+                      minWidth: 20,
+                      textAlign: 'center',
+                      padding: '4px 7px',
                       borderRadius: 10,
                     }}
                   >
@@ -491,7 +494,7 @@ export function BenefSidebar({
               display: 'block',
               fontSize: 14.5,
               fontWeight: 900,
-              color: '#FFFFFF',
+              color: 'var(--gj-surface)',
             }}
           >
             Inclusion & accessibilité
@@ -501,7 +504,7 @@ export function BenefSidebar({
               display: 'block',
               fontSize: 12,
               fontWeight: 600,
-              color: '#FFFFFF',
+              color: 'var(--gj-surface)',
               opacity: 0.92,
               marginTop: 3,
             }}

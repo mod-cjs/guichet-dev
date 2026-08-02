@@ -24,9 +24,12 @@ const toneStyles: Record<KPIItem['tone'], string> = {
   red:    'bg-gj-red-soft text-gj-red-ink',
 }
 
+// GUIC-689 — `warning` sert aux incitations (« Complète ton profil »,
+// « Ajoute ton CV ») : ambre, pas rouge. Le rouge reste réservé à l'urgence
+// d'échéance (règle v5 non négociable).
 const hintStyles: Record<NonNullable<KPIItem['hintTone']>, string> = {
   positive: 'text-gj-green-ink',
-  warning:  'text-gj-red',
+  warning:  'text-gj-yellow-ink',
   neutral:  'text-color-text-secondary',
 }
 

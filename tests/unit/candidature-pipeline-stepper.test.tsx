@@ -34,15 +34,16 @@ describe('<CandidaturePipelineStepper />', () => {
     expect(screen.getByTestId('stepper-segment-Decision')).toHaveAttribute('data-state', 'todo')
   })
 
-  it('cas Décision sans verdict : 4 done, 1 current (yellow)', () => {
+  it('cas Décision sans verdict : 4 done, 1 current (teal — jamais jaune, GUIC-689 finding E)', () => {
     render(<CandidaturePipelineStepper currentStep="Decision" decision={null} />)
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5')
     const final = screen.getByTestId('stepper-segment-Decision')
     expect(final).toHaveAttribute('data-state', 'current')
-    expect(final.className).toMatch(/bg-gj-yellow/)
+    expect(final.className).toMatch(/bg-gj-teal\b/)
+    expect(final.className).not.toMatch(/bg-gj-yellow/)
   })
 
-  it('cas Décision acceptée : tous done, segment final green', () => {
+  it('cas Décision acceptée : tous done, segment final teal (jamais vert — GUIC-689 finding E)', () => {
     render(<CandidaturePipelineStepper currentStep="Decision" decision="Acceptee" />)
     const bar = screen.getByRole('progressbar')
     expect(bar).toHaveAttribute('aria-valuenow', '5')
@@ -50,14 +51,30 @@ describe('<CandidaturePipelineStepper />', () => {
     PIPELINE_LABELS.forEach((step) => {
       expect(screen.getByTestId(`stepper-segment-${step}`)).toHaveAttribute('data-state', 'done')
     })
+    expect(screen.getByTestId('stepper-segment-Decision').className).toMatch(/bg-gj-teal\b/)
   })
 
-  it('cas Décision refusée : tous done, label refusée', () => {
+  it('cas Décision refusée : tous done, label refusée, segment final ROUGE (urgence refus uniquement — GUIC-689 finding E)', () => {
     render(<CandidaturePipelineStepper currentStep="Decision" decision="Refusee" />)
     expect(screen.getByRole('progressbar')).toHaveAttribute(
       'aria-label',
       expect.stringMatching(/refusée/i),
     )
+    const final = screen.getByTestId('stepper-segment-Decision')
+    expect(final.className).toMatch(/bg-gj-red\b/)
+  })
+
+  it('cas Entretien (étape courante non finale) : segment courant teal, jamais jaune (GUIC-689 finding E)', () => {
+    render(<CandidaturePipelineStepper currentStep="Entretien" />)
+    const current = screen.getByTestId('stepper-segment-Entretien')
+    expect(current.className).toMatch(/bg-gj-teal\b/)
+    expect(current.className).not.toMatch(/bg-gj-yellow/)
+  })
+
+  it('les étapes todo restent en --gj-line quel que soit le contexte', () => {
+    render(<CandidaturePipelineStepper currentStep="EnRevue" />)
+    expect(screen.getByTestId('stepper-segment-Entretien').className).toMatch(/bg-gj-line\b/)
+    expect(screen.getByTestId('stepper-segment-Decision').className).toMatch(/bg-gj-line\b/)
   })
 
   it('hideLabels : pas de labels textuels', () => {

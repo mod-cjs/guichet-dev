@@ -11,16 +11,42 @@ import { useEffect, useRef, useState } from 'react'
  *
  * `text` = texte cumulé jusqu'ici (croît à chaque token) ; `done` = flux terminé.
  */
-/** True si l'utilisateur a demandé la réduction des animations (a11y, OS/navigateur). */
+/** Vrai si l'attribut `data-motion="reduce"` est posé sur `<html>` — réglage
+ *  applicatif de `/jeune/accessibilite` (cf. `A11yProvider` + script anti-FOUC
+ *  du layout `/jeune/(app)`). Lu directement sur le DOM (jamais via un contexte
+ *  React) : cette fonction doit rester correcte même hors de tout provider —
+ *  ex. `/jeune/yaye` (page fullscreen) n'est PAS montée sous `A11yProvider`. */
+function readDataMotionReduce(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.documentElement.dataset.motion === 'reduce'
+}
+
+/**
+ * True si l'utilisateur a demandé la réduction des animations — préférence OS/
+ * navigateur (`prefers-reduced-motion`) OU réglage applicatif Guichet
+ * (`data-motion="reduce"` sur `<html>`). L'UNE OU L'AUTRE suffit (règle v5 NON
+ * NÉGOCIABLE : « animations réduites » doit couper les MINUTERIES JS, pas
+ * seulement l'animation CSS).
+ *
+ * Choix technique : `MutationObserver` sur `<html data-motion>` plutôt qu'un
+ * contexte React (`useA11y`) — fonctionne PARTOUT, avec ou sans `<A11yProvider>`
+ * au-dessus (le hook ne doit jamais planter ni rester figé faute de provider),
+ * et réagit immédiatement si le réglage change pendant que Yaye répond.
+ */
 function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false)
+  const [reduced, setReduced] = useState(() => readDataMotionReduce())
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    setReduced(mq.matches)
-    const on = () => setReduced(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
+    const recompute = () => setReduced(readDataMotionReduce() || !!mq?.matches)
+    recompute()
+    mq?.addEventListener('change', recompute)
+    const observer = new MutationObserver(recompute)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion'] })
+    return () => {
+      mq?.removeEventListener('change', recompute)
+      observer.disconnect()
+    }
   }, [])
   return reduced
 }

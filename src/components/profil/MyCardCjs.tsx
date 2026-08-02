@@ -81,11 +81,16 @@ function QrGlyph({ size = 140, seed }: { size?: number; seed: string }) {
       role="img"
       aria-label="QR code Carte CJS (aperçu)"
       data-testid="mycard-qr"
-      style={{ display: 'block', background: '#fff', borderRadius: 8 }}
+      style={{ display: 'block', background: 'var(--gj-surface)', borderRadius: 8 }}
     >
-      <rect x={0} y={0} width={size} height={size} fill="#fff" />
+      <rect x={0} y={0} width={size} height={size} fill="var(--gj-surface)" />
       {[...filled].map((k, i) => {
         const [x, y] = k.split(',').map(Number)
+        // GUIC-689 — exception documentée : #0A2A24 n'est pas un token de
+        // marque mais le contraste quasi noir requis pour que le pseudo-QR
+        // reste scannable/lisible ; on ne le remplace pas par un token
+        // sémantique gj-* qui dériverait avec les thèmes (le rendu QR doit
+        // rester un noir « imprimé », indépendant de la charte couleur).
         return <rect key={i} x={x * cell} y={y * cell} width={cell} height={cell} fill="#0A2A24" />
       })}
     </svg>

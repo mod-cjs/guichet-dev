@@ -22,9 +22,9 @@ const STATUT_LABELS: Record<StatutEmprunt, string> = {
 }
 
 const STATUT_COLORS: Record<StatutEmprunt, { bg: string; color: string }> = {
-  initie: { bg: 'var(--gj-yellow-soft, #fef9c3)', color: 'var(--gj-yellow-ink, #854d0e)' },
+  initie: { bg: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' },
   en_cours: { bg: 'var(--gj-teal-soft)', color: 'var(--gj-teal-deep)' },
-  en_retard: { bg: 'var(--gj-red-soft, #fee2e2)', color: 'var(--gj-red)' },
+  en_retard: { bg: 'var(--gj-red-soft)', color: 'var(--gj-red)' },
   rendu: { bg: 'var(--gj-bg)', color: 'var(--gj-grey)' },
   annule: { bg: 'var(--gj-bg)', color: 'var(--gj-grey)' },
 }
