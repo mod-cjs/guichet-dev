@@ -1,0 +1,123 @@
+/**
+ * M13 / Data Hub — extraction paginée par curseur (lot 4, spec §8.2).
+ *
+ * TROIS INVARIANTS, ET LEUR RAISON D'ÊTRE
+ *
+ * 1. **Tri total `(watermark, clé primaire)`.** Un tri sur le seul watermark est partiel :
+ *    les lignes portant le même horodatage ont un ordre indéfini, et le curseur se met à
+ *    les relire en boucle ou à en sauter. La clé primaire les départage.
+ *
+ * 2. **Curseur positionnel, jamais un offset.** L'offset pagine par rang, et le rang bouge :
+ *    une insertion pendant l'extraction décale les pages suivantes, et une ligne passe
+ *    entre deux pages sans jamais être lue. Aucune erreur n'est levée.
+ *
+ * 3. **Borne `since` inclusive.** Le tap repart de son dernier point d'arrêt moins un
+ *    recouvrement, parce que le watermark est posé à l'écriture applicative et non au
+ *    commit : une transaction ouverte avant le point d'arrêt et committée après ne serait
+ *    sinon jamais extraite. Les doublons produits sont absorbés par l'upsert de l'entrepôt.
+ *
+ * Aucun filtre sur la suppression logique : les lignes supprimées SORTENT, avec leur date
+ * (spec §3, DA-5). Les filtrer laisserait des fantômes actifs dans l'entrepôt à jamais.
+ */
+import { decodeCursor, encodeCursor } from './cursor'
+import { projectRow, type StreamDescriptor } from './descriptor'
+import { streams } from './streams'
+
+/** Taille de page par défaut, et plafond. Au-delà, la réponse ne tient plus en mémoire. */
+export const LIMIT_DEFAUT = 1000
+export const LIMIT_MAX = 5000
+
+export interface ExportParams {
+  /** Borne basse inclusive sur le watermark, ISO 8601. Ignorée si un curseur est fourni. */
+  since?: string | null
+  cursor?: string | null
+  limit?: number | null
+}
+
+export interface ExportPage {
+  data: Record<string, unknown>[]
+  meta: {
+    next_cursor: string | null
+    has_more: boolean
+    replication_key: string
+    generated_at: string
+  }
+}
+
+/** Le strict nécessaire d'un délégué Prisma — injecté pour rendre la construction testable. */
+export interface FindManyDelegate {
+  findMany(args: {
+    where: Record<string, unknown>
+    select: Record<string, true>
+    orderBy: Array<Record<string, 'asc'>>
+    take: number
+  }): Promise<Record<string, unknown>[]>
+}
+
+function borneLimit(demande: number | null | undefined): number {
+  if (typeof demande !== 'number' || Number.isNaN(demande)) return LIMIT_DEFAUT
+  return Math.min(Math.max(1, Math.floor(demande)), LIMIT_MAX)
+}
+
+/** Nature déclarée de la clé primaire — voir `StreamSpec.primaryKeyKind`. */
+function convertirCle(descriptor: StreamDescriptor, valeur: string): string | bigint {
+  const spec = streams[descriptor.name as keyof typeof streams] as { primaryKeyKind?: string }
+  if (spec?.primaryKeyKind !== 'bigint') return valeur
+  try {
+    return BigInt(valeur)
+  } catch {
+    // Un curseur forgé ne doit pas produire une erreur Prisma opaque côté serveur.
+    throw new Error(`Curseur invalide : clé primaire non numérique pour ${descriptor.name}`)
+  }
+}
+
+export async function keysetExport(
+  descriptor: StreamDescriptor,
+  params: ExportParams,
+  delegate: FindManyDelegate
+): Promise<ExportPage> {
+  const limit = borneLimit(params.limit)
+  const { replicationKey: rk, primaryKey: pk } = descriptor
+
+  let where: Record<string, unknown> = {}
+  if (params.cursor) {
+    // Le curseur est décodé AVANT toute requête : un curseur malformé ne doit jamais
+    // dégénérer en scan de table entière.
+    const position = decodeCursor(params.cursor)
+    const t = new Date(position.t)
+    where = {
+      OR: [{ [rk]: { gt: t } }, { [rk]: t, [pk]: { gt: convertirCle(descriptor, position.i) } }],
+    }
+  } else if (params.since) {
+    where = { [rk]: { gte: new Date(params.since) } }
+  }
+
+  const rows = await delegate.findMany({
+    where,
+    select: descriptor.select,
+    orderBy: descriptor.orderBy,
+    take: limit + 1,
+  })
+
+  const hasMore = rows.length > limit
+  const page = hasMore ? rows.slice(0, limit) : rows
+  const derniere = page.at(-1)
+
+  return {
+    data: page.map((row) => projectRow(descriptor, row)),
+    meta: {
+      // Positionné sur la dernière ligne SERVIE : pointer la ligne de sonde ferait sauter
+      // celle-ci à la page suivante.
+      next_cursor:
+        hasMore && derniere
+          ? encodeCursor({
+              t: (derniere[rk] as Date).toISOString(),
+              i: String(derniere[pk]),
+            })
+          : null,
+      has_more: hasMore,
+      replication_key: rk,
+      generated_at: new Date().toISOString(),
+    },
+  }
+}

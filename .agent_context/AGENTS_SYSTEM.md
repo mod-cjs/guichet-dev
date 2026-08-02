@@ -38,7 +38,7 @@ Chaque agent = fichier `.md` avec frontmatter `name / description / tools / mode
 **Prompt système intègre** :
 - Règles CLAUDE.md (tokens `gj-*`, `<Icon name="…" />`, components/ui, jamais hex)
 - TDD strict obligatoire (RED commit séparé AVANT GREEN)
-- Format commit `[GUIC-NNN] / Closes GUIC-NNN`, auteur `mod-cjs`, jamais mention IA
+- Format commit `[GUIC-NNN] / Closes GUIC-NNN`, auteur `adiop-pixel`, jamais mention IA
 - `--no-verify` toléré uniquement si erreurs tsc préexistantes hors périmètre
 - Lit `public/design-v3/<Lot>.html` ou `design-guichet-v3/<lot>.jsx` comme spec visuelle
 - Lit `.agent_context/specs/M<n>-<module>.md` si présent
