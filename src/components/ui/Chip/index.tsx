@@ -17,10 +17,10 @@ export interface ChipProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>,
 /**
  * <Chip /> — pill sélectable (filtres, intérêts, tags interactifs).
  *
- * Conforme au design v2 :
+ * Conforme au design v5 (Lot 14 — Bibliothèque de composants) :
  * - radius pill (999px), min-h 42px (hit-target proche du minimum tactile)
  * - default : surface + border line, label gris foncé
- * - selected : teal-soft + border teal-deep, label teal-deep en gras
+ * - selected : fond var(--gj-teal-deep) plein, texte blanc, sans bordure
  * - removable : 2 boutons sibling dans un container role=group — le toggle
  *   (pill principale) et le remove (croix à droite). Pas d'imbrication
  *   interactive (règle a11y HTML : un <button> ne peut pas en contenir un autre).
@@ -39,7 +39,7 @@ export function Chip({
     'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]'
 
   const stateClasses = selected
-    ? 'bg-gj-teal-soft border-gj-teal-deep text-gj-teal-deep font-bold'
+    ? 'bg-gj-teal-deep border-transparent text-white font-bold'
     : 'bg-gj-surface border-gj-line text-color-text-primary hover:border-gj-line-strong'
 
   const toggleButton = (

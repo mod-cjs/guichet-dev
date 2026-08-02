@@ -1,10 +1,3 @@
-// Legacy (v1) — conservés pour compatibilité ascendante
-export { DashboardHero }      from './DashboardHero'
-export type { DashboardHeroProps } from './DashboardHero'
-export { DashboardCompteurs } from './DashboardCompteurs'
-export { ActivityFeed }       from './ActivityFeed'
-export { DashboardCTACard }   from './DashboardCTACard'
-
 // v2 — refonte dashboard web bénéficiaire (GUIC-196)
 export { WebDashHero }                 from './WebDashHero'
 export { WebDashKPIs }                 from './WebDashKPIs'
@@ -25,8 +18,6 @@ export type { OppRecoCard }            from './OpportunitesRecoCarousel'
 // expose le sien en import direct (`./DashboardKPIs`) pour éviter la collision.
 export { DashboardKPIs }     from './DashboardKPIs'
 export type { DashboardKPIsProps, KPITone } from './DashboardKPIs'
-export { DashboardTracker }  from './DashboardTracker'
-export type { DashboardTrackerProps } from './DashboardTracker'
 export { MiniOppCard }       from './MiniOppCard'
 export type { MiniOppCardProps, MiniOpp, MiniOppTone } from './MiniOppCard'
 export { YayeNudgeCard }     from './YayeNudgeCard'

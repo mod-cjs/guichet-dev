@@ -108,13 +108,15 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
           </div>
         )}
 
-        {/* CTA à la couleur du type — z-10 pour passer au-dessus du lien étiré. */}
+        {/* CTA de conversion — toujours bg-gj-action (magenta) : couleur réservée à la
+            conversion, jamais échangée contre celle du type d'offre (design v5,
+            réf design-guichet-v5/yaye-mobile.jsx:37). z-10 pour passer au-dessus du lien étiré. */}
         <Link
           href={`/opportunites/${opp.slug}?postuler=1`}
           onClick={onNavigate}
           aria-label={`${ctaLabel} : ${opp.titre}`}
-          className={`relative z-10 self-start rounded-gj-lg ${TONE_SOLID_BG[tone]} text-white
-            px-space-3 py-[6px] text-fs-200 font-bold inline-flex items-center gap-1`}
+          className="relative z-10 self-start rounded-gj-lg bg-gj-action hover:bg-gj-action-deep text-white
+            px-space-3 py-[6px] text-fs-200 font-bold inline-flex items-center gap-1"
         >
           {ctaLabel}
           <Icon name="arrow-right" size={13} aria-hidden />

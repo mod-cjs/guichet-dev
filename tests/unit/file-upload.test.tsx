@@ -159,4 +159,27 @@ describe('<FileUpload />', () => {
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument(),
     )
   })
+
+  // GUIC-689 — Lot C2.5 : zone de dépôt habillée (bordure pointillée, icône
+  // carrée, libellé + sous-libellé, bouton « Parcourir »). Logique
+  // fonctionnelle (upload/defer) inchangée.
+  describe('Zone de dépôt (GUIC-689 Lot 14)', () => {
+    it('affiche une zone de dépôt bordure pointillée + icône + bouton Parcourir', () => {
+      const { container } = render(<FileUpload upload={jest.fn()} />)
+      const dropzone = container.querySelector('.border-dashed') as HTMLElement
+      expect(dropzone).not.toBeNull()
+      expect(dropzone.className).toMatch(/border-gj-line-strong/)
+      const use = dropzone.querySelector('svg use')
+      expect(use?.getAttribute('href')).toBe('/icons.svg#i-upload')
+      expect(screen.getByRole('button', { name: 'Parcourir' })).toBeInTheDocument()
+    })
+
+    it('le bouton Parcourir déclenche toujours le sélecteur de fichier (logique inchangée)', () => {
+      const { container } = render(<FileUpload upload={jest.fn()} />)
+      const input = container.querySelector('input[type="file"]') as HTMLInputElement
+      const clickSpy = jest.spyOn(input, 'click')
+      fireEvent.click(screen.getByRole('button', { name: 'Parcourir' }))
+      expect(clickSpy).toHaveBeenCalled()
+    })
+  })
 })

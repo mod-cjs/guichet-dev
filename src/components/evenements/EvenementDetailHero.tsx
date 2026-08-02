@@ -9,7 +9,7 @@ const TYPE_GRADIENT: Record<TypeEvenementValue, string> = {
   Forum:      'linear-gradient(135deg, var(--gj-blue), var(--gj-blue-ink))',
   Formation:  'linear-gradient(135deg, var(--gj-yellow), var(--gj-yellow-ink))',
   Webinar:    'linear-gradient(135deg, var(--gj-green), var(--gj-green-ink))',
-  Conference: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink))',
+  Conference: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal))',
 }
 
 const TYPE_BADGE: Record<TypeEvenementValue, 'teal' | 'blue' | 'yellow' | 'green' | 'red'> = {
@@ -17,7 +17,7 @@ const TYPE_BADGE: Record<TypeEvenementValue, 'teal' | 'blue' | 'yellow' | 'green
   Forum: 'blue',
   Formation: 'yellow',
   Webinar: 'green',
-  Conference: 'red',
+  Conference: 'teal',
 }
 
 const DAY_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric' })

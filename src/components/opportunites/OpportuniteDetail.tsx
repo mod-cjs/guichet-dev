@@ -34,6 +34,9 @@ interface OpportuniteDetailProps {
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+// F1.2 (GUIC-689) — nombre de vues en français (espace fine insécable comme
+// séparateur de milliers), cf. `formatHomeStat` (src/lib/loaders/home-stats.shared.ts).
+const VUES_FMT = new Intl.NumberFormat('fr-FR')
 
 // GUIC-689 (F-6) — acronymes courants des enums métier : ils doivent rester en
 // majuscules (jamais "cdd"/"pdf" en toutes lettres minuscules).
@@ -213,17 +216,26 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
     }
   }, [detail.slug, detail.titre])
 
-  // Chips meta inline du hero (région / rémunération / délai indicatif).
+  // Chips meta inline du hero (région / rémunération / délai indicatif / vues).
   const heroChips = useMemo(() => {
-    const chips: { icon: 'pin' | 'funding' | 'clock'; label: string }[] = []
+    const chips: { icon: 'pin' | 'funding' | 'clock' | 'eye'; label: string }[] = []
     if (detail.region) chips.push({ icon: 'pin', label: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) chips.push({ icon: 'funding', label: detail.remuneration })
     const jours = joursAvantDeadline(detail.deadline)
     if (jours !== null && jours > 0 && jours <= DEADLINE_VISIBLE_DAYS) {
       chips.push({ icon: 'clock', label: `Décision ${jours}j` })
     }
+    // F1.2 (GUIC-689) — compteur de vues, jamais affiché jusqu'ici bien que
+    // suivi côté serveur (lot3-opps-web.jsx:420-428). Aligné sur la
+    // présentation de RessourceDetailHero (singulier/pluriel).
+    if (typeof detail.vues === 'number') {
+      chips.push({
+        icon: 'eye',
+        label: `${VUES_FMT.format(detail.vues)} vue${detail.vues > 1 ? 's' : ''}`,
+      })
+    }
     return chips
-  }, [detail.region, detail.remuneration, detail.deadline])
+  }, [detail.region, detail.remuneration, detail.deadline, detail.vues])
 
   // Grille détails 2 colonnes — racine + sous-type discriminé.
   const cells = useMemo(() => {

@@ -50,4 +50,42 @@ describe('<Toast />', () => {
     render(<Toast message="boom" type="error" onClose={() => {}} duration={0} />)
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'assertive')
   })
+
+  it('fond sombre unique (design v5, Lot 14) quel que soit le variant', () => {
+    const { rerender } = render(<Toast message="OK" variant="success" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('status').className).toMatch(/bg-gj-ink/)
+    rerender(<Toast message="OK" variant="danger" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('status').className).toMatch(/bg-gj-ink/)
+  })
+
+  it('rend le bouton d\'action inline quand `action` est fourni', () => {
+    const onClick = jest.fn()
+    render(
+      <Toast message="Candidature envoyée" onClose={() => {}} duration={0} action={{ label: 'Annuler', onClick }} />,
+    )
+    const actionBtn = screen.getByRole('button', { name: /annuler/i })
+    expect(actionBtn).toBeInTheDocument()
+    fireEvent.click(actionBtn)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('n\'affiche pas de bouton d\'action si `action` est absent', () => {
+    render(<Toast message="OK" onClose={() => {}} duration={0} />)
+    expect(screen.queryByRole('button', { name: /annuler/i })).toBeNull()
+  })
+
+  it('la pastille icône porte la sémantique par variant (Lot 14) — ambre = texte/icône noir (contraste AA)', () => {
+    render(<Toast message="Profil incomplet" variant="warning" onClose={() => {}} duration={0} />)
+    const dot = screen.getByRole('img')
+    expect(dot.className).toMatch(/bg-gj-yellow\b/)
+    expect(dot.className).toMatch(/text-gj-ink/)
+  })
+
+  it('la pastille icône est blanche sur fond vert/rouge/bleu (aplats "porteurs de texte blanc")', () => {
+    const { rerender } = render(<Toast message="OK" variant="success" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('img').className).toMatch(/bg-gj-green\b.*text-white|text-white.*bg-gj-green\b/)
+    rerender(<Toast message="OK" variant="danger" onClose={() => {}} duration={0} />)
+    expect(screen.getByRole('img').className).toMatch(/bg-gj-red\b/)
+    expect(screen.getByRole('img').className).toMatch(/text-white/)
+  })
 })

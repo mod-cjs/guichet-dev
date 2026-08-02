@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Lexend } from 'next/font/google'
 import { MobileTopShell, MobileBottomShell } from '@/components/layout/MobileAppShell'
+import { OfflineBanner } from '@/components/ui'
 import { appUrl } from '@/lib/app-url'
 import '@/styles/globals.css'
 
@@ -66,6 +67,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" className={lexend.variable}>
       <body className="antialiased">
+        {/* GUIC-689 (Lot D) — bandeau hors-ligne : monté UNE fois ici plutôt
+            qu'espace par espace (moins de points d'oubli, couvre aussi les
+            écrans publics). Autonome : il ne rend rien tant que la connexion
+            est présente. Public cible sur réseau intermittent. */}
+        <OfflineBanner />
         {/* Top bar mobile : DOIT être avant {children} pour que sticky top-0 fonctionne */}
         <MobileTopShell />
         {children}

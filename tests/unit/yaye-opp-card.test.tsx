@@ -23,4 +23,15 @@ describe('<YayeOppCard /> (design v4)', () => {
     expect(screen.getByText('Stage en agronomie')).toBeInTheDocument()
     expect(screen.getByText(/Postuler/i)).toBeInTheDocument()
   })
+
+  // GUIC-689 (finding A2) — le magenta `--gj-action` est réservé aux CTA de
+  // conversion et ne s'échange jamais contre la couleur du type d'offre
+  // (réf design-guichet-v5/yaye-mobile.jsx:37).
+  it('le CTA de conversion utilise toujours bg-gj-action, jamais la couleur du type', () => {
+    render(<YayeOppCard opp={item} />)
+    const cta = screen.getByText(/Postuler/i).closest('a')
+    expect(cta?.className).toMatch(/bg-gj-action\b/)
+    expect(cta?.className).toMatch(/hover:bg-gj-action-deep\b/)
+    expect(cta?.className).not.toMatch(/bg-gj-teal-deep\b/)
+  })
 })

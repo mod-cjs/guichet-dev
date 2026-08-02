@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { OpportuniteTypeChip } from './OpportuniteTypeChip'
-import { TYPE_CAT } from './opportunite-type-meta'
+import { TYPE_ICON, catFamilyOf, type CatFamily } from './opportunite-type-meta'
 import { regionLabel } from '@/lib/regions'
 import { formatDeadline, formatDeadlineFull } from '@/lib/format-date'
 import type { OpportuniteListItem } from '@/types/opportunite'
@@ -30,6 +30,25 @@ import type { OpportuniteListItem } from '@/types/opportunite'
  */
 
 const DAY = 86_400_000
+
+/**
+ * F1.1 (GUIC-689) — classes de la tuile sectorielle, écrites EN TOUTES
+ * LETTRES : une classe Tailwind composée à l'exécution (`bg-${x}-soft`)
+ * n'est jamais générée par le scan statique. Motif identique à
+ * `CAT_TUILE_CLASSES` de `src/components/dashboard/OpportunitesRecoCarousel.tsx`
+ * (hors périmètre de ce ticket — dupliqué ici, ne pas factoriser sans ticket
+ * dédié). Aplat uniquement (consigne projet) : jamais de dégradé, même si
+ * `lot3-opps-web.jsx` / `lot3-opps-mobile.jsx` en utilisent un.
+ */
+const CAT_TUILE_CLASSES: Record<CatFamily, string> = {
+  'cat-emploi':      'bg-cat-emploi-soft text-cat-emploi-ink',
+  'cat-stage':       'bg-cat-stage-soft text-cat-stage-ink',
+  'cat-formation':   'bg-cat-formation-soft text-cat-formation-ink',
+  'cat-financement': 'bg-cat-financement-soft text-cat-financement-ink',
+  'cat-evenement':   'bg-cat-evenement-soft text-cat-evenement-ink',
+  'cat-volontariat': 'bg-cat-volontariat-soft text-cat-volontariat-ink',
+  'cat-neutre':      'bg-cat-neutre-soft text-cat-neutre-ink',
+}
 
 interface DeadlineInfo {
   label: string
@@ -63,7 +82,7 @@ export function OppCard({ item, isFavori, onToggleFavori, matchScore = null, now
   const region = regionLabel(item.region)
   // GUIC-689 — la carte garde une bordure constante : l'urgence n'est jamais
   // portée par la carte (ni par le chip type), uniquement par la pastille dédiée.
-  const catFamily = TYPE_CAT[item.type] ?? 'cat-neutre'
+  const catFamily = catFamilyOf(item.type)
 
   return (
     <article
@@ -80,78 +99,95 @@ export function OppCard({ item, isFavori, onToggleFavori, matchScore = null, now
           focus-visible:ring-[3px] focus-visible:ring-[var(--focus-ring-soft)]"
       />
 
-      {/* F02 — ligne chip catégorie + pastille urgence + badge match + favori */}
-      <div className="flex items-center gap-space-1 flex-wrap">
-        {/* Wrapper pour data-testid et data-cat (OpportuniteTypeChip ne propage pas les attrs rest) */}
-        <span data-testid="type-chip" data-cat={catFamily}>
-          <OpportuniteTypeChip type={item.type} />
-        </span>
-        {/* Pastille urgence séparée — jamais fusionnée avec le chip type (GUIC-689). */}
-        {dl?.urgent && (
-          <span data-testid="urgence-badge" className="gj-urgent">
-            {dl.label}
-          </span>
-        )}
-        {/* F01 — badge match conditionnel */}
-        {matchScore !== null && matchScore !== undefined && (
-          <span
-            data-testid="match-score"
-            className="inline-flex items-center px-space-2 py-[2px] rounded-gj-pill
-              text-fs-100 font-black uppercase tracking-[0.3px] leading-none
-              bg-gj-green-soft text-gj-green-ink"
-          >
-            {matchScore}% match
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => onToggleFavori(item.id)}
-          aria-pressed={isFavori}
-          aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          className={`relative z-[1] ml-auto inline-flex items-center justify-center
-            w-[44px] h-[44px] lg:w-[38px] lg:h-[38px] rounded-full border-[1.5px]
-            transition-all duration-150 ease-out active:scale-90
-            ${isFavori
-              ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink scale-105'
-              : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
+      {/* F1.1 — tuile sectorielle (aplat famille catégorie + picto) : « reconnaître
+          avant de lire », desktop ET mobile (GUIC-689, lot3-opps-web/mobile). */}
+      <div className="flex gap-space-2 sm:gap-space-3">
+        <div
+          data-testid="opp-tuile"
+          data-cat={catFamily}
+          aria-hidden
+          className={`flex-shrink-0 self-stretch w-[52px] sm:w-[64px] min-h-[64px]
+            rounded-gj-md flex items-center justify-center
+            ${CAT_TUILE_CLASSES[catFamily]}`}
         >
-          <Icon name="bookmark" size={16} />
-        </button>
-      </div>
+          <Icon name={TYPE_ICON[item.type]} size={26} />
+        </div>
 
-      {/* F20 — titre compact sur mobile (text-fs-300 → text-fs-400 sur sm+) */}
-      <h3 className="text-fs-300 sm:text-fs-400 font-black text-color-text-primary leading-snug line-clamp-2">
-        {item.titre}
-      </h3>
-      <p className="text-fs-100 sm:text-fs-200 text-color-text-secondary">{item.organisation}</p>
+        <div className="flex-1 min-w-0 flex flex-col gap-space-2">
+          {/* F02 — ligne chip catégorie + pastille urgence + badge match + favori */}
+          <div className="flex items-center gap-space-1 flex-wrap">
+            {/* Wrapper pour data-testid et data-cat (OpportuniteTypeChip ne propage pas les attrs rest) */}
+            <span data-testid="type-chip" data-cat={catFamily}>
+              <OpportuniteTypeChip type={item.type} />
+            </span>
+            {/* Pastille urgence séparée — jamais fusionnée avec le chip type (GUIC-689). */}
+            {dl?.urgent && (
+              <span data-testid="urgence-badge" className="gj-urgent">
+                {dl.label}
+              </span>
+            )}
+            {/* F01 — badge match conditionnel */}
+            {matchScore !== null && matchScore !== undefined && (
+              <span
+                data-testid="match-score"
+                className="inline-flex items-center px-space-2 py-[2px] rounded-gj-pill
+                  text-fs-100 font-black uppercase tracking-[0.3px] leading-none
+                  bg-gj-green-soft text-gj-green-ink"
+              >
+                {matchScore}% match
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onToggleFavori(item.id)}
+              aria-pressed={isFavori}
+              aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              className={`relative z-[1] ml-auto inline-flex items-center justify-center
+                w-[44px] h-[44px] lg:w-[38px] lg:h-[38px] rounded-full border-[1.5px]
+                transition-all duration-150 ease-out active:scale-90
+                ${isFavori
+                  ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink scale-105'
+                  : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
+            >
+              <Icon name="bookmark" size={16} />
+            </button>
+          </div>
 
-      {/* Métadonnées + deadline */}
-      <div className="flex flex-wrap items-center gap-x-space-3 gap-y-space-1 text-fs-100 sm:text-fs-200 text-color-text-secondary">
-        {region && (
-          <span className="inline-flex items-center gap-1">
-            <Icon name="pin" size={14} />
-            {region}
-          </span>
-        )}
-        {item.remuneration && (
-          <span className="inline-flex items-center gap-1">
-            <Icon name="funding" size={14} />
-            {item.remuneration}
-          </span>
-        )}
-        {/* F08 — « Postuler avant le X » / rouge si urgent */}
-        {dl && (
-          <span
-            data-testid="deadline-label"
-            title={item.deadline ? formatDeadlineFull(item.deadline) : undefined}
-            className={`inline-flex items-center gap-1 ${
-              dl.urgent ? 'text-gj-red font-black' : ''
-            }`}
-          >
-            <Icon name="clock" size={14} />
-            {dl.urgent ? dl.label : `Postuler avant le ${dl.label}`}
-          </span>
-        )}
+          {/* F20 — titre compact sur mobile (text-fs-300 → text-fs-400 sur sm+) */}
+          <h3 className="text-fs-300 sm:text-fs-400 font-black text-color-text-primary leading-snug line-clamp-2">
+            {item.titre}
+          </h3>
+          <p className="text-fs-100 sm:text-fs-200 text-color-text-secondary">{item.organisation}</p>
+
+          {/* Métadonnées + deadline */}
+          <div className="flex flex-wrap items-center gap-x-space-3 gap-y-space-1 text-fs-100 sm:text-fs-200 text-color-text-secondary">
+            {region && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="pin" size={14} />
+                {region}
+              </span>
+            )}
+            {item.remuneration && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="funding" size={14} />
+                {item.remuneration}
+              </span>
+            )}
+            {/* F08 — « Postuler avant le X » / rouge si urgent */}
+            {dl && (
+              <span
+                data-testid="deadline-label"
+                title={item.deadline ? formatDeadlineFull(item.deadline) : undefined}
+                className={`inline-flex items-center gap-1 ${
+                  dl.urgent ? 'text-gj-red font-black' : ''
+                }`}
+              >
+                <Icon name="clock" size={14} />
+                {dl.urgent ? dl.label : `Postuler avant le ${dl.label}`}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* F03 — CTA secondaire « Voir l'offre → » en bas-droite (GUIC-689 : une

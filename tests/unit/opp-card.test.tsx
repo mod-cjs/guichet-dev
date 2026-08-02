@@ -98,3 +98,47 @@ describe('<OppCard />', () => {
     expect(favori.className).toMatch(/h-\[44px\]/)
   })
 })
+
+// ─── F1.1 — Tuile sectorielle (GUIC-689, lot3-opps-web/mobile) ───────────────
+// « Reconnaître avant de lire » : un aplat de la famille catégorie + un
+// pictogramme, en tête de carte (desktop ET mobile). Zéro dégradé (aplat
+// uniquement — cf. lot3-opps-web.jsx qui utilise un dégradé, non repris ici).
+
+describe('F1.1 — Tuile sectorielle', () => {
+  it('affiche une tuile avec l’aplat de la famille catégorie (Stage → cat-stage)', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile).toHaveAttribute('data-cat', 'cat-stage')
+    expect(tuile.className).toMatch(/bg-cat-stage-soft/)
+    expect(tuile.className).toMatch(/text-cat-stage-ink/)
+  })
+
+  it('ne rend jamais de dégradé sur la tuile (aplat uniquement)', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile.className).not.toMatch(/gradient/)
+    expect(tuile.getAttribute('style') ?? '').not.toMatch(/gradient/)
+  })
+
+  it('affiche le pictogramme sectoriel correspondant au type (Formation → learning)', () => {
+    const item = { ...baseItem, type: 'Formation' as const }
+    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile).toHaveAttribute('data-cat', 'cat-formation')
+    expect(tuile.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-learning')
+  })
+
+  it('adapte la famille catégorie et l’icône pour un Emploi', () => {
+    const item = { ...baseItem, type: 'Emploi' as const }
+    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile).toHaveAttribute('data-cat', 'cat-emploi')
+    expect(tuile.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-employment')
+  })
+
+  it('la tuile est purement décorative (aria-hidden) — l’information est déjà portée par le chip', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const tuile = screen.getByTestId('opp-tuile')
+    expect(tuile).toHaveAttribute('aria-hidden')
+  })
+})

@@ -101,7 +101,7 @@ export function WelcomeHeroMobile() {
             <div key={s.label} className="flex flex-col items-center gap-px">
               <span className="font-black" style={{ fontSize: 22, color: 'var(--gj-yellow)' }}>{s.value}</span>
               <span
-                className="text-[10px] uppercase font-bold"
+                className="text-fs-100 uppercase font-bold"
                 style={{ opacity: 0.8, letterSpacing: '.4px' }}
               >
                 {s.label}

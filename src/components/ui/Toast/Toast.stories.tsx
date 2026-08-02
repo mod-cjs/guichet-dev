@@ -26,3 +26,11 @@ export const Warning: Story = { args: { variant: 'warning', message: 'Profil inc
 export const Danger: Story = { args: { variant: 'danger', message: 'Erreur réseau', detail: 'Vérifie ta connexion et réessaie.' } }
 export const TopRight: Story = { args: { variant: 'info', position: 'top-right' } }
 export const BottomRight: Story = { args: { variant: 'success', position: 'bottom-right' } }
+export const AvecAction: Story = {
+  args: {
+    variant: 'success',
+    message: 'Candidature envoyée avec succès',
+    detail: undefined,
+    action: { label: 'Annuler', onClick: () => {} },
+  },
+}

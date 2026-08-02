@@ -269,4 +269,32 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     renderDetail() // baseDetail.type === 'STAGE'
     expect(screen.getAllByText('Stage').length).toBeGreaterThan(0)
   })
+
+  // ── F1.2 — Compteur de vues (GUIC-689, lot3-opps-web.jsx:420-428) ──────────
+  describe('F1.2 — Compteur de vues', () => {
+    it('affiche le nombre de vues dans les métadonnées du détail ("12 vues")', () => {
+      renderDetail() // baseDetail.vues === 12
+      expect(screen.getByText(/12 vues/)).toBeInTheDocument()
+    })
+
+    it('accorde le singulier quand vues=1 ("1 vue", pas "1 vues")', () => {
+      const detail: Detail = { ...baseDetail, vues: 1 }
+      renderDetail(detail)
+      expect(screen.getByText(/^1 vue$/)).toBeInTheDocument()
+      expect(screen.queryByText(/1 vues/)).toBeNull()
+    })
+
+    it('formate un grand nombre de vues en français (espace milliers, pas de virgule)', () => {
+      const detail: Detail = { ...baseDetail, vues: 1248 }
+      renderDetail(detail)
+      expect(screen.getByText(/^1\s248 vues$/)).toBeInTheDocument()
+      expect(screen.queryByText(/1,248/)).toBeNull()
+    })
+
+    it('porte l’icône « eye » du compteur de vues', () => {
+      renderDetail()
+      const chip = screen.getByText(/12 vues/).closest('span')
+      expect(chip?.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-eye')
+    })
+  })
 })

@@ -17,7 +17,6 @@ type Story = StoryObj<typeof AppTopbar>
 export const Default: Story = {
   args: {
     userInitials: 'AD',
-    onYayeClick: () => alert('Yaye'),
     onBellClick: () => alert('Bell'),
     onUserClick: () => alert('User'),
   },
@@ -28,7 +27,6 @@ export const WithUnread: Story = {
     subtitle: 'Tableau de bord',
     userInitials: 'AD',
     unread: 5,
-    onYayeClick: () => undefined,
     onBellClick: () => undefined,
     onUserClick: () => undefined,
   },
@@ -36,7 +34,6 @@ export const WithUnread: Story = {
 
 export const Anonymous: Story = {
   args: {
-    onYayeClick: () => undefined,
     onBellClick: () => undefined,
   },
 }

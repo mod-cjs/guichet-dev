@@ -64,9 +64,12 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
   // GUIC-416 — conformité Lot 3 : la section Opportunités expose les
   // sous-types (Emploi & Stages, Bourses & Financement, Formations,
   // Concours & Appels) en raccourci, en plus de « Toutes » et
-  // « Mes favoris ». Les sous-items pointent vers /opportunites?type=…
+  // « Mes sauvegardes ». Les sous-items pointent vers /opportunites?type=…
   // (filtre serveur déjà géré par OpportunitesClient via searchParams).
   // Pas de badge count : compteur agrégé non disponible (cf. ticket).
+  // GUIC-689 (Lot E4) — libellé aligné sur `web-dashboard.jsx:65` : « Mes
+  // sauvegardes » (au lieu de « Mes favoris »). La route reste inchangée
+  // (`/jeune/mes-favoris`).
   {
     title: 'Opportunités',
     items: [
@@ -75,25 +78,42 @@ const DEFAULT_SECTIONS: BenefSidebarSection[] = [
       { id: 'opp-bourse', href: '/opportunites?type=Bourse', icon: 'funding', label: 'Bourses & Financement' },
       { id: 'opp-formation', href: '/opportunites?type=Formation', icon: 'learning', label: 'Formations' },
       { id: 'opp-concours', href: '/opportunites?type=Appel_a_projets', icon: 'trending', label: 'Concours & Appels' },
-      { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes favoris' },
+      { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes sauvegardes' },
     ],
   },
+  // GUIC-689 (Lot E4) — ordre aligné sur `web-dashboard.jsx:60-78` pour les
+  // items communs (candidatures / événements / ressources / centres /
+  // messagerie). Les items additionnels propres à l'app (Mes formations,
+  // Bibliothèque, absents de la v5) sont conservés en fin de section.
   {
     title: 'Mon parcours',
     items: [
       { id: 'candidatures', href: '/jeune/mes-candidatures', icon: 'document', label: 'Mes candidatures' },
+      { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Événements & ateliers' },
+      { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
+      { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'messagerie', href: '/jeune/messagerie', icon: 'chat', label: 'Messagerie' },
       { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
-      { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
-      { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
       { id: 'bibliotheque', href: '/jeune/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
-      { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
     ],
   },
   // GUIC-376 — "Mon compte > Mon profil" supprimé : la carte profil en haut
-  // de la sidebar est désormais l'unique point d'accès à `/jeune/mon-profil`.
+  // de la sidebar reste l'unique point d'accès à `/jeune/mon-profil` (pas
+  // de doublon d'item de menu).
   // GUIC-658 — section « Plateformes partenaires » (YEAH, E-learning)
   // supprimée : sidebar épurée, le pied est réservé à l'accessibilité.
+  // GUIC-689 (Lot E2) — `/jeune/parametres/notifications` existait sans
+  // aucun lien de navigation pointant vers elle (page atteignable
+  // uniquement en tapant l'URL). `/jeune/parametres` seul n'a pas de
+  // page.tsx (404) — on câble donc l'URL réelle, dans une section « Mon
+  // compte » minimale (conforme `web-dashboard.jsx:74-78`, sans réintroduire
+  // « Mon profil » — cf GUIC-376 ci-dessus).
+  {
+    title: 'Mon compte',
+    items: [
+      { id: 'parametres', href: '/jeune/parametres/notifications', icon: 'settings', label: 'Paramètres' },
+    ],
+  },
 ]
 
 /**
