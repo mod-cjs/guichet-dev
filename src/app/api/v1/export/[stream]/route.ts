@@ -5,11 +5,13 @@
  * flux au Data Hub ne demande donc pas d'écrire une route : le contrat suffit, et il est
  * vérifié par `tsc` et par les gardes CDP.
  *
- * PRÉCÉDENCE NEXT.JS — les segments statiques l'emportent sur le segment dynamique. Les
- * routes historiques `opportunites` et `programmes` gardent donc la main sur leur nom :
- * elles portent du contenu que le contrat ne reproduit pas (colonnes polymorphes aplaties
- * pour la première, compteurs de rattachement pour la seconde). Leur retrait demande un
- * arbitrage, pas un remplacement silencieux.
+ * PRÉCÉDENCE NEXT.JS — un segment STATIQUE l'emporte sur le segment dynamique : tout
+ * dossier `src/app/api/v1/export/<nom>/` masquerait silencieusement cette route pour ce
+ * flux. `counts` (endpoint de service, pas un flux) est le seul réservé — voir
+ * `tests/unit/datahub-routage.test.ts`, qui échoue si un nom de flux redevient un dossier
+ * statique. Les anciennes routes `opportunites` et `programmes` (DTO polymorphe aplati,
+ * compteurs de rattachement) ont été retirées au commit `b2128682` : ce commentaire les
+ * décrivait encore comme actives (GUIC-697 D3), en contradiction avec le répertoire réel.
  *
  * `force-dynamic` n'est pas cosmétique : sans lui Next.js peut servir une réponse en cache
  * et le tap boucle indéfiniment sur la même page.
