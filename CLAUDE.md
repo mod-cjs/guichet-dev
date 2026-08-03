@@ -96,7 +96,7 @@ Commit   : feat|fix|perf|security|chore|test(module): [GUIC-<n>] description
 **Règles absolues sur les commits :**
 - Toujours inclure `[GUIC-<n>]` dans le titre et `Closes GUIC-<n>` en pied
 - Jamais de mention IA (`Co-Authored-By`, `Generated with`, etc.) dans aucun commit
-- Auteur unique : `mod-cjs`
+- Auteur unique : `adiop-pixel <adiop@consortiumjeunessesenegal.org>` — identité globale de la machine, sans surcharge locale dans le dépôt. L'historique antérieur au 2026-07-30 porte `mod-cjs` et n'est pas réécrit.
 
 | Moment | Statut ticket |
 |--------|--------------|

@@ -217,7 +217,10 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
         ...(o.region ? [{ icon: 'pin' as const,   label: String(o.region) }] : []),
         { icon: 'target' as const, label: String(o.domaine) },
       ],
-      href:     `/opportunites/${o.slug}`,
+      // GUIC-688 — ces cards SONT des recommandations : sans `from=reco`, le clic
+      // serait enregistré comme une visite directe et la reco resterait invisible
+      // dans les chiffres de conversion.
+      href:     `/opportunites/${o.slug}?from=reco`,
       ctaLabel: 'Voir détails',
     }
   })

@@ -37,7 +37,7 @@ test('plan : texte seul → pas d’interactif', () => {
 test('plan : opportunités → liste numérotée + deep link', () => {
   const p = planWhatsAppDelivery([textBlock, oppBlock])
   expect(p.text).toMatch(/1\. \*Stage X\*/)
-  expect(p.text).toContain('https://app.test/opportunites/stage-x')
+  expect(p.text).toContain('https://app.test/opportunites/stage-x?src=wa')
 })
 
 test('plan : ≤3 quick_replies → boutons, value encodée dans id', () => {

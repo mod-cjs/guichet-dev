@@ -7,7 +7,6 @@ import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
 import { YayeMatchCard } from './YayeMatchCard'
 import { ProgrammeBadges } from './ProgrammeBadges'
-import { TYPE_CAT, type CatFamily } from './opportunite-type-meta'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 import {
@@ -17,6 +16,7 @@ import {
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
 import { regionLabel } from '@/lib/regions'
+import { categorieDepuisType, classeCategorie } from '@/lib/design/categories'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -72,30 +72,21 @@ function joursAvantDeadline(deadlineIso: string | null): number | null {
 
 interface HeroBadgeProps {
   typeLabel: string
-  catFamily: CatFamily
   deadlineIso: string | null
   expired: boolean
 }
 
-/** Fond plein + texte blanc par famille catégorie (contraste AA sur hero sombre). */
-const CAT_HERO_CLASSES: Record<CatFamily, string> = {
-  'cat-emploi':      'bg-cat-emploi',
-  'cat-stage':       'bg-cat-stage',
-  'cat-formation':   'bg-cat-formation',
-  'cat-financement': 'bg-cat-financement',
-  'cat-evenement':   'bg-cat-evenement',
-  'cat-volontariat': 'bg-cat-volontariat',
-  'cat-neutre':      'bg-cat-neutre',
-}
-
 /**
- * GUIC-689 — deux pastilles distinctes (catégorie + urgence), plus de badge
- * fusionné « TYPE · CLÔTURE J-X » (« Reponse au retour design V3 » §2). Le
- * rouge n'est jamais utilisé pour la catégorie : il ne signale que l'urgence
- * de la deadline (≤ URGENT_DAYS_THRESHOLD jours) ou l'expiration.
+ * Pastilles du hero — GUIC-691, conformité v5 (Lot 3 + Lot 14 normatif).
+ *
+ * v5 sépare ce que la v3 fusionnait : la CATÉGORIE porte sa couleur propre
+ * (`--cat-*`, déduite du type), l'URGENCE d'échéance vit dans sa propre pastille
+ * rouge. Les fusionner revenait à peindre en rouge le type d'une offre qui
+ * expire — or en v5 le rouge ne dit qu'une chose : « ça ferme bientôt ».
  */
-function HeroBadge({ typeLabel, catFamily, deadlineIso, expired }: HeroBadgeProps) {
+function HeroBadges({ typeLabel, deadlineIso, expired }: HeroBadgeProps) {
   const jours = joursAvantDeadline(deadlineIso)
+  const visible = jours !== null && jours <= DEADLINE_VISIBLE_DAYS
   const urgent = expired || (jours !== null && jours <= URGENT_DAYS_THRESHOLD)
 
   let deadlineLabel: string | null = null
@@ -105,20 +96,20 @@ function HeroBadge({ typeLabel, catFamily, deadlineIso, expired }: HeroBadgeProp
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span
-        data-testid="hero-badge-categorie"
-        className={`inline-flex items-center gap-2 text-fs-100 font-extrabold uppercase
-          tracking-wide text-white px-space-2 py-1 rounded-full
-          ${CAT_HERO_CLASSES[catFamily]}`}
-      >
-        <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
-        <span>{typeLabel}</span>
+      <span data-testid="opp-categorie" className={classeCategorie(categorieDepuisType(typeLabel))}>
+        {typeLabel}
       </span>
-      {urgent && deadlineLabel && (
+      {deadlineLabel && urgent && (
+        <span data-testid="opp-urgence" className="gj-urgent">
+          <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
+          {deadlineLabel}
+        </span>
+      )}
+      {deadlineLabel && !urgent && (
         <span
-          data-testid="hero-badge-urgence"
-          className="inline-flex items-center text-fs-100 font-extrabold uppercase
-            tracking-wide text-white bg-gj-red px-space-2 py-1 rounded-full"
+          data-testid="opp-echeance"
+          className="inline-flex items-center gap-1 text-fs-100 font-extrabold
+            bg-white/15 text-white px-space-2 py-1 rounded-full"
         >
           {deadlineLabel}
         </span>
@@ -295,16 +286,11 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           </div>
         </div>
 
-        <HeroBadge
-          typeLabel={humanize(detail.type)}
-          catFamily={TYPE_CAT[detail.type] ?? 'cat-neutre'}
-          deadlineIso={detail.deadline}
-          expired={expired}
-        />
+        <HeroBadges typeLabel={humanize(detail.type)} deadlineIso={detail.deadline} expired={expired} />
 
         <h1
           className="text-color-text-onDark mt-space-2 font-black"
-          style={{ fontSize: 20, lineHeight: 1.2, color: 'var(--gj-surface)' }}
+          style={{ fontSize: 'var(--fs-700)', lineHeight: 1.2, color: 'var(--gj-surface)' }}
         >
           {detail.titre}
         </h1>
@@ -484,9 +470,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         {!viewer ? (
           <a
             href={loginUrl(`${opportuniteSlugUrl(detail.slug)}?postuler=1`)}
-            className="flex-1 inline-flex items-center justify-center gap-2
-              bg-gj-action hover:bg-gj-action-deep text-white font-extrabold rounded-gj-md
-              min-h-[50px] px-space-4"
+            className="gj-cta flex-1"
           >
             Se connecter pour postuler
             <Icon name="arrow-right" size={16} aria-hidden />
@@ -494,7 +478,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         ) : (
           <>
             <Button
-              variant="cta"
+              variant="conversion"
               size="lg"
               className="flex-1"
               disabled={ctaDisabled}

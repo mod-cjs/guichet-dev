@@ -22,6 +22,7 @@ import { recordEscalade } from './escalade'
 import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, capOpportunites, type YayeBlock } from './blocks'
+import { trackBlockImpressions, idsDepuisBlock } from './impressions'
 import { finalizeReply, detectMetaLeakage } from './reply-guard'
 import { savePendingWrite, loadPendingWrite, clearPendingWrite, saveShownRefs, loadShownRefs, clearShownRefs, type ShownRef } from './pending-write'
 
@@ -371,7 +372,18 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   }
 
   state.toolsUsed.push(name)
-  if (result.block) state.blocks.push(result.block) // card cliquable surfacée au frontend
+  if (result.block) {
+    state.blocks.push(result.block) // card cliquable surfacée au frontend
+    // GUIC-688 — une card affichée est une IMPRESSION (le clic, lui, est compté
+    // côté web via `?src=ia`). Point d'accroche unique : tous les outils qui
+    // surfacent un bloc passent par ici.
+    await trackBlockImpressions(result.block, {
+      canal:     base.canal,
+      cjsUid:    base.cjsUid,
+      sessionId: base.sessionId,
+      outil:     name,
+    })
+  }
 
   await logAgentEvent({
     ...base,
@@ -393,7 +405,9 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
       dureeMs: Date.now() - tStart,
       statut: result.ok ? 'succes' : 'echec',
       cypherQuery: result.graph.template,
-      nodesReturned: { count: result.graph.nodesReturned },
+      // GUIC-688 — `count` seul ne disait pas QUOI avait été retourné : on ajoute
+      // les identifiants (les rollups continuent de ne lire que `count`).
+      nodesReturned: { count: result.graph.nodesReturned, ids: idsDepuisBlock(result.block) },
       payload: { args: call.function.arguments },
     })
   }

@@ -50,6 +50,7 @@ const config: Config = {
         'gj-blue':        'var(--gj-blue)',
         'gj-blue-soft':   'var(--gj-blue-soft)',
         'gj-blue-ink':    'var(--gj-blue-ink)',
+        // GUIC-691 — cyan v5 : couleur de contenu, reprend le PDF laissé par le rouge.
         'gj-cyan':        'var(--gj-cyan)',
         'gj-cyan-soft':   'var(--gj-cyan-soft)',
         'gj-cyan-ink':    'var(--gj-cyan-ink)',
