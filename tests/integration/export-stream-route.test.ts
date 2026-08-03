@@ -17,6 +17,7 @@ jest.mock('@/lib/prisma', () => ({
   prisma: {
     utilisateur: { findMany: (...a: unknown[]) => mockFindMany(...a) },
     candidature: { findMany: (...a: unknown[]) => mockFindMany(...a) },
+    opportuniteProgramme: { findMany: (...a: unknown[]) => mockFindMany(...a) },
   },
 }))
 jest.mock('@/lib/rate-limit', () => ({ rateLimit: (...a: unknown[]) => mockRateLimit(...a) }))
@@ -133,6 +134,52 @@ describe('GET /api/v1/export/[stream] — page servie', () => {
     expect(mockRateLimit).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ authenticated: true, keyPrefix: 'datahub:datahub' })
+    )
+  })
+})
+
+describe('GET /api/v1/export/[stream] — flux FULL_TABLE (GUIC-700 lot 7)', () => {
+  it('sert un flux FULL_TABLE et projette selon son contrat', async () => {
+    mockFindMany.mockResolvedValue([
+      { opportuniteId: 'o1', programmeId: 'p1', principal: true },
+    ])
+    const res = await route.GET(req('opportunites_programmes', AUTH), params('opportunites_programmes'))
+    expect(res.status).toBe(200)
+
+    const body = await res.json()
+    expect(body.data).toEqual([{ opportunite_id: 'o1', programme_id: 'p1', principal: true }])
+    // Pas de replication_key : un flux FULL_TABLE n'a pas de watermark.
+    expect(body.meta.replication_key).toBeUndefined()
+  })
+
+  it('ignore `since` sur un flux FULL_TABLE — aucun watermark à filtrer', async () => {
+    await route.GET(
+      req('opportunites_programmes', AUTH, '?since=2026-01-01T00:00:00.000Z'),
+      params('opportunites_programmes')
+    )
+    // La requête construite ne doit porter aucun filtre lié à since.
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} })
+    )
+  })
+
+  it('rend 400 sur un curseur FULL_TABLE malformé, et non 500', async () => {
+    const res = await route.GET(
+      req('opportunites_programmes', AUTH, '?cursor=pas.un.curseur'),
+      params('opportunites_programmes')
+    )
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error.code).toBe('CURSEUR_INVALIDE')
+  })
+
+  it('journalise l\'extraction d\'un flux FULL_TABLE comme les autres', async () => {
+    mockFindMany.mockResolvedValue([{ opportuniteId: 'o1', programmeId: 'p1', principal: true }])
+    await route.GET(req('opportunites_programmes', AUTH), params('opportunites_programmes'))
+    expect(mockRecordAudit).toHaveBeenCalledWith(
+      'datahub:datahub',
+      'export.opportunites_programmes',
+      expect.objectContaining({ targetId: 'opportunites_programmes' })
     )
   })
 })
