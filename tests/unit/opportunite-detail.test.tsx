@@ -373,4 +373,71 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
       expect(chip?.querySelector('use')).toHaveAttribute('href', '/icons.svg#i-eye')
     })
   })
+
+  // ── P3-B (GUIC-689) — bandeau URL + vues, slide-over uniquement ────────────
+  // Réf design v5 : `WebOppSlideOver` (lot3-opps-web.jsx L.412-429). La page
+  // plein écran a déjà l'URL dans la barre d'adresse du navigateur → le
+  // bandeau ne doit apparaître QUE quand le composant est rendu en slide-over
+  // (signal existant : présence de `onClose`, cf. DetailSheet).
+  describe('Bandeau URL + vues — slide-over uniquement', () => {
+    it('absent en contexte plein écran (pas de onClose)', () => {
+      renderDetail()
+      expect(screen.queryByTestId('detail-url-banner')).not.toBeInTheDocument()
+    })
+
+    it('affiche l’URL publique de l’offre quand rendu en slide-over (onClose fourni)', () => {
+      render(
+        <FavorisProvider isAuthenticated>
+          <OpportuniteDetail detail={baseDetail} viewer={viewer} onClose={jest.fn()} />
+        </FavorisProvider>,
+      )
+      const banner = screen.getByTestId('detail-url-banner')
+      expect(banner).toHaveTextContent('stage-data-science')
+      expect(banner).toHaveTextContent('/opportunites/')
+    })
+
+    it('affiche aussi le compteur de vues dans le bandeau en slide-over', () => {
+      render(
+        <FavorisProvider isAuthenticated>
+          <OpportuniteDetail detail={baseDetail} viewer={viewer} onClose={jest.fn()} />
+        </FavorisProvider>,
+      )
+      expect(screen.getByTestId('detail-url-banner-vues')).toHaveTextContent(/12\s*vues/)
+    })
+
+    it('ne duplique jamais le compteur de vues (un seul "vues" affiché en slide-over)', () => {
+      render(
+        <FavorisProvider isAuthenticated>
+          <OpportuniteDetail detail={baseDetail} viewer={viewer} onClose={jest.fn()} />
+        </FavorisProvider>,
+      )
+      const occurrences = (document.body.textContent ?? '').match(/12\s*vues?/g) ?? []
+      expect(occurrences.length).toBe(1)
+    })
+
+    it('en plein écran, le compteur de vues reste dans les chips du hero (pas de régression)', () => {
+      renderDetail()
+      expect(screen.getByText(/12 vues/)).toBeInTheDocument()
+      expect(screen.queryByTestId('detail-url-banner-vues')).not.toBeInTheDocument()
+    })
+
+    it('le texte du bandeau ne descend jamais sous 11px (classe text-fs-100)', () => {
+      render(
+        <FavorisProvider isAuthenticated>
+          <OpportuniteDetail detail={baseDetail} viewer={viewer} onClose={jest.fn()} />
+        </FavorisProvider>,
+      )
+      expect(screen.getByTestId('detail-url-banner').className).toMatch(/text-fs-100/)
+    })
+
+    it('l’URL est tronquée proprement (classe truncate) pour ne jamais déborder', () => {
+      render(
+        <FavorisProvider isAuthenticated>
+          <OpportuniteDetail detail={baseDetail} viewer={viewer} onClose={jest.fn()} />
+        </FavorisProvider>,
+      )
+      const urlSpan = screen.getByTestId('detail-url-banner').querySelector('.truncate')
+      expect(urlSpan).not.toBeNull()
+    })
+  })
 })
