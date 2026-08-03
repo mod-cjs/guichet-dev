@@ -38,9 +38,9 @@ const PROFIL: ProfilComplet = {
 }
 
 describe('<ProfilClient />', () => {
-  it('rend le titre Mon profil et la MyCard CJS avec identifiant', () => {
+  it('rend l’identité dans le bandeau hero et la MyCard CJS avec identifiant', () => {
     render(<ProfilClient initial={PROFIL} ssoProfilUrl={null} />)
-    expect(screen.getByRole('heading', { level: 1, name: /Mon profil/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /Awa Diop/i })).toBeInTheDocument()
     // MyCard CJS (MyCJSCard, GUIC-248) : matricule unique « GJS · INITIALES · 6 chars du cjsUid »
     expect(screen.getByText(/^GJS · AD · /)).toBeInTheDocument()
   })
