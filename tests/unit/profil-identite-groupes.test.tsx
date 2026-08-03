@@ -102,3 +102,22 @@ describe('GUIC-689 — identité regroupée par section', () => {
     expect(screen.queryByText(/date de naissance/i)).not.toBeInTheDocument()
   })
 })
+
+describe('GUIC-689 — encart d’incitation CV', () => {
+  it('apparaît quand aucun CV n’est déposé, sans chiffre inventé', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SectionCv } = require('@/components/profil/SectionCv')
+    render(<SectionCv initialCvUrl={null} />)
+    const nudge = screen.getByTestId('cv-nudge')
+    expect(nudge).toBeInTheDocument()
+    // Le poids exact du CV dans le score n'est pas exposé : aucun « +N % ».
+    expect(nudge.textContent).not.toMatch(/\+\s*\d+\s*%/)
+  })
+
+  it('disparaît dès qu’un CV existe', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SectionCv } = require('@/components/profil/SectionCv')
+    render(<SectionCv initialCvUrl="https://blob/cv.pdf" />)
+    expect(screen.queryByTestId('cv-nudge')).not.toBeInTheDocument()
+  })
+})
