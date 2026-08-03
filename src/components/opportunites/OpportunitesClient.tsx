@@ -21,10 +21,9 @@ interface OpportunitesClientProps {
 type Filters = FiltresValue & { q: string }
 type Status = 'idle' | 'loading' | 'loadingMore' | 'error'
 
-// GUIC-251 — TODO loader : les filtres `remuneration` et `deadline` sont
-// portés par l'URL et propagés à l'API, mais le schéma Zod actuel
-// (`OpportuniteQuerySchema`) ne les valide pas — ils seront silencieusement
-// ignorés côté serveur jusqu'à l'évolution du loader (épic dédié).
+// GUIC-689 — `remuneration` et `deadline` sont portés par l'URL et lus par
+// l'API/le loader (voir `opportunites-loader.ts`) : ce ne sont plus des filtres
+// décoratifs.
 function readFilters(sp: URLSearchParams): Filters {
   return {
     q: sp.get('q') ?? '',

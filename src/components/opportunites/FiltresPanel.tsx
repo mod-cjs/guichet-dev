@@ -82,8 +82,23 @@ function humanizeDomaine(value: string): string {
   return DOMAINE_LABELS[value] ?? value.replace(/_/g, ' ')
 }
 
+/**
+ * Clés des filtres écrits par ce panneau (et par `OpportunitesFiltersSheet` côté
+ * mobile) — source unique de vérité, aussi utilisée par la sentinelle anti-
+ * "filtre décoratif" (GUIC-689, `tests/integration/opportunites-api-sentinel.test.ts`) :
+ * si une clé est ajoutée ici sans être lue côté route/loader, le test dédié échoue.
+ */
+export const FILTER_PARAM_KEYS = [
+  'domaine',
+  'type',
+  'region',
+  'programme',
+  'remuneration',
+  'deadline',
+] as const satisfies readonly (keyof FiltresValue)[]
+
 function countActive(v: FiltresValue): number {
-  return [v.domaine, v.type, v.region, v.programme, v.remuneration, v.deadline].filter(Boolean).length
+  return FILTER_PARAM_KEYS.filter((k) => Boolean(v[k])).length
 }
 
 interface FilterCheckProps {
