@@ -6,6 +6,7 @@ import { Button, Icon, RichContent, Toast } from '@/components/ui'
 import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
 import { YayeMatchCard } from './YayeMatchCard'
+import { ProgrammeBadges } from './ProgrammeBadges'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
 import {
@@ -14,6 +15,7 @@ import {
   URGENT_DAYS_THRESHOLD,
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
+import { categorieDepuisType, classeCategorie } from '@/lib/design/categories'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -51,13 +53,17 @@ interface HeroBadgeProps {
 }
 
 /**
- * Badge fusionné « TYPE · CLÔTURE J-X » (1 seule pill avec séparateur visuel).
- * Couleur rouge si urgent (≤ URGENT_DAYS_THRESHOLD jours) ou expiré, sinon teal-deep.
+ * Pastilles du hero — GUIC-691, conformité v5 (Lot 3 + Lot 14 normatif).
+ *
+ * v5 sépare ce que la v3 fusionnait : la CATÉGORIE porte sa couleur propre
+ * (`--cat-*`, déduite du type), l'URGENCE d'échéance vit dans sa propre pastille
+ * rouge. Les fusionner revenait à peindre en rouge le type d'une offre qui
+ * expire — or en v5 le rouge ne dit qu'une chose : « ça ferme bientôt ».
  */
-function HeroBadge({ typeLabel, deadlineIso, expired }: HeroBadgeProps) {
+function HeroBadges({ typeLabel, deadlineIso, expired }: HeroBadgeProps) {
   const jours = joursAvantDeadline(deadlineIso)
-  const urgent = expired || (jours !== null && jours <= URGENT_DAYS_THRESHOLD)
   const visible = jours !== null && jours <= DEADLINE_VISIBLE_DAYS
+  const urgent = expired || (jours !== null && jours <= URGENT_DAYS_THRESHOLD)
 
   let deadlineLabel: string | null = null
   if (expired) deadlineLabel = 'CLÔTURÉE'
@@ -66,20 +72,26 @@ function HeroBadge({ typeLabel, deadlineIso, expired }: HeroBadgeProps) {
   else if (visible) deadlineLabel = `CLÔTURE J-${jours}`
 
   return (
-    <span
-      className={`inline-flex items-center gap-2 text-fs-100 font-extrabold uppercase
-        tracking-wide text-white px-space-2 py-1 rounded-full
-        ${urgent ? 'bg-gj-red' : 'bg-gj-teal'}`}
-    >
-      <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
-      <span>{typeLabel}</span>
-      {deadlineLabel && (
-        <>
-          <span aria-hidden>·</span>
-          <span>{deadlineLabel}</span>
-        </>
+    <div className="flex flex-wrap items-center gap-2">
+      <span data-testid="opp-categorie" className={classeCategorie(categorieDepuisType(typeLabel))}>
+        {typeLabel}
+      </span>
+      {deadlineLabel && urgent && (
+        <span data-testid="opp-urgence" className="gj-urgent">
+          <span className="w-[6px] h-[6px] rounded-full bg-white" aria-hidden />
+          {deadlineLabel}
+        </span>
       )}
-    </span>
+      {deadlineLabel && !urgent && (
+        <span
+          data-testid="opp-echeance"
+          className="inline-flex items-center gap-1 text-fs-100 font-extrabold
+            bg-white/15 text-white px-space-2 py-1 rounded-full"
+        >
+          {deadlineLabel}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -251,11 +263,11 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           </div>
         </div>
 
-        <HeroBadge typeLabel={humanize(detail.type)} deadlineIso={detail.deadline} expired={expired} />
+        <HeroBadges typeLabel={humanize(detail.type)} deadlineIso={detail.deadline} expired={expired} />
 
         <h1
           className="text-color-text-onDark mt-space-2 font-black"
-          style={{ fontSize: 20, lineHeight: 1.2, color: '#fff' }}
+          style={{ fontSize: 'var(--fs-700)', lineHeight: 1.2, color: '#fff' }}
         >
           {detail.titre}
         </h1>
@@ -263,6 +275,11 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <b>{detail.organisation}</b>
           {detail.region ? <> · {humanize(detail.region)}</> : null}
         </p>
+
+        {/* GUIC-684 — de quel programme CJS relève cette offre. */}
+        <div className="mt-space-2">
+          <ProgrammeBadges programmes={detail.programmes ?? []} surFondSombre />
+        </div>
 
         {heroChips.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-space-3">
@@ -430,9 +447,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         {!viewer ? (
           <a
             href={loginUrl(`${opportuniteSlugUrl(detail.slug)}?postuler=1`)}
-            className="flex-1 inline-flex items-center justify-center gap-2
-              bg-gj-teal-deep text-white font-extrabold rounded-gj-md
-              min-h-[50px] px-space-4"
+            className="gj-cta flex-1"
           >
             Se connecter pour postuler
             <Icon name="arrow-right" size={16} aria-hidden />
@@ -440,7 +455,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         ) : (
           <>
             <Button
-              variant="primary"
+              variant="conversion"
               size="lg"
               className="flex-1"
               disabled={ctaDisabled}

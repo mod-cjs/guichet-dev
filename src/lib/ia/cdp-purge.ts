@@ -13,6 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { purgeUserContext } from './context'
 import { purgeSummary } from './memory'
+import { purgeGraphContext } from './graph-context'
 import { purgeViewTranscript } from './transcript-view'
 
 export interface YayePurgeResult {
@@ -71,6 +72,8 @@ export async function purgeYayeUserData(cjsUid: string): Promise<YayePurgeResult
   await purgeUserContext(cjsUid)
   await purgeSummary(cjsUid)
   await purgeViewTranscript(cjsUid)
+  // Lecture du graphe mémoïsée sur cette personne (offres éligibles, écart de compétences).
+  await purgeGraphContext(cjsUid)
 
   const result: YayePurgeResult = {
     sessions: sessionIds.length,

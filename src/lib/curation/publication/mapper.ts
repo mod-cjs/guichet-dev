@@ -56,6 +56,8 @@ export interface DonneesItem {
   deadline?: string
   /** URL source (http(s) déjà validée côté appelant). Undefined si non exploitable. */
   lienSource?: string
+  /** GUIC-684 — programmes de rattachement choisis par l'admin à la publication. */
+  programmeSlugs?: string[]
 }
 
 /** Parse défensif : une deadline non-ISO issue de l'extraction ne doit pas faire planter create. */
@@ -84,6 +86,8 @@ export function construireInputPublication(
     // Traçabilité : uniquement une URL http(s) (défense en profondeur avec l'appelant).
     lienExterne: d.lienSource && /^https?:\/\//i.test(d.lienSource) ? d.lienSource : null,
     statut: 'brouillon' as const,
+    // GUIC-684 — un brouillon issu de la curation relève d'un programme comme tout contenu.
+    programmeSlugs: d.programmeSlugs ?? [],
   }
   const org = base.organisationLibelle
 

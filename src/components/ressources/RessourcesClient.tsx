@@ -21,6 +21,11 @@ interface RessourcesClientProps {
   page: number
   pageSize: number
   initialFilters: RessourceFiltres
+  /** GUIC-684 — programmes actifs proposés au filtrage. */
+  programmes?: { slug: string; nom: string }[]
+  /** GUIC-689 — session calculée côté serveur (motif /centres) : sans elle,
+   *  l'hydratation des favoris 401-erait en console pour chaque anonyme. */
+  userIsConnected?: boolean
 }
 
 const FILTRES: { value: TypeRessourceValue | 'all'; label: string }[] = [
@@ -46,6 +51,8 @@ export function RessourcesClient({
   total,
   page,
   initialFilters,
+  programmes = [],
+  userIsConnected = false,
 }: RessourcesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -83,6 +90,7 @@ export function RessourcesClient({
   // ── Favoris ────────────────────────────────────────────────────────────
   const [favoriIds, setFavoriIds] = useState<Set<string>>(new Set())
   useEffect(() => {
+    if (!userIsConnected) return
     let cancelled = false
     fetch('/api/favoris/ressources/ids', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -94,7 +102,7 @@ export function RessourcesClient({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [userIsConnected])
 
   // ── Helpers d'écriture dans l'URL ──────────────────────────────────────
   const buildParams = useCallback(
@@ -263,6 +271,21 @@ export function RessourcesClient({
     setSingle('type', value === 'all' ? null : value)
   }
 
+  // GUIC-684 — filtre par programme, multi-valeurs dans l'URL (?programme=a&programme=b).
+  const programmesActifs = initialFilters.programmes ?? []
+  const toggleProgramme = (slug: string) => {
+    const suivant = programmesActifs.includes(slug)
+      ? programmesActifs.filter((s) => s !== slug)
+      : [...programmesActifs, slug]
+    pushParams(
+      buildParams((p) => {
+        p.delete('programme')
+        for (const s of suivant) p.append('programme', s)
+        p.delete('page')
+      }),
+    )
+  }
+
   return (
     <div className="flex flex-col gap-space-4" aria-busy={isPending}>
       <div className="flex flex-col gap-space-3">
@@ -279,6 +302,24 @@ export function RessourcesClient({
             className="pl-[44px]"
           />
         </div>
+
+        {programmes.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-space-2"
+            role="group"
+            aria-label="Filtres par programme"
+          >
+            {programmes.map((p) => (
+              <Chip
+                key={p.slug}
+                selected={programmesActifs.includes(p.slug)}
+                onClick={() => toggleProgramme(p.slug)}
+              >
+                {p.nom}
+              </Chip>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-space-2" role="group" aria-label="Filtres par type">
           {FILTRES.map((f) => (

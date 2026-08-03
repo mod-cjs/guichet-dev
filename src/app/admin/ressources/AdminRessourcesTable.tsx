@@ -9,6 +9,7 @@ import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { RessourceFormModal } from './RessourceFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { supprimerRessource } from './actions'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -32,6 +33,10 @@ export interface RessourceRow {
   vues: number
   /** Derived status: true=Publié, false=Brouillon */
   estPublic: boolean
+  /** GUIC-684 — programmes rattachés (slugs) ; vide pour une ressource antérieure. */
+  programmeSlugs?: string[]
+  /** GUIC-684 — programme principal parmi les rattachés. */
+  programmePrincipalSlug?: string | null
 }
 
 export interface AdminRessourcesTableProps {
@@ -50,6 +55,8 @@ export interface AdminRessourcesTableProps {
   /** Compteurs pour les chips de statut. */
   publishedCount?: number
   draftCount?: number
+  /** GUIC-684 — programmes actifs proposés au rattachement. */
+  programmes?: ProgrammeOption[]
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -206,6 +213,7 @@ export function AdminRessourcesTable({
   type = '',
   publishedCount = 0,
   draftCount = 0,
+  programmes = [],
 }: AdminRessourcesTableProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -505,6 +513,7 @@ export function AdminRessourcesTable({
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         ressource={editRow}
+        programmes={programmes}
         onSuccess={(action) =>
           setFeedback({
             message: action === 'create' ? 'Ressource créée.' : 'Ressource mise à jour.',

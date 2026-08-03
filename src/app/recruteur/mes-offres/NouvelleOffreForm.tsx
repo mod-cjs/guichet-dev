@@ -6,6 +6,7 @@
  * (validation CJS). Couleurs recruteur (bleu).
  */
 import { useRef, useState, useTransition } from 'react'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -36,12 +37,24 @@ function Check({ name, label }: { name: string; label: string }) {
   )
 }
 
-export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: string; skills?: { id: string; libelle: string }[] }) {
+export function NouvelleOffreForm({
+  companyName,
+  skills = [],
+  programmes = [],
+}: {
+  companyName: string
+  skills?: { id: string; libelle: string }[]
+  /** GUIC-684 — programmes CJS proposés au rattachement de l'offre. */
+  programmes?: ProgrammeOption[]
+}) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [type, setType] = useState<'emploi' | 'stage'>('emploi')
   const [desc, setDesc] = useState('')
   const [sel, setSel] = useState<string[]>([])
+  // GUIC-684 — l'offre doit relever d'au moins un programme CJS.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>([])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
   const toggleSkill = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -62,6 +75,8 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
       deadline: g('deadline') ?? null,
       niveauEtudeMin: g('niveauEtudeMin') ?? null,
       skills: sel,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
     }
     const payload = (
       type === 'emploi'
@@ -81,6 +96,11 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
             dateDebutPrevue: g('dateDebutPrevue') ?? null,
           }
     ) as CreerOffreRecruteurInput
+
+    if (programmeSlugs.length === 0) {
+      setToast({ msg: 'Sélectionnez au moins un programme de rattachement.', variant: 'error' })
+      return
+    }
 
     start(async () => {
       try {
@@ -179,6 +199,19 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
           </div>
         )}
       </div>
+
+      {/* Programme(s) CJS de rattachement (GUIC-684) — obligatoire */}
+      {programmes.length > 0 && (
+        <div style={card}>
+          <ProgrammesField
+            options={programmes}
+            value={programmeSlugs}
+            onChange={setProgrammeSlugs}
+            principal={programmePrincipal}
+            onPrincipalChange={setProgrammePrincipal}
+          />
+        </div>
+      )}
 
       {/* Compétences requises (alimentent le score d'adéquation IA) */}
       {skills.length > 0 && (

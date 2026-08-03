@@ -92,6 +92,54 @@
 - [x] ✅ **Mineur (audit #5)** : `PREPARE` corrigé en `theme ↔ Competence.categorie` (`matchThemeToCategorieSkills`, relie toutes les compétences de la catégorie) ; blend reco `0.6/0.4` extériorisé en constantes documentées `COLLAB_WEIGHT/ELIGIBLE_WEIGHT` + commentaire d'invariant réconcilié (signaux du graphe combinés, pas inventés)
 - [x] ✅ **Tests** : +3 (PREPARE par catégorie) — suites Yaye **vertes** (skills-normalize, query-knowledge-graph, recommandation, agent, projection)
 
+### Lot 1-bis — Fraîcheur & lecture du graphe (audit 2026-07-26) — ✅ livré
+> Constat d'audit : la **projection** couvrait 21 nœuds / 20 relations, mais la **lecture** n'en
+> interrogeait que 6 relations via 5 templates, et tout ce qui concerne la personne n'entrait dans
+> le graphe qu'à la reprojection nocturne.
+- [x] ✅ **C.1 — Projection événementielle du bénéficiaire** (`projectBeneficiaire` + `fireBeneficiaireGraphSync`) :
+  `A_POSTULE`, `MAITRISE`, `ATTESTE`, `A_OBTENU`, `A_EXERCE`, `INTERESSE_PAR`, `INSCRIT_A` rafraîchies
+  à l'écriture (candidature · profil · diplôme · certificat · expérience · favori ajout/retrait · inscription),
+  avec purge préalable des arêtes re-projetées. Corrige : « Yaye repropose une offre déjà postulée le matin ».
+- [x] ✅ **C.2 — Vide ≠ aucun résultat** : sentinelle `GRAPH_POPULATED` (mémoïsée 60 s, payée uniquement
+  sur résultat vide) → `GraphEmptyError` → bascule Prisma par le circuit-breaker. Couvre la fenêtre de
+  reconstruction du cron `wipe:true`, y compris le cas dangereux « aucune compétence manquante ».
+- [x] ✅ **C.3 — Contexte graphe mémoïsé 24 h et injecté à CHAQUE tour** (`loadOrBuildGraphContext`),
+  invalidé par la projection du bénéficiaire et par la purge CDP. Avant : calculé au seul 1er tour, donc
+  jamais revu par un jeune actif (historique unifié glissant sur 7 j).
+- [x] ✅ **D — Deux traversées qui exploitent des nœuds jusque-là projetés sans être lus** :
+  `livre_disponible` (Livre → Exemplaire disponible → Centre → Region, l'exemple canonique de la note §5.3,
+  rend `exemplaireId` pour enchaîner sur `borrow_book`) et `ressources_competences` (offre → compétences
+  manquantes → ressources qui les préparent, via `PREPARE`). Parité Neo4j ↔ fallback Prisma.
+- [x] ✅ Tests : +25 (projection bénéficiaire, garde de vide, cache de contexte, biblio/ressources + parité Prisma).
+  Au passage : `yaye-agent.test.ts` rendu hermétique (ne dépend plus d'un Redis local).
+- [ ] ⬜ **Décision en attente** : les 14 relations toujours projetées sans être lues (`EST_DE_TYPE`,
+  `PUBLIE`, `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`, `INTERESSE_PAR`,
+  `A_OBTENU`, `ATTESTE`…) — écrire les templates qui les exploitent, ou cesser de les projeter.
+
+### Lot 1-ter — Recherche globale, embeddings, multi-session (audit 2026-07-26) — ✅ livré
+> Suite de l'audit : comparaison au GraphRAG de Microsoft + revue multi-utilisateur.
+- [x] ✅ **GUIC-676 — Recherche GLOBALE** (`apercu_marche`) : 5 agrégations `MARCHE_*` (volumes par
+  type/secteur/région, compétences les plus demandées via `REQUIERT`, organisations les plus actives
+  via `PUBLIE`), cache Redis 6 h **partagé** (donnée impersonnelle), parité Prisma. Débloque les
+  questions thématiques (« quels secteurs recrutent à Thiès ? »), jusque-là impossibles.
+  **Invariant CDP verrouillé par test** : agrégats d'OFFRES, jamais de personnes.
+- [x] ✅ **GUIC-677 — Appariement SÉMANTIQUE des compétences** : `skills-embeddings` (vecteurs du
+  référentiel, cache Redis 90 j, cosinus, plafond de coût), `matchSkillsHybrid` (lexical ∪ sémantique)
+  câblé dans les DEUX moteurs, repli sémantique pour `PREPARE`. **Opt-in** (`YAYE_EMBEDDING_MODEL`) et
+  **fail-soft**. Corrige « Développement web » ≠ « Programmation front-end » — cause de `PREPARE = 0`.
+- [x] ✅ **GUIC-678 — Concurrence & multi-session** :
+  - identité propagée aux appels internes via une session ÉPHÉMÈRE signée (60 s, sans jeton SSO,
+    compte actif seulement) → **badge, candidature, réservation et emprunt fonctionnent sur WhatsApp** ;
+  - contexte conversationnel en **liste Redis** (RPUSH/LTRIM) → deux messages simultanés ne se
+    perdent plus (l'ancien read-modify-write en écrasait un) ;
+  - **sessionId WhatsApp roulant** (24 h d'inactivité) → débloque les escalades successives et
+    dé-fausse les métriques par session ;
+  - rotation des formules d'accueil décalée par identité (dernier état partagé entre usagers).
+- [ ] ⬜ **Hors périmètre, décision attendue** : le **second profil** (gestionnaire de centre /
+  bibliothécaire) — prompt dédié, outils opérationnels, filtrage `centreId` dans les templates,
+  éval dédiée. Yaye reste mono-persona : `roles` est transporté partout mais ne change aucun
+  comportement, et WhatsApp code le rôle en dur à `beneficiaire`.
+
 ### Lot 2 — Ressources centres (salles + véhicules) — 🟢 connexion Yaye livrée (GUIC-273)
 > Périmètre acté avec le PO : **le système de réservation existe déjà** (m4-centres : `POST /api/reservations`, UI staff/jeune, cron, notifs). Le Lot 2 = **brancher Yaye dessus SANS modifier le service existant**.
 - [x] ✅ `reserve_resource` mappé sur l'endpoint **EXISTANT** via passerelle in-process (`src/lib/ia/reservations-gateway.ts`) — propage le cookie de session, **zéro logique métier dupliquée**, service inchangé.

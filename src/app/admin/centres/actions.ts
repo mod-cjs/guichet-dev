@@ -6,6 +6,7 @@ import { Region } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { replaceProgrammesOptionnels } from '@/lib/programmes/rattachement'
 
 /** Garde de rôle — fail-closed. */
 async function assertAdmin(): Promise<void> {
@@ -28,6 +29,10 @@ const centreSchema = z.object({
   responsable: z.string().trim().min(1, 'Responsable requis'),
   ville: z.string().trim().max(100).optional().nullable(),
   estActif: z.boolean().optional().default(true),
+  // GUIC-684 — programmes déployés dans ce centre. FACULTATIF : un centre est une
+  // infrastructure, il existe indépendamment des programmes qui s'y tiennent.
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().optional().nullable(),
 })
 
 // Non exporté : un fichier 'use server' ne peut exporter que des fonctions async.
@@ -53,11 +58,35 @@ function toData(data: z.output<typeof centreSchema>) {
   }
 }
 
+/** Transaction Prisma restreinte aux délégués utilisés ici. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+/** GUIC-684 — (re)pose les programmes déployés dans le centre (régime facultatif). */
+async function rattacherProgrammes(
+  tx: Tx,
+  centreId: string,
+  data: { programmeSlugs: string[]; programmePrincipalSlug?: string | null },
+): Promise<void> {
+  await replaceProgrammesOptionnels(
+    tx,
+    {
+      purge: () => tx.centreProgramme.deleteMany({ where: { centreId } }),
+      creer: (rows) => tx.centreProgramme.createMany({ data: rows.map((r) => ({ centreId, ...r })) }),
+    },
+    data.programmeSlugs,
+    { principalSlug: data.programmePrincipalSlug ?? null },
+  )
+}
+
 /** Créer un centre (admin). */
 export async function creerCentre(input: CentreInput): Promise<{ id: string }> {
   await assertAdmin()
   const data = centreSchema.parse(input)
-  const c = await prisma.centre.create({ data: toData(data), select: { id: true } })
+  const c = await prisma.$transaction(async (tx) => {
+    const created = await tx.centre.create({ data: toData(data), select: { id: true } })
+    await rattacherProgrammes(tx, created.id, data)
+    return created
+  })
   revalidate()
   return c
 }
@@ -67,7 +96,10 @@ export async function modifierCentre(id: string, input: CentreInput): Promise<{ 
   await assertAdmin()
   const cid = idSchema.parse(id)
   const data = centreSchema.parse(input)
-  await prisma.centre.update({ where: { id: cid }, data: toData(data) })
+  await prisma.$transaction(async (tx) => {
+    await tx.centre.update({ where: { id: cid }, data: toData(data) })
+    await rattacherProgrammes(tx, cid, data)
+  })
   revalidate()
   return { ok: true }
 }

@@ -21,7 +21,8 @@ const SERVICE_LABEL: Record<string, string> = {
 }
 
 export function YayeCentreCard({ centre, onNavigate }: { centre: YayeCentreItem; onNavigate?: () => void }) {
-  const href = centre.slug ? `/centres/${centre.slug}` : '/centres'
+  // GUIC-688 — `src=ia` attribue le clic au chat plutôt qu'au trafic organique.
+  const href = centre.slug ? `/centres/${centre.slug}?src=ia` : '/centres'
   const lieu = [centre.ville, regionLabel(centre.region)].filter(Boolean).join(' · ')
   const services = centre.services.slice(0, 4)
   return (

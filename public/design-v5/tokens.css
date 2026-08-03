@@ -1,0 +1,491 @@
+/* Police des documents — charte graphique Yaakaar 2030 (Treevans).
+   Delhi est réservée au logotype et n'est jamais chargée en interface. */
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap");
+/* =========================================================
+   Guichet Jeunesse Sénégal — Design Tokens · v2 (mobile-first)
+   Source : GuichetJeunesse_Prototype_V5.html
+   v2 ajoute :
+     - Échelle typographique remontée (corps = 16px, mini = 11px)
+     - Tokens hit-target (44px min, conforme HIG/Material)
+     - Échelle d'espacement (--space-1 … --space-8)
+     - Tokens sémantiques (intent / status / surface)
+     - Variables safe-area iOS
+     - Focus ring standardisé
+   v1 (--gj-fs-*) reste disponible mais aliasé sur la nouvelle échelle
+   ========================================================= */
+
+:root {
+  /* =========================================================
+     1 · COULEURS
+     ========================================================= */
+  /* ---------------------------------------------------------
+     PALETTE OFFICIELLE — Charte graphique Yaakaar 2030 (Treevans)
+     12 couleurs : 6 vives, 4 profondes, noir, blanc.
+     Chaque couleur de marque reçoit une variante -soft (aplat de fond)
+     et -ink (texte, assombrie pour passer AA sur le -soft et sur blanc).
+     --------------------------------------------------------- */
+  --brand-ambre:      #f8a309;
+  --brand-orange:     #ee6f21;
+  --brand-magenta:    #ae0057;
+  --brand-indigo:     #1e35ba;
+  --brand-rouge:      #fc3241;
+  --brand-rose:       #fe1c66;
+  --brand-cyan:       #139ce8;
+  --brand-vert:       #19a657;
+  --brand-teal:       #027f7e;
+  --brand-navy:       #162c5e;
+  --brand-noir:       #202020;
+  --brand-blanc:      #FFFFFF;
+
+  /* Teal — couleur de marque, navigation et structure */
+  --gj-teal:        #027f7e;
+  --gj-teal-deep:   #026463;   /* 4.9:1 sur blanc — texte et liens */
+  --gj-teal-soft:   #E2F1F1;
+  --gj-teal-deep-2: #014B4A;   /* hover / pressed sur teal-deep */
+
+  /* ACTION — couleur d'action unique (retour design V3).
+     RÉSERVÉE aux CTA de conversion : Postuler, Valider, S'inscrire, Déposer.
+     Jamais pour la navigation, les liens, les états ou la marque. */
+  --gj-action:      #ae0057;   /* magenta CJS — charte, 7.2:1 sur blanc */
+  --gj-action-deep: #8C0046;   /* hover / pressed */
+  --gj-action-soft: #FCE4EE;
+  --gj-action-ink:  #8C0046;   /* texte sur action-soft */
+
+  /* CATÉGORIES D'OFFRE — code couleur fixe (retour design V3).
+     1 catégorie = 1 couleur, sur toutes les surfaces. Le rouge est
+     EXCLUSIVEMENT réservé à l'urgence de date limite (J-3), jamais au type. */
+  --cat-emploi:           var(--brand-indigo);
+  --cat-emploi-soft:      #E7EAFA;
+  --cat-emploi-ink:       #182B95;
+  --cat-stage:            #0B5F8D;   /* cyan assombri — porte du texte blanc */
+  --cat-stage-soft:       #E2F2FD;
+  --cat-stage-ink:        #0B5F8D;
+  --cat-formation:        #0E6234;   /* vert assombri — porte du texte blanc */
+  --cat-formation-soft:   #E4F6EB;
+  --cat-formation-ink:    #0E6234;
+  --cat-financement:      #97400F;   /* orange assombri — porte du texte blanc */
+  --cat-financement-soft: #FDEDE3;
+  --cat-financement-ink:  #97400F;
+  --cat-volontariat:      var(--brand-teal);
+  --cat-volontariat-soft: #E2F1F1;
+  --cat-volontariat-ink:  #014B4A;
+  --cat-neutre:           #4A4A4A;   /* type inconnu — badge gris, jamais une couleur de catégorie */
+  --cat-neutre-soft:      #F0F2F5;
+  --cat-neutre-ink:       #3A3A3A;
+  --cat-evenement:        #7A4E02;   /* ambre assombri — porte du texte blanc */
+  --cat-evenement-soft:   #FEF3DE;
+  --cat-evenement-ink:    #7A4E02;
+
+  /* Yellow — secondary */
+  --gj-yellow:      #f8a309;   /* ambre charte */
+  --gj-yellow-deep: #C97F03;   /* hover / gradient stop */
+  --gj-yellow-soft: #FEF3DE;
+  --gj-yellow-ink:  #7A4E02;   /* texte sur yellow-soft (AA passé) */
+
+  /* Red — urgences */
+  /* Le rouge charte #fc3241 ne donne que 3,7:1 sous du texte blanc : il reste
+     la teinte de marque (--brand-rouge, filets et pictogrammes) tandis que
+     --gj-red porte la variante assombrie, seule utilisable sous du texte. */
+  --gj-red:         #C1121F;   /* aplat porteur de texte blanc — 5,3:1 */
+  --gj-red-vif:     #fc3241;   /* teinte charte — aplats sans texte */
+  --gj-red-soft:    #FEE7E9;   /* AA-safe fond léger */
+  --gj-red-ink:     #96101B;   /* texte sur red-soft */
+  --gj-rose:        #fe1c66;   /* rose charte — accents, jamais du texte */
+
+  /* Statuts */
+  --gj-blue:        #1e35ba;   /* indigo charte */
+  --gj-blue-deep:   #162c5e;   /* navy charte — gradient stop / pressed */
+  --gj-blue-soft:   #E7EAFA;
+  --gj-blue-ink:    #182B95;
+  --gj-cyan:        #0B5F8D;   /* aplat porteur de texte blanc — 5,4:1 */
+  --gj-cyan-vif:    #139ce8;   /* teinte charte — aplats sans texte */
+  --gj-cyan-soft:   #E2F2FD;
+  --gj-cyan-ink:    #0B5F8D;
+  --gj-green:       #0E6234;   /* aplat porteur de texte blanc — 5,1:1 */
+  --gj-green-vif:   #19a657;   /* teinte charte — aplats sans texte */
+  --gj-green-soft:  #E4F6EB;
+  --gj-green-ink:   #0E6234;
+
+  /* Chatbot — DEPRECATED v1.5, alias\u00e9s sur le brand teal-deep */
+  --gj-indigo:      var(--gj-teal-deep);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+  --gj-indigo-soft: var(--gj-teal-soft);   /* \u26a0 DEPRECATED v1.4 / alias v1.5 */
+
+  /* Yaye \u2014 assistant IA (v1.5 : Yaye = brand teal-deep, plus de surface s\u00e9par\u00e9e)
+     Les tokens --gj-yaye-* restent comme alias r\u00e9troactifs vers le brand
+     pour ne pas casser le code existant. Le wordmark logotype porte SEUL
+     le gradient signature ci-dessous. */
+  --gj-yaye-deep:   var(--gj-teal-deep);
+  --gj-yaye-deep-2: var(--gj-teal-deep-2);
+  --gj-yaye-ink:    var(--gj-teal-soft);   /* texte sur surface Yaye */
+  --gj-yaye-accent: var(--gj-yellow);      /* accent jaune = "IA" / call-out */
+
+  /* Gradient signature Yaye \u2014 r\u00e9serv\u00e9 WORDMARK + AVATAR uniquement.
+     Extrait du logo officiel `assets/logo-yeah.svg`. */
+  --gj-yaye-grad-1: #19a657;
+  --gj-yaye-grad-2: #119178;
+  --gj-yaye-grad-3: #08867E;
+  --gj-yaye-grad-4: #027f7e;
+  --gj-yaye-gradient: linear-gradient(135deg,
+    var(--gj-yaye-grad-1) 0%,
+    var(--gj-yaye-grad-2) 50%,
+    var(--gj-yaye-grad-4) 100%);
+
+  /* Ink-teal — la nuance la plus sombre de la palette,
+     pour footers, wallpapers, fin-de-gradient hero. */
+  --gj-ink-teal:    #162c5e;   /* navy charte — footers, sidebars back-office, fin de gradient */
+  --gj-ink-teal-2:  #0E1C3C;   /* navy plus profond */
+
+  /* WhatsApp */
+  --gj-whatsapp:      #25D366;
+  --gj-whatsapp-deep: #128C7E;
+
+  /* Neutres */
+  --gj-ink:         #202020;   /* noir charte */
+  --gj-grey:        #4A4A4A;   /* AA sur surface blanche */
+  --gj-grey-2:      #767676;   /* texte tertiaire, à éviter sur teal-soft */
+  --gj-line:        #E0E4E6;
+  --gj-line-strong: #B9C1C4;
+  --gj-bg:          #F5F7F8;
+  --gj-surface:     #FFFFFF;
+  --gj-overlay:        rgba(0,0,0,.55);
+  --gj-overlay-light:  rgba(0,0,0,.45);
+
+  /* =========================================================
+     2 · TOKENS SÉMANTIQUES (intent → couleur)
+     ========================================================= */
+  --color-action-primary:    var(--gj-teal);
+  --color-action-primary-2:  var(--gj-teal-deep);    /* hover */
+  --color-action-secondary:  var(--gj-yellow);
+  --color-cta:               var(--gj-action);        /* conversion — unique par écran */
+  --color-cta-hover:         var(--gj-action-deep);
+  --color-action-on-dark:    var(--gj-yellow);
+
+  --color-status-success:    var(--gj-green);
+  --color-status-success-bg: var(--gj-green-soft);
+  --color-status-info:       var(--gj-blue);
+  --color-status-info-bg:    var(--gj-blue-soft);
+  --color-status-warn:       var(--gj-yellow-ink);
+  --color-status-warn-bg:    var(--gj-yellow-soft);
+  --color-status-danger:     var(--gj-red);
+  --color-status-danger-bg:  var(--gj-red-soft);
+
+  --color-text-primary:      var(--gj-ink);
+  --color-text-secondary:    var(--gj-grey);
+  --color-text-on-dark:      #FFFFFF;
+  --color-text-muted:        var(--gj-grey-2);
+  --color-text-link:         var(--gj-teal-deep);
+
+  --color-bg-page:           var(--gj-bg);
+  --color-bg-surface:        var(--gj-surface);
+  --color-bg-elevated:       #FFFFFF;
+  --color-bg-tint:           var(--gj-teal-soft);
+
+  --color-border-default:    var(--gj-line);
+  --color-border-strong:     var(--gj-line-strong);
+  --color-border-focus:      var(--gj-teal-deep);
+
+  /* =========================================================
+     3 · TYPOGRAPHIE — échelle remontée
+     ========================================================= */
+  /* Lexend — police des documents imposée par la charte Yaakaar 2030.
+     Delhi est réservée au logotype : elle n'est jamais utilisée en interface. */
+  --gj-font-sans: "Lexend", "Segoe UI", system-ui, -apple-system,
+                  "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+  /* v2 — échelle accessible */
+  /* Plancher absolu du produit : AUCUN texte sous 11 px, sur aucune surface —
+     bénéficiaire comme back-office. Vaut pour les pastilles, badges, libellés
+     de rubrique, compteurs et métadonnées. En dessous, le texte devient
+     illisible sur un écran d'entrée de gamme en plein soleil. */
+  --fs-100: 11px;
+  --fs-200: 13px;   /* légendes, captions */
+  --fs-300: 14px;   /* texte d'appui, sous-titres */
+  --fs-400: 16px;   /* CORPS — défaut, anti-zoom iOS */
+  --fs-500: 18px;   /* sous-titres, libellés clés */
+  --fs-600: 20px;   /* titres de carte, liens forts */
+  --fs-700: 24px;   /* titres de section / chiffres KPI */
+  --fs-800: 28px;   /* titres de page */
+  --fs-900: 36px;   /* hero */
+
+  /* v1 aliases — pour ne rien casser ; remappés vers v2 */
+  --gj-fs-xs:   var(--fs-100);
+  --gj-fs-sm:   var(--fs-100);
+  --gj-fs-base: var(--fs-200);
+  --gj-fs-md:   var(--fs-300);
+  --gj-fs-lg:   var(--fs-400);
+  --gj-fs-xl:   var(--fs-500);
+  --gj-fs-2xl:  var(--fs-700);
+  --gj-fs-h2:   var(--fs-700);
+  --gj-fs-h1:   var(--fs-800);
+
+  --gj-fw-regular:  400;
+  --gj-fw-semibold: 600;
+  --gj-fw-bold:     700;
+  --gj-fw-black:    800;
+
+  --gj-lh-tight: 1.2;
+  --gj-lh-body:  1.5;
+  --gj-lh-loose: 1.65;
+
+  /* =========================================================
+     4 · ESPACEMENT (échelle 4 → 64)
+     ========================================================= */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+
+  /* =========================================================
+     5 · HIT TARGETS — règle d'or 44px
+     ========================================================= */
+  --tap-min:        44px;   /* iOS HIG */
+  --tap-comfortable:48px;   /* Material — recommandé */
+  --tap-dense:      36px;   /* DESKTOP UNIQUEMENT — proscrit sur mobile */
+  --tap-input:      48px;   /* hauteur d'input mobile */
+
+  /* =========================================================
+     6 · RADII
+     ========================================================= */
+  --gj-r-xs:  3px;
+  --gj-r-sm:  6px;
+  --gj-r-md:  8px;
+  --gj-r-lg:  10px;
+  --gj-r-xl:  14px;
+  --gj-r-2xl: 18px;
+  --gj-r-pill: 999px;
+
+  /* =========================================================
+     7 · ÉLÉVATION
+     ========================================================= */
+  --gj-shadow-sm:  0 1px 3px  rgba(0,0,0,.08);
+  --gj-shadow-md:  0 3px 10px rgba(0,0,0,.18);
+  --gj-shadow-lg:  0 8px 32px rgba(0,0,0,.15);
+  --gj-shadow-bottom-nav: 0 -1px 0 rgba(0,0,0,.06), 0 -4px 16px rgba(0,0,0,.04);
+
+  /* =========================================================
+     8 · BORDURES
+     ========================================================= */
+  --gj-bw:        1.5px;
+  --gj-bw-strong: 2px;
+  --gj-bw-accent: 4px;
+
+  /* =========================================================
+     9 · FOCUS — standardisé sur tout élément interactif
+     ========================================================= */
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color:  #f8a309;        /* ambre charte — visible sur clair comme sur teal/navy */
+  --focus-ring:        var(--focus-ring-width) solid var(--focus-ring-color);
+
+  /* =========================================================
+     10 · LAYOUT — breakpoints documentés
+     ========================================================= */
+  --bp-sm:  480px;   /* petit téléphone */
+  --bp-md:  768px;   /* tablette portrait / grand téléphone landscape */
+  --bp-lg:  1024px;  /* tablette landscape / desktop */
+  --bp-xl:  1280px;
+
+  --gj-container-narrow: 380px;
+  --gj-container-md:     680px;
+  --gj-container-wide:   820px;
+  --gj-container-x:      920px;
+
+  /* =========================================================
+     11 · SAFE AREA iOS / Android edge-to-edge
+     ========================================================= */
+  --safe-top:    env(safe-area-inset-top, 0);
+  --safe-right:  env(safe-area-inset-right, 0);
+  --safe-bottom: env(safe-area-inset-bottom, 0);
+  --safe-left:   env(safe-area-inset-left, 0);
+
+  /* =========================================================
+     12 · MOTION
+     ========================================================= */
+  --motion-fast:   120ms;
+  --motion-base:   200ms;
+  --motion-slow:   320ms;
+  --motion-ease:   cubic-bezier(.2,.8,.2,1);
+
+  /* =========================================================
+     13 · Z-INDEX
+     ========================================================= */
+  --gj-z-nav:        200;
+  --gj-z-fbar:       100;
+  --gj-z-bottom-nav: 300;
+  --gj-z-chat:       400;
+  --gj-z-overlay:    600;
+  --gj-z-toast:      800;
+
+  /* =========================================================
+     14 · PROGRAMMES DU CJS — palettes signature
+     ========================================================= */
+  --prog-yaakaar-1: #f8a309;
+  --prog-yaakaar-2: #7A4E02;
+  --prog-yaakaar:   linear-gradient(135deg, var(--prog-yaakaar-1), var(--prog-yaakaar-2));
+
+  --prog-yeah-1:    #027f7e;
+  --prog-yeah-2:    #014B4A;
+  --prog-yeah:      linear-gradient(135deg, var(--prog-yeah-1), var(--prog-yeah-2));
+
+  --prog-yjc-1:     #19a657;
+  --prog-yjc-2:     #0E6234;
+  --prog-yjc:       linear-gradient(135deg, var(--prog-yjc-1), var(--prog-yjc-2));
+
+  --prog-brm-1:     #1e35ba;
+  --prog-brm-2:     #162c5e;
+  --prog-brm:       linear-gradient(135deg, var(--prog-brm-1), var(--prog-brm-2));
+
+  --prog-edupop-1:  #026463;
+  --prog-edupop-2:  #162c5e;
+  --prog-edupop:    linear-gradient(135deg, var(--prog-edupop-1), var(--prog-edupop-2));
+}
+
+/* =========================================================
+   PULSE — 3 keyframes standardisés (utilitaires globales)
+   ========================================================= */
+@keyframes gj-pulse-urgent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,42,30,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(217,42,30,0); }
+}
+@keyframes gj-pulse-yaye {
+  0%   { transform: scale(1);    opacity: .7; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes gj-pulse-live {
+  0%   { box-shadow: 0 0 0 0 rgba(123,229,181,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(123,229,181,0); }
+  100% { box-shadow: 0 0 0 0 rgba(123,229,181,0); }
+}
+
+/* =========================================================
+   RÈGLES GLOBALES UTILES
+   ========================================================= */
+
+/* Anti-zoom iOS sur les inputs : taille min 16px */
+@media (max-width: 480px) {
+  input, select, textarea, button {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Focus visible — actif partout par défaut */
+:where(button, a, [role="button"], input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--gj-r-sm);
+}
+
+/* Boutons et liens : touch-action pour éliminer le delay 300ms Android */
+:where(button, a, [role="button"]) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Zone tactile minimum — utilitaire à composer */
+.gj-tap {
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================
+   ACCESSIBILITY MODES — v1.5
+   Active via data-attributes on <html>. Persistés via localStorage,
+   pilot\u00e9s par les toggles de l'onglet Inclusion (app PWA + utilisateur web).
+   ========================================================= */
+
+/* --- Contraste \u00e9lev\u00e9 ---
+   Renforce les contrastes texte/fond, durcit les bordures, supprime les
+   teintes douces qui passent mal pour les basses visions. */
+:root[data-contrast="high"] {
+  --gj-ink:         #000000;
+  --gj-grey:        #1A1A1A;
+  --gj-grey-2:      #333333;
+  --gj-line:        #000000;
+  --gj-line-strong: #000000;
+  --gj-bg:          #FFFFFF;
+  --gj-teal-soft:   #FFFFFF;
+  --gj-yellow-soft: #FFFFFF;
+  --gj-blue-soft:   #FFFFFF;
+  --gj-green-soft:  #FFFFFF;
+  --gj-red-soft:    #FFFFFF;
+  --gj-bw:          2px;
+  --gj-bw-strong:   3px;
+}
+:root[data-contrast="high"] body { background: #fff; }
+
+/* --- Taille texte ---
+   Multiplicateur appliqu\u00e9 \u00e0 toute l'\u00e9chelle typographique. */
+:root[data-text="s"]  { font-size: 14px; }
+:root[data-text="m"]  { font-size: 16px; }  /* default */
+:root[data-text="l"]  { font-size: 18px; }
+:root[data-text="xl"] { font-size: 20px; }
+
+/* --- Mode FALC (Facile \u00c0 Lire et \u00e0 Comprendre) ---
+   Espacement plus a\u00e9r\u00e9, line-height plus \u00e9lev\u00e9, gras renforc\u00e9
+   sur titres pour le scan visuel. */
+:root[data-falc="on"] {
+  --gj-lh-body:  1.75;
+  --gj-lh-tight: 1.4;
+}
+:root[data-falc="on"] body { letter-spacing: .015em; }
+:root[data-falc="on"] h1, :root[data-falc="on"] h2, :root[data-falc="on"] h3 { font-weight: 900; }
+
+/* --- Lecture audio Wolof ---
+   Marqueur visuel uniquement (le branchement TTS est c\u00f4t\u00e9 app). */
+:root[data-audio="wo"] .gj-audio-hint::before {
+  content: "\ud83d\udd0a "; margin-right: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   CTA DE CONVERSION — une seule par écran (retour design V3)
+   ========================================================= */
+.gj-cta{background:var(--gj-action);color:#fff;border:0;min-height:var(--tap-comfortable);padding:0 18px;border-radius:var(--gj-r-lg);font-family:inherit;font-weight:800;font-size:var(--fs-400);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background var(--motion-fast) var(--motion-ease)}
+.gj-cta:hover{background:var(--gj-action-deep)}
+.gj-cta--block{width:100%}
+.gj-cta--sm{min-height:var(--tap-dense);font-size:var(--fs-200);padding:0 14px;border-radius:var(--gj-r-md)}
+
+/* BADGES DE CATÉGORIE — code couleur fixe */
+.gj-cat{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-100);font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:var(--gj-r-pill)}
+.gj-cat--emploi{background:var(--cat-emploi-soft);color:var(--cat-emploi-ink)}
+.gj-cat--stage{background:var(--cat-stage-soft);color:var(--cat-stage-ink)}
+.gj-cat--formation{background:var(--cat-formation-soft);color:var(--cat-formation-ink)}
+.gj-cat--financement{background:var(--cat-financement-soft);color:var(--cat-financement-ink)}
+.gj-cat--evenement{background:var(--cat-evenement-soft);color:var(--cat-evenement-ink)}
+.gj-cat--volontariat{background:var(--cat-volontariat-soft);color:var(--cat-volontariat-ink)}
+.gj-cat--neutre{background:var(--cat-neutre-soft);color:var(--cat-neutre-ink)}
+/* Rappel charte : ambre, orange, cyan, vert, rouge vif et rose sont trop clairs
+   pour porter du texte BLANC (2,0 à 3,7:1). Deux usages seulement :
+   — aplat vif + texte noir --gj-ink (classe .gj-fill--*) ;
+   — couple -soft / -ink pour les pastilles et le texte.
+   Les aplats à texte blanc utilisent les variantes assombries (--gj-red, -ink). */
+.gj-fill--ambre{background:var(--brand-ambre);color:var(--gj-ink)}
+.gj-fill--orange{background:var(--brand-orange);color:var(--gj-ink)}
+.gj-fill--cyan{background:var(--brand-cyan);color:var(--gj-ink)}
+.gj-fill--vert{background:var(--brand-vert);color:var(--gj-ink)}
+.gj-fill--rouge{background:var(--brand-rouge);color:var(--gj-ink)}
+/* Puce d'urgence — rouge, réservée aux dates limites */
+.gj-urgent{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-100);font-weight:800;padding:4px 9px;border-radius:var(--gj-r-pill);background:var(--gj-red);color:#fff}
+
+/* Liens */
+a{color:var(--color-text-link);text-decoration-thickness:1px;text-underline-offset:2px}
+a:hover{color:var(--gj-teal-deep-2)}
+
+/* Bannière thématique par catégorie — fallback visuel des offres sans image */
+.gj-banner{position:relative;overflow:hidden;border-radius:var(--gj-r-xl) var(--gj-r-xl) 0 0;background:var(--gj-teal-soft)}
+.gj-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 100% at 100% 0%,rgba(255,255,255,.35),transparent 60%)}

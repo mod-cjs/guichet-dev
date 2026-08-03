@@ -81,7 +81,7 @@ export function EvenementInscriptionCta({
   }
 
   let label: string
-  let variant: 'primary' | 'ghost' = 'primary'
+  let variant: 'conversion' | 'ghost' = 'conversion'
   if (!isAuthenticated) {
     label = "Se connecter pour s'inscrire"
   } else if (inscrit) {

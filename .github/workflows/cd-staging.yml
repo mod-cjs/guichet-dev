@@ -84,4 +84,7 @@ jobs:
             export BACKUP_DIR="/var/backups/guichet-staging"
             export STATE_DIR="/var/lib/guichet-staging"
             echo "dev-${{ github.sha }}" > "$STATE_DIR/deploy-stamp"
+            # GUIC-683 — le déploiement met le crontab serveur à jour depuis jobs.json.
+            # Opt-in explicite : ailleurs (poste de dev, tests), deploy.sh n'y touche pas.
+            export SYNC_CRONTAB=1
             bash scripts/deploy/deploy.sh

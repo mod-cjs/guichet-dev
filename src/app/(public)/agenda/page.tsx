@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { Icon } from '@/components/ui'
 import { listEvenements } from '@/lib/loaders/evenements'
 import { AgendaClient } from './agenda-client'
+import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 import { getSession } from '@/lib/auth'
 
 export const metadata: Metadata = {
@@ -16,9 +18,10 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function AgendaPage() {
-  const [{ items, total }, session] = await Promise.all([
+  const [{ items, total }, session, programmes] = await Promise.all([
     listEvenements(),
     getSession(),
+    loadProgrammeOptions(prisma),
   ])
 
   return (
@@ -41,7 +44,12 @@ export default async function AgendaPage() {
         )}
       </header>
 
-      <AgendaClient initialItems={items} total={total} isAuthenticated={!!session} />
+      <AgendaClient
+        initialItems={items}
+        total={total}
+        isAuthenticated={!!session}
+        programmes={programmes}
+      />
     </div>
   )
 }

@@ -5,16 +5,29 @@ interface RessourceDetailHeroProps {
   detail: RessourceDetail
 }
 
-const TYPE_META: Record<
+/**
+ * Couleur par type de ressource.
+ *
+ * GUIC-691 — le PDF était rouge. En v5 le rouge ne signale QUE l'urgence
+ * d'échéance : l'attribuer à un format de fichier vide le signal de son sens,
+ * un jeune finit par ne plus distinguer « ça ferme dans 2 jours » de « c'est un
+ * PDF ». Le PDF passe donc sur le bleu indigo, et la vidéo sur le cyan, les deux
+ * couleurs de contenu de la palette v5.
+ *
+ * Exporté pour que la sentinelle de conformité puisse le vérifier.
+ */
+export const TYPE_META_RESSOURCE: Record<
   TypeRessourceValue,
-  { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green' }
+  { icon: IconName; bg: string; text: string; badge: 'blue' | 'cyan' | 'teal' | 'yellow' | 'green' }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red'    },
-  Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
+  PDF:   { icon: 'document', bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
+  Video: { icon: 'play',     bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'cyan'   },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal'   },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow' },
   Outil: { icon: 'bolt',     bg: 'bg-gj-green-soft',  text: 'text-gj-green-ink',  badge: 'green'  },
 }
+
+const TYPE_META = TYPE_META_RESSOURCE
 
 /**
  * Hero de la page détail ressource — GUIC-363.

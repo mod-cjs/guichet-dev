@@ -8,6 +8,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { sanitizeRichHtml } from '@/lib/sanitize-html'
+import { replaceProgrammesOptionnels } from '@/lib/programmes/rattachement'
 import type { CJSSession } from '@/types/user'
 
 /** Garde de rôle — fail-closed : retourne la session (acteur d'audit). */
@@ -33,6 +34,10 @@ const partenaireSchema = z.object({
   telephone: z.string().trim().max(20).optional().nullable(),
   email: z.string().trim().email('Email invalide').max(255).optional().nullable().or(z.literal('')),
   siteWeb: z.string().trim().max(500).optional().nullable(),
+  // GUIC-684 — programmes dont ce partenaire relève. FACULTATIF : un partenaire peut
+  // publier des offres sans être engagé dans un programme sectoriel.
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().optional().nullable(),
 })
 type PartenaireInput = z.input<typeof partenaireSchema>
 
@@ -60,20 +65,34 @@ export async function modifierPartenaire(id: string, input: PartenaireInput): Pr
   const session = await assertAdmin()
   const pid = idSchema.parse(id)
   const data = partenaireSchema.parse(input)
-  await prisma.organisation.update({
-    where: { id: pid },
-    data: {
-      nom: data.nom,
-      // GUIC-506 — présentation riche (affichée admin/recruteur) : sanitisation serveur.
-      description: data.description ? sanitizeRichHtml(data.description) || null : null,
-      logoUrl: data.logoUrl?.trim() || null,
-      secteur: data.secteur ?? null,
-      region: data.region ?? null,
-      adresse: data.adresse?.trim() || null,
-      telephone: data.telephone?.trim() || null,
-      email: data.email?.trim() || null,
-      siteWeb: data.siteWeb?.trim() || null,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.organisation.update({
+      where: { id: pid },
+      data: {
+        nom: data.nom,
+        // GUIC-506 — présentation riche (affichée admin/recruteur) : sanitisation serveur.
+        description: data.description ? sanitizeRichHtml(data.description) || null : null,
+        logoUrl: data.logoUrl?.trim() || null,
+        secteur: data.secteur ?? null,
+        region: data.region ?? null,
+        adresse: data.adresse?.trim() || null,
+        telephone: data.telephone?.trim() || null,
+        email: data.email?.trim() || null,
+        siteWeb: data.siteWeb?.trim() || null,
+      },
+    })
+    await replaceProgrammesOptionnels(
+      tx,
+      {
+        purge: () => tx.organisationProgramme.deleteMany({ where: { organisationId: pid } }),
+        creer: (rows) =>
+          tx.organisationProgramme.createMany({
+            data: rows.map((r) => ({ organisationId: pid, ...r })),
+          }),
+      },
+      data.programmeSlugs,
+      { principalSlug: data.programmePrincipalSlug ?? null },
+    )
   })
   await recordAudit(session.cjsUid, 'partenaire.update', {
     targetType: 'organisation',

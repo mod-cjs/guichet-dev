@@ -8,6 +8,7 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { modifierPartenaire } from './actions'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 const opt = (...v: string[]) => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 const DOMAINES = opt('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
@@ -24,6 +25,9 @@ export interface PartenaireValues {
   telephone?: string | null
   email: string | null
   siteWeb?: string | null
+  /** GUIC-684 — programmes dont ce partenaire relève (facultatif). */
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
 }
 
 export interface PartenaireFormModalProps {
@@ -31,9 +35,17 @@ export interface PartenaireFormModalProps {
   onClose: () => void
   partenaire: PartenaireValues
   onSuccess?: () => void
+  /** GUIC-684 — programmes proposés au rattachement. */
+  programmes?: ProgrammeOption[]
 }
 
-export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: PartenaireFormModalProps) {
+export function PartenaireFormModal({
+  isOpen,
+  onClose,
+  partenaire,
+  onSuccess,
+  programmes = [],
+}: PartenaireFormModalProps) {
   const [nom, setNom] = useState(partenaire.nom ?? '')
   const [description, setDescription] = useState(partenaire.description ?? '')
   const [logoUrl, setLogoUrl] = useState(partenaire.logoUrl ?? '')
@@ -43,6 +55,11 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
   const [telephone, setTelephone] = useState(partenaire.telephone ?? '')
   const [email, setEmail] = useState(partenaire.email ?? '')
   const [siteWeb, setSiteWeb] = useState(partenaire.siteWeb ?? '')
+  // GUIC-684 — facultatif : un partenaire peut publier sans relever d'un programme.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(partenaire.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(
+    partenaire.programmePrincipalSlug ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -62,6 +79,8 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
           telephone: telephone.trim() || null,
           email: email.trim() || null,
           siteWeb: siteWeb.trim() || null,
+          programmeSlugs,
+          programmePrincipalSlug: programmePrincipal,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
         onSuccess?.()
@@ -86,6 +105,15 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
         <Input id="pa-tel" label="Téléphone" value={telephone} onChange={(e) => setTelephone(e.target.value)} />
         <Input id="pa-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <Input id="pa-site" label="Site web" type="url" value={siteWeb} onChange={(e) => setSiteWeb(e.target.value)} />
+        {programmes.length > 0 && (
+          <ProgrammesField
+            options={programmes}
+            value={programmeSlugs}
+            onChange={setProgrammeSlugs}
+            principal={programmePrincipal}
+            onPrincipalChange={setProgrammePrincipal}
+          />
+        )}
         {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
         <div className="flex items-center justify-end gap-space-2 mt-space-2">
           <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>Annuler</Button>

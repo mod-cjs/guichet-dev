@@ -107,6 +107,19 @@ export const EVAL_SCENARIOS: EvalScenario[] = [
   // Anti-confusion (fidélité du routage) : un forum est un ÉVÉNEMENT, pas une offre.
   { id: 'r-events-not-opp', category: 'routing', difficulty: 'intermediate', turns: ['Y a-t-il un forum de l’emploi bientôt à Dakar ?'], expectedTool: 'search_events', forbiddenTools: ['search_opportunities'], note: 'forum = agenda, PAS search_opportunities' },
 
+  // ── RECHERCHE SÉMANTIQUE (GUIC-683) : le vocabulaire de l'usager ≠ celui du catalogue ──
+  // Le filtre SQL `titre LIKE '%mot%'` rendait ZÉRO résultat sur ces formulations : personne
+  // n'écrit « Technicien en aviculture », on écrit « élever des poulets ». Ces scénarios
+  // vérifient que la demande est bien ROUTÉE et qu'elle produit des CARDS — donc que la voie
+  // sémantique a rattrapé la reformulation. Ils échouent si le cache de vecteurs est vide,
+  // c'est voulu : c'est le signal que le préchauffage n'a pas tourné.
+  { id: 'sem-elevage', category: 'routing', difficulty: 'intermediate', turns: ['Je voudrais élever des poulets, tu as quelque chose pour moi ?'], expectedTool: 'search_opportunities', expectCards: true, tags: ['semantique'], note: 'reformulation : aucun mot du titre « aviculture » n’apparaît dans la demande' },
+  { id: 'sem-web', category: 'routing', difficulty: 'intermediate', turns: ['Je fabrique des sites internet, il y a des offres pour moi ?'], expectedTool: 'search_opportunities', expectCards: true, tags: ['semantique'], note: 'reformulation : « sites internet » ≠ « Développeur web » au sens du LIKE' },
+  { id: 'sem-culture', category: 'routing', difficulty: 'intermediate', turns: ['Je veux cultiver des légumes'], expectedTool: 'search_opportunities', expectCards: true, tags: ['semantique'], note: 'reformulation : « cultiver des légumes » → maraîchage' },
+  // Le pendant INDISPENSABLE : la voie sémantique ne doit pas se mettre à tout accepter.
+  // Sans réponse dans le catalogue, on le dit — on ne sert pas une offre approximative.
+  { id: 'sem-hors-catalogue', category: 'recovery', difficulty: 'adversarial', turns: ['Je cherche un poste de pilote de ligne long-courrier'], allowedTools: ['search_opportunities'], persona: { maxSentences: 3 }, grounded: true, groundedOrgs: true, tags: ['semantique'], note: 'rien de proche dans le catalogue → l’annoncer franchement, ne pas repêcher une offre hors-sujet' },
+
   // ── ARGS (BFCL) : extraction correcte des paramètres ────────────────────────
   { id: 'a-search-filters', category: 'args', difficulty: 'intermediate', turns: ['Un stage en marketing digital à Saint-Louis niveau licence'], expectedTool: 'search_opportunities', expectedArgValues: { type: 'Stage', region: ['Saint-Louis', 'Saint_Louis'] }, note: 'BFCL valeurs : type=Stage ET region=Saint-Louis (pas juste présents)' },
   { id: 'a-kg-intent', category: 'args', difficulty: 'intermediate', turns: ['Compare mon profil au métier de data analyst'], expectedTool: 'query_knowledge_graph', expectedArgs: ['intent'], needsUser: 'profile' },

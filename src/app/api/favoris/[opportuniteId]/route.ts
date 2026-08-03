@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 
 // GUIC-20 / GUIC-167 — M3 · Suppression d'un favori d'opportunité.
@@ -35,6 +36,7 @@ export async function DELETE(
   await prisma.opportuniteFavorite.deleteMany({
     where: { cjsUid: session.cjsUid, opportuniteId },
   })
+  fireBeneficiaireGraphSync(session.cjsUid) // purge l'arête INTERESSE_PAR devenue fantôme
 
   return new NextResponse(null, { status: 204 })
 }

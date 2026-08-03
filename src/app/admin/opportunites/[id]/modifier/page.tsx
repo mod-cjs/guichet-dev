@@ -8,6 +8,7 @@ import { getOpportuniteDetailForAdmin } from '@/lib/opportunites-loader'
 import { Icon } from '@/components/ui/Icon'
 import { OpportuniteForm, type OpportuniteFormInitial } from '../../OpportuniteForm'
 import { loadFormTypes } from '../../form-types'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = { title: 'Modifier l’opportunité — Admin CJS' }
 
@@ -31,9 +32,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const { id } = await params
-  const [detail, types] = await Promise.all([
+  const [detail, types, programmes] = await Promise.all([
     getOpportuniteDetailForAdmin(id),
     loadFormTypes(prisma),
+    loadProgrammeOptions(prisma),
   ])
   if (!detail) notFound()
 
@@ -56,6 +58,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       statut: detail.statut,
     },
     details: flattenDetails(detail.details),
+    // GUIC-684 — rattachements existants ; vide pour un contenu antérieur au ticket,
+    // l'admin devra alors en choisir un avant de pouvoir enregistrer.
+    programmeSlugs: detail.programmes.map((p) => p.slug),
+    programmePrincipalSlug: detail.programme?.slug ?? null,
   }
 
   return (
@@ -68,7 +74,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         Retour à la gestion
       </Link>
       <h1 className="text-fs-500 font-black text-color-text-primary mb-space-4">Modifier « {detail.titre} »</h1>
-      <OpportuniteForm types={types} initial={initial} />
+      <OpportuniteForm types={types} programmes={programmes} initial={initial} />
     </div>
   )
 }

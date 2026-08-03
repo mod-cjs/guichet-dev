@@ -8,7 +8,11 @@ jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 
 const mockFindMany = jest.fn()
 jest.mock('@/lib/prisma', () => ({
-  prisma: { centre: { findMany: (...a: unknown[]) => mockFindMany(...a) } },
+  prisma: {
+    centre: { findMany: (...a: unknown[]) => mockFindMany(...a) },
+    // GUIC-684 — la page charge les programmes proposés au rattachement d'un centre.
+    programme: { findMany: jest.fn(async () => []) },
+  },
 }))
 
 const mockRedirect = jest.fn((path: string) => {

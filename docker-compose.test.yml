@@ -24,3 +24,12 @@ services:
       # Marqueur d'environnement de test (n'affaiblit AUCUN garde-fou : APP_ENV reste production,
       # la connexion sans SSO reste verrouillée par prod-guards).
       DEPLOY_ENV: test
+    volumes:
+      # GUIC-646 — Clé de compte de service Vertex AI, montée EN LECTURE SEULE. `GoogleAuth`
+      # (llm-client.ts) suit les Application Default Credentials → le chemin pointé par
+      # GOOGLE_APPLICATION_CREDENTIALS DOIT exister DANS le conteneur, pas seulement sur l'hôte.
+      # Le fichier reste hors du conteneur (bind-mount) : jamais dans une couche d'image.
+      # Surchargeable via GCP_CREDENTIALS_FILE (défaut : le chemin attendu par test.env).
+      # test.env doit fournir : LLM_PROVIDER=vertex, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION,
+      # GOOGLE_APPLICATION_CREDENTIALS=/etc/guichet/gcp/vertex-sa.json.
+      - "${GCP_CREDENTIALS_FILE:-/etc/guichet/gcp/vertex-sa.json}:/etc/guichet/gcp/vertex-sa.json:ro"

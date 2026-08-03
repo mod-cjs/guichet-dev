@@ -76,6 +76,16 @@ export function EspaceEnAttente({ espace }: { espace: 'conseiller' | 'recruteur'
           <Icon name="chevron-left" size={16} />
           Retour à l&apos;accueil
         </Link>
+        {/* GUIC-673 — Sortie explicite : sans ça, l'utilisateur sans rattachement est en impasse.
+            `<a>` (pas Link) : /api/auth/logout est une route serveur (navigation complète). */}
+        <a
+          href="/api/auth/logout"
+          className="inline-flex items-center gap-2 mt-space-3 font-semibold no-underline hover:underline"
+          style={{ color: 'var(--gj-grey)' }}
+        >
+          <Icon name="logout" size={15} />
+          Se déconnecter
+        </a>
       </div>
     </main>
   )

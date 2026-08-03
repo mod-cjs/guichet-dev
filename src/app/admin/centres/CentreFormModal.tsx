@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { regionLabel } from '@/lib/regions'
 import { Region } from '@prisma/client'
 import { creerCentre, modifierCentre } from './actions'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 const REGIONS = [
   'Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga',
@@ -45,6 +46,9 @@ export interface CentreFormValues {
   responsable?: string
   ville?: string | null
   estActif?: boolean
+  /** GUIC-684 — programmes déployés dans ce centre (facultatif). */
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
 }
 
 export interface CentreFormModalProps {
@@ -54,9 +58,17 @@ export interface CentreFormModalProps {
   centre?: CentreFormValues
   /** Appelé après succès (création/édition) — la liste affiche un toast. */
   onSuccess?: (action: 'create' | 'update') => void
+  /** GUIC-684 — programmes proposés au rattachement. */
+  programmes?: ProgrammeOption[]
 }
 
-export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFormModalProps) {
+export function CentreFormModal({
+  isOpen,
+  onClose,
+  centre,
+  onSuccess,
+  programmes = [],
+}: CentreFormModalProps) {
   const editing = Boolean(centre?.id)
   const [nom, setNom] = useState(centre?.nom ?? '')
   const [region, setRegion] = useState<string>(centre?.region ?? 'Dakar')
@@ -67,6 +79,11 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
   const [responsable, setResponsable] = useState(centre?.responsable ?? '')
   const [ville, setVille] = useState(centre?.ville ?? '')
   const [estActif, setEstActif] = useState(centre?.estActif ?? true)
+  // GUIC-684 — facultatif ici : un centre existe sans programme.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(centre?.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(
+    centre?.programmePrincipalSlug ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -83,6 +100,8 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
       responsable,
       ville: ville.trim() || null,
       estActif,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
     }
     startTransition(async () => {
       try {
@@ -115,6 +134,15 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
         <Input id="centre-responsable" label="Responsable" required value={responsable} onChange={(e) => setResponsable(e.target.value)} {...frInval} />
         <Input id="centre-ville" label="Ville" value={ville ?? ''} onChange={(e) => setVille(e.target.value)} />
         <Select id="centre-statut" label="Statut" options={STATUT_OPTIONS} value={String(estActif)} onChange={(e) => setEstActif(e.target.value === 'true')} />
+        {programmes.length > 0 && (
+          <ProgrammesField
+            options={programmes}
+            value={programmeSlugs}
+            onChange={setProgrammeSlugs}
+            principal={programmePrincipal}
+            onPrincipalChange={setProgrammePrincipal}
+          />
+        )}
         {error && <p role="alert" className="text-fs-200 text-gj-red font-bold">{error}</p>}
         <div className="flex items-center justify-end gap-space-2 mt-space-2">
           <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>Annuler</Button>

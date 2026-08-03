@@ -41,7 +41,8 @@ test('get_badge : badge dispo → carte action vers /jeune/ma-carte', async () =
 
   const r = await TOOLS.get_badge.execute({}, ctx)
 
-  expect(mockCall.mock.calls[0][1]).toEqual({ method: 'GET', path: '/api/cjs-card/qr-token' })
+  // `actorCjsUid` : identité propagée à l'appel interne → l'outil marche aussi hors web (GUIC-678).
+  expect(mockCall.mock.calls[0][1]).toEqual({ method: 'GET', path: '/api/cjs-card/qr-token', actorCjsUid: ctx.cjsUid })
   expect(r.ok).toBe(true)
   expect((r.block as { buttons: { href: string }[] }).buttons[0].href).toBe('https://app.test/jeune/ma-carte')
 })
@@ -84,6 +85,7 @@ test('submit_application : confirm=true → POST /api/candidatures avec CV du pr
     method: 'POST',
     path: '/api/candidatures',
     body: { opportuniteId: 'o1', lettreMotivation: LETTRE, cvUrl: 'https://s.blob.vercel-storage.com/cv.pdf', notificationsConsent: true },
+    actorCjsUid: ctx.cjsUid,
   })
   expect(r.ok).toBe(true)
   expect((r.block as { title: string }).title).toMatch(/envoyée/)

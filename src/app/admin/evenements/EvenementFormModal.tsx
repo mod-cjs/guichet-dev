@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { creerEvenement, modifierEvenement } from './actions'
 
 const TYPE_OPTIONS = (['Formation', 'Atelier', 'Forum', 'Webinar', 'Conference', 'Cours'] as const).map((v) => ({ value: v, label: v }))
@@ -37,6 +38,10 @@ export interface EvenementFormValues {
   centreId?: string | null
   capaciteMax?: number | null
   estGratuit?: boolean
+  /** GUIC-684 — programmes rattachés (slugs) ; vide pour un événement antérieur. */
+  programmeSlugs?: string[]
+  /** GUIC-684 — programme principal parmi les rattachés. */
+  programmePrincipalSlug?: string | null
 }
 
 export interface EvenementFormModalProps {
@@ -45,6 +50,8 @@ export interface EvenementFormModalProps {
   evenement?: EvenementFormValues
   /** Centres proposables pour le rattachement (GUIC-474). */
   centres?: { id: string; nom: string }[]
+  /** Programmes actifs proposés au rattachement (GUIC-684). */
+  programmes?: ProgrammeOption[]
   /** Appelé après succès (création/édition) — la liste affiche un toast. */
   onSuccess?: (action: 'create' | 'update') => void
 }
@@ -58,7 +65,14 @@ function toLocalInput(iso?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], onSuccess }: EvenementFormModalProps) {
+export function EvenementFormModal({
+  isOpen,
+  onClose,
+  evenement,
+  centres = [],
+  programmes = [],
+  onSuccess,
+}: EvenementFormModalProps) {
   const editing = Boolean(evenement?.id)
   const [titre, setTitre] = useState(evenement?.titre ?? '')
   const [description, setDescription] = useState(evenement?.description ?? '')
@@ -70,6 +84,11 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
   const [centreId, setCentreId] = useState(evenement?.centreId ?? '')
   const [capaciteMax, setCapaciteMax] = useState(evenement?.capaciteMax != null ? String(evenement.capaciteMax) : '')
   const [estGratuit, setEstGratuit] = useState(evenement?.estGratuit ?? true)
+  // GUIC-684 — rattachement obligatoire (vide pour un événement antérieur au ticket).
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(evenement?.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(
+    evenement?.programmePrincipalSlug ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -89,6 +108,13 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
       centreId: centreId || null,
       capaciteMax: capaciteMax.trim() ? Number(capaciteMax) : null,
       estGratuit,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
+    }
+    // Garde côté client — le serveur refuse aussi (PROGRAMME_REQUIS).
+    if (programmeSlugs.length === 0) {
+      setError('Sélectionne au moins un programme de rattachement.')
+      return
     }
     startTransition(async () => {
       try {
@@ -116,6 +142,13 @@ export function EvenementFormModal({ isOpen, onClose, evenement, centres = [], o
         <Input id="ev-datefin" label="Date de fin (optionnel)" type="datetime-local" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
         <Input id="ev-lieu" label="Lieu" required value={lieu} onChange={(e) => setLieu(e.target.value)} />
         <Select id="ev-centre" label="Centre (cours/session au centre)" options={centreOptions} value={centreId} onChange={(e) => setCentreId(e.target.value)} />
+        <ProgrammesField
+          options={programmes}
+          value={programmeSlugs}
+          onChange={setProgrammeSlugs}
+          principal={programmePrincipal}
+          onPrincipalChange={setProgrammePrincipal}
+        />
         <Input id="ev-capacite" label="Capacité max" type="number" value={capaciteMax} onChange={(e) => setCapaciteMax(e.target.value)} />
         <Select id="ev-gratuit" label="Tarif" options={GRATUIT_OPTIONS} value={String(estGratuit)} onChange={(e) => setEstGratuit(e.target.value === 'true')} />
         <Select id="ev-statut" label="Statut" options={STATUT_OPTIONS} value={statut} onChange={(e) => setStatut(e.target.value)} />

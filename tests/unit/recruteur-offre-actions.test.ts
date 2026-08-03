@@ -36,6 +36,8 @@ const CTX = {
 const EMPLOI = {
   type: 'emploi', titre: 'Développeur web', description: 'Rejoignez notre équipe.',
   domaine: 'Numerique', region: 'Dakar', typeContrat: 'CDD', dureeContratMois: 12,
+  // GUIC-684 — une offre relève d'au moins un programme, y compris côté recruteur.
+  programmeSlugs: ['yjc'],
 }
 
 beforeEach(() => {
@@ -67,6 +69,19 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     expect(input.base.organisationLibelle).toBe('Simplon Sénégal')
     expect(input.details.typeContrat).toBe('CDD')
     expect(mockAudit).toHaveBeenCalledWith('rec-1', 'opportunite.create', expect.any(Object))
+  })
+
+  // GUIC-684 — l'invariant vaut aussi pour un recruteur : sans ce refus, une offre
+  // partenaire entrerait au catalogue sans rattachement, et l'admin ne pourrait plus
+  // l'éditer sans la rattacher d'abord.
+  it('GUIC-684 — refuse une offre sans programme, avant même de réserver un slug', async () => {
+    mockSession.mockResolvedValue(RECRUTEUR)
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      creerOffreRecruteur({ ...EMPLOI, programmeSlugs: [] } as any),
+    ).rejects.toThrow(/PROGRAMME_REQUIS/)
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(mockPrisma.opportunite.findUnique).not.toHaveBeenCalled()
   })
 
   it('GUIC-508 — sanitise la description riche (contenu tiers) avant création', async () => {
@@ -110,7 +125,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await expect(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Numerique' } as any),
+      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Numerique' , programmeSlugs: ['yjc'] } as any),
     ).rejects.toThrow()
     expect(mockCreate).not.toHaveBeenCalled()
   })
@@ -119,7 +134,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await creerOffreRecruteur(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Numerique', dureeMois: 6, indemnise: true } as any,
+      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Numerique', dureeMois: 6, indemnise: true , programmeSlugs: ['yjc'] } as any,
     )
     const input = mockCreate.mock.calls[0][0]
     expect(input.type).toBe('stage')

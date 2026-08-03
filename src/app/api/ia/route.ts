@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { runAgent, streamAgent } from '@/lib/ia/agent'
 import { logAgentEvent } from '@/lib/ia/agent-logs'
-import { loadContext, saveContext, userContextKey, TTL_USER } from '@/lib/ia/context'
+import { loadContext, appendTurns, userContextKey, TTL_USER } from '@/lib/ia/context'
 import { loadSummary, updateSummary } from '@/lib/ia/memory'
 import { recordWebTurn } from '@/lib/ia/metrics/transcript-store'
 import { loadViewTranscript, appendViewTurn } from '@/lib/ia/transcript-view'
@@ -107,9 +107,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       userText: message,
       assistantText: reply,
     })
-    await saveContext(
+    // Ajout ATOMIQUE (GUIC-678) : deux messages simultanés de la même personne
+    // (deux onglets, ou web + WhatsApp) s'entrelacent au lieu de s'écraser.
+    await appendTurns(
       ctxKey,
-      [...history, { role: 'user', content: message }, { role: 'assistant', content: reply }],
+      [{ role: 'user', content: message }, { role: 'assistant', content: reply }],
       TTL_USER,
     )
     // Transcript d'AFFICHAGE (texte + cards) → permet de réafficher la conversation

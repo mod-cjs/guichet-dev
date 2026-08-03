@@ -18,9 +18,13 @@ import { GET as biblioEmpruntsGET, POST as biblioEmpruntsPOST } from '@/app/api/
 import type { EmpruntVue, SearchLivresResult } from '@/lib/bibliotheque/service'
 import { getRecommandations } from './recommandation'
 import { getGraphPort } from './graph'
+import { rankByRelevance } from './semantic-rank'
+import { texteOpportunite } from './search-warmup'
+import { loadOrBuildApercuMarche } from './graph/market-overview'
 import { submitReservationViaApi } from './reservations-gateway'
 import { callInternalRoute } from './internal-api'
 import { recordEscalade, escaladeReference } from './escalade'
+import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { MAX_OPP_ITEMS, type YayeBlock, type YayeOppItem, type YayeEvenementItem, type YayeRessourceItem, type YayeCentreItem, type YayeNotificationItem } from './blocks'
 import { buildCjsCardUser } from '@/lib/cjs-card-user'
 
@@ -74,6 +78,19 @@ export function diversifyByType<T extends { type: unknown }>(rows: T[], limit: n
     if (item) out.push(item)
   }
   return out
+}
+
+/** Champs nécessaires à l'affichage d'une card d'opportunité. */
+const OPP_CARD_SELECT = {
+  id: true, slug: true, titre: true, type: true, region: true, domaine: true,
+  organisation: true, organisationLibelle: true, deadline: true,
+  typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
+} as const
+
+type OppRow = {
+  id: string; slug: string; titre: string; type: unknown; region: unknown; domaine: unknown
+  organisation: string | null; organisationLibelle: string | null; deadline: Date | null
+  typeRef: { slug: string; libelle: string; actionLabel: string | null } | null
 }
 
 /** Schéma d'un outil au format function-calling (compatible Groq/OpenAI). */
@@ -222,14 +239,19 @@ const searchOpportunities: AgentTool = {
       description:
         "Recherche des opportunités publiées (emploi, stage, bourse, formation, volontariat…) " +
         'selon le domaine, la région, le type et/ou des mots-clés. Renvoie des offres cliquables. ' +
-        "À utiliser dès que l'utilisateur cherche une opportunité ; croise avec son profil si pertinent.",
+        "À utiliser dès que l'utilisateur cherche une opportunité ; croise avec son profil si pertinent.\n" +
+        "IMPORTANT pour `q` : passe la formulation de la personne TELLE QU'ELLE, en langage naturel " +
+        "(« élever des poulets », « je fabrique des sites internet »). La recherche comprend le SENS : " +
+        "elle retrouve « Technicien en aviculture » à partir de « élever des poulets ». Ne réduis " +
+        "donc PAS la demande à un mot-clé isolé — un mot seul porte moins de sens qu'une phrase et " +
+        "dégrade les résultats.",
       parameters: {
         type: 'object',
         properties: {
           domaine: { type: 'string', enum: Object.values(Domaine), description: "Secteur de l'opportunité" },
           region: { type: 'string', enum: Object.values(Region), description: 'Région ciblée' },
           type: { type: 'string', enum: Object.values(TypeOpportunite), description: "Type d'opportunité" },
-          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+          q: { type: 'string', description: "Ce que cherche la personne, dans SES mots (phrase naturelle, pas un mot-clé isolé)" },
         },
         required: [],
       },
@@ -245,22 +267,59 @@ const searchOpportunities: AgentTool = {
     if (inEnum(Region, args.region)) where.region = args.region
     const typeSpecified = inEnum(TypeOpportunite, args.type)
     if (typeSpecified) where.type = args.type as TypeOpportunite
-    if (typeof args.q === 'string' && args.q.trim()) where.titre = { contains: args.q.trim() }
 
-    const rows = await prisma.opportunite.findMany({
-      where,
-      select: {
-        id: true, slug: true, titre: true, type: true, region: true,
-        organisation: true, organisationLibelle: true, deadline: true,
-        typeRef: { select: { slug: true, libelle: true, actionLabel: true } },
-      },
-      orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
-      // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
-      // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », cf. dataset ~38%).
-      take: typeSpecified ? MAX_OPP_ITEMS : 60,
-    })
+    // Mots-clés : on NE filtre PLUS en SQL sur le titre (GUIC-683). Un `LIKE '%poisson%'`
+    // rend ZÉRO résultat quand le catalogue dit « aquaculture ». On élargit donc le vivier
+    // (filtres structurés seulement) et on le CLASSE par pertinence — lexical d'abord,
+    // sémantique en rattrapage.
+    const q = typeof args.q === 'string' ? args.q.trim() : ''
 
-    const selected = typeSpecified ? rows : diversifyByType(rows, MAX_OPP_ITEMS)
+    // ── Recherche par mots-clés : DEUX ÉTAGES (GUIC-683, correctif du 27/07) ──
+    // Le classement portait sur un vivier de 200 offres tirées par échéance — 5 % du
+    // catalogue, choisi par un critère sans rapport avec la pertinence. Aucune des sept
+    // offres d'aviculture actives n'y entrait : « élever des poulets » ne pouvait aboutir
+    // que si le modèle ajoutait un filtre de domaine. Ça marchait quand on n'en avait pas
+    // besoin. Le 1er étage couvre donc TOUT le catalogue actif, en ne chargeant que
+    // l'identifiant et le texte ; seules les retenues sont ensuite hydratées.
+    let candidats: OppRow[]
+    if (q) {
+      const legeres = await prisma.opportunite.findMany({
+        where,
+        select: { id: true, titre: true, organisation: true, organisationLibelle: true, domaine: true, type: true },
+      })
+      const classes = await rankByRelevance(
+        q,
+        // `texteOpportunite` est PARTAGÉ avec le préchauffage : deux formulations
+        // différentes donneraient deux clés de cache, et le préchauffage ne servirait à rien.
+        legeres.map(r => ({ id: r.id, text: texteOpportunite(r) })),
+        { max: MAX_OPP_ITEMS },
+      )
+      if (classes.length === 0) {
+        candidats = []
+      } else {
+        const retenues = await prisma.opportunite.findMany({
+          where: { id: { in: classes.map(c => c.id) } },
+          select: OPP_CARD_SELECT,
+        })
+        // L'ordre du CLASSEMENT prime sur celui de la base.
+        const parId = new Map(retenues.map(r => [r.id, r]))
+        candidats = classes.flatMap(c => {
+          const row = parId.get(c.id)
+          return row ? [row] : []
+        })
+      }
+    } else {
+      candidats = await prisma.opportunite.findMany({
+        where,
+        select: OPP_CARD_SELECT,
+        orderBy: [{ deadline: 'asc' }, { createdAt: 'desc' }],
+        // Type PRÉCISÉ → top-N direct. Type NON précisé → on élargit le vivier puis on
+        // ENTRELACE les types (round-robin) pour un mix (anti « tout emploi », dataset ~38%).
+        take: typeSpecified ? MAX_OPP_ITEMS : 60,
+      })
+    }
+
+    const selected = typeSpecified ? candidats.slice(0, MAX_OPP_ITEMS) : diversifyByType(candidats, MAX_OPP_ITEMS)
 
     const items: YayeOppItem[] = selected.map(r => ({
       id: r.id,
@@ -315,8 +374,10 @@ const getRecommendations: AgentTool = {
     // La raison (réelle, issue du graphe) est portée PAR la card (note), pas renvoyée
     // au LLM : sinon il l'énumère en prose sans connaître les titres → « Opportunité 1, 2… ».
     const noteById = new Map(recos.map(r => [r.opportuniteId, r.raison || null]))
+    // `origine: 'reco'` (GUIC-688) : le lien de la card portera `from=reco`, sinon
+    // le clic issu d'une recommandation serait compté comme une visite directe.
     const items = (await loadOppItems(recos.map(r => r.opportuniteId)))
-      .map(it => ({ ...it, note: noteById.get(it.id) ?? null }))
+      .map(it => ({ ...it, note: noteById.get(it.id) ?? null, origine: 'reco' as const }))
     return {
       ok: true,
       // Fix 4 — signal de succès LISIBLE pour le modèle (sans titres) : les résultats sont
@@ -335,7 +396,10 @@ const getRecommendations: AgentTool = {
 // Outil RÉACTIF du Knowledge Graph (GUIC-433). Groq choisit l'INTENTION et remplit
 // les paramètres ; on route vers le template de traversée correspondant via le
 // GraphPort (Neo4j ou fallback Prisma). Portée RBAC : bornée au cjsUid connecté.
-const GRAPH_INTENTS = ['recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours'] as const
+const GRAPH_INTENTS = [
+  'recherche', 'ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours',
+  'livre_disponible', 'ressources_competences', 'apercu_marche', 'acteurs_programme',
+] as const
 type GraphIntent = (typeof GRAPH_INTENTS)[number]
 
 const queryKnowledgeGraph: AgentTool = {
@@ -351,7 +415,17 @@ const queryKnowledgeGraph: AgentTool = {
         "au jeune + les formations qui les développent (« suis-je prêt ? »).\n" +
         "- `eligibilite` : offres adaptées à son niveau d'étude et son expérience.\n" +
         "- `reco_collaborative` : offres pertinentes au vu de son parcours (présente-les comme adaptées à SON profil, jamais via d'autres usagers ni un nombre).\n" +
-        "- `parcours` : chaîne opportunité → compétence → formation → programme (découverte).",
+        "- `parcours` : chaîne opportunité → compétence → formation → programme (découverte).\n" +
+        "- `livre_disponible` : livres RÉELLEMENT disponibles près de chez lui (mots-clés/thème + région), " +
+        "avec le centre et l'emplacement précis (rayon · étagère · position).\n" +
+        "- `ressources_competences` : guides, vidéos et fiches qui préparent les compétences qui lui " +
+        "MANQUENT pour une offre donnée (opportuniteId) — « avec quoi je me prépare ? ».\n" +
+        "- `apercu_marche` : question GÉNÉRALE sur le marché — « quels secteurs recrutent à Thiès ? », " +
+        "« qu'est-ce qui embauche en ce moment ? », « quelles compétences sont demandées en agro ? ». " +
+        "Renvoie des VOLUMES d'offres (jamais de chiffres sur les usagers).\n" +
+        "- `acteurs_programme` : qui porte un programme CJS sur le terrain — « quels centres " +
+        "déploient YEAH ? », « qui sont les partenaires de Yaakaar ? ». Requiert `programme` " +
+        "(slug : yaakaar, yeah, yjc, edupop).",
       parameters: {
         type: 'object',
         properties: {
@@ -360,7 +434,9 @@ const queryKnowledgeGraph: AgentTool = {
           domaine: { type: 'string', enum: Object.values(Domaine), description: 'Filtre secteur (recherche/parcours)' },
           region: { type: 'string', enum: Object.values(Region), description: 'Filtre région (recherche/parcours)' },
           type: { type: 'string', enum: Object.values(TypeOpportunite), description: "Filtre type (recherche)" },
-          q: { type: 'string', description: 'Mots-clés titre (recherche)' },
+          q: { type: 'string', description: 'Mots-clés : titre (recherche) ou titre/auteur (livre_disponible)' },
+          theme: { type: 'string', description: 'Thème du livre (livre_disponible)' },
+          programme: { type: 'string', description: "Slug du programme (acteurs_programme) : yaakaar, yeah, yjc, edupop" },
         },
         required: ['intent'],
       },
@@ -434,6 +510,116 @@ const queryKnowledgeGraph: AgentTool = {
           },
           block: items.length ? { kind: 'opportunites', items } : undefined,
           graph: { template: 'multi_entity_path', nodesReturned: paths.length },
+        }
+      }
+      case 'livre_disponible': {
+        // Traversée Livre → Exemplaire → Centre → Region (note §5.3). On rend l'emplacement
+        // physique EXACT et l'`exemplaireId`, pour que `borrow_book` puisse enchaîner.
+        const livres = await graph.livresDisponibles({ q: str(args.q), theme: str(args.theme), region: str(args.region) })
+        const base = appUrl()
+        const parLivre = new Map<string, { titre: string; auteur: string; emplacements: Array<Record<string, string>> }>()
+        for (const l of livres) {
+          const entry = parLivre.get(l.livreId) ?? { titre: l.titre, auteur: l.auteur, emplacements: [] }
+          entry.emplacements.push({
+            exemplaireId: l.exemplaireId, centre: l.centreNom, rayon: l.rayon, etagere: l.etagere, position: l.position,
+          })
+          parLivre.set(l.livreId, entry)
+        }
+        const ids = [...parLivre.keys()]
+        return {
+          ok: true,
+          data: {
+            intent,
+            count: ids.length,
+            livres: ids.map(id => ({ id, ...parLivre.get(id)! })),
+          },
+          block: ids.length
+            ? {
+                kind: 'action',
+                title: `${ids.length} livre${ids.length > 1 ? 's' : ''} disponible${ids.length > 1 ? 's' : ''}`,
+                actions: ids.slice(0, 4).map(id => ({
+                  icon: 'book',
+                  label: `${parLivre.get(id)!.titre} — ${parLivre.get(id)!.emplacements[0].centre} · ${parLivre.get(id)!.emplacements[0].rayon}`,
+                })),
+                buttons: ids.slice(0, 3).map(id => ({
+                  label: parLivre.get(id)!.titre.length > 28 ? `${parLivre.get(id)!.titre.slice(0, 25)}…` : parLivre.get(id)!.titre,
+                  // `src=ia` (GUIC-688) : le clic vers la fiche livre reste attribué au chat.
+                  href: `${base}/jeune/bibliotheque/${id}?src=ia`,
+                })),
+              }
+            : undefined,
+          graph: { template: 'livres_disponibles', nodesReturned: livres.length },
+        }
+      }
+      case 'apercu_marche': {
+        // Recherche GLOBALE (GUIC-676) : thématique, impersonnelle, donc mémoïsée et
+        // partagée. Les chiffres portent sur les OFFRES — le pré-screen continue de
+        // refuser tout décompte de personnes.
+        const apercu = await loadOrBuildApercuMarche({ region: str(args.region), domaine: str(args.domaine) })
+        return {
+          ok: true,
+          data: {
+            intent,
+            perimetre: { region: str(args.region) ?? 'tout le Sénégal', domaine: str(args.domaine) ?? 'tous secteurs' },
+            offresOuvertes: apercu.total,
+            parType: apercu.parType,
+            parSecteur: apercu.parDomaine,
+            parRegion: apercu.parRegion,
+            competencesDemandees: apercu.competences,
+            organisationsActives: apercu.organisations,
+          },
+          graph: { template: 'apercu_marche', nodesReturned: apercu.total },
+        }
+      }
+      case 'acteurs_programme': {
+        // GUIC-684 — sans slug on interrogerait tout le graphe pour rien : on refuse,
+        // l'agent redemande. Les acteurs ne sont pas des cards → data brute pour le LLM.
+        const slug = str(args.programme)
+        if (!slug) return { ok: false, error: 'programme requis pour acteurs_programme (slug : yaakaar, yeah, yjc, edupop)' }
+        const acteurs = await graph.acteursDuProgramme(slug)
+        return {
+          ok: true,
+          data: {
+            intent,
+            programme: acteurs.programme,
+            centres: acteurs.centres,
+            organisations: acteurs.organisations,
+            count_centres: acteurs.centres.length,
+            count_organisations: acteurs.organisations.length,
+          },
+          graph: {
+            template: 'acteurs_programme',
+            nodesReturned: acteurs.centres.length + acteurs.organisations.length,
+          },
+        }
+      }
+      case 'ressources_competences': {
+        // Chaîne native au graphe : offre → compétences MANQUANTES → ressources qui les préparent.
+        const oppId = str(args.opportuniteId)
+        if (!oppId) return { ok: false, error: 'opportuniteId requis pour ressources_competences' }
+        const gap = await graph.skillGap(scope, oppId)
+        const slugs = gap.manquantes.map(c => c.slug).filter((s): s is string => Boolean(s))
+        if (slugs.length === 0) {
+          return {
+            ok: true,
+            data: { intent, manquantes: [], count: 0 },
+            graph: { template: 'ressources_prepa', nodesReturned: 0 },
+          }
+        }
+        const ressources = await graph.ressourcesPourCompetences(slugs)
+        const items: YayeRessourceItem[] = ressources.map(r => ({
+          id: r.id, titre: r.titre, type: r.type, theme: r.theme, niveau: r.niveau,
+        }))
+        return {
+          ok: true,
+          data: {
+            intent,
+            manquantes: gap.manquantes.map(c => c.libelle),
+            count: items.length,
+            resultsShownAsCards: items.length > 0,
+          },
+          block: items.length ? { kind: 'ressources', items } : undefined,
+          graph: { template: 'ressources_prepa', nodesReturned: ressources.length },
         }
       }
     }
@@ -546,7 +732,7 @@ const reserveResource: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const ressourceId = typeof args.ressourceId === 'string' ? args.ressourceId.trim() : ''
     const date = typeof args.date === 'string' ? args.date.trim() : ''
     const creneauDebut = typeof args.creneauDebut === 'string' ? args.creneauDebut.trim() : ''
@@ -598,14 +784,17 @@ const reserveResource: AgentTool = {
     }
 
     // Étape 2 — écriture via l'endpoint EXISTANT (aucune règle métier dupliquée ici).
-    const result = await submitReservationViaApi({
-      ressourceId,
-      dateReservee: `${date}T12:00:00.000Z`,
-      creneauDebut,
-      creneauFin,
-      nombrePersonnes,
-      motif,
-    })
+    const result = await submitReservationViaApi(
+      {
+        ressourceId,
+        dateReservee: `${date}T12:00:00.000Z`,
+        creneauDebut,
+        creneauFin,
+        nombrePersonnes,
+        motif,
+      },
+      ctx.cjsUid,
+    )
 
     if (result.ok) {
       const accepted = result.reservation.statut === 'Acceptee'
@@ -658,7 +847,7 @@ const getBadge: AgentTool = {
   },
   async execute(_args, ctx) {
     const base = appUrl()
-    const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token' })
+    const r = await callInternalRoute(cjsCardQrTokenGET, { method: 'GET', path: '/api/cjs-card/qr-token', actorCjsUid: ctx.cjsUid })
     const data = r.json.data as { expiresAt?: string; token?: string } | undefined
 
     if (r.ok && data?.token) {
@@ -776,6 +965,7 @@ const submitApplication: AgentTool = {
       method: 'POST',
       path: '/api/candidatures',
       body: { opportuniteId, lettreMotivation, cvUrl: profil?.cvUrl ?? undefined, notificationsConsent },
+      actorCjsUid: ctx.cjsUid,
     })
 
     if (r.ok) {
@@ -911,10 +1101,9 @@ const escalateToAdvisor: AgentTool = {
         kind: 'escalade',
         reference,
         danger: !!dangerSignal,
-        title: alreadyPending ? 'Ta demande est déjà entre de bonnes mains' : 'Demande transmise à un conseiller',
-        message: alreadyPending
-          ? "Un membre de l'équipe CJS s'en occupe déjà et te répondra ici même. Garde cette référence si tu veux la rappeler."
-          : "Un membre de l'équipe CJS va prendre le relais et te répondra ici même. Garde cette référence si tu veux la rappeler — en attendant, tu peux aussi joindre un centre.",
+        title: escaladeTitre({ dejaEnCours: alreadyPending }),
+        // Aucune promesse de réponse dans le fil tant que le canal conseiller n'existe pas.
+        message: escaladeMessage({ danger: !!dangerSignal, dejaEnCours: alreadyPending }),
         button: { label: 'Trouver un centre CJS', href: `${base}/centres` },
       },
     }
@@ -947,7 +1136,7 @@ const searchLibrary: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const qs = new URLSearchParams()
     if (typeof args.q === 'string' && args.q.trim()) qs.set('q', args.q.trim())
     if (typeof args.theme === 'string' && args.theme.trim()) qs.set('theme', args.theme.trim())
@@ -956,6 +1145,7 @@ const searchLibrary: AgentTool = {
     const r = await callInternalRoute(biblioLivresGET, {
       method: 'GET',
       path: `/api/bibliotheque/livres?${qs.toString()}`,
+      actorCjsUid: ctx.cjsUid,
     })
     if (!r.ok) {
       if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour consulter la bibliothèque.' }
@@ -1021,7 +1211,7 @@ const borrowBook: AgentTool = {
       },
     },
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const exemplaireId = typeof args.exemplaireId === 'string' ? args.exemplaireId : ''
     const confirm = args.confirm === true
     if (!exemplaireId) return { ok: false, error: "Précise quel exemplaire emprunter (exemplaireId)." }
@@ -1066,6 +1256,7 @@ const borrowBook: AgentTool = {
       method: 'POST',
       path: '/api/bibliotheque/emprunts',
       body: { exemplaireId },
+      actorCjsUid: ctx.cjsUid,
     })
     if (r.ok) {
       const emprunt = (r.json.data as { emprunt: EmpruntVue }).emprunt
@@ -1111,8 +1302,8 @@ const getActiveLoans: AgentTool = {
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
-  async execute() {
-    const r = await callInternalRoute(biblioEmpruntsGET, { method: 'GET', path: '/api/bibliotheque/emprunts' })
+  async execute(_args, ctx) {
+    const r = await callInternalRoute(biblioEmpruntsGET, { method: 'GET', path: '/api/bibliotheque/emprunts', actorCjsUid: ctx.cjsUid })
     if (!r.ok) {
       if (r.unauthenticated) return { ok: false, error: 'Connecte-toi pour voir tes emprunts.' }
       return { ok: false, error: r.json.error?.message ?? 'Impossible de récupérer tes emprunts.' }
@@ -1159,7 +1350,7 @@ const searchEvents: AgentTool = {
         type: 'object',
         properties: {
           type: { type: 'string', enum: Object.values(TypeEvenement), description: "Type d'événement" },
-          q: { type: 'string', description: 'Mots-clés à chercher dans le titre' },
+          q: { type: 'string', description: "Ce que cherche la personne, dans SES mots (phrase naturelle, pas un mot-clé isolé)" },
         },
         required: [],
       },

@@ -1,0 +1,1453 @@
+{
+  "contract_version": "2.0",
+  "streams": [
+    {
+      "name": "utilisateurs",
+      "path": "/api/v1/export/utilisateurs",
+      "primary_keys": [
+        "cjs_uid"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Claim `sub` du token SSO — identifiant pivot du jeune dans tout l'écosystème CJS, et seule clé de jointure inter-plateformes.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Dakar",
+              "Thies",
+              "Diourbel",
+              "Fatick",
+              "Kaolack",
+              "Kaffrine",
+              "Louga",
+              "Saint_Louis",
+              "Matam",
+              "Tambacounda",
+              "Kedougou",
+              "Kolda",
+              "Ziguinchor",
+              "Sedhiou",
+              null
+            ],
+            "description": "Région administrative de résidence, parmi les 14 du Sénégal.",
+            "x-cjs-tier": "public"
+          },
+          "commune": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Commune de résidence, saisie libre à l'onboarding — non normalisée.",
+            "x-cjs-tier": "public"
+          },
+          "genre": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "M",
+              "F",
+              null
+            ],
+            "description": "Genre déclaré : `M` ou `F`.",
+            "x-cjs-tier": "public"
+          },
+          "tranche_age": {
+            "type": [
+              "string"
+            ],
+            "description": "Tranche d'âge à la date d'extraction : -18, 18-24, 25-29, 30-34, 35+, ou inconnu quand la date de naissance est absente ou aberrante. Dérivée d'une donnée identifiante qui, elle, n'est jamais exportée.",
+            "x-cjs-tier": "public"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "actif",
+              "inactif",
+              "anonymise"
+            ],
+            "description": "État du compte : `actif`, `inactif`, ou `anonymise` après exercice du droit à l'oubli.",
+            "x-cjs-tier": "public"
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login).",
+            "x-cjs-tier": "public"
+          },
+          "onboarding_complete": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Le parcours d'onboarding a été mené à son terme. Distingue un compte créé d'un compte réellement activé.",
+            "x-cjs-tier": "public"
+          },
+          "date_inscription": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création du compte — sert de date d'inscription dans les indicateurs.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification du compte. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Suppression logique. Non nulle, la ligne reste exportée avec cette date pour que l'entrepôt propage la suppression au lieu de conserver un fantôme.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "profils_jeunes",
+      "path": "/api/v1/export/profils_jeunes",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant technique du profil, distinct du `cjs_uid` du compte porteur.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Compte porteur du profil — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "niveau_etude": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Niveau d'études le plus élevé atteint, déclaré par le jeune.",
+            "x-cjs-tier": "public"
+          },
+          "situation_emploi": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Situation professionnelle déclarée au moment de la dernière mise à jour du profil.",
+            "x-cjs-tier": "public"
+          },
+          "situation_handicap": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "aucun",
+              "moteur",
+              "visuel",
+              "auditif",
+              "autre",
+              "non_precise",
+              null
+            ],
+            "description": "Situation de handicap auto-déclarée : `aucun`, `moteur`, `visuel`, `auditif`, `autre`, `non_precise`. Facultative et hors score de complétion (GUIC-660).",
+            "x-cjs-tier": "public"
+          },
+          "zone_habitation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "rural",
+              "urbain",
+              null
+            ],
+            "description": "Zone d'habitation auto-déclarée : `rural` ou `urbain`. Facultative (GUIC-660).",
+            "x-cjs-tier": "public"
+          },
+          "completion_score": {
+            "type": [
+              "integer"
+            ],
+            "description": "Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()",
+            "x-cjs-tier": "public"
+          },
+          "centre_principal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Centre de rattachement principal, suggéré à l'onboarding depuis la région SSO puis modifiable.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création du profil.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification du profil. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "opportunites",
+      "path": "/api/v1/export/opportunites",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de l'opportunité.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "slug": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant lisible utilisé dans l'URL publique.",
+            "x-cjs-tier": "public"
+          },
+          "titre": {
+            "type": [
+              "string"
+            ],
+            "description": "Intitulé de l'offre tel qu'affiché au public.",
+            "x-cjs-tier": "public"
+          },
+          "type_legacy": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "Emploi",
+              "Stage",
+              "Formation",
+              "Bourse",
+              "Volontariat",
+              "Appel_a_projets"
+            ],
+            "description": "Type historique de l'offre (enum legacy). Conservé le temps de la migration polymorphique ; `type_id` est la forme cible.",
+            "x-cjs-tier": "public"
+          },
+          "type_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Type de l'offre dans le référentiel polymorphique. Nullable tant que la migration des données legacy n'est pas achevée.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "domaine": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "Agriculture",
+              "Numerique",
+              "Entrepreneuriat",
+              "Citoyennete",
+              "Environnement",
+              "Sante",
+              "Education",
+              "Culture",
+              "Autre"
+            ],
+            "description": "Secteur d'activité : agriculture, numérique, entrepreneuriat, citoyenneté, environnement, santé, éducation, culture, autre.",
+            "x-cjs-tier": "public"
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Dakar",
+              "Thies",
+              "Diourbel",
+              "Fatick",
+              "Kaolack",
+              "Kaffrine",
+              "Louga",
+              "Saint_Louis",
+              "Matam",
+              "Tambacounda",
+              "Kedougou",
+              "Kolda",
+              "Ziguinchor",
+              "Sedhiou",
+              null
+            ],
+            "description": "Région ciblée par l'offre — pas nécessairement celle du candidat.",
+            "x-cjs-tier": "public"
+          },
+          "organisation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organisation émettrice dans le référentiel. Nullable pour les offres importées sans organisation identifiée.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "organisation_libelle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Nom de l'organisation émettrice tel qu'affiché, y compris quand elle n'est pas au référentiel.",
+            "x-cjs-tier": "public"
+          },
+          "niveau_etude_min": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "BFEM",
+              "BAC",
+              "BAC_PLUS_2",
+              "BAC_PLUS_3",
+              "BAC_PLUS_5",
+              "DOCTORAT",
+              null
+            ],
+            "description": "Niveau d'études minimum requis, tel que renseigné par l'émetteur.",
+            "x-cjs-tier": "public"
+          },
+          "remuneration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rémunération annoncée, en texte libre — non normalisée, non comparable entre offres.",
+            "x-cjs-tier": "public"
+          },
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Date limite de candidature. Au-delà, l'offre passe en `expiree`.",
+            "x-cjs-tier": "public"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "brouillon",
+              "publiee",
+              "archivee",
+              "expiree"
+            ],
+            "description": "Cycle de vie éditorial : `brouillon`, `publiee`, `archivee`, `expiree`.",
+            "x-cjs-tier": "public"
+          },
+          "recruteur_uid": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Recruteur propriétaire de l'offre, quand elle a été déposée depuis l'espace recruteur.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "vues": {
+            "type": [
+              "integer"
+            ],
+            "description": "Compteur cumulé d'affichages du détail. Incrémenté en direct, sans déduplication par visiteur.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création de l'offre.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification de l'offre. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Suppression logique. Non nulle, la ligne reste exportée pour que l'entrepôt propage la suppression.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "candidatures",
+      "path": "/api/v1/export/candidatures",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de la candidature.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune candidat — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "opportunite_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Offre visée — clé de jointure vers `opportunites`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "En_attente",
+              "Vue",
+              "Retenue",
+              "Refusee"
+            ],
+            "description": "Décision côté offre : `En_attente`, `Vue`, `Retenue`, `Refusee`.",
+            "x-cjs-tier": "public"
+          },
+          "pipeline_stage": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "Recue",
+              "Preselection",
+              "Entretien",
+              "Decision"
+            ],
+            "description": "Étape du pipeline recruteur : `Recue`, `Preselection`, `Entretien`, `Decision`. Distincte du statut, qui porte la décision finale.",
+            "x-cjs-tier": "public"
+          },
+          "score_adequation": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Score d'adéquation candidat/offre calculé par IA, de 0 à 100. Nul tant que le calcul de fond n'a pas eu lieu.",
+            "x-cjs-tier": "public"
+          },
+          "score_calcule_le": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Date du calcul du score d'adéquation. Permet de distinguer un score absent d'un score jamais calculé.",
+            "x-cjs-tier": "public"
+          },
+          "favori_recruteur": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Candidature marquée comme favorite par le recruteur.",
+            "x-cjs-tier": "public"
+          },
+          "notifications_consent": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Le candidat a accepté d'être notifié du suivi de sa candidature.",
+            "x-cjs-tier": "public"
+          },
+          "consent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Horodatage de l'acceptation des CGU. Traçabilité exigée par l'audit CDP.",
+            "x-cjs-tier": "public"
+          },
+          "cgu_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Version des CGU acceptée, pour savoir à quel texte le consentement se rapporte.",
+            "x-cjs-tier": "public"
+          },
+          "soumise_a": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de soumission de la candidature — début du délai de traitement.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "evenements",
+      "path": "/api/v1/export/evenements",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de l'événement.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "titre": {
+            "type": [
+              "string"
+            ],
+            "description": "Intitulé de l'événement tel qu'affiché.",
+            "x-cjs-tier": "public"
+          },
+          "type": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "Formation",
+              "Atelier",
+              "Forum",
+              "Webinar",
+              "Conference",
+              "Cours"
+            ],
+            "description": "Nature de l'événement : formation, atelier, forum, webinaire, conférence, cours.",
+            "x-cjs-tier": "public"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "a_venir",
+              "en_cours",
+              "termine",
+              "annule",
+              "en_relecture",
+              "refuse"
+            ],
+            "description": "Cycle de vie : `a_venir`, `en_cours`, `termine`, `annule`, plus `en_relecture` et `refuse` pour la validation admin.",
+            "x-cjs-tier": "public"
+          },
+          "date_debut": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Début de l'événement.",
+            "x-cjs-tier": "public"
+          },
+          "date_fin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Fin de l'événement.",
+            "x-cjs-tier": "public"
+          },
+          "lieu": {
+            "type": [
+              "string"
+            ],
+            "description": "Lieu tel que saisi, en texte libre — non géocodé.",
+            "x-cjs-tier": "public"
+          },
+          "centre_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Centre organisateur, quand l'événement s'y tient.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "capacite_max": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Nombre de places. Au-delà, les inscriptions basculent en liste d'attente.",
+            "x-cjs-tier": "public"
+          },
+          "est_gratuit": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Participation gratuite.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création de la fiche.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "inscriptions_evenements",
+      "path": "/api/v1/export/inscriptions_evenements",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de l'inscription.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune inscrit — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "evenement_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Événement concerné — clé de jointure vers `evenements`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "inscrit",
+              "liste_attente",
+              "annule",
+              "present"
+            ],
+            "description": "`inscrit`, `liste_attente`, `annule`, ou `present` une fois la présence constatée.",
+            "x-cjs-tier": "public"
+          },
+          "inscrit_a": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de l'inscription.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "centres",
+      "path": "/api/v1/export/centres",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant du centre.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "nom_centre": {
+            "type": [
+              "string"
+            ],
+            "description": "Nom du centre — désigne l'établissement, jamais une personne.",
+            "x-cjs-tier": "public"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Identifiant lisible utilisé dans l'URL publique.",
+            "x-cjs-tier": "public"
+          },
+          "region": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "Dakar",
+              "Thies",
+              "Diourbel",
+              "Fatick",
+              "Kaolack",
+              "Kaffrine",
+              "Louga",
+              "Saint_Louis",
+              "Matam",
+              "Tambacounda",
+              "Kedougou",
+              "Kolda",
+              "Ziguinchor",
+              "Sedhiou"
+            ],
+            "description": "Région d'implantation.",
+            "x-cjs-tier": "public"
+          },
+          "ville": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ville d'implantation.",
+            "x-cjs-tier": "public"
+          },
+          "adresse": {
+            "type": [
+              "string"
+            ],
+            "description": "Adresse postale du centre. Donnée d'établissement, publiée sur la fiche.",
+            "x-cjs-tier": "public"
+          },
+          "latitude": {
+            "type": [
+              "number"
+            ],
+            "description": "Latitude du centre, pour la carte et les calculs de proximité.",
+            "x-cjs-tier": "public"
+          },
+          "longitude": {
+            "type": [
+              "number"
+            ],
+            "description": "Longitude du centre.",
+            "x-cjs-tier": "public"
+          },
+          "est_actif": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Centre ouvert au public. Un centre inactif reste référencé mais n'accepte plus de réservation.",
+            "x-cjs-tier": "public"
+          },
+          "conseillers_count": {
+            "type": [
+              "integer"
+            ],
+            "description": "Nombre de conseillers affectés, saisi et non calculé.",
+            "x-cjs-tier": "public"
+          },
+          "gc_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Identifiant du centre dans la plateforme Gestion Centres — clé de rapprochement inter-plateformes.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création de la fiche.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "reservations",
+      "path": "/api/v1/export/reservations",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de la réservation.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune réservant — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "centre_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Centre où la ressource est réservée.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "ressource_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Ressource matérielle réservée au sein du centre.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "date_reservee": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Jour calendaire réservé, sans heure — le créneau porte l'horaire.",
+            "x-cjs-tier": "public"
+          },
+          "creneau_debut": {
+            "type": [
+              "string"
+            ],
+            "description": "Heure de début du créneau, au format HH:MM.",
+            "x-cjs-tier": "public"
+          },
+          "creneau_fin": {
+            "type": [
+              "string"
+            ],
+            "description": "Heure de fin du créneau, au format HH:MM.",
+            "x-cjs-tier": "public"
+          },
+          "nombre_personnes": {
+            "type": [
+              "integer"
+            ],
+            "description": "Nombre de personnes annoncées pour le créneau.",
+            "x-cjs-tier": "public"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "EnAttente",
+              "Acceptee",
+              "Refusee",
+              "AnnuleeParJeune",
+              "AnnuleeParCentre",
+              "Passee",
+              "NonHonoree"
+            ],
+            "description": "`EnAttente`, `Acceptee`, `Refusee`, `AnnuleeParJeune`, `AnnuleeParCentre`, puis `Passee` ou `NonHonoree` posés par le batch quotidien.",
+            "x-cjs-tier": "public"
+          },
+          "no_show": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Absence constatée : créneau passé sans passage badgé associé.",
+            "x-cjs-tier": "public"
+          },
+          "decision_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Horodatage de la décision du centre sur la réservation.",
+            "x-cjs-tier": "public"
+          },
+          "annulee_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Horodatage de l'annulation, quelle qu'en soit l'origine.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de la demande de réservation.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation) sans qu'aucune colonne ne datait la modification.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "checkins",
+      "path": "/api/v1/export/checkins",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "effectue_a",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant du passage.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune ayant badgé — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "centre_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Centre où le passage a été enregistré.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "reservation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Réservation honorée par ce passage, quand il y en a une. Nul pour une visite spontanée.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "via": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "QrCard",
+              "Manuel"
+            ],
+            "description": "Mode d'enregistrement : `QrCard` par scan de la MyCJSCard, `Manuel` par saisie du staff.",
+            "x-cjs-tier": "public"
+          },
+          "effectue_a": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Horodatage du passage. Table append-only : sert de watermark de réplication.",
+            "x-cjs-tier": "public"
+          },
+          "dwell_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Durée de présence en minutes, quand elle a pu être mesurée.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "ressources",
+      "path": "/api/v1/export/ressources",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de la ressource.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "titre": {
+            "type": [
+              "string"
+            ],
+            "description": "Intitulé de la ressource tel qu'affiché.",
+            "x-cjs-tier": "public"
+          },
+          "type": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "PDF",
+              "Video",
+              "Lien",
+              "Guide",
+              "Outil"
+            ],
+            "description": "Support : `PDF`, `Video`, `Lien`, `Guide`, `Outil`.",
+            "x-cjs-tier": "public"
+          },
+          "theme": {
+            "type": [
+              "string"
+            ],
+            "description": "Thématique principale, saisie libre côté admin.",
+            "x-cjs-tier": "public"
+          },
+          "categorie": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Catégorie de classement complémentaire au thème.",
+            "x-cjs-tier": "public"
+          },
+          "niveau": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "Debutant",
+              "Intermediaire",
+              "Avance",
+              null
+            ],
+            "description": "GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.",
+            "x-cjs-tier": "public"
+          },
+          "langue": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "FR",
+              "Wolof",
+              null
+            ],
+            "description": "Langue du contenu.",
+            "x-cjs-tier": "public"
+          },
+          "est_public": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Ressource accessible sans authentification.",
+            "x-cjs-tier": "public"
+          },
+          "vues": {
+            "type": [
+              "integer"
+            ],
+            "description": "Compteur cumulé de consultations. Incrémenté en direct, sans déduplication par visiteur.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de publication de la ressource.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "consultations",
+      "path": "/api/v1/export/consultations",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "created_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de la consultation.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "type_entite": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "opportunite",
+              "ressource",
+              "evenement",
+              "centre",
+              "livre",
+              "programme",
+              "organisation"
+            ],
+            "description": "Nature de l'entité consultée : opportunité, ressource, événement, centre, livre, programme, organisation.",
+            "x-cjs-tier": "public"
+          },
+          "entite_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de l'entité consultée. Pas de clé étrangère : la relation est polymorphe et l'intégrité repose sur l'applicatif.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "type_event": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "impression",
+              "consultation"
+            ],
+            "description": "`impression` quand le contenu a été présenté, `consultation` quand il a été ouvert. Le rapport des deux donne le taux de clic.",
+            "x-cjs-tier": "public"
+          },
+          "canal": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "web",
+              "ia_web",
+              "whatsapp"
+            ],
+            "description": "Canal d'origine : `web`, `ia_web` pour l'agent Yaye sur le site, `whatsapp`.",
+            "x-cjs-tier": "public"
+          },
+          "cjs_uid": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null si visiteur anonyme.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "sujet_hash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pseudonyme HMAC-SHA256 du visiteur anonyme (empreinte IP + user-agent, jamais stockées en clair). Null pour un utilisateur connecté : son parcours se suit par cjs_uid.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "origine": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "reco_ia | recherche | favoris | notification | direct | ia | wa",
+            "x-cjs-tier": "public"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Corrèle avec `AgentLog.sessionId` pour les canaux IA/WhatsApp.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Horodatage de la consultation. Table append-only : sert de watermark de réplication.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "emprunts",
+      "path": "/api/v1/export/emprunts",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de l'emprunt.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune emprunteur — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "exemplaire_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Exemplaire physique emprunté, localisé dans un centre.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "statut": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "initie",
+              "en_cours",
+              "rendu",
+              "en_retard",
+              "annule"
+            ],
+            "description": "`initie` en ligne, `en_cours` après retrait au centre, `rendu`, `en_retard`, ou `annule`.",
+            "x-cjs-tier": "public"
+          },
+          "initie_a": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de la demande d'emprunt en ligne.",
+            "x-cjs-tier": "public"
+          },
+          "confirme_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Date du retrait effectif au centre, constaté au scan du badge.",
+            "x-cjs-tier": "public"
+          },
+          "date_retour_prevue": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Date de retour attendue, fixée à la confirmation.",
+            "x-cjs-tier": "public"
+          },
+          "rendu_a": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Date du retour effectif, constatée au scan.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création de la ligne d'emprunt.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour) sans qu'aucune colonne ne datait la modification.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "programmes",
+      "path": "/api/v1/export/programmes",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "updated_at",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant du programme.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "slug": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant lisible utilisé dans l'URL publique.",
+            "x-cjs-tier": "public"
+          },
+          "nom_programme": {
+            "type": [
+              "string"
+            ],
+            "description": "Nom du programme sectoriel — désigne un dispositif, jamais une personne.",
+            "x-cjs-tier": "public"
+          },
+          "actif": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme en cours. Un programme inactif reste exporté pour l'historique.",
+            "x-cjs-tier": "public"
+          },
+          "created_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Date de création du programme.",
+            "x-cjs-tier": "public"
+          },
+          "updated_at": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Dernière modification. Watermark de réplication Data Hub.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    }
+  ]
+}

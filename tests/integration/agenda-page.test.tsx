@@ -12,6 +12,12 @@ jest.mock('@/lib/loaders/evenements', () => ({
   listEvenements: (...a: unknown[]) => mockListEvenements(...a),
 }))
 
+// GUIC-684 — la page charge les programmes proposés au filtrage : on mocke la
+// source (le test cible le rendu de la page, pas le référentiel).
+jest.mock('@/lib/programmes/options', () => ({
+  loadProgrammeOptions: jest.fn(async () => [{ slug: 'yeah', nom: 'YEAH' }]),
+}))
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), prefetch: jest.fn() }),
   useSearchParams: () => new URLSearchParams(),

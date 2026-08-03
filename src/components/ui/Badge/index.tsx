@@ -1,6 +1,6 @@
 import { HTMLAttributes } from 'react'
 
-type BadgeVariant = 'teal' | 'yellow' | 'red' | 'blue' | 'green' | 'grey' | 'new'
+type BadgeVariant = 'teal' | 'yellow' | 'red' | 'blue' | 'cyan' | 'green' | 'grey' | 'new'
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant
@@ -11,6 +11,7 @@ const VARIANTS: Record<BadgeVariant, string> = {
   yellow: 'bg-gj-yellow-soft text-gj-yellow-ink',
   red:    'bg-gj-red-soft text-gj-red-ink',
   blue:   'bg-gj-blue-soft text-gj-blue-ink',
+  cyan:   'bg-gj-cyan-soft text-gj-cyan-ink',
   green:  'bg-gj-green-soft text-gj-green-ink',
   grey:   'bg-gj-bg text-gj-grey',
   new:    'bg-gj-teal text-white',

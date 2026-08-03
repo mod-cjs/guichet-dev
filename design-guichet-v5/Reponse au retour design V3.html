@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Réponse au retour design V3 — Guichet Jeunesse Sénégal</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="assets/icons.css">
+<script src="assets/icons.js" defer></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--gj-bg);font-family:var(--gj-font-sans);color:var(--gj-ink)}
+.gj-icon{display:inline-block;flex-shrink:0;vertical-align:middle}
+.page{max-width:900px;margin:0 auto;padding:56px 60px 80px}
+.cover{background:linear-gradient(135deg,var(--gj-teal-deep) 0%,var(--gj-ink-teal) 100%);color:#fff;border-radius:20px;padding:40px 42px;position:relative;overflow:hidden;margin-bottom:40px}
+.cover .glow{position:absolute;right:-60px;top:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(249,196,0,.2),transparent 62%);pointer-events:none}
+.cover .eyebrow{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--gj-yellow);display:flex;align-items:center;gap:8px}
+.cover h1{font-size:32px;font-weight:900;line-height:1.14;margin:14px 0 0}
+.cover p{font-size:15px;line-height:1.6;opacity:.92;margin:12px 0 0;max-width:620px}
+h2.sec{font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--gj-grey);margin:44px 0 16px;padding-bottom:10px;border-bottom:2px solid var(--gj-line)}
+.intro{font-size:15px;line-height:1.7}
+.item{background:#fff;border:1.5px solid var(--gj-line);border-radius:16px;padding:22px 24px;margin-bottom:14px}
+.item-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px}
+.num{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;background:var(--gj-teal-soft);color:var(--gj-teal-deep)}
+.item-head h3{font-size:17px;font-weight:900;margin:0;line-height:1.25}
+.item-head .sub{font-size:12.5px;color:var(--gj-grey);margin-top:3px;line-height:1.5}
+.state{font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0;margin-left:auto}
+.done{background:var(--cat-formation-soft);color:var(--cat-formation-ink)}
+.wait{background:var(--cat-financement-soft);color:var(--cat-financement-ink)}
+ul.list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+ul.list li{display:flex;gap:10px;font-size:13.5px;line-height:1.55}
+ul.list li svg{width:16px;height:16px;color:var(--gj-teal-deep);flex-shrink:0;margin-top:2px}
+.files{margin-top:13px;padding-top:12px;border-top:1px dashed var(--gj-line);font-size:11.5px;color:var(--gj-grey-2);line-height:1.6}
+.files b{color:var(--gj-grey);font-weight:800}
+.swatches{display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+.sw{min-width:112px}
+.sw span.chip{display:block;height:46px;border-radius:10px;border:1px solid rgba(0,0,0,.06)}
+.sw b{display:block;font-size:12.5px;margin-top:6px}
+.sw code{font-size:10.5px;color:var(--gj-grey);font-family:ui-monospace,monospace}
+.note{display:flex;gap:12px;background:var(--gj-yellow-soft);border-radius:12px;padding:15px 17px;margin-top:14px}
+.note svg{width:20px;height:20px;color:var(--gj-yellow-ink);flex-shrink:0}
+.note p{margin:0;font-size:13px;line-height:1.55;color:var(--gj-yellow-ink);font-weight:600}
+.foot{margin-top:48px;padding-top:20px;border-top:2px solid var(--gj-line);font-size:12px;color:var(--gj-grey-2);text-align:center;line-height:1.6}
+a{color:var(--gj-teal-deep)}a:hover{color:var(--gj-teal-deep-2)}
+@media print{body{background:#fff}.page{padding:0 0 30px}.cover{border-radius:0}}
+</style>
+</head>
+<body>
+<div class="page">
+<section class="cover">
+<span class="glow"></span>
+<div class="eyebrow"><svg class="gj-icon" style="width:15px;height:15px"><use href="#i-shield"/></svg>Retour design V3 — réponse</div>
+<h1>Ce que nous avons changé,<br>point par point</h1>
+<p>Chaque recommandation du retour design a été traduite en règle de design system, puis appliquée aux écrans concernés. Les règles sont désormais documentées dans le Lot 14 (« Règles design V3 ») pour rester opposables aux prochains écrans.</p>
+</section>
+
+<h2 class="sec">1 · Couleur d'action unique</h2>
+<div class="item">
+<div class="item-head"><span class="num">01</span><div><h3>Un magenta réservé à la conversion</h3><div class="sub">Le teal servait à la fois de marque, de navigation, de lien et de bouton principal : plus rien ne ressortait. Une couleur d'action dédiée a été introduite dans les tokens.</div></div><span class="state done">Appliqué</span></div>
+<div class="swatches">
+<div class="sw"><span class="chip" style="background:var(--gj-action)"></span><b>Action</b><code>--gj-action</code></div>
+<div class="sw"><span class="chip" style="background:var(--gj-action-deep)"></span><b>Action · survol</b><code>--gj-action-deep</code></div>
+<div class="sw"><span class="chip" style="background:var(--gj-teal-deep)"></span><b>Marque / nav</b><code>--gj-teal-deep</code></div>
+</div>
+<ul class="list">
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Postuler, Envoyer ma candidature, S'inscrire, Soumettre pour validation, Envoyer la demande : passés en magenta.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Une seule action pleine par écran — les boutons de rangée de la liste d'opportunités deviennent secondaires (« Voir l'offre »).</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Sur fond sombre (hero, carte CJS), l'action garde le jaune : le magenta n'y passe pas le contraste AA.</li>
+</ul>
+<div class="files"><b>Fichiers :</b> tokens.css · lot3-opps-web.jsx · lot3-opps-mobile.jsx · phone.jsx (FooterCTA) · events-web.jsx · events-mobile.jsx · centres-web.jsx · recruteur-web.jsx · yaye-web.jsx</div>
+</div>
+
+<h2 class="sec">2 · Code couleur par catégorie</h2>
+<div class="item">
+<div class="item-head"><span class="num">02</span><div><h3>Une catégorie = une couleur, partout</h3><div class="sub">Les badges utilisaient des tons génériques (cjs, partner, info) sans signification, et le rouge codait parfois le type d'offre. Le rouge est maintenant strictement réservé à l'urgence de date limite.</div></div><span class="state done">Appliqué</span></div>
+<div class="swatches">
+<div class="sw"><span class="chip" style="background:var(--cat-emploi)"></span><b>Emploi</b><code>--cat-emploi</code></div>
+<div class="sw"><span class="chip" style="background:var(--cat-stage)"></span><b>Stage</b><code>--cat-stage</code></div>
+<div class="sw"><span class="chip" style="background:var(--cat-formation)"></span><b>Formation</b><code>--cat-formation</code></div>
+<div class="sw"><span class="chip" style="background:var(--cat-financement)"></span><b>Financement</b><code>--cat-financement</code></div>
+<div class="sw"><span class="chip" style="background:var(--cat-evenement)"></span><b>Événement</b><code>--cat-evenement</code></div>
+<div class="sw"><span class="chip" style="background:var(--gj-red)"></span><b>Urgence</b><code>--gj-red</code></div>
+</div>
+<ul class="list">
+<li><svg class="gj-icon"><use href="#i-check"/></svg>La couleur du badge est désormais déduite du libellé de catégorie : impossible de la mettre en contradiction avec le contenu.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Type et urgence sont deux pastilles distinctes (« Stage » + « J-3 »), plus un badge fusionné rouge.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Alignement des sous-types Yaye (alternance, bourse, financement) sur les mêmes valeurs.</li>
+</ul>
+<div class="files"><b>Fichiers :</b> tokens.css · lot3-opps-web.jsx · lot3-opps-mobile.jsx · web-dashboard.jsx (WebOppCard, donc aussi tablette) · yaye-web.jsx · web-onboarding.jsx</div>
+</div>
+
+<h2 class="sec">3 · Accueil : impact immédiat</h2>
+<div class="item">
+<div class="item-head"><span class="num">03</span><div><h3>La proposition de valeur en premier, un seul CTA</h3><div class="sub">Le hero disait « Ton avenir commence ici » sans nommer les trois piliers, et deux boutons pleins se disputaient l'attention.</div></div><span class="state done">Appliqué</span></div>
+<ul class="list">
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Web : « Accédez aux opportunités d'emploi, de formation et de financement. » en titre, les trois piliers en jaune.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Mobile : « Emploi, formation, financement — au même endroit. », visible sans défilement à 390 px.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Un seul bouton plein — « Explorer les opportunités » — l'inscription et WhatsApp passent en lien secondaire ; le « Créer mon compte » de l'en-tête devient un bouton contour.</li>
+</ul>
+<div class="files"><b>Fichiers :</b> web-onboarding.jsx · onboarding.jsx</div>
+</div>
+
+<h2 class="sec">4 · Imagerie & crédibilité</h2>
+<div class="item">
+<div class="item-head"><span class="num">04</span><div><h3>Emplacements de photos réelles, bannières thématiques, logos partenaires</h3><div class="sub">Le projet ne contenait aucune photo. Des emplacements sont maintenant en place, prêts à recevoir vos images.</div></div><span class="state wait">En attente de vos photos</span></div>
+<ul class="list">
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Emplacements photo (glisser-déposer) : hero d'accueil web et mobile, cartes et fiches d'événements, galerie des centres CJS.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Fallback pour les offres sans visuel : bannière thématique par secteur (pictogramme + dégradé de programme) — jamais de carte vide.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Fiche d'opportunité : bandeau « Offre portée par » avec les logos de l'entreprise, du ministère et du CJS.</li>
+<li><svg class="gj-icon"><use href="#i-alert"/></svg>À nous fournir : photos de jeunes sénégalais en situation réelle (formation, atelier, entreprise, terrain), couvrant femmes et hommes, Dakar et régions, métiers ruraux et urbains, situations de handicap.</li>
+</ul>
+<div class="files"><b>Fichiers :</b> image-slot.js · onboarding.jsx · web-onboarding.jsx · events-web.jsx · centres-web.jsx · lot3-opps-web.jsx</div>
+</div>
+
+<h2 class="sec">5 · Déjà conformes</h2>
+<div class="item">
+<div class="item-head"><span class="num">05</span><div><h3>Recherche, lisibilité des cartes, fonds clairs, performance</h3><div class="sub">Ces points du retour étaient déjà couverts par la V3 ; ils sont désormais consignés comme règles pour ne pas régresser.</div></div><span class="state done">Vérifié</span></div>
+<ul class="list">
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Barre de recherche au cœur de l'écran d'opportunités, filtres domaine / région / type / rémunération.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Chaque carte porte date limite, localisation, organisme et catégorie sans clic.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Fonds blancs et gris très léger côté bénéficiaire ; les surfaces sombres restent limitées au hero et à la carte CJS. Les sidebars sombres sont propres au back-office.</li>
+<li><svg class="gj-icon"><use href="#i-check"/></svg>Mobile-first : états de chargement, mode hors-ligne et squelettes déjà traités au Lot 13 ; les photos seront chargées à la demande et compressées.</li>
+</ul>
+</div>
+
+<div class="note"><svg class="gj-icon"><use href="#i-info"/></svg><p>Prochaine étape recommandée : une passe de contenu FALC sur les écrans les plus textuels, puis l'intégration de vos photos réelles dans les emplacements déjà posés.</p></div>
+
+<div class="foot">Guichet Jeunesse Sénégal · Réponse au retour design V3 · juillet 2026</div>
+</div>
+</body>
+</html>

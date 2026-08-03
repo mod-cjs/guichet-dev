@@ -5,6 +5,8 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import type { StatutOpportunite } from '@prisma/client'
 import { AdminOpportunitesGestion, type GestionItem } from './AdminOpportunitesGestion'
+import { RattachementMasseBanner } from '@/components/admin/RattachementMasseBanner'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = { title: 'Gestion des opportunités — Admin CJS' }
 
@@ -46,6 +48,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     prisma.opportunite.count({ where }),
   ])
 
+  // GUIC-684 — reprise du stock : le rattachement est obligatoire, mais tout le
+  // contenu antérieur au ticket n'en a aucun.
+  const [programmes, sansProgramme] = await Promise.all([
+    loadProgrammeOptions(prisma),
+    prisma.opportunite.count({ where: { deletedAt: null, programmes: { none: {} } } }),
+  ])
+
   const items: GestionItem[] = rows.map((o) => ({
     id: o.id,
     titre: o.titre,
@@ -55,12 +64,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   }))
 
   return (
-    <AdminOpportunitesGestion
+    <>
+      <RattachementMasseBanner
+        entite="opportunite"
+        sansProgramme={sansProgramme}
+        programmes={programmes}
+        libelle="opportunités"
+      />
+      <AdminOpportunitesGestion
       items={items}
       total={total}
       currentPage={page}
       totalPages={Math.ceil(total / PAGE_SIZE)}
-      statutFilter={statutFilter ?? 'tous'}
-    />
+        statutFilter={statutFilter ?? 'tous'}
+      />
+    </>
   )
 }

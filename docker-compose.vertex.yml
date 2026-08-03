@@ -1,0 +1,26 @@
+# Override : bascule Yaye sur Vertex AI au lieu de LMStudio, en dev local.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vertex.yml up -d app
+#
+# Les valeurs de `environment:` priment sur `env_file: .env.local`, donc ce fichier
+# neutralise le LLM_PROVIDER=lmstudio du .env.local sans y toucher.
+#
+# La clé de service account (secrets/guichet-key.json, gitignorée) est montée en
+# lecture seule dans le conteneur ; GOOGLE_APPLICATION_CREDENTIALS pointe dessus
+# pour l'ADC de google-auth-library.
+services:
+  app:
+    environment:
+      LLM_PROVIDER: "vertex"
+      GOOGLE_CLOUD_PROJECT: "guichet-jeunesse-senegal"
+      # gemini-2.5-flash (modèle par défaut) est servi en us-central1.
+      # ⚠️ Les modèles Llama 4 MaaS sont en us-east5 — changer ici si on les cible.
+      GOOGLE_CLOUD_LOCATION: "us-central1"
+      GOOGLE_APPLICATION_CREDENTIALS: "/run/secrets/gcp-key.json"
+      # Vertex throttle gemini-2.5-flash sur ce projet (429 intermittents, ~1 appel sur 3
+      # en mesure locale du 20/07). Les 2 retries par défaut ne suffisent pas : on monte
+      # à 4 et on raccourcit le timeout par tentative, un 429 revenant vite.
+      YAYE_LLM_MAX_RETRIES: "4"
+      YAYE_LLM_TIMEOUT_MS: "15000"
+    volumes:
+      - ./secrets/guichet-key.json:/run/secrets/gcp-key.json:ro

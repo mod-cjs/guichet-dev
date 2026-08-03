@@ -273,26 +273,37 @@ enum TypeNotification {
 
 // Identité de base — synchronisée depuis le SSO via webhook user.*
 // Ne jamais modifier directement : la source de vérité est le SSO CJS
+/// Compte issu du SSO CJS. Aucun mot de passe n'est stocké ici : l'authentification appartient au SSO, ce modèle n'en cache que l'identité et les attributs de profilage.
 model Utilisateur {
+  /// Claim `sub` du token SSO — identifiant pivot du jeune dans tout l'écosystème CJS, et seule clé de jointure inter-plateformes.
   cjsUid             String       @id @map("cjs_uid") @db.VarChar(36)
   telephone          String?      @unique @db.VarChar(20)
   email              String?      @unique @db.VarChar(255)
   nom                String       @db.VarChar(100)
   prenom             String       @db.VarChar(100)
+  /// Région administrative de résidence, parmi les 14 du Sénégal.
   region             Region?
+  /// Genre déclaré : `M` ou `F`.
   genre              Genre?
+  /// Date de naissance déclarée. Donnée identifiante : n'est jamais exportée telle quelle, uniquement sous forme de tranche d'âge.
   dateNaissance      DateTime?    @map("date_naissance")
+  /// État du compte : `actif`, `inactif`, ou `anonymise` après exercice du droit à l'oubli.
   statut             StatutCompte @default(actif)
-  // Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login).
+  /// Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login).
   role               String?      @db.VarChar(40)
+  /// Commune de résidence, saisie libre à l'onboarding — non normalisée.
   commune            String?      @db.VarChar(100)
+  /// Le parcours d'onboarding a été mené à son terme. Distingue un compte créé d'un compte réellement activé.
   onboardingComplete Boolean      @default(false) @map("onboarding_complete")
   // GUIC-513 — préférences de notification recruteur (Paramètres). Défaut : activées.
   notifCandidatures  Boolean      @default(true) @map("notif_candidatures")
   notifMessages      Boolean      @default(true) @map("notif_messages")
   drupalUid          Int?         @unique @map("drupal_uid")
+  /// Date de création du compte — sert de date d'inscription dans les indicateurs.
   createdAt          DateTime     @default(now()) @map("created_at")
+  /// Dernière modification du compte. Watermark de réplication Data Hub.
   updatedAt          DateTime     @updatedAt @map("updated_at")
+  /// Suppression logique. Non nulle, la ligne reste exportée avec cette date pour que l'entrepôt propage la suppression au lieu de conserver un fantôme.
   deletedAt          DateTime?    @map("deleted_at")
 
   profil                ProfilJeune?
@@ -318,25 +329,33 @@ model Utilisateur {
   @@index([telephone])
   @@index([statut])
   @@index([role])
+  @@index([updatedAt, cjsUid])
   @@map("utilisateurs")
 }
 
 // Profil enrichi — rempli par le jeune après inscription
+/// Profil bénéficiaire, rattaché 1:1 à un compte. Porte les données déclaratives d'orientation et d'inclusion, toutes facultatives et auto-déclarées.
 model ProfilJeune {
+  /// Identifiant technique du profil, distinct du `cjs_uid` du compte porteur.
   id                String    @id @default(uuid()) @db.VarChar(36)
+  /// Compte porteur du profil — clé de jointure vers `utilisateurs`.
   cjsUid            String    @unique @map("cjs_uid") @db.VarChar(36)
   photoUrl          String?   @map("photo_url") @db.VarChar(500)
   biographie        String?   @db.Text
   // JSON arrays stockés en texte — ex: ["JavaScript","Python"] ou ["Agriculture","Numérique"]
   competences       Json?
   domainesInteret   Json?     @map("domaines_interet")
+  /// Niveau d'études le plus élevé atteint, déclaré par le jeune.
   niveauEtude       String?   @map("niveau_etude") @db.VarChar(50)
+  /// Situation professionnelle déclarée au moment de la dernière mise à jour du profil.
   situationEmploi   String?   @map("situation_emploi") @db.VarChar(50)
   // GUIC-660 — données socio-démographiques inclusion (auto-déclarées, facultatives,
   // hors score de complétion). Voir .agent_context/specs/GUIC-660-profil-handicap-zone.md
+  /// Situation de handicap auto-déclarée : `aucun`, `moteur`, `visuel`, `auditif`, `autre`, `non_precise`. Facultative et hors score de complétion (GUIC-660).
   situationHandicap Handicap?       @map("situation_handicap")
+  /// Zone d'habitation auto-déclarée : `rural` ou `urbain`. Facultative (GUIC-660).
   zoneHabitation    ZoneHabitation? @map("zone_habitation")
-  // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
+  /// Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
   completionScore   Int       @default(0) @map("completion_score")
   profileVisibility String    @default("public") @map("profile_visibility") @db.VarChar(20)
   // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
@@ -346,11 +365,14 @@ model ProfilJeune {
   // Shape { text, contrast, gray, motion, spacing, falc, kbd } — validé par Zod
   // dans l'action modifierPrefsAccessibilite ; cache localStorage côté client.
   prefsAccessibilite Json?    @map("prefs_accessibilite")
+  /// Date de création du profil.
   createdAt         DateTime  @default(now()) @map("created_at")
+  /// Dernière modification du profil. Watermark de réplication Data Hub.
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   // Lot 7 — Centre de rattachement principal (GUIC-350, ADR centre principal hybride)
   // Renseigné à l'onboarding via auto-suggest par région SSO, modifiable ensuite.
+  /// Centre de rattachement principal, suggéré à l'onboarding depuis la région SSO puis modifiable.
   centrePrincipalId String? @map("centre_principal_id") @db.VarChar(36)
 
   utilisateur     Utilisateur        @relation(fields: [cjsUid], references: [cjsUid])
@@ -360,6 +382,7 @@ model ProfilJeune {
   centrePrincipal Centre?            @relation("ProfilCentrePrincipal", fields: [centrePrincipalId], references: [id])
 
   @@index([centrePrincipalId])
+  @@index([updatedAt, id])
   @@map("profils_jeunes")
 }
 
@@ -421,6 +444,7 @@ model Organisation {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   opportunites Opportunite[]
+  programmes   OrganisationProgramme[]
 
   @@index([cjsUid])
   @@map("organisations")
@@ -438,9 +462,12 @@ model Organisation {
 /// L'invariant XOR (1 et 1 seul sous-type non null) est garanti côté applicatif
 /// via OpportuniteService — cf. spec §8.4 et `opportunite-integrity.ts`.
 model Opportunite {
+  /// Identifiant de l'opportunité.
   id          String @id @default(uuid()) @db.VarChar(36)
   drupalNid   Int?   @unique @map("drupal_nid")
+  /// Identifiant lisible utilisé dans l'URL publique.
   slug        String @unique @db.VarChar(280)
+  /// Intitulé de l'offre tel qu'affiché au public.
   titre       String @db.VarChar(255)
   description String @db.LongText
 
@@ -451,22 +478,32 @@ model Opportunite {
   conditions      String? @db.Text
 
   // Champs legacy — conservés jusqu'en 178d (drop après backfill)
+  /// Type historique de l'offre (enum legacy). Conservé le temps de la migration polymorphique ; `type_id` est la forme cible.
   type         TypeOpportunite
   organisation String          @db.VarChar(200)
 
   // Nouveaux champs polymorphiques (nullable durant migration data — 178b/c)
+  /// Type de l'offre dans le référentiel polymorphique. Nullable tant que la migration des données legacy n'est pas achevée.
   typeId              String?       @map("type_id") @db.VarChar(36)
-  programmeId         String?       @map("programme_id") @db.VarChar(36)
+  /// Nom de l'organisation émettrice tel qu'affiché, y compris quand elle n'est pas au référentiel.
   organisationLibelle String?       @map("organisation_libelle") @db.VarChar(200)
+  /// Niveau d'études minimum requis, tel que renseigné par l'émetteur.
   niveauEtudeMin      NiveauEtudes? @map("niveau_etude_min")
 
+  /// Secteur d'activité : agriculture, numérique, entrepreneuriat, citoyenneté, environnement, santé, éducation, culture, autre.
   domaine        Domaine
+  /// Région ciblée par l'offre — pas nécessairement celle du candidat.
   region         Region?
+  /// Organisation émettrice dans le référentiel. Nullable pour les offres importées sans organisation identifiée.
   organisationId String?           @map("organisation_id") @db.VarChar(36)
+  /// Rémunération annoncée, en texte libre — non normalisée, non comparable entre offres.
   remuneration   String?           @db.VarChar(100)
+  /// Date limite de candidature. Au-delà, l'offre passe en `expiree`.
   deadline       DateTime?
   lienExterne    String?           @map("lien_externe") @db.VarChar(500)
+  /// Cycle de vie éditorial : `brouillon`, `publiee`, `archivee`, `expiree`.
   statut         StatutOpportunite @default(brouillon)
+  /// Recruteur propriétaire de l'offre, quand elle a été déposée depuis l'espace recruteur.
   recruteurUid   String?           @map("recruteur_uid") @db.VarChar(36)
 
   // Traçabilité de modération (GUIC-471 — édition/publication directe admin, conformité CDP).
@@ -476,14 +513,17 @@ model Opportunite {
   moderePar  String?   @map("modere_par") @db.VarChar(36)
   modereLe   DateTime? @map("modere_le")
 
+  /// Compteur cumulé d'affichages du détail. Incrémenté en direct, sans déduplication par visiteur.
   vues           Int               @default(0)
+  /// Date de création de l'offre.
   createdAt      DateTime          @default(now()) @map("created_at")
+  /// Dernière modification de l'offre. Watermark de réplication Data Hub.
   updatedAt      DateTime          @updatedAt @map("updated_at")
+  /// Suppression logique. Non nulle, la ligne reste exportée pour que l'entrepôt propage la suppression.
   deletedAt      DateTime?         @map("deleted_at")
 
   org       Organisation?    @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   typeRef   OpportuniteType? @relation(fields: [typeId], references: [id])
-  programme Programme?       @relation(fields: [programmeId], references: [id], onDelete: SetNull)
 
   // Sous-types 1:1 (un seul des dix non-null — invariant applicatif)
   // Spec §19 — 4 sous-types ajoutés post-audit guichetjeunesse.sn (2026-06-01)
@@ -500,6 +540,7 @@ model Opportunite {
 
   skills       OpportuniteSkill[]
   tags         OpportuniteTag[]
+  programmes   OpportuniteProgramme[]
   candidatures Candidature[]
   drafts       CandidatureDraft[]
   favoris      OpportuniteFavorite[]
@@ -508,17 +549,22 @@ model Opportunite {
   @@index([statut, deletedAt])
   @@index([type, domaine])
   @@index([typeId, domaine])
-  @@index([programmeId])
   @@index([region])
   @@index([deadline])
   @@fulltext([titre, description])
+  @@index([updatedAt, id])
   @@map("opportunites")
 }
 
+/// Candidature d'un jeune à une opportunité, unique par couple (jeune, opportunité). Porte la traçabilité du consentement CGU exigée par la CDP.
 model Candidature {
+  /// Identifiant de la candidature.
   id                   String            @id @default(uuid()) @db.VarChar(36)
+  /// Jeune candidat — clé de jointure vers `utilisateurs`.
   cjsUid               String            @map("cjs_uid") @db.VarChar(36)
+  /// Offre visée — clé de jointure vers `opportunites`.
   opportuniteId        String            @map("opportunite_id") @db.VarChar(36)
+  /// Décision côté offre : `En_attente`, `Vue`, `Retenue`, `Refusee`.
   statut               StatutCandidature @default(En_attente)
   lettreMotivation     String?           @map("lettre_motivation") @db.Text
   cvUrl                String?           @map("cv_url") @db.VarChar(500)
@@ -527,20 +573,29 @@ model Candidature {
   // figer ce qui a été transmis au recruteur, indépendamment des évolutions
   // ultérieures du profil.
   formulaireData       Json?             @map("formulaire_data")
+  /// Le candidat a accepté d'être notifié du suivi de sa candidature.
   notificationsConsent Boolean           @default(false) @map("notifications_consent")
   // Traçabilité du consentement CGU (GUIC-218 / audit CDP).
+  /// Horodatage de l'acceptation des CGU. Traçabilité exigée par l'audit CDP.
   consentAt            DateTime?         @map("consent_at")
+  /// Version des CGU acceptée, pour savoir à quel texte le consentement se rapporte.
   cguVersion           String?           @map("cgu_version") @db.VarChar(20)
   consentIp            String?           @map("consent_ip") @db.VarChar(45)
   // GUIC-487 (US-5) — score d'adéquation candidat/offre (IA Groq), 0–100. Nullable :
   // calculé en tâche de fond après soumission ; `null` tant que non calculé.
+  /// Score d'adéquation candidat/offre calculé par IA, de 0 à 100. Nul tant que le calcul de fond n'a pas eu lieu.
   scoreAdequation      Int?              @map("score_adequation")
   scoreRaison          String?           @map("score_raison") @db.Text
+  /// Date du calcul du score d'adéquation. Permet de distinguer un score absent d'un score jamais calculé.
   scoreCalculeLe       DateTime?         @map("score_calcule_le")
   // GUIC-515 — étape du pipeline recruteur (kanban, design v4) + favori recruteur.
+  /// Étape du pipeline recruteur : `Recue`, `Preselection`, `Entretien`, `Decision`. Distincte du statut, qui porte la décision finale.
   pipelineStage        StatutPipeline    @default(Recue) @map("pipeline_stage")
+  /// Candidature marquée comme favorite par le recruteur.
   favoriRecruteur      Boolean           @default(false) @map("favori_recruteur")
+  /// Date de soumission de la candidature — début du délai de traitement.
   soumiseA             DateTime          @default(now()) @map("soumise_a")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
@@ -551,6 +606,7 @@ model Candidature {
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
   @@index([opportuniteId])
+  @@index([updatedAt, id])
   @@map("candidatures")
 }
 
@@ -672,28 +728,42 @@ model OpportuniteFavorite {
 // M4 — CENTRES CJS
 // ─────────────────────────────────────────────
 
+/// Centre CJS physique. Référentiel géographique de toute la fréquentation : réservations, passages badgés, emprunts.
 model Centre {
+  /// Identifiant du centre.
   id          String   @id @default(uuid()) @db.VarChar(36)
+  /// Nom du centre — désigne l'établissement, jamais une personne.
   nom         String   @db.VarChar(200)
+  /// Région d'implantation.
   region      Region
+  /// Adresse postale du centre. Donnée d'établissement, publiée sur la fiche.
   adresse     String   @db.VarChar(300)
+  /// Latitude du centre, pour la carte et les calculs de proximité.
   latitude    Float
+  /// Longitude du centre.
   longitude   Float
   telephone   String   @db.VarChar(20)
   responsable String   @db.VarChar(150)
+  /// Identifiant du centre dans la plateforme Gestion Centres — clé de rapprochement inter-plateformes.
   gcId        Int?     @unique @map("gc_id")
+  /// Centre ouvert au public. Un centre inactif reste référencé mais n'accepte plus de réservation.
   estActif    Boolean  @default(true) @map("est_actif")
+  /// Date de création de la fiche.
   createdAt   DateTime @default(now()) @map("created_at")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Lot 7 — Centres CJS (GUIC-350)
+  /// Identifiant lisible utilisé dans l'URL publique.
   slug             String? @unique @db.VarChar(120)
   description      String? @db.Text
   imageUrl         String? @map("image_url") @db.VarChar(500)
   email            String? @db.VarChar(255)
+  /// Ville d'implantation.
   ville            String? @db.VarChar(120)
   // JSON string[] de valeurs CentreService (cf enum) — Json pour flexibilité
   services         Json    @default("[]")
+  /// Nombre de conseillers affectés, saisi et non calculé.
   conseillersCount Int     @default(0) @map("conseillers_count")
 
   evenements       Evenement[]
@@ -707,9 +777,11 @@ model Centre {
   insertions       Insertion[]
   // Lot 3 — Bibliothèque physique (GUIC-274) : exemplaires localisés dans ce centre
   exemplaires      Exemplaire[]
+  programmes       CentreProgramme[]
 
   @@index([region])
   @@index([slug])
+  @@index([updatedAt, id])
   @@map("centres")
 }
 
@@ -749,43 +821,66 @@ model AgentCentre {
 // M5 — AGENDA / ÉVÉNEMENTS
 // ─────────────────────────────────────────────
 
+/// Événement du calendrier CJS — formation, atelier, forum, webinaire, conférence ou cours en centre.
 model Evenement {
+  /// Identifiant de l'événement.
   id           String          @id @default(uuid()) @db.VarChar(36)
   drupalNid    Int?            @unique @map("drupal_nid")
+  /// Intitulé de l'événement tel qu'affiché.
   titre        String          @db.VarChar(255)
   description  String          @db.Text
+  /// Nature de l'événement : formation, atelier, forum, webinaire, conférence, cours.
   type         TypeEvenement
+  /// Cycle de vie : `a_venir`, `en_cours`, `termine`, `annule`, plus `en_relecture` et `refuse` pour la validation admin.
   statut       StatutEvenement @default(a_venir)
+  /// Début de l'événement.
   dateDebut    DateTime        @map("date_debut")
+  /// Fin de l'événement.
   dateFin      DateTime?       @map("date_fin")
+  /// Lieu tel que saisi, en texte libre — non géocodé.
   lieu         String          @db.VarChar(200)
+  /// Centre organisateur, quand l'événement s'y tient.
   centreId     String?         @map("centre_id") @db.VarChar(36)
+  /// Nombre de places. Au-delà, les inscriptions basculent en liste d'attente.
   capaciteMax  Int?            @map("capacite_max")
+  /// Participation gratuite.
   estGratuit   Boolean         @default(true) @map("est_gratuit")
   // Rappel SMS envoyé 24h avant (job planifié vérifie ce flag)
   rappelEnvoye Boolean         @default(false) @map("rappel_envoye")
+  /// Date de création de la fiche.
   createdAt    DateTime        @default(now()) @map("created_at")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt    DateTime        @updatedAt @map("updated_at")
 
   centre       Centre?                @relation(fields: [centreId], references: [id])
   inscriptions InscriptionEvenement[]
+  programmes   EvenementProgramme[]
 
   @@index([dateDebut, statut])
+  @@index([updatedAt, id])
   @@map("evenements")
 }
 
+/// Inscription d'un jeune à un événement, unique par couple (jeune, événement). Le statut `present` matérialise la présence constatée, pas l'intention.
 model InscriptionEvenement {
+  /// Identifiant de l'inscription.
   id          String            @id @default(uuid()) @db.VarChar(36)
+  /// Jeune inscrit — clé de jointure vers `utilisateurs`.
   cjsUid      String            @map("cjs_uid") @db.VarChar(36)
+  /// Événement concerné — clé de jointure vers `evenements`.
   evenementId String            @map("evenement_id") @db.VarChar(36)
+  /// `inscrit`, `liste_attente`, `annule`, ou `present` une fois la présence constatée.
   statut      StatutInscription @default(inscrit)
+  /// Date de l'inscription.
   inscritA    DateTime          @default(now()) @map("inscrit_a")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt   DateTime          @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
   evenement   Evenement   @relation(fields: [evenementId], references: [id])
 
   @@unique([cjsUid, evenementId])
+  @@index([updatedAt, id])
   @@map("inscriptions_evenements")
 }
 
@@ -793,28 +888,41 @@ model InscriptionEvenement {
 // M6 — RESSOURCES PÉDAGOGIQUES
 // ─────────────────────────────────────────────
 
+/// Ressource documentaire du catalogue — PDF, vidéo, lien, guide ou outil.
 model Ressource {
+  /// Identifiant de la ressource.
   id          String           @id @default(uuid()) @db.VarChar(36)
   drupalNid   Int?             @unique @map("drupal_nid")
+  /// Intitulé de la ressource tel qu'affiché.
   titre       String           @db.VarChar(255)
   description String           @db.Text
+  /// Support : `PDF`, `Video`, `Lien`, `Guide`, `Outil`.
   type        TypeRessource
+  /// Thématique principale, saisie libre côté admin.
   theme       String           @db.VarChar(100)
   url         String           @db.VarChar(500)
+  /// Ressource accessible sans authentification.
   estPublic   Boolean          @default(true) @map("est_public")
+  /// Compteur cumulé de consultations. Incrémenté en direct, sans déduplication par visiteur.
   vues        Int              @default(0)
-  // GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
+  /// GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin.
   niveau      NiveauRessource? @map("niveau")
+  /// Langue du contenu.
   langue      LangueRessource? @map("langue")
+  /// Catégorie de classement complémentaire au thème.
   categorie   String?          @map("categorie") @db.VarChar(100)
+  /// Date de publication de la ressource.
   createdAt   DateTime         @default(now()) @map("created_at")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  favoris RessourceFavorite[]
+  favoris    RessourceFavorite[]
+  programmes RessourceProgramme[]
 
   @@index([type, theme])
   @@index([niveau])
   @@index([langue])
+  @@index([updatedAt, id])
   @@map("ressources")
 }
 
@@ -1133,18 +1241,116 @@ model OnboardingDraft {
 /// Programmes sectoriels CJS (4 — Yaakaar, YEAH, YJC, EduPop).
 /// BRM = outil interne, exclu (décision Lead 2026-05-29).
 model Programme {
+  /// Identifiant du programme.
   id            String   @id @default(uuid()) @db.VarChar(36)
+  /// Identifiant lisible utilisé dans l'URL publique.
   slug          String   @unique @db.VarChar(40)
+  /// Nom du programme sectoriel — désigne un dispositif, jamais une personne.
   nom           String   @db.VarChar(80)
   description   String   @db.VarChar(255)
   gradientToken String   @map("gradient_token") @db.VarChar(80)
+  /// Programme en cours. Un programme inactif reste exporté pour l'historique.
   actif         Boolean  @default(true)
+  /// Date de création du programme.
   createdAt     DateTime @default(now()) @map("created_at")
+  /// Dernière modification. Watermark de réplication Data Hub.
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  opportunites Opportunite[]
+  // Rattachements M:N (GUIC-684) — un contenu peut relever de plusieurs programmes.
+  // La colonne 1:N historique `opportunites.programme_id` a été supprimée.
+  opportuniteRattachements  OpportuniteProgramme[]
+  ressourceRattachements    RessourceProgramme[]
+  evenementRattachements    EvenementProgramme[]
+  centreRattachements       CentreProgramme[]
+  organisationRattachements OrganisationProgramme[]
 
+  @@index([updatedAt, id])
   @@map("programmes")
+}
+
+// ─────────────────────────────────────────────
+// GUIC-684 — Rattachement aux programmes (M:N)
+//
+// Prisma n'a pas de relation polymorphique : une table de jonction PAR entité,
+// toutes de forme identique (patron `OpportuniteTag`). Le coût de la duplication
+// est absorbé par `src/lib/programmes/rattachement.ts`, qui porte la logique.
+//
+// `principal` = le programme affiché quand l'UI n'a la place que d'un badge, et
+// servi dans le scalaire `programme_slug` du Data Hub (contrat externe préservé).
+// Invariants garantis côté applicatif (cf. spec §2) :
+//  - au plus UN `principal = true` par entité ;
+//  - le premier programme rattaché le devient automatiquement ;
+//  - au moins un programme à la création (décision PO 2026-07-28).
+// ─────────────────────────────────────────────
+
+model OpportuniteProgramme {
+  opportuniteId String  @map("opportunite_id") @db.VarChar(36)
+  programmeId   String  @map("programme_id") @db.VarChar(36)
+  principal     Boolean @default(false)
+
+  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  programme   Programme   @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([opportuniteId, programmeId])
+  @@index([programmeId])
+  @@map("opportunites_programmes")
+}
+
+model RessourceProgramme {
+  ressourceId String  @map("ressource_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  ressource Ressource @relation(fields: [ressourceId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([ressourceId, programmeId])
+  @@index([programmeId])
+  @@map("ressources_programmes")
+}
+
+model EvenementProgramme {
+  evenementId String  @map("evenement_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  evenement Evenement @relation(fields: [evenementId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([evenementId, programmeId])
+  @@index([programmeId])
+  @@map("evenements_programmes")
+}
+
+/// Centres où un programme est déployé (GUIC-684 — extension acteurs).
+/// FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui
+/// existe indépendamment des programmes qui s'y déploient.
+model CentreProgramme {
+  centreId    String  @map("centre_id") @db.VarChar(36)
+  programmeId String  @map("programme_id") @db.VarChar(36)
+  principal   Boolean @default(false)
+
+  centre    Centre    @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([centreId, programmeId])
+  @@index([programmeId])
+  @@map("centres_programmes")
+}
+
+/// Organisations partenaires d'un programme (GUIC-684 — extension acteurs).
+/// FACULTATIF : un partenaire peut publier des offres sans relever d'un programme.
+model OrganisationProgramme {
+  organisationId String  @map("organisation_id") @db.VarChar(36)
+  programmeId    String  @map("programme_id") @db.VarChar(36)
+  principal      Boolean @default(false)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme    Programme    @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([organisationId, programmeId])
+  @@index([programmeId])
+  @@map("organisations_programmes")
 }
 
 /// Types d'opportunité — remplace l'enum TypeOpportunite (qui survit pendant migration).
@@ -1484,21 +1690,37 @@ model RessourceCentre {
 /// MVP : auto-validée (statut=Acceptee) à la création.
 /// Sprint+1 : workflow approval activable (StatutReservation.EnAttente).
 model Reservation {
+  /// Identifiant de la réservation.
   id                 String            @id @default(uuid()) @db.VarChar(36)
+  /// Jeune réservant — clé de jointure vers `utilisateurs`.
   cjsUid             String            @map("cjs_uid") @db.VarChar(36)
+  /// Centre où la ressource est réservée.
   centreId           String            @map("centre_id") @db.VarChar(36)
+  /// Ressource matérielle réservée au sein du centre.
   ressourceId        String            @map("ressource_id") @db.VarChar(36)
+  /// Jour calendaire réservé, sans heure — le créneau porte l'horaire.
   dateReservee       DateTime          @map("date_reservee") // jour calendrier
+  /// Heure de début du créneau, au format HH:MM.
   creneauDebut       String            @map("creneau_debut") @db.VarChar(5)
+  /// Heure de fin du créneau, au format HH:MM.
   creneauFin         String            @map("creneau_fin") @db.VarChar(5)
+  /// Nombre de personnes annoncées pour le créneau.
   nombrePersonnes    Int               @default(1) @map("nombre_personnes")
   motif              String            @db.Text
   justifFileUrl      String?           @map("justif_file_url") @db.VarChar(500)
+  /// `EnAttente`, `Acceptee`, `Refusee`, `AnnuleeParJeune`, `AnnuleeParCentre`, puis `Passee` ou `NonHonoree` posés par le batch quotidien.
   statut             StatutReservation @default(Acceptee)
   raisonRefusOuAnnul String?           @map("raison_refus_ou_annul") @db.Text
+  /// Absence constatée : créneau passé sans passage badgé associé.
   noShow             Boolean           @default(false) @map("no_show")
+  /// Date de la demande de réservation.
   createdAt          DateTime          @default(now()) @map("created_at")
+  /// M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation)
+  /// sans qu'aucune colonne ne datait la modification.
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  /// Horodatage de la décision du centre sur la réservation.
   decisionA          DateTime?         @map("decision_a")
+  /// Horodatage de l'annulation, quelle qu'en soit l'origine.
   annuleeA           DateTime?         @map("annulee_a")
 
   utilisateur Utilisateur     @relation(fields: [cjsUid], references: [cjsUid])
@@ -1510,20 +1732,28 @@ model Reservation {
   @@index([centreId, statut, dateReservee])
   @@index([ressourceId, dateReservee, statut])
   @@index([statut, dateReservee])
+  @@index([updatedAt, id])
   @@map("reservations")
 }
 
 /// Check-in physique d'un jeune dans un centre (KPI fréquentation principal).
 model CheckIn {
+  /// Identifiant du passage.
   id              String     @id @default(uuid()) @db.VarChar(36)
+  /// Jeune ayant badgé — clé de jointure vers `utilisateurs`.
   cjsUid          String     @map("cjs_uid") @db.VarChar(36)
+  /// Centre où le passage a été enregistré.
   centreId        String     @map("centre_id") @db.VarChar(36)
+  /// Réservation honorée par ce passage, quand il y en a une. Nul pour une visite spontanée.
   reservationId   String?    @map("reservation_id") @db.VarChar(36)
+  /// Mode d'enregistrement : `QrCard` par scan de la MyCJSCard, `Manuel` par saisie du staff.
   via             CheckInVia
   scannerId       String?    @map("scanner_id") @db.VarChar(36) // cjsUid du staff scanneur
   conseillerEmail String?    @map("conseiller_email") @db.VarChar(255)
   jwtNonce        String?    @unique @map("jwt_nonce") @db.VarChar(64)
+  /// Horodatage du passage. Table append-only : sert de watermark de réplication.
   effectueA       DateTime   @default(now()) @map("effectue_a")
+  /// Durée de présence en minutes, quand elle a pu être mesurée.
   dwellMinutes    Int?       @map("dwell_minutes")
   meta            Json?
 
@@ -1533,6 +1763,7 @@ model CheckIn {
 
   @@index([centreId, effectueA])
   @@index([cjsUid, effectueA])
+  @@index([effectueA, id])
   @@map("check_ins")
 }
 
@@ -1551,6 +1782,82 @@ model CentreEvent {
   @@index([type, ts])
   @@index([centreId, type, ts])
   @@map("centre_events")
+}
+
+// ─────────────────────────────────────────────
+// M13 — CONSULTATIONS MULTICANAL (GUIC-688)
+// Trace unifiée « qui a vu quoi, par quel canal » pour les éléments consultables
+// par un bénéficiaire. Remplace à terme les compteurs dénormalisés isolés
+// (`Opportunite.vues`, `Ressource.vues`) et `CentreEvent.centre_viewed`, qui
+// restent alimentés en parallèle le temps de la transition.
+// Source : src/lib/analytics/consultations.ts (fail-soft, dédoublonnage Redis 30 min).
+// ─────────────────────────────────────────────
+
+/// Entités dont la visualisation est traçable. `programme` et `organisation`
+/// sont déclarés pour la complétude du domaine mais ne sont pas instrumentés :
+/// aucune page consultable par un bénéficiaire n'existe (admin uniquement).
+enum EntiteConsultable {
+  opportunite
+  ressource
+  evenement
+  centre
+  livre
+  programme
+  organisation
+
+  @@map("entite_consultable")
+}
+
+/// `impression` = l'élément a été AFFICHÉ (card Yaye, liste WhatsApp) sans action.
+/// `consultation` = l'élément a été OUVERT (page détail). Les deux ne se comparent
+/// jamais entre eux : mélanger les deux fausserait tout taux de conversion.
+enum TypeConsultation {
+  impression
+  consultation
+
+  @@map("type_consultation")
+}
+
+/// Canal d'origine. Distinct de `CanalAgent` (web|whatsapp) qui ne sait pas
+/// séparer le web classique du chat IA rendu dans le web.
+enum CanalConsultation {
+  web
+  ia_web
+  whatsapp
+
+  @@map("canal_consultation")
+}
+
+/// Table INSERT-only. Aucune FK polymorphe (non supporté par Prisma) : l'intégrité
+/// repose sur l'applicatif, comme `CentreEvent`. Aucune rétention/purge (décision PO
+/// GUIC-688 : on conserve tout).
+model Consultation {
+  /// Identifiant de la consultation.
+  id         BigInt            @id @default(autoincrement())
+  /// Nature de l'entité consultée : opportunité, ressource, événement, centre, livre, programme, organisation.
+  typeEntite EntiteConsultable @map("type_entite")
+  /// Identifiant de l'entité consultée. Pas de clé étrangère : la relation est polymorphe et l'intégrité repose sur l'applicatif.
+  entiteId   String            @map("entite_id") @db.VarChar(36)
+  /// `impression` quand le contenu a été présenté, `consultation` quand il a été ouvert. Le rapport des deux donne le taux de clic.
+  typeEvent  TypeConsultation  @map("type_event")
+  /// Canal d'origine : `web`, `ia_web` pour l'agent Yaye sur le site, `whatsapp`.
+  canal      CanalConsultation
+  /// Null si visiteur anonyme.
+  cjsUid     String?           @map("cjs_uid") @db.VarChar(36)
+  /// HMAC-SHA256 du sujet (cjsUid, ou empreinte IP + user-agent). Jamais d'IP en clair en base. Masqué à l'export quand cjs_uid est renseigné.
+  sujetHash  String            @map("sujet_hash") @db.Char(64)
+  /// reco_ia | recherche | favoris | notification | direct | ia | wa
+  origine    String?           @db.VarChar(30)
+  /// Corrèle avec `AgentLog.sessionId` pour les canaux IA/WhatsApp.
+  sessionId  String?           @map("session_id") @db.VarChar(36)
+  /// Horodatage de la consultation. Table append-only : sert de watermark de réplication.
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  @@index([typeEntite, entiteId, createdAt])
+  @@index([cjsUid, createdAt])
+  @@index([canal, typeEvent, createdAt])
+  @@index([createdAt, id])
+  @@map("consultations")
 }
 
 // ─────────────────────────────────────────────
@@ -1836,16 +2143,28 @@ model Exemplaire {
 /// Emprunt d'un exemplaire par un bénéficiaire. GUIC-343.
 /// Cycle : initie (en ligne) → en_cours (scan badge au centre) → rendu (scan retour).
 model Emprunt {
+  /// Identifiant de l'emprunt.
   id               String        @id @default(uuid()) @db.VarChar(36)
+  /// Jeune emprunteur — clé de jointure vers `utilisateurs`.
   cjsUid           String        @map("cjs_uid") @db.VarChar(36)
+  /// Exemplaire physique emprunté, localisé dans un centre.
   exemplaireId     String        @map("exemplaire_id") @db.VarChar(36)
+  /// `initie` en ligne, `en_cours` après retrait au centre, `rendu`, `en_retard`, ou `annule`.
   statut           StatutEmprunt @default(initie)
+  /// Date de la demande d'emprunt en ligne.
   initieA          DateTime      @default(now()) @map("initie_a")
+  /// Date du retrait effectif au centre, constaté au scan du badge.
   confirmeA        DateTime?     @map("confirme_a")
   confirmePar      String?       @map("confirme_par") @db.VarChar(36) // cjs_uid du bibliothécaire
+  /// Date de retour attendue, fixée à la confirmation.
   dateRetourPrevue DateTime?     @map("date_retour_prevue")
+  /// Date du retour effectif, constatée au scan.
   renduA           DateTime?     @map("rendu_a")
+  /// Date de création de la ligne d'emprunt.
   createdAt        DateTime      @default(now()) @map("created_at")
+  /// M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour)
+  /// sans qu'aucune colonne ne datait la modification.
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
   utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
   exemplaire  Exemplaire  @relation(fields: [exemplaireId], references: [id])
@@ -1853,6 +2172,7 @@ model Emprunt {
   @@index([cjsUid, statut])
   @@index([exemplaireId, statut])
   @@index([statut, dateRetourPrevue])
+  @@index([updatedAt, id])
   @@map("emprunts")
 }
 

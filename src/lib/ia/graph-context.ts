@@ -12,7 +12,17 @@
 // Fail-soft total : toute erreur graphe → contexte vide (Yaye fonctionne sans).
 
 import { getGraphPort } from './graph'
+import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { numEnv } from './env'
+
+const PREFIX = 'yaye:gctx:'
+/** Durée de vie du contexte graphe mémoïsé (24 h par défaut). */
+const TTL_GRAPH_CONTEXT = numEnv('YAYE_GRAPH_CONTEXT_TTL_S', 24 * 3600)
+
+export function graphContextKey(cjsUid: string): string {
+  return `${PREFIX}${cjsUid}`
+}
 
 /** Préambule système qui réinjecte la lecture du graphe (sans la faire réciter). */
 export const GRAPH_PREAMBLE =
@@ -56,5 +66,40 @@ export async function buildGraphContext(cjsUid: string): Promise<string> {
   } catch (err) {
     logger.warn('[graph-context] échec — contexte vide', { err: String(err) })
     return ''
+  }
+}
+
+/**
+ * Contexte graphe MÉMOÏSÉ (Redis, 24 h). Auparavant il n'était calculé qu'au tout
+ * premier tour ; comme l'historique conversationnel est unifié par utilisateur et
+ * glissant sur 7 jours, une personne active ne le recevait plus JAMAIS après sa
+ * première conversation. On l'injecte donc à chaque tour, en ne payant la traversée
+ * qu'une fois par jour. Fail-soft : toute erreur Redis → recalcul direct.
+ */
+export async function loadOrBuildGraphContext(cjsUid: string): Promise<string> {
+  const key = graphContextKey(cjsUid)
+  try {
+    const cached = await redis.get(key)
+    if (cached !== null && cached !== undefined) return cached
+  } catch (err) {
+    logger.warn('[graph-context] lecture cache échouée', { err: String(err) })
+  }
+  const contexte = await buildGraphContext(cjsUid)
+  try {
+    // On mémoïse AUSSI le contexte vide : un profil sans signal ne doit pas relancer
+    // trois traversées à chaque message.
+    await redis.set(key, contexte, 'EX', TTL_GRAPH_CONTEXT)
+  } catch (err) {
+    logger.warn('[graph-context] écriture cache échouée', { err: String(err) })
+  }
+  return contexte
+}
+
+/** Efface le contexte graphe mémoïsé (droit à l'oubli CDP + invalidation). Fail-soft. */
+export async function purgeGraphContext(cjsUid: string): Promise<void> {
+  try {
+    await redis.del(graphContextKey(cjsUid))
+  } catch (err) {
+    logger.warn('[graph-context] purge échouée', { err: String(err) })
   }
 }

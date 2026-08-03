@@ -78,6 +78,9 @@ function cacheKey(f: OpportuniteFiltres): string {
     asArray(f.domaine).join(','),
     asArray(f.type).join(','),
     asArray(f.region).join(','),
+    // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
+    // résultat NON filtré mis en cache par la requête précédente.
+    asArray(f.programme).join(','),
     f.sortBy,
     f.page,
   ].join('|')
@@ -138,6 +141,22 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
   const regions = asArray(f.region)
   if (regions.length === 1) conditions.push(Prisma.sql`region = ${regions[0]}`)
   else if (regions.length > 1) conditions.push(Prisma.sql`region IN (${Prisma.join(regions)})`)
+
+  // GUIC-684 — le rattachement aux programmes vit dans une table de jonction :
+  // EXISTS plutôt qu'une jointure, pour ne pas dupliquer les lignes d'une
+  // opportunité rattachée à plusieurs programmes (ni fausser le COUNT).
+  const programmes = asArray(f.programme)
+  if (programmes.length > 0) {
+    const slugs =
+      programmes.length === 1
+        ? Prisma.sql`p.slug = ${programmes[0]}`
+        : Prisma.sql`p.slug IN (${Prisma.join(programmes)})`
+    conditions.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM opportunites_programmes op
+      JOIN programmes p ON p.id = op.programme_id
+      WHERE op.opportunite_id = opportunites.id AND ${slugs}
+    )`)
+  }
 
   const q = (f.q ?? '').trim()
   if (q) {
@@ -206,7 +225,10 @@ export async function listOpportunites(
  */
 const DETAIL_INCLUDE = {
   typeRef: true,
-  programme: true,
+  // GUIC-684 — rattachements aux programmes : sans cet include, le badge de la
+  // fiche publique n'a rien à afficher. Le repli sur l'ancienne colonne masquait
+  // l'oubli ; sa suppression le rend visible.
+  programmes: { include: { programme: true } },
   emploi: true,
   stage: true,
   formation: true,
@@ -246,21 +268,7 @@ export async function getOpportuniteDetailForAdmin(id: string): Promise<Opportun
   return toOpportuniteDetailDTO(o as OpportuniteRow)
 }
 
-/**
- * Incrémente le compteur `vues`, best-effort et dédoublonné par IP.
- * Clé Redis `vue:<slug>:<ip>` TTL 30 min — l'incrément n'a lieu qu'à la
- * première vue de cette IP. N'échoue jamais (erreurs avalées).
- */
-export async function incrementVue(slug: string, ip: string): Promise<void> {
-  try {
-    const firstView = await redis.set(`vue:${slug}:${ip}`, '1', 'EX', 1800, 'NX')
-    if (firstView) {
-      await prisma.opportunite.update({
-        where: { slug },
-        data: { vues: { increment: 1 } },
-      })
-    }
-  } catch (err) {
-    logger.warn('[opportunites-loader] incrément des vues échoué', { err })
-  }
-}
+// GUIC-688 — `incrementVue` a été retiré : le comptage des vues passe désormais
+// par `src/lib/analytics/consultations.ts`, commun aux trois canaux (web, chat
+// IA, WhatsApp). Le compteur `Opportunite.vues` reste alimenté par ce socle et
+// garde donc exactement la même sémantique pour les dashboards existants.

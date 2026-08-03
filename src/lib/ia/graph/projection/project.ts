@@ -17,12 +17,12 @@ import { deleteRelsOfTypes, detachDeleteNode, mergeNodes, mergeRels, wipeGraph, 
 import { ensureGraphSchema, OPPORTUNITE_SUBTYPE_LABELS } from './schema'
 import {
   buildSkillIndex,
-  matchSkills,
   matchThemeToCategorieSkills,
   parseCompetences,
   type SkillRef,
   type SkillWithCategorie,
 } from '../skills-normalize'
+import { matchSkillsHybrid, prepareSemanticMatcher } from '../skills-embeddings'
 
 export interface ProjectionReport {
   backend: 'neo4j' | 'skipped'
@@ -186,14 +186,49 @@ async function projectRelations(): Promise<Record<string, number>> {
 
   const opps = await prisma.opportunite.findMany({
     where: { deletedAt: null },
-    select: { id: true, typeId: true, programmeId: true, organisationId: true, domaine: true, region: true },
+    select: {
+      id: true, typeId: true, organisationId: true, domaine: true, region: true,
+      // GUIC-684 — rattachement M:N (la colonne `programmeId` est dépréciée).
+      programmes: { select: { programmeId: true, principal: true } },
+    },
   })
   counts.EST_DE_TYPE = await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id',
     opps.filter(o => o.typeId).map(o => ({ from: o.id, to: o.typeId })))
   counts.FINANCE = await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id',
-    opps.filter(o => o.programmeId).map(o => ({ from: o.programmeId, to: o.id })))
+    opps.flatMap(o => o.programmes.map(p => ({ from: p.programmeId, to: o.id, principal: p.principal }))))
   counts.PUBLIE = await mergeRels('PUBLIE', 'Organisation', 'id', 'Opportunite', 'id',
     opps.filter(o => o.organisationId).map(o => ({ from: o.organisationId, to: o.id })))
+
+  // GUIC-684 — PORTE : rattachement des ressources et événements à leurs programmes.
+  // Nom distinct de FINANCE : un programme ne « finance » pas une fiche pédagogique,
+  // il la porte.
+  const ressourcesProg = await prisma.ressourceProgramme.findMany({
+    select: { ressourceId: true, programmeId: true, principal: true },
+  })
+  counts.PORTE = await mergeRels('PORTE', 'Programme', 'id', 'RessourcePedagogique', 'id',
+    ressourcesProg.map(r => ({ from: r.programmeId, to: r.ressourceId, principal: r.principal })))
+
+  const evenementsProg = await prisma.evenementProgramme.findMany({
+    select: { evenementId: true, programmeId: true, principal: true },
+  })
+  counts.PORTE += await mergeRels('PORTE', 'Programme', 'id', 'Evenement', 'id',
+    evenementsProg.map(e => ({ from: e.programmeId, to: e.evenementId, principal: e.principal })))
+
+  // GUIC-684 — ACTEURS. Deux relations distinctes plutôt qu'un PORTE générique :
+  // un centre HÉBERGE le déploiement d'un programme, une organisation en est
+  // PARTENAIRE. Confondre les deux rendrait « quels centres déploient YEAH ? »
+  // impossible à distinguer de « quels partenaires ? » côté Cypher.
+  const centresProg = await prisma.centreProgramme.findMany({
+    select: { centreId: true, programmeId: true, principal: true },
+  })
+  counts.DEPLOYE_A = await mergeRels('DEPLOYE_A', 'Programme', 'id', 'Centre', 'id',
+    centresProg.map(c => ({ from: c.programmeId, to: c.centreId, principal: c.principal })))
+
+  const organisationsProg = await prisma.organisationProgramme.findMany({
+    select: { organisationId: true, programmeId: true, principal: true },
+  })
+  counts.ASSOCIE_A = await mergeRels('ASSOCIE_A', 'Programme', 'id', 'Organisation', 'id',
+    organisationsProg.map(o => ({ from: o.programmeId, to: o.organisationId, principal: o.principal })))
 
   // RELEVE_DE / SITUE_A (enums réifiés).
   counts.RELEVE_DE = await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle',
@@ -296,6 +331,20 @@ async function projectDerived(): Promise<Record<string, number>> {
   const profils = await prisma.profilJeune.findMany({ select: { id: true, cjsUid: true, competences: true } })
   const profilToUid = new Map(profils.map(p => [p.id, p.cjsUid]))
 
+  // Appariement SÉMANTIQUE (GUIC-677) : le lexical rate « Développement web » vs
+  // « Programmation front-end ». On pré-charge les vecteurs de TOUS les textes à
+  // apparier en une passe (sinon un aller-retour Redis par compétence de chaque
+  // profil). `null` si la fonctionnalité est désactivée → lexical strict, comme avant.
+  const certsPourVecteurs = await prisma.certificatMoodle.findMany({ select: { formation: true } })
+  const diplomesPourVecteurs = await prisma.diplome.findMany({ select: { intitule: true } })
+  const themesPourVecteurs = await prisma.ressource.findMany({ select: { theme: true } })
+  const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
+    ...profils.flatMap(p => parseCompetences(p.competences)),
+    ...certsPourVecteurs.map(c => c.formation),
+    ...diplomesPourVecteurs.map(d => d.intitule),
+    ...themesPourVecteurs.map(r => r.theme),
+  ])
+
   // MAITRISE = compétences auto-déclarées (profil) ∪ compétences ATTESTÉES par
   // les certificats/diplômes (spec 02 §4 : « competences (Json) + dérivée des
   // certificats/diplômes »). Sans ce 2e canal, un cert Moodle non re-saisi
@@ -303,7 +352,7 @@ async function projectDerived(): Promise<Record<string, number>> {
   const maitrise: RelPair[] = []
   for (const p of profils) {
     for (const comp of parseCompetences(p.competences)) {
-      for (const m of matchSkills(comp, index)) maitrise.push({ from: p.cjsUid, to: m.id })
+      for (const m of matchSkillsHybrid(comp, index, semantic)) maitrise.push({ from: p.cjsUid, to: m.id })
     }
   }
 
@@ -315,14 +364,14 @@ async function projectDerived(): Promise<Record<string, number>> {
   const attesteD: RelPair[] = []
   for (const c of certs) {
     const uid = profilToUid.get(c.profilId)
-    for (const m of matchSkills(c.formation, index)) {
+    for (const m of matchSkillsHybrid(c.formation, index, semantic)) {
       atteste.push({ from: c.id, to: m.id })
       if (uid) maitrise.push({ from: uid, to: m.id })
     }
   }
   for (const d of diplomes) {
     const uid = profilToUid.get(d.profilId)
-    for (const m of matchSkills(d.intitule, index)) {
+    for (const m of matchSkillsHybrid(d.intitule, index, semantic)) {
       attesteD.push({ from: d.id, to: m.id })
       if (uid) maitrise.push({ from: uid, to: m.id })
     }
@@ -338,9 +387,27 @@ async function projectDerived(): Promise<Record<string, number>> {
   const ressources = await prisma.ressource.findMany({ select: { id: true, theme: true } })
   const prepare: RelPair[] = []
   for (const r of ressources) {
-    for (const id of matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])) {
-      prepare.push({ from: r.id, to: id })
+    const parCategorie = matchThemeToCategorieSkills(r.theme, skills as SkillWithCategorie[])
+    if (parCategorie.length > 0) {
+      for (const id of parCategorie) prepare.push({ from: r.id, to: id })
+      continue
     }
+    // Repli SÉMANTIQUE (GUIC-677) : un thème sans correspondance de catégorie relie les
+    // compétences dont le libellé est sémantiquement proche.
+    //
+    // ⚠️ MESURE DU 2026-07-27 — ce repli ne répare PAS `PREPARE = 0` sur les données
+    // actuelles, et c'est un problème de DONNÉES, pas de code. Les deux référentiels ne
+    // décrivent pas la même chose :
+    //   Ressource.theme  = rubriques éditoriales   → « Emploi », « Formation », « Soft skills »
+    //   Skill.categorie  = slugs techniques        → « digital:fin », « agriculture:fin »
+    // Aucun recouvrement lexical (0 correspondance sur les 5 thèmes existants), et le
+    // sémantique ne produit que du bruit à cette granularité (« Formation » → « Soudure »
+    // 0,700 ; « Entrepreneuriat » → « Électricité » 0,668). Le seuil les rejette, à raison.
+    //
+    // Pour que PREPARE existe, il faut d'abord des thèmes de ressources ALIGNÉS sur des
+    // domaines de compétence (« Agriculture durable », « Développement web »), pas des
+    // rubriques de navigation. Cf. spec 12, refinement « raffiner les dérivées ».
+    for (const m of semantic?.match(r.theme) ?? []) prepare.push({ from: r.id, to: m.id })
   }
   counts.PREPARE = await mergeRels('PREPARE', 'RessourcePedagogique', 'id', 'Competence', 'id', dedupePairs(prepare))
 
@@ -408,6 +475,8 @@ export async function projectOpportunite(id: string): Promise<boolean> {
       emploi: true, stage: true, formation: true, bourse: true, concours: true,
       appelAProjets: true, financement: true, mentorat: true, mobilite: true, volontariat: true,
       skills: true, tags: true,
+      // GUIC-684 — le rattachement aux programmes vit dans la jonction (1..N).
+      programmes: { select: { programmeId: true, principal: true } },
     },
   })
   if (!o || o.deletedAt) return false
@@ -440,7 +509,14 @@ export async function projectOpportunite(id: string): Promise<boolean> {
 
   // Relations cœur.
   if (o.typeId) await mergeRels('EST_DE_TYPE', 'Opportunite', 'id', 'OpportuniteType', 'id', [{ from: o.id, to: o.typeId }])
-  if (o.programmeId) await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id', [{ from: o.programmeId, to: o.id }])
+  // Une arête par programme rattaché : une opportunité cofinancée relève de plusieurs.
+  // `principal` sur l'arête permet aux templates de ne retenir QUE le programme porteur
+  // là où une seule valeur est attendue — sans quoi le multi-programme dupliquerait les
+  // lignes de résultat renvoyées à Yaye.
+  if (o.programmes.length > 0) {
+    await mergeRels('FINANCE', 'Programme', 'id', 'Opportunite', 'id',
+      o.programmes.map(p => ({ from: p.programmeId, to: o.id, principal: p.principal })))
+  }
   if (o.organisationId) await mergeRels('PUBLIE', 'Organisation', 'id', 'Opportunite', 'id', [{ from: o.organisationId, to: o.id }])
   if (o.domaine) await mergeRels('RELEVE_DE', 'Opportunite', 'id', 'Secteur', 'libelle', [{ from: o.id, to: String(o.domaine) }])
   if (o.region) await mergeRels('SITUE_A', 'Opportunite', 'id', 'Region', 'nom', [{ from: o.id, to: String(o.region) }])
@@ -476,6 +552,127 @@ export function syncOpportuniteDeletion(id: string): void {
   void removeOpportuniteFromGraph(id).catch(err =>
     logger.warn('[graph:projection] suppression opportunité échouée (fail-soft)', { id, err: String(err) }),
   )
+}
+
+// ── Voie événementielle bénéficiaire (fraîcheur du read-model) ────────────────
+//
+// Sans elle, TOUT ce qui concerne la personne (candidatures, compétences, favoris,
+// diplômes/certificats, inscriptions) n'entrait dans le graphe qu'à la reprojection
+// nocturne : une offre postulée le matin restait « éligible » toute la journée, et une
+// compétence ajoutée au profil restait « manquante » dans l'analyse d'écart.
+
+/** Relations qu'une re-projection de bénéficiaire RECRÉE (donc à purger avant re-merge). */
+const BENEFICIAIRE_PROJECTED_RELS = ['MAITRISE', 'A_POSTULE', 'INTERESSE_PAR', 'A_OBTENU', 'A_EXERCE', 'INSCRIT_A']
+
+/**
+ * Projette/rafraîchit UN bénéficiaire : son nœud, ses nœuds de parcours (diplômes,
+ * certificats, expériences) et toutes ses arêtes personnelles — y compris la dérivée
+ * FLOUE `MAITRISE` (profil ∪ certificats ∪ diplômes) et `ATTESTE`, à l'identique de
+ * `reprojectAll` (parité stricte : même index de compétences, même matching).
+ *
+ * Idempotent. No-op si Neo4j non configuré. Les nœuds cibles (Opportunite, Evenement,
+ * RessourcePedagogique, Competence) sont supposés déjà projetés — une arête vers un
+ * nœud absent est simplement ignorée par `mergeRels` (MATCH), et réparée la nuit.
+ */
+export async function projectBeneficiaire(cjsUid: string): Promise<boolean> {
+  if (!isNeo4jConfigured()) return false
+  const user = await prisma.utilisateur.findUnique({
+    where: { cjsUid },
+    select: {
+      cjsUid: true, region: true, deletedAt: true,
+      profil: { select: { id: true, niveauEtude: true, situationEmploi: true, completionScore: true, competences: true } },
+    },
+  })
+  if (!user || user.deletedAt) return false
+  await ensureGraphSchema()
+
+  const profilId = user.profil?.id
+  const [diplomes, certificats, experiences, candidatures, oppFav, resFav, inscriptions, skills] = await Promise.all([
+    profilId ? prisma.diplome.findMany({ where: { profilId }, select: { id: true, intitule: true, niveau: true, anneeObtention: true, etablissement: true } }) : [],
+    profilId ? prisma.certificatMoodle.findMany({ where: { profilId }, select: { id: true, formation: true, obtenuLe: true, moodleCertId: true } }) : [],
+    profilId ? prisma.experience.findMany({ where: { profilId }, select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true } }) : [],
+    prisma.candidature.findMany({ where: { cjsUid }, select: { opportuniteId: true, statut: true, soumiseA: true } }),
+    prisma.opportuniteFavorite.findMany({ where: { cjsUid }, select: { opportuniteId: true } }),
+    prisma.ressourceFavorite.findMany({ where: { cjsUid }, select: { ressourceId: true } }),
+    prisma.inscriptionEvenement.findMany({ where: { cjsUid }, select: { evenementId: true, statut: true } }),
+    prisma.skill.findMany({ select: { id: true, slug: true, libelle: true } }),
+  ])
+
+  await mergeNodes('Beneficiaire', 'cjsUid', [{
+    cjsUid: user.cjsUid,
+    region: user.region,
+    niveauEtude: user.profil?.niveauEtude ?? null,
+    situationEmploi: user.profil?.situationEmploi ?? null,
+    completionScore: user.profil?.completionScore ?? null,
+  }])
+  await mergeNodes('Diplome', 'id', diplomes)
+  await mergeNodes('Certificat', 'id', certificats)
+  await mergeNodes('Experience', 'id', experiences)
+
+  // PURGE des arêtes de CETTE personne (MERGE est additif : sans purge, une candidature
+  // annulée ou un favori retiré resterait une arête fantôme jusqu'à la nuit).
+  await deleteRelsOfTypes('Beneficiaire', 'cjsUid', cjsUid, BENEFICIAIRE_PROJECTED_RELS)
+  for (const c of certificats) await deleteRelsOfTypes('Certificat', 'id', c.id, ['ATTESTE'])
+  for (const d of diplomes) await deleteRelsOfTypes('Diplome', 'id', d.id, ['ATTESTE'])
+
+  await mergeRels('A_OBTENU', 'Beneficiaire', 'cjsUid', 'Diplome', 'id', diplomes.map(d => ({ from: cjsUid, to: d.id })))
+  await mergeRels('A_OBTENU', 'Beneficiaire', 'cjsUid', 'Certificat', 'id', certificats.map(c => ({ from: cjsUid, to: c.id })))
+  await mergeRels('A_EXERCE', 'Beneficiaire', 'cjsUid', 'Experience', 'id', experiences.map(e => ({ from: cjsUid, to: e.id })))
+  await mergeRels('A_POSTULE', 'Beneficiaire', 'cjsUid', 'Opportunite', 'id',
+    candidatures.map(c => ({ from: cjsUid, to: c.opportuniteId, statut: String(c.statut), soumiseA: c.soumiseA })))
+  await mergeRels('INTERESSE_PAR', 'Beneficiaire', 'cjsUid', 'Opportunite', 'id',
+    oppFav.map(f => ({ from: cjsUid, to: f.opportuniteId })))
+  await mergeRels('INTERESSE_PAR', 'Beneficiaire', 'cjsUid', 'RessourcePedagogique', 'id',
+    resFav.map(f => ({ from: cjsUid, to: f.ressourceId })))
+  await mergeRels('INSCRIT_A', 'Beneficiaire', 'cjsUid', 'Evenement', 'id',
+    inscriptions.map(i => ({ from: cjsUid, to: i.evenementId, statut: String(i.statut) })))
+
+  // Dérivées FLOUES (R2) + sémantiques (GUIC-677) — même logique que `projectDerived`,
+  // restreinte à cette personne (donc quelques textes seulement à vectoriser).
+  const index = buildSkillIndex(skills as SkillRef[])
+  const competences = parseCompetences(user.profil?.competences)
+  const semantic = await prepareSemanticMatcher(skills as SkillRef[], [
+    ...competences,
+    ...certificats.map(c => c.formation),
+    ...diplomes.map(d => d.intitule),
+  ])
+  const maitrise: RelPair[] = []
+  const atteste: RelPair[] = []
+  const attesteD: RelPair[] = []
+  for (const comp of competences) {
+    for (const m of matchSkillsHybrid(comp, index, semantic)) maitrise.push({ from: cjsUid, to: m.id })
+  }
+  for (const c of certificats) {
+    for (const m of matchSkillsHybrid(c.formation, index, semantic)) {
+      atteste.push({ from: c.id, to: m.id })
+      maitrise.push({ from: cjsUid, to: m.id })
+    }
+  }
+  for (const d of diplomes) {
+    for (const m of matchSkillsHybrid(d.intitule, index, semantic)) {
+      attesteD.push({ from: d.id, to: m.id })
+      maitrise.push({ from: cjsUid, to: m.id })
+    }
+  }
+  await mergeRels('MAITRISE', 'Beneficiaire', 'cjsUid', 'Competence', 'id', dedupePairs(maitrise))
+  await mergeRels('ATTESTE', 'Certificat', 'id', 'Competence', 'id', dedupePairs(atteste))
+  await mergeRels('ATTESTE', 'Diplome', 'id', 'Competence', 'id', dedupePairs(attesteD))
+  return true
+}
+
+/**
+ * Déclencheur FAIL-SOFT (fire-and-forget) après une écriture qui touche le parcours du
+ * bénéficiaire : candidature, profil/compétences, diplôme, certificat, expérience, favori,
+ * inscription. Ne lève jamais, ne bloque jamais la requête appelante.
+ */
+export function syncBeneficiaireToGraph(cjsUid: string): void {
+  void projectBeneficiaire(cjsUid)
+    // Le contexte graphe mémoïsé (24 h) décrit CETTE personne : ses données viennent de
+    // changer → on l'invalide, sinon Yaye raisonnerait sur une lecture périmée.
+    .then(() => import('../../graph-context').then(m => m.purgeGraphContext(cjsUid)))
+    .catch(err =>
+      logger.warn('[graph:projection] sync bénéficiaire échouée (fail-soft)', { cjsUid, err: String(err) }),
+    )
 }
 
 // ── Voie événementielle bibliothèque (Lot 3, GUIC-274) ──────────────────────────
