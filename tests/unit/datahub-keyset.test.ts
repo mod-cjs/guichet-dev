@@ -144,9 +144,19 @@ describe('keysetExport — page rendue', () => {
     })
   })
 
-  it('annonce la colonne de réplication, que le tap doit connaître', async () => {
+  it('annonce la colonne de réplication SOUS SON NOM EXPORTÉ, pas le nom Prisma (GUIC-697 D1)', async () => {
+    // Avant correctif : meta.replication_key renvoyait `descriptor.replicationKey`
+    // (`createdAt`, nom Prisma) alors que la colonne réellement émise dans `data[]`
+    // s'appelle `created_at`. Le tap actuel n'est pas affecté (il lit le manifeste
+    // Singer, généré séparément), mais tout second consommateur qui suit CE contrat —
+    // les deux champs de la même réponse — se trompe de colonne.
     const page = await keysetExport(consultations, {}, delegate([]))
-    expect(page.meta.replication_key).toBe('createdAt')
+    expect(page.meta.replication_key).toBe('created_at')
     expect(page.meta.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('annonce le nom exporté même quand il diffère du nom Prisma (utilisateurs)', async () => {
+    const page = await keysetExport(utilisateurs, {}, delegate([]))
+    expect(page.meta.replication_key).toBe('updated_at')
   })
 })

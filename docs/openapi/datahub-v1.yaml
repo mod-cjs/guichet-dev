@@ -24,6 +24,14 @@ components:
       schema:
         type: "string"
         format: "date-time"
+    sinceRequis:
+      name: "since"
+      in: "query"
+      required: true
+      description: "Borne basse, ISO 8601 — OBLIGATOIRE sur cet endpoint (GUIC-697 D6) : un comptage non borné sur les 13 flux, dont `consultations`, dépasse `maxDuration = 60`."
+      schema:
+        type: "string"
+        format: "date-time"
     cursor:
       name: "cursor"
       in: "query"
@@ -972,6 +980,11 @@ components:
           format: "date-time"
           description: "Dernière modification. Watermark de réplication Data Hub."
           "x-cjs-tier": "public"
+    Counts:
+      type: "object"
+      description: "Comptage par flux sur la fenêtre `since`, à comparer aux COUNT(*) de l'entrepôt."
+      additionalProperties:
+        type: "integer"
 paths:
   "/export/utilisateurs":
     get:
@@ -997,13 +1010,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1032,13 +1051,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1067,13 +1092,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1102,13 +1133,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1137,13 +1174,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1172,13 +1215,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1207,13 +1256,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1242,13 +1297,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1277,13 +1338,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1312,13 +1379,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1347,13 +1420,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1382,13 +1461,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1417,13 +1502,63 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/counts":
+    get:
+      summary: "Comptages de réconciliation, par flux, sur une fenêtre"
+      description: "Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait » : à appeler après chaque run, avec le `since` de ce run, et comparer aux COUNT(*) de l'entrepôt sur la même fenêtre."
+      operationId: "export_counts"
+      parameters:
+        - "$ref": "#/components/parameters/sinceRequis"
+      responses:
+        "200":
+          description: "Comptages de la fenêtre"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Counts"
+                  meta:
+                    type: "object"
+                    properties:
+                      since:
+                        type: "string"
+                        format: "date-time"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "`since` absente ou illisible"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (60 requêtes/minute par clé)"
           content:
             "application/json":
               schema:

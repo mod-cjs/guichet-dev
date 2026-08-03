@@ -103,6 +103,11 @@ export async function keysetExport(
   const page = hasMore ? rows.slice(0, limit) : rows
   const derniere = page.at(-1)
 
+  // Nom EXPORTÉ de la clé de réplication (GUIC-697 D1) — `data[]` porte déjà `column.as`
+  // (ex. `updated_at`), annoncer le nom Prisma (`rk`, ex. `updatedAt`) décrirait une
+  // colonne absente de cette réponse pour tout consommateur qui suit ce contrat.
+  const replicationKeyExportee = descriptor.columns.find((c) => c.field === rk)?.as ?? rk
+
   return {
     data: page.map((row) => projectRow(descriptor, row)),
     meta: {
@@ -116,7 +121,7 @@ export async function keysetExport(
             })
           : null,
       has_more: hasMore,
-      replication_key: rk,
+      replication_key: replicationKeyExportee,
       generated_at: new Date().toISOString(),
     },
   }
