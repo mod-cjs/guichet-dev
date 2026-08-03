@@ -77,7 +77,7 @@ Voir `.agent_context/specs/layout-navigation.md` pour le détail.
 ## Commits
 
 - Format : `<type>(<module>): [GUIC-<n>] <desc FR>` + pied `Closes GUIC-<n>`
-- Auteur unique : `mod-cjs <mod-cjs@consortiumjeunesse.local>`
+- Auteur unique : `adiop-pixel <adiop@consortiumjeunessesenegal.org>` — ne PAS reposer une surcharge `user.name`/`user.email` locale au dépôt : elle masquerait l'identité globale. L'historique antérieur au 2026-07-30 porte `mod-cjs`.
 - **Jamais de mention IA** (`Co-Authored-By`, `Generated with`, etc.)
 - Types : `feat|fix|perf|security|chore|test|refactor`
 - Modules : `m1-socle…m14-prod` ou `nav|layout|ui|tests|qa|centres|candidatures|opportunites|dashboard`

@@ -298,9 +298,11 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
       deadline: new Date(Date.now() + 2 * 86_400_000).toISOString(),
     }
     renderDetail(soon)
-    expect(screen.getByTestId('hero-badge-categorie')).toBeInTheDocument()
-    expect(screen.getByTestId('hero-badge-urgence')).toBeInTheDocument()
-    expect(screen.getByTestId('hero-badge-urgence').className).toMatch(/bg-gj-red/)
+    expect(screen.getByTestId('opp-categorie')).toBeInTheDocument()
+    expect(screen.getByTestId('opp-urgence')).toBeInTheDocument()
+    // `.gj-urgent` (tokens.css) porte `background: var(--gj-red)` — le rouge
+    // reste réservé à l'urgence, seul son porteur change (GUIC-691).
+    expect(screen.getByTestId('opp-urgence').className).toMatch(/\bgj-urgent\b/)
   })
 
   it('masque la pastille urgence quand la deadline est lointaine (badge fusionné supprimé)', () => {
@@ -309,21 +311,21 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
       deadline: new Date(Date.now() + 60 * 86_400_000).toISOString(),
     }
     renderDetail(lointaine)
-    expect(screen.getByTestId('hero-badge-categorie')).toBeInTheDocument()
-    expect(screen.queryByTestId('hero-badge-urgence')).not.toBeInTheDocument()
+    expect(screen.getByTestId('opp-categorie')).toBeInTheDocument()
+    expect(screen.queryByTestId('opp-urgence')).not.toBeInTheDocument()
   })
 
   // ── GUIC-689 — CTA de conversion magenta ────────────────────────────────────
-  it('le CTA "Postuler maintenant" porte la couleur d’action de conversion (bg-gj-action)', async () => {
+  it('le CTA "Postuler maintenant" porte la couleur d’action de conversion (classe .gj-cta)', async () => {
     renderDetail()
     const cta = await screen.findByRole('button', { name: /postuler maintenant/i })
-    expect(cta.className).toMatch(/bg-gj-action/)
+    expect(cta.className).toMatch(/\bgj-cta\b/)
   })
 
   it('le lien "Se connecter pour postuler" (anonyme) porte la couleur d’action de conversion', () => {
     renderDetail(baseDetail, { viewer: null })
     const link = screen.getByRole('link', { name: /se connecter pour postuler/i })
-    expect(link.className).toMatch(/bg-gj-action/)
+    expect(link.className).toMatch(/\bgj-cta\b/)
   })
 
   // ── GUIC-689 (F-6) — enums bruts affichés lisiblement ────────────────────────

@@ -21,6 +21,12 @@ export interface YayeOppItem {
   note?: string | null
   /** CTA propre au type (« S'inscrire », « Postuler »…) ; override admin. Défaut par type sinon. */
   actionLabel?: string | null
+  /**
+   * GUIC-688 — provenance de la card. `reco` fait porter `from=reco` au lien, ce
+   * qui rattache la CONSULTATION à la recommandation (l'impression, elle, est
+   * déjà attribuée via le nom de l'outil).
+   */
+  origine?: 'reco' | null
 }
 
 /** Événement (agenda) prêt à afficher en card cliquable (→ /agenda/[id]). */

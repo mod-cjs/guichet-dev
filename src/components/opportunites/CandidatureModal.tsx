@@ -834,7 +834,7 @@ export function CandidatureModal({
             Brouillon
           </button>
           <Button
-            variant="cta"
+            variant="conversion"
             size="lg"
             className="flex-1"
             loading={sending}

@@ -1,0 +1,21 @@
+[project]
+name = "tap-guichet"
+version = "2.0.0"
+description = "Tap Singer d'export incrémental du Guichet Jeunesse CJS vers le Data Hub"
+requires-python = ">=3.10"
+dependencies = ["singer-sdk>=0.40.0", "requests>=2.31.0"]
+
+[project.scripts]
+tap-guichet = "tap_guichet.tap:TapGuichet.cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tap_guichet"]
+
+# Le manifeste est généré côté Guichet (npm run datahub:tap) et embarqué dans le paquet :
+# le tap n'a aucune connaissance des flux en dur.
+[tool.hatch.build.targets.wheel.force-include]
+"tap_guichet/streams.json" = "tap_guichet/streams.json"

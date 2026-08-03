@@ -1,0 +1,6 @@
+# Fichiers exclus du déploiement Vercel.
+#
+# `etl/` est le projet Meltano du Data Hub : une toolchain Python, sans rapport avec le
+# rendu Next.js. Rien dans l'application ne l'importe — l'embarquer alourdirait le
+# déploiement sans lui servir. Il est exécuté par le runner du pipeline, pas par Vercel.
+etl/

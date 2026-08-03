@@ -10,6 +10,7 @@ import {
   type LangueRessourceValue,
 } from '@/lib/loaders/ressources'
 import { RessourcesClient, MediathequeHome } from '@/components/ressources'
+import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
 
@@ -98,9 +99,10 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
     )
   }
 
-  const [{ items, total, page, pageSize }, programmes] = await Promise.all([
+  const [{ items, total, page, pageSize }, programmes, session] = await Promise.all([
     listRessources(filtres),
     loadProgrammeOptions(prisma),
+    getSession(),
   ])
 
   return (
@@ -126,6 +128,7 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
           pageSize={pageSize}
           initialFilters={filtres}
           programmes={programmes}
+          userIsConnected={Boolean(session)}
         />
       </Suspense>
     </div>

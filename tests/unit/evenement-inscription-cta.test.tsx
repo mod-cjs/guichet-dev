@@ -2,7 +2,7 @@
  * GUIC-689 — CTA de conversion magenta.
  *
  * `<EvenementInscriptionCta />` : seul l'état inscriptible (« S'inscrire —
- * c'est gratuit ») porte la couleur d'action de conversion (`bg-gj-action`).
+ * c'est gratuit ») porte la couleur d'action de conversion (`gj-cta`).
  * Les états secondaires (désinscription, fermées, complet) gardent leur
  * style actuel — jamais deux CTA pleins sur le même écran.
  */
@@ -15,7 +15,7 @@ jest.mock('next/navigation', () => ({
 }))
 
 describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
-  it('« S’inscrire — c’est gratuit » (état inscriptible) porte bg-gj-action', () => {
+  it('« S’inscrire — c’est gratuit » (état inscriptible) porte la classe .gj-cta', () => {
     render(
       <EvenementInscriptionCta
         evenementId="e1"
@@ -26,10 +26,10 @@ describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
       />,
     )
     const btn = screen.getByRole('button', { name: /s'inscrire — c'est gratuit/i })
-    expect(btn.className).toMatch(/bg-gj-action/)
+    expect(btn.className).toMatch(/\bgj-cta\b/)
   })
 
-  it('« Se désinscrire » (déjà inscrit·e) ne porte PAS bg-gj-action', () => {
+  it('« Se désinscrire » (déjà inscrit·e) ne porte PAS la classe .gj-cta', () => {
     render(
       <EvenementInscriptionCta
         evenementId="e1"
@@ -40,10 +40,10 @@ describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
       />,
     )
     const btn = screen.getByRole('button', { name: /se désinscrire/i })
-    expect(btn.className).not.toMatch(/bg-gj-action/)
+    expect(btn.className).not.toMatch(/\bgj-cta\b/)
   })
 
-  it('« Inscriptions fermées » ne porte PAS bg-gj-action', () => {
+  it('« Inscriptions fermées » ne porte PAS la classe .gj-cta', () => {
     render(
       <EvenementInscriptionCta
         evenementId="e1"
@@ -54,10 +54,10 @@ describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
       />,
     )
     const btn = screen.getByRole('button', { name: /inscriptions fermées/i })
-    expect(btn.className).not.toMatch(/bg-gj-action/)
+    expect(btn.className).not.toMatch(/\bgj-cta\b/)
   })
 
-  it('« Complet » ne porte PAS bg-gj-action', () => {
+  it('« Complet » ne porte PAS la classe .gj-cta', () => {
     render(
       <EvenementInscriptionCta
         evenementId="e1"
@@ -68,6 +68,6 @@ describe('<EvenementInscriptionCta /> — CTA de conversion magenta', () => {
       />,
     )
     const btn = screen.getByRole('button', { name: /événement complet/i })
-    expect(btn.className).not.toMatch(/bg-gj-action/)
+    expect(btn.className).not.toMatch(/\bgj-cta\b/)
   })
 })

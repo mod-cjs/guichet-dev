@@ -67,9 +67,17 @@ services:
     # option MariaDB 11.4+ INEXISTANTE en 10.11) n'a plus lieu d'être : depuis GUIC-562, CHAQUE
     # migration déclare sa collation explicitement, donc plus aucune table ne dépend du défaut
     # du serveur. La sentinelle `tests/unit/migrations-collation.test.ts` empêche la régression.
+    # NO_ZERO_DATE / NO_ZERO_IN_DATE ajoutés au sql_mode par défaut : sans eux, MariaDB
+    # accepte `0000-00-00`, que le driver Prisma ne sait PAS relire — toute lecture
+    # complète d'une ligne concernée lève « Invalid time value ». Constaté sur la base
+    # POC : 7 999 lignes de profils_jeunes et 3 000 d'inscriptions_evenements en
+    # portaient, rendant deux flux d'export inexploitables et cassant tout findMany sur
+    # ces tables. Interdire l'écriture est la seule prévention ; réparer après coup ne
+    # fait que repousser.
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
+      --sql-mode=STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE
     environment:
       MARIADB_DATABASE: guichet_jeunesse
       MARIADB_USER: guichet
