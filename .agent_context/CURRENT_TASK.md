@@ -1,32 +1,51 @@
-# CURRENT_TASK — GUIC-688 · Consultations multicanal (web · IA · WhatsApp)
+# CURRENT_TASK — GUIC-695 · Lot 2 durcissement ETL : brèche CDP du hachage de consultation
 
-**Spec** : `.agent_context/specs/GUIC-688-consultations-multicanal.md` · **Branche** : `feature/GUIC-688-consultations-multicanal` (depuis `dev`) · **JIRA** : [GUIC-688](https://consortiumjeunesse.atlassian.net/browse/GUIC-688) (Story, m13-data)
+**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.2 S1, §5 Lot 2 — rapport GUIC-693,
+branche `feature/GUIC-694-etl-lot1-exploitabilite`, PR #325) · **Branche** :
+`feature/GUIC-695-cdp-hachage-consultation` (depuis `dev`) · **JIRA** :
+[GUIC-695](https://consortiumjeunesse.atlassian.net/browse/GUIC-695)
 
-## Décisions PO
-- **Nominatif** : `cjsUid` pour les connectés, `sujetHash` (SHA-256 salé) sinon. Jamais d'IP en clair.
-- **Dédoublonnage** : 30 min, identique sur les 3 canaux.
-- **Compteurs `vues`** : conservés comme cache dénormalisé, alimentés par le helper.
-- **Rétention / purge / anonymisation** : **hors périmètre — on conserve tout, sans limite de durée**.
-- **Programme / Organisation** : enum prévu, pas d'instrumentation (aucune page bénéficiaire).
+## Contexte
+Campagne d'épreuve GUIC-693 (§4.2 S1) : le hachage de pseudonymisation des consultations était
+réversible — `.env.example` livrait `CONSULTATION_HASH_SALT=""`, que `??` laisse passer ; un seul
+tour de SHA-256 s'énumère à 3,3 M hachages/s sur un cœur, soit ~21 min pour couvrir les 2³² IPv4.
+Aggravant : `cjs_uid` et `sujet_hash` voyageaient sur la même ligne de l'entrepôt Data Hub, un
+oracle gratuit pour confirmer un sel candidat.
 
-## État
-- [x] Ticket GUIC-688 créé + spec rédigée + branche créée depuis `dev`
-- [x] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
-- [x] Étape 2 — Socle `src/lib/analytics/consultations.ts` (RED → GREEN, 28 tests)
-- [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
-- [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
-- [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
-- [x] Durcissement : `after()` au lieu de `void` (perte d'écriture serverless) · user-agent dans le sujet anonyme ·
-      sentinelle sur les 6 callsites · liens de notification WhatsApp · `from=reco` · impressions livres
-- [x] tsc 0 erreur · lint sans nouveau warning · 163 tests ciblés verts · suite complète sans régression (27 suites
-      rouges, toutes sur `pool timeout` faute de base locale — identiques à la ligne de base)
-- [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
-- [ ] PR vers `dev`
+## État — les deux volets du correctif sont faits
+- [x] RED puis GREEN — `hashSujet` devient un HMAC-SHA256 à clé obligatoire
+      (`src/lib/analytics/consultation-hash.ts`, module pur). Refus au **démarrage** en
+      production si la clé est absente/blanche, via `instrumentation.ts` — sans ce garde,
+      `trackConsultation` (fail-soft) aurait avalé l'absence de clé en silence. Rotation
+      possible (relecture paresseuse à chaque appel). `.env.example` :
+      `CONSULTATION_HASH_KEY` remplace `CONSULTATION_HASH_SALT=""`.
+- [x] RED puis GREEN — `sujet_hash` **masqué à l'export** dès que `cjs_uid` est renseigné
+      (le connecté se suit par `cjs_uid`, le hash ne sert qu'aux anonymes). Le contrat
+      d'export (`stream-types.ts`) passe désormais la ligne source aux `transform`, et gagne
+      `outputNullable` pour déclarer qu'une colonne NOT NULL peut sortir masquée à null —
+      sans quoi le manifeste Singer généré aurait rejeté chaque ligne d'un connecté (même
+      mécanique que le défaut B2 du rapport GUIC-693). Artefacts régénérés (OpenAPI,
+      `streams.json`, `sources.yml`), `///` de `Consultation` réalignés.
+- [x] `npm run validate` intégral vert : 557 suites, 4299 tests, tsc et lint propres.
+- [ ] Push + PR vers `dev` (lot autonome, séparé de PR #325 — un lot = une PR).
 
-## Points d'attention
-- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières : à confronter à `prisma migrate diff` dès que la base est joignable.
-- 28 suites d'intégration rouges en local, toutes sur `pool timeout` (base éteinte) — indépendantes de ce ticket.
-- Le compteur `Ressource.vues` va ralentir sa progression (garde Redis ajoutée) : attendu, à annoncer au PO.
-- `CONSULTATION_HASH_SALT` à poser en production (documenté dans `.env.example`).
+## Point d'attention découvert en cours (pas une régression de ce ticket)
+La base MariaDB locale partagée (`guichet_jeunesse`, celle que ciblent les tests d'intégration
+via `tests/setup.ts`, différente de `guichet_push` que `.env.local` pointe pour le labo ETL)
+n'avait pas les 2 migrations du 30/07 (`add_consultations`,
+`datahub_watermarks_et_index_extraction`) — déjà mergées sur `dev`, juste jamais rejouées sur
+cette base partagée entre sessions parallèles. `prisma migrate deploy` appliqué dessus pour
+débloquer `npm run validate` ; aucune donnée détruite, uniquement rattrapage de schéma.
 
-## Hors périmètre : dashboards · exports CSV · rollup journalier · retrait de `CentreEvent.centre_viewed` · rétention/purge.
+## Déploiement — à poser AVANT le merge en préprod/prod
+- `CONSULTATION_HASH_KEY` : `openssl rand -hex 32`, valeur différente par environnement.
+  Sans elle, l'app **refuse de démarrer** en production (comportement voulu).
+- Les hash changent de valeur (HMAC ≠ SHA-256 salé) : la garde de dédoublonnage Redis (30 min)
+  repart de zéro au déploiement — sur-comptage ponctuel d'une fenêtre, sans action requise.
+- L'entrepôt ne reçoit plus `sujet_hash` pour les connectés : aucun mart dbt ne le lisait à ce
+  jour, donc pas de rupture de contrat aval identifiée.
+
+## Reste du plan de durcissement (spec §5)
+Lot 1 GUIC-694 (PR #325, ouverte) · **Lot 2 = cette branche** · Lot 3 refus nets (S2/S3/S4/R3,
+500→400) · Lot 4 pré-vol étendu + fiabilité (R1/R2/R4/R5) · Lot 5 exploitabilité (B5, alertes,
+rejeu) · Lot 6 contrat/doc (D1-D8) · Lot 7 arbitrages hors correctif (suppressions dures R6…).
