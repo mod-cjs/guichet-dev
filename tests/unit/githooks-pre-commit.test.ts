@@ -160,3 +160,32 @@ describe('GUIC-346 — isExempt', () => {
     expect(isExempt(path)).toBe(expected)
   })
 })
+
+describe('GUIC-698 — un commit GREEN de source seule reste possible après un RED', () => {
+  /**
+   * La convention TDD du projet impose deux commits : `test(...)` RED d'abord, puis
+   * `feat|fix(...)` GREEN qui ne contient QUE de la source. La règle 1 de GUIC-346, qui
+   * exige un test staged dans le même commit, rend donc tout GREEN conforme impossible —
+   * et le bypass devient la norme, ce qui vide le garde-fou de sa substance.
+   *
+   * La règle devient : on autorise un commit de source seule lorsque la branche porte déjà
+   * un commit `test(...)` depuis sa divergence d'avec `dev`. La contrainte reste réelle
+   * (il faut avoir écrit un test sur la branche), mais elle cesse de contredire la
+   * convention qu'elle sert.
+   */
+  const sourceSeule: StagedFile[] = [{ path: 'src/lib/datahub/tap-manifest.ts', status: 'M' }]
+
+  it('autorise la source seule quand un commit test existe sur la branche', () => {
+    expect(checkTddCompliance(sourceSeule, {}, { redSurLaBranche: true }).ok).toBe(true)
+  })
+
+  it('refuse toujours la source seule quand la branche ne porte aucun commit test', () => {
+    const result = checkTddCompliance(sourceSeule, {}, { redSurLaBranche: false })
+    expect(result.ok).toBe(false)
+    expect(result.missing).toContain('src/lib/datahub/tap-manifest.ts')
+  })
+
+  it('refuse par défaut, en l\'absence d\'information sur la branche', () => {
+    expect(checkTddCompliance(sourceSeule).ok).toBe(false)
+  })
+})
