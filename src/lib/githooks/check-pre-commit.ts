@@ -69,7 +69,7 @@ function isSourceFile(path: string): boolean {
  * de mapping 1:1 source→test) pour éviter les faux positifs sur les
  * refactors qui touchent plusieurs fichiers couverts par un seul test.
  */
-/** Contexte de branche — voir GUIC-698. Comportement non encore implémenté. */
+/** Contexte de branche — voir GUIC-698. */
 export interface TddOptions {
   /** Vrai si la branche porte déjà un commit `test(...)` depuis sa divergence d'avec `dev`. */
   redSurLaBranche?: boolean
@@ -80,7 +80,6 @@ export function checkTddCompliance(
   fileContents: Record<string, string> = {},
   options: TddOptions = {},
 ): TddCheckResult {
-  void options
   const sourceFiles = files
     .filter((f) => f.status === 'A' || f.status === 'M')
     .filter((f) => isSourceFile(f.path))
@@ -93,6 +92,13 @@ export function checkTddCompliance(
   )
 
   if (hasTestStaged) return { ok: true, missing: [] }
+
+  // GUIC-698 — la convention TDD du projet sépare le commit test(RED) du commit GREEN,
+  // qui ne contient donc QUE de la source. Exiger un test dans le même commit rendait
+  // tout GREEN conforme impossible et faisait du bypass la norme. On accepte la source
+  // seule à condition qu'un commit `test(...)` existe déjà sur la branche : la contrainte
+  // reste réelle — il faut avoir écrit un test — sans contredire la convention servie.
+  if (options.redSurLaBranche === true) return { ok: true, missing: [] }
 
   return { ok: false, missing: sourceFiles.map((f) => f.path) }
 }
