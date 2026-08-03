@@ -379,6 +379,7 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
   // plein écran a déjà l'URL dans la barre d'adresse du navigateur → le
   // bandeau ne doit apparaître QUE quand le composant est rendu en slide-over
   // (signal existant : présence de `onClose`, cf. DetailSheet).
+  // GREEN : implémenté dans OpportuniteDetail.tsx (bloc `detail-url-banner`).
   describe('Bandeau URL + vues — slide-over uniquement', () => {
     it('absent en contexte plein écran (pas de onClose)', () => {
       renderDetail()

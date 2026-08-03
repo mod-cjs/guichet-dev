@@ -17,6 +17,7 @@ import {
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
 import { regionLabel } from '@/lib/regions'
+import { appDomain } from '@/lib/app-url'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -247,14 +248,17 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
     // F1.2 (GUIC-689) — compteur de vues, jamais affiché jusqu'ici bien que
     // suivi côté serveur (lot3-opps-web.jsx:420-428). Aligné sur la
     // présentation de RessourceDetailHero (singulier/pluriel).
-    if (typeof detail.vues === 'number') {
+    // P3-B (GUIC-689) — en contexte slide-over (`onClose` fourni), le compteur
+    // migre dans le bandeau URL dédié (cf. `<DetailUrlBanner>` ci-dessous) :
+    // on ne le duplique jamais. En plein écran, il reste ici (pas de bandeau).
+    if (!onClose && typeof detail.vues === 'number') {
       chips.push({
         icon: 'eye',
         label: `${VUES_FMT.format(detail.vues)} vue${detail.vues > 1 ? 's' : ''}`,
       })
     }
     return chips
-  }, [detail.region, detail.remuneration, detail.deadline, detail.vues])
+  }, [detail.region, detail.remuneration, detail.deadline, detail.vues, onClose])
 
   // Grille détails 2 colonnes — racine + sous-type discriminé.
   const cells = useMemo(() => {
@@ -310,9 +314,42 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
 
   return (
     <article className="flex flex-col">
+      {/* ─── Bandeau URL + vues (slide-over uniquement) ─────────────────
+          P3-B (GUIC-689) — réf. design v5 `WebOppSlideOver` (lot3-opps-web.jsx
+          L.412-429) : rappelle l'URL publique de l'offre (repère de confiance)
+          au-dessus du hero. La page plein écran a déjà cette URL dans la barre
+          d'adresse du navigateur — l'y ajouter serait redondant, donc ce
+          bandeau ne se rend QUE quand ce composant est en slide-over
+          (signal existant : présence de `onClose`, cf. `DetailSheet`). */}
+      {onClose && (
+        <div
+          data-testid="detail-url-banner"
+          className="flex items-center gap-2 bg-gj-ink-teal text-white/70 px-space-3 py-1
+            text-fs-100 font-mono rounded-t-gj-md"
+        >
+          <Icon name="shield" size={12} className="text-gj-yellow shrink-0" aria-hidden />
+          <span className="flex-1 min-w-0 truncate">
+            <span className="text-white/55">{appDomain()}</span>
+            <span className="text-gj-yellow">/opportunites/</span>
+            <span className="text-white">{detail.slug}</span>
+          </span>
+          {typeof detail.vues === 'number' && (
+            <span
+              data-testid="detail-url-banner-vues"
+              className="inline-flex items-center gap-1 text-white/55 shrink-0"
+            >
+              <Icon name="eye" size={12} aria-hidden />
+              <b className="text-white font-bold">{VUES_FMT.format(detail.vues)}</b>{' '}
+              vue{detail.vues > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ─── Hero compact ────────────────────────────────────────────── */}
       <header
-        className="text-white px-space-4 pt-space-2 pb-space-4 rounded-gj-md"
+        className={`text-white px-space-4 pt-space-2 pb-space-4
+          ${onClose ? 'rounded-b-gj-md' : 'rounded-gj-md'}`}
         style={{
           background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-teal-deep)))',
         }}
