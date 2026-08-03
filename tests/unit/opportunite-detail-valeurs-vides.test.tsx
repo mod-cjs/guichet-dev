@@ -17,6 +17,7 @@
 import { render, screen } from '@testing-library/react'
 
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
+import { FavorisProvider } from '@/components/opportunites/FavorisProvider'
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn(), back: jest.fn() }),
@@ -44,21 +45,29 @@ function detailBourse(payload: Record<string, unknown>) {
   } as never
 }
 
+function renderDetail(detail: never) {
+  return render(
+    <FavorisProvider isAuthenticated={false}>
+      <OpportuniteDetail viewer={null as never} detail={detail} />
+    </FavorisProvider>,
+  )
+}
+
 describe('GUIC-689 — valeurs sémantiquement vides jamais affichées', () => {
   it('un montant à 0 n’est pas présenté comme une information', () => {
-    render(<OpportuniteDetail viewer={null as never} detail={detailBourse({ montantTotalFcfa: 0, organismeFinanceur: 'Fondation X' })} />)
+    renderDetail(detailBourse({ montantTotalFcfa: 0, organismeFinanceur: 'Fondation X' }))
     expect(screen.queryByText(/^0\s*FCFA$/)).not.toBeInTheDocument()
     expect(screen.queryByText(/montant/i)).not.toBeInTheDocument()
   })
 
   it('un marqueur de remplissage (« À renseigner ») ne fuit pas vers l’utilisateur', () => {
-    render(<OpportuniteDetail viewer={null as never} detail={detailBourse({ montantTotalFcfa: 500000, organismeFinanceur: 'À renseigner' })} />)
+    renderDetail(detailBourse({ montantTotalFcfa: 500000, organismeFinanceur: 'À renseigner' }))
     expect(screen.queryByText(/à renseigner/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/organisme financeur/i)).not.toBeInTheDocument()
   })
 
   it('les valeurs réelles restent affichées', () => {
-    render(<OpportuniteDetail viewer={null as never} detail={detailBourse({ montantTotalFcfa: 500000, organismeFinanceur: 'Fondation X' })} />)
+    renderDetail(detailBourse({ montantTotalFcfa: 500000, organismeFinanceur: 'Fondation X' }))
     expect(screen.getByText(/organisme financeur/i)).toBeInTheDocument()
     expect(screen.getByText('Fondation X')).toBeInTheDocument()
     expect(screen.getByText(/500\s?000\s*FCFA/)).toBeInTheDocument()

@@ -84,6 +84,28 @@ const normalizeLabel = (v: string) =>
 
 // ─── Formatage des champs de sous-type (GUIC-689 — grille "Détails de l'offre") ───
 
+/**
+ * GUIC-689 — une valeur peut être techniquement présente et sémantiquement
+ * vide. Constaté au rendu : des bourses affichaient « Montant — 0 FCFA » et
+ * « Organisme financeur — À renseigner », deux marqueurs de remplissage
+ * stockés en base. Les afficher est pire que de ne rien afficher : le premier
+ * laisse croire que la bourse ne verse rien, le second fait fuiter un marqueur
+ * interne vers le public.
+ */
+const MARQUEURS_VIDES = ['a renseigner', 'non renseigne', 'inconnu', 'n/a', 'na', '-', '?']
+
+/** Texte utile ? (ni vide, ni marqueur de remplissage) */
+function texteUtile(v: string | null | undefined): v is string {
+  if (!v) return false
+  const norm = v.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return norm.length > 0 && !MARQUEURS_VIDES.includes(norm)
+}
+
+/** Montant utile ? Un montant à 0 n'informe pas — il signale une saisie absente. */
+function montantUtile(n: number | null | undefined): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0
+}
+
 /** Montant en FCFA avec séparateurs de milliers `Intl.NumberFormat('fr-FR')`. */
 const MONTANT_FMT = new Intl.NumberFormat('fr-FR')
 const fcfa = (n: number) => `${MONTANT_FMT.format(n)} FCFA`
@@ -367,7 +389,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
           value: p.organismeCertificateur ? `Certifiante — ${p.organismeCertificateur}` : 'Formation certifiante',
         })
       }
-      if (p.prerequis) out.push({ label: 'Prérequis', value: p.prerequis })
+      if (texteUtile(p.prerequis)) out.push({ label: 'Prérequis', value: p.prerequis })
       // `gratuite` est porteur de sens dans les deux états (ex. brief : « Formation
       // payante » quand `false`, avec le montant s'il est renseigné).
       out.push({
@@ -382,8 +404,8 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
 
     if (detail.details?.type === 'bourse') {
       const p = detail.details.payload
-      out.push({ label: 'Montant', value: fcfa(p.montantTotalFcfa) })
-      out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      if (montantUtile(p.montantTotalFcfa)) out.push({ label: 'Montant', value: fcfa(p.montantTotalFcfa) })
+      if (texteUtile(p.organismeFinanceur)) out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
       if (p.dureeMois != null) out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
       if (p.paysDestination) out.push({ label: 'Pays de destination', value: p.paysDestination })
       // `coupleObligatoire` : seul le `true` est décisif (la plupart des bourses
@@ -393,9 +415,9 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
 
     if (detail.details?.type === 'concours') {
       const p = detail.details.payload
-      out.push({ label: 'Organisme organisateur', value: p.organismeOrganisateur })
+      if (texteUtile(p.organismeOrganisateur)) out.push({ label: 'Organisme organisateur', value: p.organismeOrganisateur })
       if (p.dateEpreuves) out.push({ label: 'Date des épreuves', value: dateFmt.format(new Date(p.dateEpreuves)) })
-      if (p.lieuEpreuves) out.push({ label: 'Lieu des épreuves', value: p.lieuEpreuves })
+      if (texteUtile(p.lieuEpreuves)) out.push({ label: 'Lieu des épreuves', value: p.lieuEpreuves })
       if (p.placesDisponibles != null) {
         out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
       }
@@ -407,17 +429,17 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
       // `dossierRequis` / `criteresEligibilite` sont des textes longs (prose) :
       // hors de la grille compacte clé-valeur, comme `conditions`/`mission` déjà
       // rendus en sections dédiées ailleurs sur ce composant.
-      if (p.budgetMaxFcfa != null) out.push({ label: 'Budget max', value: fcfa(p.budgetMaxFcfa) })
+      if (montantUtile(p.budgetMaxFcfa)) out.push({ label: 'Budget max', value: fcfa(p.budgetMaxFcfa) })
       if (p.dureeProjetMois != null) out.push({ label: 'Durée du projet', value: moisLabel(p.dureeProjetMois) })
-      if (p.thematique) out.push({ label: 'Thématique', value: p.thematique })
+      if (texteUtile(p.thematique)) out.push({ label: 'Thématique', value: p.thematique })
     }
 
     if (detail.details?.type === 'financement') {
       const p = detail.details.payload
       // `garanties` : texte long (prose), hors grille — même raison que dossierRequis.
-      out.push({ label: 'Montant', value: fcfa(p.montantFcfa) })
+      if (montantUtile(p.montantFcfa)) out.push({ label: 'Montant', value: fcfa(p.montantFcfa) })
       out.push({ label: 'Type de financement', value: humanize(p.typeFinancement) })
-      out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      if (texteUtile(p.organismeFinanceur)) out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
       const taux = toNum(p.tauxAnnuel)
       if (taux != null) out.push({ label: 'Taux annuel', value: pctLabel(taux) })
       if (p.dureeRemboursementMois != null) {
@@ -434,8 +456,8 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
       const p = detail.details.payload
       out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
       out.push({ label: 'Modalité', value: humanize(p.modalite) })
-      out.push({ label: 'Organisateur', value: p.organisateurLibelle })
-      if (p.thematique) out.push({ label: 'Thématique', value: p.thematique })
+      if (texteUtile(p.organisateurLibelle)) out.push({ label: 'Organisateur', value: p.organisateurLibelle })
+      if (texteUtile(p.thematique)) out.push({ label: 'Thématique', value: p.thematique })
       if (p.placesDisponibles != null) {
         out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
       }
@@ -445,7 +467,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
       const p = detail.details.payload
       // `prisEnCharge` : bien que `db.Text` en base, réponse courte en pratique
       // (« Billet + logement ») et directement décisive pour un jeune → dans la grille.
-      out.push({ label: 'Destination', value: p.destination })
+      if (texteUtile(p.destination)) out.push({ label: 'Destination', value: p.destination })
       out.push({ label: 'Type de mobilité', value: humanize(p.typeMobilite) })
       out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
       if (p.niveauLangueRequis) out.push({ label: 'Niveau de langue requis', value: p.niveauLangueRequis })
@@ -457,7 +479,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
       const p = detail.details.payload
       out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
       out.push({ label: 'Type de volontariat', value: humanize(p.typeVolontariat) })
-      out.push({ label: 'Domaine de la mission', value: p.domaineMission })
+      if (texteUtile(p.domaineMission)) out.push({ label: 'Domaine de la mission', value: p.domaineMission })
       // `indemniteMensuelleFcfa` absente : porteur de sens (un volontariat non
       // indemnisé est une information à ne pas cacher), même logique que stage.
       out.push({
