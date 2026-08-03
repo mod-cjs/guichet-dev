@@ -77,3 +77,12 @@ tests/e2e/.auth/
 playwright-results.json
 test-results/
 playwright-report/
+
+# GUIC-694 — artefacts d'exécution du pipeline ETL (jetables, jamais versionnés)
+__pycache__/
+*.py[cod]
+*.egg-info/
+etl/.meltano/
+etl/transform/target/
+etl/transform/dbt_packages/
+etl/transform/logs/
