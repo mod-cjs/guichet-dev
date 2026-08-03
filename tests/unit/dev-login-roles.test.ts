@@ -52,4 +52,17 @@ describe('GUIC-689 — rôles du dev-login dérivés de la base', () => {
   it('un bénéficiaire n’obtient jamais un rôle d’administration', () => {
     expect(isAdminRole(rolesPourDevLogin('beneficiaire'))).toBe(false)
   })
+
+  /**
+   * Sentinelle : le défaut d'origine était une liste de rôles écrite en dur
+   * dans la route. Tester la seule fonction pure laisserait la route libre de
+   * régresser sans qu'aucun test ne bronche.
+   */
+  it('la route dev-login appelle bien la dérivation, sans liste en dur', () => {
+    const { readFileSync } = jest.requireActual('node:fs') as typeof import('node:fs')
+    const { resolve } = jest.requireActual('node:path') as typeof import('node:path')
+    const src = readFileSync(resolve(__dirname, '../../src/app/api/dev/login/route.ts'), 'utf-8')
+    expect(src).toMatch(/roles:\s*rolesPourDevLogin\(/)
+    expect(src).not.toMatch(/roles:\s*\[/)
+  })
 })
