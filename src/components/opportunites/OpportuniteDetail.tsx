@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button, Icon, RichContent, Toast } from '@/components/ui'
 import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
-import { YayeMatchCard } from './YayeMatchCard'
+import { YayeMatchCard, type YayeMatch } from './YayeMatchCard'
 import { ProgrammeBadges } from './ProgrammeBadges'
 import { TYPE_CAT, type CatFamily } from './opportunite-type-meta'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
@@ -29,6 +29,13 @@ const CandidatureModal = dynamic(
 interface OpportuniteDetailProps {
   detail: Detail
   viewer: ViewerInfo | null
+  /**
+   * Score de correspondance Yaye réel pour ce couple (viewer, opportunité),
+   * lu côté serveur (`getRecommandationScore`) et descendu en prop — jamais
+   * calculé ni fetché depuis ce composant client (GUIC-689 P2). `null`/`undefined`
+   * = aucun score en cache pour ce couple → `YayeMatchCard` ne s'affiche pas.
+   */
+  matchScore?: YayeMatch | null
   /** Si le détail est rendu dans un slide-over, affiche un bouton « Fermer » dans le hero. */
   onClose?: () => void
 }
@@ -61,6 +68,18 @@ const humanize = (v: string) =>
         : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
     )
     .join(' ')
+
+/**
+ * Normalise un libellé pour une comparaison insensible à la casse/accents
+ * (P1 GUIC-689 — check-list des prérequis : croise `skills` de l'offre et
+ * `viewer.competences`, saisies librement, sans supposer une casse commune).
+ */
+const normalizeLabel = (v: string) =>
+  v
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
 
 /**
  * Nombre de jours restants avant la deadline (peut être négatif si dépassée).
@@ -170,7 +189,7 @@ function DetailCell({ label, value }: { label: string; value: string }) {
 }
 
 /** Contenu du détail d'une opportunité — partagé entre la page SSR et le slide-over. */
-export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetailProps) {
+export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: OpportuniteDetailProps) {
   const searchParams = useSearchParams()
   const expired = detail.deadline !== null && new Date(detail.deadline) < new Date()
   const { has: isFavoriOf, toggle: toggleFavoriId } = useFavoris()
@@ -268,6 +287,15 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
   const competencesRequises = (detail.skills ?? []).filter((s) => s.requise)
   const tags = detail.tags ?? []
 
+  // P1 (GUIC-689) — check-list des prérequis : croise les compétences requises
+  // de l'offre avec `viewer.competences` (déjà chargées pour CandidatureModal),
+  // comparaison insensible casse/accents. `null` pour un visiteur anonyme — on
+  // ne prétend jamais connaître son profil.
+  const viewerCompetencesNorm = useMemo(
+    () => (viewer ? new Set((viewer.competences ?? []).map(normalizeLabel)) : null),
+    [viewer],
+  )
+
   const ctaDisabled = expired || dejaCandidate
   const ctaLabel = dejaCandidate
     ? 'Déjà candidaté'
@@ -348,7 +376,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
 
       {/* ─── Contenu défilant (scroll unique — plus de tabs) ─────────── */}
       <div className="flex flex-col gap-space-4 mt-space-4">
-        <YayeMatchCard />
+        <YayeMatchCard match={matchScore ?? null} />
 
         <section aria-labelledby="opp-details-heading">
           <h2
@@ -417,11 +445,44 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             >
               Compétences requises
             </h2>
-            <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-loose">
-              {competencesRequises.map((s) => (
-                <li key={s.slug}>{s.libelle}</li>
-              ))}
-            </ul>
+            {viewerCompetencesNorm ? (
+              <ul className="flex flex-col gap-space-1" data-testid="skills-checklist">
+                {competencesRequises.map((s) => {
+                  const acquise = viewerCompetencesNorm.has(normalizeLabel(s.libelle))
+                  return (
+                    <li
+                      key={s.slug}
+                      data-testid={`skill-check-${s.slug}`}
+                      data-acquise={acquise}
+                      className={`flex items-center gap-space-2 rounded-gj-md px-space-3 py-space-2
+                        text-fs-200 font-bold
+                        ${acquise ? 'bg-gj-green-soft text-gj-green-ink' : 'bg-gj-yellow-soft text-gj-yellow-ink'}`}
+                    >
+                      <span
+                        aria-hidden
+                        className={`w-5 h-5 rounded-full inline-flex items-center justify-center
+                          flex-shrink-0 text-white
+                          ${acquise ? 'bg-gj-green' : 'bg-gj-yellow-deep'}`}
+                      >
+                        <Icon name={acquise ? 'check' : 'plus'} size={12} />
+                      </span>
+                      <span className="flex-1">{s.libelle}</span>
+                      {!acquise && (
+                        <span className="text-fs-100 font-extrabold uppercase tracking-wide">
+                          À compléter
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-loose">
+                {competencesRequises.map((s) => (
+                  <li key={s.slug}>{s.libelle}</li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
