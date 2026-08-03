@@ -763,6 +763,50 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
         )}
       </div>
 
+      {/* ─── « Offre portée par » — gage de crédibilité ──────────────────
+          Engagement du retour design V3 §4, maquette `lot3-opps-web.jsx:549`.
+          La maquette n'affiche pas de fichier logo mais une pastille d'initiale
+          + le nom (et `Organisation.logoUrl` est vide partout en base) : on rend
+          donc l'organisme, les programmes de rattachement RÉELS (GUIC-684) et le
+          CJS, opérateur de la plateforme. Rien n'est inventé — aucune entité
+          n'est affichée sans donnée qui la porte. */}
+      <div
+        data-testid="offre-portee-par"
+        className="flex flex-wrap items-center gap-space-3 px-space-3 py-space-3
+          bg-gj-bg border-t border-gj-line"
+      >
+        <span
+          className="text-fs-100 font-extrabold uppercase tracking-[0.5px]
+            text-color-text-secondary shrink-0"
+        >
+          Offre portée par
+        </span>
+        <ul className="flex flex-wrap items-center gap-2 list-none p-0 m-0">
+          {[
+            detail.organisation,
+            ...(detail.programmes ?? []).map((p) => p.nom),
+            'Consortium Jeunesse Sénégal',
+          ]
+            .filter((nom): nom is string => Boolean(nom && nom.trim()))
+            .map((nom) => (
+              <li
+                key={nom}
+                className="inline-flex items-center gap-2 bg-gj-surface
+                  border border-gj-line rounded-gj-md px-space-2 py-1"
+              >
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center w-[22px] h-[22px]
+                    rounded-gj-sm bg-gj-teal-soft text-gj-teal-deep text-fs-100 font-black"
+                >
+                  {nom.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="text-fs-100 font-bold text-color-text-primary">{nom}</span>
+              </li>
+            ))}
+        </ul>
+      </div>
+
       {/* ─── Sticky CTA ──────────────────────────────────────────────── */}
       <div
         className="sticky bottom-0 z-10 bg-white border-t border-gj-line

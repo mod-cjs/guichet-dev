@@ -147,7 +147,11 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
   it('rend le hero compact avec titre, organisation et badge type', () => {
     renderDetail()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(baseDetail.titre)
-    expect(screen.getByText('Sonatel')).toBeInTheDocument()
+    // GUIC-689 — l'organisation apparaît désormais à deux endroits (sous-titre
+    // du hero ET bandeau « Offre portée par », comme dans la maquette) : on
+    // cible explicitement celle du hero.
+    expect(screen.getAllByText('Sonatel').length).toBeGreaterThanOrEqual(1)
+    expect(document.querySelector('header b')?.textContent).toBe('Sonatel')
     // Deux pastilles distinctes (catégorie + urgence) — plusieurs nœuds possibles (h1 + pastille).
     expect(screen.getAllByText(/stage/i).length).toBeGreaterThan(0)
   })
