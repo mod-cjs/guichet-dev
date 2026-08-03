@@ -93,6 +93,9 @@ describe('GUIC-692 — loader Candidatures (helpers)', () => {
     expect(f.preselection).toBe(44)
     expect(f.entretien).toBe(30)
     expect(f.decision).toBe(20)
+    // conversion = retenue/reçues ; ici retenue par défaut 0 → 0
+    expect(f.conversionPct).toBe(0)
+    expect(funnelFromCounts([{ pipelineStage: 'Recue', _count: { id: 100 } }], 14).conversionPct).toBe(14)
   })
 
   it('kpisFromCounts : enAttente/vues/retenues + score moyen (sur non-null) + insertions à part', () => {

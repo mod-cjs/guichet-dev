@@ -116,7 +116,13 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
         {/* ── Funnel + KPIs ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: 16, marginBottom: 16 }} className="max-md:!grid-cols-1">
           <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: 18 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', marginBottom: 12 }}>Parcours des candidatures</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--gj-ink)' }}>Parcours des candidatures</div>
+                <div style={{ fontSize: 11, color: 'var(--gj-grey)', marginTop: 2 }}>Cumul · du dépôt à l&apos;insertion</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', whiteSpace: 'nowrap' }}>{funnel.conversionPct.toLocaleString('fr-FR')} % conversion</span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {FUNNEL_STEPS.map((s) => (
                 <div key={s.label} style={{ position: 'relative', borderRadius: 9, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', overflow: 'hidden', border: s.win ? '1px solid var(--gj-green)' : '1px solid var(--gj-line)', background: 'var(--gj-bg)' }}>
@@ -128,16 +134,24 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignContent: 'start' }}>
             {[
-              { lab: 'En attente', val: kpis.enAttente.toLocaleString('fr-FR') },
-              { lab: 'Vues', val: kpis.vues.toLocaleString('fr-FR') },
-              { lab: 'Retenues', val: kpis.retenues.toLocaleString('fr-FR') },
-              { lab: 'Score IA moyen', val: `${kpis.scoreMoyen}`, unit: '/100' },
-            ].map((k) => (
-              <div key={k.lab} style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '14px 15px' }}>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gj-grey)' }}>{k.lab}</div>
-                <div className="num" style={{ fontSize: 26, fontWeight: 900, marginTop: 5, color: 'var(--gj-ink)' }}>{k.val}{k.unit && <small style={{ fontSize: 13, color: 'var(--gj-grey)', fontWeight: 700 }}>{k.unit}</small>}</div>
-              </div>
-            ))}
+              { lab: 'En attente', val: kpis.enAttente.toLocaleString('fr-FR'), pill: 'à traiter', tone: 'w' as const },
+              { lab: 'Vues', val: kpis.vues.toLocaleString('fr-FR'), pill: 'consultées' },
+              { lab: 'Retenues', val: kpis.retenues.toLocaleString('fr-FR'), pill: 'retenues', tone: 'g' as const },
+              { lab: 'Score IA moyen', val: `${kpis.scoreMoyen}`, unit: '/100', pill: 'adéquation' },
+            ].map((k) => {
+              const pillStyle = k.tone === 'w'
+                ? { background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }
+                : k.tone === 'g'
+                  ? { background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)' }
+                  : { background: 'var(--gj-line)', color: 'var(--gj-grey)' }
+              return (
+                <div key={k.lab} style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '14px 15px' }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gj-grey)' }}>{k.lab}</div>
+                  <div className="num" style={{ fontSize: 26, fontWeight: 900, margin: '5px 0 6px', color: 'var(--gj-ink)' }}>{k.val}{k.unit && <small style={{ fontSize: 13, color: 'var(--gj-grey)', fontWeight: 700 }}>{k.unit}</small>}</div>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, ...pillStyle }}>{k.pill}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -166,9 +180,10 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
 
         {/* ── Table (desktop) ── */}
         <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.7fr .9fr .9fr .9fr .5fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 780 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 860 }}>
             <span>Candidat</span>
             <span>Opportunité</span>
+            <span>Soumise</span>
             <span role="columnheader">
               <button type="button" onClick={() => push({ sort: sort === 'score' ? 'recent' : 'score' })} aria-label="Trier par score IA" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 0, padding: 0, font: 'inherit', color: sort === 'score' ? 'var(--gj-admin-gold)' : 'var(--gj-grey)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '.4px', cursor: 'pointer' }}>
                 Score IA <Icon name="chevron-down" size={12} />
@@ -184,20 +199,21 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           ) : rows.map((c) => {
             const sc = statutColors(c.statut)
             return (
-              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.7fr .9fr .9fr .9fr .5fr', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 780 }}>
+              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 860 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                   <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))', color: 'var(--gj-surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{initials(c.candidatPrenom, c.candidatNom)}</span>
                   <div style={{ minWidth: 0 }}>
                     <Link href={`/admin/utilisateurs/${c.candidatCjsUid}`} className="hover:underline" style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.candidatPrenom} {c.candidatNom}</Link>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: 'var(--gj-grey)' }}>{relativeDate(c.soumiseA)}</span>
-                      {c.enRetard && (<span title="En attente > 14 j — à relancer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '1px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}><Icon name="clock" size={10} /> à relancer</span>)}
-                    </div>
+                    <div className="num" style={{ fontSize: 10.5, color: 'var(--gj-grey)', fontFamily: 'ui-monospace, monospace', marginTop: 1 }}>{c.candidatCjsUid}</div>
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}>{c.opportuniteTitre}</Link>
-                  <div style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{c.organisation}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{c.recruteur}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{relativeDate(c.soumiseA)}</span>
+                  {c.enRetard && (<span title="En attente > 14 j — à relancer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '1px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)', width: 'fit-content' }}><Icon name="clock" size={10} /> à relancer</span>)}
                 </div>
                 <span>
                   {c.score == null
@@ -238,7 +254,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                       <div className="num" style={{ fontSize: 12.5, fontWeight: 900, marginTop: 4, color: c.score == null ? 'var(--gj-grey)' : scoreColor(c.score) }}>{c.score == null ? 'en cours' : `${c.score}/100`}</div>
                     </div>
                   </div>
-                  <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.opportuniteTitre}<span style={{ fontWeight: 400, color: 'var(--gj-grey)' }}> · {c.organisation}</span></Link>
+                  <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.opportuniteTitre}<span style={{ fontWeight: 400, color: 'var(--gj-grey)' }}> · {c.recruteur}</span></Link>
                 </div>
               )
             })}

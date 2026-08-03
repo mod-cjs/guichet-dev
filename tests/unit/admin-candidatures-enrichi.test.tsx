@@ -21,10 +21,10 @@ import {
 beforeEach(() => mockPush.mockReset())
 
 const ROWS: CandidatureRow[] = [
-  { id: 'c1', candidatCjsUid: 'u-awa', candidatPrenom: 'Awa', candidatNom: 'Diop', opportuniteId: 'o1', opportuniteTitre: 'Dev backend', organisation: 'Senstartup', statut: 'Vue', soumiseA: new Date(), enRetard: false, score: 88, etape: 'Preselection', favori: true },
-  { id: 'c2', candidatCjsUid: 'u-mod', candidatPrenom: 'Modou', candidatNom: 'Fall', opportuniteId: 'o2', opportuniteTitre: 'Stage marketing', organisation: 'Wave', statut: 'En_attente', soumiseA: new Date(), enRetard: true, score: null, etape: 'Recue', favori: false },
+  { id: 'c1', candidatCjsUid: 'u-awa', candidatPrenom: 'Awa', candidatNom: 'Diop', opportuniteId: 'o1', opportuniteTitre: 'Dev backend', recruteur: 'Senstartup', statut: 'Vue', soumiseA: new Date(), enRetard: false, score: 88, etape: 'Preselection', favori: true },
+  { id: 'c2', candidatCjsUid: 'u-mod', candidatPrenom: 'Modou', candidatNom: 'Fall', opportuniteId: 'o2', opportuniteTitre: 'Stage marketing', recruteur: 'Wave', statut: 'En_attente', soumiseA: new Date(), enRetard: true, score: null, etape: 'Recue', favori: false },
 ]
-const FUNNEL: CandidaturesFunnel = { recue: 56, preselection: 44, entretien: 30, decision: 20, retenue: 28 }
+const FUNNEL: CandidaturesFunnel = { recue: 56, preselection: 44, entretien: 30, decision: 20, retenue: 28, conversionPct: 50 }
 const KPIS: CandidaturesKpis = { enAttente: 56, vues: 88, retenues: 28, scoreMoyen: 68, insertions: 3640 }
 
 const defaultProps = {
@@ -76,6 +76,22 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
     fireEvent.click(screen.getByRole('button', { name: /Trier par score/i }))
     expect(mockPush).toHaveBeenCalled()
     expect(mockPush.mock.calls[0][0]).toMatch(/sort=score/)
+  })
+
+  it('fidélité maquette : cjs_uid, colonne Soumise, recruteur, pill conversion, pills KPI', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    // cjs_uid affiché sous le nom
+    expect(screen.getAllByText('u-awa').length).toBeGreaterThanOrEqual(1)
+    // colonne Soumise dédiée
+    expect(screen.getByText('Soumise')).toBeInTheDocument()
+    // recruteur dans la colonne Opportunité
+    expect(screen.getAllByText(/Senstartup/i).length).toBeGreaterThanOrEqual(1)
+    // pill de conversion sur le funnel
+    expect(screen.getByText(/% conversion/i)).toBeInTheDocument()
+    // pills des KPIs
+    expect(screen.getByText(/à traiter/i)).toBeInTheDocument()
+    expect(screen.getByText(/consultées/i)).toBeInTheDocument()
+    expect(screen.getByText(/adéquation/i)).toBeInTheDocument()
   })
 
   it('conserve le flag "à relancer" (>14j) — supervision', () => {

@@ -21,10 +21,10 @@ import {
 beforeEach(() => mockPush.mockReset())
 
 const ROWS: CandidatureRow[] = [
-  { id: 'c1', candidatCjsUid: 'uid-awa', candidatPrenom: 'Awa', candidatNom: 'Diop', opportuniteId: 'opp-1', opportuniteTitre: 'Développeur full-stack', organisation: 'Sonatel', statut: 'En_attente', soumiseA: new Date('2026-05-20T10:00:00Z'), enRetard: true, score: 72, etape: 'Recue', favori: false },
-  { id: 'c2', candidatCjsUid: 'uid-mod', candidatPrenom: 'Modou', candidatNom: 'Sow', opportuniteId: 'opp-2', opportuniteTitre: 'Bourse mobilité', organisation: 'CJS', statut: 'Retenue', soumiseA: new Date('2026-06-15T10:00:00Z'), enRetard: false, score: 90, etape: 'Decision', favori: true },
+  { id: 'c1', candidatCjsUid: 'uid-awa', candidatPrenom: 'Awa', candidatNom: 'Diop', opportuniteId: 'opp-1', opportuniteTitre: 'Développeur full-stack', recruteur: 'Sonatel', statut: 'En_attente', soumiseA: new Date('2026-05-20T10:00:00Z'), enRetard: true, score: 72, etape: 'Recue', favori: false },
+  { id: 'c2', candidatCjsUid: 'uid-mod', candidatPrenom: 'Modou', candidatNom: 'Sow', opportuniteId: 'opp-2', opportuniteTitre: 'Bourse mobilité', recruteur: 'CJS', statut: 'Retenue', soumiseA: new Date('2026-06-15T10:00:00Z'), enRetard: false, score: 90, etape: 'Decision', favori: true },
 ]
-const FUNNEL: CandidaturesFunnel = { recue: 40, preselection: 25, entretien: 18, decision: 20, retenue: 20 }
+const FUNNEL: CandidaturesFunnel = { recue: 40, preselection: 25, entretien: 18, decision: 20, retenue: 20, conversionPct: 50 }
 const KPIS: CandidaturesKpis = { enAttente: 40, vues: 25, retenues: 20, scoreMoyen: 71, insertions: 900 }
 
 const defaultProps = {

@@ -58,7 +58,7 @@ export interface CandidatureRowInput {
   statut: StatutCandidature
   soumiseA: Date
   utilisateur: { cjsUid: string; prenom: string; nom: string }
-  opportunite: { id: string; titre: string; organisation: string; organisationLibelle: string | null }
+  opportunite: { id: string; titre: string; organisation: string; organisationLibelle: string | null; org?: { nom: string } | null }
   scoreAdequation: number | null
   pipelineStage: StatutPipeline
   favoriRecruteur: boolean
@@ -71,7 +71,8 @@ export interface CandidatureRow {
   candidatNom: string
   opportuniteId: string
   opportuniteTitre: string
-  organisation: string
+  /** Recruteur : Organisation liée (org.nom) sinon libellé/texte libre de l'offre. */
+  recruteur: string
   statut: StatutCandidature
   soumiseA: Date
   enRetard: boolean
@@ -88,7 +89,7 @@ export function mapCandidatureRow(c: CandidatureRowInput, now: Date = new Date()
     candidatNom: c.utilisateur.nom,
     opportuniteId: c.opportunite.id,
     opportuniteTitre: c.opportunite.titre,
-    organisation: c.opportunite.organisationLibelle ?? c.opportunite.organisation,
+    recruteur: c.opportunite.org?.nom ?? c.opportunite.organisationLibelle ?? c.opportunite.organisation,
     statut: c.statut,
     soumiseA: c.soumiseA,
     enRetard: c.statut === 'En_attente' && c.soumiseA.getTime() < now.getTime() - SEUIL_RELANCE_MS,
@@ -99,7 +100,7 @@ export function mapCandidatureRow(c: CandidatureRowInput, now: Date = new Date()
 }
 
 // ─── Funnel & KPIs ─────────────────────────────────────────────────────────────
-export interface CandidaturesFunnel { recue: number; preselection: number; entretien: number; decision: number; retenue: number }
+export interface CandidaturesFunnel { recue: number; preselection: number; entretien: number; decision: number; retenue: number; conversionPct: number }
 export interface CandidaturesKpis { enAttente: number; vues: number; retenues: number; scoreMoyen: number; insertions: number }
 
 type PipeCount = { pipelineStage: StatutPipeline; _count: { id: number } }
@@ -107,7 +108,10 @@ type StatutCount = { statut: StatutCandidature; _count: { id: number } }
 
 export function funnelFromCounts(counts: PipeCount[], retenue = 0): CandidaturesFunnel {
   const by = (s: StatutPipeline) => counts.find((c) => c.pipelineStage === s)?._count.id ?? 0
-  return { recue: by('Recue'), preselection: by('Preselection'), entretien: by('Entretien'), decision: by('Decision'), retenue }
+  const recue = by('Recue')
+  // Conversion = retenues / reçues (1 décimale, fidèle maquette « 13,9 % »).
+  const conversionPct = recue > 0 ? Math.round((retenue / recue) * 1000) / 10 : 0
+  return { recue, preselection: by('Preselection'), entretien: by('Entretien'), decision: by('Decision'), retenue, conversionPct }
 }
 
 export function kpisFromCounts(counts: StatutCount[], scoreMoyenRaw: number | null, insertions: number): CandidaturesKpis {
@@ -152,7 +156,8 @@ export async function getCandidaturesData(params: { page: number; q: string; sta
       select: {
         id: true, statut: true, soumiseA: true, scoreAdequation: true, pipelineStage: true, favoriRecruteur: true,
         utilisateur: { select: { cjsUid: true, prenom: true, nom: true } },
-        opportunite: { select: { id: true, titre: true, organisation: true, organisationLibelle: true } },
+        // Garde-fou spike : select ciblé (jamais include plein → TransformError adapter MariaDB).
+        opportunite: { select: { id: true, titre: true, organisation: true, organisationLibelle: true, org: { select: { nom: true } } } },
       },
     }),
     prisma.candidature.count({ where }),
