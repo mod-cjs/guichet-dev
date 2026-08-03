@@ -94,7 +94,10 @@ describe('GET /api/v1/export/[stream] — page servie', () => {
     expect(body.data).toEqual([
       { cjs_uid: 'u1', region: 'Dakar', updated_at: '2026-07-01T00:00:00.000Z' },
     ])
-    expect(body.meta.replication_key).toBe('updatedAt')
+    // GUIC-697 D1 — nom EXPORTÉ (`updated_at`), pas le nom Prisma : `data[]` porte déjà
+    // `updated_at`, annoncer `updatedAt` en meta décrirait une colonne qui n'existe pas
+    // dans la réponse.
+    expect(body.meta.replication_key).toBe('updated_at')
     expect(body.meta.has_more).toBe(false)
     expect(body.meta.next_cursor).toBeNull()
   })
