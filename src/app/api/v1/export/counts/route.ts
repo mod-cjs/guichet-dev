@@ -12,9 +12,11 @@
  * dossier préfixé par `_` est un dossier privé, exclu du routage. D'où `counts`, servi
  * avant le segment dynamique par précédence des segments statiques.
  *
- * COÛT — sans borne, chaque comptage parcourt l'index entier du flux. Sur `consultations`
- * c'est lent. L'usage attendu est `?since=` sur la fenêtre du run, qui exploite l'index
- * composite posé au lot 1.
+ * COÛT — `since` est OBLIGATOIRE (GUIC-697 D6). Sans borne, chaque comptage parcourt
+ * l'index entier du flux ; sur `consultations`, 13 `COUNT(*)` séquentiels sans filtre sous
+ * `maxDuration = 60` font de cet outil de diagnostic celui qui tombe en timeout au moment
+ * précis où on en a besoin — après un run qui a peut-être perdu des lignes, sur gros
+ * volume. `?since=` exploite l'index composite posé au lot 1.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -52,12 +54,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (limite) return limite
 
   const brut = request.nextUrl.searchParams.get('since')
-  if (brut !== null && Number.isNaN(Date.parse(brut))) {
+  // GUIC-697 D6 — `since` est désormais OBLIGATOIRE. Sans borne, ce sont 13 `COUNT(*)`
+  // séquentiels sans filtre sous `maxDuration = 60` : sur `consultations` (le plus gros
+  // volume du pipeline), c'est l'outil de diagnostic qui tombe en timeout au moment
+  // précis où on en a besoin — après un run qui a peut-être perdu des lignes.
+  if (brut === null) {
+    return erreur(
+      'BORNE_REQUISE',
+      "Paramètre since obligatoire : comptage non borné trop coûteux sur gros volume",
+      400
+    )
+  }
+  if (Number.isNaN(Date.parse(brut))) {
     // Une borne illisible traitée comme absente rendrait un comptage total présenté
     // comme un comptage de fenêtre : la réconciliation conclurait à une perte massive.
     return erreur('BORNE_INVALIDE', `Paramètre since illisible : ${brut}`, 400)
   }
-  const since = brut === null ? null : new Date(brut)
+  const since = new Date(brut)
 
   const data: Record<string, number> = {}
   for (const descriptor of allDescriptors()) {
@@ -66,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // La borne porte sur la colonne de réplication DU FLUX : appliquer `createdAt`
     // partout comparerait des fenêtres différentes de celles réellement extraites.
     data[descriptor.name] = await delegate.count({
-      where: since ? { [descriptor.replicationKey]: { gte: since } } : {},
+      where: { [descriptor.replicationKey]: { gte: since } },
     })
   }
 
