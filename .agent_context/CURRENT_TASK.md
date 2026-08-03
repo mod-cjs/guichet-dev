@@ -1,32 +1,41 @@
-# CURRENT_TASK — GUIC-688 · Consultations multicanal (web · IA · WhatsApp)
+# CURRENT_TASK — GUIC-700 · Lot 7 durcissement ETL : suppressions, rétention, v_programs_summary
 
-**Spec** : `.agent_context/specs/GUIC-688-consultations-multicanal.md` · **Branche** : `feature/GUIC-688-consultations-multicanal` (depuis `dev`) · **JIRA** : [GUIC-688](https://consortiumjeunesse.atlassian.net/browse/GUIC-688) (Story, m13-data)
+**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.3 R6, §5 Lot 7 — arbitrages
+tranchés le 2026-08-03) · **Branche** : `feature/GUIC-700-etl-suppressions-retention`, **empilée
+sur** `feature/GUIC-694-etl-lot1-exploitabilite` (Lot 1, PR #325 — même besoin que GUIC-697) ·
+**JIRA** : [GUIC-700](https://consortiumjeunesse.atlassian.net/browse/GUIC-700)
 
-## Décisions PO
-- **Nominatif** : `cjsUid` pour les connectés, `sujetHash` (SHA-256 salé) sinon. Jamais d'IP en clair.
-- **Dédoublonnage** : 30 min, identique sur les 3 canaux.
-- **Compteurs `vues`** : conservés comme cache dénormalisé, alimentés par le helper.
-- **Rétention / purge / anonymisation** : **hors périmètre — on conserve tout, sans limite de durée**.
-- **Programme / Organisation** : enum prévu, pas d'instrumentation (aucune page bénéficiaire).
+## Arbitrages tranchés (voir spec pour le détail des 3 questions posées)
+1. Absent détecté par le full-refresh hebdomadaire des clés → **suppression physique** dans
+   l'entrepôt (guichet_raw + marts, qui se recalculent dessus). Pas de tombstone.
+2. **Rétention événementielle uniquement** — pas de purge indépendante par durée côté entrepôt.
+3. **v_programs_summary dans la même passe** (support FULL_TABLE pour les 5 tables de jonction
+   programmes).
+
+## Vérification empirique faite avant tout code
+`Utilisateur` n'est jamais hard-deleted (soft-delete + anonymisation SSO, déjà propagé).
+Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre`, `Evenement`,
+`Ressource`. `Opportunite.delete()` existe mais aucun appelant identifié.
 
 ## État
-- [x] Ticket GUIC-688 créé + spec rédigée + branche créée depuis `dev`
-- [x] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
-- [x] Étape 2 — Socle `src/lib/analytics/consultations.ts` (RED → GREEN, 28 tests)
-- [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
-- [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
-- [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
-- [x] Durcissement : `after()` au lieu de `void` (perte d'écriture serverless) · user-agent dans le sujet anonyme ·
-      sentinelle sur les 6 callsites · liens de notification WhatsApp · `from=reco` · impressions livres
-- [x] tsc 0 erreur · lint sans nouveau warning · 163 tests ciblés verts · suite complète sans régression (27 suites
-      rouges, toutes sur `pool timeout` faute de base locale — identiques à la ligne de base)
-- [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
-- [ ] PR vers `dev`
+- [x] Ticket GUIC-700 créé (sous-tâche GUIC-693) + arbitrages obtenus + spec mise à jour
+- [ ] Partie A — `src/lib/datahub/purge-absents.ts` (module pur, injection comme
+      `reconcile.ts`) : détecte les clés présentes dans l'entrepôt mais absentes de la liste
+      complète des clés source, supprime physiquement dans `guichet_raw`
+- [ ] Partie A — `scripts/datahub/purge-absents.ts` (Prisma direct + `psql` dockerisé, même
+      patron que `reconcile.ts`) + crontab hebdomadaire séparée de `run-nightly.sh`
+- [ ] Partie B — support `FULL_TABLE` dans le contrat (`stream-types.ts`, clé composite) pour
+      les 5 tables de jonction programmes
+- [ ] Partie B — `v_programs_summary.sql` corrigé avec les vrais compteurs de rattachement
+- [ ] `npm run validate` intégral vert
+- [ ] Push + PR vers `feature/GUIC-694-etl-lot1-exploitabilite` (stacked, comme GUIC-697)
 
-## Points d'attention
-- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières : à confronter à `prisma migrate diff` dès que la base est joignable.
-- 28 suites d'intégration rouges en local, toutes sur `pool timeout` (base éteinte) — indépendantes de ce ticket.
-- Le compteur `Ressource.vues` va ralentir sa progression (garde Redis ajoutée) : attendu, à annoncer au PO.
-- `CONSULTATION_HASH_SALT` à poser en production (documenté dans `.env.example`).
+## Notes
+- Cette branche n'a PAS les correctifs de GUIC-695/696/697, stackée sur GUIC-694 seul
+  (siblings, convergeront sur `dev` une fois les quatre mergées).
+- Le mécanisme de suppression révise le `?fields=id` public de la spec §8.5 initiale : script
+  interne Prisma-direct, pas de nouveau paramètre exposé sur l'API publique.
 
-## Hors périmètre : dashboards · exports CSV · rollup journalier · retrait de `CentreEvent.centre_viewed` · rétention/purge.
+## Reste du plan de durcissement (spec §5)
+Lot 1 GUIC-694 (PR #325) · Lot 2 GUIC-695 (PR #326) · Lots 3+4 GUIC-696 (PR #327) · Lots 5+6
+GUIC-697 (PR #335) · **Lot 7 GUIC-700 = cette branche, dernier lot du plan**.
