@@ -60,4 +60,10 @@ describe('GUIC-689 — pastille d’échéance des cartes Yaye', () => {
     renderCard(dansNJours(40))
     expect(screen.queryByText(/^J-\d+$/)).not.toBeInTheDocument()
   })
+
+  it('sans échéance : aucune pastille (rien à signaler)', () => {
+    renderCard(null)
+    expect(screen.queryByText(/^J-\d+$/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/aujourd/i)).not.toBeInTheDocument()
+  })
 })

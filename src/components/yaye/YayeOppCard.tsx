@@ -74,7 +74,10 @@ export function YayeOppCard({ opp, onNavigate }: { opp: YayeOppItem; onNavigate?
         {dl && (
           <span className={`inline-flex items-center gap-1 text-fs-100 font-bold ${urgent ? 'text-gj-red' : TONE_TEXT[tone]}`}>
             <Icon name="clock" size={11} aria-hidden />
-            {dl.label}
+            {/* GUIC-689 — format compact : tant que l'échéance est proche, le
+                compte à rebours porte le signal ; la date seule le diluerait.
+                Au-delà, « J-40 » n'apprend rien : on repasse à la date. */}
+            {dl.days > 0 && dl.days <= 7 ? `J-${dl.days}` : dl.label}
           </span>
         )}
       </div>
