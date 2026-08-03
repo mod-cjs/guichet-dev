@@ -53,8 +53,12 @@ export interface FieldSpec<M extends ModelName, K extends ScalarField<M>> {
    * colonne : brancher une transformation de date sur une colonne texte ne compile pas.
    * Sert notamment à ne jamais exporter une donnée brute quand sa forme dérivée suffit
    * (`dateNaissance` → `tranche_age`).
+   *
+   * Le second paramètre reçoit la ligne source (restreinte aux colonnes du contrat) : il
+   * permet un masquage conditionné par une AUTRE colonne — `sujet_hash` ne sort que si
+   * `cjs_uid` est absent (GUIC-695). À n'utiliser que pour lire, jamais pour muter.
    */
-  transform?: (value: Scalars<M>[K]) => unknown
+  transform?: (value: Scalars<M>[K], row: Scalars<M>) => unknown
   /**
    * Type de la valeur exportée. Obligatoire dès qu'une transformation est posée — sans
    * elle, le contrat publié décrirait le type de la colonne SOURCE et mentirait aux
@@ -62,6 +66,13 @@ export interface FieldSpec<M extends ModelName, K extends ScalarField<M>> {
    * étant alors déduit du schéma Prisma.
    */
   outputType?: 'string' | 'integer' | 'number' | 'boolean'
+  /**
+   * Nullabilité de la valeur exportée. N'a de sens qu'avec une transformation : la
+   * nullabilité ne se déduit alors plus de la colonne source (une colonne NOT NULL peut
+   * sortir masquée à null). Sans elle, une valeur nulle serait rejetée par le chargeur
+   * Singer — la mécanique exacte du défaut B2 du rapport GUIC-693.
+   */
+  outputNullable?: boolean
   /**
    * Description de la valeur exportée. Obligatoire dès qu'une transformation est posée,
    * pour la même raison qu'`outputType` : sans elle, le contrat publié reprend la
