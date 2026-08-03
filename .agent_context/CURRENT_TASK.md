@@ -1,32 +1,47 @@
-# CURRENT_TASK — GUIC-688 · Consultations multicanal (web · IA · WhatsApp)
+# CURRENT_TASK — GUIC-696 · Lots 3+4 durcissement ETL : refuser au lieu de rendre faux
 
-**Spec** : `.agent_context/specs/GUIC-688-consultations-multicanal.md` · **Branche** : `feature/GUIC-688-consultations-multicanal` (depuis `dev`) · **JIRA** : [GUIC-688](https://consortiumjeunesse.atlassian.net/browse/GUIC-688) (Story, m13-data)
+**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.2 S2/S3, §4.3 R1/R2/R4/R5,
+§4.1 R3 — rapport GUIC-693, branche `feature/GUIC-694-etl-lot1-exploitabilite`, PR #325) ·
+**Branche** : `feature/GUIC-696-etl-refus-nets` (depuis `origin/dev`) · **JIRA** :
+[GUIC-696](https://consortiumjeunesse.atlassian.net/browse/GUIC-696)
 
-## Décisions PO
-- **Nominatif** : `cjsUid` pour les connectés, `sujetHash` (SHA-256 salé) sinon. Jamais d'IP en clair.
-- **Dédoublonnage** : 30 min, identique sur les 3 canaux.
-- **Compteurs `vues`** : conservés comme cache dénormalisé, alimentés par le helper.
-- **Rétention / purge / anonymisation** : **hors périmètre — on conserve tout, sans limite de durée**.
-- **Programme / Organisation** : enum prévu, pas d'instrumentation (aucune page bénéficiaire).
+## Contexte
+Sous-tâche de l'épic GUIC-693 (campagne d'épreuve du pipeline ETL Data Hub). Famille de
+défauts commune aux deux lots : une entrée invalide produit un résultat FAUX plutôt qu'une
+erreur — le pire mode de défaillance pour un ETL, parce qu'il ne s'annonce pas.
 
-## État
-- [x] Ticket GUIC-688 créé + spec rédigée + branche créée depuis `dev`
-- [x] Étape 1 — Schéma Prisma (3 enums + modèle `Consultation`) + migration SQL manuelle
-- [x] Étape 2 — Socle `src/lib/analytics/consultations.ts` (RED → GREEN, 28 tests)
-- [x] Étape 3 — Canal web (5 pages détail + route API + retrait des 2 compteurs, 12 tests)
-- [x] Étape 4 — Canal IA (impressions via `executeToolCall` + `nodesReturned` + `?src=ia`, 7 tests)
-- [x] Étape 5 — Canal WhatsApp (`?src=wa` sur les 4 familles de liens)
-- [x] Durcissement : `after()` au lieu de `void` (perte d'écriture serverless) · user-agent dans le sujet anonyme ·
-      sentinelle sur les 6 callsites · liens de notification WhatsApp · `from=reco` · impressions livres
-- [x] tsc 0 erreur · lint sans nouveau warning · 163 tests ciblés verts · suite complète sans régression (27 suites
-      rouges, toutes sur `pool timeout` faute de base locale — identiques à la ligne de base)
-- [ ] **Migration NON appliquée** : MariaDB local éteint — `prisma migrate deploy` à jouer avant tout runtime
-- [ ] PR vers `dev`
+## État — Lot 3 (refus nets) et Lot 4 (fiabilité pré-vol) livrés, TDD strict
+- [x] **S4** — `convertirCle` (keyset.ts) : `BadCursorError` typée au lieu d'un `Error` nu
+      sur clé BigInt forgée, validation stricte `/^\d+$/` avant `BigInt()` (rejette `""` et
+      `0x10`, acceptés silencieusement par `BigInt()` seul).
+- [x] **R3** — `trancheAge` (transforms.ts) : garde explicite sur `Number.isNaN(date.getTime())`
+      — le garde existant `age < 0 || age > 120` ne protégeait pas contre NaN.
+- [x] **S2 + S3** — nouveau module `src/lib/datahub/since.ts`, `parseSince()` partagée par
+      `[stream]/route.ts` ET `counts/route.ts` : refuse une borne illisible (400, plus de
+      500) et une date hors plage MariaDB DATETIME (an 1000-9999) plutôt que de laisser le
+      filtre silencieusement ignoré.
+- [x] **R1** — `src/lib/datahub/date-columns.ts`, `colonnesDateExportees()` dérivée du
+      contrat : le pré-vol contrôle désormais ~35 colonnes date exportées, pas seulement
+      les 13 clés de réplication.
+- [x] **R2** — `scripts/sql/repair-donnees-poc.sql` aligné sur le pré-vol : `candidatures`
+      (`soumise_a`) ajoutée, absente jusqu'ici alors que le pré-vol l'y signalait.
+- [x] **R4** — `src/lib/datahub/sql-mode.ts`, `sqlModeSuffisant()` : contrôle `SELECT
+      @@sql_mode` ajouté au pré-vol (`NO_ZERO_DATE` + `NO_ZERO_IN_DATE` requis).
+- [x] **R5** — `MELTANO_DATABASE_URI` rendue obligatoire au pré-vol.
+- [x] `npm run validate` intégral vert : 559 suites, 4313 tests, tsc et lint propres.
+- [ ] Push + PR vers `dev`.
 
-## Points d'attention
-- `SHADOW_DATABASE_URL` absent de `.env`/`.env.local` et l'utilisateur MariaDB n'a pas `CREATE DATABASE` → `prisma migrate dev` échoue. Migration **écrite à la main** sur le modèle des 4 dernières : à confronter à `prisma migrate diff` dès que la base est joignable.
-- 28 suites d'intégration rouges en local, toutes sur `pool timeout` (base éteinte) — indépendantes de ce ticket.
-- Le compteur `Ressource.vues` va ralentir sa progression (garde Redis ajoutée) : attendu, à annoncer au PO.
-- `CONSULTATION_HASH_SALT` à poser en production (documenté dans `.env.example`).
+## Notes
+- Le module `since.ts` est le point de convergence : avant ce lot, `[stream]` et `counts`
+  validaient chacun `since` à leur façon, et avaient déjà divergé (`counts` validait
+  l'illisibilité, `[stream]` pas du tout). Une seule fonction partagée empêche que ça se
+  reproduise.
+- Cette branche a été créée depuis `origin/dev` avant le merge de la PR #326 (GUIC-695,
+  lot 2) : `tests/unit/datahub-schema-doc.test.ts` référence donc encore l'ancien commentaire
+  SHA-256 de `Consultation.sujetHash` dans `schema.prisma` — normal, pas une régression de
+  ce ticket. Un rebase sur `dev` sera nécessaire une fois #326 mergée.
 
-## Hors périmètre : dashboards · exports CSV · rollup journalier · retrait de `CentreEvent.centre_viewed` · rétention/purge.
+## Reste du plan de durcissement (spec §5)
+Lot 1 GUIC-694 (PR #325, ouverte) · Lot 2 GUIC-695 (PR #326, ouverte) · **Lots 3+4 GUIC-696 =
+cette branche** · Lots 5+6 GUIC-697 (exploitabilité + contrat publié) · Lot 7 arbitrages
+hors correctif (suppressions dures R6, `v_programs_summary`, rétention/purge).
