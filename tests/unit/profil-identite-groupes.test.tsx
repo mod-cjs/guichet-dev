@@ -77,6 +77,20 @@ describe('GUIC-689 — identité regroupée par section', () => {
     expect(screen.getByText('Femme')).toBeInTheDocument()
   })
 
+  it('un champ vide affiche un tiret (invite à compléter son propre profil)', () => {
+    render(
+      <SectionIdentite
+        data={{ ...DATA, telephone: null } as unknown as ProfilComplet}
+        photoUrl={null}
+        ssoProfilUrl={null}
+        onSaved={() => {}}
+        onPhotoSaved={() => {}}
+      />,
+    )
+    const contact = screen.getByText(/^contact$/i).closest('section')
+    expect(contact?.textContent).toContain('—')
+  })
+
   it('le bouton se referme et pilote une région identifiée', () => {
     renderSection()
     const bouton = screen.getByRole('button', { name: /voir plus/i })
