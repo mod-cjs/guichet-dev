@@ -19,7 +19,7 @@
  * Aucun filtre sur la suppression logique : les lignes supprimées SORTENT, avec leur date
  * (spec §3, DA-5). Les filtrer laisserait des fantômes actifs dans l'entrepôt à jamais.
  */
-import { decodeCursor, encodeCursor } from './cursor'
+import { decodeCursor, encodeCursor, BadCursorError } from './cursor'
 import { projectRow, type StreamDescriptor } from './descriptor'
 import { streams } from './streams'
 
@@ -59,16 +59,27 @@ function borneLimit(demande: number | null | undefined): number {
   return Math.min(Math.max(1, Math.floor(demande)), LIMIT_MAX)
 }
 
-/** Nature déclarée de la clé primaire — voir `StreamSpec.primaryKeyKind`. */
+/** Chiffres uniquement, au moins un — exclut le vide, l'hexadécimal, le signe, les espaces. */
+const CLE_BIGINT_RE = /^\d+$/
+
+/**
+ * Nature déclarée de la clé primaire — voir `StreamSpec.primaryKeyKind`.
+ *
+ * `BigInt()` est permissif au-delà de ce qu'un curseur légitime produit jamais :
+ * `BigInt('')` vaut `0n` (repositionnerait sur `id > 0`, rejeu complet silencieux) et
+ * `BigInt('0x10')` vaut `16n` (conversion hexadécimale silencieuse). Le format est donc
+ * validé AVANT l'appel, pas seulement son succès (GUIC-696 S4).
+ */
 function convertirCle(descriptor: StreamDescriptor, valeur: string): string | bigint {
   const spec = streams[descriptor.name as keyof typeof streams] as { primaryKeyKind?: string }
   if (spec?.primaryKeyKind !== 'bigint') return valeur
-  try {
-    return BigInt(valeur)
-  } catch {
-    // Un curseur forgé ne doit pas produire une erreur Prisma opaque côté serveur.
-    throw new Error(`Curseur invalide : clé primaire non numérique pour ${descriptor.name}`)
+  if (!CLE_BIGINT_RE.test(valeur)) {
+    // Erreur TYPÉE : un `Error` nu échapperait au seul filtre que la route applique
+    // (`instanceof BadCursorError`) et rendrait 500 — retriable pour le SDK Singer, qui
+    // épuise ses tentatives avant d'abandonner le run entier.
+    throw new BadCursorError(`clé primaire non numérique pour ${descriptor.name} : « ${valeur} »`)
   }
+  return BigInt(valeur)
 }
 
 export async function keysetExport(

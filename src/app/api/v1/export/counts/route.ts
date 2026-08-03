@@ -21,6 +21,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { authenticateDatahub } from '@/lib/datahub/auth'
 import { allDescriptors } from '@/lib/datahub/descriptor'
+import { parseSince, BadSinceError } from '@/lib/datahub/since'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -52,12 +53,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (limite) return limite
 
   const brut = request.nextUrl.searchParams.get('since')
-  if (brut !== null && Number.isNaN(Date.parse(brut))) {
-    // Une borne illisible traitée comme absente rendrait un comptage total présenté
-    // comme un comptage de fenêtre : la réconciliation conclurait à une perte massive.
-    return erreur('BORNE_INVALIDE', `Paramètre since illisible : ${brut}`, 400)
+  let since: Date | null
+  try {
+    since = parseSince(brut)
+  } catch (e) {
+    if (e instanceof BadSinceError) return erreur('BORNE_INVALIDE', e.message, 400)
+    throw e
   }
-  const since = brut === null ? null : new Date(brut)
 
   const data: Record<string, number> = {}
   for (const descriptor of allDescriptors()) {
