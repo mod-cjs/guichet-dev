@@ -10,19 +10,45 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildTapManifest, renderTapManifest } from '@/lib/datahub/tap-manifest'
 import { streams } from '@/lib/datahub/streams'
+import { fullTableStreams } from '@/lib/datahub/full-table-streams'
 import { CHAMPS_INTERDITS } from '@/lib/datahub/stream-types'
 
 const manifest = buildTapManifest()
 
 describe('manifeste du tap — couverture', () => {
-  it('déclare exactement les flux du contrat', () => {
-    expect(manifest.streams.map((s) => s.name).sort()).toEqual(Object.keys(streams).sort())
+  it('déclare exactement les flux du contrat, incrémentaux ET FULL_TABLE', () => {
+    expect(manifest.streams.map((s) => s.name).sort()).toEqual(
+      [...Object.keys(streams), ...Object.keys(fullTableStreams)].sort()
+    )
   })
 
-  it('pointe chaque flux vers sa route d\'export', () => {
+  it('pointe chaque flux INCRÉMENTAL vers sa route d\'export', () => {
     for (const stream of manifest.streams) {
+      if (!Object.keys(streams).includes(stream.name)) continue
       expect(stream.path).toBe(`/api/v1/export/${stream.name}`)
       expect(stream.replication_method).toBe('INCREMENTAL')
+    }
+  })
+})
+
+describe('manifeste du tap — flux FULL_TABLE (GUIC-700 lot 7)', () => {
+  it('déclare replication_method FULL_TABLE, sans replication_key', () => {
+    for (const nom of Object.keys(fullTableStreams)) {
+      const stream = manifest.streams.find((s) => s.name === nom)!
+      expect(stream.replication_method).toBe('FULL_TABLE')
+      expect(stream.replication_key).toBeUndefined()
+    }
+  })
+
+  it('exprime la clé primaire COMPOSITE sous ses deux noms exportés', () => {
+    const jonction = manifest.streams.find((s) => s.name === 'opportunites_programmes')!
+    expect(jonction.primary_keys).toEqual(['opportunite_id', 'programme_id'])
+  })
+
+  it('pointe chaque flux FULL_TABLE vers sa route d\'export', () => {
+    for (const nom of Object.keys(fullTableStreams)) {
+      const stream = manifest.streams.find((s) => s.name === nom)!
+      expect(stream.path).toBe(`/api/v1/export/${nom}`)
     }
   })
 })
@@ -38,7 +64,10 @@ describe('manifeste du tap — clés', () => {
   it('inclut toujours la clé primaire et le watermark dans le schéma servi', () => {
     for (const stream of manifest.streams) {
       // Un watermark absent du schéma ferait échouer le bookmark du SDK à l'exécution.
-      expect(Object.keys(stream.schema.properties)).toContain(stream.replication_key)
+      // Un flux FULL_TABLE n'en a pas, par construction (GUIC-700 lot 7) — rien à vérifier.
+      if (stream.replication_key) {
+        expect(Object.keys(stream.schema.properties)).toContain(stream.replication_key)
+      }
       for (const cle of stream.primary_keys) {
         expect(Object.keys(stream.schema.properties)).toContain(cle)
       }
