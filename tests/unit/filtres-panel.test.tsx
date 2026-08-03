@@ -44,6 +44,33 @@ describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
     expect(screen.getByText('Deadline')).toBeInTheDocument()
   })
 
+  // GUIC-689 (Lot P3-A) — ordre des sections conforme design v5
+  // (`lot3-opps-web.jsx#WebFilterPanel` L.73-104) : Type, Domaine, Région,
+  // Deadline, Rémunération. Programme (GUIC-684, hors maquette) est ajouté en
+  // fin de liste plutôt qu'interposé, pour ne pas rompre la continuité des 5
+  // sections de la maquette.
+  it('GUIC-689 : ordonne les sections Type, Domaine, Région, Deadline, Rémunération puis Programme en dernier', () => {
+    const { container } = render(
+      <FiltresPanel
+        value={baseValue}
+        onChange={jest.fn()}
+        onReset={jest.fn()}
+        programmes={[{ slug: 'yeah', nom: 'YEAH' }]}
+      />,
+    )
+    const sectionTitles = Array.from(container.querySelectorAll('summary > span')).map(
+      (el) => el.textContent,
+    )
+    expect(sectionTitles).toEqual([
+      'Type',
+      'Domaine',
+      'Région',
+      'Deadline',
+      'Rémunération',
+      'Programme',
+    ])
+  })
+
   it('rend les checkboxes Type (Emploi, Stage, Bourse, …)', () => {
     setup()
     expect(screen.getByLabelText('Emploi')).toBeInTheDocument()
