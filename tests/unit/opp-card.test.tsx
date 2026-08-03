@@ -16,22 +16,6 @@ const baseItem: OpportuniteListItem = {
 
 const FIXED_NOW = new Date('2026-06-01T00:00:00.000Z').getTime()
 
-/**
- * GUIC-689 — le contrat de `buildDeadlineInfo` évolue (ajout `level`/`days`,
- * cf. RED → GREEN). Wrapper de test volontairement peu typé le temps du
- * commit RED, pour ne pas faire échouer `tsc` sur un champ pas encore
- * ajouté à l'interface `DeadlineInfo` — devient inutile après le GREEN mais
- * reste inoffensif (sur-typage structurel).
- */
-function next(iso: string, now: number) {
-  return buildDeadlineInfo(iso, now) as unknown as {
-    label: string
-    urgent: boolean
-    level?: 'urgent' | 'proche' | 'normal'
-    days?: number
-  } | null
-}
-
 describe('buildDeadlineInfo()', () => {
   it('retourne null si pas de deadline', () => {
     expect(buildDeadlineInfo(null)).toBeNull()
@@ -42,7 +26,7 @@ describe('buildDeadlineInfo()', () => {
   // pastille séparée (`urgence-badge` dans <OppCard />) qui porte le "J-N".
   it("niveau 'urgent' à J-3 (≤ 3 jours) — libellé = date exacte, pas 'J-3'", () => {
     const iso = new Date(FIXED_NOW + 3 * 86_400_000).toISOString()
-    const info = next(iso, FIXED_NOW)
+    const info = buildDeadlineInfo(iso, FIXED_NOW)
     expect(info?.level).toBe('urgent')
     expect(info?.urgent).toBe(true)
     expect(info?.days).toBe(3)
@@ -52,7 +36,7 @@ describe('buildDeadlineInfo()', () => {
 
   it("niveau 'proche' entre 4 et 7 jours (ambre, ni urgent ni normal)", () => {
     const iso = new Date(FIXED_NOW + 5 * 86_400_000).toISOString()
-    const info = next(iso, FIXED_NOW)
+    const info = buildDeadlineInfo(iso, FIXED_NOW)
     expect(info?.level).toBe('proche')
     expect(info?.urgent).toBe(false)
     expect(info?.days).toBe(5)
@@ -60,7 +44,7 @@ describe('buildDeadlineInfo()', () => {
 
   it("niveau 'normal' au-delà de 7 jours et formate la date", () => {
     const iso = new Date(FIXED_NOW + 30 * 86_400_000).toISOString()
-    const info = next(iso, FIXED_NOW)
+    const info = buildDeadlineInfo(iso, FIXED_NOW)
     expect(info?.level).toBe('normal')
     expect(info?.urgent).toBe(false)
     expect(info?.label).toMatch(/\d/)
@@ -68,13 +52,13 @@ describe('buildDeadlineInfo()', () => {
 
   it("'Aujourd'hui' (J-0) reste une exception au libellé complet — niveau urgent", () => {
     const iso = new Date(FIXED_NOW).toISOString()
-    const info = next(iso, FIXED_NOW)
+    const info = buildDeadlineInfo(iso, FIXED_NOW)
     expect(info).toEqual({ label: "Aujourd'hui", days: 0, level: 'urgent', urgent: true })
   })
 
   it("retourne 'Clôturée' (niveau normal) pour deadline passée", () => {
     const iso = new Date(FIXED_NOW - 86_400_000).toISOString()
-    const info = next(iso, FIXED_NOW)
+    const info = buildDeadlineInfo(iso, FIXED_NOW)
     expect(info).toEqual({ label: 'Clôturée', days: -1, level: 'normal', urgent: false })
   })
 })
@@ -261,8 +245,11 @@ describe('F1.1 — Tuile sectorielle', () => {
     render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
     const filigrane = screen.getByTestId('opp-tuile-filigrane')
     expect(filigrane).toHaveAttribute('aria-hidden')
-    expect(filigrane.className).toMatch(/pointer-events-none/)
-    expect(filigrane.className).toMatch(/opacity-20\b/)
+    // Élément SVG : `.className` est un SVGAnimatedString, pas une string —
+    // on lit l'attribut `class` directement.
+    const classes = filigrane.getAttribute('class') ?? ''
+    expect(classes).toMatch(/pointer-events-none/)
+    expect(classes).toMatch(/opacity-20\b/)
   })
 
   it("affiche une pastille ronde avec l'initiale de l'organisation en haut-gauche", () => {
