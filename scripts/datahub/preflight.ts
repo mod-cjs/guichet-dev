@@ -22,6 +22,7 @@ import { prisma } from '../../src/lib/prisma'
 import { allDescriptors } from '../../src/lib/datahub/descriptor'
 import { parseSchemaDoc } from '../../src/lib/datahub/schema-doc'
 import { colonnesDateExportees } from '../../src/lib/datahub/date-columns'
+import { sqlModeSuffisant } from '../../src/lib/datahub/sql-mode'
 
 interface Constat {
   ok: boolean
@@ -100,6 +101,29 @@ async function main(): Promise<void> {
   // sans que la cause soit évidente côté tap.
   const cles = (process.env.DATAHUB_API_KEYS ?? process.env.DATAHUB_API_KEY ?? '').trim()
   noter(cles.length > 0, 'clé Data Hub configurée', cles ? '' : 'DATAHUB_API_KEYS et DATAHUB_API_KEY vides → tout accès refusé')
+
+  // ── 5. sql_mode serveur — la prévention, pas seulement la détection (GUIC-696 R4) ──
+  // `docker-compose.yml` pose NO_ZERO_DATE/NO_ZERO_IN_DATE en développement, mais ce
+  // fichier ne pilote pas la MariaDB Plesk de préprod/prod : sans ce contrôle, le trou
+  // reste invisible jusqu'à ce qu'une date zéro traverse en production.
+  const [{ mode }] = await prisma.$queryRawUnsafe<{ mode: string }[]>('SELECT @@sql_mode AS mode')
+  noter(
+    sqlModeSuffisant(mode),
+    'sql_mode serveur — NO_ZERO_DATE et NO_ZERO_IN_DATE',
+    sqlModeSuffisant(mode) ? '' : `sql_mode actuel : ${mode}`
+  )
+
+  // ── 6. État Meltano externalisé (GUIC-696 R5) ─────────────────────────────────
+  // Sans MELTANO_DATABASE_URI, l'état vit dans le SQLite d'un conteneur --rm : chaque nuit
+  // repart de zéro, sans erreur, avec un full-refresh de plus en plus long — une
+  // dégradation silencieuse, pas une panne qui s'annonce.
+  noter(
+    Boolean(process.env.MELTANO_DATABASE_URI?.trim()),
+    'MELTANO_DATABASE_URI configurée',
+    process.env.MELTANO_DATABASE_URI?.trim()
+      ? ''
+      : 'absente → état Meltano perdu à chaque conteneur, full-refresh chaque nuit'
+  )
 
   // ── Rapport ───────────────────────────────────────────────────────────────────
   const echecs = constats.filter((c) => !c.ok)
