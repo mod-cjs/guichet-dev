@@ -59,7 +59,9 @@ export interface CandidatureDetail {
   consent: { version: string | null; consentiLe: string | null; ip: string | null; notifications: boolean }
   entretiens: DetailEntretien[]
   conversation: { messages: DetailMessage[] } | null
+  relances: DetailRelance[]
 }
+export interface DetailRelance { id: string; dateLabel: string; destinataire: string; canaux: string[]; message: string | null }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 const dateTimeFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -83,6 +85,7 @@ export async function getCandidatureDetail(id: string): Promise<CandidatureDetai
       opportunite: { select: { id: true, titre: true, organisation: true, organisationLibelle: true, org: { select: { nom: true } }, recruteurUid: true } },
       entretiens: { orderBy: { dateHeure: 'desc' }, select: { id: true, dateHeure: true, mode: true, statut: true, lieu: true } },
       conversation: { select: { candidatUid: true, recruteurUid: true, messages: { orderBy: { createdAt: 'asc' }, select: { id: true, senderUid: true, corps: true, createdAt: true } } } },
+      relances: { orderBy: { envoyeeA: 'desc' }, take: 10, select: { id: true, envoyeeA: true, destinataire: true, canaux: true, message: true } },
     },
   })
   if (!c) return null
@@ -113,5 +116,12 @@ export async function getCandidatureDetail(id: string): Promise<CandidatureDetai
     conversation: c.conversation
       ? { messages: c.conversation.messages.map((m) => ({ id: m.id, auteur: auteurMessage(m.senderUid, c.conversation!.candidatUid, c.conversation!.recruteurUid), corps: m.corps, dateLabel: relTime(m.createdAt, now) })) }
       : null,
+    relances: c.relances.map((r) => ({
+      id: r.id,
+      dateLabel: relTime(r.envoyeeA, now),
+      destinataire: String(r.destinataire).replace('_', ' '),
+      canaux: Array.isArray(r.canaux) ? (r.canaux as unknown[]).filter((x): x is string => typeof x === 'string') : [],
+      message: r.message,
+    })),
   }
 }

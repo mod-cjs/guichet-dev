@@ -547,11 +547,37 @@ model Candidature {
   opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
   conversation Conversation?
   entretiens   Entretien[]
+  relances     RelanceCandidature[]
 
   @@unique([cjsUid, opportuniteId])
   @@index([statut])
   @@index([opportuniteId])
   @@map("candidatures")
+}
+
+/// GUIC-692 (PR-C) — historique CDP des relances admin (supervision).
+model RelanceCandidature {
+  id             String              @id @default(uuid()) @db.VarChar(36)
+  candidatureId  String              @map("candidature_id") @db.VarChar(36)
+  parAdminCjsUid String              @map("par_admin_cjs_uid") @db.VarChar(36)
+  destinataire   DestinataireRelance
+  /// Liste des canaux effectivement envoyés (["in_app","email",...]).
+  canaux         Json
+  message        String?             @db.Text
+  envoyeeA       DateTime            @default(now()) @map("envoyee_a")
+
+  candidature Candidature @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+
+  @@index([candidatureId])
+  @@map("relances_candidature")
+}
+
+enum DestinataireRelance {
+  Recruteur
+  Candidat
+  Les_deux
+
+  @@map("destinataire_relance")
 }
 
 enum ModeEntretien {

@@ -9,6 +9,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import type { StatutCandidature, StatutPipeline } from '@prisma/client'
 import type { CandidatureRow, CandidaturesFunnel, CandidaturesKpis, SortCand } from '@/lib/loaders/admin-candidatures'
 import { CandidatureDetailPanel, type CandidatureDetail } from './CandidatureDetailPanel'
+import { RelanceModal } from './RelanceModal'
 import { chargerCandidatureDetail } from './actions'
 
 export type { CandidatureRow, CandidaturesFunnel, CandidaturesKpis } from '@/lib/loaders/admin-candidatures'
@@ -67,6 +68,18 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
   // Fiche détail (slide-over) — chargée à la demande au clic « Détail ».
   const [detail, setDetail] = useState<CandidatureDetail | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  // Sélection groupée + relance.
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [relanceIds, setRelanceIds] = useState<string[] | null>(null)
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id))
+
+  function toggleRow(id: string) {
+    setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+  function toggleAll() {
+    setSelected((prev) => (rows.every((r) => prev.has(r.id)) ? new Set() : new Set(rows.map((r) => r.id))))
+  }
+  const exportSelectedUrl = `/api/admin/candidatures/export?ids=${[...selected].join(',')}`
 
   function openDetail(id: string) {
     setLoadingId(id)
@@ -191,9 +204,21 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           ))}
         </div>
 
+        {/* ── Barre d'actions groupées ── */}
+        {selected.size > 0 && (
+          <div role="region" aria-label="Sélection groupée" style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-admin-gold)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 13, color: 'var(--gj-admin-gold)' }}>{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</b>
+            <span style={{ flex: 1 }} />
+            <button type="button" onClick={() => setRelanceIds([...selected])} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid transparent', background: 'var(--gj-admin-gold)', color: 'var(--gj-admin-on-gold)' }}><Icon name="bell" size={14} /> Relancer</button>
+            <a href={exportSelectedUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, textDecoration: 'none', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)' }}><Icon name="download" size={14} /> Exporter</a>
+            <button type="button" onClick={() => setSelected(new Set())} style={{ padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-grey)' }}>Annuler</button>
+          </div>
+        )}
+
         {/* ── Table (desktop) ── */}
         <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 860 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 900 }}>
+            <span><input type="checkbox" aria-label="Tout sélectionner" checked={allSelected} onChange={toggleAll} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
             <span>Candidat</span>
             <span>Opportunité</span>
             <span>Soumise</span>
@@ -212,7 +237,8 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           ) : rows.map((c) => {
             const sc = statutColors(c.statut)
             return (
-              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 860 }}>
+              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 900, background: selected.has(c.id) ? 'var(--gj-bg)' : 'transparent' }}>
+                <span><input type="checkbox" aria-label={`Sélectionner la candidature de ${c.candidatPrenom} ${c.candidatNom}`} checked={selected.has(c.id)} onChange={() => toggleRow(c.id)} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                   <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))', color: 'var(--gj-surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{initials(c.candidatPrenom, c.candidatNom)}</span>
                   <div style={{ minWidth: 0 }}>
@@ -285,7 +311,17 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
       </div>
 
       {/* ── Fiche détail (slide-over) ── */}
-      {detail && <CandidatureDetailPanel detail={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <CandidatureDetailPanel
+          detail={detail}
+          onClose={() => setDetail(null)}
+          onRelancer={(d) => setRelanceIds([d.id])}
+          onExporter={(d) => { window.location.href = `/api/admin/candidatures/export?ids=${d.id}` }}
+        />
+      )}
+
+      {/* ── Modale de relance (fiche ou sélection groupée) ── */}
+      {relanceIds && <RelanceModal ids={relanceIds} onClose={() => { setRelanceIds(null); setSelected(new Set()) }} onDone={() => router.refresh()} />}
     </div>
   )
 }

@@ -25,6 +25,7 @@ const DETAIL: CandidatureDetail = {
     { id: 'm1', auteur: 'recruteur', corps: 'Bonjour, disponible cette semaine ?', dateLabel: 'il y a 4 j' },
     { id: 'm2', auteur: 'candidat', corps: 'Oui, jeudi après-midi.', dateLabel: 'il y a 3 j' },
   ] },
+  relances: [{ id: 'r1', dateLabel: 'il y a 2 j', destinataire: 'Recruteur', canaux: ['in_app', 'email'], message: 'Merci de traiter.' }],
 }
 
 describe('GUIC-692 — CandidatureDetailPanel', () => {
@@ -89,6 +90,12 @@ describe('GUIC-692 — CandidatureDetailPanel', () => {
     render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
     expect(screen.getByText(/disponible cette semaine/i)).toBeInTheDocument()
     expect(screen.getByText(/jeudi après-midi/i)).toBeInTheDocument()
+  })
+
+  it('historique des relances (CDP)', () => {
+    render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
+    expect(screen.getByText(/Historique des relances/i)).toBeInTheDocument()
+    expect(screen.getByText(/Merci de traiter/i)).toBeInTheDocument()
   })
 
   it('footer : Voir la conversation · Relancer · Exporter — AUCUN Retenir/Refuser', () => {

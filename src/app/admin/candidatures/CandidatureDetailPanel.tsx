@@ -159,6 +159,23 @@ export function CandidatureDetailPanel({ detail, onClose, onRelancer, onExporter
             </div>
           </Section>
 
+          {detail.relances.length > 0 && (
+            <Section title="Historique des relances (CDP)">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {detail.relances.map((r) => (
+                  <div key={r.id} style={{ background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 11, padding: '10px 13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <b style={{ fontSize: 12.5, color: 'var(--gj-ink)' }}>{r.destinataire}</b>
+                      <span style={{ fontSize: 11, color: 'var(--gj-grey)' }}>· {r.canaux.join(', ')}</span>
+                      <time style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--gj-grey)' }}>{r.dateLabel}</time>
+                    </div>
+                    {r.message && <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--gj-grey)' }}>{r.message}</p>}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           <div id="cand-conversation">
             <Section title="Conversation candidat ↔ recruteur (lecture seule)">
               {!detail.conversation || detail.conversation.messages.length === 0 ? (

@@ -33,7 +33,7 @@ describe('GUIC-692 — sélection groupée', () => {
     const bulk = screen.getByRole('region', { name: /sélection groupée/i })
     expect(within(bulk).getByText(/1 sélectionnée/i)).toBeInTheDocument()
     expect(within(bulk).getByRole('button', { name: /Relancer/i })).toBeInTheDocument()
-    expect(within(bulk).getByRole('button', { name: /Exporter/i })).toBeInTheDocument()
+    expect(within(bulk).getByRole('link', { name: /Exporter/i })).toBeInTheDocument()
     expect(within(bulk).getByRole('button', { name: /Annuler/i })).toBeInTheDocument()
   })
 
