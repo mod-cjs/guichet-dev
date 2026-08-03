@@ -10,6 +10,8 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/admin/candidatures',
 }))
+jest.mock('@/app/admin/candidatures/actions', () => ({ chargerCandidatureDetail: jest.fn().mockResolvedValue(null) }))
+jest.mock('@/app/admin/candidatures/CandidatureDetailPanel', () => ({ CandidatureDetailPanel: () => null }))
 
 import {
   AdminCandidaturesTable,
@@ -103,5 +105,13 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
     expect(screen.queryByRole('button', { name: /Retenir/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /Refuser/i })).toBeNull()
+  })
+
+  it('ouvre le détail : le bouton « Détail » par ligne charge la fiche (slide-over)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { chargerCandidatureDetail } = require('@/app/admin/candidatures/actions')
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Détail de Awa Diop/i })[0])
+    expect(chargerCandidatureDetail).toHaveBeenCalledWith('c1')
   })
 })

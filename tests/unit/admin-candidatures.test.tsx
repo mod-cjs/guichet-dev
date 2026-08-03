@@ -10,6 +10,8 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/admin/candidatures',
 }))
+jest.mock('@/app/admin/candidatures/actions', () => ({ chargerCandidatureDetail: jest.fn().mockResolvedValue(null) }))
+jest.mock('@/app/admin/candidatures/CandidatureDetailPanel', () => ({ CandidatureDetailPanel: () => null }))
 
 import {
   AdminCandidaturesTable,

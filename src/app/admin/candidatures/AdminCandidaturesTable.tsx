@@ -2,12 +2,14 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
 import type { StatutCandidature, StatutPipeline } from '@prisma/client'
 import type { CandidatureRow, CandidaturesFunnel, CandidaturesKpis, SortCand } from '@/lib/loaders/admin-candidatures'
+import { CandidatureDetailPanel, type CandidatureDetail } from './CandidatureDetailPanel'
+import { chargerCandidatureDetail } from './actions'
 
 export type { CandidatureRow, CandidaturesFunnel, CandidaturesKpis } from '@/lib/loaders/admin-candidatures'
 
@@ -62,6 +64,17 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
   const router = useRouter()
   const pathname = usePathname()
   const [, startTransition] = useTransition()
+  // Fiche détail (slide-over) — chargée à la demande au clic « Détail ».
+  const [detail, setDetail] = useState<CandidatureDetail | null>(null)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  function openDetail(id: string) {
+    setLoadingId(id)
+    startTransition(async () => {
+      try { const d = await chargerCandidatureDetail(id); if (d) setDetail(d) }
+      finally { setLoadingId(null) }
+    })
+  }
 
   function push(next: Partial<{ q: string; statut: string; etape: string; sort: string }>) {
     const sp = new URLSearchParams()
@@ -222,8 +235,9 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                 </span>
                 <span><span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sc.bg, color: sc.fg, whiteSpace: 'nowrap' }}>{STATUT_LABEL[c.statut] ?? c.statut}</span></span>
                 <span style={{ fontSize: 12, color: 'var(--gj-grey)', fontWeight: 700 }}>{ETAPE_LABEL[c.etape]}</span>
-                <span style={{ textAlign: 'right' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'flex-end' }}>
                   {c.favori && <span aria-label="Favori recruteur" title="Favori recruteur" style={{ color: 'var(--gj-admin-gold)' }}><Icon name="bookmark" size={15} /></span>}
+                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loadingId === c.id ? 0.5 : 1 }}>{loadingId === c.id ? '…' : 'Détail ›'}</button>
                 </span>
               </div>
             )
@@ -255,6 +269,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                     </div>
                   </div>
                   <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.opportuniteTitre}<span style={{ fontWeight: 400, color: 'var(--gj-grey)' }}> · {c.recruteur}</span></Link>
+                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ marginTop: 9, fontSize: 12, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>{loadingId === c.id ? 'Chargement…' : 'Voir le détail ›'}</button>
                 </div>
               )
             })}
@@ -268,6 +283,9 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           </div>
         )}
       </div>
+
+      {/* ── Fiche détail (slide-over) ── */}
+      {detail && <CandidatureDetailPanel detail={detail} onClose={() => setDetail(null)} />}
     </div>
   )
 }
