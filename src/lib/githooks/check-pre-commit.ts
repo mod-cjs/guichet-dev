@@ -69,10 +69,18 @@ function isSourceFile(path: string): boolean {
  * de mapping 1:1 source→test) pour éviter les faux positifs sur les
  * refactors qui touchent plusieurs fichiers couverts par un seul test.
  */
+/** Contexte de branche — voir GUIC-698. Comportement non encore implémenté. */
+export interface TddOptions {
+  /** Vrai si la branche porte déjà un commit `test(...)` depuis sa divergence d'avec `dev`. */
+  redSurLaBranche?: boolean
+}
+
 export function checkTddCompliance(
   files: StagedFile[],
   fileContents: Record<string, string> = {},
+  options: TddOptions = {},
 ): TddCheckResult {
+  void options
   const sourceFiles = files
     .filter((f) => f.status === 'A' || f.status === 'M')
     .filter((f) => isSourceFile(f.path))
