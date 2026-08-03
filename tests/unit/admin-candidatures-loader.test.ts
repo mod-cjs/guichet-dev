@@ -14,6 +14,7 @@ import {
   funnelFromCounts,
   kpisFromCounts,
   SEUIL_RELANCE_MS,
+  type CandidatureRowInput,
 } from '@/lib/loaders/admin-candidatures'
 
 describe('GUIC-692 — loader Candidatures (helpers)', () => {
@@ -66,7 +67,7 @@ describe('GUIC-692 — loader Candidatures (helpers)', () => {
       utilisateur: { cjsUid: 'u1', prenom: 'Awa', nom: 'Diop' },
       opportunite: { id: 'o1', titre: 'Dev', organisation: 'Sonatel', organisationLibelle: null },
       scoreAdequation: 88, pipelineStage: 'Entretien', favoriRecruteur: true,
-    }
+    } satisfies Omit<CandidatureRowInput, 'id' | 'statut' | 'soumiseA'>
     const r1 = mapCandidatureRow({ id: 'c1', statut: 'En_attente', soumiseA: vieux, ...base })
     expect(r1.score).toBe(88)
     expect(r1.etape).toBe('Entretien')

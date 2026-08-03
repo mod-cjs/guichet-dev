@@ -36,9 +36,10 @@ const defaultProps = {
 describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
   it('rend le funnel avec les 4 étapes du pipeline', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
-    expect(screen.getByText(/Présélection/i)).toBeInTheDocument()
-    expect(screen.getByText('56')).toBeInTheDocument()
+    // « Reçues » (funnel) est unique ; « 44 » et « 30 » ne viennent que du funnel.
+    expect(screen.getByText('Reçues')).toBeInTheDocument()
     expect(screen.getByText('44')).toBeInTheDocument()
+    expect(screen.getByText('30')).toBeInTheDocument()
   })
 
   it('rend le KPI "Score IA moyen"', () => {
@@ -50,15 +51,16 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
   it('affiche la colonne Score IA (valeur + "en cours" si null)', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
     expect(screen.getByRole('columnheader', { name: /Score IA/i })).toBeInTheDocument()
-    expect(screen.getByText('88')).toBeInTheDocument()
-    expect(screen.getByText(/en cours/i)).toBeInTheDocument() // score null
+    expect(screen.getAllByText((_, n) => n?.classList.contains('num') === true && n?.textContent === '88/100').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/en cours/i).length).toBeGreaterThanOrEqual(1) // score null (desktop + mobile)
   })
 
   it('affiche la colonne Étape (pipeline) et l’étoile favori', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
     expect(screen.getByRole('columnheader', { name: /Étape/i })).toBeInTheDocument()
-    expect(screen.getByText(/Présélection/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/favori/i)).toBeInTheDocument()
+    // « Présélection » apparaît (funnel + option + ligne) → au moins une occurrence.
+    expect(screen.getAllByText(/Présélection/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByLabelText(/favori/i).length).toBeGreaterThanOrEqual(1) // desktop + mobile
   })
 
   it('propose un filtre par étape (pipeline)', () => {

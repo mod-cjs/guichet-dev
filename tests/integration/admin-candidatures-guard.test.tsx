@@ -10,13 +10,17 @@ jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 const mockFindMany = jest.fn()
 const mockCount = jest.fn()
 const mockGroupBy = jest.fn()
+const mockAggregate = jest.fn()
+const mockInsertionCount = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     candidature: {
       findMany: (...a: unknown[]) => mockFindMany(...a),
       count: (...a: unknown[]) => mockCount(...a),
       groupBy: (...a: unknown[]) => mockGroupBy(...a),
+      aggregate: (...a: unknown[]) => mockAggregate(...a),
     },
+    insertion: { count: (...a: unknown[]) => mockInsertionCount(...a) },
   },
 }))
 
@@ -41,6 +45,8 @@ beforeEach(() => {
   mockFindMany.mockResolvedValue([])
   mockCount.mockResolvedValue(0)
   mockGroupBy.mockResolvedValue([])
+  mockAggregate.mockResolvedValue({ _avg: { scoreAdequation: null } })
+  mockInsertionCount.mockResolvedValue(0)
 })
 
 const sp = (o: Record<string, string> = {}) => Promise.resolve(o)
