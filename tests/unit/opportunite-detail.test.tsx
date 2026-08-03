@@ -448,7 +448,11 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
   // financement, mentorat, mobilite, volontariat n'affichaient RIEN.
   describe('Champs spécifiques par sous-type (10/10)', () => {
     const numFr = new Intl.NumberFormat('fr-FR')
-    const fcfa = (n: number) => `${numFr.format(n)} FCFA`
+    // Le normaliseur par défaut de Testing Library collapse tout `\s+` (donc aussi
+    // l'espace fine insécable U+202F que `Intl.NumberFormat('fr-FR')` utilise comme
+    // séparateur de milliers) en un espace ASCII simple avant comparaison — on
+    // reproduit la même normalisation ici pour matcher le texte DOM normalisé.
+    const fcfa = (n: number) => `${numFr.format(n).replace(/ /g, ' ')} FCFA`
 
     function withDetails(details: Detail['details'], overrides: Partial<Detail> = {}): Detail {
       return { ...baseDetail, details, niveauEtudeMin: null, ...overrides } as Detail
@@ -568,6 +572,22 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
       expect(screen.getByText('Campus France')).toBeInTheDocument()
       expect(screen.getByText('Candidature en couple obligatoire')).toBeInTheDocument()
       expect(screen.getByText('Bac Plus 5')).toBeInTheDocument()
+    })
+
+    it('concours — accorde le singulier « 1 place », pas « 1 places »', () => {
+      const detail = withDetails({
+        type: 'concours',
+        payload: {
+          organismeOrganisateur: 'Fonction publique',
+          dateEpreuves: null,
+          lieuEpreuves: null,
+          preuvesDemandees: null,
+          placesDisponibles: 1,
+        },
+      } as unknown as Detail['details'])
+      renderDetail(detail)
+      expect(screen.getByText('1 place')).toBeInTheDocument()
+      expect(screen.queryByText('1 places')).toBeNull()
     })
 
     it('concours — un champ optionnel absent ne rend PAS de cellule vide', () => {

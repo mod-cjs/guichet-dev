@@ -82,6 +82,38 @@ const normalizeLabel = (v: string) =>
     .trim()
     .toLowerCase()
 
+// ─── Formatage des champs de sous-type (GUIC-689 — grille "Détails de l'offre") ───
+
+/** Montant en FCFA avec séparateurs de milliers `Intl.NumberFormat('fr-FR')`. */
+const MONTANT_FMT = new Intl.NumberFormat('fr-FR')
+const fcfa = (n: number) => `${MONTANT_FMT.format(n)} FCFA`
+
+/** Pourcentage fr-FR (virgule décimale) — ex. taux annuel d'un financement. */
+const PCT_FMT = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
+const pctLabel = (n: number) => `${PCT_FMT.format(n)} %`
+
+// "mois" est invariable en français (1 mois / 12 mois) : pas de pluriel à gérer.
+const moisLabel = (n: number) => `${n} mois`
+const heuresLabel = (n: number) => `${n} heure${n > 1 ? 's' : ''}`
+const placesLabel = (n: number) => `${n} place${n > 1 ? 's' : ''}`
+
+/**
+ * Convertit une valeur potentiellement `Decimal` (Prisma) en `number`. Un champ
+ * `Decimal` (ex. `OpportuniteFinancement.tauxAnnuel`) traverse la frontière
+ * RSC → client déjà sérialisé (le `toJSON()` de Decimal.js renvoie `toString()`) :
+ * le type statique reste `Decimal`, mais la valeur réelle reçue ici est une
+ * string ou un number selon le chemin de sérialisation — jamais l'instance.
+ */
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return Number(v)
+  const maybe = v as { toNumber?: () => number; toString?: () => string }
+  if (typeof maybe.toNumber === 'function') return maybe.toNumber()
+  if (typeof maybe.toString === 'function') return Number(maybe.toString())
+  return null
+}
+
 /**
  * Nombre de jours restants avant la deadline (peut être négatif si dépassée).
  * Constantes partagées : `MS_PER_DAY`, `DEADLINE_VISIBLE_DAYS` / `URGENT_DAYS_THRESHOLD`
@@ -179,11 +211,13 @@ function HeroGhostButton({
   )
 }
 
-/** Cellule de la grille de détails 2 colonnes. */
+/** Cellule de la grille de détails 2 colonnes (kvCard, design v5 — lot3-opps-web.jsx). */
 function DetailCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gj-bg rounded-gj-md px-space-3 py-space-2">
-      <p className="text-fs-100 uppercase font-bold text-color-text-muted tracking-wide">{label}</p>
+    <div className="bg-gj-bg border-[1.5px] border-gj-line rounded-gj-md px-space-3 py-space-2">
+      <p className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-[0.4px]">
+        {label}
+      </p>
       <p className="text-fs-300 font-bold text-color-text-primary mt-[2px]">{value}</p>
     </div>
   )
@@ -236,15 +270,19 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
     }
   }, [detail.slug, detail.titre])
 
-  // Chips meta inline du hero (région / rémunération / délai indicatif / vues).
+  // Chips meta inline du hero (région / rémunération / délai indicatif / domaine / vues).
   const heroChips = useMemo(() => {
-    const chips: { icon: 'pin' | 'funding' | 'clock' | 'eye'; label: string }[] = []
+    const chips: { icon: 'pin' | 'funding' | 'clock' | 'target' | 'eye'; label: string }[] = []
     if (detail.region) chips.push({ icon: 'pin', label: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) chips.push({ icon: 'funding', label: detail.remuneration })
     const jours = joursAvantDeadline(detail.deadline)
     if (jours !== null && jours > 0 && jours <= DEADLINE_VISIBLE_DAYS) {
       chips.push({ icon: 'clock', label: `Décision ${jours}j` })
     }
+    // GUIC-689 (B.6) — puce domaine (maquette lot3-opps-web.jsx L.459), 4ᵉ position :
+    // `detail.domaine` n'est jamais null, donc toujours affichée (contrairement aux
+    // puces ci-dessus, optionnelles selon les données de l'offre).
+    chips.push({ icon: 'target', label: humanize(detail.domaine) })
     // F1.2 (GUIC-689) — compteur de vues, jamais affiché jusqu'ici bien que
     // suivi côté serveur (lot3-opps-web.jsx:420-428). Aligné sur la
     // présentation de RessourceDetailHero (singulier/pluriel).
@@ -258,33 +296,179 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
       })
     }
     return chips
-  }, [detail.region, detail.remuneration, detail.deadline, detail.vues, onClose])
+  }, [detail.region, detail.remuneration, detail.deadline, detail.domaine, detail.vues, onClose])
 
-  // Grille détails 2 colonnes — racine + sous-type discriminé.
+  // Grille détails 2 colonnes — racine + sous-type discriminé (GUIC-689 : les 10 sous-types).
   const cells = useMemo(() => {
     const out: { label: string; value: string }[] = [
       { label: 'Type', value: humanize(detail.type) },
       { label: 'Domaine', value: humanize(detail.domaine) },
     ]
+
+    // Niveau d'étude minimum : priorité au champ du sous-type quand il en a un
+    // (emploi/stage/bourse ont chacun le leur), repli sur le champ racine
+    // générique pour les 7 autres sous-types + les rows legacy sans sous-type.
+    // Jamais les deux à la fois (pas de doublon de cellule).
+    const niveauSousType =
+      detail.details?.type === 'emploi' ? detail.details.payload.niveauEtudeMin
+      : detail.details?.type === 'stage' ? detail.details.payload.niveauEtudeMin
+      : detail.details?.type === 'bourse' ? detail.details.payload.niveauEtudeRequis
+      : null
+    const niveauEffectif = niveauSousType ?? detail.niveauEtudeMin
+    if (niveauEffectif) {
+      out.push({ label: "Niveau d'étude minimum", value: humanize(niveauEffectif) })
+    }
+
     if (detail.region) out.push({ label: 'Région', value: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) out.push({ label: 'Rémunération', value: detail.remuneration })
     out.push({
       label: 'Échéance',
       value: detail.deadline ? dateFmt.format(new Date(detail.deadline)) : 'Sans échéance',
     })
-    // Sous-type : ajoute quelques champs lisibles si présents.
+
+    // Sous-type : champs porteurs de décision (GUIC-689 §A). Chaque champ optionnel
+    // n'est poussé que s'il est renseigné — jamais de cellule vide/« null ».
     if (detail.details?.type === 'emploi') {
-      out.push({ label: 'Type de contrat', value: humanize(detail.details.payload.typeContrat) })
-      if (detail.details.payload.teletravail) {
-        out.push({ label: 'Modalité', value: 'Télétravail possible' })
+      const p = detail.details.payload
+      out.push({ label: 'Type de contrat', value: humanize(p.typeContrat) })
+      if (p.teletravail) out.push({ label: 'Modalité', value: 'Télétravail possible' })
+      if (p.experienceRequise) out.push({ label: 'Expérience requise', value: p.experienceRequise })
+    }
+
+    if (detail.details?.type === 'stage') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.dateDebutPrevue) {
+        out.push({ label: 'Début prévu', value: dateFmt.format(new Date(p.dateDebutPrevue)) })
+      }
+      // `indemnise` est un booléen porteur de sens dans les deux états : un jeune
+      // veut savoir si un stage est rémunéré même quand la réponse est non.
+      out.push({
+        label: 'Indemnisation',
+        value: p.indemnise
+          ? p.indemniteMensuelleFcfa != null
+            ? `${fcfa(p.indemniteMensuelleFcfa)} / mois`
+            : 'Stage indemnisé'
+          : 'Stage non indemnisé',
+      })
+      // `conventionneEcole` : seul le `true` est décisif (l'absence de convention
+      // est l'état par défaut, pas une information utile à afficher).
+      if (p.conventionneEcole) out.push({ label: 'Convention', value: "Convention d'école requise" })
+    }
+
+    if (detail.details?.type === 'formation') {
+      const p = detail.details.payload
+      out.push({ label: 'Modalité', value: humanize(p.modalite) })
+      out.push({ label: 'Durée', value: heuresLabel(p.dureeHeures) })
+      // `certifiante` : seul le `true` est décisif (même logique que conventionneEcole).
+      if (p.certifiante) {
+        out.push({
+          label: 'Certification',
+          value: p.organismeCertificateur ? `Certifiante — ${p.organismeCertificateur}` : 'Formation certifiante',
+        })
+      }
+      if (p.prerequis) out.push({ label: 'Prérequis', value: p.prerequis })
+      // `gratuite` est porteur de sens dans les deux états (ex. brief : « Formation
+      // payante » quand `false`, avec le montant s'il est renseigné).
+      out.push({
+        label: 'Frais',
+        value: p.gratuite
+          ? 'Formation gratuite'
+          : p.fraisInscriptionFcfa != null
+            ? `Formation payante — ${fcfa(p.fraisInscriptionFcfa)}`
+            : 'Formation payante',
+      })
+    }
+
+    if (detail.details?.type === 'bourse') {
+      const p = detail.details.payload
+      out.push({ label: 'Montant', value: fcfa(p.montantTotalFcfa) })
+      out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      if (p.dureeMois != null) out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.paysDestination) out.push({ label: 'Pays de destination', value: p.paysDestination })
+      // `coupleObligatoire` : seul le `true` est décisif (la plupart des bourses
+      // n'exigent pas de candidature en couple — état par défaut non informatif).
+      if (p.coupleObligatoire) out.push({ label: 'Modalité', value: 'Candidature en couple obligatoire' })
+    }
+
+    if (detail.details?.type === 'concours') {
+      const p = detail.details.payload
+      out.push({ label: 'Organisme organisateur', value: p.organismeOrganisateur })
+      if (p.dateEpreuves) out.push({ label: 'Date des épreuves', value: dateFmt.format(new Date(p.dateEpreuves)) })
+      if (p.lieuEpreuves) out.push({ label: 'Lieu des épreuves', value: p.lieuEpreuves })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
+      if (p.preuvesDemandees) out.push({ label: 'Pièces demandées', value: p.preuvesDemandees })
+    }
+
+    if (detail.details?.type === 'appel_a_projets') {
+      const p = detail.details.payload
+      // `dossierRequis` / `criteresEligibilite` sont des textes longs (prose) :
+      // hors de la grille compacte clé-valeur, comme `conditions`/`mission` déjà
+      // rendus en sections dédiées ailleurs sur ce composant.
+      if (p.budgetMaxFcfa != null) out.push({ label: 'Budget max', value: fcfa(p.budgetMaxFcfa) })
+      if (p.dureeProjetMois != null) out.push({ label: 'Durée du projet', value: moisLabel(p.dureeProjetMois) })
+      if (p.thematique) out.push({ label: 'Thématique', value: p.thematique })
+    }
+
+    if (detail.details?.type === 'financement') {
+      const p = detail.details.payload
+      // `garanties` : texte long (prose), hors grille — même raison que dossierRequis.
+      out.push({ label: 'Montant', value: fcfa(p.montantFcfa) })
+      out.push({ label: 'Type de financement', value: humanize(p.typeFinancement) })
+      out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      const taux = toNum(p.tauxAnnuel)
+      if (taux != null) out.push({ label: 'Taux annuel', value: pctLabel(taux) })
+      if (p.dureeRemboursementMois != null) {
+        out.push({ label: 'Durée de remboursement', value: moisLabel(p.dureeRemboursementMois) })
+      }
+      if (p.isContinuous) {
+        out.push({ label: 'Dépôt', value: 'Dépôt en continu (pas de date limite)' })
+      } else if (p.dateLimiteDepot) {
+        out.push({ label: 'Date limite de dépôt', value: dateFmt.format(new Date(p.dateLimiteDepot)) })
       }
     }
-    if (detail.details?.type === 'stage') {
-      out.push({ label: 'Durée', value: `${detail.details.payload.dureeMois} mois` })
+
+    if (detail.details?.type === 'mentorat') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      out.push({ label: 'Modalité', value: humanize(p.modalite) })
+      out.push({ label: 'Organisateur', value: p.organisateurLibelle })
+      if (p.thematique) out.push({ label: 'Thématique', value: p.thematique })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
     }
-    if (detail.details?.type === 'formation') {
-      out.push({ label: 'Modalité', value: humanize(detail.details.payload.modalite) })
+
+    if (detail.details?.type === 'mobilite') {
+      const p = detail.details.payload
+      // `prisEnCharge` : bien que `db.Text` en base, réponse courte en pratique
+      // (« Billet + logement ») et directement décisive pour un jeune → dans la grille.
+      out.push({ label: 'Destination', value: p.destination })
+      out.push({ label: 'Type de mobilité', value: humanize(p.typeMobilite) })
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.niveauLangueRequis) out.push({ label: 'Niveau de langue requis', value: p.niveauLangueRequis })
+      if (p.prisEnCharge) out.push({ label: 'Prise en charge', value: p.prisEnCharge })
+      if (p.dateDepartPrevue) out.push({ label: 'Départ prévu', value: dateFmt.format(new Date(p.dateDepartPrevue)) })
     }
+
+    if (detail.details?.type === 'volontariat') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      out.push({ label: 'Type de volontariat', value: humanize(p.typeVolontariat) })
+      out.push({ label: 'Domaine de la mission', value: p.domaineMission })
+      // `indemniteMensuelleFcfa` absente : porteur de sens (un volontariat non
+      // indemnisé est une information à ne pas cacher), même logique que stage.
+      out.push({
+        label: 'Indemnité mensuelle',
+        value: p.indemniteMensuelleFcfa != null ? fcfa(p.indemniteMensuelleFcfa) : 'Volontariat non indemnisé',
+      })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
+    }
+
     return out
   }, [detail])
 
@@ -380,8 +564,8 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
         />
 
         <h1
-          className="text-color-text-onDark mt-space-2 font-black"
-          style={{ fontSize: 20, lineHeight: 1.2, color: 'var(--gj-surface)' }}
+          className="mt-space-2 font-black text-fs-600 sm:text-fs-700 tracking-[-0.2px]"
+          style={{ color: 'var(--gj-surface)' }}
         >
           {detail.titre}
         </h1>
@@ -418,7 +602,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
         <section aria-labelledby="opp-details-heading">
           <h2
             id="opp-details-heading"
-            className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
           >
             Détails de l’offre
           </h2>
@@ -432,11 +616,11 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
         <section aria-labelledby="opp-description-heading">
           <h2
             id="opp-description-heading"
-            className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
           >
             Description
           </h2>
-          <RichContent html={detail.description} className="text-fs-300 leading-loose" />
+          <RichContent html={detail.description} className="text-fs-300 leading-[1.6]" />
         </section>
 
         {/* GUIC-257 — sections structurées optionnelles (null si non remplies en BDD). */}
@@ -444,33 +628,33 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
           <section aria-labelledby="opp-profil-recherche-heading">
             <h2
               id="opp-profil-recherche-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Profil recherché
             </h2>
-            <RichContent html={detail.profilRecherche} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.profilRecherche} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
         {detail.mission && (
           <section aria-labelledby="opp-mission-heading">
             <h2
               id="opp-mission-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Mission
             </h2>
-            <RichContent html={detail.mission} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.mission} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
         {detail.conditions && (
           <section aria-labelledby="opp-conditions-heading">
             <h2
               id="opp-conditions-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Conditions
             </h2>
-            <RichContent html={detail.conditions} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.conditions} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
 
@@ -478,7 +662,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
           <section aria-labelledby="opp-skills-heading">
             <h2
               id="opp-skills-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Compétences requises
             </h2>
@@ -514,7 +698,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
                 })}
               </ul>
             ) : (
-              <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-loose">
+              <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-[1.7]">
                 {competencesRequises.map((s) => (
                   <li key={s.slug}>{s.libelle}</li>
                 ))}
@@ -527,7 +711,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
           <section aria-labelledby="opp-tags-heading">
             <h2
               id="opp-tags-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Tags
             </h2>
@@ -606,7 +790,10 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
             <Button
               variant="cta"
               size="lg"
-              className="flex-1"
+              // GUIC-689 (B.5) — la primitive Button applique `font-bold` (700) inconditionnellement ;
+              // le lien anonyme ci-dessus est en `font-extrabold` (800). Correction locale seulement :
+              // la primitive est partagée (admin/recruteur/conseiller), harmonisation globale différée.
+              className="flex-1 font-extrabold"
               disabled={ctaDisabled}
               aria-describedby={ctaDisabled ? 'cta-disabled-reason' : undefined}
               onClick={() => setModalOpen(true)}
