@@ -37,6 +37,14 @@ describe('GUIC-689 — logo v5 servi par l’application', () => {
     )
   })
 
+  it('la sidebar conseiller pointe la variante blanche (fond --gj-ink-teal)', () => {
+    const src = readFileSync(
+      resolve(ROOT, 'src/components/layout/ConseillerSidebar/index.tsx'),
+      'utf-8',
+    )
+    expect(src).toMatch(/src="\/logo-guichet-blanc\.png"/)
+  })
+
   it('aucun shell ne blanchit le logo par filtre CSS', () => {
     const shells = [
       'src/components/layout/ConseillerSidebar/index.tsx',
