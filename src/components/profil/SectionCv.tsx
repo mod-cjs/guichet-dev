@@ -9,7 +9,7 @@
  */
 
 import { useRef, useState } from 'react'
-import { Card, Button } from '@/components/ui'
+import { Card, Button, Icon } from '@/components/ui'
 
 interface Props {
   initialCvUrl?: string | null
@@ -70,6 +70,30 @@ export function SectionCv({ initialCvUrl }: Props) {
       </div>
 
       <div className="flex flex-col gap-space-3">
+        {/* GUIC-689 — encart d'incitation quand aucun CV n'est déposé (réf v5
+            `profil-web.jsx` DocumentsCard : bordure pointillée ambre + icône).
+            Aucun gain chiffré n'est annoncé : le poids exact du CV dans le
+            score de complétion n'est pas exposé côté client, et un « +18 % »
+            inventé serait une promesse fausse (règle R2 du standard qualité). */}
+        {!cvUrl && (
+          <div
+            data-testid="cv-nudge"
+            className="flex items-center gap-space-3 rounded-gj-md border-2 border-dashed
+              border-gj-yellow-deep bg-gj-yellow-soft px-space-3 py-space-3"
+          >
+            <span
+              aria-hidden
+              className="shrink-0 inline-flex items-center justify-center w-[38px] h-[38px]
+                rounded-gj-md bg-gj-surface text-gj-yellow-ink"
+            >
+              <Icon name="attach" size={18} />
+            </span>
+            <p className="text-fs-200 font-bold text-gj-yellow-ink">
+              Ajoute ton CV pour compléter ton profil et postuler plus vite.
+            </p>
+          </div>
+        )}
+
         <p className="text-fs-200 text-color-text-secondary">
           Format PDF · 5 MB max. Réutilisé automatiquement dans tes candidatures.
         </p>

@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
+import { getRecommandationScore } from '@/lib/ia/recommandation'
 import { DetailSheet } from '@/components/opportunites/DetailSheet'
 
 /** Route interceptée — détail ouvert en slide-over par-dessus la liste. */
@@ -22,5 +23,9 @@ export default async function InterceptedOpportuniteDetail({
   // GUIC-361 — Auto-fill complet : agrège claims SSO + ProfilJeune.
   const viewer = await getViewerInfoForCandidature(session)
 
-  return <DetailSheet detail={detail} viewer={viewer} />
+  // GUIC-689 (P2) — score de correspondance Yaye RÉEL : lecture cache-only
+  // (jamais de recalcul synchrone en rendu), `null` si absent → carte masquée.
+  const matchScore = session ? await getRecommandationScore(session.cjsUid, detail.id) : null
+
+  return <DetailSheet detail={detail} viewer={viewer} matchScore={matchScore} />
 }

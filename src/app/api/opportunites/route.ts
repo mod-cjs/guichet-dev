@@ -39,11 +39,14 @@ export async function GET(request: NextRequest): Promise<ListResponse> {
 
   const sp = request.nextUrl.searchParams
 
-  // Zod valide q/page/sort_by — type/domaine/region parsés à la main pour multi.
+  // Zod valide q/page/sort_by/remuneration/deadline — type/domaine/region parsés à
+  // la main pour multi.
   const parsed = OpportuniteQuerySchema.safeParse({
     q: sp.get('q') ?? undefined,
     page: sp.get('page') ?? undefined,
     sort_by: sp.get('sort_by') ?? undefined,
+    remuneration: sp.get('remuneration') ?? undefined,
+    deadline: sp.get('deadline') ?? undefined,
   })
   if (!parsed.success) {
     return NextResponse.json(
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest): Promise<ListResponse> {
     .map((v) => v.trim().toLowerCase())
     .filter((v) => /^[a-z0-9-]{1,40}$/.test(v))
 
-  const { q, page, sort_by } = parsed.data
+  const { q, page, sort_by, remuneration, deadline } = parsed.data
 
   const result = await listOpportunites({
     q,
@@ -76,6 +79,8 @@ export async function GET(request: NextRequest): Promise<ListResponse> {
     region: regions.length === 0 ? undefined : regions.length === 1 ? regions[0] : regions,
     programme:
       programmes.length === 0 ? undefined : programmes.length === 1 ? programmes[0] : programmes,
+    remuneration,
+    deadline,
     page,
     sortBy: sort_by,
   })

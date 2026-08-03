@@ -176,14 +176,20 @@ export function BenefTopBar({
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1
           return (
-            <span key={crumb.href} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span key={crumb.href ?? crumb.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {i > 0 ? (
                 <span aria-hidden style={{ color: 'var(--gj-line)' }}>›</span>
               ) : null}
-              {isLast ? (
+              {/* GUIC-689 — `href: null` = dossier de regroupement sans page :
+                  le repère hiérarchique reste affiché, mais sans lien mort. */}
+              {isLast || crumb.href === null ? (
                 <span
-                  aria-current="page"
-                  style={{ color: 'var(--gj-ink)', fontWeight: 600, padding: '10px 4px' }}
+                  aria-current={isLast ? 'page' : undefined}
+                  style={{
+                    color: isLast ? 'var(--gj-ink)' : 'var(--gj-grey)',
+                    fontWeight: isLast ? 600 : 400,
+                    padding: '10px 4px',
+                  }}
                 >
                   {crumb.label}
                 </span>

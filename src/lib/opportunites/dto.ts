@@ -36,6 +36,7 @@ import type {
   Domaine,
   Region,
   StatutOpportunite,
+  NiveauEtudes,
 } from '@prisma/client'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
@@ -138,6 +139,12 @@ export interface OpportuniteDetailDTO {
   lienExterne: string | null
   vues: number
   statut: StatutOpportunite
+  // GUIC-689 — champ racine générique (colonne `niveau_etude_min`), déjà exposé côté
+  // export Data Hub (`toOpportuniteExportDTO`) mais manquant ici. Sert de repli d'affichage
+  // pour les sous-types qui n'ont pas leur propre champ de niveau (concours, appel à projets,
+  // financement, mentorat, mobilité, volontariat, formation) ; emploi/stage/bourse ont
+  // chacun leur propre champ de niveau sous `details.payload`, prioritaire sur celui-ci.
+  niveauEtudeMin: NiveauEtudes | null
 
   // Champs polymorphiques (additifs — null si row non encore migrée)
   /** Programme principal — contrat historique préservé, servi depuis la jonction. */
@@ -268,6 +275,7 @@ export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDT
     lienExterne: row.lienExterne ?? null,
     vues: row.vues,
     statut: row.statut,
+    niveauEtudeMin: row.niveauEtudeMin ?? null,
     programme,
     programmes,
     typeSlug,

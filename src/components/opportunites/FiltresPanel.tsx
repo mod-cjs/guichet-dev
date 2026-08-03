@@ -82,8 +82,23 @@ function humanizeDomaine(value: string): string {
   return DOMAINE_LABELS[value] ?? value.replace(/_/g, ' ')
 }
 
+/**
+ * Clés des filtres écrits par ce panneau (et par `OpportunitesFiltersSheet` côté
+ * mobile) — source unique de vérité, aussi utilisée par la sentinelle anti-
+ * "filtre décoratif" (GUIC-689, `tests/integration/opportunites-api-sentinel.test.ts`) :
+ * si une clé est ajoutée ici sans être lue côté route/loader, le test dédié échoue.
+ */
+export const FILTER_PARAM_KEYS = [
+  'domaine',
+  'type',
+  'region',
+  'programme',
+  'remuneration',
+  'deadline',
+] as const satisfies readonly (keyof FiltresValue)[]
+
 function countActive(v: FiltresValue): number {
-  return [v.domaine, v.type, v.region, v.programme, v.remuneration, v.deadline].filter(Boolean).length
+  return FILTER_PARAM_KEYS.filter((k) => Boolean(v[k])).length
 }
 
 interface FilterCheckProps {
@@ -165,8 +180,10 @@ function Section({ title, children, defaultOpen = true }: SectionProps) {
 /**
  * <FiltresPanel /> — panneau filtres latéral desktop (sticky).
  *
- * GUIC-251 — Wave 3 audit UI. Conforme design v2
- * (`lot3-opps-web.jsx#WebFilterPanel` L.34-115).
+ * GUIC-251 — Wave 3 audit UI. Ordre des sections conforme design v5
+ * (`design-guichet-v5/lot3-opps-web.jsx#WebFilterPanel` L.73-104) :
+ * Type, Domaine, Région, Deadline, Rémunération — puis Programme
+ * (GUIC-684, ajout hors maquette) en dernier (GUIC-689, Lot P3-A).
  *
  * Apports vs version précédente :
  *  - sémantique checkbox (au lieu de pastilles)
@@ -281,21 +298,24 @@ export function FiltresPanel({
           </div>
         </Section>
 
-        {programmes.length > 0 && (
-          <Section title="Programme">
-            <div className="flex flex-wrap gap-[6px] pt-space-1">
-              {programmes.map((p) => (
-                <Chip
-                  key={p.slug}
-                  selected={value.programme === p.slug}
-                  onClick={() => pick('programme', p.slug)}
-                >
-                  {p.nom}
-                </Chip>
-              ))}
-            </div>
-          </Section>
-        )}
+        <Section title="Deadline">
+          <ul className="space-y-0">
+            <FilterCheck
+              id="f-dl-7"
+              label="Moins de 7 jours"
+              count={counts?.deadline?.['7']}
+              checked={value.deadline === '7'}
+              onChange={() => toggleDeadline('7')}
+            />
+            <FilterCheck
+              id="f-dl-30"
+              label="Moins de 30 jours"
+              count={counts?.deadline?.['30']}
+              checked={value.deadline === '30'}
+              onChange={() => toggleDeadline('30')}
+            />
+          </ul>
+        </Section>
 
         <Section title="Rémunération">
           <ul className="space-y-0">
@@ -316,24 +336,26 @@ export function FiltresPanel({
           </ul>
         </Section>
 
-        <Section title="Deadline">
-          <ul className="space-y-0">
-            <FilterCheck
-              id="f-dl-7"
-              label="Moins de 7 jours"
-              count={counts?.deadline?.['7']}
-              checked={value.deadline === '7'}
-              onChange={() => toggleDeadline('7')}
-            />
-            <FilterCheck
-              id="f-dl-30"
-              label="Moins de 30 jours"
-              count={counts?.deadline?.['30']}
-              checked={value.deadline === '30'}
-              onChange={() => toggleDeadline('30')}
-            />
-          </ul>
-        </Section>
+        {/* GUIC-684 — Programme est un ajout hors maquette design v5 (qui ne
+            connaît que Type/Domaine/Région/Deadline/Rémunération). Placé en
+            dernier plutôt qu'interposé entre Région et Deadline : les 5
+            sections de la maquette restent contiguës et dans le même ordre,
+            l'ajout ne casse pas la continuité de lecture qu'elle définit. */}
+        {programmes.length > 0 && (
+          <Section title="Programme">
+            <div className="flex flex-wrap gap-[6px] pt-space-1">
+              {programmes.map((p) => (
+                <Chip
+                  key={p.slug}
+                  selected={value.programme === p.slug}
+                  onClick={() => pick('programme', p.slug)}
+                >
+                  {p.nom}
+                </Chip>
+              ))}
+            </div>
+          </Section>
+        )}
       </div>
 
       {/* CTA sticky bottom — affiché si onApply fourni */}
