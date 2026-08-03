@@ -59,7 +59,7 @@ export function EmpruntButton({ exemplaireId, centreNom }: Props) {
   return (
     <>
       <Button
-        variant="primary"
+        variant="conversion"
         size="sm"
         loading={state === 'loading'}
         disabled={state !== 'idle'}

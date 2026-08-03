@@ -22,6 +22,13 @@ jest.mock('@/lib/programmes/options', () => ({
   loadProgrammeOptions: (...a: unknown[]) => mockLoadProgrammeOptions(...a),
 }))
 
+// La page a gagné une dépendance session (GUIC-688 : `userIsConnected` pilote
+// l'affichage côté liste). Sans ce mock, `@/lib/auth` tire des dépendances ESM
+// que Jest ne transforme pas — la suite ne démarre même pas.
+jest.mock('@/lib/auth', () => ({
+  getSession: jest.fn().mockResolvedValue(null),
+}))
+
 jest.mock('@/components/ressources', () => ({
   MediathequeHome: () => <div data-testid="mediatheque-home-stub" />,
   RessourcesClient: () => <div data-testid="ressources-client-stub" />,

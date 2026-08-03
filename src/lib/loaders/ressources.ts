@@ -251,20 +251,10 @@ export async function getRessourcesRelated(
   return rows.map(toListItem)
 }
 
-/**
- * Incrément du compteur de vues d'une ressource (best-effort, jamais bloquant).
- * GUIC-363.
- */
-export async function incrementRessourceVues(ressourceId: string): Promise<void> {
-  try {
-    await prisma.ressource.update({
-      where: { id: ressourceId },
-      data: { vues: { increment: 1 } },
-    })
-  } catch {
-    // best-effort : ne jamais casser la page détail si l'update échoue.
-  }
-}
+// GUIC-688 — `incrementRessourceVues` a été retiré : le comptage passe par
+// `src/lib/analytics/consultations.ts`. Cette fonction incrémentait à CHAQUE
+// rendu, sans dédoublonnage — le socle applique la même garde de 30 min que
+// pour les autres entités, donc le compteur progresse désormais moins vite.
 
 // ─────────────────────────────────────────────────────────────────────────
 // GUIC-689 (Lot F2) — écran d'accueil médiathèque (`ResHomeContent` design v5).
@@ -286,7 +276,8 @@ export interface RessourcesHomeData {
   recentes: RessourceListItem[]
   /** Ressources les plus consultées (`vues` desc). Il n'existe AUCUN
    *  compteur de téléchargements — `vues` compte des consultations de la
-   *  fiche détail (cf. `incrementRessourceVues`), jamais des téléchargements. */
+   *  fiche détail (comptage dédoublonné par `lib/analytics/consultations.ts`
+   *  depuis GUIC-688), jamais des téléchargements. */
   populaires: RessourceListItem[]
 }
 

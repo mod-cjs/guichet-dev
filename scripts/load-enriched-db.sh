@@ -51,5 +51,15 @@ echo "✅ Base '${DB}' chargée — ${COUNT} opportunités."
 echo
 ENRICHED_DB="$DB" bash "$(dirname "$0")/sync-enriched-migrations.sh"
 
+# Le dump a été chargé avec FOREIGN_KEY_CHECKS=0 et sous un sql_mode acceptant les dates
+# zéro : il porte des `0000-00-00` que le driver Prisma ne sait pas relire, et des liens
+# de jonction vers des entités disparues. Sans cette étape, chaque rechargement ramène
+# deux flux d'export inexploitables et des pages publiques en 500.
+echo
+echo "⏳ Réparation des défauts d'intégrité du dump…"
+docker exec -i "$CONTAINER" mariadb -uroot -p"${ROOT_PWD}" "${DB}" \
+  < "$(dirname "$0")/sql/repair-donnees-poc.sql"
+echo "✅ Dates zéro et rattachements orphelins corrigés."
+
 echo
 echo "   Prochaine étape : npm run yaye:reproject   (projette MariaDB → Neo4j base 'enriched')"
