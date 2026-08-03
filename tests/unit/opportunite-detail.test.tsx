@@ -16,9 +16,22 @@
  */
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
+import { OpportuniteDetail as OpportuniteDetailCurrent } from '@/components/opportunites/OpportuniteDetail'
 import { FavorisProvider } from '@/components/opportunites/FavorisProvider'
+import type { ComponentProps, ReactElement } from 'react'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
+
+// RED (GUIC-689 P2) — `matchScore` n'existe pas encore sur `OpportuniteDetailProps`
+// (le score affiché est encore mock, cf. YayeMatchCard). Cast explicite pour que
+// ce commit test-only compile contre la signature ACTUELLE en exerçant la
+// signature CIBLE ; le cast redevient inutile (mais inoffensif) dès le commit
+// GREEN qui introduit réellement la prop.
+type OpportuniteDetailTarget = (
+  props: ComponentProps<typeof OpportuniteDetailCurrent> & {
+    matchScore?: { score: number; raison: string } | null
+  },
+) => ReactElement | null
+const OpportuniteDetail = OpportuniteDetailCurrent as unknown as OpportuniteDetailTarget
 
 // ── Mocks Next ────────────────────────────────────────────────────────────────
 let currentSearch = ''
@@ -90,11 +103,17 @@ function setupFetch(opts: { hasCandidature?: boolean } = {}) {
   }) as unknown as typeof fetch
 }
 
-function renderDetail(detail: Detail = baseDetail, opts: { viewer?: typeof viewer | null } = {}) {
+function renderDetail(
+  detail: Detail = baseDetail,
+  opts: {
+    viewer?: typeof viewer | null
+    matchScore?: { score: number; raison: string } | null
+  } = {},
+) {
   const v = 'viewer' in opts ? opts.viewer ?? null : viewer
   return render(
     <FavorisProvider isAuthenticated={v !== null}>
-      <OpportuniteDetail detail={detail} viewer={v} />
+      <OpportuniteDetail detail={detail} viewer={v} matchScore={opts.matchScore} />
     </FavorisProvider>,
   )
 }
@@ -108,10 +127,21 @@ beforeEach(() => {
 
 // ── Specs ─────────────────────────────────────────────────────────────────────
 describe('<OpportuniteDetail /> — Wave 6', () => {
-  it('rend la YayeMatchCard dans le détail', () => {
-    renderDetail()
+  // ── GUIC-689 P2 — score de correspondance RÉEL (plus de 94% codé en dur) ────
+  it('rend la YayeMatchCard avec le score réel transmis en prop (pas de mock)', () => {
+    renderDetail(baseDetail, {
+      matchScore: { score: 0.73, raison: 'adaptée à ton niveau d’étude et ton profil' },
+    })
     expect(screen.getByTestId('yaye-match-card')).toBeInTheDocument()
-    expect(screen.getByTestId('yaye-match-score')).toHaveTextContent('%')
+    expect(screen.getByTestId('yaye-match-score')).toHaveTextContent('73%')
+    expect(screen.getByText('adaptée à ton niveau d’étude et ton profil')).toBeInTheDocument()
+  })
+
+  it('masque la YayeMatchCard quand aucun score n’existe pour ce couple (jamais de score inventé)', () => {
+    renderDetail(baseDetail, { matchScore: null })
+    expect(screen.queryByTestId('yaye-match-card')).not.toBeInTheDocument()
+    // Assertion explicite : aucun pourcentage nulle part sur la page.
+    expect(document.body.textContent ?? '').not.toMatch(/\d+\s*%/)
   })
 
   it('rend le hero compact avec titre, organisation et badge type', () => {
@@ -203,12 +233,58 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     expect(link.getAttribute('href')).toContain(encodeURIComponent('/opportunites/'))
   })
 
-  it('liste les compétences requises en bullet (pas en chips)', () => {
+  it('liste les compétences requises en item de liste (pas en chips)', () => {
     renderDetail()
     const li = screen.getByText('Python').closest('li')
     expect(li).not.toBeNull()
     // SQL n'est pas requise → ne doit pas apparaître dans la liste « Compétences requises ».
     expect(screen.queryByText('SQL')).toBeNull()
+  })
+
+  // ── P1 (GUIC-689) — check-list des prérequis « où en es-tu ? » ─────────────
+  describe('check-list des compétences requises', () => {
+    const detailAvecPlusieursSkills: Detail = {
+      ...baseDetail,
+      skills: [
+        { slug: 'python', libelle: 'Python', requise: true },
+        { slug: 'creativite', libelle: 'Créativité', requise: true },
+        { slug: 'git', libelle: 'Git', requise: true },
+        { slug: 'sql', libelle: 'SQL', requise: false },
+      ],
+    } as unknown as Detail
+
+    const viewerAvecCompetences = {
+      ...viewer,
+      // Volontairement une autre casse/accentuation que les libellés de l'offre :
+      // la comparaison doit être insensible casse/accents.
+      competences: ['python', 'creativite'],
+    }
+
+    it('coche ✓ (vert) un critère acquis, insensible à la casse et aux accents', () => {
+      renderDetail(detailAvecPlusieursSkills, { viewer: viewerAvecCompetences })
+      const python = screen.getByTestId('skill-check-python')
+      expect(python).toHaveAttribute('data-acquise', 'true')
+      expect(python.className).toMatch(/bg-gj-green-soft/)
+      const creativite = screen.getByTestId('skill-check-creativite')
+      expect(creativite).toHaveAttribute('data-acquise', 'true')
+    })
+
+    it('marque « à compléter » (ambre) un critère non acquis, jamais en rouge', () => {
+      renderDetail(detailAvecPlusieursSkills, { viewer: viewerAvecCompetences })
+      const git = screen.getByTestId('skill-check-git')
+      expect(git).toHaveAttribute('data-acquise', 'false')
+      expect(git.textContent).toMatch(/à compléter/i)
+      expect(git.className).toMatch(/bg-gj-yellow-soft/)
+      expect(git.className).not.toMatch(/bg-gj-red|text-gj-red/)
+    })
+
+    it('visiteur anonyme → liste simple sans état par critère (pas de check-list)', () => {
+      renderDetail(detailAvecPlusieursSkills, { viewer: null })
+      expect(screen.queryByTestId('skills-checklist')).not.toBeInTheDocument()
+      expect(screen.queryByText(/à compléter/i)).toBeNull()
+      expect(screen.getByText('Python')).toBeInTheDocument()
+      expect(screen.getByText('Git')).toBeInTheDocument()
+    })
   })
 
   // ── GUIC-689 — HeroBadge : deux pastilles distinctes (catégorie + urgence) ──
