@@ -318,10 +318,13 @@ Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait ».
 
 ### 8.5 Suppressions dures
 
-Les cascades (`Candidature` supprimée avec son `Utilisateur`) ne sont pas capturables par
-watermark. Traitement retenu : **full-refresh hebdomadaire des clés seules**
-(`?fields=id`, léger), qui permet à dbt de marquer les absents. Écarté : un stream
-d'événements de suppression, plus coûteux pour un besoin BI.
+Les cascades ne sont pas capturables par watermark. Traitement retenu à l'origine :
+full-refresh hebdomadaire des clés seules, léger. **Implémenté au lot 7 du durcissement
+(GUIC-700, `.agent_context/specs/M13-durcissement-etl.md`)** — révisé en un script autonome
+(`scripts/datahub/purge-absents.ts`, Prisma direct + `psql`), pas un paramètre `?fields=`
+exposé sur l'API publique : le comparatif clés source/entrepôt reste un usage strictement
+interne, sans surface API supplémentaire à sécuriser. Écarté : un stream d'événements de
+suppression, plus coûteux pour un besoin BI.
 
 ### 8.6 Format
 
