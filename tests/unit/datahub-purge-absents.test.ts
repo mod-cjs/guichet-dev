@@ -93,6 +93,21 @@ describe('purgeAbsents', () => {
     expect(consultations.supprimees).toBeNull()
   })
 
+  it('interroge l\'entrepôt sur le nom EXPORTÉ de la clé primaire, pas le nom Prisma', async () => {
+    // cjsUid (Prisma) devient cjs_uid dans l'entrepôt (GUIC-697 D1 : même piège). Interroger
+    // l'entrepôt sur le nom Prisma viserait une colonne qui n'y existe pas.
+    const descriptors = allDescriptors()
+    const colonnesInterrogees: string[] = []
+    const entrepot: WarehouseKeys = {
+      keys: async (table, column) => { colonnesInterrogees.push(`${table}.${column}`); return [] },
+      deleteMany: async () => 0,
+    }
+    await purgeAbsents(descriptors, sourceFixe({}), entrepot)
+
+    expect(colonnesInterrogees).toContain('utilisateurs.cjs_uid')
+    expect(colonnesInterrogees).not.toContain('utilisateurs.cjsUid')
+  })
+
   it('n\'appelle deleteMany que pour les flux avec au moins une absence', async () => {
     const descriptors = allDescriptors()
     const source = Object.fromEntries(descriptors.map((d) => [d.model, ['x']]))
