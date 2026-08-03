@@ -163,16 +163,35 @@ function toIso(value: Date | string | null | undefined): string | null {
 }
 
 /**
+ * Écarte les liens de jonction dont l'entité pointée a disparu.
+ *
+ * Constaté en base : `opportunites_tags` porte 1 438 lignes référençant un tag
+ * inexistant, touchant 1 357 offres sur 4 340. Les contraintes FK existent pourtant —
+ * le dump a été chargé avec `FOREIGN_KEY_CHECKS=0`, elles n'ont donc pas joué au
+ * chargement. Sans cette garde, `row.tags[i].tag.slug` lève et l'export entier rend 500
+ * dès qu'une page contient une offre concernée.
+ *
+ * Un rattachement cassé doit dégrader la sortie, pas la faire échouer — et il ne doit
+ * pas emporter les rattachements valides de la même ligne.
+ */
+function liensValides<T, K extends keyof T>(liens: T[] | undefined, cle: K): T[] {
+  return (liens ?? []).filter((lien) => lien[cle] != null)
+}
+
+/**
  * Rattachements aux programmes (GUIC-684). La jonction M:N est la SEULE source :
  * la colonne `programme_id` a été supprimée après recopie de son contenu.
  */
 function programmesRefs(row: OpportuniteRow): ProgrammeRefDTO[] {
-  return (row.programmes ?? []).map((r) => ({ slug: r.programme.slug, nom: r.programme.nom }))
+  return liensValides(row.programmes, 'programme').map((r) => ({
+    slug: r.programme.slug,
+    nom: r.programme.nom,
+  }))
 }
 
 /** Programme principal — celui affiché quand une seule place est disponible. */
 function programmePrincipalRef(row: OpportuniteRow): ProgrammeRefDTO | null {
-  const rattachements = row.programmes ?? []
+  const rattachements = liensValides(row.programmes, 'programme')
   const principal = rattachements.find((r) => r.principal) ?? rattachements[0]
   return principal ? { slug: principal.programme.slug, nom: principal.programme.nom } : null
 }
@@ -242,12 +261,12 @@ export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDT
   const programmes = programmesRefs(row)
   // Contrat préservé : `programme` (singulier) = le PRINCIPAL des rattachements.
   const programme = programmePrincipalRef(row)
-  const skills: SkillRefDTO[] = (row.skills ?? []).map((s) => ({
+  const skills: SkillRefDTO[] = liensValides(row.skills, 'skill').map((s) => ({
     slug: s.skill.slug,
     libelle: s.skill.libelle,
     requise: s.requise,
   }))
-  const tags: TagRefDTO[] = (row.tags ?? []).map((t) => ({
+  const tags: TagRefDTO[] = liensValides(row.tags, 'tag').map((t) => ({
     slug: t.tag.slug,
     libelle: t.tag.libelle,
   }))
@@ -396,7 +415,18 @@ function decimalToNumber(v: unknown): number | null {
   return null
 }
 
-/** Mapping Data Hub — toutes colonnes présentes, `null` quand non applicable. */
+/**
+ * Mapping Data Hub aplati (DP7) — toutes colonnes présentes, `null` quand non applicable.
+ *
+ * ⚠ PLUS AUCUN APPELANT dans `src/` depuis que `/api/v1/export/opportunites` est servi par
+ * la route pilotée par le contrat (M13, lot 5). Le contrat exporte 18 colonnes métier là
+ * où ce mapping en produisait 76, dont les colonnes de sous-type polymorphique.
+ *
+ * Conservé plutôt que supprimé : ces colonnes redeviendront nécessaires si le Data Hub
+ * demande le détail des sous-types, et les retrouver demanderait de réécrire ce mapping.
+ * Sa suppression — avec les ~250 lignes de tests qui le couvrent — mérite sa propre revue
+ * plutôt que d'être glissée dans un correctif.
+ */
 export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDTO {
   const typeSlug = row.typeRef?.slug ?? row.type.toLowerCase()
   const e = row.emploi
@@ -495,8 +525,8 @@ export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDT
     volontariat_domaine_mission:          vo?.domaineMission ?? null,
     volontariat_places_disponibles:       vo?.placesDisponibles ?? null,
 
-    skills: (row.skills ?? []).map((s) => s.skill.slug),
-    tags: (row.tags ?? []).map((t) => t.tag.slug),
+    skills: liensValides(row.skills, 'skill').map((s) => s.skill.slug),
+    tags: liensValides(row.tags, 'tag').map((t) => t.tag.slug),
   }
 }
 

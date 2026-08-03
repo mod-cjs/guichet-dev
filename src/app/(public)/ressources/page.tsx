@@ -9,6 +9,7 @@ import {
   type LangueRessourceValue,
 } from '@/lib/loaders/ressources'
 import { RessourcesClient } from '@/components/ressources'
+import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
 
@@ -66,9 +67,10 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
     page: Math.max(1, Number(pickString(sp.page)) || 1),
   }
 
-  const [{ items, total, page, pageSize }, programmes] = await Promise.all([
+  const [{ items, total, page, pageSize }, programmes, session] = await Promise.all([
     listRessources(filtres),
     loadProgrammeOptions(prisma),
+    getSession(),
   ])
 
   return (
@@ -94,6 +96,7 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
           pageSize={pageSize}
           initialFilters={filtres}
           programmes={programmes}
+          userIsConnected={Boolean(session)}
         />
       </Suspense>
     </div>

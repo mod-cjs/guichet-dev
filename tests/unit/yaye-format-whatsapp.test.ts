@@ -21,7 +21,7 @@ test('opportunités → liste numérotée + deep link', () => {
   ])
   expect(out).toContain('1. *Développeur web*')
   expect(out).toContain('Emploi · Dakar')
-  expect(out).toContain('/opportunites/dev-web')
+  expect(out).toContain('/opportunites/dev-web?src=wa')
 })
 
 test('tronque à 4096 caractères max (contrainte Meta)', () => {
@@ -65,7 +65,7 @@ test('événements → liste avec date + lieu + deep link agenda', () => {
   ])
   expect(out).toContain('Forum emploi')
   expect(out).toContain('CJS Thiès')
-  expect(out).toContain('/agenda/ev1')
+  expect(out).toContain('/agenda/ev1?src=wa')
 })
 
 test('ressources → liste PDF/guide + lien', () => {
@@ -73,7 +73,7 @@ test('ressources → liste PDF/guide + lien', () => {
     { id: 'r1', titre: 'Guide CV', type: 'Guide', theme: 'Emploi', niveau: null },
   ] }])
   expect(out).toContain('Guide CV')
-  expect(out).toContain('/ressources/r1')
+  expect(out).toContain('/ressources/r1?src=wa')
 })
 
 test('centres → nom + adresse + lien slug', () => {
@@ -81,7 +81,7 @@ test('centres → nom + adresse + lien slug', () => {
     { id: 'c1', slug: 'cjs-dakar', nom: 'CJS Dakar', ville: 'Dakar', region: 'Dakar', adresse: 'Rue 1', telephone: '+221990000000', services: ['WiFi'] },
   ] }])
   expect(out).toContain('CJS Dakar')
-  expect(out).toContain('/centres/cjs-dakar')
+  expect(out).toContain('/centres/cjs-dakar?src=wa')
 })
 
 test('notifications → titres + contenu', () => {
@@ -90,4 +90,29 @@ test('notifications → titres + contenu', () => {
   ] }])
   expect(out).toContain('Échéance')
   expect(out).toContain('Offre X ferme demain')
+  // GUIC-688 — un lien de notification est un lien de catalogue comme un autre :
+  // sans marqueur, le clic se confond avec le trafic web organique.
+  expect(out).toContain('/opportunites/x?src=wa')
+})
+
+test('lien de notification déjà porteur d’une query → src ajouté en second paramètre', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Deadline', titre: 'Échéance', contenu: 'Postule', lien: '/opportunites/x?postuler=1', metaPill: 'J-1', lu: false },
+  ] }])
+  expect(out).toContain('/opportunites/x?postuler=1&src=wa')
+})
+
+test('lien externe de notification laissé intact (ce n’est pas notre trafic)', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'notifications', items: [
+    { id: 'n1', type: 'Info', titre: 'Partenaire', contenu: 'Voir', lien: 'https://exemple.org/page', metaPill: null, lu: true },
+  ] }])
+  expect(out).toContain('https://exemple.org/page')
+  expect(out).not.toContain('exemple.org/page?src=wa')
+})
+
+test('cards issues d’une reco → le clic porte aussi l’origine', () => {
+  const out = formatBlocksForWhatsApp([{ kind: 'opportunites', items: [
+    { id: 'o1', slug: 'dev-web', titre: 'Développeur web', type: 'Emploi', organisation: 'ACME', region: 'Dakar', deadline: null, origine: 'reco' },
+  ] }])
+  expect(out).toContain('/opportunites/dev-web?src=wa&from=reco')
 })

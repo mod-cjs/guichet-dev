@@ -20,7 +20,7 @@
 - [ ] Pas de `console.log` résiduel
 - [ ] Pas de `test.skip`, `xit`, `it.only`, `describe.only`, `fit`, `fdescribe`
 - [ ] Pas de mention IA dans les commits (`Co-Authored-By`, `Generated with`, etc.)
-- [ ] Auteur unique : `mod-cjs`
+- [ ] Auteur unique : `adiop-pixel` (les commits antérieurs au 2026-07-30 portent `mod-cjs`)
 - [ ] Si fix de bug : un test reproduit le bug et échouait sans le fix (vérifier en checkout du commit RED)
 
 ## Anti-régressions par finding sécu critique

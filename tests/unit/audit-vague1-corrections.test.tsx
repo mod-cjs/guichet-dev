@@ -111,7 +111,7 @@ describe('F-3 — « Se connecter pour s’inscrire » est un CTA de conversion'
       />,
     )
     const btn = screen.getByRole('button', { name: /se connecter pour s’inscrire|se connecter pour s'inscrire/i })
-    expect(btn.className).toMatch(/bg-gj-action/)
+    expect(btn.className).toMatch(/\bgj-cta\b/)
   })
 })
 
@@ -121,7 +121,7 @@ describe('F-4 — listes agenda : boutons de rangée secondaires', () => {
   const estCreux = (className: string) =>
     /(^|\s)bg-white(\s|$)/.test(className) &&
     !/(^|\s)bg-gj-teal(\s|$)/.test(className) &&
-    !/(^|\s)bg-gj-action(\s|$)/.test(className)
+    !/(^|\s)gj-cta(\s|$)/.test(className)
 
   it('EventCard anonyme : le CTA de rangée n’est pas un bouton plein', () => {
     render(<EventCard item={evenement} isAuthenticated={false} />)

@@ -299,3 +299,41 @@ describe('toOpportuniteExportDTO', () => {
     expect(arr[0].id).toBe('opp-1')
   })
 })
+
+// ─── Rattachements orphelins (constaté en base : 1 438 liens de tags sans tag) ──
+
+describe('rattachements orphelins', () => {
+  it('ignore un lien de tag dont le tag a disparu, au lieu de lever', () => {
+    // Vérifié sur la base POC : `opportunites_tags` porte 1 438 lignes référençant un
+    // tag inexistant — le dump a été chargé avec FOREIGN_KEY_CHECKS=0, les contraintes
+    // n'ont donc pas joué. 1 357 offres sur 4 340 sont concernées : la route d'export
+    // rendait 500 dès qu'une page en contenait une.
+    const row = baseRow({
+      tags: [{ opportuniteId: 'opp-1', tagId: 't-disparu', tag: null }],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(() => toOpportuniteDetailDTO(row)).not.toThrow()
+    expect(toOpportuniteDetailDTO(row).tags).toEqual([])
+  })
+
+  it('ignore un lien de compétence dont la compétence a disparu', () => {
+    const row = baseRow({
+      skills: [{ opportuniteId: 'opp-1', skillId: 's-disparu', requise: true, skill: null }],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(() => toOpportuniteDetailDTO(row)).not.toThrow()
+    expect(toOpportuniteDetailDTO(row).skills).toEqual([])
+  })
+
+  it('conserve les rattachements valides d\'une ligne qui en porte aussi un orphelin', () => {
+    // Un lien cassé ne doit pas emporter les autres : l'export dégrade, il ne se vide pas.
+    const row = baseRow({
+      tags: [
+        { opportuniteId: 'opp-1', tagId: 't-disparu', tag: null },
+        { opportuniteId: 'opp-1', tagId: 't1', tag: { id: 't1', slug: 'urgent', libelle: 'Urgent', createdAt: NOW } },
+      ],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(toOpportuniteDetailDTO(row).tags).toEqual([{ slug: 'urgent', libelle: 'Urgent' }])
+  })
+})
