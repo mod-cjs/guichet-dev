@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { FiltresPanel, type FiltresValue } from '@/components/opportunites/FiltresPanel'
+import { FiltresPanel, FILTER_PARAM_KEYS, type FiltresValue } from '@/components/opportunites/FiltresPanel'
 
 const baseValue: FiltresValue = { sortBy: 'recent' }
 
@@ -21,6 +21,20 @@ function setup(overrides?: Partial<Parameters<typeof FiltresPanel>[0]>) {
 }
 
 describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
+  // GUIC-689 — `FILTER_PARAM_KEYS` est la source unique consommée par la sentinelle
+  // anti-"filtre décoratif" (tests/integration/opportunites-api-sentinel.test.ts).
+  it('GUIC-689 : expose FILTER_PARAM_KEYS avec les 6 filtres réellement écrits par le panneau', () => {
+    expect(FILTER_PARAM_KEYS).toEqual([
+      'domaine',
+      'type',
+      'region',
+      'programme',
+      'remuneration',
+      'deadline',
+    ])
+  })
+
+
   it('rend les sections Type, Domaine, Région, Rémunération, Deadline', () => {
     setup()
     expect(screen.getByText('Type')).toBeInTheDocument()
