@@ -26,8 +26,8 @@ const props = {
 describe('GUIC-701 — AdminUsersTable enrichie', () => {
   it('rend les 4 KPIs', () => {
     render(<AdminUsersTable {...props} />)
-    expect(screen.getByText(/Comptes/i)).toBeInTheDocument()
-    expect(screen.getByText(/Staff/i)).toBeInTheDocument()
+    expect(screen.getByText('Comptes')).toBeInTheDocument()
+    expect(screen.getByText(/^Staff/)).toBeInTheDocument()
     expect(screen.getByText(/Complétude moyenne/i)).toBeInTheDocument()
     expect(screen.getByText('246')).toBeInTheDocument()
   })
