@@ -56,10 +56,14 @@ function clesConfigurees(): Array<{ id: string; secret: string }> {
   return unique ? [{ id: ID_HERITE, secret: unique }] : []
 }
 
-/** Secret porté par un en-tête `Authorization`, ou `null` si la forme n'est pas conforme. */
+/**
+ * Secret porté par un en-tête `Authorization`, ou `null` si la forme n'est pas conforme.
+ * Le schéma est insensible à la casse (RFC 7235 §2.1, GUIC-697 D5) : `bearer`/`BEARER`
+ * sont des formes valides, même si le tap actuel envoie toujours `Bearer` exact.
+ */
 function secretPorte(authorization: string | null): string | null {
   if (!authorization) return null
-  const match = /^Bearer\s+(\S+)\s*$/.exec(authorization.trim())
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(authorization.trim())
   return match ? match[1] : null
 }
 

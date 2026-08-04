@@ -34,12 +34,33 @@ esac
 `
 
 /**
- * Shim `docker` : trace ses appels, et simule `inspect RepoDigests` après un push.
- *   FAIL_PUSH=1  → `docker push` échoue (non authentifié)
+ * Shim `docker` : trace ses appels et simule la sortie dont le script a besoin.
+ *
+ * GUIC-674 — le script est passé de `docker build` + `docker push` à un
+ * `docker buildx build --push` unique. Deux conséquences pour ce shim :
+ *   - il doit répondre aux sous-commandes `buildx` (inspect/create/build) ;
+ *   - l'empreinte ne se lit plus via `docker inspect` (le driver
+ *     docker-container ne charge rien en local) mais via `--metadata-file`,
+ *     que le shim doit donc écrire.
+ *   FAIL_PUSH=1 → le `buildx build --push` échoue (non authentifié)
  */
 const DOCKER_SHIM = `#!/usr/bin/env bash
 echo "docker $*" >> "$CALL_LOG"
 case "$1" in
+  buildx)
+    case "\${2:-}" in
+      build)
+        [ -n "\${FAIL_PUSH:-}" ] && exit 1
+        # Écrit l'empreinte là où le script la lira (--metadata-file <chemin>).
+        meta=""
+        while [ $# -gt 0 ]; do
+          [ "$1" = "--metadata-file" ] && meta="$2"
+          shift
+        done
+        [ -n "$meta" ] && printf '{"containerimage.digest":"sha256:deadbeef"}' > "$meta"
+        exit 0 ;;
+      *) exit 0 ;;
+    esac ;;
   build) exit 0 ;;
   push)  [ -n "\${FAIL_PUSH:-}" ] && exit 1 || exit 0 ;;
   inspect) echo "ghcr.io/some-org/guichet@sha256:deadbeef" ; exit 0 ;;
@@ -130,5 +151,32 @@ describe('GUIC-639 — sortie par empreinte', () => {
     const r = run({ args: ['v1.0.0'], env: { FAIL_PUSH: '1' } })
     expect(r.code).not.toBe(0)
     expect(r.out).toMatch(/docker login ghcr\.io|write:packages/i)
+  })
+})
+
+/**
+ * GUIC-674 — L'architecture est la raison d'être du passage à buildx, et c'est
+ * la panne la plus coûteuse à découvrir tard : construite sur un Mac ARM, une
+ * image sans `--platform` est en arm64 et le conteneur meurt au démarrage sur
+ * le serveur OVH (« exec format error »), après le pull et la migration.
+ */
+describe('GUIC-674 — l’image doit être amd64', () => {
+  it('force linux/amd64 par défaut', () => {
+    const r = run({ args: ['v1.0.0'] })
+    expect(r.code).toBe(0)
+    expect(r.calls).toMatch(/--platform linux\/amd64/)
+  })
+
+  it('passe par buildx — le driver docker par défaut ne pousse pas de cross-plateforme', () => {
+    const r = run({ args: ['v1.0.0'] })
+    expect(r.calls).toMatch(/docker buildx build/)
+    // Plus de `docker build` nu : il produirait l'architecture de l'hôte.
+    expect(r.calls).not.toMatch(/^docker build /m)
+  })
+
+  it('reste surchargeable pour un manifeste multi-arch', () => {
+    const r = run({ args: ['v1.0.0'], env: { PLATFORMS: 'linux/amd64,linux/arm64' } })
+    expect(r.code).toBe(0)
+    expect(r.calls).toMatch(/--platform linux\/amd64,linux\/arm64/)
   })
 })

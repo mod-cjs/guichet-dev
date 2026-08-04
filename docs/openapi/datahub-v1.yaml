@@ -24,6 +24,14 @@ components:
       schema:
         type: "string"
         format: "date-time"
+    sinceRequis:
+      name: "since"
+      in: "query"
+      required: true
+      description: "Borne basse, ISO 8601 — OBLIGATOIRE sur cet endpoint (GUIC-697 D6) : un comptage non borné sur les 13 flux, dont `consultations`, dépasse `maxDuration = 60`."
+      schema:
+        type: "string"
+        format: "date-time"
     cursor:
       name: "cursor"
       in: "query"
@@ -974,6 +982,91 @@ components:
           format: "date-time"
           description: "Dernière modification. Watermark de réplication Data Hub."
           "x-cjs-tier": "public"
+    opportunites_programmesRow:
+      type: "object"
+      description: "Rattachement d'une opportunité à un programme (GUIC-684 — M:N générique)."
+      properties:
+        opportunite_id:
+          type: "string"
+          description: "Offre rattachée — clé de jointure vers `opportunites`."
+          "x-cjs-tier": "pseudonyme"
+        programme_id:
+          type: "string"
+          description: "Programme de rattachement — clé de jointure vers `programmes`."
+          "x-cjs-tier": "pseudonyme"
+        principal:
+          type: "boolean"
+          description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par offre."
+          "x-cjs-tier": "public"
+    ressources_programmesRow:
+      type: "object"
+      description: "Rattachement d'une ressource à un programme (GUIC-684 — M:N générique)."
+      properties:
+        ressource_id:
+          type: "string"
+          description: "Ressource rattachée — clé de jointure vers `ressources`."
+          "x-cjs-tier": "pseudonyme"
+        programme_id:
+          type: "string"
+          description: "Programme de rattachement — clé de jointure vers `programmes`."
+          "x-cjs-tier": "pseudonyme"
+        principal:
+          type: "boolean"
+          description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par ressource."
+          "x-cjs-tier": "public"
+    evenements_programmesRow:
+      type: "object"
+      description: "Rattachement d'un événement à un programme (GUIC-684 — M:N générique)."
+      properties:
+        evenement_id:
+          type: "string"
+          description: "Événement rattaché — clé de jointure vers `evenements`."
+          "x-cjs-tier": "pseudonyme"
+        programme_id:
+          type: "string"
+          description: "Programme de rattachement — clé de jointure vers `programmes`."
+          "x-cjs-tier": "pseudonyme"
+        principal:
+          type: "boolean"
+          description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par événement."
+          "x-cjs-tier": "public"
+    centres_programmesRow:
+      type: "object"
+      description: "Centres où un programme est déployé (GUIC-684 — extension acteurs). FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui existe indépendamment des programmes qui s'y déploient."
+      properties:
+        centre_id:
+          type: "string"
+          description: "Centre rattaché — clé de jointure vers `centres`."
+          "x-cjs-tier": "pseudonyme"
+        programme_id:
+          type: "string"
+          description: "Programme de rattachement — clé de jointure vers `programmes`."
+          "x-cjs-tier": "pseudonyme"
+        principal:
+          type: "boolean"
+          description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par centre."
+          "x-cjs-tier": "public"
+    organisations_programmesRow:
+      type: "object"
+      description: "Organisations partenaires d'un programme (GUIC-684 — extension acteurs). FACULTATIF : un partenaire peut publier des offres sans relever d'un programme."
+      properties:
+        organisation_id:
+          type: "string"
+          description: "Organisation rattachée — clé de jointure vers `organisations`."
+          "x-cjs-tier": "pseudonyme"
+        programme_id:
+          type: "string"
+          description: "Programme de rattachement — clé de jointure vers `programmes`."
+          "x-cjs-tier": "pseudonyme"
+        principal:
+          type: "boolean"
+          description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par organisation."
+          "x-cjs-tier": "public"
+    Counts:
+      type: "object"
+      description: "Comptage par flux sur la fenêtre `since`, à comparer aux COUNT(*) de l'entrepôt."
+      additionalProperties:
+        type: "integer"
 paths:
   "/export/utilisateurs":
     get:
@@ -999,13 +1092,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1034,13 +1133,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1069,13 +1174,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1104,13 +1215,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1139,13 +1256,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1174,13 +1297,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1209,13 +1338,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1244,13 +1379,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1279,13 +1420,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1314,13 +1461,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1349,13 +1502,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1384,13 +1543,19 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
-          description: "Curseur malformé"
+          description: "Curseur ou borne `since` malformés"
           content:
             "application/json":
               schema:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
           content:
             "application/json":
               schema:
@@ -1419,6 +1584,56 @@ paths:
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":
+          description: "Curseur ou borne `since` malformés"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/opportunites_programmes":
+    get:
+      summary: "Exporter le flux opportunites_programmes (FULL_TABLE)"
+      description: "Rattachement d'une opportunité à un programme (GUIC-684 — M:N générique). Réextrait intégralement à chaque run — pas de `since`, aucun watermark disponible."
+      operationId: "export_opportunites_programmes"
+      parameters:
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de opportunites_programmes"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/opportunites_programmesRow"
+                  meta:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type:
+                          - "string"
+                          - "null"
+                      has_more:
+                        type: "boolean"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
           description: "Curseur malformé"
           content:
             "application/json":
@@ -1426,6 +1641,256 @@ paths:
                 "$ref": "#/components/schemas/Erreur"
         "401":
           description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/ressources_programmes":
+    get:
+      summary: "Exporter le flux ressources_programmes (FULL_TABLE)"
+      description: "Rattachement d'une ressource à un programme (GUIC-684 — M:N générique). Réextrait intégralement à chaque run — pas de `since`, aucun watermark disponible."
+      operationId: "export_ressources_programmes"
+      parameters:
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de ressources_programmes"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/ressources_programmesRow"
+                  meta:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type:
+                          - "string"
+                          - "null"
+                      has_more:
+                        type: "boolean"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "Curseur malformé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/evenements_programmes":
+    get:
+      summary: "Exporter le flux evenements_programmes (FULL_TABLE)"
+      description: "Rattachement d'un événement à un programme (GUIC-684 — M:N générique). Réextrait intégralement à chaque run — pas de `since`, aucun watermark disponible."
+      operationId: "export_evenements_programmes"
+      parameters:
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de evenements_programmes"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/evenements_programmesRow"
+                  meta:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type:
+                          - "string"
+                          - "null"
+                      has_more:
+                        type: "boolean"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "Curseur malformé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/centres_programmes":
+    get:
+      summary: "Exporter le flux centres_programmes (FULL_TABLE)"
+      description: "Centres où un programme est déployé (GUIC-684 — extension acteurs). FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui existe indépendamment des programmes qui s'y déploient. Réextrait intégralement à chaque run — pas de `since`, aucun watermark disponible."
+      operationId: "export_centres_programmes"
+      parameters:
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de centres_programmes"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/centres_programmesRow"
+                  meta:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type:
+                          - "string"
+                          - "null"
+                      has_more:
+                        type: "boolean"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "Curseur malformé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/organisations_programmes":
+    get:
+      summary: "Exporter le flux organisations_programmes (FULL_TABLE)"
+      description: "Organisations partenaires d'un programme (GUIC-684 — extension acteurs). FACULTATIF : un partenaire peut publier des offres sans relever d'un programme. Réextrait intégralement à chaque run — pas de `since`, aucun watermark disponible."
+      operationId: "export_organisations_programmes"
+      parameters:
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de organisations_programmes"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/organisations_programmesRow"
+                  meta:
+                    type: "object"
+                    properties:
+                      next_cursor:
+                        type:
+                          - "string"
+                          - "null"
+                      has_more:
+                        type: "boolean"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "Curseur malformé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/counts":
+    get:
+      summary: "Comptages de réconciliation, par flux, sur une fenêtre"
+      description: "Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait » : à appeler après chaque run, avec le `since` de ce run, et comparer aux COUNT(*) de l'entrepôt sur la même fenêtre."
+      operationId: "export_counts"
+      parameters:
+        - "$ref": "#/components/parameters/sinceRequis"
+      responses:
+        "200":
+          description: "Comptages de la fenêtre"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Counts"
+                  meta:
+                    type: "object"
+                    properties:
+                      since:
+                        type: "string"
+                        format: "date-time"
+                      generated_at:
+                        type: "string"
+                        format: "date-time"
+        "400":
+          description: "`since` absente ou illisible"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (60 requêtes/minute par clé)"
           content:
             "application/json":
               schema:

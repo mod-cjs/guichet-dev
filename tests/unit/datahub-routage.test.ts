@@ -16,12 +16,22 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { streams } from '@/lib/datahub/streams'
+import { fullTableStreams } from '@/lib/datahub/full-table-streams'
 
 const RACINE = join(process.cwd(), 'src', 'app', 'api', 'v1', 'export')
 
 describe('routage des flux d\'export', () => {
   it.each(Object.keys(streams))(
     'le flux %s n\'est masqué par aucune route statique',
+    (nom) => {
+      expect(existsSync(join(RACINE, nom, 'route.ts'))).toBe(false)
+    }
+  )
+
+  // GUIC-700 lot 7 — les flux FULL_TABLE partagent la même route dynamique et sont donc
+  // exposés au même risque de masquage par un dossier statique.
+  it.each(Object.keys(fullTableStreams))(
+    'le flux FULL_TABLE %s n\'est masqué par aucune route statique',
     (nom) => {
       expect(existsSync(join(RACINE, nom, 'route.ts'))).toBe(false)
     }
@@ -35,6 +45,15 @@ describe('routage des flux d\'export', () => {
     // `counts` est un endpoint de service, pas un flux : sa précédence est voulue.
     const reserves = ['counts']
     for (const nom of reserves) {
+      expect(Object.keys(streams)).not.toContain(nom)
+      expect(Object.keys(fullTableStreams)).not.toContain(nom)
+    }
+  })
+
+  it('aucun nom de flux FULL_TABLE ne collide avec un flux incrémental', () => {
+    // Les deux registres partagent la même route : une collision de nom rendrait l'un
+    // des deux inatteignable, silencieusement — descriptorFor() a la priorité.
+    for (const nom of Object.keys(fullTableStreams)) {
       expect(Object.keys(streams)).not.toContain(nom)
     }
   })
