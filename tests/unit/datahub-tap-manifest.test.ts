@@ -59,6 +59,14 @@ describe('manifeste du tap — schémas', () => {
     expect((props.deleted_at as { type: unknown }).type).toEqual(['string', 'null'])
   })
 
+  it('déclare sujet_hash nullable — il est masqué quand cjs_uid est présent (GUIC-695)', () => {
+    // La colonne SOURCE est non nulle, mais la valeur EXPORTÉE ne l'est pas : le contrat
+    // publié doit décrire la sortie, sinon le chargeur Singer rejettera chaque ligne
+    // d'un utilisateur connecté (même mécanique que le défaut B2 du rapport GUIC-693).
+    const props = manifest.streams.find((s) => s.name === 'consultations')!.schema.properties
+    expect((props.sujet_hash as { type: unknown }).type).toEqual(['string', 'null'])
+  })
+
   it('propage la documentation jusqu\'au catalogue', () => {
     for (const stream of manifest.streams) {
       for (const [nom, prop] of Object.entries(stream.schema.properties)) {
@@ -82,6 +90,42 @@ describe('manifeste du tap — schémas', () => {
       }
     }
   })
+})
+
+describe('manifeste du tap — nullabilité des énumérations', () => {
+  /**
+   * En JSON Schema, `type` et `enum` sont deux contraintes INDÉPENDANTES : une valeur doit
+   * satisfaire les deux. Déclarer `type: ["string","null"]` avec un `enum` qui ne contient
+   * pas `null` rend donc toute valeur absente invalide — le type l'autorise, l'énumération
+   * la refuse.
+   *
+   * Ce n'est pas une subtilité théorique : le chargeur Singer valide chaque enregistrement
+   * contre ce schéma et interrompt le run au premier refus. Une offre sans niveau d'études
+   * minimum — cas métier parfaitement normal — a suffi à arrêter le pipeline complet lors
+   * de la campagne d'épreuve (GUIC-693).
+   *
+   * Le compilateur ne peut rien voir ici : le défaut n'existe qu'au moment où un vrai
+   * chargeur valide un vrai enregistrement.
+   */
+  const colonnesEnumerees = manifest.streams.flatMap((stream) =>
+    Object.entries(stream.schema.properties as Record<string, Record<string, unknown>>).map(
+      ([colonne, schema]) => ({ stream: stream.name, colonne, schema })
+    )
+  ).filter(({ schema }) => Array.isArray(schema.enum))
+
+  it('trouve des colonnes énumérées à contrôler', () => {
+    expect(colonnesEnumerees.length).toBeGreaterThan(0)
+  })
+
+  it.each(colonnesEnumerees.map(({ stream, colonne, schema }) => [stream, colonne, schema]))(
+    '%s.%s : une colonne nullable accepte null dans son énumération',
+    (_stream, _colonne, schema) => {
+      const types = (schema as Record<string, unknown>).type as string[]
+      const valeurs = (schema as Record<string, unknown>).enum as unknown[]
+      if (!types.includes('null')) return // colonne obligatoire : rien à vérifier
+      expect(valeurs).toContain(null)
+    }
+  )
 })
 
 describe('manifeste du tap — fichier livré', () => {

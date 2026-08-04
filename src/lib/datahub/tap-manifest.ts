@@ -49,12 +49,22 @@ export function buildTapManifest(schemaPath?: string): TapManifest {
 
     const properties: Record<string, unknown> = {}
     for (const [nom, colonne] of Object.entries(resoudreColonnes(descriptor, model.fields, enums))) {
+      // Singer attend toujours un tableau de types : la nullabilité y est portée par
+      // le type lui-même, pas par un drapeau séparé.
+      const types = Array.isArray(colonne.type) ? colonne.type : [colonne.type]
+      // `type` et `enum` sont deux contraintes INDÉPENDANTES en JSON Schema : une colonne
+      // nullable dont l'énumération omet `null` refuse toute valeur absente, que le type
+      // autorise pourtant. Le chargeur Singer valide chaque enregistrement et interrompt
+      // le run au premier refus — une offre sans niveau d'études minimum a suffi.
+      const enumere: (string | null)[] | undefined = colonne.enum
+      const valeurs =
+        enumere && types.includes('null') && !enumere.includes(null)
+          ? [...enumere, null]
+          : enumere
       properties[nom] = {
-        // Singer attend toujours un tableau de types : la nullabilité y est portée par
-        // le type lui-même, pas par un drapeau séparé.
-        type: Array.isArray(colonne.type) ? colonne.type : [colonne.type],
+        type: types,
         ...(colonne.format ? { format: colonne.format } : {}),
-        ...(colonne.enum ? { enum: colonne.enum } : {}),
+        ...(valeurs ? { enum: valeurs } : {}),
         description: colonne.description,
         'x-cjs-tier': colonne.tier,
       }

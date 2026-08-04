@@ -22,6 +22,12 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
   const { assertConfigurationProduction } = await import('@/lib/security/prod-guards')
   assertConfigurationProduction(process.env)
+
+  // GUIC-695 — refus au DÉMARRAGE si la clé HMAC de pseudonymisation manque en production.
+  // Sans ce contrôle, `trackConsultation` (fail-soft) avalerait l'erreur à chaque appel :
+  // zéro consultation enregistrée, zéro signal. Module pur : n'entraîne ni Prisma ni Redis.
+  const { cleHachage } = await import('@/lib/analytics/consultation-hash')
+  cleHachage(process.env)
 }
 
 /** GUIC-578 — Appelé par Next pour toute erreur non gérée d'un handler (route/page). */
