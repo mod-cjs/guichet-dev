@@ -23,6 +23,8 @@ import { recordAudit } from '@/lib/audit'
 import { authenticateDatahub } from '@/lib/datahub/auth'
 import { descriptorFor } from '@/lib/datahub/descriptor'
 import { keysetExport, type FindManyDelegate } from '@/lib/datahub/keyset'
+import { fullTableDescriptorFor } from '@/lib/datahub/full-table-descriptor'
+import { fullTableExport } from '@/lib/datahub/full-table-export'
 import { BadCursorError } from '@/lib/datahub/cursor'
 import { parseSince, BadSinceError } from '@/lib/datahub/since'
 
@@ -63,34 +65,52 @@ export async function GET(
   if (limite) return limite
 
   const { stream } = await params
+  const url = request.nextUrl.searchParams
   const descriptor = descriptorFor(stream)
-  if (!descriptor) {
+  // GUIC-700 lot 7 — un flux FULL_TABLE (jonctions programmes) n'a ni watermark ni clé
+  // primaire simple : le registre incrémental ne le connaît pas et son absence ne doit
+  // pas se traduire par un 404 avant d'avoir cherché dans le second registre.
+  const fullTableDescriptor = descriptor ? null : fullTableDescriptorFor(stream)
+
+  if (!descriptor && !fullTableDescriptor) {
     return erreur('STREAM_INCONNU', `Flux inconnu : ${stream}`, 404)
   }
 
-  const delegate = delegateFor(descriptor.model)
+  const delegate = delegateFor((descriptor ?? fullTableDescriptor!).model)
   if (!delegate) {
-    return erreur('MODELE_INDISPONIBLE', `Modèle non exposé : ${descriptor.model}`, 500)
+    return erreur('MODELE_INDISPONIBLE', `Modèle non exposé : ${(descriptor ?? fullTableDescriptor!).model}`, 500)
   }
 
-  const url = request.nextUrl.searchParams
-
-  // Validée AVANT keysetExport, avec la même règle que `counts` (S3) : une borne illisible
-  // ne doit jamais dégénérer en 500, et une date hors plage MariaDB ne doit jamais être
-  // acceptée en silence (S2 — sinon la requête posée au driver ne filtre plus rien, et
-  // l'API rend 200 avec les premières lignes du flux, comme si `since` était absent).
   let page
   try {
-    parseSince(url.get('since'))
-    page = await keysetExport(
-      descriptor,
-      {
-        since: url.get('since'),
-        cursor: url.get('cursor'),
-        limit: url.get('limit') === null ? null : Number(url.get('limit')),
-      },
-      delegate
-    )
+    if (fullTableDescriptor) {
+      // Aucun `since` pour un flux FULL_TABLE — pas de watermark, par construction
+      // (GUIC-700 lot 7) : `parseSince` ne s'applique qu'au chemin incrémental.
+      page = await fullTableExport(
+        fullTableDescriptor,
+        {
+          cursor: url.get('cursor'),
+          limit: url.get('limit') === null ? null : Number(url.get('limit')),
+        },
+        delegate
+      )
+    } else {
+      // Validée AVANT keysetExport, avec la même règle que `counts` (S3) : une borne
+      // illisible ne doit jamais dégénérer en 500, et une date hors plage MariaDB ne
+      // doit jamais être acceptée en silence (S2 — sinon la requête posée au driver ne
+      // filtre plus rien, et l'API rend 200 avec les premières lignes du flux, comme si
+      // `since` était absent).
+      parseSince(url.get('since'))
+      page = await keysetExport(
+        descriptor!,
+        {
+          since: url.get('since'),
+          cursor: url.get('cursor'),
+          limit: url.get('limit') === null ? null : Number(url.get('limit')),
+        },
+        delegate
+      )
+    }
   } catch (e) {
     if (e instanceof BadSinceError) return erreur('BORNE_INVALIDE', e.message, 400)
     if (e instanceof BadCursorError) return erreur('CURSEUR_INVALIDE', e.message, 400)

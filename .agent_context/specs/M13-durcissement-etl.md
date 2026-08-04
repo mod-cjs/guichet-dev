@@ -308,10 +308,56 @@ automatisée après chaque run · `dbt test` dans la chaîne planifiée (D8).
 spec réalignés (D3, D4) · `Bearer` insensible à la casse (D5) · `since` obligatoire sur
 `counts` ou comptage approximatif (D6).
 
-### Lot 7 — À arbitrer, hors correctif
+### Lot 7 — Arbitré (GUIC-700), TDD à suivre
 Suppressions dures (R6) · rattachements de programmes en `FULL_TABLE` pour rendre
 `v_programs_summary` exploitable · rétention et purge propagée dans l'entrepôt (obligation CDP
 non instrumentée).
+
+**Vérification empirique préalable au code** (ce que R6 supposait n'est pas exactement ce que
+le code fait) : `Utilisateur` n'est **jamais** hard-deleted — seulement soft-deleted
+(`deletedAt` + `statut=anonymise` via le webhook SSO `user.anonymized`), déjà correctement
+propagé par `softDelete: 'deletedAt'` sur le stream (seul autre stream avec `softDelete` :
+`opportunites`). Hard-deletes réels et confirmés, sur des flux du contrat v1 **sans**
+`softDelete` déclaré — fuites silencieuses réelles, pas théoriques : `Emprunt` (rendus/annulés,
+`deleteMany` dans `src/app/api/webhooks/sso/route.ts` à l'anonymisation), `Centre`
+(`src/app/admin/centres/actions.ts`), `Evenement` (`src/app/admin/evenements/actions.ts`),
+`Ressource` (`src/app/admin/ressources/actions.ts`). `Opportunite.delete()` existe aussi
+(suppression physique) mais aucun appelant identifié à ce jour — code à surveiller, le stream
+reste couvert par son `softDelete` en attendant.
+
+**Trois arbitrages tranchés (2026-08-03, GUIC-700)** :
+
+1. **Absent détecté par le full-refresh hebdomadaire des clés → suppression PHYSIQUE dans
+   l'entrepôt** (`guichet_raw` et `marts`, qui se recalculent dessus — vérifié : les modèles
+   marts sont de simples `select` depuis les sources, pas des snapshots historisés, donc une
+   suppression en `guichet_raw` se propage sans logique dbt supplémentaire). Aucun tombstone
+   conservé : une ligne portant un `cjs_uid` resté en base après une demande d'effacement serait
+   un risque CDP réel, pas une garantie de stabilité des agrégats BI historiques.
+2. **Rétention événementielle uniquement** — aucune purge indépendante par durée côté
+   entrepôt. Vérifié : le Guichet lui-même n'a aucune rétention par durée sur
+   `Utilisateur`/`Candidature`/`Opportunite` (seuls CV, check-ins et événements de centre ont
+   des purges cron datées) ; la rétention est déclenchée par l'anonymisation SSO, pas par le
+   temps. L'entrepôt suit le même déclencheur via le mécanisme du point 1, rien de plus.
+3. **`v_programs_summary` dans la même passe** — support `FULL_TABLE` dans le contrat pour les
+   5 tables de jonction programmes (`opportunites_programmes` et ses sœurs) : pas de watermark
+   ni de clé primaire simple (clé composite `[opportuniteId, programmeId]` + un booléen), et
+   sans tension CDP contrairement aux points 1-2.
+
+**Conception retenue pour le mécanisme de suppression (point 1)** — révise le `?fields=id`
+public de la spec §8.5 initiale : plutôt qu'un paramètre exposé sur l'API publique (surface
+supplémentaire à sécuriser pour un usage strictement interne), un script autonome
+`scripts/datahub/purge-absents.ts`, sur le modèle de `reconcile.ts` — Prisma **direct** côté
+source (pas d'aller-retour HTTP vers sa propre API), `psql` dockerisé côté entrepôt. Il liste,
+pour CHAQUE flux, l'ensemble des clés primaires actuelles côté Guichet, et supprime dans
+`guichet_raw` toute clé présente dans l'entrepôt mais absente de cette liste.
+
+Appliqué **uniformément aux 13 flux**, y compris ceux avec `softDelete` : une ligne
+soft-deleted reste listée par Prisma (elle existe toujours, seulement marquée), donc jamais
+supprimée à tort par ce mécanisme — pas besoin de distinguer les flux par présence de
+`softDelete`, ce qui simplifie le script et évite un test « ce flux est-il concerné ? » qui
+serait lui-même une source d'oubli si un flux futur ne déclare pas son `softDelete` par erreur.
+Cadence hebdomadaire (crontab séparée de `run-nightly.sh`) : un tour complet, léger — on ne
+transporte que des clés, pas les lignes.
 
 ---
 

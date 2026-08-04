@@ -48,12 +48,27 @@ models:
 
   - name: v_programs_summary
     description: >
-      GUIC-149 — DÉGRADÉ. Les compteurs de rattachement demandés par le ticket ne sont pas
-      calculables : ils vivent dans cinq tables de jonction sans horodatage ni clé simple,
-      que le contrat d'export ne peut pas servir. Voir l'en-tête du modèle pour les deux
-      issues possibles. Ce modèle sert la dimension programme en attendant.
+      GUIC-149 — Programmes sectoriels et leurs compteurs de rattachement (opportunités,
+      ressources, événements, centres, organisations). Réparé au lot 7 du durcissement
+      (GUIC-700) par un flux FULL_TABLE dédié sur les cinq tables de jonction, sans
+      watermark ni clé primaire simple — livré dégradé à l'origine (GUIC-693).
     columns:
       - name: programme_id
         tests: [unique, not_null]
       - name: slug
         tests: [unique, not_null]
+      - name: nb_opportunites
+        description: Nombre d'opportunités rattachées. 0 si aucune, jamais absent (LEFT JOIN + COALESCE).
+        tests: [not_null]
+      - name: nb_ressources
+        description: Nombre de ressources rattachées. 0 si aucune, jamais absent.
+        tests: [not_null]
+      - name: nb_evenements
+        description: Nombre d'événements rattachés. 0 si aucun, jamais absent.
+        tests: [not_null]
+      - name: nb_centres
+        description: Nombre de centres où le programme est déployé. 0 si aucun, jamais absent.
+        tests: [not_null]
+      - name: nb_organisations
+        description: Nombre d'organisations partenaires. 0 si aucune, jamais absent.
+        tests: [not_null]
