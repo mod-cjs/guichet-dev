@@ -10,6 +10,7 @@ import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
 import { CompletionChecklist } from './CompletionChecklist'
+import { DocumentsCard }      from './DocumentsCard'
 import { Icon }               from '@/components/ui'
 import { etatCompletion } from '@/lib/profil-score'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
@@ -155,6 +156,19 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               depuis » figé sur un tiret. */}
           <div className="lg:sticky lg:top-[var(--gj-sticky-offset)] flex flex-col gap-space-4">
             <CompletionChecklist etat={{ score, criteres: etat.criteres }} />
+            {/* GUIC-689 — le CV vit ici, pas en colonne principale : la
+                maquette regroupe CV et pièces jointes dans une seule carte
+                d'aside (`DocumentsCard`). */}
+            <DocumentsCard
+              cvUrl={initial.profil?.cvUrl ?? null}
+              cvUploadedAt={
+                initial.profil?.cvUploadedAt
+                  ? new Date(initial.profil.cvUploadedAt).toISOString()
+                  : null
+              }
+              diplomes={initial.diplomes}
+              certificats={initial.certificats}
+            />
           </div>
         </aside>
 
