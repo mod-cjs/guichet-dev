@@ -1,45 +1,48 @@
 /**
  * @jest-environment node
  *
- * GUIC-700 — En préprod, Guichet tourne dans un conteneur (`docker-compose.prod.yml` +
- * `docker-compose.test.yml`, projet `guichet-test`), PAS en process direct sur l'hôte
- * comme dans le laboratoire local (GUIC-693). `docker-compose.etl.yml` est un projet
- * Compose séparé, sans réseau partagé : ni `host.docker.internal` (l'app ne publie que
- * `127.0.0.1:8081`, volontairement verrouillé — docker-compose.test.yml, GUIC-641) ni une
- * adresse de conteneur de l'autre projet ne sont joignables depuis `meltano` sans rejoindre
- * le même réseau Docker que l'app — exactement le piège déjà documenté pour MariaDB/MinIO
- * dans docker-compose.prod.yml (F2, GUIC-564).
+ * GUIC-700 — Joignabilité de Guichet conteneurisé depuis meltano, tranchée : SÉPARATION,
+ * pas cohabitation réseau.
  *
- * Sentinelle : le service `meltano` doit rejoindre le réseau externe partagé
- * (`services_partages` / `cjs-net`, déjà utilisé par `docker-compose.prod.yml` pour les
- * mêmes raisons) plutôt que de s'appuyer sur le loopback de l'hôte.
+ * `etl/meltano.yml` fixe déjà `api_url: https://guichet.cjs.sn` par défaut — un domaine
+ * PUBLIC. Le Data Hub (`/api/v1/export/`) est une route machine-à-machine de la même
+ * famille que BRM/Centres/Moodle/EduPop (CLAUDE.md), pensée pour être appelée de
+ * l'extérieur (clé API, rate limiting par consommateur) — jamais par réseau Docker interne.
+ *
+ * Un premier correctif (rejoindre `services_partages`/`cjs-net`, même remède que F2
+ * MariaDB/MinIO) a été écrit puis annulé : il ne fonctionne que si l'app et l'ETL
+ * cohabitent sur LE MÊME hôte (pas encore décidé), couple `docker-compose.etl.yml` aux
+ * fichiers compose M14 protégés par sentinelle, et donne à `meltano` une portée réseau
+ * vers redis_cjs/neo4j-cjs/MinIO dont il n'a aucun usage. La séparation (URL publique
+ * HTTPS, comme n'importe quel autre consommateur machine) n'a besoin d'aucun de ces
+ * compromis et fonctionne quel que soit l'hôte de l'ETL.
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const CHEMIN = join(process.cwd(), 'docker-compose.etl.yml')
-const contenu = existsSync(CHEMIN) ? readFileSync(CHEMIN, 'utf8') : ''
-const utile = contenu
+const CHEMIN_COMPOSE = join(process.cwd(), 'docker-compose.etl.yml')
+const composeContenu = existsSync(CHEMIN_COMPOSE) ? readFileSync(CHEMIN_COMPOSE, 'utf8') : ''
+const composeUtile = composeContenu
   .split('\n')
   .map((l) => l.replace(/#.*$/, ''))
   .filter((l) => l.trim())
   .join('\n')
 
-describe('GUIC-700 — docker-compose.etl.yml : joignabilité de Guichet conteneurisé', () => {
-  it('existe', () => {
-    expect(existsSync(CHEMIN)).toBe(true)
+const CHEMIN_MELTANO = join(process.cwd(), 'etl/meltano.yml')
+const meltanoContenu = existsSync(CHEMIN_MELTANO) ? readFileSync(CHEMIN_MELTANO, 'utf8') : ''
+
+describe('GUIC-700 — joignabilité de Guichet : séparation par URL publique, pas cohabitation réseau', () => {
+  it('docker-compose.etl.yml ne rejoint AUCUN réseau interne de l\'app (isolation, moindre privilège)', () => {
+    expect(composeUtile).not.toMatch(/services_partages/)
+    expect(composeUtile).not.toMatch(/cjs-net/)
+    expect(composeUtile).not.toMatch(/^\s*networks:/m)
   })
 
-  it('déclare un réseau externe partagé avec l\'app Guichet', () => {
-    expect(utile).toMatch(/networks:\s*\n\s*services_partages:\s*\n\s*external:\s*true/)
+  it("ne s'appuie pas sur host.docker.internal — l'app est verrouillée en loopback (GUIC-641), inatteignable ainsi de toute façon", () => {
+    expect(composeUtile).not.toMatch(/host\.docker\.internal/)
   })
 
-  it('attache le service meltano à ce réseau', () => {
-    const serviceMeltano = utile.split(/^networks:/m)[0]
-    expect(serviceMeltano).toMatch(/networks:\s*\n\s*-\s*services_partages/)
-  })
-
-  it("ne s'appuie pas sur host.docker.internal pour joindre Guichet — verrouillé en loopback côté app (GUIC-641)", () => {
-    expect(utile).not.toMatch(/host\.docker\.internal/)
+  it('etl/meltano.yml pointe par défaut une URL PUBLIQUE HTTPS, pas une adresse interne', () => {
+    expect(meltanoContenu).toMatch(/api_url:\s*https:\/\//)
   })
 })
