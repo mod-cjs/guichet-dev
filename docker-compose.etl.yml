@@ -14,6 +14,20 @@
 #   docker compose -f docker-compose.etl.yml run --rm meltano install               # une fois
 #   docker compose -f docker-compose.etl.yml run --rm meltano run tap-guichet target-postgres
 #   docker compose -f docker-compose.etl.yml run --rm meltano invoke dbt-postgres build
+#
+# JOIGNABILITÉ DE GUICHET (GUIC-700) — En préprod/prod, Guichet tourne dans SON PROPRE
+# projet Compose (`guichet-test`/`guichet`, docker-compose.prod.yml). `meltano` est un
+# projet Compose séparé : `127.0.0.1` désignerait CE conteneur, pas l'hôte, et
+# `docker-compose.test.yml` verrouille délibérément l'app sur la boucle locale de l'hôte
+# (127.0.0.1:8081 — "Seul Plesk, sur la même machine, l'atteint"), donc même
+# `host.docker.internal` ne l'atteindrait pas. Même piège que F2 (MariaDB/MinIO) sur
+# docker-compose.prod.yml. On rejoint donc `services_partages` (`cjs-net`), sur lequel
+# l'app est DÉJÀ branchée, et on l'appelle par son alias réseau — jamais par une adresse
+# de boucle locale.
+#
+# ⚠ TAP_GUICHET_API_URL (dans .env.etl) doit alors pointer sur cet alias, ex.
+# `http://guichet-test-app:3000` — reste à poser côté docker-compose.test.yml (aliases:
+# sous services_partages), pas encore fait. Voir docs/datahub-briefing-etl.md §7.
 
 services:
   meltano:
@@ -36,3 +50,13 @@ services:
     # doit surveiller. Aucun redémarrage automatique — relancer un batch en échec sans
     # regarder pourquoi ne fait que répéter la panne.
     restart: "no"
+    networks:
+      - services_partages
+
+networks:
+  # Réseau des services partagés (redis_cjs, neo4j-cjs, MinIO, ET l'app Guichet elle-même
+  # via docker-compose.prod.yml) — même nom/variable que côté app, pour rester le même
+  # réseau physique.
+  services_partages:
+    external: true
+    name: ${SERVICES_NETWORK:-cjs-net}
