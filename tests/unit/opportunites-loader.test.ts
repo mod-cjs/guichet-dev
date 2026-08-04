@@ -173,6 +173,64 @@ describe('listOpportunites — filtre programme', () => {
   })
 })
 
+// GUIC-689 — filtre rémunération : `remuneration` est un texte libre en base (pas de
+// booléen). Règle métier tranchée par le lead, implémentée dans `nonRemunereeSql()`
+// (opportunites-loader.ts) : seuls NULL/vide/marqueurs explicites ("non rémunéré",
+// "bénévole", "aucune", "sans rémunération") comptent comme non rémunérés — tout le
+// reste (indemnités, bourses, salaires négociables) compte comme rémunéré, même sans
+// montant chiffré.
+describe('listOpportunites — filtre rémunération (règle métier GUIC-689)', () => {
+  it('remuneration=no : exclut NULL, vide et tous les marqueurs explicites', async () => {
+    await listOpportunites({ ...base, remuneration: 'no' })
+    const { sql, values } = rowsSql()
+    expect(sql).toContain('remuneration IS NULL')
+    expect(sql).toContain("TRIM(remuneration) = ''")
+    expect(sql).toContain('remuneration LIKE ?')
+    expect(values).toEqual(
+      expect.arrayContaining([
+        '%non remunere%',
+        '%benevole%',
+        '%aucune%',
+        '%sans remuneration%',
+      ]),
+    )
+  })
+
+  it('remuneration=yes : inverse strictement la même clause (NOT (...))', async () => {
+    await listOpportunites({ ...base, remuneration: 'yes' })
+    const { sql } = rowsSql()
+    expect(sql).toMatch(/NOT\s*\(remuneration IS NULL/i)
+  })
+
+  it("n'ajoute aucune clause remuneration quand le filtre est absent", async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('remuneration IS NULL')
+  })
+})
+
+// GUIC-689 — filtre deadline : bug avant correction — écrit dans l'URL (FiltresPanel)
+// mais jamais lu ni transformé en clause SQL, la liste ne changeait jamais.
+describe('listOpportunites — filtre deadline (J-7 / J-30)', () => {
+  it('deadline=7 : exclut les opportunités sans échéance ET borne à NOW()+7 jours', async () => {
+    await listOpportunites({ ...base, deadline: '7' })
+    const { sql, values } = rowsSql()
+    expect(sql).toContain('deadline IS NOT NULL')
+    expect(sql).toContain('DATE_ADD(NOW(), INTERVAL ? DAY)')
+    expect(values).toContain(7)
+  })
+
+  it('deadline=30 : borne à NOW()+30 jours', async () => {
+    await listOpportunites({ ...base, deadline: '30' })
+    const { values } = rowsSql()
+    expect(values).toContain(30)
+  })
+
+  it("n'ajoute aucune clause deadline quand le filtre est absent", async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('DATE_ADD')
+  })
+})
+
 describe('listOpportunites — cache Redis', () => {
   // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
   // résultat NON filtré mis en cache par la requête précédente.
@@ -186,6 +244,24 @@ describe('listOpportunites — cache Redis', () => {
 
     expect(cleYeah).not.toBe(cleEdupop)
     expect(cleYeah).toContain('yeah')
+  })
+
+  // GUIC-689 — même piège que GUIC-684 : sans remuneration/deadline dans la clé,
+  // basculer le filtre servirait le résultat mis en cache par la requête précédente.
+  it('distingue les résultats par remuneration et deadline dans la clé de cache', async () => {
+    await listOpportunites({ ...base, remuneration: 'yes' })
+    const cleYes = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, remuneration: 'no' })
+    const cleNo = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, deadline: '7' })
+    const cleDeadline7 = mockRedisSet.mock.calls[0][0] as string
+
+    expect(cleYes).not.toBe(cleNo)
+    expect(cleYes).not.toBe(cleDeadline7)
   })
 
   it('sert le résultat depuis le cache sans frapper la BDD', async () => {

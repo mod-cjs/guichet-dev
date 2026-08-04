@@ -428,24 +428,134 @@ describe('<CandidatureModal /> — refonte v2', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('Yaye m\'aide → router.push vers /jeune/yaye avec slug opportunité', async () => {
-    renderModal({ opportuniteSlug: 'stage-data-sonatel' })
-    const btn = screen.getByTestId('yaye-help-button')
-    await act(async () => {
-      fireEvent.click(btn)
-    })
-    expect(pushMock).toHaveBeenCalledWith(
-      '/jeune/yaye?from=postuler&opp=stage-data-sonatel',
-    )
-  })
+  // ── GUIC-689 (P3-B) — assistance Yaye INLINE (POST /api/ia), plus de
+  // navigation qui ferait quitter le formulaire en pleine saisie.
+  describe('Yaye m\'aide — assistance inline', () => {
+    function installIaFetch(
+      body: unknown = { data: { reply: 'Lettre générée par Yaye pour cette offre.' } },
+      opts: { ok?: boolean; status?: number } = {},
+    ) {
+      const { ok = true, status = 200 } = opts
+      const spy = jest.fn()
+      installFetch(
+        jest.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString()
+          if (url.startsWith('/api/ia')) {
+            spy(url, init)
+            return { ok, status, json: async () => body } as unknown as Response
+          }
+          return { ok: true, status: 200, json: async () => ({ data: {} }) } as unknown as Response
+        }),
+      )
+      return spy
+    }
 
-  it('Yaye m\'aide → fallback sans slug si la prop n\'est pas fournie', async () => {
-    renderModal()
-    const btn = screen.getByTestId('yaye-help-button')
-    await act(async () => {
-      fireEvent.click(btn)
+    it('ne navigue plus jamais — reste dans le formulaire (pas de router.push)', async () => {
+      installIaFetch()
+      renderModal()
+      const btn = screen.getByTestId('yaye-help-button')
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      await waitFor(() => expect(btn).not.toBeDisabled())
+      expect(pushMock).not.toHaveBeenCalled()
     })
-    expect(pushMock).toHaveBeenCalledWith('/jeune/yaye?from=postuler')
+
+    it('appelle POST /api/ia avec le contexte de l’offre et pré-remplit la lettre vide', async () => {
+      const spy = installIaFetch({ data: { reply: 'Lettre générée par Yaye pour cette offre.' } })
+      renderModal({ opportuniteTitre: 'Stage Data — Sonatel', organisationName: 'Sonatel' })
+      const btn = screen.getByTestId('yaye-help-button')
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Lettre de motivation/i)).toHaveValue(
+          'Lettre générée par Yaye pour cette offre.',
+        )
+      })
+      expect(spy).toHaveBeenCalledWith('/api/ia', expect.anything())
+      const [, init] = spy.mock.calls[0] as [string, RequestInit]
+      expect(init.method).toBe('POST')
+      const payload = JSON.parse(init.body as string) as { message: string }
+      expect(payload.message).toMatch(/Stage Data — Sonatel/)
+      expect(payload.message).toMatch(/Sonatel/)
+    })
+
+    it('lettre déjà saisie → le texte généré est ajouté à la suite, jamais en écrasant', async () => {
+      installIaFetch({ data: { reply: 'Complément généré par Yaye.' } })
+      renderModal()
+      await typeLettre('Ce que j’ai déjà écrit à la main.')
+      const btn = screen.getByTestId('yaye-help-button')
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      await waitFor(() => {
+        const ta = screen.getByLabelText(/Lettre de motivation/i) as HTMLTextAreaElement
+        expect(ta.value).toContain('Ce que j’ai déjà écrit à la main.')
+        expect(ta.value).toContain('Complément généré par Yaye.')
+      })
+    })
+
+    it('pendant la génération, le bouton affiche un état de chargement et est désactivé', async () => {
+      let resolveFetch: (value: unknown) => void = () => {}
+      const pending = new Promise((resolve) => {
+        resolveFetch = resolve
+      })
+      installFetch(
+        jest.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString()
+          if (url.startsWith('/api/ia')) return pending as unknown as Promise<Response>
+          return { ok: true, status: 200, json: async () => ({ data: {} }) } as unknown as Response
+        }),
+      )
+      renderModal()
+      const btn = screen.getByTestId('yaye-help-button')
+      fireEvent.click(btn)
+      await waitFor(() => expect(btn).toBeDisabled())
+      await act(async () => {
+        resolveFetch({ ok: true, status: 200, json: async () => ({ data: { reply: 'Texte.' } }) })
+        await pending
+      })
+      await waitFor(() => expect(btn).not.toBeDisabled())
+    })
+
+    it('échec réseau → message d’erreur honnête, la lettre déjà saisie reste intacte', async () => {
+      installFetch(
+        jest.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString()
+          if (url.startsWith('/api/ia')) throw new TypeError('Failed to fetch')
+          return { ok: true, status: 200, json: async () => ({ data: {} }) } as unknown as Response
+        }),
+      )
+      renderModal()
+      await typeLettre('Mon brouillon perso.')
+      const btn = screen.getByTestId('yaye-help-button')
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('yaye-help-error')).toBeInTheDocument()
+      })
+      expect((screen.getByLabelText(/Lettre de motivation/i) as HTMLTextAreaElement).value).toBe(
+        'Mon brouillon perso.',
+      )
+    })
+
+    it('réponse HTTP en échec (500) → message d’erreur, lettre non vidée', async () => {
+      installIaFetch({ error: { message: 'boom' } }, { ok: false, status: 500 })
+      renderModal()
+      await typeLettre('Texte conservé.')
+      const btn = screen.getByTestId('yaye-help-button')
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('yaye-help-error')).toBeInTheDocument()
+      })
+      expect((screen.getByLabelText(/Lettre de motivation/i) as HTMLTextAreaElement).value).toBe(
+        'Texte conservé.',
+      )
+    })
   })
 
   it('lien "Modifier dans mon profil" pointe vers /jeune/mon-profil', () => {

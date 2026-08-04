@@ -18,7 +18,8 @@ export const SEGMENT_LABELS: Record<string, string> = {
 
 export interface Crumb {
   label: string
-  href: string
+  /** `null` = crumb affiché mais non cliquable (segment sans page) — GUIC-689. */
+  href: string | null
 }
 
 /** Cible réelle de la racine `/jeune` (qui n'a pas de page propre) — GUIC-446. */
@@ -40,6 +41,17 @@ const NUMERIC_ID_RE = /^\d+$/
 function isTechnicalId(segment: string): boolean {
   return UUID_RE.test(segment) || NUMERIC_ID_RE.test(segment)
 }
+
+/**
+ * GUIC-689 — Dossiers de regroupement de l'app jeune qui n'ont PAS de
+ * `page.tsx` : seules leurs sous-routes existent. Un crumb cliquable vers
+ * l'un d'eux mène à un 404 (constaté sur `/jeune/parametres`, dont le
+ * prefetch Next renvoyait 404 à chaque affichage de la page notifications).
+ *
+ * À tenir à jour si un dossier intermédiaire est ajouté sans page ; le
+ * balayage fonctionnel des routes le détecte (prefetch `?_rsc=` en 404).
+ */
+const SEGMENTS_SANS_PAGE = new Set(['parametres', 'candidature'])
 
 /**
  * Construit un fil d'Ariane à partir du pathname. Limité à 3 niveaux pour rester
@@ -64,7 +76,11 @@ export function buildBreadcrumbs(pathname: string | null): Crumb[] {
     const label = isTechnicalId(seg)
       ? GENERIC_ID_LABEL
       : (SEGMENT_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '))
-    const href = seg === 'jeune' ? JEUNE_HOME_HREF : acc
+    const href = seg === 'jeune'
+      ? JEUNE_HOME_HREF
+      : SEGMENTS_SANS_PAGE.has(seg)
+        ? null
+        : acc
     crumbs.push({ label, href })
   }
   return crumbs.slice(0, 3)
