@@ -1,30 +1,61 @@
--- GUIC-149 — Programmes sectoriels.
+-- GUIC-149 — Programmes sectoriels et leurs compteurs de rattachement.
 --
--- ⚠ LIVRÉ EN ÉTAT DÉGRADÉ, ET C'EST DOCUMENTÉ PLUTÔT QUE MASQUÉ.
+-- Livré dégradé à l'origine (GUIC-693) : les rattachements vivent dans cinq tables de
+-- jonction sans horodatage ni clé primaire simple — le contrat d'export incrémental ne
+-- pouvait pas les servir. Réparé au lot 7 du durcissement (GUIC-700,
+-- .agent_context/specs/M13-durcissement-etl.md) par un flux FULL_TABLE dédié : ces tables
+-- sont petites, un rafraîchissement complet à chaque run est bon marché — la réponse
+-- Singer habituelle pour les tables de référence.
 --
--- Le ticket demande des compteurs de rattachement (opportunités, ressources, événements,
--- centres, organisations par programme). Ils ne sont PAS calculables ici : les
--- rattachements vivent dans cinq tables de jonction — `opportunites_programmes` et ses
--- soeurs — que le contrat d'export ne peut pas servir. Ces tables ne portent NI
--- horodatage NI clé primaire simple : seulement deux clés étrangères et un drapeau.
--- Aucun watermark n'y est donc disponible, et l'extraction incrémentale est impossible
--- en l'état.
---
--- Deux issues, toutes deux à arbitrer (cf. spec §5) :
---   a) migration ajoutant `created_at`/`updated_at` aux cinq tables — mais c'est modifier
---      le schéma métier pour satisfaire l'outillage ;
---   b) support d'une réplication FULL_TABLE dans le contrat, sans watermark. Ces tables
---      sont petites : un rafraîchissement complet à chaque run est bon marché. C'est la
---      réponse habituelle de Singer pour les tables de référence, et l'option recommandée.
---
--- En attendant, ce modèle sert la dimension programme, utilisable comme axe d'analyse
--- dès que les rattachements seront disponibles.
+-- `COALESCE(..., 0)` : un programme sans rattachement à un type donné ne doit PAS
+-- disparaître du comptage — `LEFT JOIN` + `0` explicite, jamais un `INNER JOIN` qui le
+-- ferait taire silencieusement.
+
+with opportunites as (
+    select programme_id, count(*) as n
+    from {{ source('guichet_raw', 'opportunites_programmes') }}
+    group by programme_id
+),
+
+ressources as (
+    select programme_id, count(*) as n
+    from {{ source('guichet_raw', 'ressources_programmes') }}
+    group by programme_id
+),
+
+evenements as (
+    select programme_id, count(*) as n
+    from {{ source('guichet_raw', 'evenements_programmes') }}
+    group by programme_id
+),
+
+centres as (
+    select programme_id, count(*) as n
+    from {{ source('guichet_raw', 'centres_programmes') }}
+    group by programme_id
+),
+
+organisations as (
+    select programme_id, count(*) as n
+    from {{ source('guichet_raw', 'organisations_programmes') }}
+    group by programme_id
+)
 
 select
-    id                  as programme_id,
-    slug,
-    nom_programme,
-    actif,
-    created_at          as cree_le,
-    updated_at          as modifie_le
-from {{ source('guichet_raw', 'programmes') }}
+    p.id                              as programme_id,
+    p.slug,
+    p.nom_programme,
+    p.actif,
+    coalesce(o.n, 0)                  as nb_opportunites,
+    coalesce(r.n, 0)                  as nb_ressources,
+    coalesce(e.n, 0)                  as nb_evenements,
+    coalesce(c.n, 0)                  as nb_centres,
+    coalesce(org.n, 0)                as nb_organisations,
+    p.created_at                      as cree_le,
+    p.updated_at                      as modifie_le
+from {{ source('guichet_raw', 'programmes') }} p
+left join opportunites   o   on o.programme_id = p.id
+left join ressources     r   on r.programme_id = p.id
+left join evenements     e   on e.programme_id = p.id
+left join centres        c   on c.programme_id = p.id
+left join organisations  org on org.programme_id = p.id
