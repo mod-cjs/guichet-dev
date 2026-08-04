@@ -47,23 +47,34 @@ const PLEIN = {
 
 describe('GUIC-689 — barème partagé entre score et checklist', () => {
   /**
-   * ⚠️ DÉFAUT RELEVÉ, NON CORRIGÉ ICI : les poids totalisent 110, pas 100.
-   * L'ancien `calculerScore` le masquait par un `Math.min(s, 100)`. Conséquence
-   * visible : un profil à qui il ne manque que la commune atteint 105 → affiché
-   * « 100 % » alors qu'une étape reste listée.
-   *
-   * Rééquilibrer les poids changerait le score de TOUS les comptes déjà en base
-   * — décision produit, pas décision d'implémentation. Le test verrouille donc
-   * le total ACTUEL : le jour où l'arbitrage tombe, il échouera et forcera à
-   * mettre à jour barème et checklist ensemble.
+   * Les poids totalisaient 110, plafonnés à 100 par un `Math.min`. Conséquence
+   * visible : un profil à qui il ne manquait que la commune atteignait 105 →
+   * affiché « 100 % » avec une étape encore listée. Arbitrage rendu : le barème
+   * totalise exactement 100, plus aucun plafonnement à masquer.
    */
-  it('le total du barème est celui d’aujourd’hui (110, plafonné à 100)', () => {
+  it('les critères couvrent exactement 100 points', () => {
     const total = CRITERES_SCORE.reduce((s, c) => s + c.poids, 0)
-    expect(total).toBe(110)
+    expect(total).toBe(100)
   })
 
-  it('un profil complet atteint bien 100 après plafonnement', () => {
-    expect(etatCompletion(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount).score).toBe(100)
+  it('un profil complet atteint 100 SANS plafonnement', () => {
+    const etat = etatCompletion(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount)
+    expect(etat.score).toBe(100)
+    // La somme brute vaut déjà 100 : rien n'est tronqué.
+    expect(etat.criteres.reduce((s, c) => s + c.poids, 0)).toBe(100)
+  })
+
+  /**
+   * Le défaut d'origine, verrouillé : « 100 % » ne doit jamais cohabiter avec
+   * une étape restante. Vrai pour TOUTE combinaison d'un seul critère manquant.
+   */
+  it('aucun critère manquant ne peut coexister avec un score de 100', () => {
+    for (const critere of CRITERES_SCORE) {
+      const etat = etatCompletion(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount)
+      const sansCelui = etat.criteres.filter((c) => c.cle !== critere.cle)
+      const score = sansCelui.reduce((s, c) => s + (c.rempli ? c.poids : 0), 0)
+      expect(score).toBeLessThan(100)
+    }
   })
 
   it('le score reste celui calculé auparavant (aucune régression de barème)', () => {
