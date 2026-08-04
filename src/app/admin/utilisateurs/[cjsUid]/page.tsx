@@ -4,136 +4,44 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { auditPiiAccess } from '@/lib/audit'
-import { AdminUserDetail, type UserDetailData } from './AdminUserDetail'
+import { getUtilisateurDetail } from '@/lib/loaders/utilisateur-detail'
+import { UserDetailTabs } from './UserDetailTabs'
 import { RolesRattachementsSection } from './RolesRattachementsSection'
 
-export const metadata: Metadata = { title: 'Fiche bénéficiaire — Admin CJS' }
+export const metadata: Metadata = { title: 'Fiche utilisateur — Admin CJS' }
 
-function toStringArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
-}
-
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ cjsUid: string }>
-}) {
+export default async function Page({ params }: { params: Promise<{ cjsUid: string }> }) {
   const session = await getSession()
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
   const { cjsUid } = await params
 
-  // GUIC-526 — données de la section « Rôles & rattachements » (provisioning
-  // des espaces conseiller/recruteur par l'admin).
-  const [rattachements, organisation, centres, organisations] = await Promise.all([
-    prisma.agentCentre.findMany({
-      where: { cjsUid },
-      select: { id: true, role: true, centre: { select: { nom: true } } },
-      orderBy: { createdAt: 'asc' },
-    }),
+  const [data, rattachements, organisation, centres, organisations] = await Promise.all([
+    getUtilisateurDetail(cjsUid),
+    // GUIC-526 — provisioning des espaces (rattachement centre + rôle agent, organisation recruteur).
+    prisma.agentCentre.findMany({ where: { cjsUid }, select: { id: true, role: true, centre: { select: { nom: true } } }, orderBy: { createdAt: 'asc' } }),
     prisma.organisation.findFirst({ where: { cjsUid }, select: { id: true, nom: true } }),
     prisma.centre.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' } }),
     prisma.organisation.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' }, take: 200 }),
   ])
 
-  const [u, candidaturesRetenues] = await Promise.all([
-    prisma.utilisateur.findUnique({
-      where: { cjsUid },
-      select: {
-        cjsUid: true,
-        prenom: true,
-        nom: true,
-        email: true,
-        telephone: true,
-        region: true,
-        commune: true,
-        statut: true,
-        role: true,
-        createdAt: true,
-        profil: {
-          select: {
-            completionScore: true,
-            niveauEtude: true,
-            situationEmploi: true,
-            situationHandicap: true,
-            zoneHabitation: true,
-            biographie: true,
-            photoUrl: true,
-            domainesInteret: true,
-            centrePrincipal: { select: { nom: true } },
-            _count: { select: { diplomes: true, experiences: true, certificats: true } },
-          },
-        },
-        _count: {
-          select: {
-            candidatures: true,
-            inscriptions: true,
-            reservations: true,
-            checkIns: true,
-            ressourcesFavoris: true,
-            opportunitesFavorites: true,
-            insertions: true,
-          },
-        },
-      },
-    }),
-    prisma.candidature.count({ where: { cjsUid, statut: 'Retenue' } }),
-  ])
+  if (!data) notFound()
 
-  if (!u) notFound()
-
-  // E1 — traçabilité CDP : consultation d'une fiche bénéficiaire (PII) journalisée
-  // (stdout haché + trail audit_logs). Après le notFound() pour ne tracer que les
-  // accès réels. Fail-soft : n'interrompt jamais le rendu de la page.
-  await auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: u.cjsUid })
-
-  const data: UserDetailData = {
-    cjsUid: u.cjsUid,
-    prenom: u.prenom,
-    nom: u.nom,
-    email: u.email,
-    telephone: u.telephone,
-    region: u.region,
-    commune: u.commune,
-    statut: u.statut,
-    role: u.role,
-    createdAt: u.createdAt,
-    profil: u.profil
-      ? {
-          completionScore: u.profil.completionScore,
-          niveauEtude: u.profil.niveauEtude,
-          situationEmploi: u.profil.situationEmploi,
-          situationHandicap: u.profil.situationHandicap,
-          zoneHabitation: u.profil.zoneHabitation,
-          biographie: u.profil.biographie,
-          photoUrl: u.profil.photoUrl,
-          centrePrincipalNom: u.profil.centrePrincipal?.nom ?? null,
-          domainesInteret: toStringArray(u.profil.domainesInteret),
-          diplomesCount: u.profil._count.diplomes,
-          experiencesCount: u.profil._count.experiences,
-          certificatsCount: u.profil._count.certificats,
-        }
-      : null,
-    activite: {
-      candidatures: u._count.candidatures,
-      candidaturesRetenues,
-      inscriptions: u._count.inscriptions,
-      reservations: u._count.reservations,
-      checkIns: u._count.checkIns,
-      favoris: u._count.ressourcesFavoris + u._count.opportunitesFavorites,
-      insertions: u._count.insertions,
-    },
-  }
+  // Traçabilité CDP : consultation d'une fiche (PII) journalisée. Fail-soft.
+  await auditPiiAccess('fiche_beneficiaire.view', session.cjsUid, { targetCjsUid: cjsUid })
 
   return (
-    <AdminUserDetail data={data}>
-      <RolesRattachementsSection
-        cjsUid={u.cjsUid}
-        rattachements={rattachements.map((r) => ({ id: r.id, role: r.role, centreNom: r.centre.nom }))}
-        centres={centres}
-        organisation={organisation}
-        organisations={organisations}
-      />
-    </AdminUserDetail>
+    <UserDetailTabs
+      data={data}
+      rolesSection={
+        <RolesRattachementsSection
+          cjsUid={cjsUid}
+          rattachements={rattachements.map((r) => ({ id: r.id, role: r.role, centreNom: r.centre.nom }))}
+          centres={centres}
+          organisation={organisation}
+          organisations={organisations}
+        />
+      }
+    />
   )
 }
