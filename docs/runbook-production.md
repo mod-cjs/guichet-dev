@@ -284,6 +284,11 @@ répétition locale** (préflight → sauvegarde → 50 migrations → app healt
 ⚠️ L'image doit contenir le correctif **GUIC-637** (`prisma.config.ts` + toolchain), sinon la
 migration échoue. Vérifier que la branche construite l'inclut.
 
+> `build-push.sh` construit en **`linux/amd64` par défaut** (le serveur est amd64 ; un Mac ARM
+> produirait de l'arm64 qui plante au démarrage). Surcharge : `PLATFORMS=…`.
+> Pour la **version TEST (préprod)**, le déploiement diffère (deux compose combinés, pas
+> `deploy.sh`) → voir `docs/deploiement-preprod.md`.
+
 ```bash
 # 1. S'authentifier auprès de GHCR (jeton avec le scope write:packages)
 echo "$GHCR_TOKEN" | docker login ghcr.io -u <utilisateur> --password-stdin
