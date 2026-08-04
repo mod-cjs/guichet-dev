@@ -54,16 +54,48 @@ Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre
       contre-épreuve faite (fix retiré → 4 tests échouent). Tests ajoutés
       (`etl/plugins/extractors/tap-guichet/tests/`), **non intégrés en CI** (aucun
       pipeline Python dans ce dépôt — documenté dans `etl/README.md`).
-- [ ] Push du fix Python + tests, puis re-vérifier `npm run validate`
+- [x] Push du fix Python + tests, `npm run validate` re-vérifié : 568/568 vert.
+
+## Laboratoire réel monté et pipeline exécuté de bout en bout (2026-08-04)
+
+Réutilisé l'infrastructure de la campagne GUIC-693 (`etllab_postgres`, MariaDB
+`guichet_etl_lab` — 22 510 utilisateurs, 26 161 candidatures), entrepôt réinitialisé
+(schémas `guichet_raw`/`marts` recréés), app Guichet lancée sur le port 3100 avec
+`DATAHUB_API_KEYS` de test. Données semées pour exercer ce qui n'existait jamais dans le
+dump POC : 4 rattachements `opportunites_programmes` réels, 1 `Centre` jetable pour tester
+la suppression.
+
+**Deux bugs réels supplémentaires trouvés et corrigés en cours de route** (aucun visible à
+tsc/Jest) :
+1. Tap Python plantait sur `KeyError: 'replication_key'` pour tout flux FULL_TABLE (voir
+   commit dédié plus haut).
+2. Image `guichet/meltano:3.7.9` sans driver PostgreSQL (`psycopg2`) — `MELTANO_DATABASE_URI`
+   (obligatoire, R5) échouait dès `meltano install`. Ajout de `psycopg2-binary` au Dockerfile.
+
+**Tout vérifié vert, en conditions réelles** :
+- Pré-vol : 57/58 (le seul échec est le `sql_mode` du conteneur MariaDB **partagé** entre
+  sessions — non modifié pour ne pas perturber les autres sessions)
+- `meltano install` : 3/3 plugins
+- **Run 1** : 18 flux extraits (13 incrémentaux + 5 FULL_TABLE), comptages exacts
+- **Run 2 consécutif** : réussi — c'est EXACTEMENT le défaut B1 original (jamais vérifié
+  corrigé en pratique jusqu'ici), et les comptages restent identiques (upsert absorbe le
+  recouvrement, aucun doublon)
+- `dbt build` : 54/54 tests verts, marts dans le bon schéma (`marts`, pas `marts_marts`)
+- `v_programs_summary` : compteurs exacts, vérifiés contre les rattachements semés
+  (yaakaar=2, yeah=1, yjc=1, edupop=0)
+- `reconcile.ts` (jamais exécuté avant) : 13/13 flux concordants
+- `purge-absents.ts` (jamais exécuté avant) : scénario réel — `Centre` supprimé
+  physiquement de la source MariaDB (comme le fait le code admin), détecté et supprimé de
+  l'entrepôt par le script, **aucune fausse suppression** sur les 9 autres centres ni sur
+  aucun autre flux
+- `run-nightly.sh` (jamais exécuté avant, seulement simulé par shim docker) : chaîne
+  complète extraction→dbt→réconciliation, tout vert, code de sortie 0
 
 ## Notes
 - Le mécanisme de suppression révise le `?fields=id` public de la spec §8.5 initiale : script
   interne Prisma-direct, pas de nouveau paramètre exposé sur l'API publique.
-- **Ce qui reste NON vérifié à l'exécution réelle**, à garder en tête avant tout « fonctionnel » :
-  `scripts/datahub/purge-absents.ts` et `reconcile.ts` (psql réel jamais invoqué),
-  `run-nightly.sh` (testé par shim docker, jamais le vrai Meltano), `v_programs_summary.sql`
-  (jamais passé par `dbt build`/`dbt test`). Le seul run de bout en bout du pipeline remonte à
-  la campagne GUIC-693, **avant** tous les correctifs GUIC-695/696/697/700.
+- Labo laissé **tourner** (décision explicite) pour permettre une inspection ou un rejeu sans
+  reconstruire (~20 min de build+install). `etllab_postgres` + MariaDB `guichet_etl_lab`.
 
 ## Plan de durcissement ETL (spec §5) — état des 5 PRs
 Lot 1 GUIC-694 (#325, mergée `dev`) · Lot 2 GUIC-695 (#326, mergée `dev`) · Lots 3+4 GUIC-696

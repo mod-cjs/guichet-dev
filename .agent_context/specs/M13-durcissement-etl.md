@@ -396,6 +396,33 @@ qu'en faisant tourner un vrai chargeur Singer contre une vraie base.
 
 ---
 
+## 6 bis. Nouveau tour de laboratoire (2026-08-04) — tous les correctifs vérifiés en réel
+
+Question posée après le rapport initial de ce lot : « est-ce fonctionnel, pas juste testé
+unitairement ? ». Réponse : non, jusqu'à ce nouveau tour. Laboratoire remonté sur
+l'infrastructure de GUIC-693 (`etllab_postgres`, MariaDB `guichet_etl_lab`), pipeline
+exécuté de bout en bout avec les correctifs GUIC-695/696/697/700 en place.
+
+**Deux bugs réels supplémentaires trouvés, invisibles à tsc/Jest, tous deux corrigés** :
+- B7 — tap Python (`client.py`) sur `KeyError: 'replication_key'` pour tout flux FULL_TABLE.
+- B8 — image `guichet/meltano:3.7.9` sans `psycopg2` : `MELTANO_DATABASE_URI` (R5,
+  obligatoire) inutilisable dès `meltano install`.
+
+**Tout le reste vérifié vert, en conditions réelles, avec de vraies données (22 510
+utilisateurs, 26 161 candidatures)** : pré-vol 57/58 (seul échec : `sql_mode` du conteneur
+MariaDB partagé, non touché), deux runs consécutifs réussis (le run 2 est EXACTEMENT le
+test qui avait révélé B1 à l'origine — jamais reconfirmé corrigé jusqu'ici), aucun doublon
+après le run 2, `dbt build` 54/54, `v_programs_summary` avec compteurs exacts vérifiés
+contre des rattachements semés, `reconcile.ts` et `purge-absents.ts` exécutés pour la
+première fois de leur existence (13/13 concordants ; scénario réel de suppression physique
+d'un `Centre` détecté et propagé sans aucune fausse suppression ailleurs), `run-nightly.sh`
+exécuté pour la première fois en conditions réelles (chaîne complète, code de sortie 0).
+
+Le plan de durcissement M13 est maintenant vérifié fonctionnel de bout en bout, pas
+seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur `dev`.
+
+---
+
 ## 7. Intégration préprod
 
 **Prérequis avant toute extraction** (ordre imposé) :
