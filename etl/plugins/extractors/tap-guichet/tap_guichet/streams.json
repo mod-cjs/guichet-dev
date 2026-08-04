@@ -1447,6 +1447,181 @@
           }
         }
       }
+    },
+    {
+      "name": "opportunites_programmes",
+      "path": "/api/v1/export/opportunites_programmes",
+      "primary_keys": [
+        "opportunite_id",
+        "programme_id"
+      ],
+      "replication_method": "FULL_TABLE",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "opportunite_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Offre rattachée — clé de jointure vers `opportunites`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "programme_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Programme de rattachement — clé de jointure vers `programmes`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "principal": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par offre.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "ressources_programmes",
+      "path": "/api/v1/export/ressources_programmes",
+      "primary_keys": [
+        "ressource_id",
+        "programme_id"
+      ],
+      "replication_method": "FULL_TABLE",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "ressource_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Ressource rattachée — clé de jointure vers `ressources`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "programme_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Programme de rattachement — clé de jointure vers `programmes`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "principal": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par ressource.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "evenements_programmes",
+      "path": "/api/v1/export/evenements_programmes",
+      "primary_keys": [
+        "evenement_id",
+        "programme_id"
+      ],
+      "replication_method": "FULL_TABLE",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "evenement_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Événement rattaché — clé de jointure vers `evenements`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "programme_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Programme de rattachement — clé de jointure vers `programmes`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "principal": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par événement.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "centres_programmes",
+      "path": "/api/v1/export/centres_programmes",
+      "primary_keys": [
+        "centre_id",
+        "programme_id"
+      ],
+      "replication_method": "FULL_TABLE",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "centre_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Centre rattaché — clé de jointure vers `centres`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "programme_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Programme de rattachement — clé de jointure vers `programmes`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "principal": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par centre.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
+      "name": "organisations_programmes",
+      "path": "/api/v1/export/organisations_programmes",
+      "primary_keys": [
+        "organisation_id",
+        "programme_id"
+      ],
+      "replication_method": "FULL_TABLE",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "organisation_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Organisation rattachée — clé de jointure vers `organisations`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "programme_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Programme de rattachement — clé de jointure vers `programmes`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "principal": {
+            "type": [
+              "boolean"
+            ],
+            "description": "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par organisation.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
     }
   ]
 }

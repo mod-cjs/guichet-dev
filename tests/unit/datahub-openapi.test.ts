@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { buildOpenApiDocument } from '@/lib/datahub/openapi'
 import { CHAMPS_INTERDITS } from '@/lib/datahub/stream-types'
 import { streams } from '@/lib/datahub/streams'
+import { fullTableStreams } from '@/lib/datahub/full-table-streams'
 
 const CHEMIN = join(process.cwd(), 'docs', 'openapi', 'datahub-v1.yaml')
 const committe = readFileSync(CHEMIN, 'utf8')
@@ -24,10 +25,10 @@ describe('contrat OpenAPI publié', () => {
     expect(committe).toBe(buildOpenApiDocument())
   })
 
-  it('déclare un chemin par flux, et rien de plus', () => {
+  it('déclare un chemin par flux (incrémental ET FULL_TABLE), et rien de plus', () => {
     // Les clés de chemin contiennent des `/` : elles sont citées à l'émission.
     const chemins = [...committe.matchAll(/^ {2}"\/export\/(\w+)":$/gm)].map((m) => m[1])
-    expect(chemins.sort()).toEqual(Object.keys(streams).sort())
+    expect(chemins.sort()).toEqual([...Object.keys(streams), ...Object.keys(fullTableStreams)].sort())
   })
 
   it('ne mentionne plus les endpoints jamais implémentés', () => {
@@ -43,13 +44,12 @@ describe('contrat OpenAPI publié', () => {
     }
   })
 
-  it('porte le tier de gouvernance sur chaque colonne publiée', () => {
+  it('porte le tier de gouvernance sur chaque colonne publiée, tous flux confondus', () => {
     // Compté depuis le contrat, pas depuis le YAML : une regex sur le fichier ramasse
     // aussi les propriétés de `meta` et donnerait une égalité qui ne prouve rien.
-    const attendu = Object.values(streams).reduce(
-      (total, def) => total + Object.keys(def.fields).length,
-      0
-    )
+    const attendu =
+      Object.values(streams).reduce((total, def) => total + Object.keys(def.fields).length, 0) +
+      Object.values(fullTableStreams).reduce((total, def) => total + Object.keys(def.fields).length, 0)
     const tiers = (committe.match(/"x-cjs-tier":/g) ?? []).length
     expect(tiers).toBe(attendu)
     expect(tiers).toBeGreaterThan(100)
