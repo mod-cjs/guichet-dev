@@ -438,17 +438,22 @@ seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur 
    `docker-compose.yml` ne pilote pas la MariaDB Plesk.
 5. PostgreSQL entrepôt créé, chiffré au repos, accès nominatif restreint aux profils Data
    Steward — obligations CDP du §6.1 de la spec, non encore instrumentées.
-6. **Joignabilité conteneur à conteneur (GUIC-700, trouvé en préparant l'intégration
-   préprod)** — en préprod/prod Guichet tourne dans son propre projet Compose
-   (`guichet-test`/`guichet`), pas en process direct comme dans le laboratoire GUIC-693.
-   `docker-compose.etl.yml` rejoint donc `services_partages` (`cjs-net`), sur lequel l'app
-   est déjà branchée (`docker-compose.prod.yml`) — jamais `host.docker.internal` : l'app est
-   verrouillée sur la boucle locale de l'hôte (`127.0.0.1:8081`, GUIC-641), donc injoignable
-   depuis un autre projet Compose même via `host-gateway`. Même piège que F2
-   (MariaDB/MinIO). **Reste à faire, côté app** : un alias réseau explicite sous
-   `services_partages` dans `docker-compose.test.yml`/`docker-compose.prod.yml` (ex.
-   `guichet-test-app`), pour que `TAP_GUICHET_API_URL` ait une cible stable — pas encore
-   posé, décision M14 (lead).
+6. **Joignabilité de Guichet — séparation, pas cohabitation réseau (GUIC-700, tranché en
+   préparant l'intégration préprod)**. En préprod/prod Guichet tourne dans son propre
+   projet Compose (`guichet-test`/`guichet`), pas en process direct comme dans le
+   laboratoire GUIC-693 : `host.docker.internal` n'atteint rien (l'app est verrouillée sur
+   la boucle locale de l'hôte, `127.0.0.1:8081`, GUIC-641). Un premier correctif a rejoint
+   `services_partages`/`cjs-net` (même remède que F2 MariaDB/MinIO), puis a été **abandonné** :
+   il ne marche qu'à hôte unique (pas décidé), couple `docker-compose.etl.yml` aux fichiers
+   compose M14 protégés par sentinelle (alias à poser + collision possible entre
+   `guichet`/`guichet-test`/`guichet-staging` cohabitant sur le même serveur), et donne à
+   `meltano` une portée réseau vers redis_cjs/neo4j-cjs/MinIO sans aucun usage. **Retenu** :
+   `etl/meltano.yml` fixe déjà `api_url` en HTTPS public par défaut
+   (`https://guichet.cjs.sn`) — le Data Hub est une route machine-à-machine pensée pour
+   être appelée de l'extérieur, comme BRM/Centres/Moodle/EduPop. `TAP_GUICHET_API_URL`
+   pointe donc l'URL publique préprod (`https://devguichet.consortiumjeunesse…org`) ;
+   `docker-compose.etl.yml` ne touche à aucun réseau Docker de l'app, et ça fonctionne quel
+   que soit l'hôte de l'ETL.
 7. `npm run datahub:preflight` **vert 30/30** depuis l'environnement Guichet préprod (pas
    depuis le serveur ETL : il contrôle MariaDB, pas l'entrepôt).
 
