@@ -24,35 +24,13 @@ set -Eeuo pipefail
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${GUICHET_ETL_ENV_FILE:-$RACINE/.env.etl}"
 LOG_FILE="${DATAHUB_LOG_FILE:-/var/log/guichet/datahub-nightly.log}"
-LOG_MAX_BYTES="${DATAHUB_LOG_MAX_BYTES:-10485760}"   # 10 Mio
-LOG_KEEP="${DATAHUB_LOG_KEEP:-7}"
 COMPOSE="docker compose -f $RACINE/docker-compose.etl.yml run --rm meltano"
 
-mkdir -p "$(dirname "$LOG_FILE")"
-
-ts()  { date '+%Y-%m-%dT%H:%M:%S%z'; }
-log() { printf '%s [datahub] %s\n' "$(ts)" "$*" >> "$LOG_FILE"; }
-ok()  { log "✓ $*"; }
-ko()  { log "✗ $*"; }
+# shellcheck source=scripts/etl/lib-log.sh
+source "$RACINE/scripts/etl/lib-log.sh"
 
 # Rotation AVANT de commencer, pas après : un crash en cours de run laisserait sinon le
 # tout dernier run sans rotation, et le log grossirait indéfiniment.
-rotate_log() {
-  [ -f "$LOG_FILE" ] || return 0
-  local taille
-  taille=$(wc -c < "$LOG_FILE" 2>/dev/null | tr -d ' ')
-  [ "${taille:-0}" -lt "$LOG_MAX_BYTES" ] && return 0
-
-  local horodatage
-  horodatage=$(date '+%Y%m%dT%H%M%S')
-  mv "$LOG_FILE" "${LOG_FILE}.${horodatage}"
-  gzip "${LOG_FILE}.${horodatage}" 2>/dev/null || true
-
-  # Garde les LOG_KEEP archives les plus récentes, supprime le reste.
-  # shellcheck disable=SC2012
-  ls -1t "${LOG_FILE}".*.gz 2>/dev/null | tail -n "+$((LOG_KEEP + 1))" | xargs -r rm -f
-}
-
 rotate_log
 
 [ -f "$ENV_FILE" ] || { ko "fichier d'environnement introuvable : $ENV_FILE"; exit 1; }

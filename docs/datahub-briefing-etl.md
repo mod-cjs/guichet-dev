@@ -231,7 +231,17 @@ un batch, et un service qui tourne sans rien faire masque les échecs.
 ```cron
 30 2 * * * cd /srv/guichet && GUICHET_ETL_ENV_FILE=.env.etl \
   WAREHOUSE_DATABASE_URL=postgresql://... scripts/etl/run-nightly.sh
+
+0 1 * * 0 cd /srv/guichet && WAREHOUSE_DATABASE_URL=postgresql://... scripts/etl/purge-absents-weekly.sh
 ```
+
+La deuxième ligne (dimanche 1h, avant le nightly de 2h30) planifie la purge hebdomadaire des
+clés absentes (`purge-absents.ts`, lot 7 GUIC-700) — un full-refresh des clés de tous les
+flux, plus coûteux que l'extraction incrémentale quotidienne, donc une fréquence à part.
+`scripts/etl/purge-absents-weekly.sh` et `run-nightly.sh` partagent le même contrat de log
+(`scripts/etl/lib-log.sh`) : marqueur ✓/✗ horodaté, rotation par seuil de taille, code de
+sortie non nul surveillé par l'alerting (GUIC-576) — sans cette ligne, `purge-absents.ts`
+existait mais ne tournait jamais.
 
 `scripts/etl/run-nightly.sh` chaîne trois étapes, chacune bloquante pour la suivante
 (tout-ou-rien assumé, §4.1 B5 du rapport GUIC-693 : isoler l'échec par étape produirait des
@@ -317,4 +327,7 @@ dates de réplication valides, intégrité des jonctions, index composites, clé
 | `src/lib/datahub/streams.ts` | **Contrat d'export — point de contrôle CDP** |
 | `scripts/datahub/preflight.ts` | Contrôles de mise en service |
 | `scripts/etl/run-nightly.sh` | Orchestration planifiée : extraction → dbt → réconciliation |
+| `scripts/etl/purge-absents-weekly.sh` | Orchestration planifiée hebdomadaire : purge des clés absentes |
+| `scripts/etl/lib-log.sh` | Helpers de log partagés (✓/✗, rotation) entre les deux scripts ci-dessus |
 | `scripts/datahub/reconcile.ts` | Réconciliation automatisée des comptages post-run |
+| `scripts/datahub/purge-absents.ts` | Suppression physique des clés absentes de l'entrepôt (lot 7) |
