@@ -78,10 +78,14 @@ describe('loadDashboardData', () => {
     expect(data.recoOpps[0]).toMatchObject({
       id:    'opp-1',
       title: 'Bourse Agri',
-      tone:  'urgent',
+      // GUIC-689 : plus de `tone` (le type porte la couleur, pas l'urgence).
+      // GUIC-688 : `?from=reco` doit survivre — sans lui la reco est invisible
+      // dans les chiffres de conversion.
       href:  '/opportunites/bourse-agri?from=reco',
     })
-    expect(data.recoOpps[0].tag).toMatch(/J-3/)
+    // GUIC-689 — type et échéance sont désormais deux champs distincts.
+    expect(data.recoOpps[0].type).toBe('Bourse')
+    expect(data.recoOpps[0].joursRestants).toBe(3)
   })
 
   it('renvoie events triés à venir avec date-box FR', async () => {

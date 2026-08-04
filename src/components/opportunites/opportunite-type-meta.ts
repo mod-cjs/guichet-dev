@@ -16,6 +16,12 @@ import type { IconName } from '@/components/ui'
 
 export type OpportuniteTone = 'teal' | 'yellow' | 'blue' | 'green' | 'red' | 'grey'
 
+/**
+ * @deprecated GUIC-689 — conservé UNIQUEMENT pour les consommateurs legacy
+ * (`toneOf`, `typeAccentBorder`, `YayeOppCard`, `YayeEventCard`) hors périmètre
+ * de ce ticket. Le chip public (`OpportuniteTypeChip`) utilise désormais
+ * `TYPE_CAT` (code couleur par catégorie, cf. « Reponse au retour design V3 » §2).
+ */
 export const TYPE_TONE: Record<TypeOpportunite, OpportuniteTone> = {
   Emploi: 'teal',
   Stage: 'teal',
@@ -23,6 +29,35 @@ export const TYPE_TONE: Record<TypeOpportunite, OpportuniteTone> = {
   Bourse: 'yellow',
   Volontariat: 'green',
   Appel_a_projets: 'yellow',
+}
+
+/**
+ * GUIC-689 — code couleur par catégorie (design v5, « Reponse au retour design
+ * V3 » §2) : 1 type d'offre = 1 couleur, le rouge n'est plus jamais utilisé
+ * pour coder un type (réservé à l'urgence de deadline). Source des tokens :
+ * `--cat-*` dans `src/styles/tokens.css`.
+ */
+export type CatFamily =
+  | 'cat-emploi'
+  | 'cat-stage'
+  | 'cat-formation'
+  | 'cat-financement'
+  | 'cat-evenement'
+  | 'cat-volontariat'
+  | 'cat-neutre'
+
+export const TYPE_CAT: Record<TypeOpportunite, CatFamily> = {
+  Emploi: 'cat-emploi',
+  Stage: 'cat-stage',
+  Formation: 'cat-formation',
+  Bourse: 'cat-financement',
+  Appel_a_projets: 'cat-financement',
+  Volontariat: 'cat-volontariat',
+}
+
+/** Famille catégorie d'un type (défaut `cat-neutre` si type inconnu). */
+export function catFamilyOf(type: TypeOpportunite): CatFamily {
+  return TYPE_CAT[type] ?? 'cat-neutre'
 }
 
 /** Icône sectorielle par type (ids présents dans `public/icons.svg`). */

@@ -143,6 +143,13 @@
   --gj-ink-teal:    #162c5e;   /* navy charte (v5) */
   --gj-ink-teal-2:  #0E1C3C;   /* navy plus profond */
 
+  /* Emplacements photo (design v5, Reponse au retour §4) — placeholder terre
+     en attente des photos réelles fournies par le CJS. Imagerie, pas UI :
+     à remplacer par <Image/> réelles dès réception. */
+  --gj-photo-slot-1: #C49A5A;
+  --gj-photo-slot-2: #7A5C3A;
+  --gj-photo-slot:   linear-gradient(135deg, var(--gj-photo-slot-1), var(--gj-photo-slot-2));
+
   /* WhatsApp */
   --gj-whatsapp:      #25D366;
   --gj-whatsapp-deep: #128C7E;

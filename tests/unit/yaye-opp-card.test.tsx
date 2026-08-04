@@ -24,6 +24,16 @@ describe('<YayeOppCard /> (design v4)', () => {
     expect(screen.getByText(/Postuler/i)).toBeInTheDocument()
   })
 
+  // GUIC-689 (finding A2) — le magenta `--gj-action` est réservé aux CTA de
+  // conversion et ne s'échange jamais contre la couleur du type d'offre
+  // (réf design-guichet-v5/yaye-mobile.jsx:37).
+  it('le CTA de conversion porte toujours .gj-cta, jamais la couleur du type', () => {
+    render(<YayeOppCard opp={item} />)
+    const cta = screen.getByText(/Postuler/i).closest('a')
+    expect(cta?.className).toMatch(/\bgj-cta\b/)
+    expect(cta?.className).not.toMatch(/bg-gj-teal-deep\b/)
+  })
+
   // GUIC-688 — le clic doit rester rattachable à sa provenance : sans `from=reco`,
   // la consultation qui suit une recommandation est indistinguable d'une visite directe.
   it('marque le lien avec le canal IA', () => {

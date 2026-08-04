@@ -29,7 +29,8 @@ ENV REDIS_URL=redis://localhost:6379 \
     JWT_CJS_CARD_SECRET=build-only \
     STAFF_SESSION_SECRET=build-only \
     SSO_BASE_URL=http://localhost \
-    SSO_CLIENT_ID=build
+    SSO_CLIENT_ID=build \
+    CONSULTATION_HASH_KEY=build-only-not-a-secret
 # GUIC-662 — Clé Google Maps : var `NEXT_PUBLIC_*` → INLINÉE dans le bundle client au `next build`.
 # Contrairement aux factices ci-dessus, celle-ci DOIT recevoir la vraie valeur AU BUILD
 # (--build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=...) ; la mettre au runtime (env-file) n'a AUCUN effet.

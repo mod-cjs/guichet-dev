@@ -14,6 +14,11 @@ export const OpportuniteQuerySchema = z.object({
   region: z.enum(enumValues(Region)).optional(),
   page: z.coerce.number().int().min(1).default(1),
   sort_by: z.enum(['recent', 'deadline']).default('recent'),
+  // GUIC-689 — remuneration/deadline étaient écrits dans l'URL par les panneaux de
+  // filtres mais jamais lus ici : le compteur affichait "1 filtre actif" sans que la
+  // liste ne change (filtre décoratif). Valeurs invalides ignorées comme le reste.
+  remuneration: z.enum(['yes', 'no']).optional(),
+  deadline: z.enum(['7', '30']).optional(),
 })
 
 export type OpportuniteQuery = z.infer<typeof OpportuniteQuerySchema>

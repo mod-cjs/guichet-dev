@@ -175,8 +175,13 @@ export function RessourcesClient({
 
   const activeAdvanced = countActiveFilters(advanced)
   const currentType = initialFilters.type ?? 'all'
+  // GUIC-689 (Lot F2) — un thème actif (venu de la grille « Explorer par
+  // catégorie » de l'accueil médiathèque) doit aussi afficher « Réinitialiser ».
   const hasActiveFilters =
-    activeAdvanced > 0 || currentType !== 'all' || (initialFilters.q?.trim().length ?? 0) > 0
+    activeAdvanced > 0 ||
+    currentType !== 'all' ||
+    (initialFilters.q?.trim().length ?? 0) > 0 ||
+    (initialFilters.theme?.trim().length ?? 0) > 0
 
   // ── Pagination ─────────────────────────────────────────────────────────
   const loadedCount = accumulated.length

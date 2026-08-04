@@ -28,13 +28,17 @@ const FULL_DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const WEEKDAYS_LONG = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
-/** Couleur de pastille selon le type d'événement. */
+/** Couleur de pastille selon le type d'événement.
+ *  GUIC-689 — familles alignées sur la référence v5 (`events-data.jsx`
+ *  EV_TONES) ET sur les autres surfaces : un type garde sa couleur en liste,
+ *  en détail et au calendrier. Atelier/Formation étaient inversés ici, et
+ *  Conférence portait le rouge réservé à l'urgence d'échéance. */
 const TYPE_PASTILLE: Record<TypeEvenementValue, string> = {
-  Formation:  'bg-gj-teal',
-  Atelier:    'bg-gj-yellow',
+  Atelier:    'bg-gj-teal',
+  Formation:  'bg-gj-yellow',
   Forum:      'bg-gj-blue',
   Webinar:    'bg-gj-green',
-  Conference: 'bg-gj-red',
+  Conference: 'bg-gj-teal',
 }
 
 /** Index ISO 0..6 (lundi=0) du jour de la semaine. */

@@ -111,6 +111,21 @@ export interface YayeCarteCjsBlock {
   qrToken?: string | null
 }
 
+/**
+ * Ligne de provenance affichée SOUS chaque réponse générée par le modèle (règle
+ * NON NÉGOCIABLE design v5 : « Aucune réponse de Yaye sans ligne de sources » —
+ * cf. `design-guichet-v5/yaye-web.jsx:58`, légende « basé sur ton profil + 142 offres »).
+ *
+ * `label` doit être un énoncé HONNÊTE de ce qui a réellement nourri la réponse —
+ * jamais un chiffre inventé. Absente des réponses scriptées (pre-screen) et des
+ * escalades : y afficher une provenance serait mensonger (aucune donnée n'a été
+ * consultée, ou la demande n'a justement pas abouti).
+ */
+export interface YayeSourcesBlock {
+  kind: 'sources'
+  label: string
+}
+
 /** Un bloc de réponse — rendu différemment selon son `kind`. */
 export type YayeBlock =
   | { kind: 'text'; text: string }
@@ -129,6 +144,7 @@ export type YayeBlock =
       buttons?: { label: string; href?: string; primary?: boolean }[]
     }
   | YayeEscaladeBlock
+  | YayeSourcesBlock
 
 /**
  * Dédoublonne les cards avant l'envoi au frontend. Sur une boucle d'outils multi-rounds,

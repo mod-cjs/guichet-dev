@@ -1,7 +1,10 @@
 import Link from 'next/link'
-import { Card, Icon, Tag } from '@/components/ui'
+import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
+import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
+import { TYPE_CAT } from '@/components/opportunites/opportunite-type-meta'
+import { CAT_TILE_CLASSES } from './candidature-type-compat'
 import type { CandidatureDetailDTO } from '@/lib/candidature-detail-loader'
 import type { CandidatureDecision, PipelineStep } from './types'
 
@@ -77,17 +80,20 @@ const STATUT_PILL: Record<
  *  - Stepper 5 étapes (réutilise CandidaturePipelineStepper)
  *  - Section « Ma candidature » (lettre motivation collapsible + lien CV)
  *  - Section « Échanges » (stub)
- *  - CTAs contextuels (Retirer si en cours, Voir l'opportunité)
+ *  - CTA « Voir l'opportunité » (GUIC-689 : pas de CTA de retrait — feature
+ *    inexistante, voir commentaire au niveau du bloc CTAs)
  */
 export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const pipeline = pipelineFromStatut(candidature.statut)
   const pill = STATUT_PILL[candidature.statut]
   const icon = iconForType(candidature.opportunite.type)
+  // GUIC-689 (finding A/B) — `candidature.opportunite.type` porte déjà le vrai
+  // `TypeOpportunite` Prisma (chargé par candidature-detail-loader.ts), pas
+  // besoin de compat : TYPE_CAT/OpportuniteTypeChip s'appliquent directement.
+  const catFamily = TYPE_CAT[candidature.opportunite.type] ?? 'cat-neutre'
   const lettre = candidature.lettreMotivation ?? ''
   const lettreLong = lettre.length > 500
   const lettrePreview = lettreLong ? `${lettre.slice(0, 500)}…` : lettre
-
-  const canWithdraw = candidature.statut === 'En_attente'
 
   return (
     <article className="flex flex-col gap-space-4">
@@ -109,18 +115,18 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         <div className="flex items-start gap-space-3">
           <div
             data-testid="detail-hero-tile"
-            className="w-14 h-14 rounded-gj-md bg-gj-teal-soft text-gj-teal-deep flex items-center justify-center shrink-0"
+            className={`w-14 h-14 rounded-gj-md flex items-center justify-center shrink-0 ${CAT_TILE_CLASSES[catFamily]}`}
           >
             <Icon name={icon} size={28} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-space-2 flex-wrap">
-              <Tag>{candidature.opportunite.type}</Tag>
+              <OpportuniteTypeChip type={candidature.opportunite.type} />
               <span
                 data-testid="detail-status-pill"
                 className={[
                   'inline-flex items-center rounded-gj-pill px-2 py-[2px]',
-                  'text-[10px] font-extrabold uppercase tracking-[0.04em]',
+                  'text-fs-100 font-extrabold uppercase tracking-[0.04em]',
                   pill.className,
                 ].join(' ')}
               >
@@ -207,21 +213,16 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
       <div className="flex flex-col gap-space-2 sm:flex-row sm:justify-end">
         <Link
           href={`/opportunites/${candidature.opportunite.slug}`}
-          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
+          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 min-h-[var(--tap-min)] text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
           data-testid="detail-cta-opportunite"
         >
           Voir l&apos;opportunité
           <Icon name="arrow-right" size={16} />
         </Link>
-        {canWithdraw ? (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-space-2 rounded-gj-md bg-gj-red-soft px-space-4 py-space-2 text-fs-200 font-bold text-gj-red-ink hover:bg-gj-red-soft/80"
-            data-testid="detail-cta-withdraw"
-          >
-            Retirer ma candidature
-          </button>
-        ) : null}
+        {/* GUIC-689 (finding A3) — pas de bouton "Retirer ma candidature" : ni route
+            API ni statut Prisma `Retiree` n'existent. L'ajouter engagerait des
+            décisions produit (notification recruteur, réversibilité, CDP) hors
+            périmètre de ce ticket ; feature à traiter dans une story dédiée. */}
       </div>
     </article>
   )

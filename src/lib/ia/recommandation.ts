@@ -99,6 +99,28 @@ export async function getRecommandations(cjsUid: string): Promise<Recommandation
 }
 
 /**
+ * Lecture CACHE-ONLY du score pour le couple (bénéficiaire, opportunité) affiché
+ * (GUIC-689 P2 — `YayeMatchCard`). Contrairement à `getRecommandations`, ne
+ * déclenche JAMAIS de recalcul : un rendu de page (Server Component) ne doit pas
+ * payer le coût d'une traversée de graphe de façon synchrone. Retourne `null` si
+ * le couple n'a pas (encore) de recommandation en cache — visiteur anonyme (exclu
+ * en amont par l'appelant) ou offre hors du top calculé pour ce bénéficiaire.
+ * L'appelant ne doit alors afficher AUCUN score : un faux score serait pire que
+ * pas de score.
+ */
+export async function getRecommandationScore(
+  cjsUid: string,
+  opportuniteId: string,
+): Promise<{ score: number; raison: string } | null> {
+  const row = await prisma.recommandationIA.findFirst({
+    where: { cjsUid, opportuniteId },
+    orderBy: { score: 'desc' },
+    select: { score: true, raison: true },
+  })
+  return row ? { score: row.score, raison: row.raison ?? '' } : null
+}
+
+/**
  * PRÉCALCUL BATCH (spec 02 §0 — « même calcul exécuté en avance ») : recompute + persiste
  * les recommandations pour les bénéficiaires ACTIFS (≥1 candidature = signal collaboratif),
  * afin que `get_recommendations` et la contextualisation servent le cache (latence + push

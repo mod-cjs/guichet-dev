@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 
+export type AvatarTone = 'jeune' | 'recruteur' | 'agent'
+
 interface AvatarProps {
   nom?: string
   prenom?: string
@@ -24,6 +26,15 @@ interface AvatarProps {
    */
   hasPhoto?: boolean
   size?: 'sm' | 'md' | 'lg'
+  /**
+   * GUIC-689 — Lot C2.4 : dégradé par rôle (réf. `component-kit.jsx` `av()`)
+   * — jeune (teal), recruteur (bleu), agent (doré, admin/conseiller).
+   * Défaut : aucun dégradé (fond plat `bg-gj-teal` inchangé) pour ne casser
+   * aucun call site existant.
+   */
+  tone?: AvatarTone
+  /** GUIC-689 — Lot C2.4 : pastille de présence « en ligne ». `false` par défaut. */
+  online?: boolean
 }
 
 const SIZES = {
@@ -38,17 +49,44 @@ const SIZE_PX: Record<'sm' | 'md' | 'lg', number> = {
   lg: 64,
 }
 
-export function Avatar({ nom, prenom, src, cjsUid, hasPhoto = false, size = 'md' }: AvatarProps) {
+const TONE_GRADIENT: Record<AvatarTone, string> = {
+  jeune:     'bg-gradient-to-br from-gj-teal to-gj-teal-deep',
+  recruteur: 'bg-gradient-to-br from-gj-blue to-gj-blue-ink',
+  agent:     'bg-gradient-to-br from-gj-yellow to-gj-yellow-deep',
+}
+
+const PRESENCE_SIZE_PX: Record<'sm' | 'md' | 'lg', number> = {
+  sm: 10,
+  md: 12,
+  lg: 16,
+}
+
+export function Avatar({ nom, prenom, src, cjsUid, hasPhoto = false, size = 'md', tone, online = false }: AvatarProps) {
   const initiales = `${(prenom?.[0] ?? '').toUpperCase()}${(nom?.[0] ?? '').toUpperCase()}`
   const alt = [prenom, nom].filter(Boolean).join(' ') || 'Avatar'
   const px = SIZE_PX[size]
   const resolvedSrc = src ?? getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
+  const toneClass = tone ? TONE_GRADIENT[tone] : 'bg-gj-teal'
   return (
-    <div className={`${SIZES[size]} rounded-full bg-gj-teal flex items-center justify-center overflow-hidden flex-shrink-0`}>
-      {resolvedSrc
-        ? <Image src={resolvedSrc} alt={alt} width={px} height={px} unoptimized className="w-full h-full object-cover" />
-        : <span className="font-bold text-white">{initiales || '?'}</span>
-      }
-    </div>
+    <span className="relative inline-flex flex-shrink-0">
+      <div className={`${SIZES[size]} rounded-full ${toneClass} flex items-center justify-center overflow-hidden`}>
+        {resolvedSrc
+          ? <Image src={resolvedSrc} alt={alt} width={px} height={px} unoptimized className="w-full h-full object-cover" />
+          : <span className="font-bold text-white">{initiales || '?'}</span>
+        }
+      </div>
+      {online && (
+        <span
+          aria-label="En ligne"
+          role="status"
+          className="absolute right-0 bottom-0 rounded-full border-2 border-white"
+          style={{
+            width: PRESENCE_SIZE_PX[size],
+            height: PRESENCE_SIZE_PX[size],
+            background: 'var(--gj-status-live)',
+          }}
+        />
+      )}
+    </span>
   )
 }

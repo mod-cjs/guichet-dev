@@ -49,15 +49,28 @@ export async function Header() {
               nom={session.nom ?? ''}
             />
           ) : (
-            <Link
-              href="/auth/connexion"
-              className="bg-gj-teal text-white px-space-3 rounded-gj-sm text-[11px]
-                font-bold no-underline whitespace-nowrap flex-shrink-0
-                min-h-[var(--tap-min)] flex items-center
-                hover:bg-gj-teal-deep transition-colors"
-            >
-              Se connecter
-            </Link>
+            <>
+              {/* v5 (GUIC-689, web-onboarding.jsx:200-201) : « Se connecter » en
+                  lien texte, « Créer mon compte » en bouton contour (desktop).
+                  Mobile : seul « Se connecter » reste visible (layout-navigation §8). */}
+              <Link
+                href="/auth/connexion"
+                className="text-gj-grey px-space-2 text-[13px] font-bold no-underline
+                  whitespace-nowrap flex-shrink-0 min-h-[var(--tap-min)] flex items-center
+                  hover:text-gj-ink transition-colors"
+              >
+                Se connecter
+              </Link>
+              <Link
+                href="/auth/connexion"
+                className="hidden md:flex bg-gj-surface text-gj-teal-deep border-[1.5px]
+                  border-gj-line-strong px-space-3 rounded-gj-md text-[13px] font-black
+                  no-underline whitespace-nowrap flex-shrink-0 min-h-[var(--tap-min)]
+                  items-center hover:border-gj-teal-deep transition-colors"
+              >
+                Créer mon compte →
+              </Link>
+            </>
           )}
         </div>
       </div>

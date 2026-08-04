@@ -17,7 +17,7 @@ const TYPE_BADGE: Record<TypeEvenementValue, 'teal' | 'blue' | 'yellow' | 'green
   Forum: 'blue',
   Formation: 'yellow',
   Webinar: 'green',
-  Conference: 'red',
+  Conference: 'teal',
 }
 
 const FULL_FMT = new Intl.DateTimeFormat('fr-FR', {

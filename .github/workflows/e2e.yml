@@ -57,6 +57,12 @@ jobs:
       JWT_CJS_CARD_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       CONSEILLER_STAFF_EMAILS: staff.e2e@cjs.sn
 
+      # GUIC-695/689 — sans elle, l'app REFUSE de démarrer sous NODE_ENV=production
+      # (pseudonymisation des consultations qui serait réversible). Ce job servant un
+      # build de prod, le garde s'y déclenche : le serveur ne se levait pas et le job
+      # échouait avant de jouer un seul test. Valeur de test, jamais un vrai secret.
+      CONSULTATION_HASH_KEY: e2e0000000000000000000000000000000000000000000000000000000000cafe
+
       # Sert le BUILD DE PROD plutôt qu'un `next dev` (plus représentatif, et le build valide
       # aussi que l'app compile). Le build se fait à l'étape dédiée ci-dessous.
       PLAYWRIGHT_WEBSERVER_CMD: npm run start

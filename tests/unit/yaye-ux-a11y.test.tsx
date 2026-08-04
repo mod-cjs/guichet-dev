@@ -21,11 +21,11 @@ it('le badge IA de l\'avatar est décoratif (aria-hidden)', () => {
 })
 
 it('le CTA « Yaye m\'aide à postuler » pointe vers la page Yaye (plus de lien mort)', () => {
-  render(<YayeMatchCard />)
+  render(<YayeMatchCard match={{ score: 0.8, raison: 'r' }} />)
   expect(screen.getByRole('link', { name: /Yaye m.aide à postuler/i })).toHaveAttribute('href', '/jeune/yaye')
 })
 
 it('YayeMatchCard réutilise l\'avatar canonique (identité unifiée)', () => {
-  render(<YayeMatchCard />)
+  render(<YayeMatchCard match={{ score: 0.8, raison: 'r' }} />)
   expect(screen.getByRole('img', { name: /Assistant IA/i })).toBeInTheDocument()
 })

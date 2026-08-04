@@ -53,62 +53,65 @@ describe('F01 — Badge match conditionnel', () => {
   })
 })
 
-// ─── F02 — Badge type + « · J-x » ────────────────────────────────────────────
+// ─── F02 — Chip catégorie + pastille urgence séparée (GUIC-689) ──────────────
 
-describe('F02 — Compte-à-rebours J-x dans le chip type', () => {
-  it('affiche "· J-3" dans le chip quand deadline dans 3 jours', () => {
+describe('F02 — Chip catégorie (seul) + pastille urgence séparée', () => {
+  it('le chip type porte la famille catégorie (Stage → cat-stage), plus aucun suffixe J-x', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const chip = screen.getByTestId('type-chip')
+    expect(chip).toHaveAttribute('data-cat', 'cat-stage')
+    expect(chip.textContent).not.toMatch(/J-/)
+  })
+
+  it('affiche une pastille d’urgence « J-3 » quand la deadline est dans 3 jours', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 3 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
-    // Le chip doit contenir "J-3"
-    expect(screen.getByTestId('type-chip')).toHaveTextContent('J-3')
+    const pastille = screen.getByTestId('urgence-badge')
+    expect(pastille).toHaveTextContent('J-3')
+    expect(pastille.className).toMatch(/gj-urgent/)
   })
 
-  it('affiche "· J-12" dans le chip quand deadline dans 12 jours (non urgent)', () => {
+  it('n’affiche aucune pastille d’urgence quand la deadline est dans 12 jours (non urgent)', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 12 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
-    expect(screen.getByTestId('type-chip')).toHaveTextContent('J-12')
+    expect(screen.queryByTestId('urgence-badge')).not.toBeInTheDocument()
   })
 
-  it('colorie le chip en rouge (tone=urgent) si J ≤ 7', () => {
-    const item = {
-      ...baseItem,
-      deadline: new Date(FIXED_NOW + 5 * 86_400_000).toISOString(),
-    }
-    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
-    const chip = screen.getByTestId('type-chip')
-    // tone red → data-tone="red"
-    expect(chip).toHaveAttribute('data-tone', 'red')
-  })
-
-  it("ne colorie pas en rouge si J > 7", () => {
-    const item = {
-      ...baseItem,
-      deadline: new Date(FIXED_NOW + 10 * 86_400_000).toISOString(),
-    }
-    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
-    const chip = screen.getByTestId('type-chip')
-    expect(chip).not.toHaveAttribute('data-tone', 'red')
-  })
-
-  it('ne rend aucun suffixe J-x quand pas de deadline', () => {
+  it('n’affiche aucune pastille d’urgence quand pas de deadline', () => {
     render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
-    const chip = screen.getByTestId('type-chip')
-    expect(chip.textContent).not.toMatch(/J-/)
+    expect(screen.queryByTestId('urgence-badge')).not.toBeInTheDocument()
   })
 })
 
-// ─── F03 — CTA « Voir + postuler » ───────────────────────────────────────────
+// ─── F03 — CTA secondaire « Voir l'offre » (GUIC-689) ────────────────────────
 
-describe('F03 — CTA Voir + postuler', () => {
-  it('affiche le bouton "Voir + postuler"', () => {
+describe('F03 — CTA secondaire « Voir l’offre »', () => {
+  it('affiche le libellé "Voir l\'offre" (plus "postuler" en rangée de liste)', () => {
     render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
-    expect(screen.getByTestId('cta-voir-postuler')).toBeInTheDocument()
+    const cta = screen.getByTestId('cta-voir-postuler')
+    expect(cta).toHaveTextContent(/voir l.offre/i)
+    expect(cta.textContent).not.toMatch(/postuler/i)
+  })
+
+  it('expose un aria-label "Voir l\'offre : {titre}"', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const cta = screen.getByTestId('cta-voir-postuler')
+    expect(cta).toHaveAttribute('aria-label', `Voir l'offre : ${baseItem.titre}`)
+  })
+
+  it('porte le style secondaire (surface + liseré + texte teal-deep), pas le plein teal-deep', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const cta = screen.getByTestId('cta-voir-postuler')
+    expect(cta.className).toMatch(/bg-gj-surface/)
+    expect(cta.className).toMatch(/border-gj-line-strong/)
+    expect(cta.className).toMatch(/text-gj-teal-deep/)
+    expect(cta.className).not.toMatch(/bg-gj-teal-deep/)
   })
 
   it('le CTA a z-[1] pour être au-dessus du lien étiré', () => {
@@ -124,6 +127,34 @@ describe('F03 — CTA Voir + postuler', () => {
   })
 })
 
+// ─── Bordure carte constante (GUIC-689 — le rouge ne code plus le type) ──────
+
+describe('Bordure carte constante — seule la pastille porte l’urgence', () => {
+  it('conserve border-gj-line même quand la deadline est urgente', () => {
+    const item = {
+      ...baseItem,
+      deadline: new Date(FIXED_NOW + 2 * 86_400_000).toISOString(),
+    }
+    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
+    const card = screen.getByTestId('opp-card')
+    expect(card.className).toMatch(/border-gj-line\b/)
+    expect(card.className).not.toMatch(/border-gj-red/)
+  })
+})
+
+// ─── Cible tactile favori (GUIC-689 — 44px min mobile) ───────────────────────
+
+describe('Cible tactile bouton favori', () => {
+  it('respecte 44×44px par défaut (mobile) et autorise 38×38px en desktop dense', () => {
+    render(<OppCard item={baseItem} isFavori={false} onToggleFavori={() => {}} />)
+    const favori = screen.getByRole('button', { name: /ajouter aux favoris/i })
+    expect(favori.className).toMatch(/w-\[44px\]/)
+    expect(favori.className).toMatch(/h-\[44px\]/)
+    expect(favori.className).toMatch(/lg:w-\[38px\]/)
+    expect(favori.className).toMatch(/lg:h-\[38px\]/)
+  })
+})
+
 // ─── F08 — Deadline « Postuler avant le X » ──────────────────────────────────
 
 describe('F08 — Libellé deadline', () => {
@@ -136,25 +167,41 @@ describe('F08 — Libellé deadline', () => {
     expect(screen.getByTestId('deadline-label')).toHaveTextContent(/Postuler avant le/i)
   })
 
-  it('affiche le label J-x sans préfixe "Postuler avant" si urgent', () => {
+  // GUIC-689 — évolution : le libellé complet « Postuler avant le X » est
+  // désormais conservé même en urgence (le "J-N" collapsé sur le libellé
+  // banalisait l'info utile). C'est la pastille séparée `urgence-badge`
+  // (F02, ci-dessus) qui porte le "J-N" court, pas ce libellé.
+  it('conserve "Postuler avant le X" même si la deadline est urgente (≤ 3 jours)', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 3 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
     const dl = screen.getByTestId('deadline-label')
-    // Urgent → affiche "J-3" (ou similaire), pas le préfixe long
-    expect(dl).toHaveTextContent('J-3')
-    expect(dl.textContent).not.toMatch(/Postuler avant le/i)
+    expect(dl).toHaveTextContent(/Postuler avant le/i)
+    expect(dl.textContent).not.toBe('J-3')
   })
 
-  it('colore la deadline en rouge si urgent', () => {
+  it('colore la deadline en rouge si urgent (≤ 3 jours)', () => {
+    const item = {
+      ...baseItem,
+      deadline: new Date(FIXED_NOW + 3 * 86_400_000).toISOString(),
+    }
+    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
+    const dl = screen.getByTestId('deadline-label')
+    expect(dl.className).toMatch(/text-gj-red/)
+  })
+
+  // GUIC-689 — gradation à 3 niveaux : 4 à 7 jours = "proche" (ambre), le seuil
+  // binaire à 7 jours banalisait le rouge (handoff design v5).
+  it('colore la deadline en ambre si "proche" (4 à 7 jours), pas en rouge', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 5 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
     const dl = screen.getByTestId('deadline-label')
-    expect(dl.className).toMatch(/text-gj-red/)
+    expect(dl.className).toMatch(/text-gj-yellow-ink/)
+    expect(dl.className).not.toMatch(/text-gj-red/)
   })
 })

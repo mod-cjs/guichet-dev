@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail } from '@/lib/opportunites-loader'
 import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
+import { getRecommandationScore } from '@/lib/ia/recommandation'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
 import { OpportuniteDetailSkeleton } from '@/components/opportunites/OpportuniteDetailSkeleton'
 import { Breadcrumbs } from '@/components/ui'
@@ -71,6 +72,10 @@ export default async function OpportuniteDetailPage({
   // biographie, compétences, etc.
   const viewer = await getViewerInfoForCandidature(session)
 
+  // GUIC-689 (P2) — score de correspondance Yaye RÉEL : lecture cache-only
+  // (jamais de recalcul synchrone en rendu), `null` si absent → carte masquée.
+  const matchScore = session ? await getRecommandationScore(session.cjsUid, detail.id) : null
+
   // GUIC-25 (M7 SEO) — données structurées JobPosting + fil d'Ariane
   const jsonLd = await getOpportuniteJsonLd(slug)
   const breadcrumb = breadcrumbJsonLd([
@@ -98,7 +103,7 @@ export default async function OpportuniteDetailPage({
       </Link>
       <div className="mt-space-3">
         <Suspense fallback={<OpportuniteDetailSkeleton />}>
-          <OpportuniteDetail detail={detail} viewer={viewer} />
+          <OpportuniteDetail detail={detail} viewer={viewer} matchScore={matchScore} />
         </Suspense>
       </div>
     </div>

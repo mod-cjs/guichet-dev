@@ -16,6 +16,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
+  // `primary` = action générique / navigation (teal) — jamais la couleur de conversion.
   primary:   'bg-gj-teal text-white hover:bg-gj-teal-deep',
   // `.gj-cta` (tokens.css) porte déjà fond, taille, hauteur de cible et hover.
   conversion: 'gj-cta',

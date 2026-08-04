@@ -9,6 +9,13 @@
  *  F24 — Bouton filtres mobile : icône filtre + badge pill count
  *  F14 — CTA détail : label « Postuler maintenant » + icône arrow-right
  *  F25 — Champ recherche : icône search à gauche (prefixIcon)
+ *
+ * GUIC-689 (Lot P3-A) — `OpportunitesTabs` (le composant qui portait ces tabs)
+ * a été supprimé : il était exporté par `index.ts` mais jamais monté nulle
+ * part (confirmé par grep exhaustif `src/` + `tests/`), et sa suppression ne
+ * touche donc aucun autre écran. Ce fichier reste la sentinelle de la
+ * décision produit — il vérifie maintenant qu'aucun `role="tab"` ne
+ * réapparaît dans la liste, que le composant existe encore ou non.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

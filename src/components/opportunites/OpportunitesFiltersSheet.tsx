@@ -42,8 +42,6 @@ const DOMAINES: Domaine[] = [
   'Autre',
 ]
 
-type DeadlineFilter = 'all' | 'open'
-
 export interface OpportunitesFiltersSheetProps {
   isOpen: boolean
   onClose: () => void
@@ -60,8 +58,10 @@ function emptyDraft(sortBy: FiltresValue['sortBy']): FiltresValue {
   return { sortBy, domaine: undefined, type: undefined, region: undefined }
 }
 
+// GUIC-689 — `deadline` compté comme filtre actif : avant, il vivait dans un état
+// local déconnecté de `draft` (jamais propagé à `onApply`, jamais compté ici).
 function countActive(v: FiltresValue): number {
-  return [v.domaine, v.type, v.region].filter(Boolean).length
+  return [v.domaine, v.type, v.region, v.deadline].filter(Boolean).length
 }
 
 function humanize(value: string): string {
@@ -122,7 +122,6 @@ export function OpportunitesFiltersSheet({
 }: OpportunitesFiltersSheetProps) {
   // Tampon local — la sélection n'est validée qu'au clic "Appliquer".
   const [draft, setDraft] = useState<FiltresValue>(value)
-  const [deadline, setDeadline] = useState<DeadlineFilter>('all')
 
   // Resync quand la sheet s'ouvre (cas d'une nouvelle entrée).
   useEffect(() => {
@@ -131,13 +130,15 @@ export function OpportunitesFiltersSheet({
 
   const activeCount = countActive(draft)
 
-  const toggle = <K extends 'type' | 'domaine' | 'region' | 'programme'>(key: K, v: string) => {
+  const toggle = <K extends 'type' | 'domaine' | 'region' | 'programme' | 'deadline'>(
+    key: K,
+    v: string,
+  ) => {
     setDraft((d) => ({ ...d, [key]: d[key] === v ? undefined : (v as FiltresValue[K]) }))
   }
 
   const reset = () => {
     setDraft(emptyDraft(draft.sortBy))
-    setDeadline('all')
   }
 
   const apply = () => {
@@ -217,22 +218,25 @@ export function OpportunitesFiltersSheet({
           </section>
         )}
 
+        {/* GUIC-689 — aligné sur les 3 tranches du desktop (et de la maquette v5
+            `lot3-opps-mobile.jsx` L.259) : le binaire "Toutes / Candidature ouverte"
+            précédent n'était de toute façon jamais propagé (bug corrigé ici). */}
         <section>
           <SectionLabel>Échéance</SectionLabel>
           <div className="flex flex-wrap gap-space-1">
-            <PillToggle selected={deadline === 'all'} onClick={() => setDeadline('all')}>
-              Toutes
+            <PillToggle selected={draft.deadline === '7'} onClick={() => toggle('deadline', '7')}>
+              {'< 7 jours'}
             </PillToggle>
-            <PillToggle selected={deadline === 'open'} onClick={() => setDeadline('open')}>
-              Candidature ouverte
+            <PillToggle selected={draft.deadline === '30'} onClick={() => toggle('deadline', '30')}>
+              {'< 30 jours'}
+            </PillToggle>
+            <PillToggle
+              selected={!draft.deadline}
+              onClick={() => setDraft((d) => ({ ...d, deadline: undefined }))}
+            >
+              Sans limite
             </PillToggle>
           </div>
-          {deadline === 'open' && (
-            <p className="text-fs-100 text-gj-grey mt-space-1">
-              Toutes les opportunités listées sont déjà filtrées : seules les candidatures
-              encore ouvertes sont affichées.
-            </p>
-          )}
         </section>
       </div>
 

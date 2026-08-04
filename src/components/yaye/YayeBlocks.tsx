@@ -154,6 +154,19 @@ export function YayeBlocks({
         if (b.kind === 'escalade') {
           return <EscaladeCard key={i} block={b} onNavigate={onNavigate} />
         }
+        if (b.kind === 'sources') {
+          // Ligne de provenance honnête, discrète, sous la réponse (règle v5 —
+          // « aucune réponse sans ligne de sources »). Design v5 `yaye-web.jsx:58`.
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 text-fs-100 text-gj-grey"
+            >
+              <Icon name="document" size={11} aria-hidden />
+              {b.label}
+            </span>
+          )
+        }
         // b.kind === 'action'
         return (
           <YayeActionCard

@@ -15,6 +15,7 @@ import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
 import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
+import { buildSourcesLabel, type SourcesInput } from './sources-label'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
@@ -459,6 +460,22 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   return { role: 'tool', tool_call_id: call.id, content: toolContent }
 }
 
+/**
+ * Ligne de sources (règle v5 non négociable — cf. `blocks.ts`), DÉRIVÉE de ce
+ * qui a réellement servi : `buildContextBlock` renvoie une chaîne vide quand ni
+ * mémo ni contexte graphe ne sont disponibles (nouvel inscrit, graphe pas
+ * encore construit, échec de chargement), et une réponse peut être rédigée sans
+ * qu'aucun outil catalogue n'ait été appelé. Un libellé posé en dur affirmerait
+ * alors des sources qui n'ont pas servi — une caution fabriquée est pire que
+ * pas de ligne, donc on n'émet rien dans ce cas (cf. `buildSourcesLabel`).
+ * N'est ajoutée qu'aux réponses RÉELLEMENT générées par le modèle — jamais aux
+ * court-circuits pre-screen ni aux escalades.
+ */
+function sourcesBlocks(input: SourcesInput): YayeBlock[] {
+  const label = buildSourcesLabel(input)
+  return label ? [{ kind: 'sources', label }] : []
+}
+
 /** Bloc d'accusé de réception pour l'escalade de garde-fou (max rounds). */
 function maxRoundsEscaladeBlock(reference: string): YayeBlock {
   return {
@@ -596,8 +613,22 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind), tokensIn: usage.in, tokensOut: usage.out },
       })
-      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]))), toolsUsed, toolCalls: state.toolCalls }
+      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils,
+      // puis la ligne de sources (règle v5) — la seule vraie réponse RÉDIGÉE par le modèle.
+      return {
+        reply,
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed }),
+            ]),
+          ),
+        ),
+        toolsUsed,
+        toolCalls: state.toolCalls,
+      }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -762,7 +793,21 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]))), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
+      yield {
+        type: 'done',
+        reply,
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...state.blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed: state.toolsUsed }),
+            ]),
+          ),
+        ),
+        toolsUsed: state.toolsUsed,
+        toolCalls: state.toolCalls,
+      }
       return
     }
 

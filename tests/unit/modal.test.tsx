@@ -54,4 +54,32 @@ describe('<Modal />', () => {
     })
     expect(document.activeElement).toBe(trigger)
   })
+
+  // GUIC-689 — Lot C2.1 : bouton fermer via sprite <Icon name="close" />,
+  // jamais le glyphe texte brut « ✕ » (aligné sur Sheet).
+  it('utilise l’icône sprite pour le bouton fermer (avec title)', () => {
+    render(<Harness />)
+    const closeBtn = screen.getByRole('button', { name: 'Fermer' })
+    const use = closeBtn.querySelector('use')
+    expect(use).not.toBeNull()
+    expect(use!.getAttribute('href')).toBe('/icons.svg#i-close')
+    expect(closeBtn.textContent).not.toMatch(/✕/)
+  })
+
+  it('utilise l’icône sprite pour le bouton fermer (sans title)', () => {
+    function NoTitleHarness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <Modal isOpen={open} onClose={() => setOpen(false)}>
+          <p>Contenu</p>
+        </Modal>
+      )
+    }
+    render(<NoTitleHarness />)
+    const closeBtn = screen.getByRole('button', { name: 'Fermer' })
+    const use = closeBtn.querySelector('use')
+    expect(use).not.toBeNull()
+    expect(use!.getAttribute('href')).toBe('/icons.svg#i-close')
+    expect(closeBtn.textContent).not.toMatch(/✕/)
+  })
 })

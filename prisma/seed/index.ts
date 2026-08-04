@@ -47,6 +47,7 @@
 
 import { prisma } from '../../src/lib/prisma'
 import { seedOpportunites } from './opportunites'
+import { seedOpportuniteDetails } from './opportunite-details'
 import { seedProgrammes } from './programmes'
 import { seedOpportuniteTypes } from './opportunite-types'
 import { seedRessources } from './ressources'
@@ -69,6 +70,13 @@ async function main() {
   // Opportunités legacy (sera repris par 178d via OpportuniteService)
   const count = await seedOpportunites(prisma)
   console.log(`Seed Guichet Jeunesse — ${count} opportunités insérées (GUIC-20).`)
+
+  // GUIC-689 — détails de sous-type. Sans cette étape, les fiches d'offre
+  // n'affichent que les champs génériques : les lignes de sous-type héritées
+  // de la migration portent des valeurs de remplissage (montant à 0,
+  // organisme « À renseigner ») qui donnent une vue faussement pauvre.
+  const nbDetails = await seedOpportuniteDetails(prisma)
+  console.log(`Seed Guichet Jeunesse — ${nbDetails} détails de sous-type (GUIC-689).`)
 
   // Ressources M6 (GUIC-239)
   const nbRessources = await seedRessources(prisma)
