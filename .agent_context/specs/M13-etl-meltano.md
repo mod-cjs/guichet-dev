@@ -310,7 +310,7 @@ sans erreur visible.
 ### 8.4 Réconciliation
 
 ```
-GET /api/v1/export/_counts?since=<ISO>  →  { "utilisateurs": 22014, "candidatures": 4380, … }
+GET /api/v1/export/counts?since=<ISO>  →  { "utilisateurs": 22014, "candidatures": 4380, … }
 ```
 
 Appelé en fin de pipeline et comparé aux `COUNT(*)` de l'entrepôt sur la même fenêtre.
@@ -318,10 +318,13 @@ Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait ».
 
 ### 8.5 Suppressions dures
 
-Les cascades (`Candidature` supprimée avec son `Utilisateur`) ne sont pas capturables par
-watermark. Traitement retenu : **full-refresh hebdomadaire des clés seules**
-(`?fields=id`, léger), qui permet à dbt de marquer les absents. Écarté : un stream
-d'événements de suppression, plus coûteux pour un besoin BI.
+Les cascades ne sont pas capturables par watermark. Traitement retenu à l'origine :
+full-refresh hebdomadaire des clés seules, léger. **Implémenté au lot 7 du durcissement
+(GUIC-700, `.agent_context/specs/M13-durcissement-etl.md`)** — révisé en un script autonome
+(`scripts/datahub/purge-absents.ts`, Prisma direct + `psql`), pas un paramètre `?fields=`
+exposé sur l'API publique : le comparatif clés source/entrepôt reste un usage strictement
+interne, sans surface API supplémentaire à sécuriser. Écarté : un stream d'événements de
+suppression, plus coûteux pour un besoin BI.
 
 ### 8.6 Format
 
@@ -420,7 +423,7 @@ personnelles sans aucun test).
 ### 10.3 Acceptation de bout en bout
 
 `meltano run tap-guichet target-postgres` deux fois de suite : le second run n'extrait que
-les lignes modifiées, et `_counts` concorde avec l'entrepôt.
+les lignes modifiées, et `counts` concorde avec l'entrepôt.
 
 ---
 
@@ -435,7 +438,7 @@ avant toute implémentation, le ticket le dit lui-même.
 | 2 | Dictionnaire | Promotion des `///`, parseur, `comments.sql`, test de garde | — |
 | 3 | Contrat | `streams.ts` typé + générateur + 5 artefacts + étape CI | 2 |
 | 4 | Socle | `cursor.ts`, `keysetExport()`, auth scopée, rate limit 2 profils, audit | 1, 3 |
-| 5 | Routes | Route dynamique `[stream]` + migration des 4 routes + `_counts` | 4 |
+| 5 | Routes | Route dynamique `[stream]` + migration des 4 routes + `counts` | 4 |
 | 6 | Doc (GUIC-151) | OpenAPI généré + guide consommateur | 3, 5 |
 | 7 | Tap | `tap-guichet`, `meltano.yml`, `target-postgres` | 5 |
 | 8 | dbt (GUIC-149) | Staging + marts, hors dépôt Guichet | 7 |
@@ -466,7 +469,7 @@ avant de généraliser aux douze autres.
 
 | Risque | Traitement |
 |---|---|
-| Perte silencieuse de lignes (skew de commit) | Lookback 5 min + upsert idempotent + `_counts` |
+| Perte silencieuse de lignes (skew de commit) | Lookback 5 min + upsert idempotent + `counts` |
 | Générateur non exécuté → artefacts divergents | Étape CI qui régénère et échoue sur diff non vide |
 | Commentaires MariaDB effacés par une migration | `comments.sql` idempotent rejoué après chaque `migrate deploy` |
 | Filesort sur `consultations` | Index composites (lot 1), `EXPLAIN` avant mise en service |

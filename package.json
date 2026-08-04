@@ -56,7 +56,9 @@
     "datahub:tap": "tsx scripts/datahub/generate-tap-manifest.ts",
     "datahub:dbt": "tsx scripts/datahub/generate-dbt-sources.ts",
     "datahub:generate": "npm run datahub:openapi && npm run datahub:tap && npm run datahub:dbt",
-    "datahub:preflight": "tsx scripts/datahub/preflight.ts"
+    "datahub:preflight": "tsx scripts/datahub/preflight.ts",
+    "datahub:reconcile": "tsx scripts/datahub/reconcile.ts",
+    "datahub:purge-absents": "tsx scripts/datahub/purge-absents.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",

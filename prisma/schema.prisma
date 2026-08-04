@@ -1283,9 +1283,13 @@ model Programme {
 //  - au moins un programme à la création (décision PO 2026-07-28).
 // ─────────────────────────────────────────────
 
+/// Rattachement d'une opportunité à un programme (GUIC-684 — M:N générique).
 model OpportuniteProgramme {
+  /// Offre rattachée — clé de jointure vers `opportunites`.
   opportuniteId String  @map("opportunite_id") @db.VarChar(36)
+  /// Programme de rattachement — clé de jointure vers `programmes`.
   programmeId   String  @map("programme_id") @db.VarChar(36)
+  /// Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par offre.
   principal     Boolean @default(false)
 
   opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
@@ -1296,9 +1300,13 @@ model OpportuniteProgramme {
   @@map("opportunites_programmes")
 }
 
+/// Rattachement d'une ressource à un programme (GUIC-684 — M:N générique).
 model RessourceProgramme {
+  /// Ressource rattachée — clé de jointure vers `ressources`.
   ressourceId String  @map("ressource_id") @db.VarChar(36)
+  /// Programme de rattachement — clé de jointure vers `programmes`.
   programmeId String  @map("programme_id") @db.VarChar(36)
+  /// Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par ressource.
   principal   Boolean @default(false)
 
   ressource Ressource @relation(fields: [ressourceId], references: [id], onDelete: Cascade)
@@ -1309,9 +1317,13 @@ model RessourceProgramme {
   @@map("ressources_programmes")
 }
 
+/// Rattachement d'un événement à un programme (GUIC-684 — M:N générique).
 model EvenementProgramme {
+  /// Événement rattaché — clé de jointure vers `evenements`.
   evenementId String  @map("evenement_id") @db.VarChar(36)
+  /// Programme de rattachement — clé de jointure vers `programmes`.
   programmeId String  @map("programme_id") @db.VarChar(36)
+  /// Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par événement.
   principal   Boolean @default(false)
 
   evenement Evenement @relation(fields: [evenementId], references: [id], onDelete: Cascade)
@@ -1326,8 +1338,11 @@ model EvenementProgramme {
 /// FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui
 /// existe indépendamment des programmes qui s'y déploient.
 model CentreProgramme {
+  /// Centre rattaché — clé de jointure vers `centres`.
   centreId    String  @map("centre_id") @db.VarChar(36)
+  /// Programme de rattachement — clé de jointure vers `programmes`.
   programmeId String  @map("programme_id") @db.VarChar(36)
+  /// Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par centre.
   principal   Boolean @default(false)
 
   centre    Centre    @relation(fields: [centreId], references: [id], onDelete: Cascade)
@@ -1341,8 +1356,11 @@ model CentreProgramme {
 /// Organisations partenaires d'un programme (GUIC-684 — extension acteurs).
 /// FACULTATIF : un partenaire peut publier des offres sans relever d'un programme.
 model OrganisationProgramme {
+  /// Organisation rattachée — clé de jointure vers `organisations`.
   organisationId String  @map("organisation_id") @db.VarChar(36)
+  /// Programme de rattachement — clé de jointure vers `programmes`.
   programmeId    String  @map("programme_id") @db.VarChar(36)
+  /// Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par organisation.
   principal      Boolean @default(false)
 
   organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)

@@ -752,3 +752,98 @@ sources:
             description: "Dernière modification. Watermark de réplication Data Hub."
             meta:
               cjs_tier: "public"
+      - name: "opportunites_programmes"
+        description: "Rattachement d'une opportunité à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "opportunite_id"
+            description: "Offre rattachée — clé de jointure vers `opportunites`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par offre."
+            meta:
+              cjs_tier: "public"
+      - name: "ressources_programmes"
+        description: "Rattachement d'une ressource à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "ressource_id"
+            description: "Ressource rattachée — clé de jointure vers `ressources`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par ressource."
+            meta:
+              cjs_tier: "public"
+      - name: "evenements_programmes"
+        description: "Rattachement d'un événement à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "evenement_id"
+            description: "Événement rattaché — clé de jointure vers `evenements`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par événement."
+            meta:
+              cjs_tier: "public"
+      - name: "centres_programmes"
+        description: "Centres où un programme est déployé (GUIC-684 — extension acteurs). FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui existe indépendamment des programmes qui s'y déploient."
+        columns:
+          - name: "centre_id"
+            description: "Centre rattaché — clé de jointure vers `centres`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par centre."
+            meta:
+              cjs_tier: "public"
+      - name: "organisations_programmes"
+        description: "Organisations partenaires d'un programme (GUIC-684 — extension acteurs). FACULTATIF : un partenaire peut publier des offres sans relever d'un programme."
+        columns:
+          - name: "organisation_id"
+            description: "Organisation rattachée — clé de jointure vers `organisations`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par organisation."
+            meta:
+              cjs_tier: "public"

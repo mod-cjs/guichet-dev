@@ -20,7 +20,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseSchemaDoc, parseEnums } from './schema-doc'
 import { allDescriptors } from './descriptor'
-import { resoudreColonnes } from './openapi'
+import { allFullTableDescriptors } from './full-table-descriptor'
+import { resoudreColonnes, resoudreColonnesFullTable } from './openapi'
 import { renderYamlDocument, type YamlValue } from './yaml'
 import { streams } from './streams'
 
@@ -65,6 +66,35 @@ export function buildDbtSources(schemaPath?: string): string {
     }
   })
 
+  // GUIC-700 lot 7 — flux FULL_TABLE (jonctions programmes) : pas de loaded_at_field ni de
+  // freshness (aucun watermark disponible), pas de test `unique` sur la clé composite (ni
+  // colonne seule n'est unique — un test de combinaison relève d'un test dbt dédié, hors
+  // périmètre du générateur).
+  const tablesFullTable: YamlValue[] = allFullTableDescriptors().map((descriptor) => {
+    const model = models.find((m) => m.model === descriptor.model)
+    if (!model) throw new Error(`modèle absent du schéma : ${descriptor.model}`)
+    if (model.doc === null) throw new Error(`modèle exporté non documenté : ${descriptor.model}`)
+
+    const nomExporte = (field: string): string =>
+      descriptor.columns.find((c) => c.field === field)?.as ?? field
+    const clesComposite = descriptor.primaryKey.map(nomExporte)
+
+    const colonnes: YamlValue[] = Object.entries(
+      resoudreColonnesFullTable(descriptor, model.fields, enums)
+    ).map(([nom, colonne]) => ({
+      name: nom,
+      description: colonne.description,
+      meta: { cjs_tier: colonne.tier },
+      ...(clesComposite.includes(nom) ? { tests: ['not_null'] } : {}),
+    }))
+
+    return {
+      name: descriptor.name,
+      description: model.doc,
+      columns: colonnes,
+    }
+  })
+
   const document: YamlValue = {
     version: 2,
     sources: [
@@ -73,7 +103,7 @@ export function buildDbtSources(schemaPath?: string): string {
         description:
           "Données brutes déversées par le tap Guichet. Ne jamais écrire dans ce schéma : il est reconstruit par le pipeline, et toute modification manuelle serait perdue au run suivant.",
         schema: SCHEMA_SOURCE,
-        tables,
+        tables: [...tables, ...tablesFullTable],
       },
     ],
   }

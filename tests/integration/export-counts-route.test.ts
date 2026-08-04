@@ -55,7 +55,7 @@ describe('GET /api/v1/export/counts', () => {
   })
 
   it('compte tous les flux du contrat, sans en oublier', async () => {
-    const res = await route.GET(req(AUTH))
+    const res = await route.GET(req(AUTH, '?since=2026-07-01T00:00:00.000Z'))
     expect(res.status).toBe(200)
 
     const body = await res.json()
@@ -72,9 +72,14 @@ describe('GET /api/v1/export/counts', () => {
     })
   })
 
-  it('compte tout en l\'absence de borne', async () => {
-    await route.GET(req(AUTH))
-    expect(mockCount).toHaveBeenCalledWith({ where: {} })
+  it('refuse sans `since` — la borne est désormais obligatoire (GUIC-697 D6)', async () => {
+    // Avant correctif : `since` absent comptait TOUT sur les 13 flux, séquentiellement,
+    // sous `maxDuration = 60`. Sur `consultations` (le plus gros volume du pipeline),
+    // c'est l'outil de diagnostic qui tombe en timeout au moment précis où on en a
+    // besoin — après un run qui a peut-être perdu des lignes, sur gros volume.
+    const res = await route.GET(req(AUTH))
+    expect(res.status).toBe(400)
+    expect(mockCount).not.toHaveBeenCalled()
   })
 
   it('rappelle la borne appliquée, pour que la comparaison soit vérifiable', async () => {
@@ -91,7 +96,7 @@ describe('GET /api/v1/export/counts', () => {
   })
 
   it('interdit la mise en cache', async () => {
-    const res = await route.GET(req(AUTH))
+    const res = await route.GET(req(AUTH, '?since=2026-07-01T00:00:00.000Z'))
     expect(res.headers.get('cache-control')).toBe('no-store')
   })
 })

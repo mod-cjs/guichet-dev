@@ -148,6 +148,16 @@ DATAHUB_API_KEYS="meltano:<le même secret>"
 Le nom avant les deux-points identifie le consommateur dans le journal d'audit. Plusieurs
 entrées séparées par des virgules permettent une **rotation sans coupure**.
 
+### Réconciliation automatisée (GUIC-697, lot 5)
+
+```
+WAREHOUSE_DATABASE_URL=postgresql://<user>:<mdp>@<hôte>:5432/<base>
+```
+
+Lue par `scripts/datahub/reconcile.ts`, appelé automatiquement par `run-nightly.sh` (§10)
+après chaque `dbt build`. Sonde l'entrepôt via un conteneur `postgres:16-alpine --rm` — pas
+de client PostgreSQL installé côté Guichet.
+
 ## 7. Trois invariants à ne jamais casser
 
 **`lookback_minutes` ne doit jamais valoir 0.** La colonne de réplication est posée à
@@ -213,18 +223,57 @@ meltano run tap-guichet target-postgres dbt-postgres:run
 meltano invoke dbt-postgres docs generate
 ```
 
+### Chaîne planifiée (GUIC-697, lot 5)
+
 Planification recommandée — une crontab plutôt qu'un conteneur permanent : le pipeline est
 un batch, et un service qui tourne sans rien faire masque les échecs.
 
 ```cron
-30 2 * * * cd /srv/guichet && docker compose --env-file .env -f docker-compose.etl.yml \
-  run --rm meltano run tap-guichet target-postgres >> /var/log/datahub.log 2>&1
+30 2 * * * cd /srv/guichet && GUICHET_ETL_ENV_FILE=.env.etl \
+  WAREHOUSE_DATABASE_URL=postgresql://... scripts/etl/run-nightly.sh
 ```
 
-**Après chaque run**, comparer `/api/v1/export/counts?since=<début du run>` aux `COUNT(*)`
-de l'entrepôt sur la même fenêtre. « Le pipeline n'a pas planté » et « le pipeline a tout
-extrait » sont deux choses différentes : une extraction incrémentale mal bornée se termine
-proprement en ayant perdu des lignes.
+`scripts/etl/run-nightly.sh` chaîne trois étapes, chacune bloquante pour la suivante
+(tout-ou-rien assumé, §4.1 B5 du rapport GUIC-693 : isoler l'échec par étape produirait des
+runs **verts** avec un flux ou une transformation morte dedans) :
+
+1. **Extraction** — `meltano run tap-guichet target-postgres`.
+2. **Transformation et tests dbt** — `meltano invoke dbt-postgres build` (`build` = modèles
+   **et** tests ensemble ; les 35 tests dbt n'étaient auparavant lancés par aucune commande
+   documentée).
+3. **Réconciliation automatisée** — `npm run datahub:reconcile <since>` : compare, flux par
+   flux, un comptage Prisma côté Guichet à un comptage PostgreSQL côté entrepôt sur la
+   fenêtre du run qui vient de se terminer. « Le pipeline n'a pas planté » et « le pipeline
+   a tout extrait » sont deux choses différentes : une extraction incrémentale mal bornée
+   se termine proprement en ayant perdu des lignes, silencieusement.
+
+Chaque étape écrit un marqueur `✓`/`✗` horodaté dans `DATAHUB_LOG_FILE` (défaut
+`/var/log/guichet/datahub-nightly.log`), avec rotation automatique par seuil de taille
+(`DATAHUB_LOG_MAX_BYTES`, défaut 10 Mio). Un code de sortie non nul est ce que
+l'alerting (GUIC-576) surveille sur ce log — même convention que `scripts/cron/run-job.sh`.
+
+### Procédure de rejeu
+
+Un run interrompu ou en écart de réconciliation ne se rejoue **pas** en relançant
+`run-nightly.sh` tel quel si l'état Meltano a déjà avancé son bookmark au-delà du point
+voulu : le recouvrement de 5 minutes absorbe les micro-décalages, pas un rejeu de plusieurs
+heures.
+
+```bash
+# Voir l'état actuel du bookmark par flux
+docker compose -f docker-compose.etl.yml run --rm meltano state get dev:tap-guichet-to-target-postgres
+
+# Effacer l'état d'UN flux (le fait repartir en full-refresh à sa prochaine extraction) —
+# jamais celui de tous les flux d'un coup, sauf incident majeur confirmé.
+docker compose -f docker-compose.etl.yml run --rm meltano state clear dev:tap-guichet-to-target-postgres --state-id <flux>
+
+# Rejouer manuellement une fenêtre précise (contourne temporairement le bookmark)
+docker compose -f docker-compose.etl.yml run --rm meltano run tap-guichet target-postgres \
+  --state-id-suffix rejeu-manuel
+```
+
+Après tout rejeu manuel : relancer `npm run datahub:reconcile <since>` avant de considérer
+le pipeline de nouveau fiable.
 
 ## 11. Limites connues
 
@@ -267,3 +316,5 @@ dates de réplication valides, intégrité des jonctions, index composites, clé
 | `docs/openapi/datahub-v1.yaml` | Contrat d'API (généré) |
 | `src/lib/datahub/streams.ts` | **Contrat d'export — point de contrôle CDP** |
 | `scripts/datahub/preflight.ts` | Contrôles de mise en service |
+| `scripts/etl/run-nightly.sh` | Orchestration planifiée : extraction → dbt → réconciliation |
+| `scripts/datahub/reconcile.ts` | Réconciliation automatisée des comptages post-run |

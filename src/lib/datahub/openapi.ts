@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseSchemaDoc, parseEnums, type FieldDoc } from './schema-doc'
 import { allDescriptors, type StreamDescriptor } from './descriptor'
+import { allFullTableDescriptors, type FullTableDescriptor } from './full-table-descriptor'
 import { streams } from './streams'
 import { emitYaml, type YamlValue } from './yaml'
 
@@ -101,6 +102,37 @@ export function resoudreColonnes(
   return out
 }
 
+/**
+ * Résolution des colonnes FULL_TABLE (GUIC-700, lot 7) — plus simple que
+ * `resoudreColonnes` : ces flux (jonctions programmes) ne portent aucune transformation,
+ * donc pas de recherche dans un registre `outputType`/`outputNullable` — la description
+ * et la nullabilité viennent toujours directement du `///` et du type Prisma source.
+ */
+export function resoudreColonnesFullTable(
+  descriptor: FullTableDescriptor,
+  fields: FieldDoc[],
+  enums: Record<string, string[]>
+): Record<string, ColonneResolue> {
+  const out: Record<string, ColonneResolue> = {}
+
+  for (const column of descriptor.columns) {
+    const field = fields.find((f) => f.field === column.field)
+    if (!field) throw new Error(`champ absent du schéma : ${descriptor.model}.${column.field}`)
+    if (!field.doc) {
+      throw new Error(`colonne exportée non documentée : ${descriptor.name}.${column.field}`)
+    }
+
+    const base = typeOuvert(field, undefined, enums)
+    out[column.as] = {
+      ...(base as { type: string; format?: string; enum?: string[] }),
+      ...(field.optional ? { type: [base.type as string, 'null'] } : {}),
+      description: field.doc,
+      tier: column.tier,
+    }
+  }
+  return out
+}
+
 function proprietes(
   descriptor: StreamDescriptor,
   fields: FieldDoc[],
@@ -108,6 +140,19 @@ function proprietes(
 ): Record<string, YamlValue> {
   const out: Record<string, YamlValue> = {}
   for (const [nom, colonne] of Object.entries(resoudreColonnes(descriptor, fields, enums))) {
+    const { tier, ...reste } = colonne
+    out[nom] = { ...(reste as Record<string, YamlValue>), 'x-cjs-tier': tier }
+  }
+  return out
+}
+
+function proprietesFullTable(
+  descriptor: FullTableDescriptor,
+  fields: FieldDoc[],
+  enums: Record<string, string[]>
+): Record<string, YamlValue> {
+  const out: Record<string, YamlValue> = {}
+  for (const [nom, colonne] of Object.entries(resoudreColonnesFullTable(descriptor, fields, enums))) {
     const { tier, ...reste } = colonne
     out[nom] = { ...(reste as Record<string, YamlValue>), 'x-cjs-tier': tier }
   }
@@ -182,11 +227,109 @@ export function buildOpenApiDocument(schemaPath?: string): string {
               },
             },
           },
-          '400': { description: 'Curseur malformé', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '400': { description: 'Curseur ou borne `since` malformés', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
           '401': { description: 'Clé API absente, invalide, ou non configurée côté serveur', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '429': { description: 'Quota dépassé (300 requêtes/minute par clé)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
         },
       },
     }
+  }
+
+  // GUIC-700 lot 7 — flux FULL_TABLE (jonctions programmes) : pas de `since`, pas de
+  // `replication_key` en meta (aucun watermark). Réextraits intégralement à chaque run.
+  for (const descriptor of allFullTableDescriptors()) {
+    const model = models.find((m) => m.model === descriptor.model)
+    if (!model) throw new Error(`modèle absent du schéma : ${descriptor.model}`)
+    if (model.doc === null) throw new Error(`modèle exporté non documenté : ${descriptor.model}`)
+
+    const nomSchema = `${descriptor.name}Row`
+    schemas[nomSchema] = {
+      type: 'object',
+      description: model.doc,
+      properties: proprietesFullTable(descriptor, model.fields, enums),
+    }
+
+    paths[`/export/${descriptor.name}`] = {
+      get: {
+        summary: `Exporter le flux ${descriptor.name} (FULL_TABLE)`,
+        description: `${model.doc} Réextrait intégralement à chaque run — pas de \`since\`, aucun watermark disponible.`,
+        operationId: `export_${descriptor.name}`,
+        parameters: [
+          { $ref: '#/components/parameters/cursor' },
+          { $ref: '#/components/parameters/limit' },
+        ],
+        responses: {
+          '200': {
+            description: `Page de ${descriptor.name}`,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: `#/components/schemas/${nomSchema}` } },
+                    meta: {
+                      type: 'object',
+                      properties: {
+                        next_cursor: { type: ['string', 'null'] },
+                        has_more: { type: 'boolean' },
+                        generated_at: { type: 'string', format: 'date-time' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': { description: 'Curseur malformé', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '401': { description: 'Clé API absente, invalide, ou non configurée côté serveur', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '429': { description: 'Quota dépassé', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+        },
+      },
+    }
+  }
+
+  // GUIC-697 D2 — endpoint de réconciliation, absent jusqu'ici du contrat publié alors
+  // que le mode opératoire (docs/datahub-briefing-etl.md §10) demande de l'appeler après
+  // chaque run. `since` y est OBLIGATOIRE (D6) : un comptage non borné sur consultations
+  // (le plus gros volume) fait timeout sous maxDuration=60.
+  schemas.Counts = {
+    type: 'object',
+    description: 'Comptage par flux sur la fenêtre `since`, à comparer aux COUNT(*) de l\'entrepôt.',
+    additionalProperties: { type: 'integer' },
+  }
+  paths['/export/counts'] = {
+    get: {
+      summary: 'Comptages de réconciliation, par flux, sur une fenêtre',
+      description:
+        "Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait » : à appeler après chaque run, avec le `since` de ce run, et comparer aux COUNT(*) de l'entrepôt sur la même fenêtre.",
+      operationId: 'export_counts',
+      parameters: [{ $ref: '#/components/parameters/sinceRequis' }],
+      responses: {
+        '200': {
+          description: 'Comptages de la fenêtre',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: { $ref: '#/components/schemas/Counts' },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      since: { type: 'string', format: 'date-time' },
+                      generated_at: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': { description: '`since` absente ou illisible', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+        '401': { description: 'Clé API absente, invalide, ou non configurée côté serveur', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+        '429': { description: 'Quota dépassé (60 requêtes/minute par clé)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+      },
+    },
   }
 
   const document: Record<string, YamlValue> = {
@@ -213,6 +356,14 @@ export function buildOpenApiDocument(schemaPath?: string): string {
           in: 'query',
           description:
             "Borne basse sur la colonne de réplication, ISO 8601. Le consommateur doit appliquer un recouvrement de quelques minutes sur son dernier point d'arrêt : la colonne est posée à l'écriture applicative, pas au commit, et une transaction committée en retard serait sinon jamais extraite.",
+          schema: { type: 'string', format: 'date-time' },
+        },
+        sinceRequis: {
+          name: 'since',
+          in: 'query',
+          required: true,
+          description:
+            "Borne basse, ISO 8601 — OBLIGATOIRE sur cet endpoint (GUIC-697 D6) : un comptage non borné sur les 13 flux, dont `consultations`, dépasse `maxDuration = 60`.",
           schema: { type: 'string', format: 'date-time' },
         },
         cursor: {

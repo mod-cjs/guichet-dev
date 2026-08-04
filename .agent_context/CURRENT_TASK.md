@@ -1,51 +1,56 @@
-# CURRENT_TASK — GUIC-695 · Lot 2 durcissement ETL : brèche CDP du hachage de consultation
+# CURRENT_TASK — GUIC-700 · Lot 7 durcissement ETL : suppressions, rétention, v_programs_summary
 
-**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.2 S1, §5 Lot 2 — rapport GUIC-693,
-branche `feature/GUIC-694-etl-lot1-exploitabilite`, PR #325) · **Branche** :
-`feature/GUIC-695-cdp-hachage-consultation` (depuis `dev`) · **JIRA** :
-[GUIC-695](https://consortiumjeunesse.atlassian.net/browse/GUIC-695)
+**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.3 R6, §5 Lot 7 — arbitrages
+tranchés le 2026-08-03) · **Branche** : `feature/GUIC-700-etl-suppressions-retention`, **empilée
+sur** `feature/GUIC-694-etl-lot1-exploitabilite` · **JIRA** :
+[GUIC-700](https://consortiumjeunesse.atlassian.net/browse/GUIC-700)
 
-## Contexte
-Campagne d'épreuve GUIC-693 (§4.2 S1) : le hachage de pseudonymisation des consultations était
-réversible — `.env.example` livrait `CONSULTATION_HASH_SALT=""`, que `??` laisse passer ; un seul
-tour de SHA-256 s'énumère à 3,3 M hachages/s sur un cœur, soit ~21 min pour couvrir les 2³² IPv4.
-Aggravant : `cjs_uid` et `sujet_hash` voyageaient sur la même ligne de l'entrepôt Data Hub, un
-oracle gratuit pour confirmer un sel candidat.
+## Arbitrages tranchés (voir spec pour le détail des 3 questions posées)
+1. Absent détecté par le full-refresh hebdomadaire des clés → **suppression physique** dans
+   l'entrepôt (guichet_raw + marts, qui se recalculent dessus). Pas de tombstone.
+2. **Rétention événementielle uniquement** — pas de purge indépendante par durée côté entrepôt.
+3. **v_programs_summary dans la même passe** (support FULL_TABLE pour les 5 tables de jonction
+   programmes).
 
-## État — les deux volets du correctif sont faits
-- [x] RED puis GREEN — `hashSujet` devient un HMAC-SHA256 à clé obligatoire
-      (`src/lib/analytics/consultation-hash.ts`, module pur). Refus au **démarrage** en
-      production si la clé est absente/blanche, via `instrumentation.ts` — sans ce garde,
-      `trackConsultation` (fail-soft) aurait avalé l'absence de clé en silence. Rotation
-      possible (relecture paresseuse à chaque appel). `.env.example` :
-      `CONSULTATION_HASH_KEY` remplace `CONSULTATION_HASH_SALT=""`.
-- [x] RED puis GREEN — `sujet_hash` **masqué à l'export** dès que `cjs_uid` est renseigné
-      (le connecté se suit par `cjs_uid`, le hash ne sert qu'aux anonymes). Le contrat
-      d'export (`stream-types.ts`) passe désormais la ligne source aux `transform`, et gagne
-      `outputNullable` pour déclarer qu'une colonne NOT NULL peut sortir masquée à null —
-      sans quoi le manifeste Singer généré aurait rejeté chaque ligne d'un connecté (même
-      mécanique que le défaut B2 du rapport GUIC-693). Artefacts régénérés (OpenAPI,
-      `streams.json`, `sources.yml`), `///` de `Consultation` réalignés.
-- [x] `npm run validate` intégral vert : 557 suites, 4299 tests, tsc et lint propres.
-- [ ] Push + PR vers `dev` (lot autonome, séparé de PR #325 — un lot = une PR).
+## Vérification empirique faite avant tout code
+`Utilisateur` n'est jamais hard-deleted (soft-delete + anonymisation SSO, déjà propagé).
+Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre`, `Evenement`,
+`Ressource`. `Opportunite.delete()` existe mais aucun appelant identifié.
 
-## Point d'attention découvert en cours (pas une régression de ce ticket)
-La base MariaDB locale partagée (`guichet_jeunesse`, celle que ciblent les tests d'intégration
-via `tests/setup.ts`, différente de `guichet_push` que `.env.local` pointe pour le labo ETL)
-n'avait pas les 2 migrations du 30/07 (`add_consultations`,
-`datahub_watermarks_et_index_extraction`) — déjà mergées sur `dev`, juste jamais rejouées sur
-cette base partagée entre sessions parallèles. `prisma migrate deploy` appliqué dessus pour
-débloquer `npm run validate` ; aucune donnée détruite, uniquement rattrapage de schéma.
+## État — Parties A et B livrées, TDD strict ; branche resynchronisée avec dev
+- [x] Ticket GUIC-700 créé (sous-tâche GUIC-693) + arbitrages obtenus + spec mise à jour
+- [x] Partie A — `src/lib/datahub/purge-absents.ts` (module pur, injection comme
+      `reconcile.ts`) : détecte les clés présentes dans l'entrepôt mais absentes de la liste
+      complète des clés source, supprime physiquement dans `guichet_raw`. Appliqué
+      uniformément aux 13 flux — une ligne soft-deleted reste listée, jamais supprimée à tort.
+- [x] Partie A — `scripts/datahub/purge-absents.ts` (Prisma direct + `psql` dockerisé, même
+      patron que `reconcile.ts`) — à planifier hebdomadairement, crontab séparée de
+      `run-nightly.sh`.
+- [x] Partie B — support `FULL_TABLE` dans un système PARALLÈLE à l'incrémental
+      (`full-table-types.ts`, `full-table-streams.ts`, `full-table-descriptor.ts`,
+      `full-table-export.ts`) : clé composite à deux champs, curseur dédié, jamais de `since`.
+      5 flux déclarés (jonctions programmes), câblés dans la route `[stream]` (registre
+      incrémental essayé d'abord) et dans les trois générateurs (OpenAPI, manifeste tap,
+      sources dbt). Documentation `///` ajoutée sur les 5 modèles Prisma (manquante sur 3/5).
+- [x] Partie B — `v_programs_summary.sql` corrigé : 5 compteurs de rattachement réels
+      (LEFT JOIN + COALESCE — un programme sans rattachement ne disparaît pas du comptage).
+- [x] `npm run validate` intégral vert la première fois : 559 suites, 4362 tests.
+- [x] **Rebasage post-incident** — PR #325 (GUIC-694) avait mergé sur `dev` avant que PR #335
+      (GUIC-697) ne merge dans `feature/GUIC-694-etl-lot1-exploitabilite`, laissant GUIC-697
+      orphelin (jamais atteint `dev`). Corrigé par la PR #342 (cette branche →
+      `feature/GUIC-694-etl-lot1-exploitabilite` → `dev`). Cette branche (GUIC-700) a ensuite
+      mergé la branche GUIC-694 à jour : conflits résolus dans `openapi.ts` (chemins
+      FULL_TABLE + `/export/counts` coexistent), `[stream]/route.ts` (routage FULL_TABLE +
+      validation `parseSince` combinés), `package.json` (les deux scripts npm coexistent),
+      `datahub-openapi.test.ts` (assertions fusionnées). Artefacts régénérés
+      (`npm run datahub:generate`) plutôt que résolus à la main (fichiers générés).
+- [ ] Revalider `npm run validate` après régénération des artefacts, puis push
 
-## Déploiement — à poser AVANT le merge en préprod/prod
-- `CONSULTATION_HASH_KEY` : `openssl rand -hex 32`, valeur différente par environnement.
-  Sans elle, l'app **refuse de démarrer** en production (comportement voulu).
-- Les hash changent de valeur (HMAC ≠ SHA-256 salé) : la garde de dédoublonnage Redis (30 min)
-  repart de zéro au déploiement — sur-comptage ponctuel d'une fenêtre, sans action requise.
-- L'entrepôt ne reçoit plus `sujet_hash` pour les connectés : aucun mart dbt ne le lisait à ce
-  jour, donc pas de rupture de contrat aval identifiée.
+## Notes
+- Le mécanisme de suppression révise le `?fields=id` public de la spec §8.5 initiale : script
+  interne Prisma-direct, pas de nouveau paramètre exposé sur l'API publique.
 
-## Reste du plan de durcissement (spec §5)
-Lot 1 GUIC-694 (PR #325, ouverte) · **Lot 2 = cette branche** · Lot 3 refus nets (S2/S3/S4/R3,
-500→400) · Lot 4 pré-vol étendu + fiabilité (R1/R2/R4/R5) · Lot 5 exploitabilité (B5, alertes,
-rejeu) · Lot 6 contrat/doc (D1-D8) · Lot 7 arbitrages hors correctif (suppressions dures R6…).
+## Plan de durcissement ETL (spec §5) — état des 5 PRs
+Lot 1 GUIC-694 (#325, mergée `dev`) · Lot 2 GUIC-695 (#326, mergée `dev`) · Lots 3+4 GUIC-696
+(#327, mergée `dev`) · Lots 5+6 GUIC-697 (#335, rapatriée vers `dev` par #342) · **Lot 7
+GUIC-700 (#341) = cette branche**, dernier lot du plan, resynchronisée avec `dev`.

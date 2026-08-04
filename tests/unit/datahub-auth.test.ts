@@ -46,6 +46,17 @@ describe('authenticateDatahub — refus', () => {
     expect(authenticateDatahub('Basic secret')).toBeNull()
   })
 
+  it('accepte le schéma Bearer indépendamment de la casse — RFC 7235 (GUIC-697 D5)', () => {
+    // Le tap actuel envoie toujours `Bearer` exact et n'est donc pas affecté. Mais le
+    // schéma d'authentification HTTP est insensible à la casse (RFC 7235 §2.1) : un
+    // second consommateur honnête envoyant `bearer` ou `BEARER` se faisait refuser sans
+    // raison valable au regard du standard.
+    process.env.DATAHUB_API_KEY = 'secret'
+    expect(authenticateDatahub('bearer secret')).toEqual({ id: 'datahub' })
+    expect(authenticateDatahub('BEARER secret')).toEqual({ id: 'datahub' })
+    expect(authenticateDatahub('BeArEr secret')).toEqual({ id: 'datahub' })
+  })
+
   it('refuse un Bearer sans valeur', () => {
     process.env.DATAHUB_API_KEY = 'secret'
     expect(authenticateDatahub('Bearer')).toBeNull()
