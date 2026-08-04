@@ -74,6 +74,32 @@ describe('GET /api/v1/export/[stream] — refus', () => {
     expect(body.error.code).toBe('CURSEUR_INVALIDE')
   })
 
+  it('rend 400 sur un since illisible, et non 500 (GUIC-696 S3)', async () => {
+    // Avant correctif : `since` passait tel quel à `new Date(...)` dans keysetExport,
+    // sans jamais être validé — une valeur illisible faisait échouer la requête à la
+    // base, non interceptée en amont, et remontait en 500 (retriable pour le SDK Singer,
+    // qui épuise ses tentatives avant d'abandonner le run).
+    const res = await route.GET(req('utilisateurs', AUTH, '?since=pas-une-date'), params('utilisateurs'))
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error.code).toBe('BORNE_INVALIDE')
+    expect(mockFindMany).not.toHaveBeenCalled()
+  })
+
+  it('rend 400 sur un since hors plage MariaDB, plutôt que d\'ignorer le filtre (GUIC-696 S2)', async () => {
+    // `+275760-09-13` est une date JavaScript légale mais hors plage MariaDB DATETIME :
+    // sans ce refus, la requête posée à la base ne filtrait plus rien et l'API rendait
+    // 200 avec les premières lignes du flux, comme si `since` n'avait jamais été fourni.
+    const res = await route.GET(
+      req('utilisateurs', AUTH, '?since=%2B275760-09-13T00:00:00.000Z'),
+      params('utilisateurs')
+    )
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error.code).toBe('BORNE_INVALIDE')
+    expect(mockFindMany).not.toHaveBeenCalled()
+  })
+
   it('laisse passer la réponse du limiteur de débit', async () => {
     mockRateLimit.mockResolvedValue(
       new Response(null, { status: 429 }) as unknown as Response
@@ -95,7 +121,10 @@ describe('GET /api/v1/export/[stream] — page servie', () => {
     expect(body.data).toEqual([
       { cjs_uid: 'u1', region: 'Dakar', updated_at: '2026-07-01T00:00:00.000Z' },
     ])
-    expect(body.meta.replication_key).toBe('updatedAt')
+    // GUIC-697 D1 — nom EXPORTÉ (`updated_at`), pas le nom Prisma : `data[]` porte déjà
+    // `updated_at`, annoncer `updatedAt` en meta décrirait une colonne qui n'existe pas
+    // dans la réponse.
+    expect(body.meta.replication_key).toBe('updated_at')
     expect(body.meta.has_more).toBe(false)
     expect(body.meta.next_cursor).toBeNull()
   })

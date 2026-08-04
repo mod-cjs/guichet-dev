@@ -25,10 +25,34 @@ describe('contrat OpenAPI publié', () => {
     expect(committe).toBe(buildOpenApiDocument())
   })
 
-  it('déclare un chemin par flux (incrémental ET FULL_TABLE), et rien de plus', () => {
+  it('déclare un chemin par flux (incrémental, FULL_TABLE), plus `/export/counts` (GUIC-697 D2), et rien de plus', () => {
     // Les clés de chemin contiennent des `/` : elles sont citées à l'émission.
     const chemins = [...committe.matchAll(/^ {2}"\/export\/(\w+)":$/gm)].map((m) => m[1])
-    expect(chemins.sort()).toEqual([...Object.keys(streams), ...Object.keys(fullTableStreams)].sort())
+    expect(chemins.sort()).toEqual(
+      [...Object.keys(streams), ...Object.keys(fullTableStreams), 'counts'].sort()
+    )
+  })
+
+  it('déclare 429 sur chaque flux, en plus de 400/401 (GUIC-697 D2)', () => {
+    for (const nom of Object.keys(streams)) {
+      const bloc = committe.slice(committe.indexOf(`"/export/${nom}":`))
+      const finBloc = bloc.indexOf('\n  "/export/', 1)
+      const section = finBloc === -1 ? bloc : bloc.slice(0, finBloc)
+      expect(section).toMatch(/"429":/)
+    }
+  })
+
+  it('déclare /export/counts avec since OBLIGATOIRE (GUIC-697 D6/D2)', () => {
+    const bloc = committe.slice(committe.indexOf('"/export/counts":'))
+    expect(bloc).toMatch(/sinceRequis/)
+    expect(bloc).toMatch(/"400":/)
+    expect(bloc).toMatch(/"401":/)
+    expect(bloc).toMatch(/"429":/)
+
+    // Le paramètre référencé porte bien `required: true` — sans ça la contrainte du
+    // code (D6, since obligatoire) ne serait pas visible dans le contrat publié.
+    const indexParam = committe.indexOf('sinceRequis:')
+    expect(committe.slice(indexParam, indexParam + 300)).toMatch(/required:\s*true/)
   })
 
   it('ne mentionne plus les endpoints jamais implémentés', () => {

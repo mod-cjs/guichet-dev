@@ -1,6 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useAdminTheme } from '@/components/layout/AdminSidebar/AdminThemeProvider'
 
 /**
  * AdminTopBar — barre supérieure desktop pour le chrome admin (Lot 11).
@@ -15,6 +17,7 @@ import { Icon } from '@/components/ui/Icon'
  */
 export function AdminTopBar({ notificationCount }: { notificationCount?: number }) {
   const annee = new Date().getFullYear()
+  const { theme, toggle } = useAdminTheme()
   return (
     <div
       className="hidden md:flex"
@@ -62,6 +65,9 @@ export function AdminTopBar({ notificationCount }: { notificationCount?: number 
         <Icon name="calendar" size={14} style={{ color: 'var(--gj-grey)' }} />
         Année {annee}
       </div>
+
+      {/* Bascule thème clair/sombre du contenu admin (GUIC-680) */}
+      <ThemeToggle theme={theme} onToggle={toggle} />
 
       {/* Cloche → raccourci vers la file de modération (badge = en attente) */}
       <Link

@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { Card } from '@/components/ui/Card'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { Spark } from '@/components/admin/charts/Spark'
 import { LineChart } from '@/components/admin/charts/LineChart'
@@ -227,6 +226,7 @@ export function AdminDashboardClient({ data }: Props) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
+                    boxShadow: 'var(--gj-edge)',
                   }}
                 >
                   <Icon name={k.icon} size={18} />
@@ -275,12 +275,17 @@ export function AdminDashboardClient({ data }: Props) {
               key={i}
               href={k.href}
               aria-label={k.label}
+              className="gj-registre-card is-interactive"
               style={{ ...baseStyle, cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
             >
               {inner}
             </Link>
           ) : (
-            <div key={i} style={{ ...baseStyle, cursor: k.urgent ? 'pointer' : 'default' }}>
+            <div
+              key={i}
+              className={`gj-registre-card${k.urgent ? ' is-interactive' : ''}`}
+              style={{ ...baseStyle, cursor: k.urgent ? 'pointer' : 'default' }}
+            >
               {inner}
             </div>
           )
@@ -296,6 +301,7 @@ export function AdminDashboardClient({ data }: Props) {
           {secondaires.map((s, i) => (
             <div
               key={i}
+              className="gj-registre-card"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -342,6 +348,7 @@ export function AdminDashboardClient({ data }: Props) {
       >
         {/* LineChart : Croissance des inscriptions */}
         <div
+          className="gj-registre-card"
           style={{
             background: 'var(--gj-surface)',
             border: '1.5px solid var(--gj-line)',
@@ -383,6 +390,7 @@ export function AdminDashboardClient({ data }: Props) {
 
         {/* Donut : Répartition des comptes */}
         <div
+          className="gj-registre-card"
           style={{
             background: 'var(--gj-surface)',
             border: '1.5px solid var(--gj-line)',
@@ -453,6 +461,7 @@ export function AdminDashboardClient({ data }: Props) {
 
       {/* ── Présence nationale (carte Google Maps des centres) ───────────── */}
       <div
+        className="gj-registre-card"
         style={{
           background: 'var(--gj-surface)',
           border: '1.5px solid var(--gj-line)',
@@ -478,6 +487,7 @@ export function AdminDashboardClient({ data }: Props) {
 
       {/* ── BarChart + call-out modération ───────────────────────────────── */}
       <div
+        className="gj-registre-card"
         style={{
           background: 'var(--gj-surface)',
           border: '1.5px solid var(--gj-line)',

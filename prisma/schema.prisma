@@ -1860,9 +1860,9 @@ model Consultation {
   typeEvent  TypeConsultation  @map("type_event")
   /// Canal d'origine : `web`, `ia_web` pour l'agent Yaye sur le site, `whatsapp`.
   canal      CanalConsultation
-  /// Null si visiteur anonyme — `sujetHash` reste renseigné dans tous les cas.
+  /// Null si visiteur anonyme.
   cjsUid     String?           @map("cjs_uid") @db.VarChar(36)
-  /// SHA-256 de (cjsUid ?? IP) + sel. Jamais d'IP en clair en base.
+  /// HMAC-SHA256 du sujet (cjsUid, ou empreinte IP + user-agent). Jamais d'IP en clair en base. Masqué à l'export quand cjs_uid est renseigné.
   sujetHash  String            @map("sujet_hash") @db.Char(64)
   /// reco_ia | recherche | favoris | notification | direct | ia | wa
   origine    String?           @db.VarChar(30)

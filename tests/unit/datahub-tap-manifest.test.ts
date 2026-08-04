@@ -88,6 +88,14 @@ describe('manifeste du tap — schémas', () => {
     expect((props.deleted_at as { type: unknown }).type).toEqual(['string', 'null'])
   })
 
+  it('déclare sujet_hash nullable — il est masqué quand cjs_uid est présent (GUIC-695)', () => {
+    // La colonne SOURCE est non nulle, mais la valeur EXPORTÉE ne l'est pas : le contrat
+    // publié doit décrire la sortie, sinon le chargeur Singer rejettera chaque ligne
+    // d'un utilisateur connecté (même mécanique que le défaut B2 du rapport GUIC-693).
+    const props = manifest.streams.find((s) => s.name === 'consultations')!.schema.properties
+    expect((props.sujet_hash as { type: unknown }).type).toEqual(['string', 'null'])
+  })
+
   it('propage la documentation jusqu\'au catalogue', () => {
     for (const stream of manifest.streams) {
       for (const [nom, prop] of Object.entries(stream.schema.properties)) {

@@ -5,11 +5,13 @@
  * flux au Data Hub ne demande donc pas d'écrire une route : le contrat suffit, et il est
  * vérifié par `tsc` et par les gardes CDP.
  *
- * PRÉCÉDENCE NEXT.JS — les segments statiques l'emportent sur le segment dynamique. Les
- * routes historiques `opportunites` et `programmes` gardent donc la main sur leur nom :
- * elles portent du contenu que le contrat ne reproduit pas (colonnes polymorphes aplaties
- * pour la première, compteurs de rattachement pour la seconde). Leur retrait demande un
- * arbitrage, pas un remplacement silencieux.
+ * PRÉCÉDENCE NEXT.JS — un segment STATIQUE l'emporte sur le segment dynamique : tout
+ * dossier `src/app/api/v1/export/<nom>/` masquerait silencieusement cette route pour ce
+ * flux. `counts` (endpoint de service, pas un flux) est le seul réservé — voir
+ * `tests/unit/datahub-routage.test.ts`, qui échoue si un nom de flux redevient un dossier
+ * statique. Les anciennes routes `opportunites` et `programmes` (DTO polymorphe aplati,
+ * compteurs de rattachement) ont été retirées au commit `b2128682` : ce commentaire les
+ * décrivait encore comme actives (GUIC-697 D3), en contradiction avec le répertoire réel.
  *
  * `force-dynamic` n'est pas cosmétique : sans lui Next.js peut servir une réponse en cache
  * et le tap boucle indéfiniment sur la même page.
@@ -24,6 +26,7 @@ import { keysetExport, type FindManyDelegate } from '@/lib/datahub/keyset'
 import { fullTableDescriptorFor } from '@/lib/datahub/full-table-descriptor'
 import { fullTableExport } from '@/lib/datahub/full-table-export'
 import { BadCursorError } from '@/lib/datahub/cursor'
+import { parseSince, BadSinceError } from '@/lib/datahub/since'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -81,6 +84,8 @@ export async function GET(
   let page
   try {
     if (fullTableDescriptor) {
+      // Aucun `since` pour un flux FULL_TABLE — pas de watermark, par construction
+      // (GUIC-700 lot 7) : `parseSince` ne s'applique qu'au chemin incrémental.
       page = await fullTableExport(
         fullTableDescriptor,
         {
@@ -90,6 +95,12 @@ export async function GET(
         delegate
       )
     } else {
+      // Validée AVANT keysetExport, avec la même règle que `counts` (S3) : une borne
+      // illisible ne doit jamais dégénérer en 500, et une date hors plage MariaDB ne
+      // doit jamais être acceptée en silence (S2 — sinon la requête posée au driver ne
+      // filtre plus rien, et l'API rend 200 avec les premières lignes du flux, comme si
+      // `since` était absent).
+      parseSince(url.get('since'))
       page = await keysetExport(
         descriptor!,
         {
@@ -101,6 +112,7 @@ export async function GET(
       )
     }
   } catch (e) {
+    if (e instanceof BadSinceError) return erreur('BORNE_INVALIDE', e.message, 400)
     if (e instanceof BadCursorError) return erreur('CURSEUR_INVALIDE', e.message, 400)
     throw e
   }

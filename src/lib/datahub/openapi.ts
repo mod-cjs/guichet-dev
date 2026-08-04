@@ -71,7 +71,7 @@ export function resoudreColonnes(
 ): Record<string, ColonneResolue> {
   const specs = streams[descriptor.name as keyof typeof streams].fields as Record<
     string,
-    { outputType?: string; description?: string }
+    { outputType?: string; outputNullable?: boolean; description?: string }
   >
   const out: Record<string, ColonneResolue> = {}
 
@@ -90,8 +90,9 @@ export function resoudreColonnes(
     const base = typeOuvert(field, spec?.outputType, enums)
     out[column.as] = {
       ...(base as { type: string; format?: string; enum?: string[] }),
-      // Une transformation change le type : la nullabilité ne se déduit plus de la source.
-      ...(field.optional && !column.transform
+      // Une transformation change le type : la nullabilité ne se déduit plus de la source
+      // mais du contrat (`outputNullable`) — une colonne NOT NULL peut sortir masquée à null.
+      ...((column.transform ? spec?.outputNullable : field.optional)
         ? { type: [base.type as string, 'null'] }
         : {}),
       description,
@@ -226,8 +227,9 @@ export function buildOpenApiDocument(schemaPath?: string): string {
               },
             },
           },
-          '400': { description: 'Curseur malformé', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '400': { description: 'Curseur ou borne `since` malformés', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
           '401': { description: 'Clé API absente, invalide, ou non configurée côté serveur', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+          '429': { description: 'Quota dépassé (300 requêtes/minute par clé)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
         },
       },
     }
@@ -286,6 +288,50 @@ export function buildOpenApiDocument(schemaPath?: string): string {
     }
   }
 
+  // GUIC-697 D2 — endpoint de réconciliation, absent jusqu'ici du contrat publié alors
+  // que le mode opératoire (docs/datahub-briefing-etl.md §10) demande de l'appeler après
+  // chaque run. `since` y est OBLIGATOIRE (D6) : un comptage non borné sur consultations
+  // (le plus gros volume) fait timeout sous maxDuration=60.
+  schemas.Counts = {
+    type: 'object',
+    description: 'Comptage par flux sur la fenêtre `since`, à comparer aux COUNT(*) de l\'entrepôt.',
+    additionalProperties: { type: 'integer' },
+  }
+  paths['/export/counts'] = {
+    get: {
+      summary: 'Comptages de réconciliation, par flux, sur une fenêtre',
+      description:
+        "Distingue « le pipeline n'a pas planté » de « le pipeline a tout extrait » : à appeler après chaque run, avec le `since` de ce run, et comparer aux COUNT(*) de l'entrepôt sur la même fenêtre.",
+      operationId: 'export_counts',
+      parameters: [{ $ref: '#/components/parameters/sinceRequis' }],
+      responses: {
+        '200': {
+          description: 'Comptages de la fenêtre',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  data: { $ref: '#/components/schemas/Counts' },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      since: { type: 'string', format: 'date-time' },
+                      generated_at: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': { description: '`since` absente ou illisible', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+        '401': { description: 'Clé API absente, invalide, ou non configurée côté serveur', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+        '429': { description: 'Quota dépassé (60 requêtes/minute par clé)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Erreur' } } } },
+      },
+    },
+  }
+
   const document: Record<string, YamlValue> = {
     openapi: '3.1.0',
     info: {
@@ -310,6 +356,14 @@ export function buildOpenApiDocument(schemaPath?: string): string {
           in: 'query',
           description:
             "Borne basse sur la colonne de réplication, ISO 8601. Le consommateur doit appliquer un recouvrement de quelques minutes sur son dernier point d'arrêt : la colonne est posée à l'écriture applicative, pas au commit, et une transaction committée en retard serait sinon jamais extraite.",
+          schema: { type: 'string', format: 'date-time' },
+        },
+        sinceRequis: {
+          name: 'since',
+          in: 'query',
+          required: true,
+          description:
+            "Borne basse, ISO 8601 — OBLIGATOIRE sur cet endpoint (GUIC-697 D6) : un comptage non borné sur les 13 flux, dont `consultations`, dépasse `maxDuration = 60`.",
           schema: { type: 'string', format: 'date-time' },
         },
         cursor: {

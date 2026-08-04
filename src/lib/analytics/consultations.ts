@@ -26,11 +26,11 @@
  *   restent incomparables.
  */
 
-import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
+import { hashSujet } from './consultation-hash'
 
 /** Entités traçables. `programme`/`organisation` : déclarés, pas encore instrumentés. */
 export const ENTITES_CONSULTABLES = [
@@ -102,18 +102,9 @@ export const ConsultationInputSchema = z.object({
 
 export type ConsultationInput = z.infer<typeof ConsultationInputSchema>
 
-/**
- * Sel du hachage. Sans variable d'environnement, on retombe sur une constante :
- * le hash reste stable et non réversible en pratique, mais un sel dédié est
- * recommandé en production (une même IP produit sinon le même hash entre
- * environnements).
- */
-const SEL = process.env.CONSULTATION_HASH_SALT ?? 'guichet-jeunesse-consultations'
-
-/** SHA-256 salé du sujet (cjsUid ou IP). Aucune IP ne quitte ce module en clair. */
-export function hashSujet(sujet: string): string {
-  return createHash('sha256').update(`${SEL}:${sujet}`).digest('hex')
-}
+// Hachage HMAC (GUIC-695) — module pur séparé, importé aussi par `instrumentation.ts`
+// pour le refus au démarrage en production sans clé.
+export { cleHachage, hashSujet, type EnvHachage } from './consultation-hash'
 
 /**
  * Traduit le paramètre d'URL `?src=` en canal.

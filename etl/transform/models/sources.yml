@@ -641,11 +641,11 @@ sources:
             meta:
               cjs_tier: "public"
           - name: "cjs_uid"
-            description: "Null si visiteur anonyme — `sujetHash` reste renseigné dans tous les cas."
+            description: "Null si visiteur anonyme."
             meta:
               cjs_tier: "pseudonyme"
           - name: "sujet_hash"
-            description: "SHA-256 de (cjsUid ?? IP) + sel. Jamais d'IP en clair en base."
+            description: "Pseudonyme HMAC-SHA256 du visiteur anonyme (empreinte IP + user-agent, jamais stockées en clair). Null pour un utilisateur connecté : son parcours se suit par cjs_uid."
             meta:
               cjs_tier: "pseudonyme"
           - name: "origine"

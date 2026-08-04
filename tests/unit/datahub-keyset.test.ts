@@ -101,6 +101,30 @@ describe('keysetExport — requête construite', () => {
     await expect(keysetExport(utilisateurs, { cursor: '###' }, d)).rejects.toBeInstanceOf(BadCursorError)
     expect(d.calls).toHaveLength(0)
   })
+
+  it('refuse une clé primaire BigInt forgée par une erreur typée, pas une Error nue (GUIC-696 S4)', async () => {
+    // Avant correctif : `convertirCle` lève un `Error` nu que la route n'attrape pas
+    // (elle ne teste que `BadCursorError`) — un curseur forgé rendait 500 au lieu de 400,
+    // et un 500 est retriable pour le SDK Singer, qui épuise ses tentatives avant d'abandonner.
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: 'abc' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+    expect(d.calls).toHaveLength(0)
+  })
+
+  it('refuse une clé primaire BigInt non strictement numérique, même si `BigInt()` l\'accepterait', async () => {
+    // `BigInt("0x10")` vaut 16 sans erreur : un curseur hexadécimal serait converti en
+    // silence vers une autre position que celle réellement encodée par un tap honnête.
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: '0x10' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+  })
+
+  it('refuse une clé primaire BigInt vide plutôt que de repositionner sur `id > 0`', async () => {
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: '' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+  })
 })
 
 describe('keysetExport — page rendue', () => {
@@ -144,9 +168,19 @@ describe('keysetExport — page rendue', () => {
     })
   })
 
-  it('annonce la colonne de réplication, que le tap doit connaître', async () => {
+  it('annonce la colonne de réplication SOUS SON NOM EXPORTÉ, pas le nom Prisma (GUIC-697 D1)', async () => {
+    // Avant correctif : meta.replication_key renvoyait `descriptor.replicationKey`
+    // (`createdAt`, nom Prisma) alors que la colonne réellement émise dans `data[]`
+    // s'appelle `created_at`. Le tap actuel n'est pas affecté (il lit le manifeste
+    // Singer, généré séparément), mais tout second consommateur qui suit CE contrat —
+    // les deux champs de la même réponse — se trompe de colonne.
     const page = await keysetExport(consultations, {}, delegate([]))
-    expect(page.meta.replication_key).toBe('createdAt')
+    expect(page.meta.replication_key).toBe('created_at')
     expect(page.meta.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('annonce le nom exporté même quand il diffère du nom Prisma (utilisateurs)', async () => {
+    const page = await keysetExport(utilisateurs, {}, delegate([]))
+    expect(page.meta.replication_key).toBe('updated_at')
   })
 })
