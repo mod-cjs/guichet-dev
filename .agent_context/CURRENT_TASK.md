@@ -17,17 +17,24 @@ sur** `feature/GUIC-694-etl-lot1-exploitabilite` (Lot 1, PR #325 — même besoi
 Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre`, `Evenement`,
 `Ressource`. `Opportunite.delete()` existe mais aucun appelant identifié.
 
-## État
+## État — Parties A et B livrées, TDD strict
 - [x] Ticket GUIC-700 créé (sous-tâche GUIC-693) + arbitrages obtenus + spec mise à jour
-- [ ] Partie A — `src/lib/datahub/purge-absents.ts` (module pur, injection comme
+- [x] Partie A — `src/lib/datahub/purge-absents.ts` (module pur, injection comme
       `reconcile.ts`) : détecte les clés présentes dans l'entrepôt mais absentes de la liste
-      complète des clés source, supprime physiquement dans `guichet_raw`
-- [ ] Partie A — `scripts/datahub/purge-absents.ts` (Prisma direct + `psql` dockerisé, même
-      patron que `reconcile.ts`) + crontab hebdomadaire séparée de `run-nightly.sh`
-- [ ] Partie B — support `FULL_TABLE` dans le contrat (`stream-types.ts`, clé composite) pour
-      les 5 tables de jonction programmes
-- [ ] Partie B — `v_programs_summary.sql` corrigé avec les vrais compteurs de rattachement
-- [ ] `npm run validate` intégral vert
+      complète des clés source, supprime physiquement dans `guichet_raw`. Appliqué
+      uniformément aux 13 flux — une ligne soft-deleted reste listée, jamais supprimée à tort.
+- [x] Partie A — `scripts/datahub/purge-absents.ts` (Prisma direct + `psql` dockerisé, même
+      patron que `reconcile.ts`) — à planifier hebdomadairement, crontab séparée de
+      `run-nightly.sh`.
+- [x] Partie B — support `FULL_TABLE` dans un système PARALLÈLE à l'incrémental
+      (`full-table-types.ts`, `full-table-streams.ts`, `full-table-descriptor.ts`,
+      `full-table-export.ts`) : clé composite à deux champs, curseur dédié, jamais de `since`.
+      5 flux déclarés (jonctions programmes), câblés dans la route `[stream]` (registre
+      incrémental essayé d'abord) et dans les trois générateurs (OpenAPI, manifeste tap,
+      sources dbt). Documentation `///` ajoutée sur les 5 modèles Prisma (manquante sur 3/5).
+- [x] Partie B — `v_programs_summary.sql` corrigé : 5 compteurs de rattachement réels
+      (LEFT JOIN + COALESCE — un programme sans rattachement ne disparaît pas du comptage).
+- [x] `npm run validate` intégral vert : 559 suites, 4362 tests, tsc et lint propres.
 - [ ] Push + PR vers `feature/GUIC-694-etl-lot1-exploitabilite` (stacked, comme GUIC-697)
 
 ## Notes
