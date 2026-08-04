@@ -113,8 +113,10 @@ describe('GUIC-689 — rendu de la checklist', () => {
   it('affiche le gain réel de chaque étape restante — jamais un chiffre inventé', () => {
     render(<CompletionChecklist etat={etatVide} />)
     const liste = screen.getByTestId('completion-etapes')
-    // La biographie pèse 20 dans `profil-score.ts` : c'est ce qui doit s'afficher.
-    expect(liste.textContent).toMatch(/\+\s*20\s*%/)
+    // Le poids affiché est celui du barème — jamais une valeur codée ici, qui
+    // survivrait à un rééquilibrage et rendrait le test complice d'un mensonge.
+    const bio = CRITERES_SCORE.find((c) => c.cle === 'biographie')!
+    expect(liste.textContent).toMatch(new RegExp(`\\+\\s*${bio.poids}\\s*%`))
     // Aucun gain affiché ne doit être absent du barème.
     const gains = [...liste.textContent!.matchAll(/\+\s*(\d+)\s*%/g)].map((m) => Number(m[1]))
     const poidsConnus = new Set(CRITERES_SCORE.map((c) => c.poids))
@@ -124,8 +126,8 @@ describe('GUIC-689 — rendu de la checklist', () => {
   it('met en avant l’étape la plus rentable', () => {
     render(<CompletionChecklist etat={etatVide} />)
     const misEnAvant = screen.getByTestId('completion-etape-forte')
-    // Biographie = 20 points, le plus gros gain disponible.
-    expect(misEnAvant.textContent).toMatch(/\+\s*20\s*%/)
+    const poidsMax = Math.max(...CRITERES_SCORE.map((c) => c.poids))
+    expect(misEnAvant.textContent).toMatch(new RegExp(`\\+\\s*${poidsMax}\\s*%`))
   })
 
   it('n’affiche aucune étape restante quand le profil est complet', () => {

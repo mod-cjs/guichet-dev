@@ -33,6 +33,13 @@ const listeNonVide = (v: unknown): boolean => Array.isArray(v) && v.length > 0
  * on n'a donc pas recopié ce chiffre.
  *
  * Les libellés sont ceux montrés à l'utilisateur : jamais une clé technique.
+ *
+ * TOTAL = 100 exactement. Le barème d'origine totalisait 110, masqué par un
+ * `Math.min(s, 100)` : un profil auquel il ne manquait que la commune atteignait
+ * 105 et s'affichait « 100 % » avec une étape encore listée. Rééquilibré en
+ * rabotant les deux poids les plus lourds (biographie 20→15, secteurs 15→10)
+ * plutôt qu'en retirant un critère : aucune étape ne disparaît du parcours,
+ * seule la pondération change.
  */
 export const CRITERES_SCORE: {
   cle: string
@@ -40,8 +47,8 @@ export const CRITERES_SCORE: {
   poids: number
   rempli: (c: ContexteScore) => boolean
 }[] = [
-  { cle: 'biographie',  label: 'Présente-toi en quelques lignes', poids: 20, rempli: (c) => Boolean(c.profil?.biographie) },
-  { cle: 'domaines',    label: 'Tes secteurs d’intérêt',          poids: 15, rempli: (c) => listeNonVide(c.profil?.domainesInteret) },
+  { cle: 'biographie',  label: 'Présente-toi en quelques lignes', poids: 15, rempli: (c) => Boolean(c.profil?.biographie) },
+  { cle: 'domaines',    label: 'Tes secteurs d’intérêt',          poids: 10, rempli: (c) => listeNonVide(c.profil?.domainesInteret) },
   { cle: 'region',      label: 'Ta région',                       poids: 10, rempli: (c) => Boolean(c.identite.region) },
   { cle: 'niveauEtude', label: 'Ton niveau d’étude',              poids: 10, rempli: (c) => Boolean(c.profil?.niveauEtude) },
   { cle: 'situation',   label: 'Ta situation actuelle',           poids: 10, rempli: (c) => Boolean(c.profil?.situationEmploi) },
