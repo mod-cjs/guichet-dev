@@ -27,7 +27,7 @@ export interface ExportColumn {
   /** Nom de la colonne dans l'entrepôt — ce qu'on émet. */
   as: string
   tier: Tier
-  transform?: (value: unknown) => unknown
+  transform?: (value: unknown, row: Record<string, unknown>) => unknown
 }
 
 export interface StreamDescriptor {
@@ -43,7 +43,7 @@ export interface StreamDescriptor {
   orderBy: Array<Record<string, 'asc'>>
 }
 
-type FieldSpecShape = { as: string; tier: Tier; transform?: (value: never) => unknown }
+type FieldSpecShape = { as: string; tier: Tier; transform?: (value: never, row: never) => unknown }
 
 export function describeStream(name: string, def: AnyStreamDefinition): StreamDescriptor {
   const specs = def.fields as Record<string, FieldSpecShape>
@@ -52,7 +52,7 @@ export function describeStream(name: string, def: AnyStreamDefinition): StreamDe
     field,
     as: spec.as,
     tier: spec.tier,
-    transform: spec.transform as ((value: unknown) => unknown) | undefined,
+    transform: spec.transform as ((value: unknown, row: Record<string, unknown>) => unknown) | undefined,
   }))
 
   const select: Record<string, true> = {}
@@ -98,7 +98,7 @@ export function projectRow(
   for (const column of descriptor.columns) {
     if (!(column.field in row)) continue
     const raw = row[column.field]
-    out[column.as] = serialize(column.transform ? column.transform(raw) : raw)
+    out[column.as] = serialize(column.transform ? column.transform(raw, row) : raw)
   }
   return out
 }

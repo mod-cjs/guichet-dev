@@ -35,7 +35,9 @@ export const streams = {
       dateNaissance: {
         as: 'tranche_age',
         tier: 'public',
-        transform: trancheAge,
+        // Enveloppé : le 2e paramètre de `trancheAge` est une date de référence de test,
+        // pas la ligne source que le contrat passe désormais aux transformations.
+        transform: (d) => trancheAge(d),
         outputType: 'string',
         description:
           "Tranche d'âge à la date d'extraction : -18, 18-24, 25-29, 30-34, 35+, ou inconnu quand la date de naissance est absente ou aberrante. Dérivée d'une donnée identifiante qui, elle, n'est jamais exportée.",
@@ -238,7 +240,18 @@ export const streams = {
       typeEvent: { as: 'type_event', tier: 'public' },
       canal: { as: 'canal', tier: 'public' },
       cjsUid: { as: 'cjs_uid', tier: 'pseudonyme' },
-      sujetHash: { as: 'sujet_hash', tier: 'pseudonyme' },
+      // GUIC-695 — pour un utilisateur connecté, le hash est le HMAC du cjs_uid présent
+      // sur la même ligne : le couple (clair, haché) serait un oracle pour confirmer une
+      // clé candidate, sans rien apporter aux jointures. Il ne sort que pour les anonymes.
+      sujetHash: {
+        as: 'sujet_hash',
+        tier: 'pseudonyme',
+        transform: (hash, row) => (row.cjsUid == null ? hash : null),
+        outputType: 'string',
+        outputNullable: true,
+        description:
+          "Pseudonyme HMAC-SHA256 du visiteur anonyme (empreinte IP + user-agent, jamais stockées en clair). Null pour un utilisateur connecté : son parcours se suit par cjs_uid.",
+      },
       origine: { as: 'origine', tier: 'public' },
       sessionId: { as: 'session_id', tier: 'pseudonyme' },
       createdAt: { as: 'created_at', tier: 'public' },

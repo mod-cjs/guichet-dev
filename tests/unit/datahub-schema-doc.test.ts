@@ -124,7 +124,7 @@ describe('parseSchemaDoc — sur le schéma réel du Guichet', () => {
 
   it('capture la documentation existante des colonnes sensibles', () => {
     const sujet = byName(models, 'Consultation').fields.find((f) => f.column === 'sujet_hash')
-    expect(sujet?.doc).toMatch(/SHA-256/)
+    expect(sujet?.doc).toMatch(/HMAC-SHA256/)
   })
 
   it('capture les watermarks ajoutés au lot 1', () => {

@@ -26,6 +26,12 @@ class GuichetStream(RESTStream):
 
     records_jsonpath = "$.data[*]"
     is_sorted = True
+    # Le recouvrement `lookback_minutes` fait REGRESSER la cle de replication au debut de
+    # chaque run incremental : c'est sa raison d'etre. Le controle de tri du SDK y voit une
+    # anomalie et leve InvalidStreamSortException — le premier run passe (etat vide), tous
+    # les suivants echouent. On conserve `is_sorted` pour le commit du bookmark au fil de
+    # l'eau, et on desactive la seule verification, incompatible avec le recouvrement.
+    check_sorted = False
 
     def __init__(self, tap: Any, manifest: dict[str, Any]) -> None:
         super().__init__(tap=tap, name=manifest["name"], schema=manifest["schema"])

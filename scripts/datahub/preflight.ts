@@ -21,6 +21,8 @@ config({ path: '.env.local' })
 import { prisma } from '../../src/lib/prisma'
 import { allDescriptors } from '../../src/lib/datahub/descriptor'
 import { parseSchemaDoc } from '../../src/lib/datahub/schema-doc'
+import { colonnesDateExportees } from '../../src/lib/datahub/date-columns'
+import { sqlModeSuffisant } from '../../src/lib/datahub/sql-mode'
 
 interface Constat {
   ok: boolean
@@ -37,20 +39,25 @@ async function main(): Promise<void> {
   const models = parseSchemaDoc(readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8'))
   const descriptors = allDescriptors()
 
-  // ── 1. Dates invalides dans les colonnes de réplication ────────────────────────
+  // ── 1. Dates invalides — TOUTES les colonnes date exportées, pas les seules clés
+  //      de réplication ────────────────────────────────────────────────────────
   // `0000-00-00` est accepté par MariaDB sous certains sql_mode mais ILLISIBLE par le
   // driver Prisma : « Invalid time value » est levé avant tout code applicatif, et le
   // flux entier devient inexploitable.
-  for (const d of descriptors) {
-    const model = models.find((m) => m.model === d.model)
-    if (!model) continue
-    const colonne = model.fields.find((f) => f.field === d.replicationKey)?.column
-    if (!colonne) continue
-
+  //
+  // GUIC-696 R1 — se limiter à la clé de réplication laissait un pré-vol vert sur une
+  // base où une AUTRE colonne date exportée (ex. `candidatures.soumise_a`,
+  // `utilisateurs.date_naissance`) porte une date à zéro : l'extraction meurt en plein
+  // run, à la page où cette ligne tombe dans le tri, sans que rien ne l'ait annoncé.
+  for (const c of colonnesDateExportees(descriptors, models)) {
     const [{ n }] = await prisma.$queryRawUnsafe<{ n: bigint }[]>(
-      `SELECT COUNT(*) AS n FROM \`${model.table}\` WHERE CAST(\`${colonne}\` AS CHAR) LIKE '0000%'`
+      `SELECT COUNT(*) AS n FROM \`${c.table}\` WHERE CAST(\`${c.column}\` AS CHAR) LIKE '0000%'`
     )
-    noter(Number(n) === 0, `${d.name} — dates valides`, Number(n) > 0 ? `${n} ligne(s) à 0000-00-00` : '')
+    noter(
+      Number(n) === 0,
+      `${c.stream} — ${c.column} valide`,
+      Number(n) > 0 ? `${n} ligne(s) à 0000-00-00` : ''
+    )
   }
 
   // ── 2. Rattachements orphelins ────────────────────────────────────────────────
@@ -94,6 +101,29 @@ async function main(): Promise<void> {
   // sans que la cause soit évidente côté tap.
   const cles = (process.env.DATAHUB_API_KEYS ?? process.env.DATAHUB_API_KEY ?? '').trim()
   noter(cles.length > 0, 'clé Data Hub configurée', cles ? '' : 'DATAHUB_API_KEYS et DATAHUB_API_KEY vides → tout accès refusé')
+
+  // ── 5. sql_mode serveur — la prévention, pas seulement la détection (GUIC-696 R4) ──
+  // `docker-compose.yml` pose NO_ZERO_DATE/NO_ZERO_IN_DATE en développement, mais ce
+  // fichier ne pilote pas la MariaDB Plesk de préprod/prod : sans ce contrôle, le trou
+  // reste invisible jusqu'à ce qu'une date zéro traverse en production.
+  const [{ mode }] = await prisma.$queryRawUnsafe<{ mode: string }[]>('SELECT @@sql_mode AS mode')
+  noter(
+    sqlModeSuffisant(mode),
+    'sql_mode serveur — NO_ZERO_DATE et NO_ZERO_IN_DATE',
+    sqlModeSuffisant(mode) ? '' : `sql_mode actuel : ${mode}`
+  )
+
+  // ── 6. État Meltano externalisé (GUIC-696 R5) ─────────────────────────────────
+  // Sans MELTANO_DATABASE_URI, l'état vit dans le SQLite d'un conteneur --rm : chaque nuit
+  // repart de zéro, sans erreur, avec un full-refresh de plus en plus long — une
+  // dégradation silencieuse, pas une panne qui s'annonce.
+  noter(
+    Boolean(process.env.MELTANO_DATABASE_URI?.trim()),
+    'MELTANO_DATABASE_URI configurée',
+    process.env.MELTANO_DATABASE_URI?.trim()
+      ? ''
+      : 'absente → état Meltano perdu à chaque conteneur, full-refresh chaque nuit'
+  )
 
   // ── Rapport ───────────────────────────────────────────────────────────────────
   const echecs = constats.filter((c) => !c.ok)
