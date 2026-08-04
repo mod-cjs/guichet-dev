@@ -359,6 +359,17 @@ serait lui-même une source d'oubli si un flux futur ne déclare pas son `softDe
 Cadence hebdomadaire (crontab séparée de `run-nightly.sh`) : un tour complet, léger — on ne
 transporte que des clés, pas les lignes.
 
+**B7 — trouvé en vérifiant le lot 7, même famille que B1/B2/B4** : `client.py` du tap
+faisait `manifest["replication_key"]` (accès direct). Absente pour un flux FULL_TABLE, cette
+ligne levait `KeyError` et tuait `discover_streams()` pour les **18 flux d'un coup**
+(construits en une seule compréhension). Aucun test TypeScript/Jest ne pouvait le voir — ils
+vérifient la génération du manifeste, jamais sa consommation par le tap Python, qui n'a
+**aucun pipeline CI** dans ce dépôt. Reproduit et corrigé empiriquement (venv `singer-sdk`
+sans Docker, cf. `etl/README.md` § Tester `tap_guichet`) : `.get("replication_key")`, le SDK
+dérive nativement `replication_method` depuis sa nullité. Contre-épreuve faite (fix retiré →
+les 4 nouveaux tests échouent bien). Tests ajoutés dans
+`etl/plugins/extractors/tap-guichet/tests/`, **non intégrés en CI** — à faire.
+
 ---
 
 ## 6. Harnais de tests à constituer

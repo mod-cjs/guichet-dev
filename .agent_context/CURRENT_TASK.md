@@ -44,11 +44,26 @@ Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre
       validation `parseSince` combinés), `package.json` (les deux scripts npm coexistent),
       `datahub-openapi.test.ts` (assertions fusionnées). Artefacts régénérés
       (`npm run datahub:generate`) plutôt que résolus à la main (fichiers générés).
-- [ ] Revalider `npm run validate` après régénération des artefacts, puis push
+- [x] `npm run validate` après régénération des artefacts : 566/567 suites vertes (1 échec
+      `api-cron-veille-sources` confirmé flaky, pollution MariaDB partagée — passe seul).
+- [x] **Bug réel trouvé en répondant à « est-ce fonctionnel ? »** — `client.py` du tap
+      Python faisait `manifest["replication_key"]` sans `.get()` : `KeyError` sur tout flux
+      FULL_TABLE, tuant `discover_streams()` pour les 18 flux d'un coup. Invisible à
+      tsc/Jest (ils ne testent que la génération du manifeste, jamais sa consommation
+      Python). Reproduit et corrigé empiriquement (venv `singer-sdk`, sans Docker) :
+      contre-épreuve faite (fix retiré → 4 tests échouent). Tests ajoutés
+      (`etl/plugins/extractors/tap-guichet/tests/`), **non intégrés en CI** (aucun
+      pipeline Python dans ce dépôt — documenté dans `etl/README.md`).
+- [ ] Push du fix Python + tests, puis re-vérifier `npm run validate`
 
 ## Notes
 - Le mécanisme de suppression révise le `?fields=id` public de la spec §8.5 initiale : script
   interne Prisma-direct, pas de nouveau paramètre exposé sur l'API publique.
+- **Ce qui reste NON vérifié à l'exécution réelle**, à garder en tête avant tout « fonctionnel » :
+  `scripts/datahub/purge-absents.ts` et `reconcile.ts` (psql réel jamais invoqué),
+  `run-nightly.sh` (testé par shim docker, jamais le vrai Meltano), `v_programs_summary.sql`
+  (jamais passé par `dbt build`/`dbt test`). Le seul run de bout en bout du pipeline remonte à
+  la campagne GUIC-693, **avant** tous les correctifs GUIC-695/696/697/700.
 
 ## Plan de durcissement ETL (spec §5) — état des 5 PRs
 Lot 1 GUIC-694 (#325, mergée `dev`) · Lot 2 GUIC-695 (#326, mergée `dev`) · Lots 3+4 GUIC-696

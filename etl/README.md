@@ -50,6 +50,29 @@ meltano run tap-guichet target-postgres
 runner qui exécute le pipeline : le dépôt porte le code et la configuration, jamais les
 accès. Une compromission du dépôt produit ne doit pas ouvrir l'entrepôt.
 
+## Tester `tap_guichet` — HORS CI, à lancer à la main
+
+⚠ **Ce dépôt n'a aucun pipeline CI Python.** Les tests ci-dessous (`plugins/extractors/
+tap-guichet/tests/`) ne tournent nulle part automatiquement — c'est un vrai trou de
+couverture, découvert au lot 7 du durcissement (GUIC-700) : `client.py` faisait
+`manifest["replication_key"]` sans `.get()`, ce qui levait `KeyError` et tuait la
+découverte des **18 flux d'un coup** dès qu'un flux FULL_TABLE (sans watermark)
+apparaissait dans le manifeste. Aucun test TypeScript/Jest ne pouvait le voir : ils
+vérifient la génération du manifeste, jamais sa consommation par le tap Python.
+
+À lancer après toute modification de `client.py`, `tap.py`, ou du générateur de manifeste
+TypeScript (`scripts/datahub/generate-tap-manifest.ts`) :
+
+```bash
+python3 -m venv /tmp/venv && /tmp/venv/bin/pip install singer-sdk pytest
+cd etl/plugins/extractors/tap-guichet
+/tmp/venv/bin/pytest tests/ -v
+```
+
+Ne nécessite ni Docker ni base réelle — `singer-sdk` s'installe en pur Python. Une
+intégration CI (job GitHub Actions dédié) reste à faire ; en attendant, ces tests
+protègent seulement ce qui est lancé manuellement.
+
 ## Deux réglages à ne pas toucher à la légère
 
 **`lookback_minutes`** — recouvrement appliqué au dernier point d'arrêt. Le mettre à zéro

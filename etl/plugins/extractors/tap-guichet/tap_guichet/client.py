@@ -37,7 +37,13 @@ class GuichetStream(RESTStream):
         super().__init__(tap=tap, name=manifest["name"], schema=manifest["schema"])
         self.path = manifest["path"]
         self.primary_keys = manifest["primary_keys"]
-        self.replication_key = manifest["replication_key"]
+        # GUIC-700 lot 7 — absente pour un flux FULL_TABLE (jonctions programmes, sans
+        # watermark). `manifest["replication_key"]` levait KeyError et tuait la découverte
+        # de TOUS les flux (discover_streams() les construit en une seule liste) : le SDK
+        # gère nativement `replication_key = None`, dérive `replication_method =
+        # FULL_TABLE` (singer_sdk.Stream.replication_method) et `get_starting_timestamp`
+        # rend `None` sans y toucher — vérifié en instanciant TapGuichet en isolation.
+        self.replication_key = manifest.get("replication_key")
 
     @property
     def url_base(self) -> str:
