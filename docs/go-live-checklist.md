@@ -117,6 +117,25 @@ fine-grained échouent sur les packages privés d'org. Le **serveur** doit aussi
 - **Piège B8** : les crons étaient sur **Vercel Cron** → sur OVH, **plus personne ne les exécute**.
   Installer un crontab serveur (`scripts/cron/`), dont la **purge CV** (rétention CDP).
 
+### 4.7 Data Hub / ETL (GUIC-693/700 — export analytics)
+- **Côté app** (`test.env`/`prod.env`) : `DATAHUB_API_KEYS="meltano:<secret>"` — **le préfixe
+  `meltano:` est obligatoire** (format `nom:secret`), sans lui la clé est silencieusement
+  ignorée et tout est refusé en 401 même avec un token correct côté tap. Générer avec
+  `openssl rand -hex 32`. **Redéployer/redémarrer le conteneur `app`** pour que la variable
+  soit prise en compte — poser la clé seule sans redéployer ne fait rien.
+- **Vérifier après déploiement** (lecture seule, sans toucher à l'entrepôt) :
+  `curl -H "Authorization: Bearer <secret>" https://<domaine>/api/v1/export/counts?since=2026-01-01T00:00:00Z`
+  → attendu `200`, pas `401`.
+- **SÉPARATION, pas cohabitation réseau** : le pipeline ETL (`docker-compose.etl.yml`) est un
+  projet Compose séparé de l'app, appelée par son URL publique HTTPS — jamais par le réseau
+  Docker interne (`cjs-net`) ni `host.docker.internal`. Fonctionne quel que soit l'hôte du
+  serveur ETL.
+- **Entrepôt PostgreSQL** : hôte/accès distincts de MariaDB — transmis séparément, à poser
+  dans `.env.etl` sur le serveur ETL (jamais dans `test.env`/`prod.env` de l'app).
+- Séquence complète de mise en service (préflight, premier run hors trafic, réconciliation,
+  deuxième run vérifié, crontab nightly + purge hebdomadaire) : `.agent_context/specs/M13-durcissement-etl.md`
+  §7 et `docs/datahub-briefing-etl.md` §7/§10.
+
 ---
 
 ## 5. Données & migrations
