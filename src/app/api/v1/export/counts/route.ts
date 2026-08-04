@@ -23,6 +23,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { authenticateDatahub } from '@/lib/datahub/auth'
 import { allDescriptors } from '@/lib/datahub/descriptor'
+import { parseSince, BadSinceError } from '@/lib/datahub/since'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -65,12 +66,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       400
     )
   }
-  if (Number.isNaN(Date.parse(brut))) {
-    // Une borne illisible traitée comme absente rendrait un comptage total présenté
-    // comme un comptage de fenêtre : la réconciliation conclurait à une perte massive.
-    return erreur('BORNE_INVALIDE', `Paramètre since illisible : ${brut}`, 400)
+  // GUIC-696 S2/S3 — validée par le module PARTAGÉ avec [stream]/route.ts : illisible ou
+  // hors plage MariaDB DATETIME (an 1000-9999) refusés en 400, jamais un filtre ignoré en
+  // silence. `brut` non nul est garanti ici : `parseSince` ne peut donc pas rendre `null`.
+  let since: Date
+  try {
+    since = parseSince(brut) as Date
+  } catch (e) {
+    if (e instanceof BadSinceError) return erreur('BORNE_INVALIDE', e.message, 400)
+    throw e
   }
-  const since = new Date(brut)
 
   const data: Record<string, number> = {}
   for (const descriptor of allDescriptors()) {

@@ -70,7 +70,7 @@ export function resoudreColonnes(
 ): Record<string, ColonneResolue> {
   const specs = streams[descriptor.name as keyof typeof streams].fields as Record<
     string,
-    { outputType?: string; description?: string }
+    { outputType?: string; outputNullable?: boolean; description?: string }
   >
   const out: Record<string, ColonneResolue> = {}
 
@@ -89,8 +89,9 @@ export function resoudreColonnes(
     const base = typeOuvert(field, spec?.outputType, enums)
     out[column.as] = {
       ...(base as { type: string; format?: string; enum?: string[] }),
-      // Une transformation change le type : la nullabilité ne se déduit plus de la source.
-      ...(field.optional && !column.transform
+      // Une transformation change le type : la nullabilité ne se déduit plus de la source
+      // mais du contrat (`outputNullable`) — une colonne NOT NULL peut sortir masquée à null.
+      ...((column.transform ? spec?.outputNullable : field.optional)
         ? { type: [base.type as string, 'null'] }
         : {}),
       description,

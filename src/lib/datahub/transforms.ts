@@ -24,6 +24,10 @@ export function trancheAge(
   reference: Date = new Date()
 ): TrancheAge {
   if (dateNaissance === null) return 'inconnu'
+  // `Invalid Date` (ex. `0000-00-00`) rend `getTime()` NaN — et TOUTE comparaison avec
+  // NaN vaut false, y compris `age < 0` et `age > 120` plus bas : sans ce garde explicite,
+  // une date corrompue traverse silencieusement jusqu'au `return '35+'` final (GUIC-696 R3).
+  if (Number.isNaN(dateNaissance.getTime())) return 'inconnu'
 
   let age = reference.getUTCFullYear() - dateNaissance.getUTCFullYear()
   const moisEcoule = reference.getUTCMonth() - dateNaissance.getUTCMonth()

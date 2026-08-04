@@ -101,6 +101,30 @@ describe('keysetExport — requête construite', () => {
     await expect(keysetExport(utilisateurs, { cursor: '###' }, d)).rejects.toBeInstanceOf(BadCursorError)
     expect(d.calls).toHaveLength(0)
   })
+
+  it('refuse une clé primaire BigInt forgée par une erreur typée, pas une Error nue (GUIC-696 S4)', async () => {
+    // Avant correctif : `convertirCle` lève un `Error` nu que la route n'attrape pas
+    // (elle ne teste que `BadCursorError`) — un curseur forgé rendait 500 au lieu de 400,
+    // et un 500 est retriable pour le SDK Singer, qui épuise ses tentatives avant d'abandonner.
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: 'abc' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+    expect(d.calls).toHaveLength(0)
+  })
+
+  it('refuse une clé primaire BigInt non strictement numérique, même si `BigInt()` l\'accepterait', async () => {
+    // `BigInt("0x10")` vaut 16 sans erreur : un curseur hexadécimal serait converti en
+    // silence vers une autre position que celle réellement encodée par un tap honnête.
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: '0x10' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+  })
+
+  it('refuse une clé primaire BigInt vide plutôt que de repositionner sur `id > 0`', async () => {
+    const d = delegate()
+    const cursor = encodeCursor({ t: '2026-07-01T10:00:00.000Z', i: '' })
+    await expect(keysetExport(consultations, { cursor }, d)).rejects.toBeInstanceOf(BadCursorError)
+  })
 })
 
 describe('keysetExport — page rendue', () => {
