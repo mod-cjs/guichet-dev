@@ -25,6 +25,7 @@ import { join } from 'node:path'
 
 const RACINE = process.cwd()
 const WORKFLOW_E2E = join(RACINE, '.github/workflows/e2e.yml')
+const DOCKERFILE = join(RACINE, 'Dockerfile')
 
 /**
  * Variables citées dans un message d'erreur de type « X manquante / requis ».
@@ -92,5 +93,35 @@ describe('GUIC-689 — variables bloquantes fournies au workflow E2E', () => {
     // Si un jour le workflow repassait sur `next dev`, les gardes ne se
     // déclencheraient plus et ce test perdrait son sens : on l'ancre.
     expect(yml).toMatch(/PLAYWRIGHT_WEBSERVER_CMD:\s*npm run start/)
+  })
+
+  /**
+   * Même défaut, deuxième endroit. Le stage `builder` du Dockerfile porte une
+   * liste de valeurs FACTICES précisément parce que « les garde-fous d'env
+   * throwent si absents » pendant la collecte des routes de `next build`.
+   *
+   * `CONSULTATION_HASH_KEY` y manquait aussi. Ça ne cassait pas le build
+   * aujourd'hui — le hook d'instrumentation n'est pas chargé à la collecte —
+   * mais le jour où une page importe ce module, le build tombe pour la même
+   * raison que le job Playwright. On ferme la famille de défauts d'un coup.
+   */
+  it('chaque variable bloquante est aussi factice-isée dans le stage builder', () => {
+    const dockerfile = readFileSync(DOCKERFILE, 'utf-8')
+    const manquantes = variablesBloquantes()
+      .filter((v) => !FOURNIES_AUTREMENT.has(v))
+      .filter((v) => !new RegExp(`\\b${v}=`).test(dockerfile))
+    expect(manquantes).toEqual([])
+  })
+
+  it('les valeurs du builder restent des factices, jamais de vrais secrets', () => {
+    const dockerfile = readFileSync(DOCKERFILE, 'utf-8')
+    const bloc = dockerfile.match(/ENV REDIS_URL=[\s\S]*?(?=\n(?:#|ARG|COPY|RUN))/)?.[0] ?? ''
+    expect(bloc).toBeTruthy()
+    for (const [, nom, valeur] of bloc.matchAll(/([A-Z][A-Z0-9_]+)=(\S*)/g)) {
+      if (nom === 'REDIS_URL' || nom.endsWith('_URL') || nom === 'SSO_CLIENT_ID') continue
+      // Un secret de build doit s'annoncer comme tel : impossible de le confondre
+      // avec une vraie valeur oubliée là.
+      expect(valeur).toMatch(/build/i)
+    }
   })
 })
