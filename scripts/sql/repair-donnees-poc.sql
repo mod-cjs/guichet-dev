@@ -20,6 +20,12 @@
 --
 -- ⚠ La prévention est ailleurs : `docker-compose.yml` impose désormais
 -- NO_ZERO_DATE/NO_ZERO_IN_DATE au serveur. Ce script répare l'existant, il n'empêche rien.
+--
+-- GUIC-696 R2 — `candidatures` manquait ici alors que le pré-vol (étendu au lot 4, R1, à
+-- toutes les colonnes date exportées et non aux seules clés de réplication) la signale :
+-- 26 157 lignes à `soumise_a = '0000-00-00'` sur le dump POC. Les deux outils, écrits dans
+-- la même série de commits, se contredisaient — le pré-vol restait rouge après exécution
+-- de ce script.
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -32,6 +38,12 @@ UPDATE profils_jeunes
 UPDATE inscriptions_evenements
    SET updated_at = inscrit_a
  WHERE CAST(updated_at AS CHAR) LIKE '0000%';
+
+-- `soumise_a` n'a pas de colonne `created_at` sœur (le modèle n'en porte pas) : `updated_at`
+-- est la seule autre date de la ligne, NOT NULL, posée par `@updatedAt` au moins à l'insertion.
+UPDATE candidatures
+   SET soumise_a = updated_at
+ WHERE CAST(soumise_a AS CHAR) LIKE '0000%';
 
 -- 2. Liens de jonction pointant vers une entité disparue. Supprimés plutôt que
 --    recréés : le tag n'existe plus, le rattachement n'a plus de sens.

@@ -22,6 +22,35 @@ import {
   type StagedFile,
 } from './check-pre-commit'
 
+/**
+ * GUIC-698 — la branche porte-t-elle déjà un commit `test(...)` depuis sa divergence
+ * d'avec l'intégration ? C'est ce qui autorise un commit GREEN de source seule.
+ *
+ * En cas de doute (base introuvable, dépôt sans `dev`, git indisponible) on répond `false` :
+ * un garde-fou qui échoue doit refuser, jamais accorder.
+ */
+function redSurLaBranche(): boolean {
+  for (const base of ['origin/dev', 'dev', 'origin/main', 'main']) {
+    try {
+      const point = execSync(`git merge-base HEAD ${base}`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+      if (!point) continue
+      const sujets = execSync(`git log --format=%s ${point}..HEAD`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+      return sujets
+        .split('\n')
+        .some((sujet) => /^test[(:]/.test(sujet.trim()))
+    } catch {
+      continue
+    }
+  }
+  return false
+}
+
 function getStagedFiles(): StagedFile[] {
   const out = execSync('git diff --cached --name-status --diff-filter=AMRD', {
     encoding: 'utf-8',
@@ -87,13 +116,15 @@ function main() {
     return 0
   }
 
-  const tddResult = checkTddCompliance(staged, contents)
+  const tddResult = checkTddCompliance(staged, contents, { redSurLaBranche: redSurLaBranche() })
   if (!tddResult.ok) {
     process.stderr.write('\n❌ Fichiers source modifiés sans test correspondant :\n')
     for (const p of tddResult.missing) {
       process.stderr.write(`   ${p}\n`)
     }
-    process.stderr.write('\nAjoute au moins un test dans tests/**/*.test.ts(x) avant de commit.\n')
+    process.stderr.write('\nAjoute un test dans tests/**/*.test.ts(x), ou commite d\'abord\n')
+    process.stderr.write('le test RED : un commit `test(...)` sur la branche autorise ensuite\n')
+    process.stderr.write('un commit GREEN de source seule (GUIC-698).\n')
     process.stderr.write('Bypass d\'urgence (loggué) : SKIP_TDD_CHECK=1 git commit ...\n\n')
     return 1
   }
