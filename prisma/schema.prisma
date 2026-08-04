@@ -291,6 +291,8 @@ model Utilisateur {
   notifCandidatures  Boolean      @default(true) @map("notif_candidatures")
   notifMessages      Boolean      @default(true) @map("notif_messages")
   drupalUid          Int?         @unique @map("drupal_uid")
+  // GUIC-701 — dernière visite (supervision admin), mise à jour throttlée au login/activité.
+  lastSeenAt         DateTime?    @map("last_seen_at")
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
   deletedAt          DateTime?    @map("deleted_at")
