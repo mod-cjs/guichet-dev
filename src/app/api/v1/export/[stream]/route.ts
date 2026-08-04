@@ -22,6 +22,7 @@ import { authenticateDatahub } from '@/lib/datahub/auth'
 import { descriptorFor } from '@/lib/datahub/descriptor'
 import { keysetExport, type FindManyDelegate } from '@/lib/datahub/keyset'
 import { BadCursorError } from '@/lib/datahub/cursor'
+import { parseSince, BadSinceError } from '@/lib/datahub/since'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -71,8 +72,14 @@ export async function GET(
   }
 
   const url = request.nextUrl.searchParams
+
+  // Validée AVANT keysetExport, avec la même règle que `counts` (S3) : une borne illisible
+  // ne doit jamais dégénérer en 500, et une date hors plage MariaDB ne doit jamais être
+  // acceptée en silence (S2 — sinon la requête posée au driver ne filtre plus rien, et
+  // l'API rend 200 avec les premières lignes du flux, comme si `since` était absent).
   let page
   try {
+    parseSince(url.get('since'))
     page = await keysetExport(
       descriptor,
       {
@@ -83,6 +90,7 @@ export async function GET(
       delegate
     )
   } catch (e) {
+    if (e instanceof BadSinceError) return erreur('BORNE_INVALIDE', e.message, 400)
     if (e instanceof BadCursorError) return erreur('CURSEUR_INVALIDE', e.message, 400)
     throw e
   }

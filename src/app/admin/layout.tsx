@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import { SkipLink } from '@/components/ui/SkipLink'
 import { AdminTopBar } from '@/components/layout/AdminSidebar/AdminTopBar'
+import { AdminThemeProvider } from '@/components/layout/AdminSidebar/AdminThemeProvider'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -62,14 +63,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           moderationCount={aModerer}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
-          {/* ── Topbar desktop (blanc, clair) ─────────────────────────── */}
+        {/* Colonne de contenu (topbar + main) = scope du thème clair/sombre admin.
+            La sidebar reste hors scope (chrome sombre inchangé). */}
+        <AdminThemeProvider>
           <AdminTopBar notificationCount={aModerer} />
 
           <main id="main" className="flex-1 p-space-5 md:p-space-6 min-w-0 md:min-h-0 md:overflow-y-auto">
             {children}
           </main>
-        </div>
+        </AdminThemeProvider>
       </div>
     </>
   )

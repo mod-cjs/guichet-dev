@@ -24,4 +24,6 @@ models:
       # relancent la même agrégation à chaque rafraîchissement d'un tableau de bord.
       # Recalculer en direct sur consultations serait intenable.
       +materialized: table
-      +schema: marts
+      # Pas de `+schema` : dbt le CONCATENE au schema du profil (marts -> marts_marts),
+      # et les marts atterrissaient hors du schema sur lequel la documentation demande de
+      # brancher les outils BI. Le schema vient du profil, une seule fois.

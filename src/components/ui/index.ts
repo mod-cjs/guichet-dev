@@ -57,6 +57,8 @@ export type { FooterCTAProps, FooterCTAButton } from './FooterCTA'
 export { Tabs }       from './Tabs'
 export type { TabsProps, TabItem } from './Tabs'
 export { Tag }        from './Tag'
+export { ThemeToggle } from './ThemeToggle'
+export type { ThemeToggleProps } from './ThemeToggle'
 export { Toast }      from './Toast'
 
 // === Yaye — assistant IA (refonte v2) ===
