@@ -10,7 +10,7 @@
  *  - le rouge ne signale QUE l'urgence d'échéance, et vit dans sa propre
  *    pastille, séparée du type.
  *
- * Arbitrage tracé (registre É-08) : le lot 3 peint la pastille de catégorie en
+ * Arbitrage tracé (registre É-25, ex-É-08) : le lot 3 peint la pastille de catégorie en
  * aplat plein + texte blanc, le Lot 14 — normatif — la définit en `soft/ink`.
  * On suit le Lot 14.
  */

@@ -31,7 +31,7 @@ export function YayeMatchCard({
       data-testid="yaye-match-card"
       aria-label="Conseil Yaye"
       className="flex items-center gap-space-3 rounded-gj-md border-[1.5px] border-gj-line
-        p-space-3 bg-[linear-gradient(135deg,var(--gj-teal-soft),#fff)]"
+        p-space-3 bg-[linear-gradient(135deg,var(--gj-teal-soft),var(--gj-surface))]"
     >
       <YayeAvatar size={32} className="flex-shrink-0" />
 

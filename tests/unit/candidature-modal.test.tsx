@@ -195,6 +195,15 @@ describe('<CandidatureModal /> — refonte v2', () => {
     expect(btn).toBeDisabled()
   })
 
+  // GUIC-689 — CTA de conversion magenta.
+  it('le CTA "Envoyer ma candidature" porte la couleur d\'action de conversion (classe .gj-cta)', async () => {
+    renderModal()
+    await typeLettre()
+    await checkConsent()
+    const btn = screen.getByRole('button', { name: /Envoyer ma candidature/i })
+    expect(btn.className).toMatch(/\bgj-cta\b/)
+  })
+
   it('CGU non cochée → submit reste disabled', async () => {
     renderModal()
     await typeLettre()

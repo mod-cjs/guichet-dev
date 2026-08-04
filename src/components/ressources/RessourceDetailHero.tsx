@@ -55,7 +55,9 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
           <div className="flex flex-wrap items-center gap-space-1 mb-space-2">
             <Badge variant={meta.badge}>{detail.type}</Badge>
             {detail.niveau && <Badge variant="grey">{detail.niveau}</Badge>}
-            {detail.langue && <Badge variant="grey">{detail.langue}</Badge>}
+            {detail.langue && detail.langue !== 'Wolof' && (
+              <Badge variant="grey">{detail.langue}</Badge>
+            )}
           </div>
           <h1
             id="ressource-detail-title"
@@ -67,6 +69,15 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
             {detail.theme}
             {detail.categorie ? ` · ${detail.categorie}` : ''}
           </p>
+          {detail.langue === 'Wolof' && (
+            <div
+              className="inline-flex items-center gap-space-1 mt-space-2 rounded-gj-md
+                bg-gj-teal-soft text-gj-teal-deep text-fs-200 font-bold px-space-3 py-space-1"
+            >
+              <Icon name="play" size={14} />
+              Version audio en Wolof disponible
+            </div>
+          )}
         </div>
       </div>
 

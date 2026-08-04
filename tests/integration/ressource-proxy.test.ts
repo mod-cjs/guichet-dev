@@ -53,3 +53,46 @@ describe('GET /api/ressources/[id]/proxy — validation content-type', () => {
     expect(res.status).toBe(200)
   })
 })
+
+/**
+ * GUIC-689 (F-5) — chaque branche d'erreur du proxy doit rester « frame-friendly » :
+ * `PdfViewer` embed la réponse de CETTE route dans une <iframe> same-origin. Si une
+ * branche d'erreur ne réémet pas l'override `frame-ancestors 'self'`, elle hérite du
+ * `frame-ancestors 'none'` global de `next.config.ts` (`headers()` s'applique via
+ * `res.setHeader` AVANT le handler ; seul un header explicitement reposé par la route
+ * le remplace) → violation CSP côté navigateur quand l'iframe pointe vers l'erreur.
+ */
+describe('GET /api/ressources/[id]/proxy — réponses d\'erreur propres et frame-friendly', () => {
+  it('source distante injoignable (502) → JSON propre, jamais de HTML framable', async () => {
+    mockFindFirst.mockResolvedValue({ url: 'https://x/doc.pdf', type: 'PDF', titre: 'Doc' })
+    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch
+    const res = await GET(req(), { params })
+    expect(res.status).toBe(502)
+    expect(res.headers.get('content-type')).toContain('json')
+  })
+
+  it('502 amont → override CSP frame-ancestors self (pas le \'none\' global qui bloquerait l\'iframe)', async () => {
+    mockFindFirst.mockResolvedValue({ url: 'https://x/doc.pdf', type: 'PDF', titre: 'Doc' })
+    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch
+    const res = await GET(req(), { params })
+    expect(res.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'self'")
+    expect(res.headers.get('Content-Security-Policy')).not.toContain("frame-ancestors 'none'")
+    expect(res.headers.get('X-Frame-Options')).toBe('SAMEORIGIN')
+  })
+
+  it('ressource introuvable (404) → JSON propre + headers frame-friendly', async () => {
+    mockFindFirst.mockResolvedValue(null)
+    const res = await GET(req(), { params })
+    expect(res.status).toBe(404)
+    expect(res.headers.get('content-type')).toContain('json')
+    expect(res.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'self'")
+  })
+
+  it('415 (source pas un PDF) → headers frame-friendly également', async () => {
+    mockFindFirst.mockResolvedValue({ url: 'https://x/page', type: 'PDF', titre: 'Doc' })
+    global.fetch = jest.fn().mockResolvedValue(fakeUpstream('text/html; charset=utf-8')) as unknown as typeof fetch
+    const res = await GET(req(), { params })
+    expect(res.status).toBe(415)
+    expect(res.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'self'")
+  })
+})

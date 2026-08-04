@@ -790,7 +790,7 @@ export function CandidatureModal({
             Brouillon
           </button>
           <Button
-            variant="primary"
+            variant="conversion"
             size="lg"
             className="flex-1"
             loading={sending}
@@ -887,7 +887,7 @@ function SuccessScreen({
         </div>
         <div
           className="px-space-3 py-space-3 flex flex-col gap-space-2"
-          style={{ background: '#E5F0EC' }}
+          style={{ background: 'var(--gj-teal-soft)' }}
         >
           <div
             className="self-start bg-white px-space-3 py-space-2 max-w-[92%]
