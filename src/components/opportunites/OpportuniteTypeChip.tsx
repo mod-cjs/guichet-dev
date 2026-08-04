@@ -58,7 +58,7 @@ export function OpportuniteTypeChip({
       data-cat={cat}
       className={[
         'inline-flex items-center gap-1 px-space-2 py-[2px] rounded-gj-pill',
-        'text-fs-100 font-black uppercase tracking-[0.4px] leading-none whitespace-nowrap',
+        'text-fs-100 font-extrabold uppercase tracking-[0.4px] leading-none whitespace-nowrap',
         CAT_CLASSES[cat],
         className,
       ].join(' ')}

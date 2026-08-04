@@ -59,8 +59,8 @@ describe('Tableau de bord — page intégration (v2, données réelles)', () => 
       recoOpps: [
         {
           id:    'opp-1',
-          tag:   'Bourse · J-3',
-          tone:  'urgent',
+          type:  'Bourse' as const,
+          joursRestants: 3,
           title: 'Bourse agricole',
           org:   'ANIDA · Tambacounda',
           meta:  [],

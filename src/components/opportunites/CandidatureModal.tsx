@@ -11,7 +11,9 @@
  * Le formulaire affiche :
  *  - un bandeau « Pré-rempli depuis ton profil »
  *  - une carte profil (avatar gradient + identité)
- *  - une textarea lettre de motivation (compteur live, bouton « Yaye m'aide »)
+ *  - une textarea lettre de motivation (compteur live, bouton « Yaye m'aide »
+ *    génère un brouillon SUR PLACE via `POST /api/ia` — GUIC-689 P3-B, jamais
+ *    de navigation qui ferait quitter le formulaire en pleine saisie)
  *  - un FileUpload CV (composant v2 — GUIC-217)
  *  - une checkbox CGU unique
  *  - un CTA sticky bas + footer WhatsApp
@@ -103,11 +105,6 @@ interface CandidatureModalProps {
   onSuccess: () => void
   /** Nom de l'organisation, intégré au texte de consentement. */
   organisationName?: string
-  /**
-   * Slug de l'opportunité — utilisé pour deep-linker Yaye
-   * (`/jeune/yaye?from=postuler&opp=<slug>`).
-   */
-  opportuniteSlug?: string
   /** Si vrai, le CV est obligatoire (sinon facultatif — design v2). */
   requiresFileUpload?: boolean
   /**
@@ -161,7 +158,6 @@ export function CandidatureModal({
   onClose,
   onSuccess,
   organisationName,
-  opportuniteSlug,
   requiresFileUpload = false,
   uploader = defaultUploader,
 }: CandidatureModalProps) {
@@ -186,6 +182,10 @@ export function CandidatureModal({
   const [profileCv, setProfileCv] = useState<ProfilCvData | null>(null)
   // Mode CV : 'profile' = réutilise le CV du profil, 'upload' = upload manuel.
   const [cvMode, setCvMode] = useState<'profile' | 'upload'>('upload')
+  // GUIC-689 (P3-B) — assistance Yaye inline : génération sur place (POST
+  // /api/ia), jamais de navigation qui ferait quitter le formulaire.
+  const [yayeLoading, setYayeLoading] = useState(false)
+  const [yayeError, setYayeError] = useState<string | null>(null)
 
   const lettreId = useId()
   const helperId = useId()
@@ -205,6 +205,8 @@ export function CandidatureModal({
       setSending(false)
       setCvMode('upload')
       setDraftRestored(null)
+      setYayeLoading(false)
+      setYayeError(null)
     }
   }, [isOpen])
 
@@ -351,6 +353,46 @@ export function CandidatureModal({
     })
     onClose()
   }, [opportuniteId, lettre, consent, cvFile, cvUploaded, cvMode, onClose])
+
+  // GUIC-689 (P3-B) — « Yaye m'aide » : jusqu'ici un `router.push` qui
+  // quittait le formulaire en pleine saisie (`/jeune/yaye?from=postuler`).
+  // Désormais génère un brouillon de lettre SUR PLACE via l'agent Yaye
+  // (POST /api/ia, réponse `{ data: { reply } }` — cf. `src/app/api/ia/route.ts`)
+  // et le dépose dans la textarea, sans jamais naviguer ni écraser ce que
+  // l'utilisateur a déjà tapé.
+  const requestYayeHelp = useCallback(async () => {
+    if (yayeLoading) return
+    setYayeLoading(true)
+    setYayeError(null)
+    try {
+      const message =
+        `Aide-moi à rédiger une lettre de motivation pour candidater à l'offre ` +
+        `« ${opportuniteTitre} »${organisationName ? ` chez ${organisationName}` : ''}. ` +
+        `Réponds uniquement avec le texte de la lettre, prêt à être copié dans le formulaire de candidature.`
+      const res = await fetch('/api/ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      })
+      if (!res.ok) throw new Error(`ia-http-${res.status}`)
+      const body = (await res.json().catch(() => null)) as { data?: { reply?: string } } | null
+      const reply = body?.data?.reply?.trim()
+      if (!reply) throw new Error('ia-empty-reply')
+      // Jamais d'écrasement : si l'utilisateur a déjà écrit, on complète à la
+      // suite (séparateur ligne vide) plutôt que de perdre sa saisie.
+      setLettre((prev) => {
+        const trimmedPrev = prev.trim()
+        const next = trimmedPrev.length > 0 ? `${prev}\n\n${reply}` : reply
+        return next.slice(0, LETTRE_MAX_CHARS)
+      })
+    } catch {
+      setYayeError(
+        "Yaye n'a pas pu générer de texte pour l'instant. Réessaie dans un instant — ta saisie est intacte.",
+      )
+    } finally {
+      setYayeLoading(false)
+    }
+  }, [yayeLoading, opportuniteTitre, organisationName])
 
   async function submit() {
     if (!canSubmit) return
@@ -613,17 +655,14 @@ export function CandidatureModal({
         <button
           type="button"
           data-testid="yaye-help-button"
-          onClick={() => {
-            // GUIC-224 — Deep-link vers Yaye avec le contexte de l'opportunité.
-            // Yaye prendra le relais pour assister la rédaction de la lettre.
-            const qs = opportuniteSlug
-              ? `?from=postuler&opp=${encodeURIComponent(opportuniteSlug)}`
-              : '?from=postuler'
-            router.push(`/jeune/yaye${qs}`)
-          }}
-          className="inline-flex items-center gap-space-1 text-gj-teal-deep font-bold hover:underline"
+          onClick={requestYayeHelp}
+          disabled={yayeLoading}
+          aria-busy={yayeLoading}
+          className="inline-flex items-center gap-space-1 text-gj-teal-deep font-bold hover:underline
+            disabled:opacity-60 disabled:cursor-not-allowed disabled:no-underline"
         >
-          <Icon name="sparkle" size={14} /> Yaye m&apos;aide
+          <Icon name="sparkle" size={14} />
+          {yayeLoading ? 'Yaye rédige…' : <>Yaye m&apos;aide</>}
         </button>
         <span
           id={counterId}
@@ -638,6 +677,11 @@ export function CandidatureModal({
           )}
         </span>
       </div>
+      {yayeError && (
+        <p role="alert" data-testid="yaye-help-error" className="text-fs-100 text-gj-red-ink mt-space-1">
+          {yayeError}
+        </p>
+      )}
       <p id={helperId} className="text-fs-100 text-color-text-muted mt-space-1">
         Minimum {LETTRE_MIN_CHARS} caractères. Quelques lignes sur ta motivation augmentent tes chances.
       </p>

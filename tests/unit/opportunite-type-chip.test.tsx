@@ -65,4 +65,13 @@ describe('<OpportuniteTypeChip />', () => {
     render(<OpportuniteTypeChip type="Emploi" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  // GUIC-689 — graisses v5 : la maquette (lot3-opps-web.jsx:169-174) utilise
+  // fontWeight 800, jamais 900.
+  it('utilise font-extrabold (800), plus font-black (900)', () => {
+    render(<OpportuniteTypeChip type="Emploi" />)
+    const el = screen.getByText('Emploi')
+    expect(el.className).toMatch(/font-extrabold\b/)
+    expect(el.className).not.toMatch(/font-black\b/)
+  })
 })

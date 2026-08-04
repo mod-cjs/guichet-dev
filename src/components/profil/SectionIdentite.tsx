@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Card, Button, Input, Select } from '@/components/ui'
+import { Card, Button, Icon, Input, Select } from '@/components/ui'
+import type { IconName } from '@/components/ui'
 import { communesForRegion } from '@/lib/communes'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
@@ -36,8 +37,44 @@ interface Props {
   onPhotoSaved?: (photoUrl: string) => void
 }
 
+/**
+ * Groupe de champs d'identité — intitulé de section (11px/800/uppercase sur
+ * `--gj-grey`, conforme `sectH` de la maquette) précédé de son icône.
+ */
+function GroupeIdentite({
+  icon,
+  titre,
+  children,
+}: {
+  icon: IconName
+  titre: string
+  children: React.ReactNode
+}) {
+  return (
+    <section>
+      <h3 className="flex items-center gap-2 text-fs-100 font-extrabold uppercase tracking-[0.4px] text-color-text-secondary mb-space-2">
+        <Icon name={icon} size={13} aria-hidden />
+        {titre}
+      </h3>
+      <dl className="grid grid-cols-2 gap-x-space-4 gap-y-space-2 text-fs-300">{children}</dl>
+    </section>
+  )
+}
+
+/** Couple libellé/valeur ; le tiret signale un champ à compléter. */
+function Champ({ label, valeur }: { label: string; valeur?: string | null }) {
+  return (
+    <>
+      <dt className="text-color-text-secondary">{label}</dt>
+      <dd className="font-medium text-color-text-primary">{valeur?.trim() ? valeur : '—'}</dd>
+    </>
+  )
+}
+
 export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhotoSaved }: Props) {
   const [editing, setEditing] = useState(false)
+  // GUIC-689 (P1 audit UX) — champs secondaires repliés par défaut.
+  const [voirPlus, setVoirPlus] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
@@ -213,22 +250,56 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
       </div>
 
       {!editing ? (
-        <dl className="grid grid-cols-2 gap-x-space-4 gap-y-space-3 text-fs-300">
-          <dt className="text-color-text-secondary">Nom complet</dt>
-          <dd className="font-medium text-color-text-primary">{data.prenom} {data.nom}</dd>
-          <dt className="text-color-text-secondary">Email</dt>
-          <dd className="font-medium text-color-text-primary">{data.email ?? '—'}</dd>
-          <dt className="text-color-text-secondary">Téléphone</dt>
-          <dd className="font-medium text-color-text-primary">{data.telephone ?? '—'}</dd>
-          <dt className="text-color-text-secondary">Région</dt>
-          <dd className="font-medium text-color-text-primary">{displayed.region?.replace('_', '-') ?? '—'}</dd>
-          <dt className="text-color-text-secondary">Commune</dt>
-          <dd className="font-medium text-color-text-primary">{displayed.commune ?? '—'}</dd>
-          <dt className="text-color-text-secondary">Genre</dt>
-          <dd className="font-medium text-color-text-primary">{displayed.genre === 'M' ? 'Homme' : displayed.genre === 'F' ? 'Femme' : '—'}</dd>
-          <dt className="text-color-text-secondary">Date de naissance</dt>
-          <dd className="font-medium text-color-text-primary">{displayed.dateNaissance ?? '—'}</dd>
-        </dl>
+        /* GUIC-689 (P1 audit UX Lot 4) — les 7 champs ne sont plus à plat :
+           regroupement par section avec icône, et champs secondaires (état
+           civil) repliés derrière « Voir plus ». Le tiret est conservé pour un
+           champ vide : sur SON PROPRE profil, savoir qu'un champ manque est une
+           information utile qui invite à le compléter (contrairement à une
+           fiche publique, où un vide n'apprend rien). */
+        <div className="flex flex-col gap-space-4">
+          <GroupeIdentite icon="users" titre="Contact">
+            <Champ label="Nom complet" valeur={`${data.prenom} ${data.nom}`} />
+            <Champ label="Email" valeur={data.email} />
+            <Champ label="Téléphone" valeur={data.telephone} />
+          </GroupeIdentite>
+
+          <GroupeIdentite icon="pin" titre="Localisation">
+            <Champ label="Région" valeur={displayed.region?.replace('_', '-')} />
+            <Champ label="Commune" valeur={displayed.commune} />
+          </GroupeIdentite>
+
+          <div>
+            <Button
+              type="button"
+              variant="text"
+              onClick={() => setVoirPlus(v => !v)}
+              aria-expanded={voirPlus}
+              aria-controls="profil-identite-secondaire"
+              className="min-h-[var(--tap-min)]"
+            >
+              {voirPlus ? 'Voir moins' : 'Voir plus'}
+              {/* Le sprite n'a pas de `chevron-up` : on pivote celui du bas. */}
+              <Icon
+                name="chevron-down"
+                size={14}
+                aria-hidden
+                className={voirPlus ? 'rotate-180 transition-transform' : 'transition-transform'}
+              />
+            </Button>
+
+            {voirPlus && (
+              <div id="profil-identite-secondaire" className="mt-space-3">
+                <GroupeIdentite icon="user" titre="État civil">
+                  <Champ
+                    label="Genre"
+                    valeur={displayed.genre === 'M' ? 'Homme' : displayed.genre === 'F' ? 'Femme' : null}
+                  />
+                  <Champ label="Date de naissance" valeur={displayed.dateNaissance} />
+                </GroupeIdentite>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col gap-space-4">
 

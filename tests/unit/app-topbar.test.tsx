@@ -9,17 +9,18 @@ jest.mock('next/navigation', () => ({
 }))
 
 describe('<AppTopbar /> v2', () => {
-  it('rend le logo, le pill Yaye, la cloche et le user button', () => {
+  it('rend le logo, la cloche et le user button (plus de pill Yaye — GUIC-689)', () => {
     render(
       <AppTopbar
         userInitials="AD"
-        onYayeClick={() => undefined}
         onBellClick={() => undefined}
         onUserClick={() => undefined}
       />,
     )
     expect(screen.getByAltText(/Guichet/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Yaye/i })).toBeInTheDocument()
+    // GUIC-689 — la pastille Yaye a été retirée : le bouton flottant est
+    // l'unique point d'entrée IA permanent (règle non négociable v5).
+    expect(screen.queryByLabelText(/Yaye/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Notifications/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Profil/i })).toBeInTheDocument()
   })
@@ -36,27 +37,23 @@ describe('<AppTopbar /> v2', () => {
   })
 
   it('appelle les click handlers', () => {
-    const onYaye = jest.fn()
     const onBell = jest.fn()
     const onUser = jest.fn()
     render(
       <AppTopbar
         userInitials="AD"
-        onYayeClick={onYaye}
         onBellClick={onBell}
         onUserClick={onUser}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Yaye/i }))
     fireEvent.click(screen.getByRole('button', { name: /Notifications/i }))
     fireEvent.click(screen.getByRole('button', { name: /Profil/i }))
-    expect(onYaye).toHaveBeenCalled()
     expect(onBell).toHaveBeenCalled()
     expect(onUser).toHaveBeenCalled()
   })
 
   it('omet le user quand pas d\'initiales fournies', () => {
-    render(<AppTopbar onYayeClick={() => undefined} onBellClick={() => undefined} />)
+    render(<AppTopbar onBellClick={() => undefined} />)
     expect(screen.queryByRole('button', { name: /Profil/i })).not.toBeInTheDocument()
   })
 

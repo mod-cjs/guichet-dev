@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { TypeOpportunite } from '@prisma/client'
 import { EmptyState, Icon, Input, Pagination, SkeletonCard } from '@/components/ui'
+import type { EmptyStateAction } from '@/components/ui/EmptyState'
+import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import { useYayePanel } from '@/components/yaye/YayeProvider'
 import { OppCard } from './OppCard'
 import { typeLabel } from './OpportuniteTypeChip'
 import { FiltresPanel, type FiltresValue } from './FiltresPanel'
@@ -21,10 +24,9 @@ interface OpportunitesClientProps {
 type Filters = FiltresValue & { q: string }
 type Status = 'idle' | 'loading' | 'loadingMore' | 'error'
 
-// GUIC-251 — TODO loader : les filtres `remuneration` et `deadline` sont
-// portés par l'URL et propagés à l'API, mais le schéma Zod actuel
-// (`OpportuniteQuerySchema`) ne les valide pas — ils seront silencieusement
-// ignorés côté serveur jusqu'à l'évolution du loader (épic dédié).
+// GUIC-689 — `remuneration` et `deadline` sont portés par l'URL et lus par
+// l'API/le loader (voir `opportunites-loader.ts`) : ce ne sont plus des filtres
+// décoratifs.
 function readFilters(sp: URLSearchParams): Filters {
   return {
     q: sp.get('q') ?? '',
@@ -73,6 +75,7 @@ export function OpportunitesClient({ initialRegion, programmes = [] }: Opportuni
   const filters = useMemo(() => readFilters(searchParams), [searchParams])
   const filtersKey = urlQuery(filters)
   const { has: isFavori, toggle: toggleFavori } = useFavoris()
+  const yaye = useYayePanel()
 
   // Page courante (desktop) — lue depuis l'URL.
   const currentPage = Math.max(1, Number(searchParams.get('page')) || 1)
@@ -207,6 +210,25 @@ export function OpportunitesClient({ initialRegion, programmes = [] }: Opportuni
     filters.deadline,
   ].filter(Boolean).length
   const showRegionBanner = Boolean(filters.region && filters.region === initialRegion)
+
+  // GUIC-689 (Lot P3-A) — actions de l'état vide (design v5
+  // `lot3-opps-web.jsx#WebEmptyState` L.783-793) : "Élargir la région" ne
+  // s'affiche que si un filtre région est réellement actif — un bouton qui
+  // ne changerait rien serait un bouton mort.
+  const emptyStateActions: EmptyStateAction[] = hasFilters
+    ? [
+        ...(filters.region
+          ? [
+              {
+                label: 'Élargir la région',
+                onClick: () => pushFilters({ ...filters, region: undefined }),
+                variant: 'outline' as const,
+              },
+            ]
+          : []),
+        { label: 'Réinitialiser les filtres', onClick: resetFilters, variant: 'primary' as const },
+      ]
+    : []
 
   // Chips actives pour le header desktop.
   const activeChips: ActiveChip[] = []
@@ -363,29 +385,46 @@ export function OpportunitesClient({ initialRegion, programmes = [] }: Opportuni
           )}
 
           {status === 'error' && (
-            <div className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-4 text-fs-300">
-              Une erreur est survenue.{' '}
-              <button
-                type="button"
-                onClick={() => router.refresh()}
-                className="font-bold underline"
-              >
-                Réessayer
-              </button>
-            </div>
+            <EmptyState
+              illustration="error"
+              title="Une erreur est survenue"
+              description="Le chargement des opportunités a échoué. Réessaie dans un instant."
+              actionLabel="Réessayer"
+              onAction={() => router.refresh()}
+            />
           )}
 
           {status !== 'loading' && status !== 'error' && items.length === 0 && (
-            <EmptyState
-              title={hasFilters ? 'Aucun résultat' : 'Aucune opportunité pour le moment'}
-              description={
-                hasFilters
-                  ? 'Aucune opportunité ne correspond à votre recherche.'
-                  : 'Revenez bientôt, de nouvelles opportunités sont publiées régulièrement.'
-              }
-              actionLabel={hasFilters ? 'Réinitialiser les filtres' : undefined}
-              onAction={hasFilters ? resetFilters : undefined}
-            />
+            <div className="flex flex-col items-center gap-space-3">
+              <EmptyState
+                title={hasFilters ? 'Aucun résultat' : 'Aucune opportunité pour le moment'}
+                description={
+                  hasFilters
+                    ? 'Aucune opportunité ne correspond à votre recherche.'
+                    : 'Revenez bientôt, de nouvelles opportunités sont publiées régulièrement.'
+                }
+                actions={emptyStateActions.length > 0 ? emptyStateActions : undefined}
+              />
+              {/* GUIC-689 (Lot P3-A) — bandeau Yaye (design v5 `WebEmptyState`
+                  L.796-810 / `MobileEmptyState` L.681-692) : `EmptyState` reste
+                  une primitive générique non couplée à Yaye, le bandeau est
+                  rendu ici, à côté, et ouvre le panneau existant (GUIC-376). */}
+              <button
+                type="button"
+                onClick={yaye.open}
+                aria-haspopup="dialog"
+                className="flex items-center gap-space-3 text-left w-full max-w-[440px]
+                  bg-gj-teal-soft border-[1.5px] border-gj-line rounded-gj-md p-space-3
+                  cursor-pointer focus:outline-none focus-visible:ring-[3px]
+                  focus-visible:ring-[var(--focus-ring-soft)]"
+              >
+                <YayeAvatar size={32} />
+                <span className="flex-1 text-fs-200 text-color-text-primary leading-relaxed">
+                  <b className="font-black">Yaye peut t&apos;aider :</b> dis-moi ce que tu cherches en
+                  une phrase, je te trouve des opportunités proches.
+                </span>
+              </button>
+            </div>
           )}
 
           {items.length > 0 && (

@@ -167,25 +167,41 @@ describe('F08 — Libellé deadline', () => {
     expect(screen.getByTestId('deadline-label')).toHaveTextContent(/Postuler avant le/i)
   })
 
-  it('affiche le label J-x sans préfixe "Postuler avant" si urgent', () => {
+  // GUIC-689 — évolution : le libellé complet « Postuler avant le X » est
+  // désormais conservé même en urgence (le "J-N" collapsé sur le libellé
+  // banalisait l'info utile). C'est la pastille séparée `urgence-badge`
+  // (F02, ci-dessus) qui porte le "J-N" court, pas ce libellé.
+  it('conserve "Postuler avant le X" même si la deadline est urgente (≤ 3 jours)', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 3 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
     const dl = screen.getByTestId('deadline-label')
-    // Urgent → affiche "J-3" (ou similaire), pas le préfixe long
-    expect(dl).toHaveTextContent('J-3')
-    expect(dl.textContent).not.toMatch(/Postuler avant le/i)
+    expect(dl).toHaveTextContent(/Postuler avant le/i)
+    expect(dl.textContent).not.toBe('J-3')
   })
 
-  it('colore la deadline en rouge si urgent', () => {
+  it('colore la deadline en rouge si urgent (≤ 3 jours)', () => {
+    const item = {
+      ...baseItem,
+      deadline: new Date(FIXED_NOW + 3 * 86_400_000).toISOString(),
+    }
+    render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
+    const dl = screen.getByTestId('deadline-label')
+    expect(dl.className).toMatch(/text-gj-red/)
+  })
+
+  // GUIC-689 — gradation à 3 niveaux : 4 à 7 jours = "proche" (ambre), le seuil
+  // binaire à 7 jours banalisait le rouge (handoff design v5).
+  it('colore la deadline en ambre si "proche" (4 à 7 jours), pas en rouge', () => {
     const item = {
       ...baseItem,
       deadline: new Date(FIXED_NOW + 5 * 86_400_000).toISOString(),
     }
     render(<OppCard item={item} isFavori={false} onToggleFavori={() => {}} now={FIXED_NOW} />)
     const dl = screen.getByTestId('deadline-label')
-    expect(dl.className).toMatch(/text-gj-red/)
+    expect(dl.className).toMatch(/text-gj-yellow-ink/)
+    expect(dl.className).not.toMatch(/text-gj-red/)
   })
 })

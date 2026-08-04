@@ -1,56 +1,31 @@
-# CURRENT_TASK — GUIC-700 · Lot 7 durcissement ETL : suppressions, rétention, v_programs_summary
+# CURRENT_TASK — Vague 3 design v5 : socle, états système, navigation, écrans (épic GUIC-689)
 
-**Spec** : `.agent_context/specs/M13-durcissement-etl.md` (§4.3 R6, §5 Lot 7 — arbitrages
-tranchés le 2026-08-03) · **Branche** : `feature/GUIC-700-etl-suppressions-retention`, **empilée
-sur** `feature/GUIC-694-etl-lot1-exploitabilite` · **JIRA** :
-[GUIC-700](https://consortiumjeunesse.atlassian.net/browse/GUIC-700)
+**Branche** : `feature/GUIC-689-design-v5-vague3-socle` — **empilée** sur vague 2 (PR #322) → vague 1 (PR #318) → fondation (PR #314).
+Ordre de merge : #314 → #318 → #322 → vague 3. Rebaser sur `dev` au fil des merges.
+**Worktree** : `.claude/worktrees/design-v5` (node_modules PROPRE — ne jamais re-symlinker).
+**Serveur local** : `APP_ENV=local ALLOW_DEV_LOGIN=true NEXTAUTH_URL=http://localhost:3211 PORT=3211 npm run start`, puis `/api/dev/login?uid=…` (le SSO n'est pas joignable en dev).
 
-## Arbitrages tranchés (voir spec pour le détail des 3 questions posées)
-1. Absent détecté par le full-refresh hebdomadaire des clés → **suppression physique** dans
-   l'entrepôt (guichet_raw + marts, qui se recalculent dessus). Pas de tombstone.
-2. **Rétention événementielle uniquement** — pas de purge indépendante par durée côté entrepôt.
-3. **v_programs_summary dans la même passe** (support FULL_TABLE pour les 5 tables de jonction
-   programmes).
+## Périmètre — issu de l'audit de conformité (38 items, 8 arbitrages)
 
-## Vérification empirique faite avant tout code
-`Utilisateur` n'est jamais hard-deleted (soft-delete + anonymisation SSO, déjà propagé).
-Hard-deletes réels confirmés, sans `softDelete` déclaré : `Emprunt`, `Centre`, `Evenement`,
-`Ressource`. `Opportunite.delete()` existe mais aucun appelant identifié.
+| Lot | Contenu | État |
+|---|---|---|
+| **A** | Interfaces qui mentent : CTA Yaye dashboard sans handler · CTA Yaye coloré par type au lieu du magenta · bouton « Retirer ma candidature » sans API (arbitrage rendu : **retrait**) | agent lancé |
+| **C1** | Primitives : Tabs (pilule), Chip (fond plein), Toast (sombre + action inline) | agent lancé |
+| **C2** | Primitives : Modal/Alert glyphes → sprite · 4 icônes manquantes · Badge bordure · Avatar dégradé+présence · FileUpload dropzone · Skeleton gabarit | agent lancé |
+| **D** | États système : mode hors-ligne (0 occurrence de `navigator.onLine`) · `error.tsx` (0 fichier) · primitive plein écran · EmptyState fullpage | à lancer |
+| **E** | Navigation : bottom-nav signature v5 · `/jeune/parametres` injoignable · fil d'Ariane ID brut · libellés sidebar | à lancer |
+| **F** | Écrans : médiathèque (É-10) · tuile sectorielle OppCard · logos partenaires · filtres agenda Format/Lieu · notation/attestation · compteur de vues | à lancer |
+| **G** | Bulle streaming Yaye (hauteur réservée) · gradient hex Notifications · code mort dashboard | à lancer |
 
-## État — Parties A et B livrées, TDD strict ; branche resynchronisée avec dev
-- [x] Ticket GUIC-700 créé (sous-tâche GUIC-693) + arbitrages obtenus + spec mise à jour
-- [x] Partie A — `src/lib/datahub/purge-absents.ts` (module pur, injection comme
-      `reconcile.ts`) : détecte les clés présentes dans l'entrepôt mais absentes de la liste
-      complète des clés source, supprime physiquement dans `guichet_raw`. Appliqué
-      uniformément aux 13 flux — une ligne soft-deleted reste listée, jamais supprimée à tort.
-- [x] Partie A — `scripts/datahub/purge-absents.ts` (Prisma direct + `psql` dockerisé, même
-      patron que `reconcile.ts`) — à planifier hebdomadairement, crontab séparée de
-      `run-nightly.sh`.
-- [x] Partie B — support `FULL_TABLE` dans un système PARALLÈLE à l'incrémental
-      (`full-table-types.ts`, `full-table-streams.ts`, `full-table-descriptor.ts`,
-      `full-table-export.ts`) : clé composite à deux champs, curseur dédié, jamais de `since`.
-      5 flux déclarés (jonctions programmes), câblés dans la route `[stream]` (registre
-      incrémental essayé d'abord) et dans les trois générateurs (OpenAPI, manifeste tap,
-      sources dbt). Documentation `///` ajoutée sur les 5 modèles Prisma (manquante sur 3/5).
-- [x] Partie B — `v_programs_summary.sql` corrigé : 5 compteurs de rattachement réels
-      (LEFT JOIN + COALESCE — un programme sans rattachement ne disparaît pas du comptage).
-- [x] `npm run validate` intégral vert la première fois : 559 suites, 4362 tests.
-- [x] **Rebasage post-incident** — PR #325 (GUIC-694) avait mergé sur `dev` avant que PR #335
-      (GUIC-697) ne merge dans `feature/GUIC-694-etl-lot1-exploitabilite`, laissant GUIC-697
-      orphelin (jamais atteint `dev`). Corrigé par la PR #342 (cette branche →
-      `feature/GUIC-694-etl-lot1-exploitabilite` → `dev`). Cette branche (GUIC-700) a ensuite
-      mergé la branche GUIC-694 à jour : conflits résolus dans `openapi.ts` (chemins
-      FULL_TABLE + `/export/counts` coexistent), `[stream]/route.ts` (routage FULL_TABLE +
-      validation `parseSince` combinés), `package.json` (les deux scripts npm coexistent),
-      `datahub-openapi.test.ts` (assertions fusionnées). Artefacts régénérés
-      (`npm run datahub:generate`) plutôt que résolus à la main (fichiers générés).
-- [ ] Revalider `npm run validate` après régénération des artefacts, puis push
+**Lot B (plancher 11px, 83 occurrences / 42 fichiers)** : traité de façon opportuniste dans les fichiers touchés ; le gros (recruteur 20, conseiller 15) part avec les vagues de ces espaces.
 
-## Notes
-- Le mécanisme de suppression révise le `?fields=id` public de la spec §8.5 initiale : script
-  interne Prisma-direct, pas de nouveau paramètre exposé sur l'API publique.
+## Règles de coordination (leçons des vagues 1-2)
+- Agents en parallèle : périmètres de fichiers **disjoints**, et **jamais `git add -A`** — sinon un agent committe le travail en cours d'un autre.
+- Tout commit `feat`/`fix` doit toucher un fichier de test (hook TDD).
+- `npm run build | tail` masque un échec → capturer le code de sortie.
+- jsdom ignore les styles inline `var()` → sentinelle fs.
+- `:where()` obligatoire pour tout scope de sélecteur global (spécificité nulle).
+- **Ne jamais conclure sur une lecture partielle de code** : monter le composant et compter (leçon É-15).
 
-## Plan de durcissement ETL (spec §5) — état des 5 PRs
-Lot 1 GUIC-694 (#325, mergée `dev`) · Lot 2 GUIC-695 (#326, mergée `dev`) · Lots 3+4 GUIC-696
-(#327, mergée `dev`) · Lots 5+6 GUIC-697 (#335, rapatriée vers `dev` par #342) · **Lot 7
-GUIC-700 (#341) = cette branche**, dernier lot du plan, resynchronisée avec `dev`.
+## Vérification de fin de vague
+`npm run validate` par moi-même (jamais sur parole d'agent) + audit visuel multi-viewports + revue des diffs avant push.

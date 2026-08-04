@@ -3,12 +3,12 @@ import { OpportunitesRecoCarousel, type OppRecoCard } from '@/components/dashboa
 
 const items: OppRecoCard[] = [
   {
-    id: 'a', tag: 'J-3', tone: 'urgent', title: 'Bourse agricole',
+    id: 'a', type: 'Bourse' as const, joursRestants: 3, title: 'Bourse agricole',
     org: 'Tambacounda', match: '92% match', ctaLabel: 'Candidater',
     href: '/opportunites/a',
   },
   {
-    id: 'b', tag: 'Stage', tone: 'info', title: 'Stage Sonatel',
+    id: 'b', type: 'Stage' as const, joursRestants: 30, title: 'Stage Sonatel',
     org: 'Dakar', href: '/opportunites/b',
   },
 ]

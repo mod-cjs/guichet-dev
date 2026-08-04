@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button, Icon, RichContent, Toast } from '@/components/ui'
 import type { ViewerInfo } from './CandidatureModal'
 import { useFavoris } from './FavorisProvider'
-import { YayeMatchCard } from './YayeMatchCard'
+import { YayeMatchCard, type YayeMatch } from './YayeMatchCard'
 import { ProgrammeBadges } from './ProgrammeBadges'
 import type { OpportuniteDetail as Detail } from '@/types/candidature'
 import type { CandidatureListItem } from '@/types/candidature'
@@ -16,6 +16,7 @@ import {
 } from '@/lib/constants/candidature'
 import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
 import { regionLabel } from '@/lib/regions'
+import { appDomain } from '@/lib/app-url'
 import { categorieDepuisType, classeCategorie } from '@/lib/design/categories'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
@@ -29,11 +30,21 @@ const CandidatureModal = dynamic(
 interface OpportuniteDetailProps {
   detail: Detail
   viewer: ViewerInfo | null
+  /**
+   * Score de correspondance Yaye réel pour ce couple (viewer, opportunité),
+   * lu côté serveur (`getRecommandationScore`) et descendu en prop — jamais
+   * calculé ni fetché depuis ce composant client (GUIC-689 P2). `null`/`undefined`
+   * = aucun score en cache pour ce couple → `YayeMatchCard` ne s'affiche pas.
+   */
+  matchScore?: YayeMatch | null
   /** Si le détail est rendu dans un slide-over, affiche un bouton « Fermer » dans le hero. */
   onClose?: () => void
 }
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+// F1.2 (GUIC-689) — nombre de vues en français (espace fine insécable comme
+// séparateur de milliers), cf. `formatHomeStat` (src/lib/loaders/home-stats.shared.ts).
+const VUES_FMT = new Intl.NumberFormat('fr-FR')
 
 // GUIC-689 (F-6) — acronymes courants des enums métier : ils doivent rester en
 // majuscules (jamais "cdd"/"pdf" en toutes lettres minuscules).
@@ -58,6 +69,72 @@ const humanize = (v: string) =>
         : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
     )
     .join(' ')
+
+/**
+ * Normalise un libellé pour une comparaison insensible à la casse/accents
+ * (P1 GUIC-689 — check-list des prérequis : croise `skills` de l'offre et
+ * `viewer.competences`, saisies librement, sans supposer une casse commune).
+ */
+const normalizeLabel = (v: string) =>
+  v
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+
+// ─── Formatage des champs de sous-type (GUIC-689 — grille "Détails de l'offre") ───
+
+/**
+ * GUIC-689 — une valeur peut être techniquement présente et sémantiquement
+ * vide. Constaté au rendu : des bourses affichaient « Montant — 0 FCFA » et
+ * « Organisme financeur — À renseigner », deux marqueurs de remplissage
+ * stockés en base. Les afficher est pire que de ne rien afficher : le premier
+ * laisse croire que la bourse ne verse rien, le second fait fuiter un marqueur
+ * interne vers le public.
+ */
+const MARQUEURS_VIDES = ['a renseigner', 'non renseigne', 'inconnu', 'n/a', 'na', '-', '?']
+
+/** Texte utile ? (ni vide, ni marqueur de remplissage) */
+function texteUtile(v: string | null | undefined): v is string {
+  if (!v) return false
+  const norm = v.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return norm.length > 0 && !MARQUEURS_VIDES.includes(norm)
+}
+
+/** Montant utile ? Un montant à 0 n'informe pas — il signale une saisie absente. */
+function montantUtile(n: number | null | undefined): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0
+}
+
+/** Montant en FCFA avec séparateurs de milliers `Intl.NumberFormat('fr-FR')`. */
+const MONTANT_FMT = new Intl.NumberFormat('fr-FR')
+const fcfa = (n: number) => `${MONTANT_FMT.format(n)} FCFA`
+
+/** Pourcentage fr-FR (virgule décimale) — ex. taux annuel d'un financement. */
+const PCT_FMT = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
+const pctLabel = (n: number) => `${PCT_FMT.format(n)} %`
+
+// "mois" est invariable en français (1 mois / 12 mois) : pas de pluriel à gérer.
+const moisLabel = (n: number) => `${n} mois`
+const heuresLabel = (n: number) => `${n} heure${n > 1 ? 's' : ''}`
+const placesLabel = (n: number) => `${n} place${n > 1 ? 's' : ''}`
+
+/**
+ * Convertit une valeur potentiellement `Decimal` (Prisma) en `number`. Un champ
+ * `Decimal` (ex. `OpportuniteFinancement.tauxAnnuel`) traverse la frontière
+ * RSC → client déjà sérialisé (le `toJSON()` de Decimal.js renvoie `toString()`) :
+ * le type statique reste `Decimal`, mais la valeur réelle reçue ici est une
+ * string ou un number selon le chemin de sérialisation — jamais l'instance.
+ */
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return Number(v)
+  const maybe = v as { toNumber?: () => number; toString?: () => string }
+  if (typeof maybe.toNumber === 'function') return maybe.toNumber()
+  if (typeof maybe.toString === 'function') return Number(maybe.toString())
+  return null
+}
 
 /**
  * Nombre de jours restants avant la deadline (peut être négatif si dépassée).
@@ -147,18 +224,20 @@ function HeroGhostButton({
   )
 }
 
-/** Cellule de la grille de détails 2 colonnes. */
+/** Cellule de la grille de détails 2 colonnes (kvCard, design v5 — lot3-opps-web.jsx). */
 function DetailCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gj-bg rounded-gj-md px-space-3 py-space-2">
-      <p className="text-fs-100 uppercase font-bold text-color-text-muted tracking-wide">{label}</p>
+    <div className="bg-gj-bg border-[1.5px] border-gj-line rounded-gj-md px-space-3 py-space-2">
+      <p className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-[0.4px]">
+        {label}
+      </p>
       <p className="text-fs-300 font-bold text-color-text-primary mt-[2px]">{value}</p>
     </div>
   )
 }
 
 /** Contenu du détail d'une opportunité — partagé entre la page SSR et le slide-over. */
-export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetailProps) {
+export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: OpportuniteDetailProps) {
   const searchParams = useSearchParams()
   const expired = detail.deadline !== null && new Date(detail.deadline) < new Date()
   const { has: isFavoriOf, toggle: toggleFavoriId } = useFavoris()
@@ -204,48 +283,219 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
     }
   }, [detail.slug, detail.titre])
 
-  // Chips meta inline du hero (région / rémunération / délai indicatif).
+  // Chips meta inline du hero (région / rémunération / délai indicatif / domaine / vues).
   const heroChips = useMemo(() => {
-    const chips: { icon: 'pin' | 'funding' | 'clock'; label: string }[] = []
+    const chips: { icon: 'pin' | 'funding' | 'clock' | 'target' | 'eye'; label: string }[] = []
     if (detail.region) chips.push({ icon: 'pin', label: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) chips.push({ icon: 'funding', label: detail.remuneration })
     const jours = joursAvantDeadline(detail.deadline)
     if (jours !== null && jours > 0 && jours <= DEADLINE_VISIBLE_DAYS) {
       chips.push({ icon: 'clock', label: `Décision ${jours}j` })
     }
+    // GUIC-689 (B.6) — puce domaine (maquette lot3-opps-web.jsx L.459), 4ᵉ position :
+    // `detail.domaine` n'est jamais null, donc toujours affichée (contrairement aux
+    // puces ci-dessus, optionnelles selon les données de l'offre).
+    chips.push({ icon: 'target', label: humanize(detail.domaine) })
+    // F1.2 (GUIC-689) — compteur de vues, jamais affiché jusqu'ici bien que
+    // suivi côté serveur (lot3-opps-web.jsx:420-428). Aligné sur la
+    // présentation de RessourceDetailHero (singulier/pluriel).
+    // P3-B (GUIC-689) — en contexte slide-over (`onClose` fourni), le compteur
+    // migre dans le bandeau URL dédié (cf. `<DetailUrlBanner>` ci-dessous) :
+    // on ne le duplique jamais. En plein écran, il reste ici (pas de bandeau).
+    if (!onClose && typeof detail.vues === 'number') {
+      chips.push({
+        icon: 'eye',
+        label: `${VUES_FMT.format(detail.vues)} vue${detail.vues > 1 ? 's' : ''}`,
+      })
+    }
     return chips
-  }, [detail.region, detail.remuneration, detail.deadline])
+  }, [detail.region, detail.remuneration, detail.deadline, detail.domaine, detail.vues, onClose])
 
-  // Grille détails 2 colonnes — racine + sous-type discriminé.
+  // Grille détails 2 colonnes — racine + sous-type discriminé (GUIC-689 : les 10 sous-types).
   const cells = useMemo(() => {
     const out: { label: string; value: string }[] = [
       { label: 'Type', value: humanize(detail.type) },
       { label: 'Domaine', value: humanize(detail.domaine) },
     ]
+
+    // Niveau d'étude minimum : priorité au champ du sous-type quand il en a un
+    // (emploi/stage/bourse ont chacun le leur), repli sur le champ racine
+    // générique pour les 7 autres sous-types + les rows legacy sans sous-type.
+    // Jamais les deux à la fois (pas de doublon de cellule).
+    const niveauSousType =
+      detail.details?.type === 'emploi' ? detail.details.payload.niveauEtudeMin
+      : detail.details?.type === 'stage' ? detail.details.payload.niveauEtudeMin
+      : detail.details?.type === 'bourse' ? detail.details.payload.niveauEtudeRequis
+      : null
+    const niveauEffectif = niveauSousType ?? detail.niveauEtudeMin
+    if (niveauEffectif) {
+      out.push({ label: "Niveau d'étude minimum", value: humanize(niveauEffectif) })
+    }
+
     if (detail.region) out.push({ label: 'Région', value: regionLabel(detail.region) ?? detail.region })
     if (detail.remuneration) out.push({ label: 'Rémunération', value: detail.remuneration })
     out.push({
       label: 'Échéance',
       value: detail.deadline ? dateFmt.format(new Date(detail.deadline)) : 'Sans échéance',
     })
-    // Sous-type : ajoute quelques champs lisibles si présents.
+
+    // Sous-type : champs porteurs de décision (GUIC-689 §A). Chaque champ optionnel
+    // n'est poussé que s'il est renseigné — jamais de cellule vide/« null ».
     if (detail.details?.type === 'emploi') {
-      out.push({ label: 'Type de contrat', value: humanize(detail.details.payload.typeContrat) })
-      if (detail.details.payload.teletravail) {
-        out.push({ label: 'Modalité', value: 'Télétravail possible' })
+      const p = detail.details.payload
+      out.push({ label: 'Type de contrat', value: humanize(p.typeContrat) })
+      if (p.teletravail) out.push({ label: 'Modalité', value: 'Télétravail possible' })
+      if (p.experienceRequise) out.push({ label: 'Expérience requise', value: p.experienceRequise })
+    }
+
+    if (detail.details?.type === 'stage') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.dateDebutPrevue) {
+        out.push({ label: 'Début prévu', value: dateFmt.format(new Date(p.dateDebutPrevue)) })
+      }
+      // `indemnise` est un booléen porteur de sens dans les deux états : un jeune
+      // veut savoir si un stage est rémunéré même quand la réponse est non.
+      out.push({
+        label: 'Indemnisation',
+        value: p.indemnise
+          ? p.indemniteMensuelleFcfa != null
+            ? `${fcfa(p.indemniteMensuelleFcfa)} / mois`
+            : 'Stage indemnisé'
+          : 'Stage non indemnisé',
+      })
+      // `conventionneEcole` : seul le `true` est décisif (l'absence de convention
+      // est l'état par défaut, pas une information utile à afficher).
+      if (p.conventionneEcole) out.push({ label: 'Convention', value: "Convention d'école requise" })
+    }
+
+    if (detail.details?.type === 'formation') {
+      const p = detail.details.payload
+      out.push({ label: 'Modalité', value: humanize(p.modalite) })
+      out.push({ label: 'Durée', value: heuresLabel(p.dureeHeures) })
+      // `certifiante` : seul le `true` est décisif (même logique que conventionneEcole).
+      if (p.certifiante) {
+        out.push({
+          label: 'Certification',
+          value: p.organismeCertificateur ? `Certifiante — ${p.organismeCertificateur}` : 'Formation certifiante',
+        })
+      }
+      if (texteUtile(p.prerequis)) out.push({ label: 'Prérequis', value: p.prerequis })
+      // `gratuite` est porteur de sens dans les deux états (ex. brief : « Formation
+      // payante » quand `false`, avec le montant s'il est renseigné).
+      out.push({
+        label: 'Frais',
+        value: p.gratuite
+          ? 'Formation gratuite'
+          : p.fraisInscriptionFcfa != null
+            ? `Formation payante — ${fcfa(p.fraisInscriptionFcfa)}`
+            : 'Formation payante',
+      })
+    }
+
+    if (detail.details?.type === 'bourse') {
+      const p = detail.details.payload
+      if (montantUtile(p.montantTotalFcfa)) out.push({ label: 'Montant', value: fcfa(p.montantTotalFcfa) })
+      if (texteUtile(p.organismeFinanceur)) out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      if (p.dureeMois != null) out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.paysDestination) out.push({ label: 'Pays de destination', value: p.paysDestination })
+      // `coupleObligatoire` : seul le `true` est décisif (la plupart des bourses
+      // n'exigent pas de candidature en couple — état par défaut non informatif).
+      if (p.coupleObligatoire) out.push({ label: 'Modalité', value: 'Candidature en couple obligatoire' })
+    }
+
+    if (detail.details?.type === 'concours') {
+      const p = detail.details.payload
+      if (texteUtile(p.organismeOrganisateur)) out.push({ label: 'Organisme organisateur', value: p.organismeOrganisateur })
+      if (p.dateEpreuves) out.push({ label: 'Date des épreuves', value: dateFmt.format(new Date(p.dateEpreuves)) })
+      if (texteUtile(p.lieuEpreuves)) out.push({ label: 'Lieu des épreuves', value: p.lieuEpreuves })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
+      if (p.preuvesDemandees) out.push({ label: 'Pièces demandées', value: p.preuvesDemandees })
+    }
+
+    if (detail.details?.type === 'appel_a_projets') {
+      const p = detail.details.payload
+      // `dossierRequis` / `criteresEligibilite` sont des textes longs (prose) :
+      // hors de la grille compacte clé-valeur, comme `conditions`/`mission` déjà
+      // rendus en sections dédiées ailleurs sur ce composant.
+      if (montantUtile(p.budgetMaxFcfa)) out.push({ label: 'Budget max', value: fcfa(p.budgetMaxFcfa) })
+      if (p.dureeProjetMois != null) out.push({ label: 'Durée du projet', value: moisLabel(p.dureeProjetMois) })
+      if (texteUtile(p.thematique)) out.push({ label: 'Thématique', value: p.thematique })
+    }
+
+    if (detail.details?.type === 'financement') {
+      const p = detail.details.payload
+      // `garanties` : texte long (prose), hors grille — même raison que dossierRequis.
+      if (montantUtile(p.montantFcfa)) out.push({ label: 'Montant', value: fcfa(p.montantFcfa) })
+      out.push({ label: 'Type de financement', value: humanize(p.typeFinancement) })
+      if (texteUtile(p.organismeFinanceur)) out.push({ label: 'Organisme financeur', value: p.organismeFinanceur })
+      const taux = toNum(p.tauxAnnuel)
+      if (taux != null) out.push({ label: 'Taux annuel', value: pctLabel(taux) })
+      if (p.dureeRemboursementMois != null) {
+        out.push({ label: 'Durée de remboursement', value: moisLabel(p.dureeRemboursementMois) })
+      }
+      if (p.isContinuous) {
+        out.push({ label: 'Dépôt', value: 'Dépôt en continu (pas de date limite)' })
+      } else if (p.dateLimiteDepot) {
+        out.push({ label: 'Date limite de dépôt', value: dateFmt.format(new Date(p.dateLimiteDepot)) })
       }
     }
-    if (detail.details?.type === 'stage') {
-      out.push({ label: 'Durée', value: `${detail.details.payload.dureeMois} mois` })
+
+    if (detail.details?.type === 'mentorat') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      out.push({ label: 'Modalité', value: humanize(p.modalite) })
+      if (texteUtile(p.organisateurLibelle)) out.push({ label: 'Organisateur', value: p.organisateurLibelle })
+      if (texteUtile(p.thematique)) out.push({ label: 'Thématique', value: p.thematique })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
     }
-    if (detail.details?.type === 'formation') {
-      out.push({ label: 'Modalité', value: humanize(detail.details.payload.modalite) })
+
+    if (detail.details?.type === 'mobilite') {
+      const p = detail.details.payload
+      // `prisEnCharge` : bien que `db.Text` en base, réponse courte en pratique
+      // (« Billet + logement ») et directement décisive pour un jeune → dans la grille.
+      if (texteUtile(p.destination)) out.push({ label: 'Destination', value: p.destination })
+      out.push({ label: 'Type de mobilité', value: humanize(p.typeMobilite) })
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      if (p.niveauLangueRequis) out.push({ label: 'Niveau de langue requis', value: p.niveauLangueRequis })
+      if (p.prisEnCharge) out.push({ label: 'Prise en charge', value: p.prisEnCharge })
+      if (p.dateDepartPrevue) out.push({ label: 'Départ prévu', value: dateFmt.format(new Date(p.dateDepartPrevue)) })
     }
+
+    if (detail.details?.type === 'volontariat') {
+      const p = detail.details.payload
+      out.push({ label: 'Durée', value: moisLabel(p.dureeMois) })
+      out.push({ label: 'Type de volontariat', value: humanize(p.typeVolontariat) })
+      if (texteUtile(p.domaineMission)) out.push({ label: 'Domaine de la mission', value: p.domaineMission })
+      // `indemniteMensuelleFcfa` absente : porteur de sens (un volontariat non
+      // indemnisé est une information à ne pas cacher), même logique que stage.
+      out.push({
+        label: 'Indemnité mensuelle',
+        value: p.indemniteMensuelleFcfa != null ? fcfa(p.indemniteMensuelleFcfa) : 'Volontariat non indemnisé',
+      })
+      if (p.placesDisponibles != null) {
+        out.push({ label: 'Places disponibles', value: placesLabel(p.placesDisponibles) })
+      }
+    }
+
     return out
   }, [detail])
 
   const competencesRequises = (detail.skills ?? []).filter((s) => s.requise)
   const tags = detail.tags ?? []
+
+  // P1 (GUIC-689) — check-list des prérequis : croise les compétences requises
+  // de l'offre avec `viewer.competences` (déjà chargées pour CandidatureModal),
+  // comparaison insensible casse/accents. `null` pour un visiteur anonyme — on
+  // ne prétend jamais connaître son profil.
+  const viewerCompetencesNorm = useMemo(
+    () => (viewer ? new Set((viewer.competences ?? []).map(normalizeLabel)) : null),
+    [viewer],
+  )
 
   const ctaDisabled = expired || dejaCandidate
   const ctaLabel = dejaCandidate
@@ -261,9 +511,42 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
 
   return (
     <article className="flex flex-col">
+      {/* ─── Bandeau URL + vues (slide-over uniquement) ─────────────────
+          P3-B (GUIC-689) — réf. design v5 `WebOppSlideOver` (lot3-opps-web.jsx
+          L.412-429) : rappelle l'URL publique de l'offre (repère de confiance)
+          au-dessus du hero. La page plein écran a déjà cette URL dans la barre
+          d'adresse du navigateur — l'y ajouter serait redondant, donc ce
+          bandeau ne se rend QUE quand ce composant est en slide-over
+          (signal existant : présence de `onClose`, cf. `DetailSheet`). */}
+      {onClose && (
+        <div
+          data-testid="detail-url-banner"
+          className="flex items-center gap-2 bg-gj-ink-teal text-white/70 px-space-3 py-1
+            text-fs-100 font-mono rounded-t-gj-md"
+        >
+          <Icon name="shield" size={12} className="text-gj-yellow shrink-0" aria-hidden />
+          <span className="flex-1 min-w-0 truncate">
+            <span className="text-white/55">{appDomain()}</span>
+            <span className="text-gj-yellow">/opportunites/</span>
+            <span className="text-white">{detail.slug}</span>
+          </span>
+          {typeof detail.vues === 'number' && (
+            <span
+              data-testid="detail-url-banner-vues"
+              className="inline-flex items-center gap-1 text-white/55 shrink-0"
+            >
+              <Icon name="eye" size={12} aria-hidden />
+              <b className="text-white font-bold">{VUES_FMT.format(detail.vues)}</b>{' '}
+              vue{detail.vues > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ─── Hero compact ────────────────────────────────────────────── */}
       <header
-        className="text-white px-space-4 pt-space-2 pb-space-4 rounded-gj-md"
+        className={`text-white px-space-4 pt-space-2 pb-space-4
+          ${onClose ? 'rounded-b-gj-md' : 'rounded-gj-md'}`}
         style={{
           background: 'linear-gradient(135deg, var(--gj-teal-deep), var(--gj-ink-teal, var(--gj-teal-deep)))',
         }}
@@ -289,8 +572,8 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         <HeroBadges typeLabel={humanize(detail.type)} deadlineIso={detail.deadline} expired={expired} />
 
         <h1
-          className="text-color-text-onDark mt-space-2 font-black"
-          style={{ fontSize: 'var(--fs-700)', lineHeight: 1.2, color: 'var(--gj-surface)' }}
+          className="mt-space-2 font-black text-fs-600 sm:text-fs-700 tracking-[-0.2px]"
+          style={{ lineHeight: 1.2, color: 'var(--gj-surface)' }}
         >
           {detail.titre}
         </h1>
@@ -322,12 +605,12 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
 
       {/* ─── Contenu défilant (scroll unique — plus de tabs) ─────────── */}
       <div className="flex flex-col gap-space-4 mt-space-4">
-        <YayeMatchCard />
+        <YayeMatchCard match={matchScore ?? null} />
 
         <section aria-labelledby="opp-details-heading">
           <h2
             id="opp-details-heading"
-            className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
           >
             Détails de l’offre
           </h2>
@@ -341,11 +624,11 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
         <section aria-labelledby="opp-description-heading">
           <h2
             id="opp-description-heading"
-            className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+            className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
           >
             Description
           </h2>
-          <RichContent html={detail.description} className="text-fs-300 leading-loose" />
+          <RichContent html={detail.description} className="text-fs-300 leading-[1.6]" />
         </section>
 
         {/* GUIC-257 — sections structurées optionnelles (null si non remplies en BDD). */}
@@ -353,33 +636,33 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <section aria-labelledby="opp-profil-recherche-heading">
             <h2
               id="opp-profil-recherche-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Profil recherché
             </h2>
-            <RichContent html={detail.profilRecherche} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.profilRecherche} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
         {detail.mission && (
           <section aria-labelledby="opp-mission-heading">
             <h2
               id="opp-mission-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Mission
             </h2>
-            <RichContent html={detail.mission} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.mission} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
         {detail.conditions && (
           <section aria-labelledby="opp-conditions-heading">
             <h2
               id="opp-conditions-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Conditions
             </h2>
-            <RichContent html={detail.conditions} className="text-fs-300 leading-loose" />
+            <RichContent html={detail.conditions} className="text-fs-300 leading-[1.6]" />
           </section>
         )}
 
@@ -387,15 +670,48 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <section aria-labelledby="opp-skills-heading">
             <h2
               id="opp-skills-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Compétences requises
             </h2>
-            <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-loose">
-              {competencesRequises.map((s) => (
-                <li key={s.slug}>{s.libelle}</li>
-              ))}
-            </ul>
+            {viewerCompetencesNorm ? (
+              <ul className="flex flex-col gap-space-1" data-testid="skills-checklist">
+                {competencesRequises.map((s) => {
+                  const acquise = viewerCompetencesNorm.has(normalizeLabel(s.libelle))
+                  return (
+                    <li
+                      key={s.slug}
+                      data-testid={`skill-check-${s.slug}`}
+                      data-acquise={acquise}
+                      className={`flex items-center gap-space-2 rounded-gj-md px-space-3 py-space-2
+                        text-fs-200 font-bold
+                        ${acquise ? 'bg-gj-green-soft text-gj-green-ink' : 'bg-gj-yellow-soft text-gj-yellow-ink'}`}
+                    >
+                      <span
+                        aria-hidden
+                        className={`w-5 h-5 rounded-full inline-flex items-center justify-center
+                          flex-shrink-0 text-white
+                          ${acquise ? 'bg-gj-green' : 'bg-gj-yellow-deep'}`}
+                      >
+                        <Icon name={acquise ? 'check' : 'plus'} size={12} />
+                      </span>
+                      <span className="flex-1">{s.libelle}</span>
+                      {!acquise && (
+                        <span className="text-fs-100 font-extrabold uppercase tracking-wide">
+                          À compléter
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <ul className="list-disc pl-5 text-fs-300 text-color-text-primary leading-[1.7]">
+                {competencesRequises.map((s) => (
+                  <li key={s.slug}>{s.libelle}</li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
@@ -403,7 +719,7 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
           <section aria-labelledby="opp-tags-heading">
             <h2
               id="opp-tags-heading"
-              className="text-fs-100 uppercase font-extrabold text-color-text-muted tracking-wide mb-space-2"
+              className="text-fs-100 uppercase font-extrabold text-color-text-secondary tracking-wide mb-space-2"
             >
               Tags
             </h2>
@@ -431,6 +747,50 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             Plus d’informations
           </a>
         )}
+      </div>
+
+      {/* ─── « Offre portée par » — gage de crédibilité ──────────────────
+          Engagement du retour design V3 §4, maquette `lot3-opps-web.jsx:549`.
+          La maquette n'affiche pas de fichier logo mais une pastille d'initiale
+          + le nom (et `Organisation.logoUrl` est vide partout en base) : on rend
+          donc l'organisme, les programmes de rattachement RÉELS (GUIC-684) et le
+          CJS, opérateur de la plateforme. Rien n'est inventé — aucune entité
+          n'est affichée sans donnée qui la porte. */}
+      <div
+        data-testid="offre-portee-par"
+        className="flex flex-wrap items-center gap-space-3 px-space-3 py-space-3
+          bg-gj-bg border-t border-gj-line"
+      >
+        <span
+          className="text-fs-100 font-extrabold uppercase tracking-[0.5px]
+            text-color-text-secondary shrink-0"
+        >
+          Offre portée par
+        </span>
+        <ul className="flex flex-wrap items-center gap-2 list-none p-0 m-0">
+          {[
+            detail.organisation,
+            ...(detail.programmes ?? []).map((p) => p.nom),
+            'Consortium Jeunesse Sénégal',
+          ]
+            .filter((nom): nom is string => Boolean(nom && nom.trim()))
+            .map((nom) => (
+              <li
+                key={nom}
+                className="inline-flex items-center gap-2 bg-gj-surface
+                  border border-gj-line rounded-gj-md px-space-2 py-1"
+              >
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center w-[22px] h-[22px]
+                    rounded-gj-sm bg-gj-teal-soft text-gj-teal-deep text-fs-100 font-black"
+                >
+                  {nom.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="text-fs-100 font-bold text-color-text-primary">{nom}</span>
+              </li>
+            ))}
+        </ul>
       </div>
 
       {/* ─── Sticky CTA ──────────────────────────────────────────────── */}
@@ -480,7 +840,10 @@ export function OpportuniteDetail({ detail, viewer, onClose }: OpportuniteDetail
             <Button
               variant="conversion"
               size="lg"
-              className="flex-1"
+              // GUIC-689 (B.5) — la primitive Button applique `font-bold` (700) inconditionnellement ;
+              // le lien anonyme ci-dessus est en `font-extrabold` (800). Correction locale seulement :
+              // la primitive est partagée (admin/recruteur/conseiller), harmonisation globale différée.
+              className="flex-1 font-extrabold"
               disabled={ctaDisabled}
               aria-describedby={ctaDisabled ? 'cta-disabled-reason' : undefined}
               onClick={() => setModalOpen(true)}

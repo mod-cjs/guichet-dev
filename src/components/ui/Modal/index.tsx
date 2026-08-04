@@ -1,5 +1,6 @@
 'use client'
 import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Icon } from '../Icon'
 
 export type ModalSize = 'sm' | 'md' | 'lg'
 
@@ -135,7 +136,7 @@ export function Modal({
                 min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center
                 rounded-gj-pill"
             >
-              ✕
+              <Icon name="close" size={16} />
             </button>
           </div>
         )}
@@ -153,7 +154,7 @@ export function Modal({
               min-h-[var(--tap-min)] min-w-[var(--tap-min)] flex items-center justify-center
               rounded-gj-pill"
           >
-            ✕
+            <Icon name="close" size={16} />
           </button>
         )}
       </div>

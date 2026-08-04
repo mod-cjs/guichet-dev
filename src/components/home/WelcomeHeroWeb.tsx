@@ -285,7 +285,7 @@ export function WelcomeHeroWeb() {
                 <span
                   className="font-black uppercase"
                   style={{
-                    fontSize: 9.5,
+                    fontSize: 11,
                     background: 'var(--gj-yellow)',
                     color: 'var(--gj-ink)',
                     padding: '1px 6px',

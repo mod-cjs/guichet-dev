@@ -81,6 +81,11 @@ function cacheKey(f: OpportuniteFiltres): string {
     // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
     // résultat NON filtré mis en cache par la requête précédente.
     asArray(f.programme).join(','),
+    // GUIC-689 — même raison : sans ces deux clés, "remuneration=yes" et
+    // "deadline=7" serviraient tous deux le résultat non filtré mis en cache par
+    // la première requête sans filtre.
+    f.remuneration ?? '',
+    f.deadline ?? '',
     f.sortBy,
     f.page,
   ].join('|')
@@ -115,6 +120,32 @@ function escapeLike(value: string): string {
 /** Au moins un mot ≥ 4 caractères → l'index plein-texte est exploitable. */
 function fulltextUsable(q: string): boolean {
   return q.split(/\s+/).some((w) => w.length >= MIN_FULLTEXT_WORD)
+}
+
+/**
+ * GUIC-689 — Règle « rémunération » tranchée par le lead : `remuneration` est un
+ * texte libre (`Salaire négociable`, `Bourse complète`, `80 000 FCFA/mois`,
+ * `Indemnité de transport`, `Non rémunéré`…), il n'existe pas de booléen en base.
+ *
+ * - **non rémunérée** = NULL, chaîne vide, OU un marqueur explicite d'absence de
+ *   contrepartie financière (`non rémunéré`, `bénévole`, `aucune`, `sans
+ *   rémunération` — comparaison insensible à la casse et aux accents).
+ * - **rémunérée** = tout le reste : « Salaire négociable », « Bourse complète »,
+ *   « Indemnité de transport »… comptent comme rémunérées — il y a une
+ *   contrepartie financière, même non chiffrée.
+ *
+ * Les marqueurs sont écrits sans accent : la colonne `remuneration` utilise la
+ * collation `utf8mb4_unicode_ci` (case- ET accent-insensible), donc
+ * `LIKE '%non remunere%'` matche aussi bien « Non rémunéré » que « non remunere ».
+ */
+const NON_REMUNEREE_MARKERS = ['non remunere', 'benevole', 'aucune', 'sans remuneration'] as const
+
+/** Clause SQL (paramétrée) : vrai quand l'opportunité n'a PAS de contrepartie financière. */
+function nonRemunereeSql(): Prisma.Sql {
+  const markers = NON_REMUNEREE_MARKERS.map(
+    (marker) => Prisma.sql`remuneration LIKE ${`%${marker}%`}`,
+  )
+  return Prisma.sql`(remuneration IS NULL OR TRIM(remuneration) = '' OR ${Prisma.join(markers, ' OR ')})`
 }
 
 /**
@@ -156,6 +187,22 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
       JOIN programmes p ON p.id = op.programme_id
       WHERE op.opportunite_id = opportunites.id AND ${slugs}
     )`)
+  }
+
+  // GUIC-689 — remuneration : voir la règle documentée sur `nonRemunereeSql()`.
+  if (f.remuneration === 'no') conditions.push(nonRemunereeSql())
+  else if (f.remuneration === 'yes') conditions.push(Prisma.sql`NOT ${nonRemunereeSql()}`)
+
+  // GUIC-689 — deadline : échéance dans les N prochains jours. Combiné à la
+  // condition de visibilité existante (`deadline IS NULL OR deadline >= NOW()`),
+  // ceci restreint aux opportunités dont l'échéance tombe entre maintenant et
+  // NOW()+N jours — celles SANS échéance ("sans limite") sont exclues des deux
+  // tranches, ce qui est le comportement attendu.
+  if (f.deadline === '7' || f.deadline === '30') {
+    const days = Number(f.deadline)
+    conditions.push(
+      Prisma.sql`deadline IS NOT NULL AND deadline <= DATE_ADD(NOW(), INTERVAL ${days} DAY)`,
+    )
   }
 
   const q = (f.q ?? '').trim()

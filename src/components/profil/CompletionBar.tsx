@@ -4,10 +4,16 @@ interface CompletionBarProps {
   score: number
 }
 
+/**
+ * GUIC-689 — le rouge code UNIQUEMENT l'urgence d'échéance (règle v5) : un
+ * profil peu rempli est une invitation à agir, pas une alerte. La référence
+ * (`profil-web.jsx`, CompletionChecklist) garde d'ailleurs le teal quel que
+ * soit le score ; on conserve l'ambre comme palier intermédiaire lisible.
+ */
 function couleur(score: number): string {
   if (score >= 80) return 'bg-gj-teal'
-  if (score >= 50) return 'bg-gj-yellow'
-  return 'bg-gj-red'
+  if (score >= 50) return 'bg-gj-teal-deep'
+  return 'bg-gj-yellow'
 }
 
 export function CompletionBar({ score }: CompletionBarProps) {

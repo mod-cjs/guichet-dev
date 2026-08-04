@@ -96,3 +96,51 @@ describe('<EmptyState /> (GUIC-418 — design v2 lot 3)', () => {
     expect(container.querySelector('svg[data-illustration="search"]')).toBeTruthy()
   })
 })
+
+describe('<EmptyState /> layout="fullpage" (GUIC-689 — Lot D4)', () => {
+  it('rendu par défaut (`inline`, non spécifié) inchangé : actions côte à côte', () => {
+    render(
+      <EmptyState
+        title="Vide"
+        actions={[
+          { label: 'A', onClick: jest.fn() },
+          { label: 'B', onClick: jest.fn() },
+        ]}
+      />,
+    )
+    const wrapper = screen.getByRole('button', { name: 'A' }).parentElement
+    expect(wrapper?.className).not.toMatch(/flex-col/)
+  })
+
+  it('layout="inline" explicite : comportement identique au défaut', () => {
+    render(
+      <EmptyState
+        layout="inline"
+        title="Vide"
+        actions={[
+          { label: 'A', onClick: jest.fn() },
+          { label: 'B', onClick: jest.fn() },
+        ]}
+      />,
+    )
+    const wrapper = screen.getByRole('button', { name: 'A' }).parentElement
+    expect(wrapper?.className).not.toMatch(/flex-col/)
+  })
+
+  it('layout="fullpage" empile les actions pleine largeur', () => {
+    render(
+      <EmptyState
+        layout="fullpage"
+        title="Vide"
+        actions={[
+          { label: 'A', onClick: jest.fn() },
+          { label: 'B', onClick: jest.fn() },
+        ]}
+      />,
+    )
+    const btnA = screen.getByRole('button', { name: 'A' })
+    const wrapper = btnA.parentElement
+    expect(wrapper?.className).toMatch(/flex-col/)
+    expect(btnA.className).toMatch(/w-full/)
+  })
+})

@@ -91,7 +91,9 @@ export function ConseillerSidebar({
         {/* Marque */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px 14px', borderBottom: '1px solid rgba(255,255,255,.1)', marginBottom: 10 }}>
           <Link href="/conseiller" className="no-underline inline-flex" aria-label="Guichet Jeunesse — accueil conseiller">
-            <img src="/logo-guichet.png" alt="Guichet Jeunesse.sn" style={{ height: 28, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+            {/* Variante blanche livrée en v5 — un filtre `brightness(0) invert(1)`
+                sur le logo couleur écrasait la marque en aplat blanc. */}
+            <img src="/logo-guichet-blanc.png" alt="Guichet Jeunesse.sn" style={{ height: 28, width: 'auto' }} />
           </Link>
           <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--gj-yellow)', letterSpacing: '.5px', textTransform: 'uppercase', lineHeight: 1.2, borderLeft: '1px solid rgba(255,255,255,.2)', paddingLeft: 9 }}>
             Espace<br />conseiller

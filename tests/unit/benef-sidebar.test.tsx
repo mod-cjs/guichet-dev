@@ -29,7 +29,10 @@ describe('<BenefSidebar />', () => {
 
   // GUIC-416 — conformité Lot 3 design : la section Opportunités expose les
   // sous-types (Emploi & Stages, Bourses & Financement, Formations,
-  // Concours & Appels) en plus de « Toutes » et « Mes favoris ».
+  // Concours & Appels) en plus de « Toutes » et « Mes sauvegardes ».
+  // GUIC-689 (Lot E) — libellé aligné sur la v5 (`web-dashboard.jsx:65` :
+  // « Mes sauvegardes », l'ancien libellé était « Mes favoris »). La route
+  // reste inchangée (`/jeune/mes-favoris`).
   it('section "Opportunités" : expose les 6 sous-items du design Lot 3', () => {
     render(<BenefSidebar />)
     expect(screen.getByRole('link', { name: /Toutes/i })).toHaveAttribute(
@@ -49,7 +52,7 @@ describe('<BenefSidebar />', () => {
     expect(
       screen.getByRole('link', { name: /Concours & Appels/i }),
     ).toHaveAttribute('href', '/opportunites?type=Appel_a_projets')
-    expect(screen.getByRole('link', { name: /Mes favoris/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Mes sauvegardes/i })).toHaveAttribute(
       'href',
       '/jeune/mes-favoris',
     )
@@ -182,7 +185,7 @@ describe('<BenefSidebar />', () => {
     mockPathname = '/jeune/mes-favoris'
     render(<BenefSidebar />)
     const active = screen.getByRole('link', { current: 'page' })
-    expect(active).toHaveTextContent('Mes favoris')
+    expect(active).toHaveTextContent('Mes sauvegardes')
   })
 
   it('inclut un item "Mes formations" → /jeune/mes-formations', () => {
@@ -199,5 +202,42 @@ describe('<BenefSidebar />', () => {
     expect(hrefs).not.toContain('/jeune/candidatures')
     expect(hrefs).toContain('/jeune/mes-favoris')
     expect(hrefs).toContain('/jeune/mes-candidatures')
+  })
+
+  // GUIC-689 (Lot E2) — `/jeune/parametres/notifications` existait sans
+  // aucun lien de navigation pointant vers elle (vérifié par grep) : la page
+  // n'était atteignable qu'en tapant l'URL. `/jeune/parametres` seul (sans
+  // sous-segment) n'a pas de page.tsx (404) — on câble donc l'URL réelle.
+  it('ajoute un item "Paramètres" → /jeune/parametres/notifications (page autrement injoignable — GUIC-689)', () => {
+    render(<BenefSidebar />)
+    const link = screen.getByRole('link', { name: /paramètres/i })
+    expect(link).toHaveAttribute('href', '/jeune/parametres/notifications')
+  })
+
+  // GUIC-376 reste en vigueur : pas de doublon "Mon profil" en item de menu,
+  // la carte profil en haut de sidebar demeure l'unique point d'accès.
+  it('la nouvelle section "Mon compte" ne réintroduit pas d\'item "Mon profil" (GUIC-376 toujours en vigueur)', () => {
+    render(<BenefSidebar />)
+    expect(screen.queryByRole('link', { name: /^mon profil$/i })).not.toBeInTheDocument()
+  })
+
+  // GUIC-689 (Lot E4) — ordre aligné sur `web-dashboard.jsx:60-78` pour les
+  // items communs (candidatures / événements / ressources / centres /
+  // messagerie), les items additionnels propres à l'app (Mes formations,
+  // Bibliothèque) sont placés en fin de section.
+  it('section "Mon parcours" suit l\'ordre v5, items additionnels en fin de section', () => {
+    render(<BenefSidebar />)
+    const title = screen.getByText('Mon parcours')
+    const section = title.parentElement as HTMLElement
+    const labels = Array.from(section.querySelectorAll('a')).map(a => a.textContent?.trim())
+    expect(labels).toEqual([
+      'Mes candidatures',
+      'Événements & ateliers',
+      'Ressources',
+      'Centres CJS',
+      'Messagerie',
+      'Mes formations',
+      'Bibliothèque',
+    ])
   })
 })

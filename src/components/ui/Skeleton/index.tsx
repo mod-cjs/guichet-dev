@@ -26,16 +26,19 @@ export function Skeleton({ height = '14px', width = '100%', rounded = 'var(--gj-
   )
 }
 
+/**
+ * GUIC-689 — Lot C2.6 : gabarit carte aligné sur `system-states.jsx` `SkCard`
+ * — icône 48×48 à gauche, 2 lignes au centre, badge 74×34 à droite.
+ */
 export function SkeletonCard() {
   return (
-    <div className="bg-white border-[1.5px] border-gj-line rounded-gj-xl p-space-3">
-      <Skeleton height="18px" width="75%" className="mb-space-2" />
-      <Skeleton height="14px" width="90%" className="mb-space-2" />
-      <Skeleton height="14px" width="50%" className="mb-space-3" />
-      <div className="flex gap-space-2">
-        <Skeleton height="44px" style={{ flex: 1 }} />
-        <Skeleton height="44px" width="44px" />
+    <div className="bg-white border-[1.5px] border-gj-line rounded-gj-xl p-space-4 flex items-center gap-space-3">
+      <Skeleton height="48px" width="48px" rounded="12px" className="flex-shrink-0" />
+      <div className="flex-1 flex flex-col gap-space-2 min-w-0">
+        <Skeleton height="13px" width="62%" />
+        <Skeleton height="11px" width="40%" />
       </div>
+      <Skeleton height="34px" width="74px" rounded="9px" className="flex-shrink-0" />
     </div>
   )
 }

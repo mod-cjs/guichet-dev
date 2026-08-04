@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import {
   CandidaturesClient,
   CANDIDATURES_MOCK,
@@ -56,5 +56,44 @@ describe('<CandidaturesClient />', () => {
     const items: CandidatureMock[] = [CANDIDATURES_MOCK[0]]
     render(<CandidaturesClient items={items} />)
     expect(screen.getByTestId('candidatures-counter')).toHaveTextContent('1 dossier')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GUIC-689 — bandeau de 4 tuiles statistiques dérivées (finding F)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('<CandidaturesClient /> — bandeau statistiques (GUIC-689, finding F)', () => {
+  it('dérive les 4 tuiles des candidatures déjà chargées (CANDIDATURES_MOCK)', () => {
+    render(<CandidaturesClient items={CANDIDATURES_MOCK} />)
+    const stats = screen.getByTestId('candidatures-stats')
+    // 6 candidatures : 4 hors décision (Brouillon/Envoyee/EnRevue/Entretien),
+    // 1 en Entretien, 4/5 envoyées ont eu une réponse (Envoyee exclu) → 80%.
+    expect(within(stats).getByTestId('candidatures-stat-total')).toHaveTextContent('6')
+    expect(within(stats).getByTestId('candidatures-stat-en-cours')).toHaveTextContent('4')
+    expect(within(stats).getByTestId('candidatures-stat-entretiens')).toHaveTextContent('1')
+    expect(within(stats).getByTestId('candidatures-stat-taux-reponse')).toHaveTextContent('80%')
+  })
+
+  it('affiche "—" pour le taux de réponse quand aucune candidature n\'a été envoyée (que des brouillons)', () => {
+    const items: CandidatureMock[] = [
+      {
+        id: 'a',
+        opportuniteSlug: 'a',
+        opportuniteTitre: 'A',
+        organisation: 'X',
+        type: 'Stage',
+        currentStep: 'Brouillon',
+        decision: null,
+        envoyeeA: '2026-05-30T00:00:00.000Z',
+      },
+    ]
+    render(<CandidaturesClient items={items} />)
+    expect(screen.getByTestId('candidatures-stat-taux-reponse')).toHaveTextContent('—')
+  })
+
+  it('affiche le bandeau statistiques même liste vide (0 partout, pas de crash)', () => {
+    render(<CandidaturesClient items={[]} />)
+    expect(screen.getByTestId('candidatures-stat-total')).toHaveTextContent('0')
   })
 })

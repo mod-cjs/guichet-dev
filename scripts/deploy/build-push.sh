@@ -61,37 +61,55 @@ COMMIT="$(git rev-parse --short HEAD)"
 log "Dépôt   : $BASE"
 log "Version : $VERSION  (commit $COMMIT)"
 
-# ── Construction ────────────────────────────────────────────────────────────
+# ── Cible d'architecture ─────────────────────────────────────────────────────
+# Le serveur de prod (OVH) est amd64. Construit sur un Mac ARM, un `docker build` nu produit une
+# image arm64 qui plante au démarrage sur le serveur (« exec format error »). On force donc
+# linux/amd64. Surchargeable : PLATFORMS=linux/amd64,linux/arm64 pour un manifeste multi-arch.
+PLATFORMS="${PLATFORMS:-linux/amd64}"
+
+# Pousser du cross-platform exige le driver `docker-container` (le driver `docker` par défaut ne
+# sait pas). On réutilise un builder dédié, créé au besoin.
+BUILDER="${BUILDX_BUILDER:-cjs-amd64}"
+if ! docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
+  log "Création du builder buildx « $BUILDER » (driver docker-container)…"
+  docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
+fi
+docker buildx inspect "$BUILDER" --bootstrap >/dev/null
+
+# ── Construction + envoi (une seule passe) ───────────────────────────────────
 # DATABASE_URL factice : le `postinstall`/`prisma generate` du build en a besoin comme chaîne,
 # il ne s'y connecte jamais (aucune migration au build).
-log "Construction de l'image…"
-DOCKER_BUILDKIT=1 docker build \
-  --build-arg DATABASE_URL='mysql://build:build@localhost:3306/build' \
-  -t "${BASE}:${VERSION}" \
-  -t "${BASE}:latest" \
-  .
-
-# ── Push ────────────────────────────────────────────────────────────────────
-# Échec fréquent : pas authentifié auprès de GHCR. On le dit clairement plutôt que de laisser
-# `docker push` cracher une 401 obscure.
-log "Envoi vers GHCR…"
-if ! docker push "${BASE}:${VERSION}"; then
-  err "Push refusé. Authentifié auprès de GHCR ?
+# --provenance=false : manifeste d'image simple (sans attestation) → empreinte directe.
+# --push : buildx envoie directement à GHCR ; l'image N'EST PAS chargée en local (le driver
+# docker-container ne peut pas cross-charger). On lit donc l'empreinte via --metadata-file, PAS
+# via `docker inspect`/RepoDigests (qui ne verrait rien en local).
+META="$(mktemp)"
+trap 'rm -f "$META"' EXIT
+log "Construction ($PLATFORMS) et envoi vers GHCR…"
+if ! docker buildx build --builder "$BUILDER" \
+    --platform "$PLATFORMS" \
+    --build-arg DATABASE_URL='mysql://build:build@localhost:3306/build' \
+    -t "${BASE}:${VERSION}" \
+    -t "${BASE}:latest" \
+    --provenance=false \
+    --metadata-file "$META" \
+    --push .; then
+  err "Build/push échoué. Authentifié auprès de GHCR ?
       echo \$GHCR_TOKEN | docker login ghcr.io -u <utilisateur> --password-stdin
       (le jeton doit avoir le scope write:packages)"
   exit 4
 fi
-docker push "${BASE}:latest"
 
 # ── Référence par empreinte ─────────────────────────────────────────────────
-# `RepoDigests` n'est renseigné qu'APRÈS un push réussi. On extrait l'empreinte de CETTE image.
-DIGEST="$(docker inspect --format '{{index .RepoDigests 0}}' "${BASE}:${VERSION}" 2>/dev/null || true)"
-if [[ -z "$DIGEST" ]]; then
-  err "Empreinte introuvable après le push (RepoDigests vide) — vérifier que le push a abouti."
+# buildx écrit l'empreinte réellement poussée dans le fichier de métadonnées (containerimage.digest).
+DIGEST_SHA="$(jq -r '."containerimage.digest" // empty' "$META")"
+if [[ -z "$DIGEST_SHA" ]]; then
+  err "Empreinte introuvable dans les métadonnées buildx — vérifier que le push a abouti."
   exit 4
 fi
+DIGEST="${BASE}@${DIGEST_SHA}"
 
-log "Image poussée. À DÉPLOYER (par empreinte, sur le serveur) :"
+log "Image poussée ($PLATFORMS). À DÉPLOYER (par empreinte, sur le serveur) :"
 printf '\n    GUICHET_IMAGE=%s \\\n      ./scripts/deploy/deploy.sh\n\n' "$DIGEST"
 # Dernière ligne = l'empreinte seule, pour capture par un script appelant (`REF=$(build-push.sh …)`).
 echo "$DIGEST"
