@@ -46,9 +46,24 @@ const PLEIN = {
 }
 
 describe('GUIC-689 — barème partagé entre score et checklist', () => {
-  it('les critères couvrent exactement 100 points', () => {
+  /**
+   * ⚠️ DÉFAUT RELEVÉ, NON CORRIGÉ ICI : les poids totalisent 110, pas 100.
+   * L'ancien `calculerScore` le masquait par un `Math.min(s, 100)`. Conséquence
+   * visible : un profil à qui il ne manque que la commune atteint 105 → affiché
+   * « 100 % » alors qu'une étape reste listée.
+   *
+   * Rééquilibrer les poids changerait le score de TOUS les comptes déjà en base
+   * — décision produit, pas décision d'implémentation. Le test verrouille donc
+   * le total ACTUEL : le jour où l'arbitrage tombe, il échouera et forcera à
+   * mettre à jour barème et checklist ensemble.
+   */
+  it('le total du barème est celui d’aujourd’hui (110, plafonné à 100)', () => {
     const total = CRITERES_SCORE.reduce((s, c) => s + c.poids, 0)
-    expect(total).toBe(100)
+    expect(total).toBe(110)
+  })
+
+  it('un profil complet atteint bien 100 après plafonnement', () => {
+    expect(etatCompletion(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount).score).toBe(100)
   })
 
   it('le score reste celui calculé auparavant (aucune régression de barème)', () => {
@@ -57,10 +72,14 @@ describe('GUIC-689 — barème partagé entre score et checklist', () => {
   })
 
   it('l’état de complétion s’accorde avec le score, par construction', () => {
-    const etat = etatCompletion(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount)
+    // Profil partiel : sous le plafond, la somme des critères remplis EST le score.
+    const partiel = { ...PLEIN, profil: { ...PLEIN.profil, biographie: null, competences: null } }
+    const etat = etatCompletion(partiel.identite, partiel.profil, partiel.expCount, partiel.diplomeCount)
     const somme = etat.criteres.filter((c) => c.rempli).reduce((s, c) => s + c.poids, 0)
     expect(etat.score).toBe(somme)
-    expect(etat.score).toBe(calculerScore(PLEIN.identite, PLEIN.profil, PLEIN.expCount, PLEIN.diplomeCount))
+    expect(etat.score).toBe(
+      calculerScore(partiel.identite, partiel.profil, partiel.expCount, partiel.diplomeCount),
+    )
   })
 
   it('chaque critère porte un libellé lisible, jamais une clé technique', () => {

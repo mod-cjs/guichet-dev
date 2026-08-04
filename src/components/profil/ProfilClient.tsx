@@ -9,9 +9,9 @@ import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
-import { MyCJSCard }          from '@/components/centres/MyCJSCard'
+import { CompletionChecklist } from './CompletionChecklist'
 import { Icon }               from '@/components/ui'
-import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
+import { etatCompletion } from '@/lib/profil-score'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -29,8 +29,37 @@ interface Props {
  *   droite (GUIC-689, É-17 — la v5 inverse l'ancienne disposition v2).
  */
 export function ProfilClient({ initial, ssoProfilUrl }: Props) {
-  const [score, setScore]       = useState(initial.profil?.completionScore ?? 0)
   const [photoUrl, setPhotoUrl] = useState<string | null>(initial.profil?.photoUrl ?? null)
+
+  // GUIC-689 — la checklist et le score dérivent du MÊME barème
+  // (`etatCompletion`) : impossible qu'un gain affiché diffère de ce que le
+  // score accordera réellement. Recalculé côté client à partir des données
+  // déjà chargées — aucun aller-retour réseau supplémentaire.
+  const etat = etatCompletion(
+    {
+      region:        initial.region,
+      commune:       initial.commune,
+      genre:         initial.genre,
+      dateNaissance: initial.dateNaissance,
+    },
+    initial.profil
+      ? {
+          biographie:      initial.profil.biographie,
+          niveauEtude:     initial.profil.niveauEtude,
+          situationEmploi: initial.profil.situationEmploi,
+          domainesInteret: initial.profil.domainesInteret,
+          competences:     initial.profil.competences,
+        }
+      : null,
+    initial.experiences.length,
+    initial.diplomes.length,
+  )
+
+  // Le score PERSISTÉ (`profil.completionScore`) n'est recalculé qu'à
+  // l'enregistrement : il était périmé et affichait « 0 % » dans le hero
+  // pendant que la checklist annonçait « 5 % ». Une seule valeur circule
+  // désormais, celle dérivée des données courantes.
+  const [score, setScore] = useState(etat.score)
 
   function handleSaved(data: PutProfilResponse) {
     setScore(data.completionScore)
@@ -118,26 +147,14 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
         </div>
         <aside>
           {/* Sticky coordonné avec BenefTopBar (--gj-topbar-h = 64px) — GUIC-401. */}
-          {/* GUIC-689 — `ProfilHeader` retiré : son avatar, son nom et sa barre
-              de complétion sont désormais portés par le bandeau hero. L'aside
-              garde la carte CJS. */}
+          {/* GUIC-689 — La carte CJS a QUITTÉ l'aside : la maquette v5
+              (`profil-web.jsx` L.746-749) y place la complétion et les
+              documents, et la carte a son propre écran (`/jeune/ma-carte`).
+              Elle affichait de surcroît deux valeurs fabriquées — un matricule
+              bricolé à partir des initiales et de l'UUID, et un « membre
+              depuis » figé sur un tiret. */}
           <div className="lg:sticky lg:top-[var(--gj-sticky-offset)] flex flex-col gap-space-4">
-            {/* Carte CJS — GUIC-369 : on bascule sur la version "centres"
-                (gradient teal-deep + QR + matricule monospace) — identique à
-                celle affichée dans `/centres`. La précédente version
-                `@/components/ui/MyCJSCard` (placeholder Phase 2B) divergeait
-                visuellement. */}
-            <MyCJSCard
-              cjsUid={initial.cjsUid}
-              compact
-              user={{
-                prenom: initial.prenom,
-                nom: initial.nom,
-                matricule: `GJS · ${(initial.prenom?.[0] ?? '?').toUpperCase()}${(initial.nom?.[0] ?? '?').toUpperCase()} · ${initial.cjsUid.slice(0, 6).toUpperCase()}`,
-                membreDepuis: '—',
-                photoUrl: getProfilePhotoUrl(initial.cjsUid, Boolean(photoUrl)),
-              }}
-            />
+            <CompletionChecklist etat={{ score, criteres: etat.criteres }} />
           </div>
         </aside>
 

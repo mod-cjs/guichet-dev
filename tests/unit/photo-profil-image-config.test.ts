@@ -45,7 +45,9 @@ function motifAccepte(motif: MotifLocal, url: string): boolean {
     if (!re.test(pathname)) return false
   }
   // `search` non renseigné = query string quelconque acceptée.
-  if (motif.search !== undefined && motif.search !== `?${search ?? ''}`) return false
+  // Attention : sans query, la valeur comparée est la chaîne VIDE, pas « ? ».
+  const searchReel = search ? `?${search}` : ''
+  if (motif.search !== undefined && motif.search !== searchReel) return false
   return true
 }
 
@@ -65,12 +67,45 @@ describe('GUIC-689 — photo de profil servable par next/image', () => {
     expect(motifsLocaux().some((m) => motifAccepte(m, URL_PHOTO!))).toBe(true)
   })
 
-  it('les motifs ne sont pas des passe-partout — seul le chemin photo est ouvert', () => {
-    // Un `pathname: '/**'` ferait passer ce test tout en ouvrant l'optimiseur
-    // d'images à n'importe quelle route locale : on l'interdit.
+  /**
+   * Deuxième moitié du défaut, trouvée au rendu après le premier correctif : la
+   * page ne renvoyait plus 500, mais l'image restait en 400 —
+   * « The requested resource isn't a valid image … received null ».
+   *
+   * `/api/profil/photo/file` exige une session. L'optimiseur `next/image` va
+   * chercher la source **côté serveur, sans le cookie du visiteur** : il reçoit
+   * 401, donc aucune image. Une ressource privée authentifiée ne peut pas
+   * passer par l'optimiseur — il faut la servir telle quelle, le navigateur
+   * joignant son cookie.
+   */
+  it('la photo de profil n’est jamais confiée à l’optimiseur (ressource authentifiée)', () => {
+    const { readFileSync } = jest.requireActual('node:fs') as typeof import('node:fs')
+    const { resolve } = jest.requireActual('node:path') as typeof import('node:path')
+    for (const rel of [
+      'src/components/profil/ProfileHeroBand.tsx',
+      'src/components/ui/Avatar/index.tsx',
+    ]) {
+      const src = readFileSync(resolve(__dirname, '../../', rel), 'utf-8')
+      if (!/getProfilePhotoUrl|photoUrl/.test(src)) continue
+      if (!/from 'next\/image'/.test(src)) continue
+      expect(src).toMatch(/unoptimized/)
+    }
+  })
+
+  /**
+   * Déclarer `localPatterns` REMPLACE le défaut de Next (`/**` sans query) :
+   * n'y mettre que la route photo a cassé toutes les autres images locales —
+   * le logo du shell est passé en 400. Le fourre-tout général doit donc rester,
+   * mais pinné sur `search: ''` : ouvrir les query strings à toute route locale
+   * exposerait l'optimiseur à n'importe quel endpoint.
+   */
+  it('les fichiers statiques locaux restent servables', () => {
+    expect(motifsLocaux().some((m) => motifAccepte(m, '/logo-guichet.png'))).toBe(true)
+  })
+
+  it('aucune route locale quelconque n’est ouverte AVEC query string', () => {
     for (const m of motifsLocaux()) {
-      expect(m.pathname).toBeDefined()
-      expect(m.pathname).not.toBe('/**')
+      if (m.pathname === '/**') expect(m.search).toBe('')
     }
     expect(motifsLocaux().some((m) => motifAccepte(m, '/api/admin/export?tout=1'))).toBe(false)
   })

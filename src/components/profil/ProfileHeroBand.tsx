@@ -112,6 +112,11 @@ export function ProfileHeroBand({
               alt=""
               width={92}
               height={92}
+              // `/api/profil/photo/file` exige une session. L'optimiseur va
+              // chercher la source côté serveur, SANS le cookie du visiteur :
+              // il reçoit 401 et l'image tombe en 400. On la sert telle quelle,
+              // le navigateur joignant son cookie (GUIC-689).
+              unoptimized
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
