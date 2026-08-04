@@ -4,6 +4,9 @@
  * TDD — RED d'abord.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
+jest.mock('@/app/admin/utilisateurs/actions', () => ({ changerStatutUtilisateur: jest.fn(), anonymiserUtilisateur: jest.fn() }))
+jest.mock('@/app/admin/utilisateurs/AnonymiserConfirmModal', () => ({ AnonymiserConfirmModal: () => null }))
 import { UserDetailTabs, type UserDetailData } from '@/app/admin/utilisateurs/[cjsUid]/UserDetailTabs'
 
 const DATA: UserDetailData = {

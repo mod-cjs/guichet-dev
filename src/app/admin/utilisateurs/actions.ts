@@ -173,3 +173,66 @@ export async function creerOrganisationPourRecruteur(input: {
   revalidate(parsed.data.cjsUid)
   return { ok: true }
 }
+
+// ─── PR-C (GUIC-701) — Statut, anonymisation (CDP), message groupé ─────────────
+import { sendResendEmail } from '@/lib/email/resend'
+
+/** Suspendre / réactiver un compte (bascule actif↔inactif). Refuse si anonymisé. */
+export async function changerStatutUtilisateur(cjsUid: string, statut: 'actif' | 'inactif'): Promise<ActionResult> {
+  const admin = await requireAdmin()
+  if (!admin) return { ok: false, error: 'FORBIDDEN' }
+  const u = await prisma.utilisateur.findUnique({ where: { cjsUid }, select: { statut: true } })
+  if (!u) return { ok: false, error: 'INTROUVABLE' }
+  if (u.statut === 'anonymise') return { ok: false, error: 'ANONYMISE' }
+  await prisma.utilisateur.update({ where: { cjsUid }, data: { statut } })
+  await recordAudit(admin.cjsUid, 'admin.utilisateur.statut', { targetType: 'utilisateur', targetId: cjsUid, meta: { statut } })
+  revalidate(cjsUid)
+  return { ok: true }
+}
+
+/**
+ * Anonymiser (droit à l'effacement, CDP) — IRRÉVERSIBLE. Efface les PII, passe `anonymise`,
+ * conserve cjs_uid (clé inter-plateformes) et agrégats non-nominatifs. Journalisé.
+ */
+export async function anonymiserUtilisateur(cjsUid: string): Promise<ActionResult> {
+  const admin = await requireAdmin()
+  if (!admin) return { ok: false, error: 'FORBIDDEN' }
+  const u = await prisma.utilisateur.findUnique({ where: { cjsUid }, select: { statut: true } })
+  if (!u) return { ok: false, error: 'INTROUVABLE' }
+  if (u.statut === 'anonymise') return { ok: false, error: 'DEJA_ANONYMISE' }
+  await prisma.$transaction([
+    prisma.utilisateur.update({
+      where: { cjsUid },
+      data: { statut: 'anonymise', nom: '—', prenom: '—', email: null, telephone: null, dateNaissance: null, deletedAt: new Date() },
+    }),
+    prisma.profilJeune.updateMany({ where: { cjsUid }, data: { biographie: null, photoUrl: null, cvUrl: null, competences: undefined, domainesInteret: undefined } }),
+  ])
+  await recordAudit(admin.cjsUid, 'admin.utilisateur.anonymisation', { targetType: 'utilisateur', targetId: cjsUid, meta: { droitEffacement: true } })
+  revalidate(cjsUid)
+  return { ok: true }
+}
+
+export type CanalMessage = 'in_app' | 'email'
+
+/** Message groupé aux utilisateurs sélectionnés (in-app + e-mail). Skip sans contact. Journalisé. */
+export async function messageGroupe(cjsUids: string[], opts: { canaux: CanalMessage[]; objet: string; message: string }): Promise<{ envoyes: number; ignores: number }> {
+  const admin = await requireAdmin()
+  if (!admin) throw new Error('FORBIDDEN')
+  if (cjsUids.length === 0 || opts.canaux.length === 0) return { envoyes: 0, ignores: 0 }
+  const titre = opts.objet.trim() || 'Message de l’administration'
+  const contenu = opts.message.trim()
+  const users = await prisma.utilisateur.findMany({ where: { cjsUid: { in: cjsUids }, statut: { not: 'anonymise' } }, select: { cjsUid: true, email: true } })
+  let envoyes = 0, ignores = 0
+  for (const u of users) {
+    let delivered = false
+    if (opts.canaux.includes('in_app')) {
+      try { await prisma.notification.create({ data: { cjsUid: u.cjsUid, type: 'System', titre, contenu, iconName: 'bell' } }); delivered = true } catch { /* non bloquant */ }
+    }
+    if (opts.canaux.includes('email') && u.email) {
+      try { await sendResendEmail(u.email, titre, `<p>${contenu}</p>`); delivered = true } catch { /* creds/env — non bloquant */ }
+    }
+    if (delivered) envoyes++; else ignores++
+  }
+  await recordAudit(admin.cjsUid, 'admin.utilisateur.message_groupe', { targetType: 'utilisateur', meta: { destinataires: cjsUids.length, canaux: opts.canaux } })
+  return { envoyes, ignores }
+}

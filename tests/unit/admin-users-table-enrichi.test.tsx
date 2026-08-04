@@ -7,6 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }), usePathname: () => '/admin/utilisateurs' }))
+jest.mock('@/app/admin/utilisateurs/MessageGroupeModal', () => ({ MessageGroupeModal: () => null }))
 
 import { AdminUsersTable, type AdminUserRow, type UtilisateursKpis } from '@/app/admin/utilisateurs/AdminUsersTable'
 

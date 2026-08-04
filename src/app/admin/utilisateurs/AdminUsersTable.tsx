@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
+import { MessageGroupeModal } from './MessageGroupeModal'
 import type { StatutCompte } from '@prisma/client'
 import type { AdminUserRow, UtilisateursKpis, SortU } from '@/lib/loaders/admin-utilisateurs'
 
@@ -69,13 +70,19 @@ const STATUTS: { value: StatutCompte | ''; label: string }[] = [
 ]
 const REGIONS = ['Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou']
 
-const GRID = 'minmax(0,1.5fr) minmax(0,1.4fr) .8fr .8fr .9fr .8fr .9fr .5fr'
+const GRID = 'auto minmax(0,1.5fr) minmax(0,1.4fr) .8fr .8fr .9fr .8fr .9fr .5fr'
 
 // ─── Composant (supervision — le rôle SSO est en lecture seule) ────────────────
 export function AdminUsersTable({ rows, kpis, total, currentPage, totalPages, q, role, statut, region, sort }: AdminUsersTableProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [, startTransition] = useTransition()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [messageIds, setMessageIds] = useState<string[] | null>(null)
+  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.cjsUid))
+  function toggleRow(id: string) { setSelected((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n }) }
+  function toggleAll() { setSelected((p) => (rows.every((r) => p.has(r.cjsUid)) ? new Set() : new Set(rows.map((r) => r.cjsUid)))) }
+  const exportSelectedUrl = `/api/admin/export/utilisateurs?ids=${[...selected].join(',')}`
 
   function push(next: Partial<{ q: string; role: string; statut: string; region: string; sort: string }>) {
     const m = { q, role, statut, region, sort, ...next }
@@ -157,9 +164,21 @@ export function AdminUsersTable({ rows, kpis, total, currentPage, totalPages, q,
           </select>
         </div>
 
+        {/* Bulkbar */}
+        {selected.size > 0 && (
+          <div role="region" aria-label="Sélection groupée" style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-admin-gold)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 13, color: 'var(--gj-admin-gold)' }}>{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</b>
+            <span style={{ flex: 1 }} />
+            <a href={exportSelectedUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, textDecoration: 'none', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)' }}><Icon name="download" size={14} /> Exporter</a>
+            <button type="button" onClick={() => setMessageIds([...selected])} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid transparent', background: 'var(--gj-admin-gold)', color: 'var(--gj-admin-on-gold)' }}><Icon name="mail" size={14} /> Message groupé</button>
+            <button type="button" onClick={() => setSelected(new Set())} style={{ padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-grey)' }}>Annuler</button>
+          </div>
+        )}
+
         {/* Table desktop */}
         <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 880 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 920 }}>
+            <span><input type="checkbox" aria-label="Tout sélectionner" checked={allSelected} onChange={toggleAll} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
             <span>Utilisateur</span><span>Coordonnées</span><span>Rôle</span><span>Région</span>
             <span role="columnheader">{sortBtn('Complétude', 'completude')}</span>
             <span role="columnheader">Statut</span>
@@ -171,7 +190,8 @@ export function AdminUsersTable({ rows, kpis, total, currentPage, totalPages, q,
           ) : rows.map((u) => {
             const rc = roleColors(u.role), sc = statutColors(u.statut)
             return (
-              <div key={u.cjsUid} style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 880 }}>
+              <div key={u.cjsUid} style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 920, background: selected.has(u.cjsUid) ? 'var(--gj-bg)' : 'transparent' }}>
+                <span><input type="checkbox" aria-label={`Sélectionner ${u.prenom} ${u.nom}`} checked={selected.has(u.cjsUid)} onChange={() => toggleRow(u.cjsUid)} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                   <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--gj-line)', color: 'var(--gj-admin-gold)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 12 }}>{initials(u.prenom, u.nom)}</span>
                   <div style={{ minWidth: 0 }}>
@@ -231,6 +251,8 @@ export function AdminUsersTable({ rows, kpis, total, currentPage, totalPages, q,
           </div>
         )}
       </div>
+
+      {messageIds && <MessageGroupeModal cjsUids={messageIds} onClose={() => { setMessageIds(null); setSelected(new Set()) }} onDone={() => router.refresh()} />}
     </div>
   )
 }

@@ -27,6 +27,8 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 import { GET } from '@/app/api/admin/export/utilisateurs/route'
+import { NextRequest } from 'next/server'
+const req = (url = 'http://localhost/api/admin/export/utilisateurs') => new NextRequest(url)
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -36,21 +38,21 @@ beforeEach(() => {
 describe('GET /api/admin/export/utilisateurs', () => {
   it('refuse 403 sans session', async () => {
     mockGetSession.mockResolvedValue(null)
-    const res = await GET()
+    const res = await GET(req())
     expect(res.status).toBe(403)
     expect(mockAudit).not.toHaveBeenCalled()
   })
 
   it('refuse 403 si rôle non-admin', async () => {
     mockGetSession.mockResolvedValue({ cjsUid: 'u1', roles: ['jeune'] })
-    const res = await GET()
+    const res = await GET(req())
     expect(res.status).toBe(403)
     expect(mockAudit).not.toHaveBeenCalled()
   })
 
   it('accepte moderator (garde unifiée isAdminRole)', async () => {
     mockGetSession.mockResolvedValue({ cjsUid: 'u1', roles: ['moderator'] })
-    const res = await GET()
+    const res = await GET(req())
     expect(res.status).toBe(200)
   })
 
@@ -70,14 +72,15 @@ describe('GET /api/admin/export/utilisateurs', () => {
         profil: { zoneHabitation: 'urbain', situationHandicap: 'moteur' },
       },
     ])
-    const res = await GET()
+    const res = await GET(req())
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('text/csv')
     expect(res.headers.get('Content-Disposition')).toContain('utilisateurs-')
 
     const body = await res.text()
-    expect(body).toContain("Prénom,Nom,Email,Téléphone,Région,Commune,Zone d'habitation,Situation de handicap,Statut,Inscrit le")
-    expect(body).toContain('Awa,Diop,awa@example.sn,+221770000000,Dakar,Plateau,Urbain,Moteur,actif,2026-01-15')
+    expect(body).toContain("cjs_uid,Prénom,Nom,Email,Téléphone,Rôle,Région,Commune,Zone d'habitation,Situation de handicap,Complétude,Statut,Inscrit le,Dernière visite")
+    expect(body).toContain('Awa,Diop,awa@example.sn,+221770000000,Bénéficiaire,Dakar,Plateau,Urbain,Moteur,')
+    expect(body).toContain('actif,2026-01-15')
 
     // E1 — un seul appel d'audit, marqueur export.utilisateurs, acteur + count.
     expect(mockAudit).toHaveBeenCalledTimes(1)

@@ -15,15 +15,15 @@ describe('GUIC-701 — MessageGroupeModal', () => {
   it('propose canaux (in-app/e-mail), objet et message', () => {
     render(<MessageGroupeModal cjsUids={['u1', 'u2']} onClose={() => {}} />)
     expect(screen.getByRole('group', { name: /Canaux/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Objet/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Message/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Objet')).toBeInTheDocument()
+    expect(screen.getByLabelText('Message')).toBeInTheDocument()
   })
 
   it('envoi → messageGroupe(ids, {canaux, objet, message})', async () => {
     render(<MessageGroupeModal cjsUids={['u1', 'u2']} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /^E-mail$/i }))
-    fireEvent.change(screen.getByLabelText(/Objet/i), { target: { value: 'Info' } })
-    fireEvent.change(screen.getByLabelText(/Message/i), { target: { value: 'Bonjour à tous' } })
+    fireEvent.change(screen.getByLabelText('Objet'), { target: { value: 'Info' } })
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Bonjour à tous' } })
     fireEvent.click(screen.getByRole('button', { name: /Envoyer le message/i }))
     await waitFor(() => expect(mockMsg).toHaveBeenCalledTimes(1))
     const [ids, opts] = mockMsg.mock.calls[0]

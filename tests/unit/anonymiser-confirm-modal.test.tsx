@@ -34,6 +34,6 @@ describe('GUIC-701 — AnonymiserConfirmModal', () => {
 
   it('mentionne l’irréversibilité', () => {
     render(<AnonymiserConfirmModal cjsUid="u1" nom="Awa Diop" onClose={() => {}} />)
-    expect(screen.getByText(/irréversible/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/irréversible/i).length).toBeGreaterThanOrEqual(1)
   })
 })

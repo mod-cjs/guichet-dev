@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState, useTransition, type CSSProperties } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import type { StatutCompte } from '@prisma/client'
+import { AnonymiserConfirmModal } from '../AnonymiserConfirmModal'
+import { changerStatutUtilisateur } from '../actions'
 
 export interface UserDetailData {
   cjsUid: string; prenom: string; nom: string
@@ -39,9 +42,19 @@ function roleLabel(r: string | null): string { return r == null || r === 'jeune'
 
 /** Fiche utilisateur en 5 onglets (GUIC-701 PR-B). Rôle SSO en LECTURE SEULE. Anonymisé masque les PII. */
 export function UserDetailTabs({ data, rolesSection }: { data: UserDetailData; rolesSection: React.ReactNode }) {
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('Profil')
+  const [anonOpen, setAnonOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
   const anon = data.statut === 'anonymise'
   const A = data.activite
+
+  function basculerStatut() {
+    startTransition(async () => {
+      await changerStatutUtilisateur(data.cjsUid, data.statut === 'inactif' ? 'actif' : 'inactif')
+      router.refresh()
+    })
+  }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', width: '100%', padding: '22px 28px 40px' }}>
@@ -175,8 +188,24 @@ export function UserDetailTabs({ data, rolesSection }: { data: UserDetailData; r
             </div>
             {data.conformite.deletedAt && <p style={{ fontSize: 12, color: 'var(--gj-red-ink)', marginTop: 10 }}>Anonymisé le {data.conformite.deletedAt} (droit à l&apos;effacement).</p>}
           </div>
+          {!anon && (
+            <div style={card}>
+              <h6 style={H6}>{tick()}Actions administrateur</h6>
+              <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+                <button type="button" onClick={basculerStatut} disabled={pending} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)' }}>
+                  <Icon name="block" size={14} /> {data.statut === 'inactif' ? 'Réactiver le compte' : 'Suspendre le compte'}
+                </button>
+                <button type="button" onClick={() => setAnonOpen(true)} disabled={pending} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-red)', background: 'transparent', color: 'var(--gj-red-ink)' }}>
+                  <Icon name="alert" size={14} /> Anonymiser (effacement)
+                </button>
+              </div>
+              <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 9 }}>Suspendre bloque l&apos;accès. Anonymiser efface définitivement les données personnelles (irréversible).</p>
+            </div>
+          )}
         </div>
       )}
+
+      {anonOpen && <AnonymiserConfirmModal cjsUid={data.cjsUid} nom={`${data.prenom} ${data.nom}`} onClose={() => setAnonOpen(false)} onDone={() => router.refresh()} />}
     </div>
   )
 }

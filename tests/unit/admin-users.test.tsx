@@ -10,6 +10,7 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/admin/utilisateurs',
   useSearchParams: () => new URLSearchParams(),
 }))
+jest.mock('@/app/admin/utilisateurs/MessageGroupeModal', () => ({ MessageGroupeModal: () => null }))
 
 beforeEach(() => mockPush.mockClear())
 
