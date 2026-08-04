@@ -88,3 +88,4 @@ etl/transform/dbt_packages/
 etl/transform/logs/
 .env.etl
 etl/transform/profiles/*/.user.yml
+.pytest_cache/
