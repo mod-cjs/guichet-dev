@@ -857,11 +857,13 @@ components:
           type:
             - "string"
             - "null"
-          description: "Null si visiteur anonyme — `sujetHash` reste renseigné dans tous les cas."
+          description: "Null si visiteur anonyme."
           "x-cjs-tier": "pseudonyme"
         sujet_hash:
-          type: "string"
-          description: "SHA-256 de (cjsUid ?? IP) + sel. Jamais d'IP en clair en base."
+          type:
+            - "string"
+            - "null"
+          description: "Pseudonyme HMAC-SHA256 du visiteur anonyme (empreinte IP + user-agent, jamais stockées en clair). Null pour un utilisateur connecté : son parcours se suit par cjs_uid."
           "x-cjs-tier": "pseudonyme"
         origine:
           type:

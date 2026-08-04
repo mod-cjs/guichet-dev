@@ -38,6 +38,16 @@ describe('trancheAge', () => {
     expect(trancheAge(new Date('1850-01-01T00:00:00Z'), REF)).toBe('inconnu')
   })
 
+  it('rend "inconnu" pour une date invalide (0000-00-00), au lieu de "35+" (GUIC-696 R3)', () => {
+    // `age` vaut NaN pour une Invalid Date : TOUTE comparaison avec NaN rend false, y
+    // compris `age < 0` et `age > 120` — le garde existant ne l'attrape donc pas et le
+    // flot tombe jusqu'au `return '35+'` final. Preuve du rapport GUIC-693 : une seule
+    // ligne à date_naissance = '0000-00-00' verse un jeune dans les plus-de-35-ans, sans
+    // aucun signal, sur un programme dont la pyramide des âges est l'indicateur structurant.
+    expect(trancheAge(new Date('0000-00-00'), REF)).toBe('inconnu')
+    expect(trancheAge(new Date('invalide'), REF)).toBe('inconnu')
+  })
+
   it('n\'expose jamais la date source dans sa sortie', () => {
     const sortie = trancheAge(new Date('1999-03-17T00:00:00Z'), REF)
     expect(sortie).not.toMatch(/1999|03|17/)

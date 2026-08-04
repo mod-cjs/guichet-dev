@@ -79,6 +79,26 @@ describe('projectRow — mise en forme exportée', () => {
   })
 })
 
+describe('projectRow — sujet_hash masqué quand cjs_uid est présent (GUIC-695)', () => {
+  // Pour un utilisateur connecté, sujet_hash est le HMAC du cjs_uid qui voyage SUR LA
+  // MÊME LIGNE : des milliers de couples (clair, haché) offrent un oracle pour confirmer
+  // une clé candidate, sans rien apporter aux jointures — cjs_uid les porte déjà.
+  // Le hash ne sert donc qu'aux visiteurs anonymes, et ne sort que pour eux.
+  const c = describeStream('consultations', streams.consultations)
+  const HASH = 'f'.repeat(64)
+
+  it('rend sujet_hash null pour un utilisateur connecté', () => {
+    const out = projectRow(c, { cjsUid: 'abc-123', sujetHash: HASH })
+    expect(out.cjs_uid).toBe('abc-123')
+    expect(out.sujet_hash).toBeNull()
+  })
+
+  it('conserve sujet_hash pour un visiteur anonyme', () => {
+    const out = projectRow(c, { cjsUid: null, sujetHash: HASH })
+    expect(out.sujet_hash).toBe(HASH)
+  })
+})
+
 describe('allDescriptors — registre complet', () => {
   const all = allDescriptors()
 
