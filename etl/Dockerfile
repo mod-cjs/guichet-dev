@@ -13,7 +13,13 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git gcc libpq-dev python3-dev \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "meltano==3.7.9"
+# GUIC-700 — trouvé à l'exécution réelle en laboratoire : `meltano==3.7.9` seul ne
+# fournit PAS de driver PostgreSQL. `MELTANO_DATABASE_URI` (obligatoire dans
+# docker-compose.etl.yml, R5) échoue alors avec « No module named 'psycopg2' » dès la
+# première commande — `meltano install` compris, avant tout run. `libpq-dev`/`gcc`
+# ci-dessus permettraient une compilation depuis les sources ; `psycopg2-binary` est plus
+# simple et suffisant pour une image jetable.
+RUN pip install --no-cache-dir "meltano==3.7.9" "psycopg2-binary==2.9.10"
 
 WORKDIR /project
 ENTRYPOINT ["meltano"]

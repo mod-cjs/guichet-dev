@@ -86,3 +86,7 @@ etl/.meltano/
 etl/transform/target/
 etl/transform/dbt_packages/
 etl/transform/logs/
+.env.etl
+.env.etl.*
+etl/transform/profiles/*/.user.yml
+.pytest_cache/

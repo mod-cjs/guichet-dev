@@ -14,6 +14,18 @@
 #   docker compose -f docker-compose.etl.yml run --rm meltano install               # une fois
 #   docker compose -f docker-compose.etl.yml run --rm meltano run tap-guichet target-postgres
 #   docker compose -f docker-compose.etl.yml run --rm meltano invoke dbt-postgres build
+#
+# JOIGNABILITÉ DE GUICHET (GUIC-700) — SÉPARATION, pas cohabitation réseau. `meltano` ne
+# rejoint AUCUN réseau Docker de l'app : `etl/meltano.yml` fixe `api_url` en HTTPS PUBLIC
+# par défaut (`https://guichet.cjs.sn`) — le Data Hub est une route machine-à-machine
+# pensée pour être appelée de l'extérieur (clé API, rate limiting), comme
+# BRM/Centres/Moodle/EduPop, pas depuis le réseau Docker interne de l'app. En préprod,
+# `TAP_GUICHET_API_URL` (.env.etl) doit pointer l'URL publique préprod
+# (`https://devguichet.consortiumjeunesse…org`), jamais une adresse interne : ni
+# `host.docker.internal` (l'app est verrouillée en loopback, GUIC-641 — inatteignable de
+# toute façon), ni un réseau Docker partagé avec l'app (ça marcherait, mais seulement à
+# hôte unique, et ça couplerait ce fichier aux compose M14 protégés par sentinelle pour un
+# bénéfice nul — le chemin public fonctionne déjà, quel que soit l'hôte de l'ETL).
 
 services:
   meltano:

@@ -359,6 +359,17 @@ serait lui-même une source d'oubli si un flux futur ne déclare pas son `softDe
 Cadence hebdomadaire (crontab séparée de `run-nightly.sh`) : un tour complet, léger — on ne
 transporte que des clés, pas les lignes.
 
+**B7 — trouvé en vérifiant le lot 7, même famille que B1/B2/B4** : `client.py` du tap
+faisait `manifest["replication_key"]` (accès direct). Absente pour un flux FULL_TABLE, cette
+ligne levait `KeyError` et tuait `discover_streams()` pour les **18 flux d'un coup**
+(construits en une seule compréhension). Aucun test TypeScript/Jest ne pouvait le voir — ils
+vérifient la génération du manifeste, jamais sa consommation par le tap Python, qui n'a
+**aucun pipeline CI** dans ce dépôt. Reproduit et corrigé empiriquement (venv `singer-sdk`
+sans Docker, cf. `etl/README.md` § Tester `tap_guichet`) : `.get("replication_key")`, le SDK
+dérive nativement `replication_method` depuis sa nullité. Contre-épreuve faite (fix retiré →
+les 4 nouveaux tests échouent bien). Tests ajoutés dans
+`etl/plugins/extractors/tap-guichet/tests/`, **non intégrés en CI** — à faire.
+
 ---
 
 ## 6. Harnais de tests à constituer
@@ -385,6 +396,33 @@ qu'en faisant tourner un vrai chargeur Singer contre une vraie base.
 
 ---
 
+## 6 bis. Nouveau tour de laboratoire (2026-08-04) — tous les correctifs vérifiés en réel
+
+Question posée après le rapport initial de ce lot : « est-ce fonctionnel, pas juste testé
+unitairement ? ». Réponse : non, jusqu'à ce nouveau tour. Laboratoire remonté sur
+l'infrastructure de GUIC-693 (`etllab_postgres`, MariaDB `guichet_etl_lab`), pipeline
+exécuté de bout en bout avec les correctifs GUIC-695/696/697/700 en place.
+
+**Deux bugs réels supplémentaires trouvés, invisibles à tsc/Jest, tous deux corrigés** :
+- B7 — tap Python (`client.py`) sur `KeyError: 'replication_key'` pour tout flux FULL_TABLE.
+- B8 — image `guichet/meltano:3.7.9` sans `psycopg2` : `MELTANO_DATABASE_URI` (R5,
+  obligatoire) inutilisable dès `meltano install`.
+
+**Tout le reste vérifié vert, en conditions réelles, avec de vraies données (22 510
+utilisateurs, 26 161 candidatures)** : pré-vol 57/58 (seul échec : `sql_mode` du conteneur
+MariaDB partagé, non touché), deux runs consécutifs réussis (le run 2 est EXACTEMENT le
+test qui avait révélé B1 à l'origine — jamais reconfirmé corrigé jusqu'ici), aucun doublon
+après le run 2, `dbt build` 54/54, `v_programs_summary` avec compteurs exacts vérifiés
+contre des rattachements semés, `reconcile.ts` et `purge-absents.ts` exécutés pour la
+première fois de leur existence (13/13 concordants ; scénario réel de suppression physique
+d'un `Centre` détecté et propagé sans aucune fausse suppression ailleurs), `run-nightly.sh`
+exécuté pour la première fois en conditions réelles (chaîne complète, code de sortie 0).
+
+Le plan de durcissement M13 est maintenant vérifié fonctionnel de bout en bout, pas
+seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur `dev`.
+
+---
+
 ## 7. Intégration préprod
 
 **Prérequis avant toute extraction** (ordre imposé) :
@@ -400,7 +438,23 @@ qu'en faisant tourner un vrai chargeur Singer contre une vraie base.
    `docker-compose.yml` ne pilote pas la MariaDB Plesk.
 5. PostgreSQL entrepôt créé, chiffré au repos, accès nominatif restreint aux profils Data
    Steward — obligations CDP du §6.1 de la spec, non encore instrumentées.
-6. `npm run datahub:preflight` **vert 30/30** depuis l'environnement Guichet préprod (pas
+6. **Joignabilité de Guichet — séparation, pas cohabitation réseau (GUIC-700, tranché en
+   préparant l'intégration préprod)**. En préprod/prod Guichet tourne dans son propre
+   projet Compose (`guichet-test`/`guichet`), pas en process direct comme dans le
+   laboratoire GUIC-693 : `host.docker.internal` n'atteint rien (l'app est verrouillée sur
+   la boucle locale de l'hôte, `127.0.0.1:8081`, GUIC-641). Un premier correctif a rejoint
+   `services_partages`/`cjs-net` (même remède que F2 MariaDB/MinIO), puis a été **abandonné** :
+   il ne marche qu'à hôte unique (pas décidé), couple `docker-compose.etl.yml` aux fichiers
+   compose M14 protégés par sentinelle (alias à poser + collision possible entre
+   `guichet`/`guichet-test`/`guichet-staging` cohabitant sur le même serveur), et donne à
+   `meltano` une portée réseau vers redis_cjs/neo4j-cjs/MinIO sans aucun usage. **Retenu** :
+   `etl/meltano.yml` fixe déjà `api_url` en HTTPS public par défaut
+   (`https://guichet.cjs.sn`) — le Data Hub est une route machine-à-machine pensée pour
+   être appelée de l'extérieur, comme BRM/Centres/Moodle/EduPop. `TAP_GUICHET_API_URL`
+   pointe donc l'URL publique préprod (`https://devguichet.consortiumjeunesse…org`) ;
+   `docker-compose.etl.yml` ne touche à aucun réseau Docker de l'app, et ça fonctionne quel
+   que soit l'hôte de l'ETL.
+7. `npm run datahub:preflight` **vert 30/30** depuis l'environnement Guichet préprod (pas
    depuis le serveur ETL : il contrôle MariaDB, pas l'entrepôt).
 
 **Architecture d'exécution retenue** : batch en crontab plutôt que conteneur permanent, comme
