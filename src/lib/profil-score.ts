@@ -33,3 +33,29 @@ export function calculerScore(
   if (diplomeCount > 0)        s += 10
   return Math.min(s, 100)
 }
+
+/**
+ * GUIC-689 — Barème exposé, pour que la checklist de complétion affiche des
+ * gains RÉELS plutôt que les pourcentages de la maquette (qui annonce « CV
+ * +18 % » alors que le CV ne compte pas ici).
+ *
+ * ⚠️ Contrat posé, comportement non implémenté : cf.
+ * `tests/unit/profil-completion-checklist.test.tsx`.
+ */
+export interface CritereScore {
+  cle: string
+  label: string
+  poids: number
+  rempli: boolean
+}
+
+export const CRITERES_SCORE: { cle: string; label: string; poids: number }[] = []
+
+export function etatCompletion(
+  _identite: IdentiteForScore,
+  _profil: ProfilForScore | null,
+  _expCount: number,
+  _diplomeCount: number = 0,
+): { score: number; criteres: CritereScore[] } {
+  return { score: 0, criteres: [] }
+}
