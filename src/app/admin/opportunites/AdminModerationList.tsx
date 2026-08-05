@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
-import { idsVerifies, type FiltreMod, type ModerationKpis, type ModerationRow } from '@/lib/loaders/admin-moderation'
+import type { FiltreMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
 import { approuverOpportunite, approuverPlusieurs, chargerModerationDetail } from './actions'
 import { RejetMotifModal } from './RejetMotifModal'
@@ -170,7 +170,8 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
   const [, startAction] = useTransition()
   const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
 
-  const verifies = idsVerifies(rows)
+  // Inline (pas d'import valeur depuis le loader → évite prisma/net/tls dans le bundle client).
+  const verifies = rows.filter((r) => r.niveau === null).map((r) => r.id)
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id))
 
   function toggle(id: string) {
