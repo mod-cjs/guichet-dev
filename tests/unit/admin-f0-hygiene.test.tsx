@@ -52,6 +52,7 @@ const MOD_ROWS: ModerationRow[] = [
     typeLabel: 'Emploi',
     organisation: 'Sonatel',
     source: 'recruteur',
+    localisation: 'Dakar',
     ageHeures: 48,
     ageLabel: 'en attente 2 j',
     urgent: false,
@@ -83,17 +84,8 @@ const DASH: DashboardData = {
   pulse: [], upcoming: [], oppByType: [], regionScoped: false,
 }
 
-// ── Modération : Aperçu = route admin (brouillon visible, MOD-01) ────────────
-describe('GUIC-461 (F0) — Modération : bouton Aperçu', () => {
-  it('rend "Aperçu" comme lien vers l\'aperçu admin de l\'offre, nouvel onglet', () => {
-    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" />)
-    const apercu = screen.getByRole('link', { name: /aperçu/i })
-    // MOD-01 : la page publique 404 pour un brouillon → on pointe la route admin.
-    expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
-    expect(apercu).toHaveAttribute('target', '_blank')
-    expect(apercu).toHaveAttribute('rel', expect.stringContaining('noopener'))
-  })
-})
+// GUIC-702 — l'Aperçu de modération a migré de la carte vers le panneau détail
+// (slide-over) lors de la refonte ; sa vérification vit dans moderation-detail-panel.
 
 // ── Pagination rendue ───────────────────────────────────────────────────────
 describe('GUIC-461 (F0) — pagination réelle', () => {

@@ -10,6 +10,7 @@ import {
   mapModerationRow,
   kpisModeration,
   filtrerModeration,
+  idsVerifies,
   type ModerationRawRow,
 } from '@/lib/loaders/admin-moderation'
 
@@ -24,6 +25,7 @@ function raw(over: Partial<ModerationRawRow> = {}): ModerationRawRow {
     typeRef: { libelle: 'Stage' },
     organisation: 'Wave Sénégal',
     organisationLibelle: 'Wave Sénégal',
+    region: 'Dakar',
     recruteurUid: 'rec-1',
     createdAt: new Date(NOW - 3 * 3600 * 1000),
     description: 'Offre saine de stage marketing digital chez un partenaire vérifié.',
@@ -106,6 +108,24 @@ describe('GUIC-702 — loader modération (helpers purs)', () => {
     expect(k.veille).toBe(1)
     expect(k.signalees).toBe(1) // seule 'c' est signalée (soft)
     expect(k.nouvelles).toBe(2) // 'a' et 'b' < 24 h
+  })
+
+  it('mapModerationRow expose la localisation (région lisible) — écart C', () => {
+    expect(mapModerationRow(raw({ region: 'Dakar' }), NOW).localisation).toMatch(/Dakar/)
+    // pas de région → localisation vide, jamais "null"
+    expect(mapModerationRow(raw({ region: null }), NOW).localisation).toBe('')
+  })
+
+  it('idsVerifies — offres sans aucun signal (partenaire vérifié, rien de suspect)', () => {
+    const rows = [
+      mapModerationRow(raw({ id: 'ok' }), NOW), // sain, vérifié → aucun signal
+      mapModerationRow(raw({ id: 'soft', org: { nom: 'X', estVerifie: false } }), NOW), // soft
+      mapModerationRow(
+        raw({ id: 'crit', description: 'Frais d’inscription 10 000 FCFA à verser.' }),
+        NOW,
+      ), // crit
+    ]
+    expect(idsVerifies(rows)).toEqual(['ok'])
   })
 
   it('filtrerModeration applique le filtre actif', () => {

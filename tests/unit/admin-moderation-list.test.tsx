@@ -23,6 +23,7 @@ function row(over: Partial<ModerationRow> = {}): ModerationRow {
     typeLabel: 'Stage',
     organisation: 'Wave Sénégal',
     source: 'recruteur',
+    localisation: 'Dakar',
     ageHeures: 3,
     ageLabel: 'en attente 3 h',
     urgent: false,
@@ -63,6 +64,7 @@ describe('GUIC-702 — AdminModerationList (rendu)', () => {
       row({
         titre: 'Agent commercial — rémunération attractive',
         source: 'recruteur',
+        localisation: 'Dakar',
         ageHeures: 26,
         ageLabel: 'en attente 26 h',
         urgent: true,

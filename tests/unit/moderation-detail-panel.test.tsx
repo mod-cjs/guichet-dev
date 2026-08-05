@@ -82,4 +82,12 @@ describe('GUIC-702 — ModerationDetailPanel (rendu)', () => {
     expect(screen.getByRole('button', { name: /^Approuver$/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Rejeter/ })).toBeInTheDocument()
   })
+
+  it('offre un Aperçu (nouvel onglet) vers la route admin de l’offre — MOD-01', () => {
+    renderPanel()
+    const apercu = screen.getByRole('link', { name: /aperçu/i })
+    expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
+    expect(apercu).toHaveAttribute('target', '_blank')
+    expect(apercu).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
 })
