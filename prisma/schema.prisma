@@ -37,6 +37,27 @@ enum Genre {
 }
 
 // GUIC-660 — situation de handicap auto-déclarée (donnée socio-démographique inclusion).
+/// GUIC-689 — Niveau de maîtrise d'une langue, du plus fort au plus faible.
+/// Échelle volontairement courte : une auto-déclaration fine (A1..C2) serait
+/// mal remplie et impossible à vérifier.
+enum NiveauLangue {
+  maternelle
+  courant
+  intermediaire
+  notions
+
+  @@map("niveau_langue")
+}
+
+/// GUIC-689 — Nature d'un élément du parcours, pour la timeline unifiée.
+enum TypeParcours {
+  formation
+  experience
+  engagement
+
+  @@map("type_parcours")
+}
+
 enum Handicap {
   aucun
   moteur
@@ -291,6 +312,16 @@ model Utilisateur {
   statut             StatutCompte @default(actif)
   /// Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login).
   role               String?      @db.VarChar(40)
+  /// GUIC-689 — Matricule de membre CJS, imprimé sur la carte.
+  ///
+  /// Format `GJ-<année d'inscription>-<5 chiffres><lettre de contrôle>`, repris
+  /// de la maquette (`cjs-card.jsx`). C'est un identifiant PUBLIC, lisible et
+  /// dictable au comptoir — à la différence de `cjsUid`, qui est l'identifiant
+  /// technique inter-plateformes et n'a pas vocation à être affiché.
+  ///
+  /// Nullable : les comptes migrés n'en ont pas tant que le backfill n'est pas
+  /// passé, et un compte sans matricule doit rester utilisable.
+  matricule          String?      @unique @db.VarChar(20)
   /// Commune de résidence, saisie libre à l'onboarding — non normalisée.
   commune            String?      @db.VarChar(100)
   /// Le parcours d'onboarding a été mené à son terme. Distingue un compte créé d'un compte réellement activé.
@@ -361,6 +392,15 @@ model ProfilJeune {
   // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
   cvUrl             String?   @map("cv_url") @db.VarChar(500)
   cvUploadedAt      DateTime? @map("cv_uploaded_at")
+  // GUIC-689 — « Objectif & secteurs visés » (réf profil-web.jsx ObjectiveCard).
+  // `domainesInteret` portait déjà les secteurs (alimenté par l'onboarding) ;
+  // ces trois champs complètent la carte.
+  /// Objectif exprimé librement par le jeune (« lancer une micro-entreprise… »).
+  objectif          String?   @db.Text
+  /// Types d'opportunité recherchés — JSON, ex. ["financement","formation"].
+  typesRecherches   Json?     @map("types_recherches")
+  /// Régions où le jeune accepte de se déplacer — JSON, ex. ["Tambacounda"].
+  regionsMobilite   Json?     @map("regions_mobilite")
   // GUIC-581 — Préférences d'accessibilité (page /jeune/accessibilite).
   // Shape { text, contrast, gray, motion, spacing, falc, kbd } — validé par Zod
   // dans l'action modifierPrefsAccessibilite ; cache localStorage côté client.
@@ -379,6 +419,8 @@ model ProfilJeune {
   experiences     Experience[]
   diplomes        Diplome[]
   certificats     CertificatMoodle[]
+  langues         LangueProfil[]
+  engagements     Engagement[]
   centrePrincipal Centre?            @relation("ProfilCentrePrincipal", fields: [centrePrincipalId], references: [id])
 
   @@index([centrePrincipalId])
@@ -387,6 +429,49 @@ model ProfilJeune {
 }
 
 // Expériences professionnelles du jeune
+/// GUIC-689 — Langue déclarée par le jeune, avec son niveau (carte
+/// « Compétences & langues »). Une ligne par langue : les langues comptent dans
+/// le matching au Sénégal (wolof, français, pulaar, sérère…), un champ texte
+/// libre ne s'exploiterait pas.
+model LangueProfil {
+  id       String       @id @default(uuid()) @db.VarChar(36)
+  profilId String       @map("profil_id") @db.VarChar(36)
+  /// Nom de la langue tel que saisi/choisi (« Wolof », « Français »).
+  langue   String       @db.VarChar(60)
+  niveau   NiveauLangue
+
+  profil ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
+
+  /// Une même langue ne peut être déclarée deux fois par le même profil.
+  @@unique([profilId, langue])
+  @@index([profilId])
+  @@map("langues_profil")
+}
+
+/// GUIC-689 — Engagement associatif / bénévolat / volontariat.
+///
+/// Troisième source de la timeline unifiée, aux côtés des expériences
+/// (`Experience`) et des formations (`Diplome`). Ce type n'existait pas : le
+/// bénévolat était soit absent, soit saisi comme une expérience professionnelle,
+/// ce qui fausse la lecture d'un parcours.
+model Engagement {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  profilId     String    @map("profil_id") @db.VarChar(36)
+  /// Rôle tenu (« Bénévole sensibilisation »).
+  role         String    @db.VarChar(150)
+  organisation String    @db.VarChar(150)
+  dateDebut    DateTime  @map("date_debut")
+  /// Nul = engagement toujours en cours.
+  dateFin      DateTime? @map("date_fin")
+  description  String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  profil ProfilJeune @relation(fields: [profilId], references: [id], onDelete: Cascade)
+
+  @@index([profilId])
+  @@map("engagements")
+}
+
 model Experience {
   id           String    @id @default(uuid()) @db.VarChar(36)
   profilId     String    @map("profil_id") @db.VarChar(36)

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Image from 'next/image'
+import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 import { Card, Button, Icon, Input, Select } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { communesForRegion } from '@/lib/communes'
@@ -30,7 +31,7 @@ const REGIONS = [
 ].map(r => ({ value: r, label: r.replace('_', '-') }))
 
 interface Props {
-  data:         Pick<ProfilComplet, 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
+  data:         Pick<ProfilComplet, 'cjsUid' | 'nom' | 'prenom' | 'email' | 'telephone' | 'region' | 'commune' | 'genre' | 'dateNaissance'>
   photoUrl?:    string | null
   ssoProfilUrl: string | null
   onSaved:      (data: PutProfilResponse) => void
@@ -79,6 +80,9 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
   const [error,   setError]   = useState<string | null>(null)
 
   const [photo,        setPhoto]        = useState<string | null>(photoUrl ?? null)
+  // GUIC-689 — horodatage d'invalidation : `getProfilePhotoUrl` porte un `?cb=`
+  // constant, insuffisant pour rafraichir l'affichage juste apres un upload.
+  const [photoTs, setPhotoTs] = useState<number | null>(null)
   const [photoLoading, setPhotoLoading] = useState(false)
   const [photoError,   setPhotoError]   = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement | null>(null)
@@ -111,10 +115,10 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
       if (!res.ok) throw new Error(json.error?.message ?? 'Upload impossible')
       // Cache-bust : on suffixe l'URL d'un `?ts=` pour forcer le navigateur (et
       // next/image) à recharger l'image immédiatement après upload (GUIC-365).
-      const url    = json.data.photoUrl as string
-      const busted = `${url}${url.includes('?') ? '&' : '?'}ts=${Date.now()}`
-      setPhoto(busted)
-      onPhotoSaved?.(busted)
+      const url = json.data.photoUrl as string
+      setPhoto(url)
+      setPhotoTs(Date.now())
+      onPhotoSaved?.(url)
     } catch (e) {
       setPhotoError(e instanceof Error ? e.message : 'Erreur inconnue')
     } finally {
@@ -218,7 +222,20 @@ export function SectionIdentite({ data, photoUrl, ssoProfilUrl, onSaved, onPhoto
           aria-label="Modifier la photo de profil"
         >
           {photo ? (
-            <Image src={photo} alt="" width={96} height={96} className="w-full h-full object-cover" />
+            /* GUIC-689 — on affiche la route de service, JAMAIS la valeur
+               stockée : avec le pilote S3/MinIO celle-ci est une URI
+               `s3://bucket/...` qu'aucun navigateur ne sait charger (le défaut
+               ne se voyait pas avec Vercel Blob, qui stockait une URL https).
+               `unoptimized` : la route exige une session, et l'optimiseur va
+               chercher la source côté serveur sans le cookie du visiteur. */
+            <Image
+              src={`${getProfilePhotoUrl(data.cjsUid, true)}${photoTs ? `&ts=${photoTs}` : ''}`}
+              alt=""
+              width={96}
+              height={96}
+              unoptimized
+              className="w-full h-full object-cover"
+            />
           ) : (
             <span className="text-fs-500 font-bold text-white">{initiales || '?'}</span>
           )}

@@ -82,3 +82,38 @@ describe('GUIC-689 — bandeau hero du profil', () => {
     expect(src).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
 })
+
+/**
+ * GUIC-689 — Finitions du bandeau, écarts 14 à 17 relevés contre
+ * `profil-web.jsx` (`ProfileHeader` L.116-173).
+ *
+ * Aucun ne casse une fonctionnalité ; ensemble ils font la différence entre un
+ * écran qui « ressemble à peu près » à la maquette et un écran conforme.
+ */
+describe('GUIC-689 — finitions du bandeau hero', () => {
+  it('le badge « Membre CJS » porte son icône de validation', () => {
+    render(<ProfileHeroBand {...BASE} />)
+    const badge = screen.getByText(/membre cjs/i).closest('span')
+    expect(badge?.querySelector('svg')).toBeTruthy()
+  })
+
+  it('les icônes des pastilles meta sont en ambre, jamais héritées du blanc', () => {
+    render(<ProfileHeroBand {...BASE} />)
+    const metas = screen.getByTestId('profil-hero-metas')
+    const icones = metas.querySelectorAll('svg')
+    expect(icones.length).toBeGreaterThan(0)
+    icones.forEach((i) => expect(i.getAttribute('class') ?? '').toMatch(/text-gj-yellow/))
+  })
+
+  it('l’avatar porte l’anneau clair de la maquette', () => {
+    render(<ProfileHeroBand {...BASE} />)
+    const avatar = screen.getByTestId('profil-hero-avatar')
+    expect(avatar.className).toMatch(/ring-/)
+  })
+
+  it('un bouton de changement de photo est posé sur l’avatar', () => {
+    render(<ProfileHeroBand {...BASE} />)
+    const bouton = screen.getByRole('link', { name: /changer la photo/i })
+    expect(bouton).toHaveAttribute('href', '#profil-identite')
+  })
+})

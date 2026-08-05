@@ -9,6 +9,7 @@ type IdentiteData = ComponentProps<typeof SectionIdentite>['data']
  * sur l'onboarding : commune = select filtré + « Autre », genre 3 options.
  */
 const baseData: IdentiteData = {
+  cjsUid: 'u-test-1',
   nom: 'Diop', prenom: 'Awa', email: 'awa@test.sn', telephone: null,
   region: 'Dakar', commune: null, genre: null, dateNaissance: null,
 }

@@ -102,9 +102,10 @@ export function ProfileHeroBand({
       <div className="flex flex-wrap items-center gap-space-4">
         {/* Avatar — photo réelle si présente, initiales sinon (jamais de vide). */}
         <span
+          data-testid="profil-hero-avatar"
           className="relative shrink-0 inline-flex items-center justify-center
             w-[76px] h-[76px] sm:w-[92px] sm:h-[92px] rounded-full
-            bg-white/15 text-fs-700 font-black"
+            bg-white/15 text-fs-700 font-black ring-4 ring-white/20"
         >
           {photoUrl && photo ? (
             <Image
@@ -112,11 +113,30 @@ export function ProfileHeroBand({
               alt=""
               width={92}
               height={92}
+              // `/api/profil/photo/file` exige une session. L'optimiseur va
+              // chercher la source côté serveur, SANS le cookie du visiteur :
+              // il reçoit 401 et l'image tombe en 400. On la sert telle quelle,
+              // le navigateur joignant son cookie (GUIC-689).
+              unoptimized
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
             <span aria-hidden>{initiales}</span>
           )}
+
+          {/* Réf maquette : pastille caméra en bas-droite de l'avatar. C'est un
+              lien vers la section Identité, qui porte l'input de téléversement —
+              dupliquer la logique d'upload ici créerait deux chemins pour la
+              même action. */}
+          <Link
+            href="#profil-identite"
+            aria-label="Changer la photo"
+            className="absolute -right-0.5 -bottom-0.5 inline-flex items-center justify-center
+              w-[30px] h-[30px] rounded-full no-underline
+              bg-gj-yellow text-gj-ink border-[2.5px] border-gj-teal-deep"
+          >
+            <Icon name="camera" size={14} aria-hidden />
+          </Link>
         </span>
 
         <div className="flex-1 min-w-0">
@@ -125,6 +145,7 @@ export function ProfileHeroBand({
               uppercase tracking-[0.5px] bg-gj-yellow text-gj-ink
               px-space-2 py-[3px] rounded-gj-pill"
           >
+            <Icon name="check-circle" size={12} aria-hidden />
             Membre CJS
           </span>
 
@@ -143,7 +164,7 @@ export function ProfileHeroBand({
                   className="inline-flex items-center gap-1 text-fs-100 font-semibold
                     bg-white/15 px-space-2 py-1 rounded-gj-pill"
                 >
-                  <Icon name={m.icon} size={12} aria-hidden />
+                  <Icon name={m.icon} size={12} className="text-gj-yellow" aria-hidden />
                   {m.label}
                 </li>
               ))}
