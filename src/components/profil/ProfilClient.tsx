@@ -116,6 +116,7 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
             secteurs={initial.profil?.domainesInteret ?? []}
             typesRecherches={initial.profil?.typesRecherches ?? []}
             regionsMobilite={initial.profil?.regionsMobilite ?? []}
+            onSaved={(d) => setScore(d.completionScore)}
           />
 
           <SkillsCard
