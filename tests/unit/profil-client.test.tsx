@@ -32,10 +32,15 @@ const PROFIL: ProfilComplet = {
     profileVisibility: 'prive',
     cvUrl:             null,
     cvUploadedAt:      null,
+    objectif:          null,
+    typesRecherches:   [],
+    regionsMobilite:   [],
   },
   experiences: [],
   diplomes:    [],
   certificats: [],
+  langues:     [],
+  engagements: [],
 }
 
 describe('<ProfilClient />', () => {
