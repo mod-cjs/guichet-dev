@@ -1,21 +1,21 @@
 /**
  * @jest-environment node
  *
- * GUIC-700 — Joignabilité de Guichet conteneurisé depuis meltano, tranchée : SÉPARATION,
- * pas cohabitation réseau.
+ * GUIC-700 — Joignabilité de Guichet ET de l'entrepôt PostgreSQL depuis meltano : deux
+ * décisions DIFFÉRENTES, pas la même réponse pour les deux.
  *
- * `etl/meltano.yml` fixe déjà `api_url: https://guichet.cjs.sn` par défaut — un domaine
- * PUBLIC. Le Data Hub (`/api/v1/export/`) est une route machine-à-machine de la même
- * famille que BRM/Centres/Moodle/EduPop (CLAUDE.md), pensée pour être appelée de
- * l'extérieur (clé API, rate limiting par consommateur) — jamais par réseau Docker interne.
+ * Guichet (l'app) : SÉPARATION, par URL publique HTTPS (`etl/meltano.yml` fixe déjà
+ * `api_url: https://guichet.cjs.sn` par défaut) — le Data Hub est une route
+ * machine-à-machine pensée pour être appelée de l'extérieur, comme BRM/Centres/Moodle/
+ * EduPop. Jamais `host.docker.internal` (l'app est verrouillée en loopback, GUIC-641).
  *
- * Un premier correctif (rejoindre `services_partages`/`cjs-net`, même remède que F2
- * MariaDB/MinIO) a été écrit puis annulé : il ne fonctionne que si l'app et l'ETL
- * cohabitent sur LE MÊME hôte (pas encore décidé), couple `docker-compose.etl.yml` aux
- * fichiers compose M14 protégés par sentinelle, et donne à `meltano` une portée réseau
- * vers redis_cjs/neo4j-cjs/MinIO dont il n'a aucun usage. La séparation (URL publique
- * HTTPS, comme n'importe quel autre consommateur machine) n'a besoin d'aucun de ces
- * compromis et fonctionne quel que soit l'hôte de l'ETL.
+ * L'entrepôt PostgreSQL : COHABITATION réseau, cette fois justifiée — contrairement à
+ * l'app, il n'a PAS d'URL publique alternative. Trouvé en tentant le premier run réel en
+ * préprod : `cjs_analytics_postgres` est un conteneur (stack `cjs_analytics_*` : Superset,
+ * pgAdmin, Postgres, déjà provisionnée par l'infra), sur le réseau `cjs-net` — le MÊME
+ * réseau externe déjà utilisé par `docker-compose.prod.yml` pour MariaDB/MinIO. `meltano`
+ * doit le rejoindre pour résoudre `cjs_analytics_postgres` (`Name or service not known`
+ * sinon — testé en réel, pas supposé).
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -31,18 +31,17 @@ const composeUtile = composeContenu
 const CHEMIN_MELTANO = join(process.cwd(), 'etl/meltano.yml')
 const meltanoContenu = existsSync(CHEMIN_MELTANO) ? readFileSync(CHEMIN_MELTANO, 'utf8') : ''
 
-describe('GUIC-700 — joignabilité de Guichet : séparation par URL publique, pas cohabitation réseau', () => {
-  it('docker-compose.etl.yml ne rejoint AUCUN réseau interne de l\'app (isolation, moindre privilège)', () => {
-    expect(composeUtile).not.toMatch(/services_partages/)
-    expect(composeUtile).not.toMatch(/cjs-net/)
-    expect(composeUtile).not.toMatch(/^\s*networks:/m)
+describe('GUIC-700 — joignabilité Guichet (séparation) vs entrepôt (cohabitation réseau)', () => {
+  it('rejoint le réseau externe cjs-net — pour joindre l\'entrepôt PostgreSQL, pas pour joindre Guichet', () => {
+    expect(composeUtile).toMatch(/networks:\s*\n\s*-\s*cjs-net/)
+    expect(composeUtile).toMatch(/networks:\s*\n\s*cjs-net:\s*\n\s*external:\s*true/)
   })
 
-  it("ne s'appuie pas sur host.docker.internal — l'app est verrouillée en loopback (GUIC-641), inatteignable ainsi de toute façon", () => {
+  it("ne s'appuie pas sur host.docker.internal — l'app Guichet est verrouillée en loopback (GUIC-641), inatteignable ainsi de toute façon", () => {
     expect(composeUtile).not.toMatch(/host\.docker\.internal/)
   })
 
-  it('etl/meltano.yml pointe par défaut une URL PUBLIQUE HTTPS, pas une adresse interne', () => {
+  it('etl/meltano.yml pointe par défaut une URL PUBLIQUE HTTPS pour Guichet, pas une adresse interne', () => {
     expect(meltanoContenu).toMatch(/api_url:\s*https:\/\//)
   })
 })
