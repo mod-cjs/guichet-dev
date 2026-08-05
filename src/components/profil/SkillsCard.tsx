@@ -3,6 +3,8 @@ import type { LangueItem } from '@/types/profil'
 export interface SkillsCardProps {
   competences: string[]
   langues: LangueItem[]
+  /** Ouvre l'ajout et le retrait des langues. Sans lui, la carte est consultable. */
+  editable?: boolean
 }
 
 /**
