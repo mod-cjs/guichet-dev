@@ -36,6 +36,8 @@ export type AuditAction =
   | 'opportunite.publish'
   // GUIC-702 — l'admin renvoie une offre au recruteur pour correction (statut inchangé).
   | 'opportunite.correction_demandee'
+  // GUIC-704 — l'admin déclenche une collecte de veille à la demande (une source ou toutes).
+  | 'veille.collecte_manuelle'
   // GUIC-474 — présence à un événement (cours/session) marquée par badge ou admin.
   | 'evenement.presence'
   // GUIC-510 — gestion des partenaires (= recruteurs : organisation + compte).
