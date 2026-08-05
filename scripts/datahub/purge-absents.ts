@@ -7,14 +7,12 @@
  * serveur, et exposer un paramètre `?fields=id` sur l'API publique pour un usage
  * strictement interne ajouterait une surface à sécuriser sans bénéfice).
  *
- * Entrepôt = PostgreSQL, sondé via un conteneur `postgres:16-alpine --rm` (même choix
- * que `reconcile.ts` — pas de dépendance `pg` ajoutée à l'application pour un script
- * d'exploitation ponctuel).
+ * Entrepôt = PostgreSQL, sondé via `psqlEntrepot` (même choix que `reconcile.ts` — pas de
+ * dépendance `pg` ajoutée à l'application pour un script d'exploitation ponctuel).
  *
  * Usage : DATABASE_URL=... WAREHOUSE_DATABASE_URL=postgresql://... \
  *         npx tsx scripts/datahub/purge-absents.ts
  */
-import { execFileSync } from 'node:child_process'
 import { config } from 'dotenv'
 
 config({ path: '.env.local' })
@@ -22,6 +20,7 @@ config({ path: '.env.local' })
 import { prisma } from '../../src/lib/prisma'
 import { allDescriptors } from '../../src/lib/datahub/descriptor'
 import { purgeAbsents, type KeySource, type WarehouseKeys } from '../../src/lib/datahub/purge-absents'
+import { psqlEntrepot } from './psql-entrepot'
 
 const prismaSource: KeySource = {
   async keys(model, field) {
@@ -32,20 +31,9 @@ const prismaSource: KeySource = {
   },
 }
 
-/** `psql` via un conteneur jetable — pas de client PostgreSQL installé sur l'hôte. */
-function psql(sql: string): string {
-  const uri = process.env.WAREHOUSE_DATABASE_URL
-  if (!uri) throw new Error('WAREHOUSE_DATABASE_URL absente — sonde entrepôt impossible')
-  return execFileSync(
-    'docker',
-    ['run', '--rm', '-i', 'postgres:16-alpine', 'psql', uri, '-tAc', sql],
-    { encoding: 'utf8' }
-  )
-}
-
 const psqlWarehouse: WarehouseKeys = {
   async keys(table, column) {
-    const sortie = psql(`SELECT ${column} FROM guichet_raw.${table}`)
+    const sortie = psqlEntrepot(`SELECT ${column} FROM guichet_raw.${table}`)
     return sortie.split('\n').map((l) => l.trim()).filter(Boolean)
   },
   async deleteMany(table, column, absentes) {
@@ -54,7 +42,7 @@ const psqlWarehouse: WarehouseKeys = {
     // Guichet sont des UUID ou des identifiants numériques, jamais du texte libre, mais
     // le principe reste — ne jamais interpoler une valeur externe sans échappement.
     const liste = absentes.map((v) => `'${v.replace(/'/g, "''")}'`).join(',')
-    const sortie = psql(
+    const sortie = psqlEntrepot(
       `DELETE FROM guichet_raw.${table} WHERE ${column} IN (${liste}); SELECT ${absentes.length}`
     )
     return Number(sortie.trim().split('\n').pop())

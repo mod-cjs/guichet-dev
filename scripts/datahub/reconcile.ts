@@ -6,14 +6,13 @@
  * (pas un appel HTTP à `/api/v1/export/counts` : ce script tourne déjà côté serveur, un
  * aller-retour réseau vers sa propre API n'apporterait rien).
  *
- * Entrepôt = PostgreSQL, sondé via un conteneur `postgres:16-alpine --rm` (pas de
- * dépendance `pg` ajoutée à l'application pour un script d'exploitation ponctuel — voir
- * la même logique que `docker-compose.etl.yml`, aucun service permanent).
+ * Entrepôt = PostgreSQL, sondé via `psqlEntrepot` (pas de dépendance `pg` ajoutée à
+ * l'application pour un script d'exploitation ponctuel — voir la même logique que
+ * `docker-compose.etl.yml`, aucun service permanent).
  *
  * Usage : DATABASE_URL=... WAREHOUSE_DATABASE_URL=postgresql://... \
  *         npx tsx scripts/datahub/reconcile.ts <since ISO>
  */
-import { execFileSync } from 'node:child_process'
 import { config } from 'dotenv'
 
 config({ path: '.env.local' })
@@ -21,6 +20,7 @@ config({ path: '.env.local' })
 import { prisma } from '../../src/lib/prisma'
 import { allDescriptors } from '../../src/lib/datahub/descriptor'
 import { reconcile, type CountSource, type WarehouseSource } from '../../src/lib/datahub/reconcile'
+import { psqlEntrepot } from './psql-entrepot'
 
 const prismaSource: CountSource = {
   async count(model, field, since) {
@@ -30,19 +30,10 @@ const prismaSource: CountSource = {
   },
 }
 
-/** `psql` via un conteneur jetable — pas de client PostgreSQL installé sur l'hôte. */
 const psqlWarehouse: WarehouseSource = {
   async count(table, column, since) {
-    const uri = process.env.WAREHOUSE_DATABASE_URL
-    if (!uri) throw new Error('WAREHOUSE_DATABASE_URL absente — sonde entrepôt impossible')
-
     const sql = `SELECT COUNT(*) FROM guichet_raw.${table} WHERE ${column} >= '${since.toISOString()}'`
-    const sortie = execFileSync(
-      'docker',
-      ['run', '--rm', '-i', 'postgres:16-alpine', 'psql', uri, '-tAc', sql],
-      { encoding: 'utf8' }
-    )
-    return Number(sortie.trim())
+    return Number(psqlEntrepot(sql).trim())
   },
 }
 
