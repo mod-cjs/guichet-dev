@@ -151,8 +151,18 @@ describe('useRecommandationsStep', () => {
     const { result } = renderHook(() => useRecommandationsStep())
     await waitFor(() => expect(result.current.draft.objectifs).toEqual(['agriculture', 'projet']))
     await act(async () => { await result.current.finalise('/jeune/tableau-de-bord') })
+    // GUIC-689 — l'ancienne attente verrouillait la valeur fautive
+    // « Entrepreneuriat », absente de DOMAINES_INTERET : elle ne correspondait à
+    // aucune puce du formulaire de profil et se perdait à la première
+    // sauvegarde. « Lancer mon projet » est une INTENTION, pas un secteur.
     expect(onboardingCalls).toEqual([
-      { step: 3, data: { domainesInteret: ['Agriculture', 'Entrepreneuriat'] } },
+      {
+        step: 3,
+        data: {
+          domainesInteret: ['Agriculture'],
+          typesRecherches: ['entrepreneuriat', 'financement'],
+        },
+      },
     ])
     expect(pushMock).toHaveBeenCalledWith('/jeune/tableau-de-bord')
     expect(draftStore).toBeNull()

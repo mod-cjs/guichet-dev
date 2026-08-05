@@ -35,6 +35,10 @@ export const stepProfilSchema = z.object({
   situationHandicap: z.enum(['aucun', 'moteur', 'visuel', 'auditif', 'autre', 'non_precise']).optional().nullable(),
   zoneHabitation:    z.enum(['rural', 'urbain']).optional().nullable(),
   domainesInteret: z.array(z.string()).max(5).optional().default([]),
+  // GUIC-689 — l'objectif d'onboarding est une INTENTION (« trouver un
+  // emploi », « me former ») : il alimente `typesRecherches`, pas les secteurs.
+  // Les y forcer perdait « emploi » et produisait des valeurs hors référentiel.
+  typesRecherches: z.array(z.string()).max(6).optional().default([]),
 })
 
 export type StepIdentiteData    = z.infer<typeof stepIdentiteSchema>
