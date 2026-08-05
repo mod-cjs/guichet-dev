@@ -6,6 +6,8 @@ export interface ObjectiveCardProps {
   secteurs: string[]
   typesRecherches: string[]
   regionsMobilite: string[]
+  /** Remonte le score recalculé par le serveur après enregistrement. */
+  onSaved?: (data: { completionScore: number }) => void
 }
 
 /**

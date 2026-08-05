@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { Region, Genre, Handicap, ZoneHabitation } from '@prisma/client'
+import { PutProfilSchema } from './schema'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
@@ -10,34 +10,7 @@ import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
-// ── Schéma PUT ────────────────────────────────────────────────────────────────
-
-const REGIONS    = Object.values(Region)         as [string, ...string[]]
-const GENRES     = Object.values(Genre)          as [string, ...string[]]
-const HANDICAPS  = Object.values(Handicap)       as [string, ...string[]]
-const ZONES      = Object.values(ZoneHabitation) as [string, ...string[]]
-
-const PutProfilSchema = z.object({
-  region:           z.enum(REGIONS).optional().nullable(),
-  commune:          z.string().max(100).optional().nullable(),
-  genre:            z.enum(GENRES).optional().nullable(),
-  dateNaissance:    z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine(d => {
-      const date = new Date(d)
-      return date < new Date() && date > new Date('1900-01-01')
-    }, 'Date de naissance invalide')
-    .optional().nullable(),
-  biographie:       z.string().max(2000).optional().nullable(),
-  niveauEtude:      z.string().max(50).optional().nullable(),
-  situationEmploi:  z.string().max(50).optional().nullable(),
-  // GUIC-660 — champs socio-démographiques inclusion (enums Prisma)
-  situationHandicap: z.enum(HANDICAPS).optional().nullable(),
-  zoneHabitation:    z.enum(ZONES).optional().nullable(),
-  domainesInteret:  z.array(z.string()).max(10).optional(),
-  competences:      z.array(z.string().max(80)).max(20).optional(),
-  profileVisibility: z.enum(['public', 'prive']).optional(),
-})
+// ── Schéma PUT — extrait dans `./schema.ts` pour être testable seul (GUIC-689).
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -124,6 +97,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse<ApiRespons
     ...(profilFields.situationHandicap !== undefined ? { situationHandicap: profilFields.situationHandicap as Handicap | null }     : {}),
     ...(profilFields.zoneHabitation    !== undefined ? { zoneHabitation: profilFields.zoneHabitation as ZoneHabitation | null }    : {}),
     ...(profilFields.domainesInteret   !== undefined ? { domainesInteret: profilFields.domainesInteret }     : {}),
+    ...(profilFields.objectif          !== undefined ? { objectif: profilFields.objectif }                   : {}),
+    ...(profilFields.typesRecherches   !== undefined ? { typesRecherches: profilFields.typesRecherches }     : {}),
+    ...(profilFields.regionsMobilite   !== undefined ? { regionsMobilite: profilFields.regionsMobilite }     : {}),
     ...(profilFields.competences       !== undefined ? { competences: profilFields.competences }             : {}),
     ...(profilFields.profileVisibility !== undefined ? { profileVisibility: profilFields.profileVisibility } : {}),
   }
