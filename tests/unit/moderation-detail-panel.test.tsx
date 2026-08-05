@@ -63,7 +63,8 @@ describe('GUIC-702 — ModerationDetailPanel (rendu)', () => {
 
   it('affiche la carte partenaire avec son état de vérification', () => {
     renderPanel()
-    expect(screen.getByText(/Non vérifié|Partenaire non vérifié/i)).toBeInTheDocument()
+    // exact → cible la carte partenaire (« Non vérifié »), pas le signal « Partenaire non vérifié »
+    expect(screen.getByText('Non vérifié')).toBeInTheDocument()
   })
 
   it('affiche une carte partenaire VÉRIFIÉ quand estVerifie', () => {

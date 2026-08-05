@@ -7,8 +7,10 @@ import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import type { FiltreMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
-import { approuverOpportunite } from './actions'
+import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
+import { approuverOpportunite, chargerModerationDetail } from './actions'
 import { RejetMotifModal } from './RejetMotifModal'
+import { ModerationDetailPanel } from './ModerationDetailPanel'
 
 export interface AdminModerationListProps {
   rows: ModerationRow[]
@@ -48,12 +50,15 @@ function ModerationCard({
   row,
   onResult,
   onRejeter,
+  onOpenDetail,
+  loading,
 }: {
   row: ModerationRow
   onResult: ResultHandler
   onRejeter: (row: ModerationRow) => void
+  onOpenDetail: (id: string) => void
+  loading: boolean
 }) {
-  const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
   function handleApprouver() {
@@ -128,41 +133,21 @@ function ModerationCard({
             </span>
             <button
               type="button"
-              onClick={() => setOpen((v) => !v)}
-              className="ml-auto text-[11.5px] font-bold inline-flex items-center gap-[3px]"
+              onClick={() => onOpenDetail(row.id)}
+              disabled={loading}
+              className="ml-auto text-[11.5px] font-bold inline-flex items-center gap-[3px] disabled:opacity-50"
               style={{ color: 'var(--gj-teal-deep)' }}
             >
-              {open ? 'Masquer' : 'Voir le détail'}
-              <span style={{ display: 'inline-flex', transform: open ? 'rotate(180deg)' : undefined }}>
-                <Icon name="chevron-down" size={13} />
-              </span>
+              {loading ? 'Chargement…' : 'Voir le détail'}
+              <Icon name="chevron-right" size={13} />
             </button>
           </div>
 
-          {/* Détail inline */}
-          {open && (
-            <div
-              className="mt-[12px] p-[12px] rounded-[10px]"
-              style={{ background: 'var(--gj-bg)', border: '1px solid var(--gj-line)' }}
-            >
-              {row.signaux.length > 0 && (
-                <ul className="mb-[10px] flex flex-col gap-[5px]">
-                  {row.signaux.map((s, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center gap-[7px] text-[12.5px]"
-                      style={{ color: s.niveau === 'crit' ? 'var(--gj-red-ink)' : 'var(--gj-yellow-ink)' }}
-                    >
-                      <Icon name={s.niveau === 'crit' ? 'alert' : 'info'} size={13} />
-                      {s.motif}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>
-                {row.extrait}
-              </p>
-            </div>
+          {/* Extrait rapide (le dossier complet est dans le panneau slide-over) */}
+          {row.extrait && (
+            <p className="mt-[8px] text-[12.5px]" style={{ color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 'min(100%,660px)' }}>
+              {row.extrait}
+            </p>
           )}
         </div>
       </div>
@@ -218,7 +203,35 @@ function ModerationCard({
 export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre }: AdminModerationListProps) {
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [rejet, setRejet] = useState<ModerationRow | null>(null)
+  const [detail, setDetail] = useState<ModerationDetail | null>(null)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [, startDetail] = useTransition()
   const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
+
+  function openDetail(id: string) {
+    setLoadingId(id)
+    startDetail(async () => {
+      try {
+        const d = await chargerModerationDetail(id)
+        if (d) setDetail(d)
+        else onResult('Offre introuvable.', 'danger')
+      } catch {
+        onResult('Échec du chargement du dossier.', 'danger')
+      } finally {
+        setLoadingId(null)
+      }
+    })
+  }
+
+  async function approuverDepuisPanel(id: string, titre: string) {
+    try {
+      await approuverOpportunite(id)
+      onResult(`« ${titre} » publiée.`, 'success')
+      setDetail(null)
+    } catch {
+      onResult(`Échec : « ${titre} » a peut-être déjà été modérée.`, 'danger')
+    }
+  }
 
   return (
     <div style={{ padding: '22px 28px 40px' }}>
@@ -301,7 +314,14 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
         ) : (
           <div className="flex flex-col gap-[12px]">
             {rows.map((row) => (
-              <ModerationCard key={row.id} row={row} onResult={onResult} onRejeter={setRejet} />
+              <ModerationCard
+                key={row.id}
+                row={row}
+                onResult={onResult}
+                onRejeter={setRejet}
+                onOpenDetail={openDetail}
+                loading={loadingId === row.id}
+              />
             ))}
           </div>
         )}
@@ -317,6 +337,19 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
           </div>
         )}
       </div>
+
+      {detail && (
+        <ModerationDetailPanel
+          detail={detail}
+          onClose={() => setDetail(null)}
+          onApprouver={() => approuverDepuisPanel(detail.id, detail.titre)}
+          onRejeter={() => {
+            setRejet({ id: detail.id, titre: detail.titre } as ModerationRow)
+            setDetail(null)
+          }}
+          onCorriger={() => onResult('Demande de correction disponible prochainement.', 'info')}
+        />
+      )}
 
       {rejet && (
         <RejetMotifModal

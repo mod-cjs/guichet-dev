@@ -9,6 +9,7 @@ import { recordAudit, type AuditAction } from '@/lib/audit'
 import { notifyRecruteurDecisionOpportunite } from '@/lib/notifications/opportunite-decision'
 import { OpportuniteService, type CreateOpportuniteInput, type SousTypeSlug } from '@/lib/services/opportunite-service'
 import { sanitizeOpportuniteRichFields } from '@/lib/opportunite/sanitize-base'
+import { getModerationDetail, type ModerationDetail } from '@/lib/loaders/moderation-detail'
 import type { CJSSession } from '@/types/user'
 import type { Prisma, StatutOpportunite } from '@prisma/client'
 
@@ -78,6 +79,12 @@ async function setStatutBrouillon(
 
   revalidateAdmin()
   return { ok: true }
+}
+
+/** Charge la fiche complète d'une offre en modération (slide-over, PR-B). Garde admin. */
+export async function chargerModerationDetail(id: string): Promise<ModerationDetail | null> {
+  await assertAdmin()
+  return getModerationDetail(idSchema.parse(id))
 }
 
 /** Approuver une publication en attente → `publiee`. */
