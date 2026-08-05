@@ -1,222 +1,199 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Select } from '@/components/ui/Select'
+import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
+import type { CurationRow, VeilleBandeau, OngletC, ChipC } from '@/lib/loaders/admin-curation'
+import { versModeration, ignorerDoublon, rejeterItem } from './actions'
 
-/** GUIC-600 — US-5 : liste de la file de curation (onglets + filtres). */
-
-export interface CurationRow {
-  id: string
-  titre: string
-  sourceNom: string
-  organisation: string
-  typeLabel: string
-  score: number
-  dateLabel: string
-  opportuniteId?: string | null
-}
-
-interface CurationListProps {
+export interface CurationListProps {
   rows: CurationRow[]
-  total: number
-  page: number
+  chips: { suggerees: number; scoreEleve: number; doublons: number }
+  veille: VeilleBandeau
+  onglet: OngletC
+  chip: ChipC
+  currentPage: number
   totalPages: number
-  onglet: 'a_valider' | 'en_attente' | 'approuvee' | 'rejetee'
-  sources: Array<{ id: string; nom: string }>
-  types: Array<{ id: string; libelle: string }>
-  filtres: { source: string; type: string; scoreMin: string }
 }
 
-const GRID = '1.8fr 1fr 1fr 0.9fr 0.6fr 0.7fr'
+const CHIPS: { key: ChipC; label: string; kpi: keyof CurationListProps['chips'] }[] = [
+  { key: 'tout', label: 'Suggérées', kpi: 'suggerees' },
+  { key: 'score', label: 'Score élevé', kpi: 'scoreEleve' },
+  { key: 'doublons', label: 'Doublons', kpi: 'doublons' },
+]
+const ONGLETS: { key: OngletC; label: string }[] = [
+  { key: 'a_valider', label: 'À valider' },
+  { key: 'en_attente', label: 'En attente' },
+  { key: 'approuvee', label: 'Approuvées' },
+  { key: 'rejetee', label: 'Rejetées' },
+]
 
-export function CurationList({
-  rows,
-  total,
-  page,
-  totalPages,
-  onglet,
-  sources,
-  types,
-  filtres,
-}: CurationListProps) {
-  const router = useRouter()
+const rel = new Intl.RelativeTimeFormat('fr-FR', { numeric: 'auto' })
+function collecteLabel(d: Date | null): string {
+  if (!d) return 'aucune collecte'
+  const h = Math.round((d.getTime() - Date.now()) / 3600_000)
+  if (h > -1) return "à l'instant"
+  if (h > -24) return `dernière collecte ${rel.format(h, 'hour')}`
+  return `dernière collecte ${rel.format(Math.round(h / 24), 'day')}`
+}
 
-  function naviguer(patch: Record<string, string>) {
-    const params = new URLSearchParams()
-    params.set('onglet', onglet)
-    if (filtres.source) params.set('source', filtres.source)
-    if (filtres.type) params.set('type', filtres.type)
-    if (filtres.scoreMin) params.set('scoreMin', filtres.scoreMin)
-    for (const [k, v] of Object.entries(patch)) {
-      if (v) params.set(k, v)
-      else params.delete(k)
-    }
-    params.delete('page')
-    router.push(`/admin/curation?${params.toString()}`)
-  }
+type ResultHandler = (message: string, variant: ToastVariant) => void
 
-  function ongletHref(o: string) {
-    const params = new URLSearchParams()
-    params.set('onglet', o)
-    return `/admin/curation?${params.toString()}`
+function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHandler }) {
+  const [pending, startTransition] = useTransition()
+
+  function run(fn: () => Promise<unknown>, ok: string) {
+    startTransition(async () => {
+      try {
+        await fn()
+        onResult(ok, 'success')
+      } catch {
+        onResult('Échec — l’item n’est peut-être plus à valider.', 'danger')
+      }
+    })
   }
 
   return (
-    <div style={{ padding: '22px 28px 40px', overflowY: 'auto', flex: 1 }}>
-      <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--gj-ink)', margin: '0 0 4px' }}>
-          File de curation
-        </h1>
-        <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginTop: 0, marginBottom: 16 }}>
-          {total.toLocaleString('fr-FR')} opportunité(s) — rien n’est publié sans validation.
-        </p>
+    <div
+      className="rounded-[14px] p-[16px] flex flex-col gap-[10px]"
+      style={{ background: 'var(--gj-surface)', border: `1.5px solid ${row.estDoublon ? 'var(--gj-yellow)' : 'var(--gj-line)'}` }}
+    >
+      {/* Haut : type + source + doublon */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {row.typeLabel && (
+          <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }}>
+            {row.typeLabel}
+          </span>
+        )}
+        <span className="text-[10.5px] font-black px-[8px] py-[1px] rounded-full uppercase" style={{ border: '1.5px solid var(--gj-line)', color: row.sourceOfficielle ? 'var(--gj-yellow-ink)' : 'var(--gj-grey)' }}>
+          {row.sourceNom}
+        </span>
+        {row.estDoublon && (
+          <span className="inline-flex items-center gap-[4px] text-[10px] font-black px-[8px] py-[2px] rounded-full uppercase" style={{ background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>
+            <Icon name="alert" size={11} /> Doublon ?
+          </span>
+        )}
+      </div>
 
-        {/* Onglets */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--gj-border)' }}>
-          {(
-            [
-              ['a_valider', 'À valider'],
-              ['en_attente', 'En attente'],
-              ['approuvee', 'Approuvées'],
-              ['rejetee', 'Rejetées'],
-            ] as const
-          ).map(([val, label]) => (
-            <Link
-              key={val}
-              href={ongletHref(val)}
-              style={{
-                padding: '8px 14px',
-                fontSize: 13.5,
-                fontWeight: 800,
-                textDecoration: 'none',
-                color: onglet === val ? 'var(--gj-teal-deep)' : 'var(--gj-grey)',
-                borderBottom: onglet === val ? '2px solid var(--gj-teal-deep)' : '2px solid transparent',
-              }}
-            >
-              {label}
-            </Link>
+      <h5 className="text-[15px] font-black m-0" style={{ color: 'var(--gj-ink)' }}>{row.titre}</h5>
+      {row.extrait && <p className="text-[12.5px] m-0" style={{ color: 'var(--gj-grey)' }}>{row.extrait}</p>}
+
+      {/* Complétude */}
+      <div className="flex items-center gap-[9px] text-[11.5px]" style={{ color: 'var(--gj-grey)' }}>
+        Complétude
+        <span className="flex-1 h-[7px] rounded-full overflow-hidden" style={{ background: 'var(--gj-line)' }}>
+          <span className="block h-full rounded-full" style={{ width: `${row.score}%`, background: row.score >= 70 ? 'var(--gj-green)' : 'var(--gj-yellow)' }} />
+        </span>
+        <b style={{ color: 'var(--gj-ink)' }}>{row.score} %</b>
+      </div>
+
+      {/* Signaux */}
+      {row.signaux.length > 0 && (
+        <div className="flex flex-wrap gap-[6px]">
+          {row.signaux.map((s, i) => (
+            <span key={i} className="inline-flex items-center gap-[4px] text-[10.5px] font-bold px-[8px] py-[2px] rounded-full" style={{ background: s.ok ? 'var(--gj-green-soft)' : 'var(--gj-yellow-soft)', color: s.ok ? 'var(--gj-green-ink)' : 'var(--gj-yellow-ink)' }}>
+              {s.ok ? '✓' : '⚠'} {s.label}
+            </span>
           ))}
         </div>
+      )}
 
-        {/* Filtres */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-          <Select
-            id="filtre-source"
-            label="Source"
-            options={[{ value: '', label: 'Toutes' }, ...sources.map((s) => ({ value: s.id, label: s.nom }))]}
-            value={filtres.source}
-            onChange={(e) => naviguer({ source: e.target.value })}
-          />
-          <Select
-            id="filtre-type"
-            label="Type"
-            options={[{ value: '', label: 'Tous' }, ...types.map((t) => ({ value: t.id, label: t.libelle }))]}
-            value={filtres.type}
-            onChange={(e) => naviguer({ type: e.target.value })}
-          />
-          <Select
-            id="filtre-score"
-            label="Score min."
-            options={[
-              { value: '', label: 'Aucun' },
-              { value: '25', label: '≥ 25%' },
-              { value: '50', label: '≥ 50%' },
-              { value: '75', label: '≥ 75%' },
-            ]}
-            value={filtres.scoreMin}
-            onChange={(e) => naviguer({ scoreMin: e.target.value })}
-          />
+      {/* Actions */}
+      <div className="flex items-center gap-[7px] flex-wrap mt-[2px]">
+        {row.estDoublon ? (
+          <button type="button" disabled={pending} onClick={() => run(() => ignorerDoublon(row.id), 'Doublon fusionné (ignoré).')} className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-teal-deep)', color: '#fff' }}>
+            <Icon name="check" size={14} /> Fusionner
+          </button>
+        ) : (
+          <button type="button" disabled={pending} onClick={() => run(() => versModeration(row.id), `« ${row.titre} » envoyée en Modération.`)} className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-green)', color: '#08130E' }}>
+            <Icon name="arrow-right" size={14} /> → Modération
+          </button>
+        )}
+        <Link href={`/admin/curation/${row.id}`} className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px]" style={{ background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-teal)' }}>
+          <Icon name="settings" size={14} /> Éditer
+        </Link>
+        <button type="button" disabled={pending} onClick={() => run(() => rejeterItem(row.id, 'Non pertinent — écarté de la curation'), 'Suggestion ignorée.')} className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-surface)', color: 'var(--gj-grey)', border: '1.5px solid var(--gj-line)' }}>
+          <Icon name="close" size={14} /> Ignorer
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function CurationList({ rows, chips, veille, onglet, chip, currentPage, totalPages }: CurationListProps) {
+  const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
+  const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
+
+  const hrefChip = (c: ChipC) => (c === 'tout' ? '/admin/curation' : `/admin/curation?chip=${c}`)
+
+  return (
+    <div style={{ padding: '22px 28px 40px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="mb-3">
+          <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Curation</h1>
+          <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>Suggestions de la veille à valider — « → Modération » envoie au contrôle, jamais en ligne direct.</p>
         </div>
 
-        {/* Table */}
-        <div style={{ background: 'var(--gj-surface)', borderRadius: 14, border: '1px solid var(--gj-border)', overflow: 'hidden' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: GRID,
-              gap: 10,
-              padding: '10px 16px',
-              fontSize: 11.5,
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: 0.4,
-              color: 'var(--gj-grey)',
-              borderBottom: '1px solid var(--gj-border)',
-            }}
-          >
-            <span>Opportunité</span>
-            <span>Source</span>
-            <span>Organisation</span>
-            <span>Type</span>
-            <span>Score</span>
-            <span style={{ textAlign: 'right' }}>Détecté</span>
+        {/* Bandeau veille */}
+        <div className="flex items-center gap-[10px] rounded-[12px] px-[14px] py-[10px] mb-[12px] flex-wrap" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+          <span className="inline-block w-[8px] h-[8px] rounded-full" style={{ background: 'var(--gj-green)' }} />
+          <b className="text-[13px]" style={{ color: 'var(--gj-ink)' }}>Veille automatique</b>
+          <span className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>· {veille.nbSources} sources · {collecteLabel(veille.derniereCollecte)}</span>
+          <span className="ml-auto text-[11.5px] font-bold px-[10px] py-[3px] rounded-full" style={{ background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>{veille.sourcesNoms.join(' · ')}</span>
+          <Link href="/admin/sources-veille" className="text-[11.5px] font-bold" style={{ color: 'var(--gj-teal-deep)' }}>Gérer les sources ›</Link>
+        </div>
+
+        {/* Onglets statut */}
+        <div className="flex items-center gap-[6px] mb-[10px] flex-wrap">
+          {ONGLETS.map((o) => {
+            const on = onglet === o.key
+            return (
+              <Link key={o.key} href={o.key === 'a_valider' ? '/admin/curation' : `/admin/curation?onglet=${o.key}`} className="text-[12px] font-bold px-[12px] py-[6px] rounded-full" style={{ background: on ? 'var(--gj-teal-deep)' : 'var(--gj-surface)', color: on ? '#fff' : 'var(--gj-grey)', border: `1.5px solid ${on ? 'var(--gj-teal-deep)' : 'var(--gj-line)'}` }}>
+                {o.label}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Chips (dans À valider) */}
+        {onglet === 'a_valider' && (
+          <div className="flex items-center gap-[8px] mb-[12px] flex-wrap">
+            {CHIPS.map((c) => {
+              const on = chip === c.key
+              return (
+                <Link key={c.key} href={hrefChip(c.key)} className="text-[12px] font-bold px-[12px] py-[6px] rounded-full" style={{ background: on ? 'var(--gj-admin-gold)' : 'var(--gj-surface)', color: on ? 'var(--gj-admin-on-gold)' : 'var(--gj-grey)', border: `1.5px solid ${on ? 'transparent' : 'var(--gj-line)'}` }}>
+                  {c.label} · {chips[c.kpi]}
+                </Link>
+              )
+            })}
           </div>
+        )}
 
-          {rows.length === 0 && (
-            <p style={{ padding: '28px 16px', fontSize: 13.5, color: 'var(--gj-grey)', margin: 0 }}>
-              Aucune opportunité dans cet onglet.
-            </p>
-          )}
-
-          {rows.map((r) => (
-            <Link
-              key={r.id}
-              href={`/admin/curation/${r.id}`}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: GRID,
-                gap: 10,
-                padding: '12px 16px',
-                alignItems: 'center',
-                borderBottom: '1px solid var(--gj-border)',
-                fontSize: 13.5,
-                textDecoration: 'none',
-                color: 'inherit',
-                minHeight: 'var(--tap-min)',
-              }}
-            >
-              <span style={{ fontWeight: 700, color: 'var(--gj-ink)' }}>
-                {r.titre}
-                {onglet === 'approuvee' && r.opportuniteId && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: 'var(--gj-teal-deep)',
-                      border: '1px solid var(--gj-teal-deep)',
-                      borderRadius: 6,
-                      padding: '1px 6px',
-                    }}
-                  >
-                    Publiée
-                  </span>
-                )}
-              </span>
-              <span style={{ color: 'var(--gj-grey)' }}>{r.sourceNom}</span>
-              <span>{r.organisation}</span>
-              <span>{r.typeLabel}</span>
-              <span style={{ fontWeight: 800, color: r.score >= 50 ? 'var(--gj-teal-deep)' : 'var(--gj-grey)' }}>
-                {r.score}%
-              </span>
-              <span style={{ textAlign: 'right', color: 'var(--gj-grey)', fontSize: 12.5 }}>{r.dateLabel}</span>
-            </Link>
-          ))}
-        </div>
+        {/* Grille / vide */}
+        {rows.length === 0 ? (
+          <div className="rounded-[14px] p-[40px] text-center flex flex-col items-center gap-[10px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
+            <Icon name="check-circle" size={34} className="opacity-40" />
+            <p className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>Aucune suggestion</p>
+            <p className="text-[13px]">La file est à jour. Les prochaines collectes de veille apparaîtront ici.</p>
+          </div>
+        ) : (
+          <div className="grid gap-[14px]" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
+            {rows.map((r) => (
+              <CurationCard key={r.id} row={r} onResult={onResult} />
+            ))}
+          </div>
+        )}
 
         {totalPages > 1 && (
-          <div style={{ marginTop: 16 }}>
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              baseUrl={`/admin/curation?onglet=${onglet}`}
-              ariaLabel="Pagination de la file de curation"
-            />
+          <div className="mt-6 flex justify-center">
+            <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl={chip === 'tout' ? '/admin/curation' : `/admin/curation?chip=${chip}`} ariaLabel="Pagination" />
           </div>
         )}
       </div>
+
+      {feedback && <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />}
     </div>
   )
 }

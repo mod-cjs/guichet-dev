@@ -119,6 +119,25 @@ export async function rejeterItem(id: string, motif: string): Promise<void> {
   revalidate()
 }
 
+/**
+ * GUIC-704 · D5 — « → Modération » : approuver PUIS publier en un geste.
+ * L'approbation valide l'item, la publication crée un BROUILLON qui arrive en
+ * file de Modération (jamais publié direct). Import dynamique pour éviter le cycle.
+ */
+export async function versModeration(id: string): Promise<{ opportuniteId: string }> {
+  await approuverItem(id)
+  const { publierItem } = await import('./publier')
+  return publierItem(id)
+}
+
+/**
+ * GUIC-704 · D3 — « Fusionner » un doublon = l'ignorer (le canonique reste en file).
+ * La repromotion existante gère la remontée d'un éventuel autre doublon.
+ */
+export async function ignorerDoublon(id: string): Promise<void> {
+  return rejeterItem(id, 'Doublon d’une offre déjà en file de curation')
+}
+
 export async function mettreEnAttenteItem(id: string): Promise<void> {
   const session = await assertAdmin()
   await chargerModerable(id)
