@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Region } from '@prisma/client'
 import { Button, Icon } from '@/components/ui'
 import { TYPES_RECHERCHES } from '@/app/api/profil/schema'
+import { DOMAINES_INTERET } from '@/lib/profil-constants'
 import { regionLabel } from '@/lib/regions'
 
 export interface ObjectiveCardProps {
@@ -69,14 +70,15 @@ export function ObjectiveCard({
 
   // Ce que l'écran montre : la dernière valeur ENREGISTRÉE, pas la saisie en
   // cours — sinon annuler laisserait l'affichage menteur.
-  const [affiche, setAffiche] = useState({ objectif, typesRecherches, regionsMobilite })
+  const [affiche, setAffiche] = useState({ objectif, secteurs, typesRecherches, regionsMobilite })
   const [form, setForm] = useState({
     objectif: objectif ?? '',
+    secteurs: [...secteurs],
     typesRecherches: [...typesRecherches],
     regionsMobilite: [...regionsMobilite],
   })
 
-  const bascule = (champ: 'typesRecherches' | 'regionsMobilite', valeur: string) =>
+  const bascule = (champ: 'secteurs' | 'typesRecherches' | 'regionsMobilite', valeur: string) =>
     setForm((f) => ({
       ...f,
       [champ]: f[champ].includes(valeur) ? f[champ].filter((v) => v !== valeur) : [...f[champ], valeur],
@@ -90,6 +92,9 @@ export function ObjectiveCard({
         // Un objectif vidé part à `null` : une chaîne vide en base se
         // relirait comme « renseigné mais muet ».
         objectif: form.objectif.trim() || null,
+        // Le contrat d'API nomme ce champ `domainesInteret` ; la carte l'appelle
+        // « secteurs visés », le mot que la maquette montre à l'utilisateur.
+        domainesInteret: form.secteurs,
         typesRecherches: form.typesRecherches,
         regionsMobilite: form.regionsMobilite,
       }
@@ -100,7 +105,12 @@ export function ObjectiveCard({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error?.message ?? 'Enregistrement impossible')
-      setAffiche({ ...corps })
+      setAffiche({
+        objectif: corps.objectif,
+        secteurs: corps.domainesInteret,
+        typesRecherches: corps.typesRecherches,
+        regionsMobilite: corps.regionsMobilite,
+      })
       onSaved?.(json.data)
       setEditing(false)
     } catch (e) {
@@ -113,7 +123,7 @@ export function ObjectiveCard({
 
   const rien =
     !affiche.objectif?.trim() &&
-    secteurs.length === 0 &&
+    affiche.secteurs.length === 0 &&
     affiche.typesRecherches.length === 0 &&
     affiche.regionsMobilite.length === 0
 
@@ -145,6 +155,29 @@ export function ObjectiveCard({
             className="w-full rounded-gj-md border border-gj-line p-space-2 text-fs-300 text-gj-ink"
           />
         </div>
+
+        <fieldset className="border-0 p-0 m-0">
+          <legend className="text-fs-100 font-extrabold uppercase tracking-[0.4px] text-gj-grey mb-space-2">
+            Secteurs visés
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {DOMAINES_INTERET.map((d) => {
+              const actif = form.secteurs.includes(d)
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={actif}
+                  onClick={() => bascule('secteurs', d)}
+                  className={`text-fs-200 font-semibold px-space-3 rounded-gj-pill border min-h-[var(--tap-min)]
+                    ${actif ? 'bg-gj-teal text-white border-gj-teal' : 'bg-gj-surface text-gj-ink border-gj-line'}`}
+                >
+                  {d}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
 
         <fieldset className="border-0 p-0 m-0">
           <legend className="text-fs-100 font-extrabold uppercase tracking-[0.4px] text-gj-grey mb-space-2">
@@ -236,9 +269,9 @@ export function ObjectiveCard({
             </div>
           )}
 
-          {secteurs.length > 0 && (
+          {affiche.secteurs.length > 0 && (
             <Bloc titre="Secteurs visés">
-              {secteurs.map((s) => (
+              {affiche.secteurs.map((s) => (
                 <Chip key={s}>{s}</Chip>
               ))}
             </Bloc>

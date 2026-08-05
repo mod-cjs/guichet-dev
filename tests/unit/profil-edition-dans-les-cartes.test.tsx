@@ -83,7 +83,7 @@ describe('GUIC-689 — les compétences s’éditent dans leur carte', () => {
     const fetchMock = mockFetchOk()
     render(<SkillsCard competences={['Excel']} langues={[]} editable />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Compétence' }), { target: { value: 'Maraîchage' } })
-    fireEvent.click(screen.getByRole('button', { name: /^ajouter$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la compétence/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/profil', expect.anything()))
     const corps = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
@@ -94,7 +94,7 @@ describe('GUIC-689 — les compétences s’éditent dans leur carte', () => {
     const fetchMock = mockFetchOk()
     render(<SkillsCard competences={['Excel']} langues={[]} editable />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Compétence' }), { target: { value: 'excel' } })
-    fireEvent.click(screen.getByRole('button', { name: /^ajouter$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la compétence/i }))
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(fetchMock).not.toHaveBeenCalled()
   })
