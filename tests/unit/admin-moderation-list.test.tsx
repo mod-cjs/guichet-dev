@@ -50,11 +50,12 @@ function renderList(rows: ModerationRow[]) {
 }
 
 describe('GUIC-702 — AdminModerationList (rendu)', () => {
-  it('affiche les chips de filtre avec leurs compteurs', () => {
+  it('affiche les chips de filtre (liens) avec leurs compteurs', () => {
     renderList([row()])
-    expect(screen.getByText(/Signal[ée]es/i)).toBeInTheDocument()
-    expect(screen.getByText(/Recruteur/i)).toBeInTheDocument()
-    expect(screen.getByText(/Veille/i)).toBeInTheDocument()
+    // Les chips sont des liens → non ambigus avec la pill « Recruteur » (span) de la carte.
+    expect(screen.getByRole('link', { name: /Signalées · 2/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Recruteur · 4/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Veille · 1/i })).toBeInTheDocument()
   })
 
   it('affiche une carte signalée avec flag crit, source et ancienneté', () => {
@@ -70,22 +71,22 @@ describe('GUIC-702 — AdminModerationList (rendu)', () => {
       }),
     ])
     expect(screen.getByText('Agent commercial — rémunération attractive')).toBeInTheDocument()
-    expect(screen.getByText(/Signal[ée]e/i)).toBeInTheDocument()
+    expect(screen.getByText('Signalée')).toBeInTheDocument() // flag crit (exact — ≠ chip « Signalées · 2 »)
     expect(screen.getByText(/en attente 26 h/)).toBeInTheDocument()
   })
 
   it('propose « Approuver » sur chaque carte', () => {
     renderList([row()])
-    expect(screen.getByRole('button', { name: /Approuver/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Approuver$/ })).toBeInTheDocument()
   })
 
   it('affiche la quick-action « Approuver les vérifiés »', () => {
     renderList([row()])
-    expect(screen.getByText(/Approuver les v[ée]rifi[ée]s/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Approuver les v[ée]rifi[ée]s/i })).toBeInTheDocument()
   })
 
   it('affiche l’état vide quand la file est à jour', () => {
     renderList([])
-    expect(screen.getByText(/File à jour|Aucune offre en attente/i)).toBeInTheDocument()
+    expect(screen.getByText(/File à jour/i)).toBeInTheDocument()
   })
 })

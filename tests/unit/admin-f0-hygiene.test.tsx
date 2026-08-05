@@ -34,10 +34,8 @@ jest.mock('@/components/centres/CentresMapGoogle', () => ({
   CentresMapGoogle: () => <div data-testid="centres-map" />,
 }))
 
-import {
-  AdminModerationList,
-  type ModerationItem,
-} from '@/app/admin/opportunites/AdminModerationList'
+import { AdminModerationList } from '@/app/admin/opportunites/AdminModerationList'
+import type { ModerationRow, ModerationKpis } from '@/lib/loaders/admin-moderation'
 import {
   AdminRessourcesTable,
   type RessourceRow,
@@ -46,16 +44,23 @@ import { AdminDashboardClient } from '@/app/admin/tableau-de-bord/AdminDashboard
 import type { AdminDashboardData as DashboardData } from '@/lib/loaders/admin-dashboard'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
-const MOD_ITEMS: ModerationItem[] = [
+const MOD_ROWS: ModerationRow[] = [
   {
     id: 'o1',
     slug: 'developpeur-full-stack',
     titre: 'Développeur full-stack',
     typeLabel: 'Emploi',
     organisation: 'Sonatel',
-    dateLabel: 'il y a 2 jours',
+    source: 'recruteur',
+    ageHeures: 48,
+    ageLabel: 'en attente 2 j',
+    urgent: false,
+    signaux: [],
+    niveau: null,
+    extrait: 'Un poste de développeur full-stack chez un partenaire vérifié.',
   },
 ]
+const MOD_KPIS: ModerationKpis = { tout: 1, signalees: 0, nouvelles: 0, recruteur: 1, veille: 0 }
 
 const RES_ROWS: RessourceRow[] = [
   {
@@ -81,7 +86,7 @@ const DASH: DashboardData = {
 // ── Modération : Aperçu = route admin (brouillon visible, MOD-01) ────────────
 describe('GUIC-461 (F0) — Modération : bouton Aperçu', () => {
   it('rend "Aperçu" comme lien vers l\'aperçu admin de l\'offre, nouvel onglet', () => {
-    render(<AdminModerationList items={MOD_ITEMS} total={1} currentPage={1} totalPages={1} />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" />)
     const apercu = screen.getByRole('link', { name: /aperçu/i })
     // MOD-01 : la page publique 404 pour un brouillon → on pointe la route admin.
     expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
@@ -93,12 +98,12 @@ describe('GUIC-461 (F0) — Modération : bouton Aperçu', () => {
 // ── Pagination rendue ───────────────────────────────────────────────────────
 describe('GUIC-461 (F0) — pagination réelle', () => {
   it('Modération : rend la pagination quand totalPages > 1', () => {
-    render(<AdminModerationList items={MOD_ITEMS} total={60} currentPage={1} totalPages={3} />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={60} currentPage={1} totalPages={3} q="" filtre="tout" />)
     expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
   })
 
   it('Modération : pas de pagination quand une seule page', () => {
-    render(<AdminModerationList items={MOD_ITEMS} total={1} currentPage={1} totalPages={1} />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" />)
     expect(screen.queryByRole('navigation', { name: /pagination/i })).toBeNull()
   })
 

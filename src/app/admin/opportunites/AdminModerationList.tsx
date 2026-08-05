@@ -6,98 +6,168 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
-import { approuverOpportunite, rejeterOpportunite } from './actions'
+import type { FiltreMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
+import { approuverOpportunite } from './actions'
+import { RejetMotifModal } from './RejetMotifModal'
+
+export interface AdminModerationListProps {
+  rows: ModerationRow[]
+  kpis: ModerationKpis
+  total: number
+  currentPage: number
+  totalPages: number
+  q: string
+  filtre: FiltreMod
+}
+
+const CHIPS: { key: FiltreMod; label: string; kpi: keyof ModerationKpis }[] = [
+  { key: 'tout', label: 'Tout', kpi: 'tout' },
+  { key: 'signalees', label: 'Signalées', kpi: 'signalees' },
+  { key: 'nouvelles', label: 'Nouvelles', kpi: 'nouvelles' },
+  { key: 'recruteur', label: 'Recruteur', kpi: 'recruteur' },
+  { key: 'veille', label: 'Veille', kpi: 'veille' },
+]
+
+/** Couleur de tag par type d'offre (registre admin). */
+function tagStyle(): { background: string; color: string } {
+  return { background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }
+}
+
+function hrefFor(filtre: FiltreMod, q: string): string {
+  const p = new URLSearchParams()
+  if (filtre !== 'tout') p.set('filtre', filtre)
+  if (q) p.set('q', q)
+  const s = p.toString()
+  return s ? `/admin/opportunites?${s}` : '/admin/opportunites'
+}
 
 type ResultHandler = (message: string, variant: ToastVariant) => void
 
-// ─── types ────────────────────────────────────────────────────────────────────
-
-export interface ModerationItem {
-  id: string
-  /** Slug de l'offre pour l'aperçu sur la page publique */
-  slug: string
-  titre: string
-  /** Libellé du type d'opportunité (Emploi, Stage, Bourse, …) */
-  typeLabel: string
-  /** Annonceur */
-  organisation: string
-  /** Date de soumission, relative, formatée serveur */
-  dateLabel: string
-}
-
-export interface AdminModerationListProps {
-  items: ModerationItem[]
-  total: number
-  /** Page courante (1-based) — défaut 1 */
-  currentPage?: number
-  /** Nombre total de pages — défaut 1 (pas de pagination) */
-  totalPages?: number
-}
-
-// ─── card ─────────────────────────────────────────────────────────────────────
-
-function ModerationCard({ item, onResult }: { item: ModerationItem; onResult: ResultHandler }) {
+// ─── carte ──────────────────────────────────────────────────────────────────
+function ModerationCard({
+  row,
+  onResult,
+  onRejeter,
+}: {
+  row: ModerationRow
+  onResult: ResultHandler
+  onRejeter: (row: ModerationRow) => void
+}) {
+  const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  // MOD-02 — confirmation explicite (action irréversible, contenu public) + feedback.
   function handleApprouver() {
-    if (!window.confirm(`Approuver et PUBLIER « ${item.titre} » ? Elle sera visible publiquement.`)) return
     startTransition(async () => {
       try {
-        await approuverOpportunite(item.id)
-        onResult(`« ${item.titre} » publiée.`, 'success')
+        await approuverOpportunite(row.id)
+        onResult(`« ${row.titre} » publiée.`, 'success')
       } catch {
-        onResult(`Échec : « ${item.titre} » a peut-être déjà été modérée.`, 'danger')
+        onResult(`Échec : « ${row.titre} » a peut-être déjà été modérée.`, 'danger')
       }
     })
   }
 
-  // Le prompt sert AUSSI de confirmation : « Annuler » (null) interrompt le rejet.
-  function handleRejeter() {
-    const motif = window.prompt(`Rejeter « ${item.titre} ». Motif (optionnel, journalisé) :`, '')
-    if (motif === null) return
-    startTransition(async () => {
-      try {
-        await rejeterOpportunite(item.id, motif || undefined)
-        onResult(`« ${item.titre} » rejetée.`, 'success')
-      } catch {
-        onResult(`Échec : « ${item.titre} » a peut-être déjà été modérée.`, 'danger')
-      }
-    })
-  }
+  const flag =
+    row.niveau === 'crit'
+      ? { label: 'Signalée', bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' }
+      : row.niveau === 'soft'
+        ? { label: 'À vérifier', bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' }
+        : null
 
   return (
     <div
-      className="rounded-[14px] p-[18px]"
-      style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}
+      className="rounded-[14px] p-[16px]"
+      style={{
+        background: 'var(--gj-surface)',
+        border: `1.5px solid ${row.niveau === 'crit' ? 'var(--gj-red)' : 'var(--gj-line)'}`,
+      }}
     >
       <div className="flex items-start gap-[12px]">
-        <span
-          className="inline-flex items-center justify-center rounded-[10px] shrink-0"
-          style={{ width: 40, height: 40, background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }}
-          aria-hidden
-        >
-          <Icon name="document" size={18} />
-        </span>
         <div className="flex-1 min-w-0">
+          {/* Titre + type + âge + flag */}
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide"
-              style={{ background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }}
+              style={tagStyle()}
             >
-              {item.typeLabel}
+              {row.typeLabel}
             </span>
             <span className="text-[15px] font-black" style={{ color: 'var(--gj-ink)' }}>
-              {item.titre}
+              {row.titre}
             </span>
+            <span
+              className="text-[11px] font-bold px-[8px] py-[1px] rounded-full"
+              style={{
+                background: row.urgent ? 'var(--gj-red-soft)' : 'var(--gj-line)',
+                color: row.urgent ? 'var(--gj-red-ink)' : 'var(--gj-grey)',
+              }}
+            >
+              {row.ageLabel}
+            </span>
+            {flag && (
+              <span
+                className="inline-flex items-center gap-[4px] text-[10px] font-black px-[8px] py-[2px] rounded-full uppercase"
+                style={{ background: flag.bg, color: flag.fg }}
+              >
+                <Icon name={row.niveau === 'crit' ? 'alert' : 'info'} size={11} />
+                {flag.label}
+              </span>
+            )}
           </div>
-          <p className="text-[12.5px] mt-[4px]" style={{ color: 'var(--gj-grey)' }}>
-            Par {item.organisation} · {item.dateLabel}
-          </p>
+
+          {/* Méta : source + organisation */}
+          <div className="flex items-center gap-[6px_12px] flex-wrap mt-[6px] text-[12px]" style={{ color: 'var(--gj-grey)' }}>
+            <span
+              className="text-[10.5px] font-black px-[8px] py-[1px] rounded-full uppercase"
+              style={{ border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}
+            >
+              {row.source === 'recruteur' ? 'Recruteur' : row.source === 'veille' ? 'Veille' : 'Admin'}
+            </span>
+            <span>
+              Par <b style={{ color: 'var(--gj-ink)' }}>{row.organisation}</b>
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="ml-auto text-[11.5px] font-bold inline-flex items-center gap-[3px]"
+              style={{ color: 'var(--gj-teal-deep)' }}
+            >
+              {open ? 'Masquer' : 'Voir le détail'}
+              <span style={{ display: 'inline-flex', transform: open ? 'rotate(180deg)' : undefined }}>
+                <Icon name="chevron-down" size={13} />
+              </span>
+            </button>
+          </div>
+
+          {/* Détail inline */}
+          {open && (
+            <div
+              className="mt-[12px] p-[12px] rounded-[10px]"
+              style={{ background: 'var(--gj-bg)', border: '1px solid var(--gj-line)' }}
+            >
+              {row.signaux.length > 0 && (
+                <ul className="mb-[10px] flex flex-col gap-[5px]">
+                  {row.signaux.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center gap-[7px] text-[12.5px]"
+                      style={{ color: s.niveau === 'crit' ? 'var(--gj-red-ink)' : 'var(--gj-yellow-ink)' }}
+                    >
+                      <Icon name={s.niveau === 'crit' ? 'alert' : 'info'} size={13} />
+                      {s.motif}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[12.5px]" style={{ color: 'var(--gj-grey)' }}>
+                {row.extrait}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Actions — pas de bloc verdict IA (donnée inexistante dans le modèle) */}
+      {/* Actions */}
       <div className="flex items-center gap-[8px] flex-wrap mt-[14px]">
         <Button
           variant="primary"
@@ -105,50 +175,36 @@ function ModerationCard({ item, onResult }: { item: ModerationItem; onResult: Re
           type="button"
           disabled={pending}
           onClick={handleApprouver}
-          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60 min-h-[44px]"
+          className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60 min-h-[40px]"
           style={{ background: 'var(--gj-green)' }}
         >
           <Icon name="check" size={14} />
           Approuver
         </Button>
+        <Link
+          href={`/admin/opportunites/${row.id}/modifier`}
+          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[40px]"
+          style={{ background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-teal)' }}
+        >
+          <Icon name="settings" size={14} />
+          Corriger
+        </Link>
         <button
           type="button"
           disabled={pending}
-          onClick={handleRejeter}
-          className="inline-flex items-center justify-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px] disabled:opacity-60"
-          style={{
-            background: 'var(--gj-surface)',
-            color: 'var(--gj-red-ink)',
-            border: '1.5px solid var(--gj-red)',
-          }}
+          onClick={() => onRejeter(row)}
+          className="inline-flex items-center justify-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[40px] disabled:opacity-60"
+          style={{ background: 'var(--gj-surface)', color: 'var(--gj-red-ink)', border: '1.5px solid var(--gj-red)' }}
         >
           <Icon name="close" size={14} />
           Rejeter
         </button>
-        {/* GUIC-471 — éditer directement puis publier (backup recruteur) : le
-            formulaire d'édition permet de corriger ET de basculer le statut en `publiee`. */}
-        <Link
-          href={`/admin/opportunites/${item.id}/modifier`}
-          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px]"
-          style={{
-            background: 'var(--gj-surface)',
-            color: 'var(--gj-teal-deep)',
-            border: '1.5px solid var(--gj-teal)',
-          }}
-        >
-          <Icon name="settings" size={14} />
-          Éditer et publier
-        </Link>
         <a
-          href={`/admin/opportunites/${item.id}/apercu`}
+          href={`/admin/opportunites/${row.id}/apercu`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[44px]"
-          style={{
-            background: 'var(--gj-surface)',
-            color: 'var(--gj-grey)',
-            border: '1.5px solid var(--gj-line)',
-          }}
+          className="inline-flex items-center justify-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px] min-h-[40px]"
+          style={{ background: 'var(--gj-surface)', color: 'var(--gj-grey)', border: '1.5px solid var(--gj-line)' }}
         >
           <Icon name="eye" size={14} />
           Aperçu
@@ -158,48 +214,94 @@ function ModerationCard({ item, onResult }: { item: ModerationItem; onResult: Re
   )
 }
 
-// ─── main component ──────────────────────────────────────────────────────────
-
-/**
- * AdminModerationList — Lot 11 admin · Modération.
- *
- * Mapping HONNÊTE : la file = opportunités `statut = brouillon` (publications
- * rédigées en attente de validation avant mise en ligne). Le modèle Prisma n'a
- * aucun champ de verdict/conformité IA (RecommandationIA = matching jeune↔offre,
- * pas une modération) → AUCUN bloc verdict IA n'est rendu.
- */
-export function AdminModerationList({ items, total, currentPage = 1, totalPages = 1 }: AdminModerationListProps) {
+// ─── composant principal ─────────────────────────────────────────────────────
+export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre }: AdminModerationListProps) {
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
+  const [rejet, setRejet] = useState<ModerationRow | null>(null)
   const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
 
   return (
     <div style={{ padding: '22px 28px 40px' }}>
-      <div style={{ maxWidth: 880, margin: '0 auto' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        {/* En-tête */}
         <div className="mb-4">
           <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>
             Modération
           </h1>
           <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>
-            {total} publications en attente de validation
+            {total} publication{total > 1 ? 's' : ''} en attente de validation
           </p>
         </div>
 
-        {items.length === 0 ? (
-          <div
-            className="rounded-[14px] p-[32px] text-center"
-            style={{
-              background: 'var(--gj-surface)',
-              border: '1.5px solid var(--gj-line)',
-              color: 'var(--gj-grey)',
-            }}
+        {/* Filtres + recherche */}
+        <div className="flex items-center gap-[8px] flex-wrap mb-[10px]">
+          {CHIPS.map((c) => {
+            const on = filtre === c.key
+            return (
+              <Link
+                key={c.key}
+                href={hrefFor(c.key, q)}
+                className="text-[12px] font-bold px-[12px] py-[6px] rounded-full"
+                style={{
+                  background: on ? 'var(--gj-teal-deep)' : 'var(--gj-surface)',
+                  color: on ? '#fff' : 'var(--gj-grey)',
+                  border: `1.5px solid ${on ? 'var(--gj-teal-deep)' : 'var(--gj-line)'}`,
+                }}
+              >
+                {c.label} · {kpis[c.kpi]}
+              </Link>
+            )
+          })}
+          <span className="flex-1" />
+          <span className="text-[12px]" style={{ color: 'var(--gj-grey)' }}>
+            Objectif <b style={{ color: 'var(--gj-ink)' }}>&lt; 48 h</b>
+          </span>
+          <button
+            type="button"
+            onClick={() => onResult('Sélection groupée disponible prochainement.', 'info')}
+            className="text-[11.5px] font-black px-[12px] py-[6px] rounded-full inline-flex items-center gap-[4px]"
+            style={{ background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', border: '1.5px solid var(--gj-green)' }}
           >
-            <Icon name="check-circle" size={32} className="mx-auto mb-[10px] opacity-40" />
-            <p className="text-[14px] font-bold">Aucune publication en attente.</p>
+            <Icon name="check" size={12} />
+            Approuver les vérifiés
+          </button>
+        </div>
+
+        {/* Recherche */}
+        <form action="/admin/opportunites" method="get" className="mb-[14px]">
+          {filtre !== 'tout' && <input type="hidden" name="filtre" value={filtre} />}
+          <div
+            className="flex items-center gap-[8px] rounded-[10px] px-[12px] py-[8px]"
+            style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}
+          >
+            <Icon name="search" size={15} className="opacity-60" />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Rechercher une offre, un organisme…"
+              aria-label="Rechercher une publication"
+              className="flex-1 bg-transparent text-[13px] outline-none"
+              style={{ color: 'var(--gj-ink)' }}
+            />
+          </div>
+        </form>
+
+        {/* Liste / état vide */}
+        {rows.length === 0 ? (
+          <div
+            className="rounded-[14px] p-[40px] text-center flex flex-col items-center gap-[10px]"
+            style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}
+          >
+            <Icon name="check-circle" size={34} className="opacity-40" />
+            <p className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>
+              File à jour 🎉
+            </p>
+            <p className="text-[13px]">Aucune offre en attente. Les prochains dépôts apparaîtront ici.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-[12px]">
-            {items.map((item) => (
-              <ModerationCard key={item.id} item={item} onResult={onResult} />
+            {rows.map((row) => (
+              <ModerationCard key={row.id} row={row} onResult={onResult} onRejeter={setRejet} />
             ))}
           </div>
         )}
@@ -209,20 +311,24 @@ export function AdminModerationList({ items, total, currentPage = 1, totalPages 
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              baseUrl="/admin/opportunites"
+              baseUrl={hrefFor(filtre, q)}
               ariaLabel="Pagination"
             />
           </div>
         )}
       </div>
 
-      {feedback && (
-        <Toast
-          message={feedback.message}
-          variant={feedback.variant}
-          onClose={() => setFeedback(null)}
+      {rejet && (
+        <RejetMotifModal
+          isOpen
+          onClose={() => setRejet(null)}
+          offreId={rejet.id}
+          offreTitre={rejet.titre}
+          onDone={(message, ok) => onResult(message, ok ? 'success' : 'danger')}
         />
       )}
+
+      {feedback && <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />}
     </div>
   )
 }
