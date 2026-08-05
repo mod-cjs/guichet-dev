@@ -42,9 +42,9 @@ describe('GUIC-689 — Objectif & secteurs visés', () => {
   it('omet un bloc dont la donnée manque, sans titre orphelin', () => {
     render(<ObjectiveCard objectif={null} secteurs={[]} typesRecherches={[]} regionsMobilite={[]} />)
     const carte = screen.getByRole('region', { name: /objectif & secteurs visés/i })
-    expect(carte.textContent).not.toMatch(/mon objectif/i)
-    expect(carte.textContent).not.toMatch(/secteurs visés/i)
-    expect(carte.textContent).not.toMatch(/mobilité/i)
+    // On juge les SOUS-titres de bloc (h3) : le titre de la carte, lui, reste.
+    const sousTitres = [...carte.querySelectorAll('h3')].map((h) => h.textContent ?? '')
+    expect(sousTitres).toEqual([])
     expect(carte.textContent).not.toMatch(/—/)
   })
 
@@ -90,7 +90,8 @@ describe('GUIC-689 — Compétences & langues', () => {
   it('omet un bloc vide, sans titre orphelin', () => {
     render(<SkillsCard competences={['Excel']} langues={[]} />)
     const carte = screen.getByRole('region', { name: /compétences & langues/i })
-    expect(carte.textContent).not.toMatch(/langues/i)
+    const sousTitres = [...carte.querySelectorAll('h3')].map((h) => h.textContent ?? '')
+    expect(sousTitres).toEqual(['Compétences'])
   })
 
   it('invite à renseigner quand tout est vide', () => {

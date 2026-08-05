@@ -11,8 +11,12 @@ import { SectionCertificats } from './SectionCertificats'
 import { SectionCv }          from './SectionCv'
 import { CompletionChecklist } from './CompletionChecklist'
 import { DocumentsCard }      from './DocumentsCard'
+import { ObjectiveCard }      from './ObjectiveCard'
+import { SkillsCard }         from './SkillsCard'
+import { TimelineCard }       from './TimelineCard'
 import { Icon }               from '@/components/ui'
 import { etatCompletion } from '@/lib/profil-score'
+import { construireParcours } from '@/lib/profil-parcours'
 import type { ProfilComplet, PutProfilResponse } from '@/types/profil'
 
 interface Props {
@@ -105,23 +109,65 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
             onSaved={handleSaved}
           />
 
-          <SectionCv
-            initialCvUrl={initial.profil?.cvUrl ?? null}
+          {/* GUIC-689 — « Objectif & secteurs visés » puis « Compétences &
+              langues », dans l'ordre de la maquette. */}
+          <ObjectiveCard
+            objectif={initial.profil?.objectif ?? null}
+            secteurs={initial.profil?.domainesInteret ?? []}
+            typesRecherches={initial.profil?.typesRecherches ?? []}
+            regionsMobilite={initial.profil?.regionsMobilite ?? []}
           />
 
-          <SectionExperiences
-            experiences={initial.experiences}
-            onScoreChange={setScore}
+          <SkillsCard
+            competences={initial.profil?.competences ?? []}
+            langues={initial.langues}
           />
 
-          <SectionDiplomes
-            diplomes={initial.diplomes}
-            onScoreChange={setScore}
+          {/* La timeline ABSORBE les trois anciennes sections (expériences,
+              diplômes, certifications) : un parcours se lit dans le temps, pas
+              par catégorie administrative. */}
+          <TimelineCard
+            parcours={construireParcours(initial.experiences, initial.diplomes, initial.engagements)}
           />
 
-          <SectionCertificats
-            certificats={initial.certificats}
-          />
+          {/* GUIC-689 — La timeline ci-dessus est en LECTURE ; l'édition vit
+              dans les trois sections d'origine. Les afficher côte à côte
+              montrerait le parcours deux fois : on les replie derrière un
+              dépliant, ce qui évite la redite sans supprimer l'édition.
+              L'édition en ligne dans la timeline reste à faire. */}
+          <details data-testid="parcours-edition" className="group">
+            <summary
+              className="list-none cursor-pointer flex items-center gap-2 select-none
+                text-fs-300 font-extrabold text-gj-teal-deep
+                bg-gj-surface border border-gj-line rounded-gj-lg px-space-4
+                min-h-[var(--tap-min)]"
+            >
+              <Icon name="settings" size={16} aria-hidden />
+              Ajouter ou modifier une entrée de mon parcours
+              <Icon
+                name="chevron-right"
+                size={14}
+                aria-hidden
+                className="ml-auto transition-transform group-open:rotate-90"
+              />
+            </summary>
+
+            <div className="flex flex-col gap-space-4 mt-space-4">
+              <SectionExperiences
+                experiences={initial.experiences}
+                onScoreChange={setScore}
+              />
+
+              <SectionDiplomes
+                diplomes={initial.diplomes}
+                onScoreChange={setScore}
+              />
+
+              <SectionCertificats
+                certificats={initial.certificats}
+              />
+            </div>
+          </details>
 
           {/* GUIC-581 — entrée mobile vers la page Inclusion & accessibilité.
               Desktop (≥lg) : la sidebar porte déjà l'entrée → masqué. */}
