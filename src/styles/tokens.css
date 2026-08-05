@@ -394,6 +394,12 @@
   --gj-green-ink:    #3BD68B;
   --gj-blue-soft:    rgba(95,160,255,.16);
   --gj-blue-ink:     #7FB0FF;
+  /* GUIC-702 — aplats/liserés pleins de la modération (rouge/vert/teal registre). */
+  --gj-teal:         #35D6A0;
+  --gj-red:          #FF6E5F;
+  --gj-red-soft:     rgba(255,110,95,.15);
+  --gj-red-ink:      #FF8A7E;
+  --gj-green:        #3BD68B;
   --gj-edge:         inset 0 1px 0 rgba(255,255,255,.055);
   --gj-lift:         0 14px 34px -18px rgba(0,0,0,.66), inset 0 1px 0 rgba(255,255,255,.06);
 
