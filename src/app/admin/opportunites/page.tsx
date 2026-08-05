@@ -22,7 +22,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const q = (sp.q ?? '').trim()
   const filtre = parseFiltreMod(sp.filtre)
 
-  const { rows, total, currentPage, totalPages, kpis } = await getModerationData({ q, filtre, page })
+  const { rows, total, currentPage, totalPages, kpis, verifiesIds, tronque, totalBrouillons } =
+    await getModerationData({ q, filtre, page })
 
   return (
     <AdminModerationList
@@ -33,6 +34,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       totalPages={totalPages}
       q={q}
       filtre={filtre}
+      verifiesIds={verifiesIds}
+      tronque={tronque}
+      totalBrouillons={totalBrouillons}
     />
   )
 }

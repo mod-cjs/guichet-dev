@@ -90,12 +90,12 @@ const DASH: DashboardData = {
 // ── Pagination rendue ───────────────────────────────────────────────────────
 describe('GUIC-461 (F0) — pagination réelle', () => {
   it('Modération : rend la pagination quand totalPages > 1', () => {
-    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={60} currentPage={1} totalPages={3} q="" filtre="tout" />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={60} currentPage={1} totalPages={3} q="" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={60} />)
     expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
   })
 
   it('Modération : pas de pagination quand une seule page', () => {
-    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={1} />)
     expect(screen.queryByRole('navigation', { name: /pagination/i })).toBeNull()
   })
 

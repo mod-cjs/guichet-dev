@@ -21,6 +21,9 @@ export interface AdminModerationListProps {
   totalPages: number
   q: string
   filtre: FiltreMod
+  verifiesIds: string[]
+  tronque: boolean
+  totalBrouillons: number
 }
 
 const CHIPS: { key: FiltreMod; label: string; kpi: keyof ModerationKpis }[] = [
@@ -105,7 +108,8 @@ function ModerationCard({
         style={{ width: 17, height: 17, marginTop: 3, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer', flex: 'none' }}
       />
 
-      {/* Corps */}
+      {/* Corps + actions : empilés < md, côte à côte ≥ md (V3 responsive) */}
+      <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-start gap-[12px]">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={{ background: 'var(--gj-blue-soft)', color: 'var(--gj-blue-ink)' }}>
@@ -144,7 +148,7 @@ function ModerationCard({
       </div>
 
       {/* Actions (écart D) : Approuver plein + Corriger/Rejeter en mini-icônes */}
-      <div className="flex items-center gap-[7px] flex-none">
+      <div className="flex items-center gap-[7px] md:flex-none flex-wrap">
         <Button variant="primary" size="sm" type="button" disabled={pending} onClick={handleApprouver} className="inline-flex items-center gap-[6px] font-black text-[12.5px] !rounded-[9px] disabled:opacity-60" style={{ background: 'var(--gj-green)', minHeight: 38 }}>
           <Icon name="check" size={14} /> Approuver
         </Button>
@@ -155,12 +159,13 @@ function ModerationCard({
           <Icon name="close" size={15} />
         </button>
       </div>
+      </div>
     </div>
   )
 }
 
 // ─── composant principal ─────────────────────────────────────────────────────
-export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre }: AdminModerationListProps) {
+export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre, verifiesIds, tronque, totalBrouillons }: AdminModerationListProps) {
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [rejetCible, setRejetCible] = useState<{ cible: string; run: (motif: string) => Promise<void> } | null>(null)
   const [correction, setCorrection] = useState<ModerationRow | null>(null)
@@ -170,8 +175,6 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
   const [, startAction] = useTransition()
   const onResult: ResultHandler = (message, variant) => setFeedback({ message, variant })
 
-  // Inline (pas d'import valeur depuis le loader → évite prisma/net/tls dans le bundle client).
-  const verifies = rows.filter((r) => r.niveau === null).map((r) => r.id)
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id))
 
   function toggle(id: string) {
@@ -251,10 +254,18 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
           })}
           <span className="flex-1" />
           <span className="text-[12px]" style={{ color: 'var(--gj-grey)' }}>Objectif <b style={{ color: 'var(--gj-ink)' }}>&lt; 48 h</b></span>
-          <button type="button" onClick={() => bulkApprouver(verifies, 'vérifiée')} className="text-[11.5px] font-black px-[12px] py-[6px] rounded-full inline-flex items-center gap-[4px]" style={{ background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', border: '1.5px solid var(--gj-green)' }}>
-            <Icon name="check" size={12} /> Approuver les vérifiés · {verifies.length}
+          <button type="button" onClick={() => bulkApprouver(verifiesIds, 'vérifiée')} className="text-[11.5px] font-black px-[12px] py-[6px] rounded-full inline-flex items-center gap-[4px]" style={{ background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)', border: '1.5px solid var(--gj-green)' }}>
+            <Icon name="check" size={12} /> Approuver les vérifiés · {verifiesIds.length}
           </button>
         </div>
+
+        {/* F4 — bannière de troncature : la file dépasse le plafond, compteurs approximatifs */}
+        {tronque && (
+          <div className="flex items-center gap-[8px] rounded-[10px] px-[12px] py-[8px] mb-[10px] text-[12.5px]" style={{ background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)', border: '1.5px solid var(--gj-yellow)' }}>
+            <Icon name="alert" size={15} />
+            <span><b>{totalBrouillons} offres en attente</b> — seules les {rows.length === 0 ? 0 : Math.min(totalBrouillons, 300)} plus anciennes sont chargées ; les compteurs sont approximatifs. Affinez la recherche pour traiter la file.</span>
+          </div>
+        )}
 
         {/* Recherche */}
         <form action="/admin/opportunites" method="get" className="mb-[10px]">

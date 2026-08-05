@@ -26,8 +26,8 @@ function row(over: Partial<ModerationRow> = {}): ModerationRow {
 }
 const KPIS = { tout: 2, signalees: 1, nouvelles: 2, recruteur: 2, veille: 0 }
 
-function renderList(rows: ModerationRow[]) {
-  return render(<AdminModerationList rows={rows} kpis={KPIS} total={rows.length} currentPage={1} totalPages={1} q="" filtre="tout" />)
+function renderList(rows: ModerationRow[], verifiesIds: string[] = []) {
+  return render(<AdminModerationList rows={rows} kpis={KPIS} total={rows.length} currentPage={1} totalPages={1} q="" filtre="tout" verifiesIds={verifiesIds} tronque={false} totalBrouillons={rows.length} />)
 }
 
 describe('GUIC-702 — sélection groupée modération', () => {
@@ -45,13 +45,11 @@ describe('GUIC-702 — sélection groupée modération', () => {
     await waitFor(() => expect(mockApprouverPlusieurs).toHaveBeenCalledWith(['r1']))
   })
 
-  it('« Approuver les vérifiés » approuve les offres sans signal', async () => {
+  it('« Approuver les vérifiés » approuve les IDs vérifiés fournis (file-wide, F3)', async () => {
     mockApprouverPlusieurs.mockResolvedValue({ approuvees: 1, ignorees: 0 })
-    renderList([
-      row({ id: 'ok', niveau: null }),
-      row({ id: 'crit', niveau: 'crit', signaux: [{ niveau: 'crit', motif: 'x' }] }),
-    ])
+    // verifiesIds vient du serveur (toute la file), pas seulement la page affichée.
+    renderList([row({ id: 'ok', niveau: null })], ['ok', 'autre-page'])
     fireEvent.click(screen.getByRole('button', { name: /Approuver les v[ée]rifi[ée]s/i }))
-    await waitFor(() => expect(mockApprouverPlusieurs).toHaveBeenCalledWith(['ok']))
+    await waitFor(() => expect(mockApprouverPlusieurs).toHaveBeenCalledWith(['ok', 'autre-page']))
   })
 })

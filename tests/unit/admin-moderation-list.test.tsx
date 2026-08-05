@@ -46,6 +46,9 @@ function renderList(rows: ModerationRow[]) {
       totalPages={1}
       q=""
       filtre="tout"
+      verifiesIds={rows.map((r) => r.id)}
+      tronque={false}
+      totalBrouillons={rows.length}
     />,
   )
 }
@@ -93,7 +96,7 @@ describe('GUIC-702 — AdminModerationList (rendu)', () => {
   })
 
   it('état vide CONTEXTUEL : recherche sans résultat ≠ file à jour (V1)', () => {
-    render(<AdminModerationList rows={[]} kpis={KPIS} total={0} currentPage={1} totalPages={1} q="arnaque" filtre="tout" />)
+    render(<AdminModerationList rows={[]} kpis={KPIS} total={0} currentPage={1} totalPages={1} q="arnaque" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={0} />)
     expect(screen.getByText(/Aucun résultat/i)).toBeInTheDocument()
     expect(screen.queryByText(/File à jour/i)).toBeNull()
   })

@@ -154,6 +154,11 @@ export interface ModerationData {
   currentPage: number
   totalPages: number
   kpis: ModerationKpis
+  /** F3 — IDs des offres vérifiées sur toute la file (pour « Approuver les vérifiés »). */
+  verifiesIds: string[]
+  /** F4 — la file dépasse le plafond de fetch : compteurs approximatifs. */
+  tronque: boolean
+  totalBrouillons: number
 }
 
 /**
@@ -205,6 +210,9 @@ export async function getModerationData(params: {
     },
   })
 
+  // F4 — total réel en base (peut dépasser le plafond de fetch → file tronquée).
+  const totalBrouillons = await prisma.opportunite.count({ where })
+
   const now = Date.now()
   const all = raws.map((r) => mapModerationRow(r as ModerationRawRow, now))
   const kpis = kpisModeration(all)
@@ -215,5 +223,16 @@ export async function getModerationData(params: {
   const currentPage = Math.min(page, totalPages)
   const rows = filtered.slice((currentPage - 1) * PAGE_SIZE_M, currentPage * PAGE_SIZE_M)
 
-  return { rows, total, currentPage, totalPages, kpis }
+  return {
+    rows,
+    total,
+    currentPage,
+    totalPages,
+    kpis,
+    // F3 — IDs vérifiés sur TOUTE la file (pas la page) pour « Approuver les vérifiés ».
+    verifiesIds: idsVerifies(all),
+    // F4 — signale une troncature au-delà du plafond (compteurs alors approximatifs).
+    tronque: totalBrouillons > FETCH_CAP_M,
+    totalBrouillons,
+  }
 }
