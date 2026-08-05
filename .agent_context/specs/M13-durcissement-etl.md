@@ -434,8 +434,12 @@ seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur 
    côté tap.
 3. `CONSULTATION_HASH_SALT` (ou la clé HMAC du lot 2) posée — **valeur non vide**, différente
    de la production.
-4. `sql_mode` du MariaDB préprod complété par `NO_ZERO_DATE,NO_ZERO_IN_DATE`. Le fichier
-   `docker-compose.yml` ne pilote pas la MariaDB Plesk.
+4. ~~`sql_mode` du MariaDB préprod complété par `NO_ZERO_DATE,NO_ZERO_IN_DATE`. Le fichier
+   `docker-compose.yml` ne pilote pas la MariaDB Plesk.~~ **Périmé** — cette action côté
+   serveur a été abandonnée : la MariaDB est mutualisée avec la SSO et le BRM, et le BRM
+   (Laravel `strict => false`) hérite entièrement du `sql_mode` global sans aucun
+   garde-fou de connexion. Fermé côté **code** à la place (point 8, `avecSqlModeStrict`) —
+   zéro risque sur BRM/SSO, aucune action serveur requise.
 5. PostgreSQL entrepôt créé, chiffré au repos, accès nominatif restreint aux profils Data
    Steward — obligations CDP du §6.1 de la spec, non encore instrumentées.
 6. **Joignabilité de Guichet — séparation, pas cohabitation réseau (GUIC-700, tranché en
@@ -462,11 +466,63 @@ seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur 
    MÊME réseau externe déjà utilisé par `docker-compose.prod.yml` pour MariaDB/MinIO —
    `docker-compose.etl.yml` le rejoint désormais (`networks: - cjs-net`, `external: true`),
    sans toucher au réseau de l'app.
-8. `npm run datahub:preflight` **attendu vert 58/58** depuis l'environnement Guichet
-   préprod (pas depuis le serveur ETL : il contrôle MariaDB, pas l'entrepôt), après
-   réparation des données (§6 bis) et fermeture du sql_mode côté code (GUIC-700,
-   `avecSqlModeStrict`) — 53/58 constaté le 2026-08-05 avant ces deux correctifs, pas
-   encore reconfirmé depuis.
+8. `npm run datahub:preflight` — **53/58 constaté en réel le 2026-08-05**, avant réparation
+   des données et fermeture du `sql_mode` côté code (`avecSqlModeStrict`, GUIC-700) ; les 5
+   échecs (3 colonnes date à zéro, jonctions `opportunites_tags` orphelines, `sql_mode`
+   insuffisant) traités par `scripts/sql/apply-repair.ts` + le fix ci-dessus. Reconfirmation
+   58/58 après ces deux correctifs : à faire au prochain déploiement (image déjà buildée et
+   poussée le 2026-08-05, digest dans le journal de session — pas encore redéployée).
+9. **Joignabilité de la MariaDB de l'app, pour `reconcile.ts`/`purge-absents.ts` (côté
+   Prisma) — troisième règle, différente des deux ci-dessus (GUIC-700, testée en réel)**.
+   `DATABASE_URL` peut pointer un nom de **conteneur** (`mariadb-test` en préprod — pas
+   `host.docker.internal`, hypothèse initiale invalidée en la testant : timeout de pool
+   sans jamais résoudre l'hôte). Un process nu sur l'hôte ETL ne peut pas rejoindre ce
+   réseau. Les deux scripts s'exécutent donc via le conteneur `app` du déploiement
+   (`exec_via_app`, `scripts/etl/lib-app-exec.sh`) — seul point du serveur dont la
+   joignabilité vers MariaDB **et** l'entrepôt est prouvée (mêmes montages `scripts/`+`src/`
+   que le préflight, plus le socket Docker + `docker-cli` Alpine pour que `psqlEntrepot`
+   fonctionne à l'intérieur).
+
+### 7 bis. Premier tour réel en préprod (2026-08-05) — tout vérifié, pas supposé
+
+Après le laboratoire local (§6 bis), première exécution contre l'infra préprod réelle
+(serveur OVH/Plesk, stack `cjs_analytics_*` déjà provisionnée par l'infra). Trois bugs
+réels trouvés en exécutant, aucun visible en local (PR #355, #356, #358) :
+
+1. `docker-compose.etl.yml` ne rejoignait aucun réseau — `cjs_analytics_postgres`
+   injoignable (`Name or service not known`). Corrigé : rejoint `cjs-net`.
+2. `reconcile.ts`/`purge-absents.ts` sondaient l'entrepôt via leur propre `docker run
+   postgres:16-alpine`, sans `--network` — même piège, dupliqué. Centralisé et corrigé dans
+   `scripts/datahub/psql-entrepot.ts`.
+3. `run-nightly.sh`/`purge-absents-weekly.sh` appelaient `npm run` nu sur l'hôte pour la
+   réconciliation/purge — `DATABASE_URL` pointe un nom de conteneur (`mariadb-test`),
+   injoignable ainsi. Corrigé : `exec_via_app` (point 9 ci-dessus).
+
+**Tout vérifié en conditions réelles, avec de vraies données (22 518 utilisateurs, 26 161
+candidatures)** :
+- Build + push de l'image depuis `dev` (deux cycles : un pour `DATAHUB_API_KEYS`/l'image
+  de base, un second après le fix `sql_mode`) — `docker buildx`, ~2 échecs réseau en cours
+  de push sur cette machine de build, résolus en relançant (cache buildkit chaud la 2e fois)
+- `DATAHUB_API_KEYS` posée et vérifiée par `curl` externe, deux fois indépendamment
+- Réparation réelle appliquée (`scripts/sql/apply-repair.ts` via Prisma, pas de client
+  MariaDB requis) : 8000 + 3000 + 26154 lignes de dates corrigées, 1438 liens orphelins
+  supprimés — chiffres identiques à ceux prédits par le préflight
+- Premier run Meltano réel : 18 flux (13 incrémentaux + 5 FULL_TABLE), 64 078 lignes
+  extraites et chargées, état persisté (`Using systemdb state backend`)
+- Réconciliation réelle : **piège vérifié** — un `since` correspondant à l'instant du
+  démarrage du run donne `0=0` des deux côtés, trivialement vert (rien n'a eu le temps de
+  changer), pas une preuve pour un premier chargement complet. Relancé avec
+  `since=1970-01-01` : 13/13 flux concordants avec des comptages réels et non triviaux
+  (22518 utilisateurs, 26161 candidatures, 8007 profils_jeunes, 4340 opportunites, etc.)
+- `dbt build` réel : 54/54 tests, 4 modèles marts construits avec des comptages réels
+  (`v_opportunities_summary` 547, `v_programs_summary` 4, `v_centers_summary` 9,
+  `v_users_summary` 239) — `v_programs_summary`, corrigé au Lot 7, tourne pour la première
+  fois en préprod réel sans erreur
+
+**Reste ouvert à ce stade** : deuxième run le lendemain (test du défaut B1 original, pas
+encore rejoué en réel), installation de la crontab (nightly + purge hebdo) avec les
+nouvelles variables (`GUICHET_IMAGE`/`COMPOSE_PROJECT_NAME`/`GUICHET_ENV_FILE`), branchement
+des outils BI sur `marts`.
 
 **Architecture d'exécution retenue** : batch en crontab plutôt que conteneur permanent, comme
 le préconise le briefing. À livrer avec le lot 1 :
