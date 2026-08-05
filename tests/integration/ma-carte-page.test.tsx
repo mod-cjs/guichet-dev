@@ -47,6 +47,14 @@ jest.mock('@/lib/prisma', () => ({
     profilJeune: {
       findUnique: jest.fn(async () => ({ createdAt: new Date('2025-03-15') })),
     },
+    // GUIC-689 — la carte lit désormais le matricule PERSISTÉ et la date
+    // d'INSCRIPTION sur le compte, au lieu de les reconstituer à l'affichage.
+    utilisateur: {
+      findUnique: jest.fn(async () => ({
+        matricule: 'GJ-2025-12345B',
+        createdAt: new Date('2025-03-15'),
+      })),
+    },
   },
 }))
 

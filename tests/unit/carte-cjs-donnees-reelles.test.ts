@@ -26,7 +26,11 @@ const RACINE = process.cwd()
 const PAGE = resolve(RACINE, 'src/app/jeune/(app)/ma-carte/page.tsx')
 
 describe('GUIC-689 — plus aucune donnée fabriquée sur la carte', () => {
+  // On juge le CODE : la documentation a le droit de citer l'ancien format
+  // pour expliquer pourquoi il a disparu.
   const src = readFileSync(PAGE, 'utf-8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
 
   it('ne compose plus le matricule à partir des initiales et de l’UUID', () => {
     expect(src).not.toMatch(/GJS\s*·/)
