@@ -37,10 +37,48 @@ export function SkillsCard({ competences, langues, editable }: SkillsCardProps) 
   // éditée en bloc obligerait à renvoyer l'ensemble à chaque changement, et
   // écraserait ce qu'un autre onglet vient d'ajouter.
   const [liste, setListe] = useState(langues)
+  const [skills, setSkills] = useState(competences)
+  const [skill, setSkill] = useState('')
   const [nom, setNom] = useState('')
   const [niveau, setNiveau] = useState<LangueItem['niveau']>('courant')
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+
+  /**
+   * Les compétences vivent dans `profil.competences` (tableau JSON) : on renvoie
+   * la LISTE ENTIÈRE à `PUT /api/profil`, il n'y a pas de ressource unitaire.
+   * D'où le doublon vérifié ici, sans aller-retour — le serveur accepterait
+   * « Excel » et « excel » côte à côte.
+   */
+  async function envoyerCompetences(prochaine: string[]) {
+    setOccupe(true)
+    setErreur(null)
+    try {
+      const res = await fetch('/api/profil', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competences: prochaine }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error?.message ?? 'Enregistrement impossible')
+      setSkills(prochaine)
+      setSkill('')
+    } catch (e) {
+      setErreur(e instanceof Error ? e.message : 'Erreur inconnue')
+    } finally {
+      setOccupe(false)
+    }
+  }
+
+  function ajouterCompetence() {
+    const valeur = skill.trim()
+    if (!valeur) return
+    if (skills.some((c) => c.toLowerCase() === valeur.toLowerCase())) {
+      setErreur('Cette compétence est déjà dans ta liste.')
+      return
+    }
+    void envoyerCompetences([...skills, valeur])
+  }
 
   async function ajouter() {
     const langue = nom.trim()
@@ -85,7 +123,7 @@ export function SkillsCard({ competences, langues, editable }: SkillsCardProps) 
     }
   }
 
-  const rien = competences.length === 0 && liste.length === 0 && !editable
+  const rien = skills.length === 0 && liste.length === 0 && !editable
 
   return (
     <section
@@ -102,22 +140,56 @@ export function SkillsCard({ competences, langues, editable }: SkillsCardProps) 
         </p>
       ) : (
         <>
-          {competences.length > 0 && (
+          {(skills.length > 0 || editable) && (
             <div>
               <h3 className="text-fs-100 font-extrabold uppercase tracking-[0.4px] text-gj-grey m-0 mb-space-2">
                 Compétences
               </h3>
               <div className="flex flex-wrap gap-2">
-                {competences.map((c) => (
+                {skills.map((c) => (
                   <span
                     key={c}
-                    className="inline-flex items-center text-fs-200 font-semibold
+                    className="inline-flex items-center gap-1 text-fs-200 font-semibold
                       bg-gj-bg text-gj-ink border border-gj-line px-space-2 py-1 rounded-gj-pill"
                   >
                     {c}
+                    {editable && (
+                      <button
+                        type="button"
+                        aria-label={`Retirer ${c}`}
+                        onClick={() => void envoyerCompetences(skills.filter((x) => x !== c))}
+                        disabled={occupe}
+                        className="inline-flex items-center justify-center w-5 h-5 rounded-full
+                          text-gj-grey hover:text-gj-red-ink"
+                      >
+                        <Icon name="close" size={12} aria-hidden />
+                      </button>
+                    )}
                   </span>
                 ))}
               </div>
+
+              {editable && (
+                <div className="mt-space-3 flex flex-wrap items-end gap-space-2">
+                  <span className="flex-1 min-w-[140px]">
+                    <label htmlFor="competence-nom" className="block text-fs-100 font-bold text-gj-grey mb-1">
+                      Compétence
+                    </label>
+                    <input
+                      id="competence-nom"
+                      value={skill}
+                      maxLength={80}
+                      onChange={(e) => setSkill(e.target.value)}
+                      placeholder="Ex. : maraîchage"
+                      className="w-full rounded-gj-md border border-gj-line px-space-2 text-fs-200
+                        min-h-[var(--tap-min)] text-gj-ink"
+                    />
+                  </span>
+                  <Button size="sm" aria-label="Ajouter la compétence" onClick={ajouterCompetence} loading={occupe}>
+                    Ajouter
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -196,7 +268,9 @@ export function SkillsCard({ competences, langues, editable }: SkillsCardProps) 
                       ))}
                     </select>
                   </span>
-                  <Button size="sm" onClick={ajouter} loading={occupe}>Ajouter</Button>
+                  <Button size="sm" aria-label="Ajouter la langue" onClick={ajouter} loading={occupe}>
+                    Ajouter
+                  </Button>
                 </div>
               )}
 

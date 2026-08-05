@@ -44,7 +44,7 @@ describe('GUIC-689 — ajout d’une langue', () => {
     render(<SkillsCard competences={[]} langues={[]} editable />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Pulaar' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Niveau' }), { target: { value: 'notions' } })
-    fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la langue/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
     const [url, init] = fetchMock.mock.calls[0]
@@ -56,14 +56,14 @@ describe('GUIC-689 — ajout d’une langue', () => {
     mockFetch({ ok: true, body: { data: { id: 'l9', langue: 'Pulaar', niveau: 'notions' } } })
     render(<SkillsCard competences={[]} langues={[]} editable />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Pulaar' } })
-    fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la langue/i }))
     await waitFor(() => expect(screen.getByTestId('langues-liste').textContent).toMatch(/Pulaar/))
   })
 
   it('n’envoie rien si le champ est vide — pas d’aller-retour inutile', () => {
     const fetchMock = mockFetch({ ok: true, body: {} })
     render(<SkillsCard competences={[]} langues={[]} editable />)
-    fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la langue/i }))
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -71,7 +71,7 @@ describe('GUIC-689 — ajout d’une langue', () => {
     mockFetch({ ok: false, status: 409, body: { error: { message: 'Cette langue est déjà déclarée' } } })
     render(<SkillsCard competences={[]} langues={LANGUES} editable />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Wolof' } })
-    fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ajouter la langue/i }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/déjà déclarée/i))
     expect(screen.getByRole('textbox', { name: 'Langue' })).toHaveValue('Wolof')
   })

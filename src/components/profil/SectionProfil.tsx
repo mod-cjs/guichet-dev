@@ -7,7 +7,6 @@ import {
   SITUATION_EMPLOI_OPTIONS,
   HANDICAP_OPTIONS,
   ZONE_HABITATION_OPTIONS,
-  DOMAINES_INTERET,
   niveauLabel,
   situationLabel,
   handicapLabel,
@@ -20,6 +19,12 @@ interface Props {
   onSaved: (data: PutProfilResponse) => void
 }
 
+/**
+ * GUIC-689 — Les domaines d'intérêt et les compétences ont QUITTÉ cette carte.
+ * Ils s'éditent désormais là où ils s'affichent : « Objectif & secteurs visés »
+ * pour les premiers, « Compétences & langues » pour les secondes. Les garder
+ * ici obligeait à voir une valeur à un endroit et à la chercher à un autre.
+ */
 export function SectionProfil({ data, onSaved }: Props) {
   const [editing, setEditing]   = useState(false)
   const [saving,  setSaving]    = useState(false)
@@ -31,8 +36,6 @@ export function SectionProfil({ data, onSaved }: Props) {
     situationEmploi: data?.situationEmploi ?? null as string | null,
     situationHandicap: data?.situationHandicap ?? null as string | null,
     zoneHabitation:    data?.zoneHabitation    ?? null as string | null,
-    domainesInteret: data?.domainesInteret ?? [] as string[],
-    competences:     data?.competences     ?? [] as string[],
   })
 
   const [form, setForm] = useState({
@@ -41,24 +44,12 @@ export function SectionProfil({ data, onSaved }: Props) {
     situationEmploi: data?.situationEmploi ?? '',
     situationHandicap: data?.situationHandicap ?? '',
     zoneHabitation:    data?.zoneHabitation    ?? '',
-    domainesInteret: data?.domainesInteret ?? [] as string[],
-    competences:     (data?.competences ?? []).join(', '),
   })
-
-  function toggleDomaine(d: string) {
-    setForm(f => ({
-      ...f,
-      domainesInteret: f.domainesInteret.includes(d)
-        ? f.domainesInteret.filter(x => x !== d)
-        : [...f.domainesInteret, d],
-    }))
-  }
 
   async function save() {
     setSaving(true)
     setError(null)
     try {
-      const competences = form.competences.split(',').map(s => s.trim()).filter(Boolean)
       const res = await fetch('/api/profil', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -68,8 +59,6 @@ export function SectionProfil({ data, onSaved }: Props) {
           situationEmploi: form.situationEmploi || null,
           situationHandicap: form.situationHandicap || null,
           zoneHabitation:    form.zoneHabitation    || null,
-          domainesInteret: form.domainesInteret,
-          competences,
         }),
       })
       const json = await res.json()
@@ -81,8 +70,6 @@ export function SectionProfil({ data, onSaved }: Props) {
         situationEmploi: saved.situationEmploi,
         situationHandicap: saved.situationHandicap,
         zoneHabitation:    saved.zoneHabitation,
-        domainesInteret: saved.domainesInteret,
-        competences:     saved.competences,
       })
       onSaved(saved)
       setEditing(false)
@@ -129,30 +116,6 @@ export function SectionProfil({ data, onSaved }: Props) {
             <div className="flex gap-space-2">
               <span className="text-color-text-secondary">Situation de handicap :</span>
               <span className="font-medium text-color-text-primary">{handicapLabel(displayed.situationHandicap)}</span>
-            </div>
-          )}
-          {displayed.domainesInteret.length > 0 && (
-            <div>
-              <p className="text-color-text-secondary mb-space-2">Domaines d&apos;intérêt</p>
-              <div className="flex flex-wrap gap-space-2">
-                {displayed.domainesInteret.map(d => (
-                  <span key={d} className="px-space-3 py-space-1 rounded-full text-fs-200 bg-gj-teal-soft text-gj-teal-deep font-medium">
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {displayed.competences.length > 0 && (
-            <div>
-              <p className="text-color-text-secondary mb-space-2">Compétences</p>
-              <div className="flex flex-wrap gap-space-2">
-                {displayed.competences.map(c => (
-                  <span key={c} className="px-space-3 py-space-1 rounded-full text-fs-200 bg-gj-bg text-color-text-primary border border-gj-line">
-                    {c}
-                  </span>
-                ))}
-              </div>
             </div>
           )}
         </div>
@@ -208,31 +171,6 @@ export function SectionProfil({ data, onSaved }: Props) {
             placeholder="Non renseigné"
             value={form.situationHandicap}
             onChange={e => setForm(f => ({ ...f, situationHandicap: e.target.value }))}
-          />
-
-          <div className="flex flex-col gap-space-1">
-            <label className="text-fs-300 font-bold text-color-text-primary">Domaines d&apos;intérêt</label>
-            <div className="flex flex-wrap gap-space-2">
-              {DOMAINES_INTERET.map(d => (
-                <button
-                  key={d} type="button"
-                  onClick={() => toggleDomaine(d)}
-                  className={`px-space-3 py-space-1 rounded-full text-fs-200 border transition-colors
-                    ${form.domainesInteret.includes(d)
-                      ? 'bg-gj-teal text-white border-gj-teal'
-                      : 'bg-white text-color-text-primary border-gj-line hover:border-gj-teal'}`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Input
-            id="competences" label="Compétences (séparées par des virgules)"
-            value={form.competences}
-            placeholder="Ex : JavaScript, Gestion de projet, Communication"
-            onChange={e => setForm(f => ({ ...f, competences: e.target.value }))}
           />
 
           {error && <p className="text-fs-200 text-gj-red">{error}</p>}
