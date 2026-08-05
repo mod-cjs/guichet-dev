@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { rejeterOpportunite } from './actions'
 
 /** Motifs préréglés — le plus fréquent (offre payante) en tête. */
 const MOTIFS = [
@@ -17,17 +16,17 @@ const MOTIFS = [
 interface RejetMotifModalProps {
   isOpen: boolean
   onClose: () => void
-  offreId: string
-  offreTitre: string
-  onDone: (message: string, ok: boolean) => void
+  /** Cible affichée (« Titre » pour une offre, « 3 offres sélectionnées » pour un lot). */
+  cible: string
+  /** Exécute le rejet avec le motif construit (single ou groupé) + gère le retour utilisateur. */
+  onConfirm: (motif: string) => Promise<void>
 }
 
 /**
- * GUIC-702 — modale de rejet motivé (remplace `window.prompt`).
- * Motif préréglé + précision libre → persisté sur l'offre (`motifRejet`) et
- * notifié au recruteur (infra existante GUIC-547).
+ * GUIC-702 — modale de rejet motivé (remplace `window.prompt`), générique :
+ * la même UI sert le rejet d'une offre ET le rejet groupé (motif commun).
  */
-export function RejetMotifModal({ isOpen, onClose, offreId, offreTitre, onDone }: RejetMotifModalProps) {
+export function RejetMotifModal({ isOpen, onClose, cible, onConfirm }: RejetMotifModalProps) {
   const [motif, setMotif] = useState<string>(MOTIFS[0])
   const [detail, setDetail] = useState('')
   const [pending, startTransition] = useTransition()
@@ -35,14 +34,9 @@ export function RejetMotifModal({ isOpen, onClose, offreId, offreTitre, onDone }
   function handleRejeter() {
     const motifComplet = detail.trim() ? `${motif} — ${detail.trim()}` : motif
     startTransition(async () => {
-      try {
-        await rejeterOpportunite(offreId, motifComplet)
-        onDone(`« ${offreTitre} » rejetée.`, true)
-        onClose()
-        setDetail('')
-      } catch {
-        onDone(`Échec : « ${offreTitre} » a peut-être déjà été modérée.`, false)
-      }
+      await onConfirm(motifComplet)
+      onClose()
+      setDetail('')
     })
   }
 
@@ -77,8 +71,8 @@ export function RejetMotifModal({ isOpen, onClose, offreId, offreTitre, onDone }
       }
     >
       <p className="text-[13px] mb-[14px]" style={{ color: 'var(--gj-grey)' }}>
-        Le motif est <b style={{ color: 'var(--gj-ink)' }}>journalisé</b> et transmis au recruteur, qui pourra
-        corriger et resoumettre.
+        Rejet de <b style={{ color: 'var(--gj-ink)' }}>{cible}</b>. Le motif est{' '}
+        <b style={{ color: 'var(--gj-ink)' }}>journalisé</b> et transmis au recruteur, qui pourra corriger et resoumettre.
       </p>
 
       <label className="block text-[12px] font-bold mb-[6px]" style={{ color: 'var(--gj-grey)' }}>

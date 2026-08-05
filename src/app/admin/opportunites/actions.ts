@@ -141,7 +141,7 @@ export async function demanderCorrection(id: string, message: string): Promise<{
           titre: 'Correction demandée sur votre offre',
           contenu: `« ${offre.titre} » : ${texte}`,
           iconName: 'settings',
-          lien: `/recruteur/offres/${oid}`,
+          lien: '/recruteur/mes-offres',
         },
       })
     } catch {
@@ -163,6 +163,16 @@ export async function approuverPlusieurs(ids: string[]): Promise<{ approuvees: n
   const res = await Promise.allSettled(valides.map((id) => approuverOpportunite(id)))
   const approuvees = res.filter((r) => r.status === 'fulfilled').length
   return { approuvees, ignorees: valides.length - approuvees }
+}
+
+/** Rejeter plusieurs offres avec un motif commun (sélection groupée). */
+export async function rejeterPlusieurs(ids: string[], motif: string): Promise<{ rejetees: number; ignorees: number }> {
+  await assertAdmin()
+  const raison = z.string().trim().max(1000).parse(motif) || undefined
+  const valides = [...new Set(ids.map((i) => idSchema.parse(i)))]
+  const res = await Promise.allSettled(valides.map((id) => rejeterOpportunite(id, raison)))
+  const rejetees = res.filter((r) => r.status === 'fulfilled').length
+  return { rejetees, ignorees: valides.length - rejetees }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

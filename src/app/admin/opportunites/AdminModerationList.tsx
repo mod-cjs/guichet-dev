@@ -8,7 +8,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import type { FiltreMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
-import { approuverOpportunite, approuverPlusieurs, chargerModerationDetail } from './actions'
+import { approuverOpportunite, approuverPlusieurs, rejeterOpportunite, rejeterPlusieurs, chargerModerationDetail } from './actions'
 import { RejetMotifModal } from './RejetMotifModal'
 import { CorrectionModal } from './CorrectionModal'
 import { ModerationDetailPanel } from './ModerationDetailPanel'
@@ -162,7 +162,7 @@ function ModerationCard({
 // ─── composant principal ─────────────────────────────────────────────────────
 export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre }: AdminModerationListProps) {
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
-  const [rejet, setRejet] = useState<ModerationRow | null>(null)
+  const [rejetCible, setRejetCible] = useState<{ cible: string; run: (motif: string) => Promise<void> } | null>(null)
   const [correction, setCorrection] = useState<ModerationRow | null>(null)
   const [detail, setDetail] = useState<ModerationDetail | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -206,6 +206,27 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
   async function approuverDepuisPanel(id: string, titre: string) {
     try { await approuverOpportunite(id); onResult(`« ${titre} » publiée.`, 'success'); setDetail(null) }
     catch { onResult(`Échec : « ${titre} » a peut-être déjà été modérée.`, 'danger') }
+  }
+  function askRejetSingle(row: { id: string; titre: string }) {
+    setRejetCible({
+      cible: `« ${row.titre} »`,
+      run: async (motif) => {
+        try { await rejeterOpportunite(row.id, motif); onResult(`« ${row.titre} » rejetée.`, 'success') }
+        catch { onResult(`Échec : « ${row.titre} » a peut-être déjà été modérée.`, 'danger') }
+      },
+    })
+  }
+  function askRejetBatch(ids: string[]) {
+    setRejetCible({
+      cible: `${ids.length} offre${ids.length > 1 ? 's' : ''} sélectionnée${ids.length > 1 ? 's' : ''}`,
+      run: async (motif) => {
+        try {
+          const r = await rejeterPlusieurs(ids, motif)
+          onResult(`${r.rejetees} rejetée${r.rejetees > 1 ? 's' : ''}${r.ignorees ? ` · ${r.ignorees} ignorée${r.ignorees > 1 ? 's' : ''}` : ''}.`, 'success')
+          setSelected(new Set())
+        } catch { onResult('Échec du rejet groupé.', 'danger') }
+      },
+    })
   }
 
   return (
@@ -255,23 +276,33 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
               <div role="region" aria-label="Sélection groupée" className="flex items-center gap-[10px] rounded-[10px] px-[12px] py-[7px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-admin-gold)' }}>
                 <b className="text-[13px]" style={{ color: 'var(--gj-admin-gold)' }}>{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</b>
                 <button type="button" onClick={() => bulkApprouver([...selected], 'offre')} className="text-[12px] font-black px-[12px] py-[7px] rounded-[9px]" style={{ background: 'var(--gj-green)', color: '#08130E' }}>Approuver la sélection</button>
+                <button type="button" onClick={() => askRejetBatch([...selected])} className="text-[12px] font-black px-[12px] py-[7px] rounded-[9px]" style={{ background: 'transparent', color: 'var(--gj-red-ink)', border: '1.5px solid var(--gj-red)' }}>Rejeter la sélection</button>
                 <button type="button" onClick={() => setSelected(new Set())} className="text-[12px] font-bold px-[12px] py-[7px] rounded-[9px]" style={{ background: 'transparent', color: 'var(--gj-grey)', border: '1px solid var(--gj-line)' }}>Annuler</button>
               </div>
             )}
           </div>
         )}
 
-        {/* Liste / état vide */}
+        {/* Liste / état vide — contextuel (recherche/filtre vs file vide) */}
         {rows.length === 0 ? (
-          <div className="rounded-[14px] p-[40px] text-center flex flex-col items-center gap-[10px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
-            <Icon name="check-circle" size={34} className="opacity-40" />
-            <p className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>File à jour 🎉</p>
-            <p className="text-[13px]">Aucune offre en attente. Les prochains dépôts apparaîtront ici.</p>
-          </div>
+          q || filtre !== 'tout' ? (
+            <div className="rounded-[14px] p-[40px] text-center flex flex-col items-center gap-[10px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
+              <Icon name="search" size={30} className="opacity-40" />
+              <p className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>Aucun résultat</p>
+              <p className="text-[13px]">Aucune offre ne correspond à cette recherche.</p>
+              <Link href="/admin/opportunites" className="text-[12.5px] font-bold" style={{ color: 'var(--gj-teal-deep)' }}>Réinitialiser les filtres</Link>
+            </div>
+          ) : (
+            <div className="rounded-[14px] p-[40px] text-center flex flex-col items-center gap-[10px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
+              <Icon name="check-circle" size={34} className="opacity-40" />
+              <p className="text-[16px] font-black" style={{ color: 'var(--gj-ink)' }}>File à jour 🎉</p>
+              <p className="text-[13px]">Aucune offre en attente. Les prochains dépôts apparaîtront ici.</p>
+            </div>
+          )
         ) : (
           <div className="flex flex-col gap-[12px]">
             {rows.map((row) => (
-              <ModerationCard key={row.id} row={row} checked={selected.has(row.id)} onToggle={toggle} onResult={onResult} onRejeter={setRejet} onCorriger={setCorrection} onOpenDetail={openDetail} loading={loadingId === row.id} />
+              <ModerationCard key={row.id} row={row} checked={selected.has(row.id)} onToggle={toggle} onResult={onResult} onRejeter={askRejetSingle} onCorriger={setCorrection} onOpenDetail={openDetail} loading={loadingId === row.id} />
             ))}
           </div>
         )}
@@ -288,13 +319,13 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
           detail={detail}
           onClose={() => setDetail(null)}
           onApprouver={() => approuverDepuisPanel(detail.id, detail.titre)}
-          onRejeter={() => { setRejet({ id: detail.id, titre: detail.titre } as ModerationRow); setDetail(null) }}
+          onRejeter={() => { askRejetSingle({ id: detail.id, titre: detail.titre }); setDetail(null) }}
           onCorriger={() => { setCorrection({ id: detail.id, titre: detail.titre } as ModerationRow); setDetail(null) }}
         />
       )}
 
-      {rejet && (
-        <RejetMotifModal isOpen onClose={() => setRejet(null)} offreId={rejet.id} offreTitre={rejet.titre} onDone={(m, ok) => onResult(m, ok ? 'success' : 'danger')} />
+      {rejetCible && (
+        <RejetMotifModal isOpen onClose={() => setRejetCible(null)} cible={rejetCible.cible} onConfirm={rejetCible.run} />
       )}
       {correction && (
         <CorrectionModal isOpen onClose={() => setCorrection(null)} offreId={correction.id} offreTitre={correction.titre} onDone={(m, ok) => onResult(m, ok ? 'success' : 'danger')} />

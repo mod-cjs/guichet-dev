@@ -3,7 +3,7 @@
  * Rend : identité, signaux, description complète, carte partenaire (vérifié),
  * historique de modération. Fermeture. Actions déléguées (mockées).
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { ModerationDetailPanel } from '@/app/admin/opportunites/ModerationDetailPanel'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
 
@@ -82,6 +82,13 @@ describe('GUIC-702 — ModerationDetailPanel (rendu)', () => {
     renderPanel()
     expect(screen.getByRole('button', { name: /^Approuver$/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Rejeter/ })).toBeInTheDocument()
+  })
+
+  it('se ferme à la touche Échap (accessibilité §6 — V2)', () => {
+    const onClose = jest.fn()
+    render(<ModerationDetailPanel detail={DETAIL} onClose={onClose} onApprouver={jest.fn()} onRejeter={jest.fn()} onCorriger={jest.fn()} />)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
   })
 
   it('offre un Aperçu (nouvel onglet) vers la route admin de l’offre — MOD-01', () => {

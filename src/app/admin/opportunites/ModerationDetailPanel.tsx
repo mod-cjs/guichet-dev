@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
 
@@ -38,6 +39,17 @@ export function ModerationDetailPanel({
   onRejeter: () => void
   onCorriger: () => void
 }) {
+  const asideRef = useRef<HTMLElement>(null)
+  // Accessibilité (checklist §6) : fermeture au clavier + focus au panneau à l'ouverture.
+  useEffect(() => {
+    asideRef.current?.focus()
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const kvs: { label: string; value: string }[] = [
     { label: 'Source', value: SRC_LABEL[detail.source] },
     { label: 'Organisation', value: detail.organisation },
@@ -51,9 +63,12 @@ export function ModerationDetailPanel({
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,12,10,.6)', backdropFilter: 'blur(4px)', zIndex: 100 }} />
       <aside
+        ref={asideRef}
+        tabIndex={-1}
         role="dialog"
+        aria-modal="true"
         aria-label={`Dossier de modération — ${detail.titre}`}
-        style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 'min(560px, 96vw)', background: 'var(--gj-bg)', borderLeft: '1px solid var(--gj-line-strong)', boxShadow: '-24px 0 70px rgba(0,0,0,.5)', zIndex: 101, display: 'flex', flexDirection: 'column' }}
+        style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 'min(560px, 96vw)', background: 'var(--gj-bg)', borderLeft: '1px solid var(--gj-line-strong)', boxShadow: '-24px 0 70px rgba(0,0,0,.5)', zIndex: 101, display: 'flex', flexDirection: 'column', outline: 'none' }}
       >
         {/* En-tête */}
         <header style={{ padding: '18px 20px 15px', borderBottom: '1px solid var(--gj-line)', background: 'var(--gj-surface)' }}>

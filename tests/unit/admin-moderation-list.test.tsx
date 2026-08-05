@@ -91,4 +91,10 @@ describe('GUIC-702 — AdminModerationList (rendu)', () => {
     renderList([])
     expect(screen.getByText(/File à jour/i)).toBeInTheDocument()
   })
+
+  it('état vide CONTEXTUEL : recherche sans résultat ≠ file à jour (V1)', () => {
+    render(<AdminModerationList rows={[]} kpis={KPIS} total={0} currentPage={1} totalPages={1} q="arnaque" filtre="tout" />)
+    expect(screen.getByText(/Aucun résultat/i)).toBeInTheDocument()
+    expect(screen.queryByText(/File à jour/i)).toBeNull()
+  })
 })
