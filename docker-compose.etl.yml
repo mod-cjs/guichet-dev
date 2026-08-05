@@ -15,17 +15,21 @@
 #   docker compose -f docker-compose.etl.yml run --rm meltano run tap-guichet target-postgres
 #   docker compose -f docker-compose.etl.yml run --rm meltano invoke dbt-postgres build
 #
-# JOIGNABILITÉ DE GUICHET (GUIC-700) — SÉPARATION, pas cohabitation réseau. `meltano` ne
-# rejoint AUCUN réseau Docker de l'app : `etl/meltano.yml` fixe `api_url` en HTTPS PUBLIC
-# par défaut (`https://guichet.cjs.sn`) — le Data Hub est une route machine-à-machine
-# pensée pour être appelée de l'extérieur (clé API, rate limiting), comme
-# BRM/Centres/Moodle/EduPop, pas depuis le réseau Docker interne de l'app. En préprod,
-# `TAP_GUICHET_API_URL` (.env.etl) doit pointer l'URL publique préprod
-# (`https://devguichet.consortiumjeunesse…org`), jamais une adresse interne : ni
-# `host.docker.internal` (l'app est verrouillée en loopback, GUIC-641 — inatteignable de
-# toute façon), ni un réseau Docker partagé avec l'app (ça marcherait, mais seulement à
-# hôte unique, et ça couplerait ce fichier aux compose M14 protégés par sentinelle pour un
-# bénéfice nul — le chemin public fonctionne déjà, quel que soit l'hôte de l'ETL).
+# JOIGNABILITÉ — deux décisions DIFFÉRENTES pour deux cibles différentes (GUIC-700).
+#
+# Guichet (l'app) : SÉPARATION, jamais de réseau Docker partagé. `etl/meltano.yml` fixe
+# `api_url` en HTTPS PUBLIC par défaut (`https://guichet.cjs.sn`) — le Data Hub est une
+# route machine-à-machine pensée pour être appelée de l'extérieur (clé API, rate
+# limiting), comme BRM/Centres/Moodle/EduPop. En préprod, `TAP_GUICHET_API_URL` (.env.etl)
+# pointe l'URL publique préprod — jamais `host.docker.internal` (l'app est verrouillée en
+# loopback, GUIC-641 — inatteignable de toute façon).
+#
+# L'entrepôt PostgreSQL : COHABITATION réseau — testé en réel contre le premier run
+# préprod, pas supposé. `cjs_analytics_postgres` (stack `cjs_analytics_*` : Superset,
+# pgAdmin, Postgres, déjà provisionnée par l'infra) est un conteneur, pas un domaine
+# public — sans réseau partagé : `Name or service not known`. Il vit sur `cjs-net`, le
+# MÊME réseau externe déjà utilisé par `docker-compose.prod.yml` pour MariaDB/MinIO —
+# aucun réseau nouveau à faire approuver.
 
 services:
   meltano:
@@ -48,3 +52,11 @@ services:
     # doit surveiller. Aucun redémarrage automatique — relancer un batch en échec sans
     # regarder pourquoi ne fait que répéter la panne.
     restart: "no"
+    networks:
+      - cjs-net
+
+networks:
+  # Uniquement pour joindre l'entrepôt PostgreSQL (cjs_analytics_postgres) — jamais pour
+  # joindre l'app Guichet, qui reste séparée (URL publique, voir plus haut).
+  cjs-net:
+    external: true

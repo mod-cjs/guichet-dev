@@ -451,11 +451,22 @@ seulement testé unitairement — sous réserve du merge effectif des 5 PRs sur 
    `etl/meltano.yml` fixe déjà `api_url` en HTTPS public par défaut
    (`https://guichet.cjs.sn`) — le Data Hub est une route machine-à-machine pensée pour
    être appelée de l'extérieur, comme BRM/Centres/Moodle/EduPop. `TAP_GUICHET_API_URL`
-   pointe donc l'URL publique préprod (`https://devguichet.consortiumjeunesse…org`) ;
+   pointe donc l'URL publique préprod (`https://devguichet.consortiumjeunessesenegal.org`) ;
    `docker-compose.etl.yml` ne touche à aucun réseau Docker de l'app, et ça fonctionne quel
    que soit l'hôte de l'ETL.
-7. `npm run datahub:preflight` **vert 30/30** depuis l'environnement Guichet préprod (pas
-   depuis le serveur ETL : il contrôle MariaDB, pas l'entrepôt).
+7. **Joignabilité de l'entrepôt — cohabitation réseau, cette fois justifiée (GUIC-700,
+   testé en réel au premier run préprod)**. Contrairement à l'app Guichet, l'entrepôt
+   PostgreSQL n'a pas d'URL publique alternative : `cjs_analytics_postgres` est un
+   conteneur (stack `cjs_analytics_*` — Superset, pgAdmin, Postgres — déjà provisionnée
+   par l'infra), `Name or service not known` sans réseau partagé. Il vit sur `cjs-net`, le
+   MÊME réseau externe déjà utilisé par `docker-compose.prod.yml` pour MariaDB/MinIO —
+   `docker-compose.etl.yml` le rejoint désormais (`networks: - cjs-net`, `external: true`),
+   sans toucher au réseau de l'app.
+8. `npm run datahub:preflight` **attendu vert 58/58** depuis l'environnement Guichet
+   préprod (pas depuis le serveur ETL : il contrôle MariaDB, pas l'entrepôt), après
+   réparation des données (§6 bis) et fermeture du sql_mode côté code (GUIC-700,
+   `avecSqlModeStrict`) — 53/58 constaté le 2026-08-05 avant ces deux correctifs, pas
+   encore reconfirmé depuis.
 
 **Architecture d'exécution retenue** : batch en crontab plutôt que conteneur permanent, comme
 le préconise le briefing. À livrer avec le lot 1 :
