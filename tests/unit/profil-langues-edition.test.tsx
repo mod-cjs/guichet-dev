@@ -35,15 +35,15 @@ afterEach(() => jest.restoreAllMocks())
 describe('GUIC-689 — ajout d’une langue', () => {
   it('propose un formulaire d’ajout', () => {
     render(<SkillsCard competences={[]} langues={[]} editable />)
-    expect(screen.getByLabelText(/langue/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/niveau/i)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Langue' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Niveau' })).toBeInTheDocument()
   })
 
   it('envoie la langue et son niveau', async () => {
     const fetchMock = mockFetch({ ok: true, body: { data: { id: 'l9', langue: 'Pulaar', niveau: 'notions' } } })
     render(<SkillsCard competences={[]} langues={[]} editable />)
-    fireEvent.change(screen.getByLabelText(/langue/i), { target: { value: 'Pulaar' } })
-    fireEvent.change(screen.getByLabelText(/niveau/i), { target: { value: 'notions' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Pulaar' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Niveau' }), { target: { value: 'notions' } })
     fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
@@ -55,7 +55,7 @@ describe('GUIC-689 — ajout d’une langue', () => {
   it('affiche la langue ajoutée sans recharger la page', async () => {
     mockFetch({ ok: true, body: { data: { id: 'l9', langue: 'Pulaar', niveau: 'notions' } } })
     render(<SkillsCard competences={[]} langues={[]} editable />)
-    fireEvent.change(screen.getByLabelText(/langue/i), { target: { value: 'Pulaar' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Pulaar' } })
     fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
     await waitFor(() => expect(screen.getByTestId('langues-liste').textContent).toMatch(/Pulaar/))
   })
@@ -70,10 +70,10 @@ describe('GUIC-689 — ajout d’une langue', () => {
   it('remonte le message du serveur sur doublon, sans vider la saisie', async () => {
     mockFetch({ ok: false, status: 409, body: { error: { message: 'Cette langue est déjà déclarée' } } })
     render(<SkillsCard competences={[]} langues={LANGUES} editable />)
-    fireEvent.change(screen.getByLabelText(/langue/i), { target: { value: 'Wolof' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Langue' }), { target: { value: 'Wolof' } })
     fireEvent.click(screen.getByRole('button', { name: /ajouter/i }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/déjà déclarée/i))
-    expect(screen.getByLabelText(/langue/i)).toHaveValue('Wolof')
+    expect(screen.getByRole('textbox', { name: 'Langue' })).toHaveValue('Wolof')
   })
 })
 
@@ -108,7 +108,7 @@ describe('GUIC-689 — retrait d’une langue', () => {
 describe('GUIC-689 — la carte reste consultable sans édition', () => {
   it('sans `editable`, aucun contrôle d’écriture n’apparaît', () => {
     render(<SkillsCard competences={['Excel']} langues={LANGUES} />)
-    expect(screen.queryByLabelText(/langue/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Langue' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /retirer/i })).not.toBeInTheDocument()
   })
 })

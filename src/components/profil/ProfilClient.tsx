@@ -122,6 +122,7 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
           <SkillsCard
             competences={initial.profil?.competences ?? []}
             langues={initial.langues}
+            editable
           />
 
           {/* La timeline ABSORBE les trois anciennes sections (expériences,
