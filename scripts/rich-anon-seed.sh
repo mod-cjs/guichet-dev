@@ -8,9 +8,12 @@
 #   3. TRANSPLANT table par table = intersection des colonnes (les colonnes ajoutées par les
 #      migrations récentes prennent leurs défauts ; les colonnes disparues sont ignorées) →
 #      contourne l'écart de schéma ET l'état de migrations cassé du dump ;
-#   4. ANONYMISE (scripts/sql/anonymize-preprod.sql) — garde les signaux de matching Yaye ;
-#   5. SCRUBBE les e-mails/téléphones NOYÉS dans le texte libre (descriptions d'offres…) ;
-#   6. VÉRIFIE (0 e-mail perso réel) puis DUMP gzip.
+#   4. RÉPARE (scripts/sql/repair-donnees-poc.sql) — dates zéro + jonctions orphelines
+#      héritées du dump source (GUIC-700 : ce trou n'était comblé QUE côté `load-enriched-db.sh`,
+#      jamais côté seed préprod — trouvé au premier pré-vol réel contre une base ainsi semée) ;
+#   5. ANONYMISE (scripts/sql/anonymize-preprod.sql) — garde les signaux de matching Yaye ;
+#   6. SCRUBBE les e-mails/téléphones NOYÉS dans le texte libre (descriptions d'offres…) ;
+#   7. VÉRIFIE (0 e-mail perso réel) puis DUMP gzip.
 #
 # ⚠️ CDP : le dump source contient de la vraie PII. Ce script ne SORT que l'anonymisé.
 #          Supprimer le dump source après validation. Ne jamais committer un dump.
@@ -28,18 +31,19 @@ PORT="${DB_PORT:-3307}"          # port hôte du conteneur MariaDB local
 SRC=_anon_src                    # base temporaire : données brutes (PII)
 DST=_anon_dst                    # base temporaire : schéma courant + données transplantées
 SQL="$(cd "$(dirname "$0")" && pwd)/sql/anonymize-preprod.sql"
+REPAIR="$(cd "$(dirname "$0")" && pwd)/sql/repair-donnees-poc.sql"
 
 my()  { docker exec -i "$CONT" mariadb -uroot -p"$ROOT" "$@"; }
 
-echo "→ 1/6 Chargement du dump source dans $SRC…"
+echo "→ 1/7 Chargement du dump source dans $SRC…"
 my -e "DROP DATABASE IF EXISTS \`$SRC\`; CREATE DATABASE \`$SRC\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 my "$SRC" < "$DUMP"
 
-echo "→ 2/6 Base fraîche $DST au schéma COURANT (migrate deploy)…"
+echo "→ 2/7 Base fraîche $DST au schéma COURANT (migrate deploy)…"
 my -e "DROP DATABASE IF EXISTS \`$DST\`; CREATE DATABASE \`$DST\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 DATABASE_URL="mysql://root:${ROOT}@127.0.0.1:${PORT}/${DST}" npx prisma migrate deploy >/dev/null
 
-echo "→ 3/6 Transplant (intersection de colonnes, FK désactivées)…"
+echo "→ 3/7 Transplant (intersection de colonnes, FK désactivées)…"
 my -N -e "
 SET SESSION group_concat_max_len=1000000;
 SELECT CONCAT('INSERT INTO \`$DST\`.\`', c.table_name, '\` (', c.cols, ') SELECT ', c.cols, ' FROM \`$SRC\`.\`', c.table_name, '\`;')
@@ -53,10 +57,13 @@ FROM (
 { echo "SET FOREIGN_KEY_CHECKS=0;"; cat /tmp/_transplant.sql; echo "SET FOREIGN_KEY_CHECKS=1;"; } | my --force >/dev/null 2>&1
 echo "   $(wc -l < /tmp/_transplant.sql) tables transplantées."
 
-echo "→ 4/6 Anonymisation (colonnes structurées + free-text nullifié)…"
+echo "→ 4/7 Réparation (dates zéro + jonctions orphelines héritées du dump)…"
+my "$DST" < "$REPAIR"
+
+echo "→ 5/7 Anonymisation (colonnes structurées + free-text nullifié)…"
 my "$DST" < "$SQL"
 
-echo "→ 5/6 Scrub e-mails + téléphones dans le texte libre…"
+echo "→ 6/7 Scrub e-mails + téléphones dans le texte libre…"
 my -N -e "
 SELECT CONCAT('UPDATE \`$DST\`.\`', table_name, '\` SET \`', column_name,
   '\`=REGEXP_REPLACE(\`', column_name, '\`, ''[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}'', ''contact@example.test'') WHERE \`', column_name, '\` LIKE ''%@%'';')
@@ -66,7 +73,7 @@ SELECT CONCAT('UPDATE \`$DST\`.\`', table_name, '\` SET \`', column_name,
   '\`=REGEXP_REPLACE(\`', column_name, '\`, ''(\\\\+?221)?[ .-]?7[0-8]([ .-]?[0-9]){7}'', ''+221700000000'') WHERE \`', column_name, '\` REGEXP ''7[0-8][ .-]?[0-9]'';')
 FROM information_schema.columns WHERE table_schema='$DST' AND data_type IN ('text','longtext','mediumtext');" | my >/dev/null 2>&1
 
-echo "→ 6/6 Vérification anti-fuite + dump…"
+echo "→ 7/7 Vérification anti-fuite + dump…"
 LEAK=$(my -N "$DST" -e "SELECT COUNT(*) FROM utilisateurs WHERE email REGEXP '@(gmail|yahoo|hotmail|outlook|live|icloud)';" | tr -d '[:space:]')
 if [[ "$LEAK" != "0" ]]; then echo "   ❌ $LEAK e-mails perso réels — ARRÊT."; exit 1; fi
 docker exec "$CONT" mariadb-dump -uroot -p"$ROOT" --single-transaction --no-tablespaces "$DST" | gzip > "$OUT"

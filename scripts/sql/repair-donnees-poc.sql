@@ -26,6 +26,16 @@
 -- 26 157 lignes à `soumise_a = '0000-00-00'` sur le dump POC. Les deux outils, écrits dans
 -- la même série de commits, se contredisaient — le pré-vol restait rouge après exécution
 -- de ce script.
+--
+-- GUIC-700 — pré-vol réel sur la base préprod (`rich-anon-seed.sh`, qui n'appelait PAS ce
+-- script — seul `load-enriched-db.sh` l'appelait) : `candidatures.updated_at` est LUI AUSSI
+-- à zéro sur ~26 154 lignes, l'hypothèse ci-dessus ("updated_at toujours valide, seule autre
+-- date de la ligne") était fausse dès que les deux colonnes sont corrompues ensemble.
+-- `Candidature` n'a pas de `created_at` (voir prisma/schema.prisma) : aucune autre colonne de
+-- la ligne ne porte d'information de date récupérable. Repli sur `NOW()` — horodatage FIXE au
+-- moment de l'exécution (une seule évaluation par UPDATE), pas une date courante mouvante : le
+-- bookmark ETL verra ces lignes une fois au prochain run puis plus jamais, comme une ligne
+-- normale, sans boucle de réextraction.
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -41,6 +51,12 @@ UPDATE inscriptions_evenements
 
 -- `soumise_a` n'a pas de colonne `created_at` sœur (le modèle n'en porte pas) : `updated_at`
 -- est la seule autre date de la ligne, NOT NULL, posée par `@updatedAt` au moins à l'insertion.
+-- Répare `updated_at` D'ABORD — sinon une ligne où les deux colonnes sont à zéro recopierait
+-- un autre zéro dans `soumise_a` juste en dessous.
+UPDATE candidatures
+   SET updated_at = NOW()
+ WHERE CAST(updated_at AS CHAR) LIKE '0000%';
+
 UPDATE candidatures
    SET soumise_a = updated_at
  WHERE CAST(soumise_a AS CHAR) LIKE '0000%';
