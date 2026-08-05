@@ -3,6 +3,11 @@ import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
+// GUIC-700 — stub RED : signature posée, comportement pas encore correct (tsc l'exige).
+export function avecSqlModeStrict(url: string): string {
+  return url
+}
+
 function createClient(): PrismaClient {
   const url = process.env.DATABASE_URL
   if (!url) throw new Error('DATABASE_URL manquante')
