@@ -56,6 +56,81 @@ export function mapHistoriqueEntry(
   }
 }
 
+// ─── champs typés du sous-type (écart E) ──────────────────────────────────────
+
+export interface ChampType {
+  label: string
+  value: string
+}
+
+const fcfa = (n: number): string => `${n.toLocaleString('fr-FR')} FCFA`
+const oui = (b: boolean): string => (b ? 'Oui' : 'Non')
+
+interface SousTypes {
+  emploi?: { typeContrat: string; dureeContratMois: number | null; experienceRequise: string | null; teletravail: boolean } | null
+  stage?: { dureeMois: number; indemnise: boolean; indemniteMensuelleFcfa: number | null; conventionneEcole: boolean } | null
+  formation?: { dureeHeures: number; certifiante: boolean; gratuite: boolean; fraisInscriptionFcfa: number | null } | null
+  bourse?: { montantTotalFcfa: number; dureeMois: number | null; organismeFinanceur: string; paysDestination: string | null } | null
+  appelAProjets?: { budgetMaxFcfa: number | null; dureeProjetMois: number | null; thematique: string | null } | null
+  volontariat?: { dureeMois: number; indemniteMensuelleFcfa: number | null; domaineMission: string; placesDisponibles: number | null } | null
+}
+
+/** Champs propres au sous-type (Contrat/Places/Certifiante/Montant/Cible…) pour le dossier. */
+export function champsSousType(o: SousTypes): ChampType[] {
+  if (o.emploi) {
+    const e = o.emploi
+    return [
+      { label: 'Contrat', value: e.typeContrat },
+      ...(e.dureeContratMois ? [{ label: 'Durée', value: `${e.dureeContratMois} mois` }] : []),
+      ...(e.experienceRequise ? [{ label: 'Expérience', value: e.experienceRequise }] : []),
+      { label: 'Télétravail', value: oui(e.teletravail) },
+    ]
+  }
+  if (o.stage) {
+    const s = o.stage
+    return [
+      { label: 'Durée', value: `${s.dureeMois} mois` },
+      { label: 'Indemnité', value: s.indemnise ? (s.indemniteMensuelleFcfa ? `${fcfa(s.indemniteMensuelleFcfa)}/mois` : 'Oui') : 'Non' },
+      { label: 'Convention école', value: oui(s.conventionneEcole) },
+    ]
+  }
+  if (o.formation) {
+    const f = o.formation
+    return [
+      { label: 'Durée', value: `${f.dureeHeures} h` },
+      { label: 'Certifiante', value: oui(f.certifiante) },
+      { label: 'Coût', value: f.gratuite ? 'Gratuit' : f.fraisInscriptionFcfa ? fcfa(f.fraisInscriptionFcfa) : 'Non précisé' },
+    ]
+  }
+  if (o.bourse) {
+    const b = o.bourse
+    return [
+      { label: 'Montant', value: fcfa(b.montantTotalFcfa) },
+      ...(b.dureeMois ? [{ label: 'Durée', value: `${b.dureeMois} mois` }] : []),
+      { label: 'Financeur', value: b.organismeFinanceur },
+      ...(b.paysDestination ? [{ label: 'Destination', value: b.paysDestination }] : []),
+    ]
+  }
+  if (o.appelAProjets) {
+    const a = o.appelAProjets
+    return [
+      ...(a.budgetMaxFcfa ? [{ label: 'Budget', value: fcfa(a.budgetMaxFcfa) }] : []),
+      ...(a.dureeProjetMois ? [{ label: 'Durée', value: `${a.dureeProjetMois} mois` }] : []),
+      ...(a.thematique ? [{ label: 'Thématique', value: a.thematique }] : []),
+    ]
+  }
+  if (o.volontariat) {
+    const v = o.volontariat
+    return [
+      { label: 'Durée', value: `${v.dureeMois} mois` },
+      { label: 'Domaine', value: v.domaineMission },
+      ...(v.placesDisponibles ? [{ label: 'Places', value: String(v.placesDisponibles) }] : []),
+      ...(v.indemniteMensuelleFcfa ? [{ label: 'Indemnité', value: `${fcfa(v.indemniteMensuelleFcfa)}/mois` }] : []),
+    ]
+  }
+  return []
+}
+
 function ageLabel(h: number): string {
   if (h < 1) return 'en attente < 1 h'
   if (h < 48) return `en attente ${h} h`
@@ -80,6 +155,7 @@ export interface ModerationDetail {
   lienExterne: string | null
   signaux: Signal[]
   niveau: NiveauSignal | null
+  champsTypes: ChampType[]
   description: string
   partenaire: { nom: string; estVerifie: boolean; offresPubliees: number } | null
   historique: HistoriqueEntry[]
@@ -106,6 +182,12 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
       typeRef: { select: { libelle: true } },
       org: { select: { id: true, nom: true, estVerifie: true } },
       itemsCuration: { select: { id: true }, take: 1 },
+      emploi: { select: { typeContrat: true, dureeContratMois: true, experienceRequise: true, teletravail: true } },
+      stage: { select: { dureeMois: true, indemnise: true, indemniteMensuelleFcfa: true, conventionneEcole: true } },
+      formation: { select: { dureeHeures: true, certifiante: true, gratuite: true, fraisInscriptionFcfa: true } },
+      bourse: { select: { montantTotalFcfa: true, dureeMois: true, organismeFinanceur: true, paysDestination: true } },
+      appelAProjets: { select: { budgetMaxFcfa: true, dureeProjetMois: true, thematique: true } },
+      volontariat: { select: { dureeMois: true, indemniteMensuelleFcfa: true, domaineMission: true, placesDisponibles: true } },
     },
   })
   if (!o) return null
@@ -152,6 +234,7 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
     lienExterne: o.lienExterne,
     signaux,
     niveau: niveauCarte(signaux),
+    champsTypes: champsSousType(o),
     description: o.description,
     partenaire,
     historique,

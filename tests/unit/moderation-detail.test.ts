@@ -2,7 +2,7 @@
  * GUIC-702 · PR-B (RED) — helpers purs du détail de modération (panneau slide-over).
  * Verbe d'historique lisible depuis l'action AuditLog + mapping d'une entrée.
  */
-import { verbeModeration, mapHistoriqueEntry } from '@/lib/loaders/moderation-detail'
+import { verbeModeration, mapHistoriqueEntry, champsSousType } from '@/lib/loaders/moderation-detail'
 
 const NOW = new Date('2026-08-05T12:00:00Z')
 
@@ -33,6 +33,25 @@ describe('GUIC-702 — détail modération (helpers purs)', () => {
     expect(e.detail).toBe('Offre payante')
     expect(typeof e.dateLabel).toBe('string')
     expect(e.dateLabel.length).toBeGreaterThan(0)
+  })
+
+  it('champsSousType — Formation : durée, certifiante, coût (écart E)', () => {
+    const c = champsSousType({ formation: { dureeHeures: 120, certifiante: true, gratuite: false, fraisInscriptionFcfa: 10000 } })
+    expect(c).toEqual(expect.arrayContaining([
+      { label: 'Durée', value: '120 h' },
+      { label: 'Certifiante', value: 'Oui' },
+    ]))
+    expect(c.find((x) => x.label === 'Coût')?.value).toMatch(/10\s?000/)
+  })
+
+  it('champsSousType — Bourse : montant + financeur', () => {
+    const c = champsSousType({ bourse: { montantTotalFcfa: 5000000, organismeFinanceur: 'Fondation Sonatel', dureeMois: 12, paysDestination: null } })
+    expect(c.find((x) => x.label === 'Financeur')?.value).toBe('Fondation Sonatel')
+    expect(c.find((x) => x.label === 'Montant')?.value).toMatch(/5\s?000\s?000/)
+  })
+
+  it('champsSousType — aucun sous-type → liste vide', () => {
+    expect(champsSousType({})).toEqual([])
   })
 
   it('mapHistoriqueEntry sans motif → detail null (pas de crash sur meta absent)', () => {

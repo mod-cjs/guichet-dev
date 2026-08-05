@@ -42,6 +42,7 @@ export function ModerationDetailPanel({
     { label: 'Source', value: SRC_LABEL[detail.source] },
     { label: 'Organisation', value: detail.organisation },
     ...(detail.region ? [{ label: 'Région', value: detail.region }] : []),
+    ...detail.champsTypes, // écart E — champs propres au sous-type (Contrat/Places/Montant…)
     ...(detail.remuneration ? [{ label: 'Rémunération', value: detail.remuneration }] : []),
     ...(detail.deadlineLabel ? [{ label: 'Clôture', value: detail.deadlineLabel }] : []),
   ]

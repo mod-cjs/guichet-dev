@@ -24,6 +24,7 @@ const DETAIL: ModerationDetail = {
     { niveau: 'soft', motif: 'Partenaire non vérifié' },
   ],
   niveau: 'crit',
+  champsTypes: [{ label: 'Contrat', value: 'CDD' }],
   description: 'Nous recrutons des agents commerciaux. Frais de dossier obligatoires de 10 000 FCFA.',
   partenaire: { nom: 'Ets. Ndiaye & Fils', estVerifie: false, offresPubliees: 3 },
   historique: [
