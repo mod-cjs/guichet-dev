@@ -109,6 +109,62 @@ export async function publierOpportunite(id: string): Promise<{ ok: true }> {
   return setStatutBrouillon(id, 'publiee', 'opportunite.publish')
 }
 
+/**
+ * Demander une correction au recruteur (GUIC-702 · PR-C). L'offre RESTE `brouillon`
+ * (aucun nouvel état enum) : on notifie le recruteur (in-app, fail-soft) + on trace
+ * la demande. Le recruteur corrige et l'offre revient naturellement en file.
+ */
+export async function demanderCorrection(id: string, message: string): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const oid = idSchema.parse(id)
+  const texte = z.string().trim().min(1, 'Message requis').max(1000).parse(message)
+
+  const offre = await prisma.opportunite.findFirst({
+    where: { id: oid, statut: 'brouillon', deletedAt: null },
+    select: { titre: true, recruteurUid: true },
+  })
+  if (!offre) throw new Error('NOT_FOUND_OR_NOT_BROUILLON')
+
+  await recordAudit(session.cjsUid, 'opportunite.correction_demandee', {
+    targetType: 'opportunite',
+    targetId: oid,
+    meta: { message: texte },
+  })
+
+  // Notification in-app au recruteur propriétaire (fail-soft — jamais bloquant).
+  if (offre.recruteurUid) {
+    try {
+      await prisma.notification.create({
+        data: {
+          cjsUid: offre.recruteurUid,
+          type: 'System',
+          titre: 'Correction demandée sur votre offre',
+          contenu: `« ${offre.titre} » : ${texte}`,
+          iconName: 'settings',
+          lien: `/recruteur/offres/${oid}`,
+        },
+      })
+    } catch {
+      /* notif best-effort */
+    }
+  }
+
+  revalidateAdmin()
+  return { ok: true }
+}
+
+/**
+ * Approuver plusieurs offres en attente (sélection groupée / « Approuver les vérifiés »).
+ * Chaque offre non-brouillon est ignorée (idempotence). Retourne le décompte.
+ */
+export async function approuverPlusieurs(ids: string[]): Promise<{ approuvees: number; ignorees: number }> {
+  await assertAdmin()
+  const valides = [...new Set(ids.map((i) => idSchema.parse(i)))]
+  const res = await Promise.allSettled(valides.map((id) => approuverOpportunite(id)))
+  const approuvees = res.filter((r) => r.status === 'fulfilled').length
+  return { approuvees, ignorees: valides.length - approuvees }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CRUD (GUIC-28) — créer / modifier / archiver / supprimer.
 // La création/édition délègue à `OpportuniteService` (invariant XOR mère+sous-type).

@@ -7,6 +7,7 @@
  * « signalé » ou « âge » n'existe : tout est dérivé.
  */
 import { prisma } from '@/lib/prisma'
+import { regionLabel } from '@/lib/regions'
 import { detecterSignaux, niveauCarte, type NiveauSignal, type Signal } from '@/lib/moderation/signaux'
 
 export const PAGE_SIZE_M = 20
@@ -30,6 +31,7 @@ export interface ModerationRawRow {
   typeRef: { libelle: string } | null
   organisation: string
   organisationLibelle: string | null
+  region: string | null
   recruteurUid: string | null
   createdAt: Date
   description: string
@@ -45,6 +47,7 @@ export interface ModerationRow {
   typeLabel: string
   organisation: string
   source: SourceMod
+  localisation: string
   ageHeures: number
   ageLabel: string
   urgent: boolean
@@ -105,6 +108,7 @@ export function mapModerationRow(r: ModerationRawRow, now: number): ModerationRo
     typeLabel: r.typeRef?.libelle ?? r.type,
     organisation: r.organisationLibelle ?? r.organisation ?? r.org?.nom ?? '—',
     source,
+    localisation: r.region ? (regionLabel(r.region) ?? r.region) : '',
     ageHeures: h,
     ageLabel: ageLabel(h),
     urgent: h >= SEUIL_URGENT_H,
@@ -122,6 +126,11 @@ export function kpisModeration(rows: ModerationRow[]): ModerationKpis {
     recruteur: rows.filter((r) => r.source === 'recruteur').length,
     veille: rows.filter((r) => r.source === 'veille').length,
   }
+}
+
+/** IDs des offres « vérifiées » = aucun signal (partenaire vérifié, rien de suspect). Cible de « Approuver les vérifiés ». */
+export function idsVerifies(rows: ModerationRow[]): string[] {
+  return rows.filter((r) => r.niveau === null).map((r) => r.id)
 }
 
 export function filtrerModeration(rows: ModerationRow[], filtre: FiltreMod): ModerationRow[] {
@@ -185,6 +194,7 @@ export async function getModerationData(params: {
       type: true,
       organisation: true,
       organisationLibelle: true,
+      region: true,
       recruteurUid: true,
       createdAt: true,
       description: true,

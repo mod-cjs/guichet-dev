@@ -67,7 +67,17 @@ export function ModerationDetailPanel({
               </span>
             )}
             <span style={{ fontSize: 11.5, color: 'var(--gj-grey)', fontWeight: 700 }}>{detail.ageLabel}</span>
-            <button type="button" onClick={onClose} aria-label="Fermer" style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            <a
+              href={`/admin/opportunites/${detail.id}/apercu`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Aperçu de l’offre"
+              title="Aperçu (nouvel onglet)"
+              style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center' }}
+            >
+              <Icon name="eye" size={16} />
+            </a>
+            <button type="button" onClick={onClose} aria-label="Fermer" style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
               <Icon name="close" size={16} />
             </button>
           </div>

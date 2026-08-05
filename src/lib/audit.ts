@@ -34,6 +34,8 @@ export type AuditAction =
   | 'opportunite.update'
   | 'opportunite.delete'
   | 'opportunite.publish'
+  // GUIC-702 — l'admin renvoie une offre au recruteur pour correction (statut inchangé).
+  | 'opportunite.correction_demandee'
   // GUIC-474 — présence à un événement (cours/session) marquée par badge ou admin.
   | 'evenement.presence'
   // GUIC-510 — gestion des partenaires (= recruteurs : organisation + compte).
