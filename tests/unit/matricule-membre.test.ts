@@ -65,6 +65,27 @@ describe('GUIC-689 — la lettre de contrôle détecte les fautes de saisie', ()
   })
 })
 
+describe('GUIC-689 — lisible à voix haute', () => {
+  /**
+   * Le matricule se dicte au comptoir et se recopie à la main. `O` face à `0`,
+   * `I` face à `1` : la confusion est garantie, et elle porterait sur la lettre
+   * de CONTRÔLE — celle qui doit précisément détecter les erreurs de saisie.
+   */
+  it('la lettre de contrôle n’emploie jamais un caractère ambigu', () => {
+    const lettres = new Set(
+      Array.from({ length: 500 }, () => genererMatricule(ANNEE).slice(-1)),
+    )
+    for (const l of lettres) expect('IO').not.toContain(l)
+  })
+
+  it('couvre tout de même un alphabet large — le contrôle garde sa force', () => {
+    const lettres = new Set(
+      Array.from({ length: 2000 }, () => genererMatricule(ANNEE).slice(-1)),
+    )
+    expect(lettres.size).toBeGreaterThanOrEqual(20)
+  })
+})
+
 describe('GUIC-689 — non devinable', () => {
   it('deux matricules de la même année diffèrent', () => {
     const lot = new Set(Array.from({ length: 200 }, () => genererMatricule(ANNEE)))
@@ -84,6 +105,12 @@ describe('GUIC-689 — non devinable', () => {
     const { readFileSync } = jest.requireActual('node:fs') as typeof import('node:fs')
     const { resolve } = jest.requireActual('node:path') as typeof import('node:path')
     const src = readFileSync(resolve(__dirname, '../../src/lib/membre/matricule.ts'), 'utf-8')
-    expect(src).not.toMatch(/cjsUid|cjs_uid/)
+    // On juge le CODE, pas la prose : la documentation a le droit d'expliquer
+    // en quoi le matricule se distingue du `cjsUid`.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    expect(code).not.toMatch(/cjsUid|cjs_uid/)
+    // La génération ne reçoit qu'une date : elle n'a structurellement pas accès
+    // à l'identité de la personne.
+    expect(code).toMatch(/genererMatricule\(\s*\w+:\s*Date\s*\)/)
   })
 })
