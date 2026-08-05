@@ -19,6 +19,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { mapObjectifs } from './mapping-objectifs'
 import {
   patchDraft, readDraft, clearDraft,
   type ObjectifId, type OnboardingDraft,
@@ -218,6 +219,7 @@ export function useProfilStep(
 // ─── Écran 5 — Recommandations ──────────────────────────────────────────────
 
 /** Mapping objectif → domaine (`Domaine` enum Prisma). Cf GUIC-181. */
+/** @deprecated GUIC-689 — remplacé par `mapObjectifs` (cf. mapping-objectifs.ts). */
 export function mapObjectifToDomaine(o: string): string | null {
   switch (o) {
     case 'agriculture': return 'Agriculture'
@@ -249,14 +251,14 @@ export function useRecommandationsStep(): UseRecommandationsResult {
   async function finalise(redirectTo: string) {
     setLoading(true)
     try {
-      const domainesInteret = draft.objectifs
-        .map(mapObjectifToDomaine)
-        .filter((v): v is string => v !== null)
+      // GUIC-689 — un objectif peut être une INTENTION (types) ou un SECTEUR
+      // (domaines) : les deux partent, plus rien ne se perd en route.
+      const { domaines: domainesInteret, types: typesRecherches } = mapObjectifs(draft.objectifs)
 
       const r = await fetch('/api/v1/onboarding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 3, data: { domainesInteret } }),
+        body: JSON.stringify({ step: 3, data: { domainesInteret, typesRecherches } }),
       })
       if (!r.ok) {
         setLoading(false)
