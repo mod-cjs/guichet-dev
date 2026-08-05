@@ -8,6 +8,7 @@ import { SectionProfil }      from './SectionProfil'
 import { SectionExperiences } from './SectionExperiences'
 import { SectionDiplomes }    from './SectionDiplomes'
 import { SectionCertificats } from './SectionCertificats'
+import { SectionEngagements } from './SectionEngagements'
 import { SectionCv }          from './SectionCv'
 import { CompletionChecklist } from './CompletionChecklist'
 import { DocumentsCard }      from './DocumentsCard'
@@ -168,6 +169,10 @@ export function ProfilClient({ initial, ssoProfilUrl }: Props) {
               <SectionCertificats
                 certificats={initial.certificats}
               />
+
+              {/* GUIC-689 — 3e source de la timeline : sans cette saisie, le
+                  type créé pour elle n'aurait jamais rien à afficher. */}
+              <SectionEngagements engagements={initial.engagements} />
             </div>
           </details>
 
