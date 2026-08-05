@@ -88,5 +88,6 @@ etl/transform/dbt_packages/
 etl/transform/logs/
 .env.etl
 .env.etl.*
+!.env.etl.example
 etl/transform/profiles/*/.user.yml
 .pytest_cache/

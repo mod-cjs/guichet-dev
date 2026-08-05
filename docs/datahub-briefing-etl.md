@@ -223,17 +223,42 @@ meltano run tap-guichet target-postgres dbt-postgres:run
 meltano invoke dbt-postgres docs generate
 ```
 
-### Chaîne planifiée (GUIC-697, lot 5)
+### Joignabilité — deux règles à ne jamais mélanger (GUIC-700, tranché au premier run réel)
+
+| Cible | Comment le tap/les scripts la joignent | Jamais |
+|---|---|---|
+| **Guichet** (l'app, pour le tap) | **URL publique HTTPS** (`TAP_GUICHET_API_URL`) — route machine-à-machine pensée pour être appelée de l'extérieur, comme BRM/Centres/Moodle/EduPop | `host.docker.internal` (l'app peut être verrouillée en loopback) ; un réseau Docker partagé avec l'app |
+| **Entrepôt PostgreSQL** (pour `target-postgres`/dbt, et pour `psqlEntrepot`) | **Réseau Docker partagé** (`cjs-net` par défaut) — c'est un conteneur (`cjs_analytics_postgres` en préprod), pas un domaine public | Une URL publique (il n'y en a pas) |
+| **MariaDB de l'app** (pour `reconcile.ts`/`purge-absents.ts`, côté Prisma) | **Le conteneur `app` lui-même**, via `docker compose run --rm --no-deps app` (`exec_via_app`, `scripts/etl/lib-app-exec.sh`) — `DATABASE_URL` peut pointer un nom de conteneur (`mariadb-test` en préprod), injoignable depuis un process nu sur l'hôte | `npm run` exécuté directement sur l'hôte ETL (piste qui semble naturelle, invalidée en la testant en réel : timeout de pool sans jamais résoudre l'hôte) |
+
+`docker-compose.etl.yml` rejoint `cjs-net` pour la 2e ligne ; il ne touche à aucun réseau
+de l'app pour la 1ère. La 3e ligne est différente des deux autres : elle n'a pas de service
+dédié, elle réutilise le conteneur `app` du déploiement — voir plus bas.
+
+### Chaîne planifiée (GUIC-697/700, lots 5 et 7)
 
 Planification recommandée — une crontab plutôt qu'un conteneur permanent : le pipeline est
 un batch, et un service qui tourne sans rien faire masque les échecs.
 
 ```cron
 30 2 * * * cd /srv/guichet && GUICHET_ETL_ENV_FILE=.env.etl \
-  WAREHOUSE_DATABASE_URL=postgresql://... scripts/etl/run-nightly.sh
+  WAREHOUSE_DATABASE_URL=postgresql://... \
+  GUICHET_IMAGE=ghcr.io/adiop-consortiumjeunessesenegal-org-cjs/guichet@sha256:... \
+  COMPOSE_PROJECT_NAME=guichet GUICHET_ENV_FILE=/etc/guichet/prod.env \
+  scripts/etl/run-nightly.sh
 
-0 1 * * 0 cd /srv/guichet && WAREHOUSE_DATABASE_URL=postgresql://... scripts/etl/purge-absents-weekly.sh
+0 1 * * 0 cd /srv/guichet && WAREHOUSE_DATABASE_URL=postgresql://... \
+  GUICHET_IMAGE=ghcr.io/adiop-consortiumjeunessesenegal-org-cjs/guichet@sha256:... \
+  COMPOSE_PROJECT_NAME=guichet GUICHET_ENV_FILE=/etc/guichet/prod.env \
+  scripts/etl/purge-absents-weekly.sh
 ```
+
+En préprod (deux compose combinés), ajouter aussi :
+`GUICHET_COMPOSE_FILES="-f docker-compose.prod.yml -f docker-compose.test.yml"` et
+`COMPOSE_PROJECT_NAME=guichet-test` — sans quoi la commande cible le service `app` de
+production par défaut. `GUICHET_IMAGE`/`COMPOSE_PROJECT_NAME`/`GUICHET_ENV_FILE` sont les
+**mêmes variables** qu'un déploiement normal (`docs/go-live-checklist.md`) : les copier
+depuis le dernier déploiement effectué, pas en inventer de nouvelles.
 
 La deuxième ligne (dimanche 1h, avant le nightly de 2h30) planifie la purge hebdomadaire des
 clés absentes (`purge-absents.ts`, lot 7 GUIC-700) — un full-refresh des clés de tous les
@@ -251,11 +276,17 @@ runs **verts** avec un flux ou une transformation morte dedans) :
 2. **Transformation et tests dbt** — `meltano invoke dbt-postgres build` (`build` = modèles
    **et** tests ensemble ; les 35 tests dbt n'étaient auparavant lancés par aucune commande
    documentée).
-3. **Réconciliation automatisée** — `npm run datahub:reconcile <since>` : compare, flux par
-   flux, un comptage Prisma côté Guichet à un comptage PostgreSQL côté entrepôt sur la
-   fenêtre du run qui vient de se terminer. « Le pipeline n'a pas planté » et « le pipeline
-   a tout extrait » sont deux choses différentes : une extraction incrémentale mal bornée
-   se termine proprement en ayant perdu des lignes, silencieusement.
+3. **Réconciliation automatisée** — `exec_via_app scripts/datahub/reconcile.ts <since>`
+   (GUIC-700 : plus un `npm run` nu — voir tableau de joignabilité ci-dessus) : compare,
+   flux par flux, un comptage Prisma côté Guichet à un comptage PostgreSQL côté entrepôt
+   sur la fenêtre du run qui vient de se terminer. « Le pipeline n'a pas planté » et « le
+   pipeline a tout extrait » sont deux choses différentes : une extraction incrémentale
+   mal bornée se termine proprement en ayant perdu des lignes, silencieusement.
+   **Piège vérifié en réel** : sur un `since` correspondant à l'instant même du démarrage
+   du run, une comparaison à 0 des deux côtés est **triviale** (rien n'a eu le temps de
+   changer), pas une preuve. Pour auditer un premier chargement complet (bookmark jamais
+   posé), relancer manuellement avec un `since` ancien (ex. `1970-01-01T00:00:00.000Z`) et
+   vérifier des comptages non nuls des deux côtés.
 
 Chaque étape écrit un marqueur `✓`/`✗` horodaté dans `DATAHUB_LOG_FILE` (défaut
 `/var/log/guichet/datahub-nightly.log`), avec rotation automatique par seuil de taille
@@ -305,16 +336,24 @@ la durée. L'API accepte `limit` jusqu'à 5000.
 
 | Symptôme | Cause probable |
 |---|---|
-| 401 sur tous les flux | `DATAHUB_API_KEYS` absente **côté Guichet**, ou token erroné |
+| 401 sur tous les flux | `DATAHUB_API_KEYS` absente **côté Guichet**, ou token erroné, ou préfixe `meltano:` oublié (format `nom:secret`, sinon la clé entière est ignorée) |
 | Le tap s'arrête après une page | `meta.next_cursor` absent — vérifier que l'URL vise bien la route du contrat |
 | Doublons dans l'entrepôt | `load_method` n'est pas `upsert` |
 | Tout est réextrait à chaque run | `MELTANO_DATABASE_URI` non défini : l'état est perdu avec le conteneur |
-| `Invalid time value` côté API | Dates `0000-00-00` en base source — lancer `npm run datahub:preflight` côté Guichet |
+| `Invalid time value` côté API | Dates `0000-00-00` en base source — lancer `npm run datahub:preflight` côté Guichet, puis `scripts/sql/apply-repair.ts` si besoin |
 | Lignes manquantes sans erreur | `lookback_minutes` à 0, ou pagination modifiée |
+| `could not translate host name "..." to address` sur `meltano`/`psqlEntrepot` | L'entrepôt est un **conteneur**, pas un domaine — `docker-compose.etl.yml` doit rejoindre `cjs-net` (`networks:`), et `psqlEntrepot`/`scripts/datahub/psql-entrepot.ts` doit passer `--network` sur son `docker run` interne |
+| `pool timeout: failed to retrieve a connection from pool` sur `reconcile.ts`/`purge-absents.ts` | Exécuté **nu sur l'hôte** : `DATABASE_URL` peut pointer un nom de conteneur (ex. `mariadb-test`), injoignable hors du réseau Docker de l'app. Utiliser `exec_via_app` (`scripts/etl/lib-app-exec.sh`), jamais `npm run` direct |
+| `DATABASE_URL manquante` en lançant un script `datahub:*` à la main | `dotenv` charge `.env.local`, pas le fichier réel du serveur — `set -a; source /etc/guichet/xxx.env; set +a` avant, ou passer par `exec_via_app` |
+| Une valeur de secret contient des guillemets littéraux (`"mysql://...`) | `docker run --env-file` ne retire **pas** les guillemets (contrairement à `docker compose`, ou à `source` en bash) — ne jamais utiliser `docker run --env-file` pour lire `test.env`/`prod.env` |
+| `0/N flux en écart` triviaux (tous à 0, des deux côtés) sur un premier chargement | `since` = l'instant du run, donc rien n'a eu le temps de changer — vert par construction, pas une preuve. Relancer avec un `since` ancien pour un vrai comptage total |
+| `npm: command not found` sur le serveur ETL | Node.js n'est pas garanti installé sur l'hôte — de toute façon, `reconcile.ts`/`purge-absents.ts` doivent passer par `exec_via_app`, pas par un `npm` hôte |
 
 **Avant toute mise en service** : `npm run datahub:preflight` depuis l'environnement
-Guichet (pas depuis le serveur ETL — il contrôle MariaDB, pas l'entrepôt). 30 contrôles :
-dates de réplication valides, intégrité des jonctions, index composites, clé configurée.
+Guichet (pas depuis le serveur ETL — il contrôle MariaDB, pas l'entrepôt). 58 contrôles :
+dates de réplication valides, intégrité des jonctions, index composites, clé configurée,
+`sql_mode` de connexion (GUIC-700 : posé côté code, `avecSqlModeStrict`, pas côté serveur),
+état Meltano externalisé.
 
 ## 13. Références dans le dépôt Guichet
 
@@ -329,5 +368,9 @@ dates de réplication valides, intégrité des jonctions, index composites, clé
 | `scripts/etl/run-nightly.sh` | Orchestration planifiée : extraction → dbt → réconciliation |
 | `scripts/etl/purge-absents-weekly.sh` | Orchestration planifiée hebdomadaire : purge des clés absentes |
 | `scripts/etl/lib-log.sh` | Helpers de log partagés (✓/✗, rotation) entre les deux scripts ci-dessus |
+| `scripts/etl/lib-app-exec.sh` | `exec_via_app` — exécute un script `datahub:*` via le conteneur `app` (GUIC-700, joignabilité MariaDB) |
 | `scripts/datahub/reconcile.ts` | Réconciliation automatisée des comptages post-run |
 | `scripts/datahub/purge-absents.ts` | Suppression physique des clés absentes de l'entrepôt (lot 7) |
+| `scripts/datahub/psql-entrepot.ts` | Sonde `psql` de l'entrepôt (réseau `cjs-net`), partagée par les deux scripts ci-dessus |
+| `scripts/sql/apply-repair.ts` | Applique `repair-donnees-poc.sql` via Prisma (pas de client MariaDB requis) |
+| `.env.etl.example` | Gabarit des variables ETL attendues (jamais de vraie valeur — copier vers `.env.etl`/un fichier serveur) |
