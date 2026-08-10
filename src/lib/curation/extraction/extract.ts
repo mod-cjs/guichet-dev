@@ -65,8 +65,13 @@ export function extraireOpportunite(html: string, opts: OptionsExtraction): Resu
     if (slug) champs.typeSlugSchemaOrg = slug
   }
 
+  return { champs, scoreCompletude: calculerScore(champs) }
+}
+
+/** Score de complétude 0..100 = champs métier trouvés / total. Recalculable après enrichissement. */
+export function calculerScore(champs: ChampsExtraits): number {
   const trouves = CHAMPS_SCORE.filter((c) => Boolean(champs[c])).length
-  return { champs, scoreCompletude: Math.round((trouves / CHAMPS_SCORE.length) * 100) }
+  return Math.round((trouves / CHAMPS_SCORE.length) * 100)
 }
 
 // Un LABEL d'échéance (pas une date de publication) suivi d'une date, dans une fenêtre bornée.

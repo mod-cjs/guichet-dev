@@ -17,6 +17,8 @@ export interface ChampsExtraits {
   typeSlugSchemaOrg?: string
   /** Deadline normalisée ISO `yyyy-mm-dd`. */
   deadline?: string
+  /** Vrai si la couche d'enrichissement IA a comblé au moins un champ (trace pour l'admin). */
+  enrichiParIa?: boolean
   /** Lien vers l'annonce source (toujours présent). */
   lienSource: string
 }

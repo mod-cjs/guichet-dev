@@ -4,7 +4,10 @@ import { logger } from '@/lib/logger'
 import type { ClientHttp } from '@/lib/curation/robot/http-client'
 import { analyserRobots } from '@/lib/curation/robot/robots'
 import { USER_AGENT_ROBOT } from '@/lib/curation/robot/http-client'
-import { extraireOpportunite } from './extract'
+import { extraireOpportunite, calculerScore } from './extract'
+import { enrichirParIa } from './enrichir-ia'
+import { nettoyerTexte } from './html-texte'
+import type { ChampsExtraits } from './types'
 
 /**
  * GUIC-598 — US-3 : orchestrateur d'extraction (phase 2 du cron veille).
@@ -24,6 +27,17 @@ import { extraireOpportunite } from './extract'
 const TENTATIVES_MAX = 3
 const LOT_DEFAUT = 10
 const BUDGET_MS_DEFAUT = 240_000 // marge sous maxDuration=300 (phase 1 incluse en amont)
+const SEUIL_ENRICHISSEMENT = 70 // en-dessous → item « faible » → candidat à l'enrichissement IA
+
+/** Un item mérite l'enrichissement IA s'il lui manque un champ que le LLM sait combler. */
+function aBesoinEnrichissement(c: ChampsExtraits): boolean {
+  return (
+    calculerScore(c) < SEUIL_ENRICHISSEMENT ||
+    !c.deadline ||
+    !c.region ||
+    (!c.typeId && !c.typeSlugSchemaOrg)
+  )
+}
 
 export interface ExtractionDeps {
   client: ClientHttp
@@ -34,6 +48,8 @@ export interface ExtractionDeps {
   budgetMs?: number
   /** Restreint le traitement à ces sources (isolation des tests parallèles). Undefined = global (prod). */
   sourceIds?: string[]
+  /** Seam d'enrichissement IA (tests). Fournir cette fn ACTIVE l'enrichissement quel que soit l'env. */
+  enrichir?: typeof enrichirParIa
 }
 
 export interface RapportExtraction {
@@ -87,6 +103,14 @@ export async function executerExtraction(deps: ExtractionDeps): Promise<RapportE
   const debut = maintenant().getTime()
   const robotsAutorise = faiseurRobots(deps.client)
 
+  // Enrichissement IA : activé si un seam est injecté (tests) OU par opt-in env (prod).
+  // Fail-soft intégral côté module → jamais bloquant. Types connus chargés une fois par run.
+  const enrichir = deps.enrichir ?? enrichirParIa
+  const enrichirActif = Boolean(deps.enrichir) || process.env.CURATION_ENRICHISSEMENT_IA === '1'
+  const typesConnus = enrichirActif
+    ? (await prisma.opportuniteType.findMany({ where: { actif: true }, select: { slug: true } })).map((t) => t.slug)
+    : []
+
   const items = await prisma.itemCuration.findMany({
     where: {
       statut: 'decouvert',
@@ -114,23 +138,38 @@ export async function executerExtraction(deps: ExtractionDeps): Promise<RapportE
       if (res.statut < 200 || res.statut >= 300) throw new Error(`HTTP ${res.statut}`)
 
       const cfg = item.source.configExtraction as { champs?: Record<string, string> } | null
-      const { champs, scoreCompletude } = extraireOpportunite(res.corps, {
+      const { champs } = extraireOpportunite(res.corps, {
         url: item.urlCanonique,
-        typeDefautId: item.source.typeDefautId,
         champs: cfg?.champs,
+        // typeDefautId NON transmis : le type de CONTENU (schema.org puis LLM) prime ; le
+        // typeDefaut de la source est appliqué en filet FINAL ci-dessous → type par item.
       })
-      // Type déduit du contenu si la source n'en impose pas.
+
+      // Enrichissement IA (hybride) : comble les trous du déterministe sur les items faibles.
+      if (enrichirActif && aBesoinEnrichissement(champs)) {
+        const enrichi = await enrichir(
+          { texte: nettoyerTexte(res.corps), url: item.urlCanonique, dejaConnu: champs },
+          { typesConnus },
+        )
+        if (Object.keys(enrichi).length > 0) {
+          Object.assign(champs, enrichi) // module déjà « trous-seulement » → pas d'écrasement
+          champs.enrichiParIa = true
+        }
+      }
+
+      // Type : contenu (schema.org OU LLM) → id ; sinon filet FINAL = typeDefaut de la source.
       if (!champs.typeId && champs.typeSlugSchemaOrg) {
         const id = await resoudreTypeId(champs.typeSlugSchemaOrg)
         if (id) champs.typeId = id
       }
+      if (!champs.typeId && item.source.typeDefautId) champs.typeId = item.source.typeDefautId
 
       await prisma.itemCuration.update({
         where: { id: item.id },
         data: {
           titre: champs.titre ?? null,
           payloadExtrait: champs as unknown as Prisma.InputJsonValue,
-          scoreCompletude,
+          scoreCompletude: calculerScore(champs),
           statut: 'a_valider',
         },
       })
