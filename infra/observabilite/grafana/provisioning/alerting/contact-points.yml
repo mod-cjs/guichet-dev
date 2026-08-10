@@ -37,7 +37,10 @@ contactPoints:
             {{ .Annotations.description }}
 
             Déclenchée : {{ .StartsAt.Format "2006-01-02 15:04 MST" }}
-            Voir dans Grafana : {{ .GeneratorURL }}
+
+            Voir dans Grafana (accessible uniquement via tunnel SSH, jamais exposé publiquement —
+            ouvrir d'abord : ssh -L 3000:127.0.0.1:3000 <utilisateur>@<serveur>) :
+            {{ .GeneratorURL }}
             {{ end }}
 
       # ── WhatsApp, via un relais EXTERNE ───────────────────────────────────
