@@ -18,6 +18,7 @@ tsconfig.tsbuildinfo
 .env.production.local
 .env.prod
 .env.migration
+.env.observabilite
 
 # Prisma
 prisma/migrations/*.sql.lock
