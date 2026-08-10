@@ -142,9 +142,13 @@ describe('<MediathequeHome />', () => {
         populaires={[makeItem({ id: 'p1' })]}
       />,
     )
+    // GUIC-689 — `vue=liste` ne trie rien : l'intention d'origine (ne pas
+    // prétendre conserver le tri par vues) est intacte. Mais `/ressources` NU
+    // renvoyait sur cet accueil même, faisant du lien un contrôle mort ; la
+    // bascule explicite est le seul chemin vers la liste complète.
     expect(screen.getByRole('link', { name: /Toutes les ressources/ })).toHaveAttribute(
       'href',
-      '/ressources',
+      '/ressources?vue=liste',
     )
   })
 })
