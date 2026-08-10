@@ -4,10 +4,15 @@
  * GUIC-697 — Orchestration nightly du pipeline ETL (lot 5, exploitabilité).
  *
  * Le mode opératoire documenté (docs/datahub-briefing-etl.md §10) était une ligne
- * crontab isolée qui ne lançait QUE l'extraction : ni dbt build/test, ni réconciliation
- * automatisée. `run-nightly.sh` chaîne les trois étapes. Ces tests shimment `docker` et
- * `npm` pour vérifier que l'ENCHAÎNEMENT est correct — tout-ou-rien assumé (spec §4.1 B5) :
- * une étape en échec arrête tout, bruyamment (marqueur ✗, code de sortie non nul).
+ * crontab isolée qui ne lançait QUE l'extraction. `run-nightly.sh` chaîne les trois
+ * étapes. Ces tests shimment `docker` pour vérifier que l'ENCHAÎNEMENT est correct —
+ * tout-ou-rien assumé (spec §4.1 B5) : une étape en échec arrête tout, bruyamment
+ * (marqueur ✗, code de sortie non nul).
+ *
+ * GUIC-700 — la réconciliation (3e étape) est passée de `npm run` nu sur l'hôte à
+ * `docker compose run --rm --no-deps app` (voir scripts/etl/lib-app-exec.sh) : trouvé au
+ * premier run réel en préprod, `DATABASE_URL` pointe un nom de conteneur
+ * (`mariadb-test`), jamais résoluble hors du réseau Docker de l'app.
  */
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, chmodSync, readFileSync, existsSync, readdirSync } from 'node:fs'
@@ -18,7 +23,8 @@ const ROOT = process.cwd()
 
 /**
  * Shim `docker`. Distingue `run tap-guichet target-postgres` (extraction) de
- * `invoke dbt-postgres build` (transformation+tests) par le contenu des arguments.
+ * `invoke dbt-postgres build` (transformation+tests) et de `compose ... run --rm --no-deps
+ * ... app ...` (réconciliation, GUIC-700) par le contenu des arguments.
  */
 const DOCKER_SHIM = `#!/usr/bin/env bash
 echo "docker $*" >> "$CALL_LOG"
@@ -29,15 +35,11 @@ case "$*" in
   *"dbt-postgres build"*)
     [ -n "$FAIL_DBT" ] && { echo "dbt build error" >&2; exit 1; }
     echo "dbt ok"; exit 0 ;;
+  *"reconcile.ts"*)
+    [ -n "$FAIL_RECONCILE" ] && { echo "réconciliation en écart" >&2; exit 1; }
+    echo "reconcile ok"; exit 0 ;;
 esac
 exit 0
-`
-
-/** Shim `npm` : seul appel attendu ici est `run --silent datahub:reconcile -- <since>`. */
-const NPM_SHIM = `#!/usr/bin/env bash
-echo "npm $*" >> "$CALL_LOG"
-[ -n "$FAIL_RECONCILE" ] && { echo "réconciliation en écart" >&2; exit 1; }
-echo "reconcile ok"; exit 0
 `
 
 interface RunResult { code: number; calls: string; log: string; logDir: string }
@@ -48,8 +50,6 @@ function run(env: Record<string, string> = {}): RunResult {
   mkdirSync(bin)
   writeFileSync(join(bin, 'docker'), DOCKER_SHIM)
   chmodSync(join(bin, 'docker'), 0o755)
-  writeFileSync(join(bin, 'npm'), NPM_SHIM)
-  chmodSync(join(bin, 'npm'), 0o755)
 
   const envFile = join(sandbox, '.env.etl')
   writeFileSync(envFile, 'TAP_GUICHET_API_URL=http://localhost\n')
@@ -68,6 +68,9 @@ function run(env: Record<string, string> = {}): RunResult {
         CALL_LOG: callLog,
         GUICHET_ETL_ENV_FILE: envFile,
         DATAHUB_LOG_FILE: join(logDir, 'datahub-nightly.log'),
+        GUICHET_IMAGE: 'ghcr.io/x/guichet@sha256:abc',
+        COMPOSE_PROJECT_NAME: 'guichet-test',
+        GUICHET_ENV_FILE: '/etc/guichet/test.env',
         ...env,
       },
     })
@@ -87,12 +90,12 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     expect(r.code).toBe(0)
     expect(r.calls).toMatch(/tap-guichet target-postgres/)
     expect(r.calls).toMatch(/dbt-postgres build/)
-    expect(r.calls).toMatch(/datahub:reconcile/)
+    expect(r.calls).toMatch(/reconcile\.ts/)
     // L'ordre est celui qui compte : dbt et la réconciliation supposent une extraction
     // déjà faite.
     const posExtraction = r.calls.indexOf('tap-guichet')
     const posDbt = r.calls.indexOf('dbt-postgres')
-    const posReconcile = r.calls.indexOf('reconcile')
+    const posReconcile = r.calls.indexOf('reconcile.ts')
     expect(posExtraction).toBeLessThan(posDbt)
     expect(posDbt).toBeLessThan(posReconcile)
     expect(r.log).toMatch(/✅ run complet/)
@@ -103,7 +106,7 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     expect(r.code).not.toBe(0)
     expect(r.calls).toMatch(/tap-guichet/)
     expect(r.calls).not.toMatch(/dbt-postgres/)
-    expect(r.calls).not.toMatch(/reconcile/)
+    expect(r.calls).not.toMatch(/reconcile\.ts/)
     expect(r.log).toMatch(/✗.*extraction/)
   })
 
@@ -111,7 +114,7 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     const r = run({ FAIL_DBT: '1' })
     expect(r.code).not.toBe(0)
     expect(r.calls).toMatch(/dbt-postgres/)
-    expect(r.calls).not.toMatch(/reconcile/)
+    expect(r.calls).not.toMatch(/reconcile\.ts/)
     expect(r.log).toMatch(/✗.*dbt/)
   })
 
@@ -119,6 +122,12 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     const r = run({ FAIL_RECONCILE: '1' })
     expect(r.code).not.toBe(0)
     expect(r.log).toMatch(/✗.*réconciliation/)
+  })
+
+  it('la réconciliation passe par le conteneur app (GUIC-700), jamais nue sur l\'hôte', () => {
+    const r = run()
+    expect(r.calls).toMatch(/compose.*run.*--rm.*--no-deps/)
+    expect(r.calls).toMatch(/docker\.sock/)
   })
 
   it('rotation : un log existant au-delà du seuil est archivé avant le run, pas après', () => {
@@ -132,8 +141,6 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     mkdirSync(bin)
     writeFileSync(join(bin, 'docker'), DOCKER_SHIM)
     chmodSync(join(bin, 'docker'), 0o755)
-    writeFileSync(join(bin, 'npm'), NPM_SHIM)
-    chmodSync(join(bin, 'npm'), 0o755)
     const envFile = join(sandbox, '.env.etl')
     writeFileSync(envFile, 'X=1\n')
     const callLog = join(sandbox, 'calls.log')
@@ -148,6 +155,9 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
         GUICHET_ETL_ENV_FILE: envFile,
         DATAHUB_LOG_FILE: logPath,
         DATAHUB_LOG_MAX_BYTES: '1000',
+        GUICHET_IMAGE: 'ghcr.io/x/guichet@sha256:abc',
+        COMPOSE_PROJECT_NAME: 'guichet-test',
+        GUICHET_ENV_FILE: '/etc/guichet/test.env',
       },
     })
 

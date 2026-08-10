@@ -5,8 +5,14 @@
  * décision documentée dans CURRENT_TASK.md : coûteux comparé à l'extraction incrémentale,
  * pas la fréquence quotidienne). Avant ce script, la tâche n'était planifiée nulle part :
  * `npm run datahub:purge-absents` existait mais aucune crontab, aucun log, aucune
- * observabilité GUIC-576. Ces tests shimment `npm` pour vérifier le même contrat que
- * run-nightly.sh : marqueur ✓/✗ horodaté, code de sortie non nul propagé, rotation du log.
+ * observabilité GUIC-576.
+ *
+ * L'invocation est passée de `npm run` nu sur l'hôte à `docker compose run --rm --no-deps
+ * app` (voir scripts/etl/lib-app-exec.sh) : trouvé au premier run réel en préprod,
+ * `DATABASE_URL` pointe un nom de conteneur (`mariadb-test`), jamais résoluble hors du
+ * réseau Docker de l'app. Ces tests shimment `docker` pour vérifier le même contrat
+ * d'exploitation que run-nightly.sh : marqueur ✓/✗ horodaté, code de sortie non nul
+ * propagé, rotation du log.
  */
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, chmodSync, readFileSync, existsSync, readdirSync } from 'node:fs'
@@ -15,10 +21,14 @@ import { join } from 'node:path'
 
 const ROOT = process.cwd()
 
-const NPM_SHIM = `#!/usr/bin/env bash
-echo "npm $*" >> "$CALL_LOG"
-[ -n "$FAIL_PURGE" ] && { echo "purge en échec" >&2; exit 1; }
-echo "purge ok"; exit 0
+const DOCKER_SHIM = `#!/usr/bin/env bash
+echo "docker $*" >> "$CALL_LOG"
+case "$*" in
+  *"purge-absents.ts"*)
+    [ -n "$FAIL_PURGE" ] && { echo "purge en échec" >&2; exit 1; }
+    echo "purge ok"; exit 0 ;;
+esac
+exit 0
 `
 
 interface RunResult { code: number; calls: string; log: string; logDir: string }
@@ -27,8 +37,8 @@ function run(env: Record<string, string> = {}): RunResult {
   const sandbox = mkdtempSync(join(tmpdir(), 'guic-purge-weekly-'))
   const bin = join(sandbox, 'bin')
   mkdirSync(bin)
-  writeFileSync(join(bin, 'npm'), NPM_SHIM)
-  chmodSync(join(bin, 'npm'), 0o755)
+  writeFileSync(join(bin, 'docker'), DOCKER_SHIM)
+  chmodSync(join(bin, 'docker'), 0o755)
 
   const logDir = join(sandbox, 'log')
   const callLog = join(sandbox, 'calls.log')
@@ -43,6 +53,9 @@ function run(env: Record<string, string> = {}): RunResult {
         PATH: `${bin}:${process.env.PATH}`,
         CALL_LOG: callLog,
         DATAHUB_LOG_FILE: join(logDir, 'datahub-purge-absents.log'),
+        GUICHET_IMAGE: 'ghcr.io/x/guichet@sha256:abc',
+        COMPOSE_PROJECT_NAME: 'guichet-test',
+        GUICHET_ENV_FILE: '/etc/guichet/test.env',
         ...env,
       },
     })
@@ -57,10 +70,11 @@ function run(env: Record<string, string> = {}): RunResult {
 }
 
 describe('GUIC-700 — purge-absents-weekly.sh : même contrat d\'exploitation que le nightly', () => {
-  it('appelle datahub:purge-absents et rend 0 quand tout passe', () => {
+  it('appelle purge-absents.ts via le conteneur app et rend 0 quand tout passe', () => {
     const r = run()
     expect(r.code).toBe(0)
-    expect(r.calls).toMatch(/datahub:purge-absents/)
+    expect(r.calls).toMatch(/purge-absents\.ts/)
+    expect(r.calls).toMatch(/compose.*run.*--rm.*--no-deps/)
     expect(r.log).toMatch(/✅ purge hebdomadaire complète/)
   })
 
@@ -79,8 +93,8 @@ describe('GUIC-700 — purge-absents-weekly.sh : même contrat d\'exploitation q
 
     const bin = join(sandbox, 'bin')
     mkdirSync(bin)
-    writeFileSync(join(bin, 'npm'), NPM_SHIM)
-    chmodSync(join(bin, 'npm'), 0o755)
+    writeFileSync(join(bin, 'docker'), DOCKER_SHIM)
+    chmodSync(join(bin, 'docker'), 0o755)
     const callLog = join(sandbox, 'calls.log')
     writeFileSync(callLog, '')
 
@@ -92,6 +106,9 @@ describe('GUIC-700 — purge-absents-weekly.sh : même contrat d\'exploitation q
         CALL_LOG: callLog,
         DATAHUB_LOG_FILE: logPath,
         DATAHUB_LOG_MAX_BYTES: '1000',
+        GUICHET_IMAGE: 'ghcr.io/x/guichet@sha256:abc',
+        COMPOSE_PROJECT_NAME: 'guichet-test',
+        GUICHET_ENV_FILE: '/etc/guichet/test.env',
       },
     })
 

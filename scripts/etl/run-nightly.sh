@@ -17,7 +17,14 @@
 # sortie non nul est ce que la crontab redirige. L'alerting (GUIC-576) surveille ce log —
 # même convention que scripts/cron/run-job.sh.
 #
+# RÉCONCILIATION VIA LE CONTENEUR APP (GUIC-700, trouvé au premier run réel en préprod) —
+# `reconcile.ts` compare Prisma (MariaDB) à l'entrepôt : `DATABASE_URL` pointe un nom de
+# CONTENEUR (`mariadb-test` en préprod), jamais résoluble si ce script tournait nu sur
+# l'hôte. Voir scripts/etl/lib-app-exec.sh pour le détail — requiert GUICHET_IMAGE,
+# COMPOSE_PROJECT_NAME, GUICHET_ENV_FILE en plus des variables déjà documentées.
+#
 # Usage : GUICHET_ETL_ENV_FILE=.env.etl WAREHOUSE_DATABASE_URL=postgresql://... \
+#         GUICHET_IMAGE=ghcr.io/... COMPOSE_PROJECT_NAME=guichet GUICHET_ENV_FILE=/etc/guichet/prod.env \
 #         scripts/etl/run-nightly.sh
 set -Eeuo pipefail
 
@@ -28,6 +35,8 @@ COMPOSE="docker compose -f $RACINE/docker-compose.etl.yml run --rm meltano"
 
 # shellcheck source=scripts/etl/lib-log.sh
 source "$RACINE/scripts/etl/lib-log.sh"
+# shellcheck source=scripts/etl/lib-app-exec.sh
+source "$RACINE/scripts/etl/lib-app-exec.sh"
 
 # Rotation AVANT de commencer, pas après : un crash en cours de run laisserait sinon le
 # tout dernier run sans rotation, et le log grossirait indéfiniment.
@@ -55,7 +64,7 @@ else
   exit "$code"
 fi
 
-if npm --prefix "$RACINE" run --silent datahub:reconcile -- "$DEBUT" >>"$LOG_FILE" 2>&1; then
+if exec_via_app scripts/datahub/reconcile.ts "$DEBUT" >>"$LOG_FILE" 2>&1; then
   ok "réconciliation des comptages concordante"
 else
   code=$?
