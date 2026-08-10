@@ -54,8 +54,32 @@ export interface DonneesItem {
   region?: string
   domaine?: string
   deadline?: string
+  /** Fiche riche (GUIC-704) : rend la fiche auto-suffisante pour décider sans quitter le Guichet. */
+  profil?: string
+  commentPostuler?: string
+  lieu?: string
+  remuneration?: string
   /** URL source (http(s) déjà validée côté appelant). Undefined si non exploitable. */
   lienSource?: string
+}
+
+/**
+ * Fiche riche : compose une description structurée (résumé + sections décisionnelles).
+ * La candidature reste sur la source, mais le jeune peut LIRE et DÉCIDER sans partir.
+ */
+export function composerDescription(d: DonneesItem): string {
+  const parts: string[] = []
+  const resume = d.description?.trim()
+  if (resume) parts.push(resume)
+  const section = (label: string, v?: string) => {
+    const t = v?.trim()
+    if (t) parts.push(`**${label} :** ${t}`)
+  }
+  section('Profil recherché', d.profil)
+  section('Rémunération', d.remuneration)
+  section('Lieu', d.lieu)
+  section('Comment postuler', d.commentPostuler)
+  return parts.join('\n\n') || d.titre
 }
 
 /** Parse défensif : une deadline non-ISO issue de l'extraction ne doit pas faire planter create. */
@@ -76,7 +100,7 @@ export function construireInputPublication(
   const base = {
     titre: d.titre,
     slug: slugUnique(d.titre),
-    description: d.description?.trim() || d.titre,
+    description: composerDescription(d),
     organisationLibelle: d.organisation?.trim() || '—',
     domaine: domaineOuAutre(d.domaine),
     region: regionOuNull(d.region),

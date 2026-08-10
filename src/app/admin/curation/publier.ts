@@ -53,6 +53,11 @@ export async function publierItem(id: string): Promise<{ opportuniteId: string }
     region: typeof p.region === 'string' ? p.region : undefined,
     domaine: typeof p.domaine === 'string' ? p.domaine : undefined,
     deadline: typeof p.deadline === 'string' ? p.deadline : undefined,
+    // Fiche riche (GUIC-704) : champs de décision comblés par l'enrichissement IA.
+    profil: typeof p.profil === 'string' ? p.profil : undefined,
+    commentPostuler: typeof p.commentPostuler === 'string' ? p.commentPostuler : undefined,
+    lieu: typeof p.lieu === 'string' ? p.lieu : undefined,
+    remuneration: typeof p.remuneration === 'string' ? p.remuneration : undefined,
     // lienExterne = contenu tiers (crawlé) : n'accepter que http(s) (anti-XSS `javascript:`).
     lienSource: /^https?:\/\//i.test(item.urlCanonique) ? item.urlCanonique : undefined,
   }

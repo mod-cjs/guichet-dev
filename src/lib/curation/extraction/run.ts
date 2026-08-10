@@ -28,14 +28,17 @@ const TENTATIVES_MAX = 3
 const LOT_DEFAUT = 10
 const BUDGET_MS_DEFAUT = 240_000 // marge sous maxDuration=300 (phase 1 incluse en amont)
 const SEUIL_ENRICHISSEMENT = 70 // en-dessous → item « faible » → candidat à l'enrichissement IA
+const DESC_MIN_RICHE = 120 // en-deçà → description trop maigre pour décider → fiche riche IA
 
-/** Un item mérite l'enrichissement IA s'il lui manque un champ que le LLM sait combler. */
+/** Un item mérite l'enrichissement IA s'il lui manque un champ que le LLM sait combler, ou
+ *  si sa description est trop maigre pour que le jeune décide sans quitter le Guichet. */
 function aBesoinEnrichissement(c: ChampsExtraits): boolean {
   return (
     calculerScore(c) < SEUIL_ENRICHISSEMENT ||
     !c.deadline ||
     !c.region ||
-    (!c.typeId && !c.typeSlugSchemaOrg)
+    (!c.typeId && !c.typeSlugSchemaOrg) ||
+    (c.description ?? '').length < DESC_MIN_RICHE
   )
 }
 
