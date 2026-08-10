@@ -200,13 +200,30 @@ describe('GUIC-704 — enrichissement IA (câblage, seam injecté)', () => {
     expect(p.enrichiParIa).toBeFalsy()
   })
 
-  it('item déjà complet (json-ld riche) → enrichissement NON appelé (économie)', async () => {
+  it('item VRAIMENT complet (description longue incluse) → enrichissement NON appelé (économie)', async () => {
     const { item } = await sourceAvecDefaut('emploi')
     const enrichir = jest.fn(async () => ({}))
-    // PAGE_OFFRE (JobPosting complet : titre/desc/org/région/deadline) → score haut → pas de trou.
-    await executerExtraction({ client: clientOffre, attendre: async () => {}, sourceIds, enrichir })
+    // JobPosting complet AVEC une description longue → aucun trou, y compris la fiche riche.
+    const DESC_LONGUE = 'Chargé de projet expérimenté pour piloter des programmes de développement à Thiès, en lien avec les partenaires locaux et les bailleurs internationaux sur plusieurs années.'
+    const pageRiche = `<html><head><script type="application/ld+json">
+      {"@type":"JobPosting","title":"Chargé de projet","description":"${DESC_LONGUE}","hiringOrganization":{"name":"ONG Teranga"},"validThrough":"2026-10-15","jobLocation":{"address":{"addressRegion":"Thiès"}}}
+      </script></head></html>`
+    const clientRiche: ClientHttp = async () => ({ statut: 200, corps: pageRiche, contentType: 'text/html' })
+    await executerExtraction({ client: clientRiche, attendre: async () => {}, sourceIds, enrichir })
     const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
     expect(apres?.statut).toBe('a_valider')
     expect(enrichir).not.toHaveBeenCalled()
+  })
+
+  it('description MAIGRE (snippet court) → déclenche l’enrichissement même si le reste est complet (fiche riche)', async () => {
+    const { item } = await sourceAvecDefaut('emploi')
+    const enrichir = jest.fn(async () => ({ description: 'Une description bien plus riche produite par le LLM pour la fiche auto-suffisante.' }))
+    // PAGE_OFFRE : type + région + deadline présents MAIS description = « Poste à Thiès. » (courte).
+    await executerExtraction({ client: clientOffre, attendre: async () => {}, sourceIds, enrichir })
+    expect(enrichir).toHaveBeenCalledTimes(1)
+    const apres = await prisma.itemCuration.findUnique({ where: { id: item.id } })
+    const p = apres?.payloadExtrait as Record<string, unknown>
+    expect(String(p.description)).toContain('bien plus riche')
+    expect(p.enrichiParIa).toBe(true)
   })
 })
