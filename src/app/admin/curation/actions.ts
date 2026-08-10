@@ -125,7 +125,15 @@ export async function rejeterItem(id: string, motif: string): Promise<void> {
  * file de Modération (jamais publié direct). Import dynamique pour éviter le cycle.
  */
 export async function versModeration(id: string): Promise<{ opportuniteId: string }> {
-  await approuverItem(id)
+  // Idempotent (les 2 étapes ne sont pas atomiques) : si un envoi précédent a approuvé
+  // l'item mais échoué à publier (orphelin approuvee/opportuniteId null), on ne ré-approuve
+  // pas (approuverItem refuserait) — on re-publie. Déjà publié → on renvoie l'offre existante.
+  const etat = await prisma.itemCuration.findUnique({
+    where: { id },
+    select: { statut: true, opportuniteId: true },
+  })
+  if (etat?.opportuniteId) return { opportuniteId: etat.opportuniteId }
+  if (etat?.statut !== 'approuvee') await approuverItem(id)
   const { publierItem } = await import('./publier')
   return publierItem(id)
 }
