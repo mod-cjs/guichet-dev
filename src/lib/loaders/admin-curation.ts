@@ -26,6 +26,8 @@ export interface CurationRawRow {
   scoreCompletude: number | null
   statut: string
   doublonDeId: string | null
+  motifRejet: string | null
+  opportuniteId: string | null
   payloadExtrait: unknown
   urlCanonique: string
   source: { nom: string; url: string }
@@ -35,6 +37,7 @@ export interface CurationRow {
   id: string
   titre: string
   extrait: string
+  urlSource: string
   typeLabel: string | null
   sourceNom: string
   sourceOfficielle: boolean
@@ -43,6 +46,11 @@ export interface CurationRow {
   estDoublon: boolean
   /** Prêt pour « → Modération » : titre ET type identifiés (exigés par l'approbation). */
   complet: boolean
+  statut: string
+  /** Offre brouillon créée (item approuvé/publié) — lien vers la Modération. */
+  opportuniteId: string | null
+  /** Motif de rejet (item rejeté). */
+  motifRejet: string | null
 }
 
 function payloadDe(v: unknown): Record<string, unknown> {
@@ -56,6 +64,7 @@ export function mapCurationRow(r: CurationRawRow, typeLabel: string | null): Cur
     id: r.id,
     titre: r.titre?.trim() || '(sans titre)',
     extrait: desc.replace(/\s+/g, ' ').trim().slice(0, 160),
+    urlSource: r.urlCanonique,
     typeLabel,
     sourceNom: r.source.nom,
     sourceOfficielle: /gouv\.sn/i.test(r.source.url),
@@ -69,6 +78,9 @@ export function mapCurationRow(r: CurationRawRow, typeLabel: string | null): Cur
     }),
     estDoublon: r.statut === 'doublon' || !!r.doublonDeId,
     complet: !!r.titre?.trim() && typeof p.typeId === 'string' && p.typeId.trim() !== '',
+    statut: r.statut,
+    opportuniteId: r.opportuniteId,
+    motifRejet: r.motifRejet,
   }
 }
 
@@ -136,6 +148,8 @@ export async function getCurationData(params: {
         scoreCompletude: true,
         statut: true,
         doublonDeId: true,
+        motifRejet: true,
+        opportuniteId: true,
         payloadExtrait: true,
         urlCanonique: true,
         source: { select: { nom: true, url: true } },

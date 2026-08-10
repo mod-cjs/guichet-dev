@@ -17,6 +17,8 @@ function raw(over: Partial<CurationRawRow> = {}): CurationRawRow {
     scoreCompletude: 88,
     statut: 'a_valider',
     doublonDeId: null,
+    motifRejet: null,
+    opportuniteId: null,
     payloadExtrait: { typeId: 't-emploi', region: 'Dakar', organisation: 'Wave', description: 'Un poste de dev backend.' },
     urlCanonique: 'https://demo.emploi.sn/offre/1',
     source: { nom: 'Emploi.sn', url: 'https://demo.emploi.sn/flux' },

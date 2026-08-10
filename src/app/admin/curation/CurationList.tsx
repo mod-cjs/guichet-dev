@@ -80,7 +80,14 @@ function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHan
       </div>
 
       <h5 className="text-[15px] font-black m-0" style={{ color: 'var(--gj-ink)' }}>{row.titre}</h5>
-      {row.extrait && <p className="text-[12.5px] m-0" style={{ color: 'var(--gj-grey)' }}>{row.extrait}</p>}
+      {row.extrait ? (
+        <p className="text-[12.5px] m-0" style={{ color: 'var(--gj-grey)' }}>{row.extrait}</p>
+      ) : (
+        // V1/V2 — extraction sans description : on évite la carte « vide » et on ouvre la source.
+        <p className="text-[12px] m-0 italic" style={{ color: 'var(--gj-grey-2)' }}>
+          Aucune description extraite — <a href={row.urlSource} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gj-teal-deep)', fontStyle: 'normal', fontWeight: 700 }}>voir la source ↗</a>
+        </p>
+      )}
 
       {/* Complétude */}
       <div className="flex items-center gap-[9px] text-[11.5px]" style={{ color: 'var(--gj-grey)' }}>
@@ -102,7 +109,16 @@ function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHan
         </div>
       )}
 
-      {/* Actions */}
+      {/* Actions — adaptées au statut (F1) */}
+      {row.statut === 'approuvee' ? (
+        <Link href="/admin/opportunites" className="inline-flex items-center gap-[6px] font-bold text-[12.5px]" style={{ color: 'var(--gj-teal-deep)' }}>
+          <Icon name="check-circle" size={14} /> Approuvée — voir en Modération ›
+        </Link>
+      ) : row.statut === 'rejetee' ? (
+        <p className="text-[12px] m-0" style={{ color: 'var(--gj-red-ink)' }}>
+          <Icon name="close" size={13} /> Rejetée{row.motifRejet ? ` — ${row.motifRejet}` : ''}
+        </p>
+      ) : (
       <div className="flex items-center gap-[7px] flex-wrap mt-[2px]">
         {row.estDoublon ? (
           <button type="button" disabled={pending} onClick={() => run(() => ignorerDoublon(row.id), 'Doublon fusionné (ignoré).')} className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-teal-deep)', color: '#fff' }}>
@@ -125,6 +141,7 @@ function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHan
           <Icon name="close" size={14} /> Ignorer
         </button>
       </div>
+      )}
     </div>
   )
 }

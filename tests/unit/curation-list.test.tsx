@@ -16,6 +16,7 @@ function row(over: Partial<CurationRow> = {}): CurationRow {
     id: 'i1',
     titre: 'Développeur backend Node.js',
     extrait: 'Un poste de dev backend chez Senstartup.',
+    urlSource: 'https://demo.emploi.sn/offre/1',
     typeLabel: 'Emploi',
     sourceNom: 'Emploi.sn',
     sourceOfficielle: false,
@@ -26,6 +27,9 @@ function row(over: Partial<CurationRow> = {}): CurationRow {
     ],
     estDoublon: false,
     complet: true,
+    statut: 'a_valider',
+    opportuniteId: null,
+    motifRejet: null,
     ...over,
   }
 }
@@ -72,6 +76,18 @@ describe('GUIC-704 — CurationList (rendu)', () => {
   it('propose « Fusionner » sur une carte doublon', () => {
     renderList([row({ estDoublon: true, signaux: [{ ok: false, label: 'Doublon détecté' }] })])
     expect(screen.getByRole('button', { name: /Fusionner/i })).toBeInTheDocument()
+  })
+
+  it('item APPROUVÉ : lien vers la Modération, pas de « → Modération » (F1)', () => {
+    renderList([row({ statut: 'approuvee', opportuniteId: 'op1' })])
+    expect(screen.getByRole('link', { name: /Approuvée.*Mod[ée]ration/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /→ Mod[ée]ration/i })).toBeNull()
+  })
+
+  it('item REJETÉ : affiche le motif, pas d’actions de modération (F1)', () => {
+    renderList([row({ statut: 'rejetee', motifRejet: 'Offre payante' })])
+    expect(screen.getByText(/Rejetée — Offre payante/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ignorer/i })).toBeNull()
   })
 
   it('affiche l’état vide quand aucune suggestion', () => {
