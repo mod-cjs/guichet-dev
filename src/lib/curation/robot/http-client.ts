@@ -18,7 +18,15 @@ export interface ReponseHttp {
   contentType: string | null
 }
 
-export type ClientHttp = (url: string) => Promise<ReponseHttp>
+/** Options par requête. `accept` : négociation de contenu configurée par la source (fix #4). */
+export interface OptionsRequete {
+  accept?: string
+}
+
+export type ClientHttp = (url: string, opts?: OptionsRequete) => Promise<ReponseHttp>
+
+/** En-tête Accept par défaut : négociation large (flux d'abord, HTML en repli). */
+export const ACCEPT_DEFAUT = 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.5'
 
 export const USER_AGENT_ROBOT = 'CJSGuichetBot/1.0 (+https://guichetjeunesse.sn)'
 
@@ -96,7 +104,7 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
   const resolver = opts.resolver
   const doFetch = opts.fetchImpl ?? fetch
 
-  async function unFetch(url: string): Promise<ReponseHttp> {
+  async function unFetch(url: string, accept?: string): Promise<ReponseHttp> {
     let cible = url
     for (let saut = 0; saut <= maxRedirs; saut++) {
       const ip = await ipPubliqueValidee(cible, resolver)
@@ -111,7 +119,7 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
           method: 'GET',
           redirect: 'manual', // on gère la redirection nous-mêmes (revalidation SSRF)
           signal: ctrl.signal,
-          headers: { 'user-agent': userAgent, accept: 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.5' },
+          headers: { 'user-agent': userAgent, accept: accept || ACCEPT_DEFAUT },
           // @ts-expect-error dispatcher (undici) non typé sur le fetch DOM
           dispatcher,
         })
@@ -134,15 +142,15 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
     throw new Error(`Trop de redirections : ${url}`)
   }
 
-  return async (url: string): Promise<ReponseHttp> => {
+  return async (url: string, reqOpts?: OptionsRequete): Promise<ReponseHttp> => {
     try {
-      const r = await unFetch(url)
+      const r = await unFetch(url, reqOpts?.accept)
       if (estTransitoire(r.statut)) throw new Error(`HTTP ${r.statut}`)
       return r
     } catch (err) {
       if (err instanceof UrlInterditeError) throw err
       // 1 retry sur erreur transitoire (réseau / timeout / 5xx).
-      return unFetch(url)
+      return unFetch(url, reqOpts?.accept)
     }
   }
 }
