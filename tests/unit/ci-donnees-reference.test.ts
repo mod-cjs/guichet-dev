@@ -69,8 +69,12 @@ describe('GUIC-674 — la CI amorce les données de référence', () => {
   })
 
   it('il reçoit DATABASE_URL — sans quoi il échoue au démarrage', () => {
-    const bloc = CI.slice(CI.indexOf('seed/reference'))
-    expect(bloc.slice(0, 400)).toMatch(/DATABASE_URL/)
+    // Ancré sur la ligne `run:`, pas sur la première mention du fichier : le
+    // commentaire qui explique l'étape la précède et fausserait la recherche.
+    const lignes = CI.split('\n')
+    const amorce = ligneDuRun(/seed\/reference/)
+    expect(amorce).toBeGreaterThan(-1)
+    expect(lignes.slice(amorce, amorce + 6).join('\n')).toMatch(/DATABASE_URL/)
   })
 })
 

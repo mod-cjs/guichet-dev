@@ -3,7 +3,12 @@
  *
  * GUIC-473 — Server actions CRUD RessourceCentre.
  * INTÉGRATION RÉELLE : prisma non mické → écrit dans la vraie MariaDB (port 3307).
- * Auth + next/cache = bords mockés. Pré-requis : DATABASE_URL + au moins 1 centre seedé.
+ * Auth + next/cache = bords mockés. Seul pré-requis : DATABASE_URL.
+ *
+ * GUIC-674 — Le test créait ici sa dépendance à un centre « seedé » quelque
+ * part. Sur une base vierge (la CI, ou tout poste neuf) il échouait avant la
+ * première assertion. Il fabrique désormais son propre centre et le retire :
+ * un test qui dépend de lignes qu'il n'a pas posées est vert par chance.
  */
 import { prisma } from '@/lib/prisma'
 
@@ -28,8 +33,18 @@ let centreId: string
 let createdId: string | null = null
 
 beforeAll(async () => {
-  const centre = await prisma.centre.findFirst({ select: { id: true } })
-  if (!centre) throw new Error('Aucun centre seedé en base de test')
+  const centre = await prisma.centre.create({
+    data: {
+      nom: 'Centre fixture GUIC-473',
+      region: 'Dakar',
+      adresse: 'Fixture intégration — supprimé en fin de suite',
+      latitude: 14.6928,
+      longitude: -17.4467,
+      telephone: '+221338000473',
+      responsable: 'Fixture',
+    },
+    select: { id: true },
+  })
   centreId = centre.id
 })
 afterEach(async () => {
@@ -38,7 +53,12 @@ afterEach(async () => {
     createdId = null
   }
 })
-afterAll(async () => { await prisma.$disconnect() })
+afterAll(async () => {
+  // Les ressources d'abord : FK vers le centre.
+  await prisma.ressourceCentre.deleteMany({ where: { centreId } }).catch(() => {})
+  await prisma.centre.delete({ where: { id: centreId } }).catch(() => {})
+  await prisma.$disconnect()
+})
 
 describe('GUIC-473 — CRUD RessourceCentre (DB réelle)', () => {
   it('creer → modifier → supprimer une salle de bout en bout', async () => {
