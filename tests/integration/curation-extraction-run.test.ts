@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/prisma'
 import { executerExtraction } from '@/lib/curation/extraction/run'
 import type { ClientHttp } from '@/lib/curation/robot/http-client'
+import type { EntreeEnrichissement } from '@/lib/curation/extraction/enrichir-ia'
 
 jest.setTimeout(30000)
 
@@ -164,7 +165,7 @@ describe('GUIC-704 — enrichissement IA (câblage, seam injecté)', () => {
     const bourse = await prisma.opportuniteType.findFirstOrThrow({ where: { slug: 'bourse' }, select: { id: true } })
     const { item } = await sourceAvecDefaut('emploi') // défaut = emploi, mais le contenu est une bourse
 
-    const enrichir = jest.fn(async () => ({
+    const enrichir = jest.fn(async (_e: EntreeEnrichissement) => ({
       typeSlugSchemaOrg: 'bourse',
       region: 'Dakar',
       regionTexte: 'Dakar',
@@ -184,7 +185,7 @@ describe('GUIC-704 — enrichissement IA (câblage, seam injecté)', () => {
     expect(p.enrichiParIa).toBe(true)
     expect(enrichir).toHaveBeenCalledTimes(1)
     // Le seam reçoit ce que le déterministe a déjà trouvé (pour cibler les trous).
-    expect((enrichir.mock.calls[0][0] as { dejaConnu: Record<string, unknown> }).dejaConnu.titre).toBe('Bourse master 2026')
+    expect(enrichir.mock.calls[0][0].dejaConnu.titre).toBe('Bourse master 2026')
   })
 
   it('gate OFF par défaut : sans seam ni env → pas d’enrichissement, typeDefaut en filet', async () => {
