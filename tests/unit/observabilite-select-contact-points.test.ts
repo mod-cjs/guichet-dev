@@ -23,12 +23,26 @@ const SCRIPT = join(ROOT, 'infra/observabilite/grafana/select-contact-points.sh'
 function run(env: Record<string, string> = {}): { dst: string; contactPoints: string; calls: string } {
   const sandbox = mkdtempSync(join(tmpdir(), 'guic-grafana-contact-'))
   const src = join(sandbox, 'src')
-  const dst = join(sandbox, 'dst')
   mkdirSync(join(src, 'alerting'), { recursive: true })
   cpSync(
     join(ROOT, 'infra/observabilite/grafana/provisioning/alerting/contact-points.yml'),
     join(src, 'alerting/contact-points.yml')
   )
+
+  // GUIC-576 — $DST est en réalité le POINT DE MONTAGE d'un volume Docker nommé, jamais un
+  // chemin que le script crée ou détruit lui-même : sur un vrai conteneur, `rm -rf "$DST"`
+  // échoue avec « Permission denied » (on ne peut retirer l'entrée du point de montage de
+  // SON PARENT, seulement écrire dans son contenu). Simulé ici en rendant le PARENT de
+  // $DST en lecture seule (0555) après avoir pré-rempli $DST avec du contenu d'un run
+  // précédent : impossible de re-créer/supprimer le dossier "provisioning" lui-même,
+  // mais toujours possible d'écrire les fichiers qu'il contient. `chmodSync` seul (sans
+  // vrai point de montage) ne suffisait pas à reproduire l'échec constaté en réel — un
+  // dossier qu'on possède reste supprimable même vide.
+  const dstParent = join(sandbox, 'dst-parent')
+  const dst = join(dstParent, 'provisioning')
+  mkdirSync(join(dst, 'alerting'), { recursive: true })
+  writeFileSync(join(dst, 'alerting/contact-points.yml'), '# contenu d\'un run précédent, à remplacer\n')
+  chmodSync(dstParent, 0o555)
 
   const bin = join(sandbox, 'bin')
   mkdirSync(bin)
@@ -38,18 +52,22 @@ function run(env: Record<string, string> = {}): { dst: string; contactPoints: st
   writeFileSync(runSh, `#!/bin/sh\necho "run.sh appelé avec: $*" >> "$CALL_LOG"\n`)
   chmodSync(runSh, 0o755)
 
-  execFileSync('sh', [SCRIPT], {
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PATH: `${bin}:${process.env.PATH}`,
-      CALL_LOG: callLog,
-      PROVISIONING_SRC: src,
-      PROVISIONING_DST: dst,
-      RUN_SH: runSh,
-      ...env,
-    },
-  })
+  try {
+    execFileSync('sh', [SCRIPT], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CALL_LOG: callLog,
+        PROVISIONING_SRC: src,
+        PROVISIONING_DST: dst,
+        RUN_SH: runSh,
+        ...env,
+      },
+    })
+  } finally {
+    chmodSync(dstParent, 0o755)
+  }
 
   return {
     dst,
