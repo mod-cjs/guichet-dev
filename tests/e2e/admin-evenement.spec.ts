@@ -30,6 +30,15 @@ test.describe('Ad5 — admin crée un événement @secondaire', () => {
     await editeur.pressSequentially('Description E2E de l’événement admin, suffisamment longue.')
     await page.locator('#ev-date').fill('2026-12-05T09:00')
     await page.locator('#ev-lieu').fill('Grand Théâtre, Dakar')
+
+    // GUIC-684 — rattachement à au moins un programme OBLIGATOIRE. Sans lui, le
+    // formulaire refuse (garde client + `PROGRAMME_REQUIS` côté serveur) et rien
+    // n'atteint la base : le test échouait sur cette garde, pas sur le parcours.
+    await page
+      .getByRole('group', { name: 'Programmes de rattachement' })
+      .getByRole('button', { name: 'YEAH' })
+      .click()
+
     await page.getByRole('button', { name: /^créer$/i }).click()
 
     await expect
