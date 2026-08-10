@@ -60,6 +60,23 @@ describe('GUIC-597 — clientHttpReel durci', () => {
     expect(accepts[1]).toBe('application/rss+xml') // surcharge stricte par la source
   })
 
+  it('GUIC-704 SPA — opts.rendreJs route vers le rendu headless (seam), sinon fetch normal', async () => {
+    const rendreImpl = jest.fn(async () => ({ statut: 200, corps: '<html>contenu rendu par JS</html>', contentType: 'text/html' }))
+    let fetchAppels = 0
+    const fetchImpl = (async () => { fetchAppels++; return reponse(200, '<html>coquille vide SPA</html>', { 'content-type': 'text/html' }) }) as unknown as typeof fetch
+    const client = clientHttpReel({ resolver: resolverPublic, fetchImpl, rendreImpl })
+
+    const spa = await client('https://spa.sn/x', { rendreJs: true })
+    expect(spa.corps).toContain('rendu par JS')
+    expect(rendreImpl).toHaveBeenCalledTimes(1)
+    expect(fetchAppels).toBe(0) // pas de fetch undici quand on rend
+
+    const normal = await client('https://normal.sn/y')
+    expect(normal.corps).toContain('coquille')
+    expect(fetchAppels).toBe(1)
+    expect(rendreImpl).toHaveBeenCalledTimes(1)
+  })
+
   it('fait 1 retry sur 503 puis réussit', async () => {
     let appels = 0
     const fetchImpl = (async () => {

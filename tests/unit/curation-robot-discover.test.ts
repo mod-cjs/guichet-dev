@@ -46,4 +46,18 @@ describe('GUIC-704 — decouvrirSource : Accept par source', () => {
     const robots = vus.find((v) => v.url.endsWith('/robots.txt'))
     expect(robots?.accept).toBeUndefined()
   })
+
+  it('GUIC-704 SPA — transmet configExtraction.rendreJs au fetch du listing (robots reste sans rendu)', async () => {
+    const vus: { url: string; rendreJs?: boolean }[] = []
+    const client = async (url: string, opts?: { accept?: string; rendreJs?: boolean }) => {
+      vus.push({ url, rendreJs: opts?.rendreJs })
+      if (url.endsWith('/robots.txt')) return { statut: 200, corps: 'User-agent: *\nDisallow:\n', contentType: 'text/plain' }
+      return { statut: 200, corps: '<rss><channel><item><link>https://ex.sn/1</link></item></channel></rss>', contentType: 'application/rss+xml' }
+    }
+    const src = source({ url: 'https://ex.sn/feed', methode: 'html_selecteurs', configExtraction: { rendreJs: true } as never })
+    await decouvrirSource(src, client)
+
+    expect(vus.find((v) => v.url === 'https://ex.sn/feed')?.rendreJs).toBe(true)
+    expect(vus.find((v) => v.url.endsWith('/robots.txt'))?.rendreJs).toBeFalsy()
+  })
 })
