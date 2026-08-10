@@ -5,11 +5,14 @@
 import {
   PAGE_SIZE_M,
   parseFiltreMod,
+  parseTriMod,
   deriveSourceMod,
   ageHeures,
   mapModerationRow,
   kpisModeration,
   filtrerModeration,
+  trierModeration,
+  filtrerAvance,
   idsVerifies,
   type ModerationRawRow,
 } from '@/lib/loaders/admin-moderation'
@@ -32,6 +35,7 @@ function raw(over: Partial<ModerationRawRow> = {}): ModerationRawRow {
     remuneration: '150 000 FCFA/mois',
     org: { nom: 'Wave Sénégal', estVerifie: true },
     itemsCuration: [],
+    deadline: null,
     ...over,
   }
 }
@@ -141,5 +145,46 @@ describe('GUIC-702 — loader modération (helpers purs)', () => {
     expect(filtrerModeration(rows, 'veille').map((r) => r.id)).toEqual(['b'])
     expect(filtrerModeration(rows, 'signalees').map((r) => r.id)).toEqual(['c'])
     expect(filtrerModeration(rows, 'recruteur').map((r) => r.id)).toEqual(['a', 'c'])
+  })
+
+  // GUIC-704 — tris + filtres avancés
+  it('mapModerationRow expose typeSlug, regionCode et deadlineIso', () => {
+    const r = mapModerationRow(raw({ type: 'emploi', region: 'Dakar', deadline: new Date('2026-09-30T00:00:00Z') }), NOW)
+    expect(r.typeSlug).toBe('emploi')
+    expect(r.regionCode).toBe('Dakar')
+    expect(r.deadlineIso).toBe('2026-09-30')
+    expect(mapModerationRow(raw({ deadline: null }), NOW).deadlineIso).toBeNull()
+  })
+
+  it('parseTriMod tolère les valeurs inconnues → "ancien"', () => {
+    expect(parseTriMod('recent')).toBe('recent')
+    expect(parseTriMod('echeance')).toBe('echeance')
+    expect(parseTriMod('xyz')).toBe('ancien')
+    expect(parseTriMod(undefined)).toBe('ancien')
+  })
+
+  it('trierModeration — ancien/recent/type/echeance', () => {
+    const vieux = mapModerationRow(raw({ id: 'vieux', type: 'stage', typeRef: { libelle: 'Stage' }, createdAt: new Date(NOW - 50 * 3600 * 1000), deadline: new Date('2026-09-10T00:00:00Z') }), NOW)
+    const recent = mapModerationRow(raw({ id: 'recent', type: 'emploi', typeRef: { libelle: 'Emploi' }, createdAt: new Date(NOW - 1 * 3600 * 1000), deadline: null }), NOW)
+    const moyen = mapModerationRow(raw({ id: 'moyen', type: 'bourse', typeRef: { libelle: 'Bourse' }, createdAt: new Date(NOW - 10 * 3600 * 1000), deadline: new Date('2026-08-20T00:00:00Z') }), NOW)
+    const rows = [recent, vieux, moyen]
+
+    expect(trierModeration(rows, 'ancien').map((r) => r.id)).toEqual(['vieux', 'moyen', 'recent'])
+    expect(trierModeration(rows, 'recent').map((r) => r.id)).toEqual(['recent', 'moyen', 'vieux'])
+    expect(trierModeration(rows, 'type').map((r) => r.typeLabel)).toEqual(['Bourse', 'Emploi', 'Stage'])
+    // échéance proche d'abord, deadline nulle en DERNIER
+    expect(trierModeration(rows, 'echeance').map((r) => r.id)).toEqual(['moyen', 'vieux', 'recent'])
+  })
+
+  it('filtrerAvance — par type et/ou région (cumulables)', () => {
+    const rows = [
+      mapModerationRow(raw({ id: 'a', type: 'emploi', region: 'Dakar' }), NOW),
+      mapModerationRow(raw({ id: 'b', type: 'stage', region: 'Dakar' }), NOW),
+      mapModerationRow(raw({ id: 'c', type: 'emploi', region: 'Thies' }), NOW),
+    ]
+    expect(filtrerAvance(rows, {}).map((r) => r.id)).toEqual(['a', 'b', 'c'])
+    expect(filtrerAvance(rows, { typeSlug: 'emploi' }).map((r) => r.id)).toEqual(['a', 'c'])
+    expect(filtrerAvance(rows, { regionCode: 'Dakar' }).map((r) => r.id)).toEqual(['a', 'b'])
+    expect(filtrerAvance(rows, { typeSlug: 'emploi', regionCode: 'Dakar' }).map((r) => r.id)).toEqual(['a'])
   })
 })
