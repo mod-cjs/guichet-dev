@@ -69,12 +69,21 @@ export function extraireOpportunite(html: string, opts: OptionsExtraction): Resu
   return { champs, scoreCompletude: Math.round((trouves / CHAMPS_SCORE.length) * 100) }
 }
 
-/** Dernier filet : première date FR/ISO trouvée. Borné aux 200 premiers Ko (perf). */
+// Un LABEL d'échéance (pas une date de publication) suivi d'une date, dans une fenêtre bornée.
+// fix #1 : une date « nue » (souvent la date de publi de l'article) n'est JAMAIS une deadline.
+const LABEL_DEADLINE =
+  /(date\s+limite|d[ée]lai|cl[ôo]ture|avant\s+le|au\s+plus\s+tard|deadline|[ée]ch[ée]ance|expire|expiration|derni[eè]?re?\s+jour|jusqu['’]au|date\s+butoir)/i
+const MOTIF_DATE = /\d{1,2}[/-]\d{1,2}[/-]\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}(?:er)?\s+[a-zéûà]+\s+\d{4}/i
+
+/** Dernier filet : date trouvée UNIQUEMENT à proximité d'un label d'échéance. Borné (perf/ReDoS). */
 function filetRegex(html: string): Partial<ChampsExtraits> {
   const out: Partial<ChampsExtraits> = {}
-  const m = html
-    .slice(0, 200_000)
-    .match(/\d{1,2}[/-]\d{1,2}[/-]\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}(?:er)? +[a-zéûà]+ +\d{4}/i)
+  const texte = html.slice(0, 200_000)
+  const label = LABEL_DEADLINE.exec(texte)
+  if (!label) return out
+  // Fenêtre de ~80 caractères après le label (« Date limite : 30 août 2026 »).
+  const fenetre = texte.slice(label.index, label.index + label[0].length + 80)
+  const m = MOTIF_DATE.exec(fenetre)
   if (m) {
     const iso = parseDateFr(m[0])
     if (iso) out.deadline = iso
