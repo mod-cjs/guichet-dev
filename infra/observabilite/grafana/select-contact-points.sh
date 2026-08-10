@@ -20,8 +20,13 @@ SRC="${PROVISIONING_SRC:-/etc/grafana/provisioning-src}"
 DST="${PROVISIONING_DST:-/etc/grafana/provisioning}"
 RUN_SH="${RUN_SH:-/run.sh}"
 
-rm -rf "$DST"
+# $DST est le POINT DE MONTAGE d'un volume Docker nommé, jamais un chemin que ce script
+# crée ou détruit lui-même : `rm -rf "$DST"` échoue en réel avec « Permission denied » — on
+# ne peut pas retirer l'entrée du point de montage de SON PARENT, seulement écrire dans son
+# contenu. Ne vider que le CONTENU, jamais le dossier lui-même (trouvé en déploiement réel,
+# conteneur en boucle de redémarrage — voir tests/unit/observabilite-select-contact-points.test.ts).
 mkdir -p "$DST"
+rm -rf "${DST:?}"/* "${DST:?}"/.[!.]* 2>/dev/null || true
 cp -r "$SRC"/. "$DST"/
 
 if [ -z "${ALERTE_WEBHOOK_URL:-}" ]; then
