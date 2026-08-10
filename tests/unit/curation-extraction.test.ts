@@ -179,3 +179,33 @@ describe('GUIC-598 — cascade + score de complétude', () => {
     expect(r.champs.lienSource).toBe('https://x.sn/a')
   })
 })
+
+// GUIC-704 · fix #1 — la deadline du filet regex ne doit venir que d'un LABEL d'échéance,
+// jamais d'une date « nue » (typiquement la date de publication de l'article WordPress).
+describe('GUIC-704 — deadline : label explicite seulement (fix #1)', () => {
+  it('IGNORE une date nue sans label (date de publication) → deadline vide', () => {
+    const html = `<html><body><p>Publié le 10 août 2026.</p><p>Poste de développeur à Dakar.</p></body></html>`
+    const r = extraireOpportunite(html, { url: 'https://x.sn/1' })
+    expect(r.champs.deadline).toBeUndefined()
+  })
+
+  it.each([
+    ['Date limite : 30 août 2026', '2026-08-30'],
+    ['Postuler avant le 15/09/2026', '2026-09-15'],
+    ['Clôture des candidatures le 2026-10-01', '2026-10-01'],
+    ['Dépôt au plus tard le 5 novembre 2026', '2026-11-05'],
+    ['Deadline: 20/12/2026', '2026-12-20'],
+  ])('capte la date près d’un label « %s » → %s', (phrase, iso) => {
+    const html = `<html><body><p>Publié le 1 août 2026.</p><p>${phrase}.</p></body></html>`
+    const r = extraireOpportunite(html, { url: 'https://x.sn/1' })
+    expect(r.champs.deadline).toBe(iso)
+  })
+
+  it('la deadline explicite (JSON-LD validThrough) reste prioritaire', () => {
+    const html = `<script type="application/ld+json">
+      {"@type":"JobPosting","title":"Dev","validThrough":"2026-09-30"}</script>
+      <body><p>Publié le 10 août 2026.</p></body>`
+    const r = extraireOpportunite(html, { url: 'https://x.sn/1' })
+    expect(r.champs.deadline).toBe('2026-09-30')
+  })
+})
