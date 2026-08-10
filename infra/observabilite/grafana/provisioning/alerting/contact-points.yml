@@ -21,17 +21,23 @@ contactPoints:
     name: astreinte
     receivers:
       # ── E-mail ────────────────────────────────────────────────────────────
-      # Dépend de GUIC-577 (relais SMTP + SPF/DKIM/DMARC). Sans ces enregistrements DNS, les
-      # alertes partent en spam : l'application marche, la supervision marche, et personne ne
-      # reçoit rien. Configurer GUIC-577 AVANT de compter sur ce canal.
+      # Relais SMTP posé côté conteneur (GF_SMTP_*, docker-compose.observabilite.yml) — même
+      # compte que la SSO (SMTP2GO). Reste ouvert, distinct : SPF/DKIM/DMARC (GUIC-577) pour
+      # la délivrabilité — sans ces enregistrements DNS, l'e-mail part mais peut atterrir en
+      # spam. Ce fichier configure l'ENVOI, pas la délivrabilité.
       - uid: astreinte-email
         type: email
         settings:
           addresses: ${ALERTE_EMAILS}
           subject: '[{{ .CommonLabels.severite | toUpper }}] Guichet — {{ .CommonLabels.alertname }}'
+          # Horodatage + lien direct vers la règle dans Grafana par alerte : de quoi agir
+          # sans deviner, sans ouvrir un tableau de bord pour retrouver le contexte.
           message: |
             {{ range .Alerts }}{{ .Annotations.summary }}
             {{ .Annotations.description }}
+
+            Déclenchée : {{ .StartsAt.Format "2006-01-02 15:04 MST" }}
+            Voir dans Grafana : {{ .GeneratorURL }}
             {{ end }}
 
       # ── WhatsApp, via un relais EXTERNE ───────────────────────────────────

@@ -172,6 +172,13 @@ groups:
       # Un échec isolé arrive (réseau, verrou). Trois en une heure, c'est une panne. Parmi ces
       # tâches : la purge des CV, qui porte la rétention CDP — son arrêt est un manquement
       # réglementaire que rien d'autre ne signalerait.
+      #
+      # GUIC-576/700 — s'appuie sur le label `marqueur="✗"` (posé par promtail.yml sur
+      # CHAQUE ligne d'échec de /var/log/guichet/*.log), pas sur une regex qui redétecte le
+      # contenu. Trouvé en configurant réellement les alertes : l'ancienne regex
+      # `(?i)(erreur|error|failed|échec)` ne matchait ni « ÉCHOUÉE », ni « ÉCHOUÉ », ni
+      # « ÉCART » — le vocabulaire RÉEL de scripts/etl/lib-log.sh (run-nightly.sh,
+      # purge-absents-weekly.sh) — laissant le pipeline ETL échouer en silence.
       - uid: guichet-cron-echecs-repetes
         title: Échecs répétés d'une tâche planifiée
         condition: C
@@ -189,7 +196,7 @@ groups:
             datasourceUid: loki
             model:
               datasource: { type: loki, uid: loki }
-              expr: 'sum(count_over_time({job="guichet-taches"} |~ "(?i)(erreur|error|failed|échec)" [1h]))'
+              expr: 'sum(count_over_time({job="guichet-taches", marqueur="✗"} [1h]))'
               queryType: instant
               refId: A
           - refId: C
@@ -199,6 +206,46 @@ groups:
               expression: A
               conditions:
                 - evaluator: { type: gt, params: [2] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+      # ── Échec du pipeline ETL Data Hub (GUIC-700) ─────────────────────────
+      # Réveil immédiat, pas de tolérance à 3 occurrences : contrairement à une tâche
+      # applicative isolée, un run ETL en échec signifie que l'entrepôt reçoit des données
+      # périmées ou incomplètes SANS QUE RIEN NE LE SIGNALE côté consommateurs BI — même
+      # philosophie que « sauvegarde échec » ci-dessus (irrattrapable si on laisse traîner).
+      # Filtré sur « [datahub] », le marqueur littéral que lib-log.sh écrit sur CHAQUE ligne
+      # (run-nightly.sh : extraction, dbt build, réconciliation ; purge-absents-weekly.sh),
+      # pour ne jamais se déclencher sur un échec de cron applicatif sans rapport.
+      - uid: guichet-etl-echec
+        title: Échec du pipeline ETL Data Hub
+        condition: C
+        for: 0m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Le pipeline ETL Data Hub (nightly ou purge hebdomadaire) a échoué.'
+          description: >-
+            Voir /var/log/guichet/datahub-nightly.log et datahub-purge-absents.log.
+            L'entrepôt peut désormais servir des données périmées ou incomplètes aux
+            consommateurs BI — ne pas attendre le prochain run programmé.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches", marqueur="✗"} |= "[datahub]" [1h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
               refId: C
         noDataState: OK
         execErrState: Error
