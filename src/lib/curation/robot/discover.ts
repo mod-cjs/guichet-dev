@@ -36,6 +36,12 @@ function acceptSource(source: SourceVeille): string | undefined {
   return typeof a === 'string' && a ? a : undefined
 }
 
+/** Source SPA (#5) : `configExtraction.rendreJs` → le listing est rendu (JS exécuté), pas juste fetché. */
+export function rendreJsSource(source: SourceVeille): boolean {
+  const cfg = source.configExtraction as Record<string, unknown> | null
+  return cfg?.rendreJs === true
+}
+
 /** Choix du parseur ; `auto` = flux (RSS/sitemap) si le corps EN EST un, sinon ancres HTML. */
 function extraire(source: SourceVeille, corps: string): string[] {
   const base = source.url
@@ -90,8 +96,8 @@ export async function decouvrirSource(
   await attendre(Math.max(delaiDefaut, crawlDelayMs ?? 0))
   void robotsLu
 
-  // 2) listing (Accept négocié par la source si configuré).
-  const res = await client(source.url, { accept: acceptSource(source) })
+  // 2) listing (Accept négocié + rendu headless si source SPA).
+  const res = await client(source.url, { accept: acceptSource(source), rendreJs: rendreJsSource(source) })
   if (res.statut < 200 || res.statut >= 300) {
     throw new Error(`HTTP ${res.statut} sur ${source.url}`)
   }

@@ -18,10 +18,14 @@ export interface ReponseHttp {
   contentType: string | null
 }
 
-/** Options par requête. `accept` : négociation de contenu configurée par la source (fix #4). */
+/** Options par requête : `accept` (négo par source, fix #4) · `rendreJs` (rendu headless SPA, #5). */
 export interface OptionsRequete {
   accept?: string
+  rendreJs?: boolean
 }
+
+/** Rendu headless d'une page SPA (JS exécuté). Seam : Playwright réel en prod, fixture en test. */
+export type RenduJs = (url: string) => Promise<ReponseHttp>
 
 export type ClientHttp = (url: string, opts?: OptionsRequete) => Promise<ReponseHttp>
 
@@ -45,6 +49,8 @@ export interface OptionsClientReel {
   resolver?: Resolver
   /** Injection du transport bas niveau (tests). Défaut : `fetch` global. */
   fetchImpl?: typeof fetch
+  /** Injection du rendu headless (tests). Défaut : Playwright via import dynamique (#5 SPA). */
+  rendreImpl?: RenduJs
 }
 
 /**
@@ -142,7 +148,15 @@ export function clientHttpReel(opts: OptionsClientReel = {}): ClientHttp {
     throw new Error(`Trop de redirections : ${url}`)
   }
 
+  // Rendu headless SPA : Playwright réel (import dynamique → Chromium jamais chargé sans source SPA).
+  const rendre: RenduJs = opts.rendreImpl ?? (async (url) => {
+    const { rendreHtml } = await import('./rendu-js')
+    return rendreHtml(url, { timeoutMs, tailleMaxOctets: tailleMax, resolver })
+  })
+
   return async (url: string, reqOpts?: OptionsRequete): Promise<ReponseHttp> => {
+    // Source SPA (configExtraction.rendreJs) → on rend la page (JS exécuté) au lieu de fetcher la coquille.
+    if (reqOpts?.rendreJs) return rendre(url)
     try {
       const r = await unFetch(url, reqOpts?.accept)
       if (estTransitoire(r.statut)) throw new Error(`HTTP ${r.statut}`)

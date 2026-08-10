@@ -137,7 +137,9 @@ export async function executerExtraction(deps: ExtractionDeps): Promise<RapportE
       if (!/^https?:\/\//i.test(item.urlCanonique)) throw new Error('Schéma URL non http(s)')
       if (!(await robotsAutorise(item.urlCanonique))) throw new Error('Interdit par robots.txt')
 
-      const res = await deps.client(item.urlCanonique)
+      // Source SPA (#5) : la page d'annonce est rendue (JS exécuté) comme le listing.
+      const cfgSrc = item.source.configExtraction as Record<string, unknown> | null
+      const res = await deps.client(item.urlCanonique, { rendreJs: cfgSrc?.rendreJs === true })
       if (res.statut < 200 || res.statut >= 300) throw new Error(`HTTP ${res.statut}`)
 
       const cfg = item.source.configExtraction as { champs?: Record<string, string> } | null
