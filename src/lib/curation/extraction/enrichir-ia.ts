@@ -50,7 +50,14 @@ const SortieSchema = z.object({
   domaine: z.string().nullish(),
   typeSlug: z.string().nullish(),
   deadline: z.string().nullish(),
+  profil: z.string().nullish(),
+  commentPostuler: z.string().nullish(),
+  lieu: z.string().nullish(),
+  remuneration: z.string().nullish(),
 })
+
+/** Marge minimale (car.) pour qu'une description LLM REMPLACE celle du déterministe (souvent un snippet og). */
+const MARGE_DESC = 40
 
 function promptSysteme(typesConnus: string[]): string {
   const types = typesConnus.length ? typesConnus.join(', ') : '(aucun)'
@@ -58,8 +65,15 @@ function promptSysteme(typesConnus: string[]): string {
     "Tu es un extracteur d'informations pour un guichet jeunesse au Sénégal.",
     "On te donne le TEXTE d'une annonce d'opportunité. Renvoie UNIQUEMENT un objet JSON",
     'avec les clés : titre, description, organisation, region, domaine, typeSlug, deadline.',
+    'Le but : que la fiche soit AUTO-SUFFISANTE pour qu’un jeune décide sans quitter le site.',
+    'Clés attendues : titre, description, organisation, region, domaine, typeSlug, deadline, profil, commentPostuler, lieu, remuneration.',
     'Règles STRICTES :',
     "- N'invente RIEN : si une information n'apparaît pas littéralement dans le texte, mets null.",
+    '- description = un résumé FIDÈLE et complet de l’opportunité en 2 à 4 phrases (missions, contexte), PAS un simple slogan.',
+    '- profil = profil recherché / prérequis (diplôme, expérience, compétences) si mentionnés ; sinon null.',
+    '- commentPostuler = la marche à suivre pour candidater (email, lien, pièces) si mentionnée ; sinon null.',
+    '- lieu = lieu précis (ville, quartier) si mentionné ; sinon null.',
+    '- remuneration = salaire / indemnité si mentionné ; sinon null.',
     '- deadline = la date LIMITE de candidature au format AAAA-MM-JJ, JAMAIS la date de publication ; sinon null.',
     '- region = une région administrative du Sénégal si explicitement mentionnée ; sinon null.',
     `- typeSlug ∈ {${types}} si le type est clair ; sinon null.`,
@@ -135,8 +149,21 @@ export async function enrichirParIa(
   const out: Partial<ChampsExtraits> = {}
 
   if (manque('titre') && d.titre) out.titre = nettoyerTexte(d.titre)
-  if (manque('description') && d.description) out.description = nettoyerTexte(d.description)
   if (manque('organisation') && d.organisation) out.organisation = nettoyerTexte(d.organisation)
+
+  // Description : cas SPÉCIAL (fiche riche) — le déterministe ne fournit souvent qu'un snippet
+  // og court. On REMPLACE par la version LLM si elle est nettement plus riche (≥ MARGE_DESC car.).
+  if (d.description) {
+    const nouvelle = nettoyerTexte(d.description)
+    const ancienne = typeof dc.description === 'string' ? dc.description : ''
+    if (nouvelle.length >= ancienne.length + MARGE_DESC) out.description = nouvelle
+  }
+
+  // Nouveaux champs de décision (jamais fournis par le déterministe) → toujours comblés.
+  if (d.profil) out.profil = nettoyerTexte(d.profil)
+  if (d.commentPostuler) out.commentPostuler = nettoyerTexte(d.commentPostuler)
+  if (d.lieu) out.lieu = nettoyerTexte(d.lieu)
+  if (d.remuneration) out.remuneration = nettoyerTexte(d.remuneration)
 
   if (manque('region') && d.region) {
     const r = mapperRegion(d.region) // enforce l'enum : hors référentiel Sénégal → rien

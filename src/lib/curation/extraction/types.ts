@@ -17,6 +17,11 @@ export interface ChampsExtraits {
   typeSlugSchemaOrg?: string
   /** Deadline normalisée ISO `yyyy-mm-dd`. */
   deadline?: string
+  /** Fiche riche (enrichissement IA) — pour que l'offre soit auto-suffisante côté jeune. */
+  profil?: string
+  commentPostuler?: string
+  lieu?: string
+  remuneration?: string
   /** Vrai si la couche d'enrichissement IA a comblé au moins un champ (trace pour l'admin). */
   enrichiParIa?: boolean
   /** Lien vers l'annonce source (toujours présent). */
