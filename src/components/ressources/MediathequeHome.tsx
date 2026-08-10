@@ -167,7 +167,9 @@ export function MediathequeHome({ categories, recentes, populaires }: Mediathequ
                 >
                   Les plus consultées
                 </h2>
-                <Link href="/ressources" className="text-fs-200 font-black text-gj-teal-deep">
+                {/* GUIC-689 — `vue=liste` et non `/ressources` nu : sans filtre,
+                    la page réaffiche cet accueil et le lien ne mène nulle part. */}
+                <Link href="/ressources?vue=liste" className="text-fs-200 font-black text-gj-teal-deep">
                   Toutes les ressources →
                 </Link>
               </div>

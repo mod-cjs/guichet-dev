@@ -67,6 +67,12 @@ export function decrireVueRessources(sp: SearchParamsRessources): VueRessources 
     page: Math.max(1, Number(pickString(sp.page)) || 1),
   }
 
+  // Bascule EXPLICITE vers la liste complète, sans rien filtrer. Elle existe
+  // parce qu'aucun filtre n'exprime « tout » : `date=all` et `page=1` sont les
+  // valeurs par défaut. Sans elle, « Toutes les ressources → » renvoyait sur
+  // l'accueil qu'on regardait déjà.
+  const vueForcee = pickString(sp.vue) === 'liste'
+
   // `date=all` et `page=1` sont les valeurs par défaut : elles ne filtrent rien
   // et ne doivent donc pas faire basculer l'écran.
   const filtreActif =
@@ -80,5 +86,5 @@ export function decrireVueRessources(sp: SearchParamsRessources): VueRessources 
     Boolean(filtres.programmes && filtres.programmes.length) ||
     (filtres.page ?? 1) > 1
 
-  return { filtres, afficherListe: filtreActif }
+  return { filtres, afficherListe: vueForcee || filtreActif }
 }
