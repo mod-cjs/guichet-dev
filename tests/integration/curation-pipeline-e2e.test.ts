@@ -122,4 +122,57 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     expect(st?.alerte).toBeNull()
     expect(st?.derniereVerif).toBeInstanceOf(Date) // posée par la découverte
   })
+
+  // GUIC-704 — le cas RÉEL de production (source WordPress type concoursn.com) : PAS de
+  // JSON-LD, titre porté par og:title/<title>, type absent du contenu → fourni par le
+  // typeDefaut de la source. L'e2e ci-dessus teste le meilleur cas (JSON-LD) ; celui-ci
+  // verrouille le chemin dégradé qui est en réalité le plus fréquent sur le terrain.
+  it('source réelle SANS json-ld (og:title + typeDefaut) → item publiable end-to-end', async () => {
+    const typeEmploi = await prisma.opportuniteType.findUniqueOrThrow({ where: { slug: 'emploi' } })
+    const sourceUrl = `https://wp-${RUN}.sn/feed`
+    const itemUrl = `https://wp-${RUN}.sn/recrutement-dev-fullstack-dakar`
+    const source = await prisma.sourceVeille.create({
+      data: {
+        nom: `${PREFIX} WordPress`,
+        url: sourceUrl,
+        methode: 'auto', // comme concoursn : le corps décide (flux vs HTML)
+        frequence: 'quotidienne',
+        typeDefautId: typeEmploi.id, // AUCUN @type dans la page → c'est lui qui rend l'item publiable
+        prochaineVerifLe: new Date(Date.now() - 1000),
+      },
+    })
+
+    // Page d'annonce SANS JSON-LD : seulement og: + <title> (exactement le HTML WordPress réel).
+    const PAGE_OG = `<html><head>
+      <title>Recrutement GBG : Développeur Fullstack à Dakar</title>
+      <meta property="og:title" content="Recrutement GBG : Développeur Fullstack à Dakar">
+      <meta property="og:description" content="GBG recrute un développeur fullstack à Dakar.">
+      </head><body><p>Postuler avant le 30 août 2026.</p></body></html>`
+
+    const client: ClientHttp = async (url) => {
+      if (url.endsWith('/robots.txt')) return { statut: 200, corps: 'User-agent: *\nDisallow:\n', contentType: 'text/plain' }
+      if (url === sourceUrl) return { statut: 200, corps: `<rss><channel><item><link>${itemUrl}</link></item></channel></rss>`, contentType: 'application/rss+xml' }
+      if (url === itemUrl) return { statut: 200, corps: PAGE_OG, contentType: 'text/html' }
+      return { statut: 200, corps: '<rss><channel></channel></rss>', contentType: 'application/rss+xml' }
+    }
+
+    await executerVeille({ client, attendre: noWait, sansVerrou: true })
+    await executerExtraction({ client, attendre: noWait, sourceIds: [source.id] })
+    await executerDedup({ sourceIds: [source.id] })
+
+    const item = await prisma.itemCuration.findFirstOrThrow({ where: { sourceId: source.id } })
+    expect(item.statut).toBe('a_valider')
+    expect(item.titre).toBe('Recrutement GBG : Développeur Fullstack à Dakar') // og:title
+    const payload = item.payloadExtrait as Record<string, unknown>
+    expect(payload.typeId).toBe(typeEmploi.id) // vient du typeDefaut, PAS du contenu
+    expect(payload.deadline).toBe('2026-08-30') // filet regex sur « 30 août 2026 »
+
+    // Publiable (titre + type présents) → brouillon en Modération.
+    mockGetSession.mockResolvedValue(ADMIN)
+    await approuverItem(item.id)
+    const { opportuniteId } = await publierItem(item.id)
+    const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, select: { statut: true, titre: true, lienExterne: true } })
+    expect(opp?.statut).toBe('brouillon')
+    expect(opp?.lienExterne).toBe(itemUrl)
+  })
 })
