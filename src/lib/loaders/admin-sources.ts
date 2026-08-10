@@ -22,6 +22,7 @@ export interface SourceRawRow {
   frequence: string
   actif: boolean
   typeDefautId: string | null
+  configExtraction: Record<string, unknown> | null
   derniereVerifLe: Date | null
   derniereExecution: { statut: 'ok' | 'partiel' | 'erreur'; nbNouveautes: number; nbErreurs: number; demarreLe: Date } | null
 }
@@ -34,6 +35,8 @@ export interface SourceRow {
   frequence: string
   actif: boolean
   typeDefautId: string | null
+  /** Config d'extraction custom — préservée à l'édition (sinon vidée : perte de données, bug F6). */
+  configExtraction: Record<string, unknown> | null
   sante: SanteSource
   nbNouveautes: number
   derniereCollecteLabel: string
@@ -57,6 +60,7 @@ export function mapSourceRow(r: SourceRawRow, now: Date): SourceRow {
     frequence: r.frequence,
     actif: r.actif,
     typeDefautId: r.typeDefautId,
+    configExtraction: r.configExtraction,
     sante: santeSource(r.derniereExecution),
     nbNouveautes: r.derniereExecution?.nbNouveautes ?? 0,
     derniereCollecteLabel: collecteLabel(r.derniereVerifLe ?? r.derniereExecution?.demarreLe ?? null, now),
@@ -82,6 +86,7 @@ export async function getSourcesData(): Promise<SourcesData> {
       frequence: true,
       actif: true,
       typeDefautId: true,
+      configExtraction: true,
       derniereVerifLe: true,
       executions: {
         orderBy: { demarreLe: 'desc' },
@@ -102,6 +107,7 @@ export async function getSourcesData(): Promise<SourcesData> {
         frequence: s.frequence,
         actif: s.actif,
         typeDefautId: s.typeDefautId,
+        configExtraction: (s.configExtraction as Record<string, unknown> | null) ?? null,
         derniereVerifLe: s.derniereVerifLe,
         derniereExecution: s.executions[0] ?? null,
       } as SourceRawRow,

@@ -14,6 +14,7 @@ function raw(over: Partial<SourceRawRow> = {}): SourceRawRow {
     frequence: 'quotidienne',
     actif: true,
     typeDefautId: null,
+    configExtraction: null,
     derniereVerifLe: new Date('2026-08-05T10:00:00Z'),
     derniereExecution: { statut: 'ok', nbNouveautes: 4, nbErreurs: 0, demarreLe: new Date('2026-08-05T10:00:00Z') },
     ...over,

@@ -15,7 +15,7 @@ beforeEach(() => mockLancer.mockReset())
 function src(over: Partial<SourceRow> = {}): SourceRow {
   return {
     id: 's1', nom: 'Emploi.sn', url: 'https://demo.emploi.sn/flux', methode: 'auto', frequence: 'quotidienne',
-    actif: true, typeDefautId: null, sante: 'ok', nbNouveautes: 4, derniereCollecteLabel: 'il y a 2 heures', ...over,
+    actif: true, typeDefautId: null, configExtraction: null, sante: 'ok', nbNouveautes: 4, derniereCollecteLabel: 'il y a 2 heures', ...over,
   }
 }
 
