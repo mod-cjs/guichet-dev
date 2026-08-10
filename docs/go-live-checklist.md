@@ -117,6 +117,36 @@ fine-grained échouent sur les packages privés d'org. Le **serveur** doit aussi
 - **Piège B8** : les crons étaient sur **Vercel Cron** → sur OVH, **plus personne ne les exécute**.
   Installer un crontab serveur (`scripts/cron/`), dont la **purge CV** (rétention CDP).
 
+### 4.7 Data Hub / ETL (GUIC-693/700 — export analytics)
+- **Côté app** (`test.env`/`prod.env`) : `DATAHUB_API_KEYS="meltano:<secret>"` — **le préfixe
+  `meltano:` est obligatoire** (format `nom:secret`), sans lui la clé est silencieusement
+  ignorée et tout est refusé en 401 même avec un token correct côté tap. Générer avec
+  `openssl rand -hex 32`. **Redéployer/redémarrer le conteneur `app`** pour que la variable
+  soit prise en compte — poser la clé seule sans redéployer ne fait rien.
+- **Vérifier après déploiement** (lecture seule, sans toucher à l'entrepôt) :
+  `curl -H "Authorization: Bearer <secret>" https://<domaine>/api/v1/export/counts?since=2026-01-01T00:00:00Z`
+  → attendu `200`, pas `401`.
+- **Guichet (l'app), pour le tap : SÉPARATION**, jamais de réseau Docker partagé. Appelée
+  par son URL publique HTTPS — jamais `host.docker.internal` ni `cjs-net`. Fonctionne quel
+  que soit l'hôte du serveur ETL.
+- **Entrepôt PostgreSQL, pour `target-postgres`/dbt/`psqlEntrepot` : COHABITATION réseau**,
+  testé en réel (tranché différemment de l'app ci-dessus, ne pas confondre). L'entrepôt est
+  un **conteneur** (`cjs_analytics_postgres` en préprod, stack déjà provisionnée par
+  l'infra — Superset, pgAdmin), pas un domaine public : `docker-compose.etl.yml` rejoint
+  `cjs-net` pour le résoudre. Accès (hôte/utilisateur/mot de passe/base) transmis
+  séparément, à poser dans `.env.etl`/serveur (voir `.env.etl.example` — gabarit à jour).
+- **MariaDB de l'app, pour `reconcile.ts`/`purge-absents.ts` (côté Prisma) : ni séparation
+  ni cohabitation directe** — `DATABASE_URL` peut pointer un nom de conteneur (ex.
+  `mariadb-test` en préprod), injoignable depuis un `npm run` nu sur l'hôte ETL (testé en
+  réel : timeout de pool). Ces deux scripts s'exécutent via le conteneur `app` du
+  déploiement (`exec_via_app`, `scripts/etl/lib-app-exec.sh`) — `run-nightly.sh` et
+  `purge-absents-weekly.sh` requièrent donc aussi `GUICHET_IMAGE`, `COMPOSE_PROJECT_NAME`,
+  `GUICHET_ENV_FILE` (les mêmes variables qu'un déploiement) en plus des variables ETL.
+- Séquence complète de mise en service (préflight, premier run hors trafic, réconciliation
+  — **avec un `since` ancien pour un premier chargement, sinon la comparaison est triviale
+  à 0=0** —, deuxième run vérifié, crontab nightly + purge hebdomadaire) :
+  `.agent_context/specs/M13-durcissement-etl.md` §7 et `docs/datahub-briefing-etl.md` §10/§12.
+
 ---
 
 ## 5. Données & migrations
