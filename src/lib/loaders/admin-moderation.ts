@@ -17,6 +17,13 @@ const FETCH_CAP_M = 300
 export const FILTRES_MOD = ['tout', 'signalees', 'nouvelles', 'recruteur', 'veille'] as const
 export type FiltreMod = (typeof FILTRES_MOD)[number]
 
+export const TRIS_MOD = ['ancien', 'recent', 'type', 'echeance'] as const
+export type TriMod = (typeof TRIS_MOD)[number]
+
+export function parseTriMod(v?: string): TriMod {
+  return (TRIS_MOD as readonly string[]).includes(v ?? '') ? (v as TriMod) : 'ancien'
+}
+
 /** Seuil « nouvelle » (h) et seuil d'urgence SLA (h). */
 const SEUIL_NOUVELLE_H = 24
 const SEUIL_URGENT_H = 48
@@ -34,6 +41,7 @@ export interface ModerationRawRow {
   region: string | null
   recruteurUid: string | null
   createdAt: Date
+  deadline: Date | null
   description: string
   remuneration: string | null
   org: { nom: string; estVerifie: boolean } | null
@@ -45,12 +53,18 @@ export interface ModerationRow {
   slug: string
   titre: string
   typeLabel: string
+  /** Slug du type (pour le filtre par type). */
+  typeSlug: string
   organisation: string
   source: SourceMod
   localisation: string
+  /** Code région brut (enum) pour le filtre par région ; null si absent. */
+  regionCode: string | null
   ageHeures: number
   ageLabel: string
   urgent: boolean
+  /** Deadline ISO (yyyy-mm-dd) pour le tri par échéance + affichage ; null si absente. */
+  deadlineIso: string | null
   signaux: Signal[]
   niveau: NiveauSignal | null
   extrait: string
@@ -106,12 +120,15 @@ export function mapModerationRow(r: ModerationRawRow, now: number): ModerationRo
     slug: r.slug,
     titre: r.titre,
     typeLabel: r.typeRef?.libelle ?? r.type,
+    typeSlug: r.type,
     organisation: r.organisationLibelle ?? r.organisation ?? r.org?.nom ?? '—',
     source,
     localisation: r.region ? (regionLabel(r.region) ?? r.region) : '',
+    regionCode: r.region ?? null,
     ageHeures: h,
     ageLabel: ageLabel(h),
     urgent: h >= SEUIL_URGENT_H,
+    deadlineIso: r.deadline ? r.deadline.toISOString().slice(0, 10) : null,
     signaux,
     niveau: niveauCarte(signaux),
     extrait: extraitDe(r.description),
@@ -148,6 +165,33 @@ export function filtrerModeration(rows: ModerationRow[], filtre: FiltreMod): Mod
   }
 }
 
+/** Tri de la file. `ancien` (défaut, priorité SLA) · `recent` · `type` (A-Z) · `echeance` (proche d'abord, nulles en dernier). */
+export function trierModeration(rows: ModerationRow[], tri: TriMod): ModerationRow[] {
+  const copie = [...rows]
+  switch (tri) {
+    case 'recent':
+      return copie.sort((a, b) => a.ageHeures - b.ageHeures)
+    case 'type':
+      return copie.sort((a, b) => a.typeLabel.localeCompare(b.typeLabel, 'fr') || b.ageHeures - a.ageHeures)
+    case 'echeance':
+      return copie.sort((a, b) => {
+        if (a.deadlineIso === b.deadlineIso) return b.ageHeures - a.ageHeures
+        if (!a.deadlineIso) return 1 // nulle → en dernier
+        if (!b.deadlineIso) return -1
+        return a.deadlineIso.localeCompare(b.deadlineIso) // ISO trie chronologiquement
+      })
+    default: // 'ancien' : le plus vieux d'abord (âge décroissant)
+      return copie.sort((a, b) => b.ageHeures - a.ageHeures)
+  }
+}
+
+/** Filtres avancés cumulables : par type d'opportunité et/ou par région. */
+export function filtrerAvance(rows: ModerationRow[], f: { typeSlug?: string; regionCode?: string }): ModerationRow[] {
+  return rows.filter(
+    (r) => (!f.typeSlug || r.typeSlug === f.typeSlug) && (!f.regionCode || r.regionCode === f.regionCode),
+  )
+}
+
 export interface ModerationData {
   rows: ModerationRow[]
   total: number
@@ -159,6 +203,24 @@ export interface ModerationData {
   /** F4 — la file dépasse le plafond de fetch : compteurs approximatifs. */
   tronque: boolean
   totalBrouillons: number
+  /** Options des filtres avancés, calculées sur la file réelle (jamais de choix vide). */
+  typesDispo: { slug: string; label: string }[]
+  regionsDispo: { code: string; label: string }[]
+}
+
+/** Options distinctes (type/région) présentes dans la file, triées par libellé — pour les dropdowns. */
+function optionsFiltres(rows: ModerationRow[]): Pick<ModerationData, 'typesDispo' | 'regionsDispo'> {
+  const types = new Map<string, string>()
+  const regions = new Map<string, string>()
+  for (const r of rows) {
+    if (!types.has(r.typeSlug)) types.set(r.typeSlug, r.typeLabel)
+    if (r.regionCode && !regions.has(r.regionCode)) regions.set(r.regionCode, r.localisation || r.regionCode)
+  }
+  const parLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, 'fr')
+  return {
+    typesDispo: [...types].map(([slug, label]) => ({ slug, label })).sort(parLabel),
+    regionsDispo: [...regions].map(([code, label]) => ({ code, label })).sort(parLabel),
+  }
 }
 
 /**
@@ -169,9 +231,13 @@ export async function getModerationData(params: {
   q?: string
   filtre?: FiltreMod
   page?: number
+  tri?: TriMod
+  typeSlug?: string
+  regionCode?: string
 }): Promise<ModerationData> {
   const q = (params.q ?? '').trim()
   const filtre = params.filtre ?? 'tout'
+  const tri = params.tri ?? 'ancien'
   const page = Math.max(1, params.page ?? 1)
 
   const where = {
@@ -202,6 +268,7 @@ export async function getModerationData(params: {
       region: true,
       recruteurUid: true,
       createdAt: true,
+      deadline: true,
       description: true,
       remuneration: true,
       typeRef: { select: { libelle: true } },
@@ -217,7 +284,9 @@ export async function getModerationData(params: {
   const all = raws.map((r) => mapModerationRow(r as ModerationRawRow, now))
   const kpis = kpisModeration(all)
 
-  const filtered = filtrerModeration(all, filtre)
+  // Chip source/statut → filtres avancés (type/région) cumulables → tri → pagination.
+  const cible = filtrerAvance(filtrerModeration(all, filtre), { typeSlug: params.typeSlug, regionCode: params.regionCode })
+  const filtered = trierModeration(cible, tri)
   const total = filtered.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE_M))
   const currentPage = Math.min(page, totalPages)
@@ -234,5 +303,6 @@ export async function getModerationData(params: {
     // F4 — signale une troncature au-delà du plafond (compteurs alors approximatifs).
     tronque: totalBrouillons > FETCH_CAP_M,
     totalBrouillons,
+    ...optionsFiltres(all),
   }
 }

@@ -7,6 +7,7 @@ import { render, screen } from '@testing-library/react'
 import { AdminModerationList } from '@/app/admin/opportunites/AdminModerationList'
 import type { ModerationRow } from '@/lib/loaders/admin-moderation'
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
 jest.mock('@/app/admin/opportunites/actions', () => ({
   approuverOpportunite: jest.fn(),
   rejeterOpportunite: jest.fn(),
@@ -21,12 +22,15 @@ function row(over: Partial<ModerationRow> = {}): ModerationRow {
     slug: 'offre-1',
     titre: 'Stage marketing digital',
     typeLabel: 'Stage',
+    typeSlug: 'stage',
     organisation: 'Wave Sénégal',
     source: 'recruteur',
     localisation: 'Dakar',
+    regionCode: 'Dakar',
     ageHeures: 3,
     ageLabel: 'en attente 3 h',
     urgent: false,
+    deadlineIso: null,
     signaux: [],
     niveau: null,
     extrait: 'Offre saine de stage marketing digital.',
@@ -46,12 +50,42 @@ function renderList(rows: ModerationRow[]) {
       totalPages={1}
       q=""
       filtre="tout"
+      tri="ancien"
+      typeSlug=""
+      regionCode=""
+      typesDispo={[]}
+      regionsDispo={[]}
       verifiesIds={rows.map((r) => r.id)}
       tronque={false}
       totalBrouillons={rows.length}
     />,
   )
 }
+
+describe('GUIC-704 — modération : tris + filtres avancés', () => {
+  it('rend les contrôles Trier / Type / Région avec leurs options', () => {
+    render(
+      <AdminModerationList
+        rows={[row()]} kpis={KPIS} total={1} currentPage={1} totalPages={1}
+        q="" filtre="tout" tri="ancien" typeSlug="" regionCode=""
+        typesDispo={[{ slug: 'emploi', label: 'Emploi' }, { slug: 'bourse', label: 'Bourse' }]}
+        regionsDispo={[{ code: 'Dakar', label: 'Dakar' }]}
+        verifiesIds={[]} tronque={false} totalBrouillons={1}
+      />,
+    )
+    expect(screen.getByLabelText('Trier')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Échéance proche' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Type')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Emploi' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Région')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Toutes les régions' })).toBeInTheDocument()
+  })
+
+  it('affiche l’échéance sur la carte quand deadlineIso est présent', () => {
+    renderList([row({ deadlineIso: '2026-09-30' })])
+    expect(screen.getByText(/Échéance 2026-09-30/)).toBeInTheDocument()
+  })
+})
 
 describe('GUIC-702 — AdminModerationList (rendu)', () => {
   it('affiche les chips de filtre (liens) avec leurs compteurs', () => {
@@ -96,7 +130,7 @@ describe('GUIC-702 — AdminModerationList (rendu)', () => {
   })
 
   it('état vide CONTEXTUEL : recherche sans résultat ≠ file à jour (V1)', () => {
-    render(<AdminModerationList rows={[]} kpis={KPIS} total={0} currentPage={1} totalPages={1} q="arnaque" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={0} />)
+    render(<AdminModerationList rows={[]} kpis={KPIS} total={0} currentPage={1} totalPages={1} q="arnaque" filtre="tout" tri="ancien" typeSlug="" regionCode="" typesDispo={[]} regionsDispo={[]} verifiesIds={[]} tronque={false} totalBrouillons={0} />)
     expect(screen.getByText(/Aucun résultat/i)).toBeInTheDocument()
     expect(screen.queryByText(/File à jour/i)).toBeNull()
   })

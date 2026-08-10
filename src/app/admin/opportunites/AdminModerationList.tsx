@@ -2,11 +2,12 @@
 
 import { useState, useTransition, type CSSProperties } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
-import type { FiltreMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
+import type { FiltreMod, TriMod, ModerationKpis, ModerationRow } from '@/lib/loaders/admin-moderation'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
 import { approuverOpportunite, approuverPlusieurs, rejeterOpportunite, rejeterPlusieurs, chargerModerationDetail } from './actions'
 import { RejetMotifModal } from './RejetMotifModal'
@@ -21,6 +22,11 @@ export interface AdminModerationListProps {
   totalPages: number
   q: string
   filtre: FiltreMod
+  tri: TriMod
+  typeSlug: string
+  regionCode: string
+  typesDispo: { slug: string; label: string }[]
+  regionsDispo: { code: string; label: string }[]
   verifiesIds: string[]
   tronque: boolean
   totalBrouillons: number
@@ -34,12 +40,26 @@ const CHIPS: { key: FiltreMod; label: string; kpi: keyof ModerationKpis }[] = [
   { key: 'veille', label: 'Veille', kpi: 'veille' },
 ]
 
-function hrefFor(filtre: FiltreMod, q: string): string {
+const TRIS: { key: TriMod; label: string }[] = [
+  { key: 'ancien', label: 'Plus anciennes' },
+  { key: 'recent', label: 'Plus récentes' },
+  { key: 'echeance', label: 'Échéance proche' },
+  { key: 'type', label: 'Type (A-Z)' },
+]
+
+interface EtatUrl { filtre: FiltreMod; q: string; tri: TriMod; type: string; region: string }
+
+/** Construit l'URL en préservant tous les critères (page réinitialisée à 1 à chaque changement). */
+function hrefAvec(s: EtatUrl, patch: Partial<EtatUrl>): string {
+  const e = { ...s, ...patch }
   const p = new URLSearchParams()
-  if (filtre !== 'tout') p.set('filtre', filtre)
-  if (q) p.set('q', q)
-  const s = p.toString()
-  return s ? `/admin/opportunites?${s}` : '/admin/opportunites'
+  if (e.filtre !== 'tout') p.set('filtre', e.filtre)
+  if (e.q) p.set('q', e.q)
+  if (e.tri !== 'ancien') p.set('tri', e.tri)
+  if (e.type) p.set('type', e.type)
+  if (e.region) p.set('region', e.region)
+  const str = p.toString()
+  return str ? `/admin/opportunites?${str}` : '/admin/opportunites'
 }
 
 type ResultHandler = (message: string, variant: ToastVariant) => void
@@ -134,6 +154,11 @@ function ModerationCard({
           </span>
           <span>Par <b style={{ color: 'var(--gj-ink)' }}>{row.organisation}</b></span>
           {row.localisation && <span>{row.localisation}</span>}
+          {row.deadlineIso && (
+            <span className="inline-flex items-center gap-[3px]">
+              <Icon name="calendar" size={12} /> Échéance {row.deadlineIso}
+            </span>
+          )}
           <button type="button" onClick={() => onOpenDetail(row.id)} disabled={loading} className="ml-auto text-[11.5px] font-bold inline-flex items-center gap-[3px] disabled:opacity-50" style={{ color: 'var(--gj-teal-deep)' }}>
             {loading ? 'Chargement…' : 'Voir le détail'}
             <Icon name="chevron-right" size={13} />
@@ -164,8 +189,30 @@ function ModerationCard({
   )
 }
 
+// ─── select de filtre/tri (navigation serveur au changement) ──────────────────
+function SelectFiltre({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <label className="inline-flex items-center gap-[6px] text-[12px] font-bold rounded-full pl-[12px] pr-[8px] py-[5px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-grey)' }}>
+      <span>{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className="bg-transparent text-[12px] font-bold outline-none cursor-pointer"
+        style={{ color: 'var(--gj-ink)' }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 // ─── composant principal ─────────────────────────────────────────────────────
-export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre, verifiesIds, tronque, totalBrouillons }: AdminModerationListProps) {
+export function AdminModerationList({ rows, kpis, total, currentPage, totalPages, q, filtre, tri, typeSlug, regionCode, typesDispo, regionsDispo, verifiesIds, tronque, totalBrouillons }: AdminModerationListProps) {
+  const router = useRouter()
+  const etat: EtatUrl = { filtre, q, tri, type: typeSlug, region: regionCode }
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [rejetCible, setRejetCible] = useState<{ cible: string; run: (motif: string) => Promise<void> } | null>(null)
   const [correction, setCorrection] = useState<ModerationRow | null>(null)
@@ -247,7 +294,7 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
           {CHIPS.map((c) => {
             const on = filtre === c.key
             return (
-              <Link key={c.key} href={hrefFor(c.key, q)} className="text-[12px] font-bold px-[12px] py-[6px] rounded-full" style={{ background: on ? 'var(--gj-teal-deep)' : 'var(--gj-surface)', color: on ? '#fff' : 'var(--gj-grey)', border: `1.5px solid ${on ? 'var(--gj-teal-deep)' : 'var(--gj-line)'}` }}>
+              <Link key={c.key} href={hrefAvec(etat, { filtre: c.key })} className="text-[12px] font-bold px-[12px] py-[6px] rounded-full" style={{ background: on ? 'var(--gj-teal-deep)' : 'var(--gj-surface)', color: on ? '#fff' : 'var(--gj-grey)', border: `1.5px solid ${on ? 'var(--gj-teal-deep)' : 'var(--gj-line)'}` }}>
                 {c.label} · {kpis[c.kpi]}
               </Link>
             )
@@ -267,9 +314,39 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
           </div>
         )}
 
+        {/* Tri + filtres avancés (type / région) — navigation serveur, page réinitialisée */}
+        <div className="flex items-center gap-[8px] flex-wrap mb-[10px]">
+          <SelectFiltre
+            label="Trier"
+            value={tri}
+            onChange={(v) => router.push(hrefAvec(etat, { tri: v as TriMod }))}
+            options={TRIS.map((t) => ({ value: t.key, label: t.label }))}
+          />
+          <SelectFiltre
+            label="Type"
+            value={typeSlug}
+            onChange={(v) => router.push(hrefAvec(etat, { type: v }))}
+            options={[{ value: '', label: 'Tous les types' }, ...typesDispo.map((t) => ({ value: t.slug, label: t.label }))]}
+          />
+          <SelectFiltre
+            label="Région"
+            value={regionCode}
+            onChange={(v) => router.push(hrefAvec(etat, { region: v }))}
+            options={[{ value: '', label: 'Toutes les régions' }, ...regionsDispo.map((r) => ({ value: r.code, label: r.label }))]}
+          />
+          {(typeSlug || regionCode || tri !== 'ancien') && (
+            <Link href={hrefAvec({ filtre, q, tri: 'ancien', type: '', region: '' }, {})} className="text-[11.5px] font-bold px-[10px] py-[6px] rounded-full" style={{ color: 'var(--gj-grey)', border: '1px solid var(--gj-line)' }}>
+              Réinitialiser
+            </Link>
+          )}
+        </div>
+
         {/* Recherche */}
         <form action="/admin/opportunites" method="get" className="mb-[10px]">
           {filtre !== 'tout' && <input type="hidden" name="filtre" value={filtre} />}
+          {tri !== 'ancien' && <input type="hidden" name="tri" value={tri} />}
+          {typeSlug && <input type="hidden" name="type" value={typeSlug} />}
+          {regionCode && <input type="hidden" name="region" value={regionCode} />}
           <div className="flex items-center gap-[8px] rounded-[10px] px-[12px] py-[8px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
             <Icon name="search" size={15} className="opacity-60" />
             <input name="q" defaultValue={q} placeholder="Rechercher une offre, un organisme…" aria-label="Rechercher une publication" className="flex-1 bg-transparent text-[13px] outline-none" style={{ color: 'var(--gj-ink)' }} />
@@ -320,7 +397,7 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
 
         {totalPages > 1 && (
           <div className="mt-6 flex justify-center">
-            <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl={hrefFor(filtre, q)} ariaLabel="Pagination" />
+            <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl={hrefAvec(etat, {})} ariaLabel="Pagination" />
           </div>
         )}
       </div>

@@ -14,20 +14,21 @@ jest.mock('@/app/admin/opportunites/actions', () => ({
 jest.mock('@/app/admin/opportunites/RejetMotifModal', () => ({ RejetMotifModal: () => null }))
 jest.mock('@/app/admin/opportunites/CorrectionModal', () => ({ CorrectionModal: () => null }))
 jest.mock('@/app/admin/opportunites/ModerationDetailPanel', () => ({ ModerationDetailPanel: () => null }))
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
 
 beforeEach(() => mockApprouverPlusieurs.mockReset())
 
 function row(over: Partial<ModerationRow> = {}): ModerationRow {
   return {
-    id: 'r1', slug: 's', titre: 'Offre R1', typeLabel: 'Stage', organisation: 'Org', source: 'recruteur',
-    localisation: 'Dakar', ageHeures: 3, ageLabel: 'en attente 3 h', urgent: false, signaux: [], niveau: null,
+    id: 'r1', slug: 's', titre: 'Offre R1', typeLabel: 'Stage', typeSlug: 'stage', organisation: 'Org', source: 'recruteur',
+    localisation: 'Dakar', regionCode: 'Dakar', ageHeures: 3, ageLabel: 'en attente 3 h', urgent: false, deadlineIso: null, signaux: [], niveau: null,
     extrait: 'x', ...over,
   }
 }
 const KPIS = { tout: 2, signalees: 1, nouvelles: 2, recruteur: 2, veille: 0 }
 
 function renderList(rows: ModerationRow[], verifiesIds: string[] = []) {
-  return render(<AdminModerationList rows={rows} kpis={KPIS} total={rows.length} currentPage={1} totalPages={1} q="" filtre="tout" verifiesIds={verifiesIds} tronque={false} totalBrouillons={rows.length} />)
+  return render(<AdminModerationList rows={rows} kpis={KPIS} total={rows.length} currentPage={1} totalPages={1} q="" filtre="tout" tri="ancien" typeSlug="" regionCode="" typesDispo={[]} regionsDispo={[]} verifiesIds={verifiesIds} tronque={false} totalBrouillons={rows.length} />)
 }
 
 describe('GUIC-702 — sélection groupée modération', () => {

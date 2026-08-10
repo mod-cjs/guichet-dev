@@ -50,12 +50,15 @@ const MOD_ROWS: ModerationRow[] = [
     slug: 'developpeur-full-stack',
     titre: 'Développeur full-stack',
     typeLabel: 'Emploi',
+    typeSlug: 'emploi',
     organisation: 'Sonatel',
     source: 'recruteur',
     localisation: 'Dakar',
+    regionCode: 'Dakar',
     ageHeures: 48,
     ageLabel: 'en attente 2 j',
     urgent: false,
+    deadlineIso: null,
     signaux: [],
     niveau: null,
     extrait: 'Un poste de développeur full-stack chez un partenaire vérifié.',
@@ -90,12 +93,12 @@ const DASH: DashboardData = {
 // ── Pagination rendue ───────────────────────────────────────────────────────
 describe('GUIC-461 (F0) — pagination réelle', () => {
   it('Modération : rend la pagination quand totalPages > 1', () => {
-    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={60} currentPage={1} totalPages={3} q="" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={60} />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={60} currentPage={1} totalPages={3} q="" filtre="tout" tri="ancien" typeSlug="" regionCode="" typesDispo={[]} regionsDispo={[]} verifiesIds={[]} tronque={false} totalBrouillons={60} />)
     expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
   })
 
   it('Modération : pas de pagination quand une seule page', () => {
-    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" verifiesIds={[]} tronque={false} totalBrouillons={1} />)
+    render(<AdminModerationList rows={MOD_ROWS} kpis={MOD_KPIS} total={1} currentPage={1} totalPages={1} q="" filtre="tout" tri="ancien" typeSlug="" regionCode="" typesDispo={[]} regionsDispo={[]} verifiesIds={[]} tronque={false} totalBrouillons={1} />)
     expect(screen.queryByRole('navigation', { name: /pagination/i })).toBeNull()
   })
 
