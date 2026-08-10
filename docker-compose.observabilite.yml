@@ -79,13 +79,24 @@ services:
       # en exécution, Grafana refusait alors le point de contact (« could not find addresses »).
       # Obligatoires : un canal d'alerte vide est pire qu'absent, on croit être couvert.
       ALERTE_EMAILS:         ${ALERTE_EMAILS:?ALERTE_EMAILS obligatoire (destinataires d astreinte, séparés par des virgules)}
-      # Relais WhatsApp, hébergé HORS du serveur (cf. GUIC-575). Optionnels : sans eux, seul le
-      # canal e-mail fonctionne — dégradé, mais pas silencieux.
+      # Relais WhatsApp, hébergé HORS du serveur (cf. GUIC-575). Réellement optionnels depuis
+      # GUIC-576 (select-contact-points.sh retire le point de contact webhook du provisioning
+      # si absent) — sans eux, seul le canal e-mail fonctionne, dégradé mais pas silencieux ET
+      # pas Grafana entier qui plante au démarrage (défaut réel du premier déploiement).
       ALERTE_WEBHOOK_URL:    ${ALERTE_WEBHOOK_URL:-}
       ALERTE_WEBHOOK_TOKEN:  ${ALERTE_WEBHOOK_TOKEN:-}
     volumes:
-      - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning:ro
+      # GUIC-576 — Monté en SOURCE lecture seule sous `-src`, pas directement à l'endroit lu
+      # par Grafana. `select-contact-points.sh` (entrypoint ci-dessous) copie ce contenu vers
+      # /etc/grafana/provisioning (backé par le volume `grafana_provisioning`, inscriptible),
+      # en retirant le point de contact webhook si ALERTE_WEBHOOK_URL est absente — Grafana
+      # valide TOUS les points de contact déclarés au démarrage, même non utilisés, donc une
+      # URL vide plante l'amorçage ENTIER plutôt que de dégrader ce seul canal.
+      - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning-src:ro
+      - ./infra/observabilite/grafana/select-contact-points.sh:/select-contact-points.sh:ro
+      - grafana_provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
+    entrypoint: ['/bin/sh', '/select-contact-points.sh']
     networks: [observabilite]
     depends_on:
       loki:
@@ -97,6 +108,7 @@ services:
 volumes:
   loki_data:
   grafana_data:
+  grafana_provisioning:
   promtail_positions:
 
 networks:

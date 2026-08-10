@@ -42,6 +42,13 @@ contactPoints:
       # délibéré : le même relais sert la sonde externe (GUIC-575), qui, elle, doit fonctionner
       # quand le serveur est à terre. Un relais unique et externe couvre les deux cas ; un relais
       # local n'en couvrirait qu'un.
+      #
+      # GUIC-576 — RETIRÉ AUTOMATIQUEMENT si ALERTE_WEBHOOK_URL est absente
+      # (select-contact-points.sh, exécuté avant Grafana). Grafana valide TOUS les points de
+      # contact déclarés au démarrage, MÊME ceux qu'aucune politique n'utilise — une URL vide
+      # ici ferait planter Grafana ENTIER (« required field 'url' is not specified »), pas
+      # seulement désactiver ce canal. Les marqueurs ci-dessous délimitent le bloc retiré.
+      # BEGIN-WEBHOOK-RECEIVER
       - uid: astreinte-whatsapp
         type: webhook
         settings:
@@ -56,3 +63,4 @@ contactPoints:
             {{ range .Alerts }}{{ .Annotations.summary }}
             {{ .Annotations.description }}
             {{ end }}
+      # END-WEBHOOK-RECEIVER
