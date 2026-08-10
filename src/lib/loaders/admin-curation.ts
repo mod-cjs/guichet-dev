@@ -41,6 +41,8 @@ export interface CurationRow {
   score: number
   signaux: SignalCuration[]
   estDoublon: boolean
+  /** Prêt pour « → Modération » : titre ET type identifiés (exigés par l'approbation). */
+  complet: boolean
 }
 
 function payloadDe(v: unknown): Record<string, unknown> {
@@ -66,6 +68,7 @@ export function mapCurationRow(r: CurationRawRow, typeLabel: string | null): Cur
       sourceUrl: r.source.url,
     }),
     estDoublon: r.statut === 'doublon' || !!r.doublonDeId,
+    complet: !!r.titre?.trim() && typeof p.typeId === 'string' && p.typeId.trim() !== '',
   }
 }
 

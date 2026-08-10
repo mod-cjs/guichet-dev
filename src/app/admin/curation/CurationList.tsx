@@ -49,8 +49,10 @@ function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHan
       try {
         await fn()
         onResult(ok, 'success')
-      } catch {
-        onResult('Échec — l’item n’est peut-être plus à valider.', 'danger')
+      } catch (e) {
+        // Surface le motif réel (ex. « Type d'opportunité requis ») plutôt qu'un échec opaque.
+        const msg = e instanceof Error && e.message ? e.message : 'Action impossible — réessaie.'
+        onResult(msg, 'danger')
       }
     })
   }
@@ -106,10 +108,15 @@ function CurationCard({ row, onResult }: { row: CurationRow; onResult: ResultHan
           <button type="button" disabled={pending} onClick={() => run(() => ignorerDoublon(row.id), 'Doublon fusionné (ignoré).')} className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-teal-deep)', color: '#fff' }}>
             <Icon name="check" size={14} /> Fusionner
           </button>
-        ) : (
+        ) : row.complet ? (
           <button type="button" disabled={pending} onClick={() => run(() => versModeration(row.id), `« ${row.titre} » envoyée en Modération.`)} className="inline-flex items-center gap-[6px] font-black text-[12.5px] rounded-[9px] px-[14px] py-[8px] disabled:opacity-60" style={{ background: 'var(--gj-green)', color: '#08130E' }}>
             <Icon name="arrow-right" size={14} /> → Modération
           </button>
+        ) : (
+          // Incomplet (titre/type manquant) : « → Modération » échouerait → on guide vers l'édition.
+          <span className="inline-flex items-center gap-[6px] font-bold text-[12px] rounded-[9px] px-[12px] py-[8px]" title="Titre et type d’opportunité requis avant l’envoi en modération" style={{ background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>
+            <Icon name="alert" size={14} /> À compléter avant modération
+          </span>
         )}
         <Link href={`/admin/curation/${row.id}`} className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[14px] py-[8px]" style={{ background: 'var(--gj-surface)', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-teal)' }}>
           <Icon name="settings" size={14} /> Éditer

@@ -52,6 +52,12 @@ describe('GUIC-704 — loader curation (helpers purs)', () => {
     expect(mapCurationRow(raw({ statut: 'doublon', doublonDeId: 'c1' }), 'Emploi').estDoublon).toBe(true)
   })
 
+  it('mapCurationRow — complet exige titre ET typeId (garde-fou → Modération)', () => {
+    expect(mapCurationRow(raw(), 'Emploi').complet).toBe(true)
+    expect(mapCurationRow(raw({ titre: null }), null).complet).toBe(false)
+    expect(mapCurationRow(raw({ payloadExtrait: { region: 'Dakar' } }), null).complet).toBe(false)
+  })
+
   it('chipsCuration compte suggérées / score élevé (≥70) / doublons', () => {
     const rows = [
       mapCurationRow(raw({ id: 'a', scoreCompletude: 88 }), 'Emploi'),

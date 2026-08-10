@@ -25,6 +25,7 @@ function row(over: Partial<CurationRow> = {}): CurationRow {
       { ok: true, label: 'Région : Dakar' },
     ],
     estDoublon: false,
+    complet: true,
     ...over,
   }
 }
@@ -60,6 +61,12 @@ describe('GUIC-704 — CurationList (rendu)', () => {
   it('propose « → Modération » sur une carte saine', () => {
     renderList([row()])
     expect(screen.getByRole('button', { name: /Mod[ée]ration/i })).toBeInTheDocument()
+  })
+
+  it('item INCOMPLET : pas de « → Modération », mais « À compléter » (bug M)', () => {
+    renderList([row({ complet: false })])
+    expect(screen.queryByRole('button', { name: /→ Mod[ée]ration|Modération/i })).toBeNull()
+    expect(screen.getByText(/À compléter/i)).toBeInTheDocument()
   })
 
   it('propose « Fusionner » sur une carte doublon', () => {
