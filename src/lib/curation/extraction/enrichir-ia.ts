@@ -87,13 +87,17 @@ async function appelVertex(systeme: string, utilisateur: string): Promise<string
       getLlmClient(model).chat.completions.create({
         model,
         temperature: 0,
-        max_tokens: 500,
+        max_tokens: 1024,
         response_format: { type: 'json_object' },
+        // Thinking désactivé : l'extraction est une tâche déterministe SANS chaîne de raisonnement.
+        // Sur gemini-2.5, le thinking consomme sinon tout le budget de sortie sur un gros prompt
+        // → JSON tronqué (finish_reason=length). `extra_body` = passthrough config Vertex/Gemini.
+        extra_body: { google: { thinking_config: { thinking_budget: 0 } } },
         messages: [
           { role: 'system', content: systeme },
           { role: 'user', content: utilisateur },
         ],
-      }),
+      } as never),
     )
     return completion.choices[0]?.message?.content ?? null
   } catch {
