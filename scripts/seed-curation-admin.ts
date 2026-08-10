@@ -32,6 +32,17 @@ async function upsertSource(nom: string, srcUrl: string, frequence: 'quotidienne
 }
 
 async function main() {
+  // 0) Alignement schéma LOCAL (dérive) : le stack (base 680) déclare encore le FK direct
+  // `programme_id` (dev est passé aux tables de jonction OpportuniteProgramme, colonne droppée
+  // par la migration 20260728210000). Sur la base locale « parité prod » la colonne manque →
+  // TOUT `OpportuniteService.create` échoue (donc « → Modération » de la curation). On la
+  // ré-ajoute (nullable) pour débloquer les tests locaux. À supprimer à la réconciliation dev.
+  const col = (await prisma.$queryRawUnsafe("SHOW COLUMNS FROM opportunites LIKE 'programme_id'")) as unknown[]
+  if (col.length === 0) {
+    await prisma.$executeRawUnsafe('ALTER TABLE opportunites ADD COLUMN programme_id VARCHAR(36) NULL')
+    console.log('↳ colonne locale programme_id ré-ajoutée (dérive schéma stack↔base)')
+  }
+
   // 1) Sources diversifiées (dont une officielle gouv.sn)
   const sGouv = await upsertSource('DER/FJ (gouv.sn)', 'https://der.gouv.sn/appels', 'hebdomadaire', 5)
   const sEmploi = await upsertSource('Emploi.sn', 'https://demo.emploi.sn/flux', 'quotidienne', 2)
