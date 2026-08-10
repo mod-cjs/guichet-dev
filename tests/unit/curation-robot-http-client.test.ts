@@ -47,6 +47,19 @@ describe('GUIC-597 — clientHttpReel durci', () => {
     await expect(client('https://exemple.sn/depart')).rejects.toBeInstanceOf(UrlInterditeError)
   })
 
+  it('GUIC-704 fix #4 — Accept par défaut, surchargé par opts.accept (négo par source)', async () => {
+    const accepts: (string | undefined)[] = []
+    const fetchImpl = (async (_url: string, init: unknown) => {
+      accepts.push((init as { headers: Record<string, string> }).headers.accept)
+      return reponse(200, '<rss></rss>', { 'content-type': 'application/rss+xml' })
+    }) as unknown as typeof fetch
+    const client = clientHttpReel({ resolver: resolverPublic, fetchImpl })
+    await client('https://exemple.sn/a') // défaut
+    await client('https://exemple.sn/b', { accept: 'application/rss+xml' }) // surcharge
+    expect(accepts[0]).toContain('text/html') // défaut = négo large (rss + html)
+    expect(accepts[1]).toBe('application/rss+xml') // surcharge stricte par la source
+  })
+
   it('fait 1 retry sur 503 puis réussit', async () => {
     let appels = 0
     const fetchImpl = (async () => {
