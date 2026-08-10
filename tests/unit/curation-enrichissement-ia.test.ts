@@ -85,4 +85,39 @@ describe('GUIC-704 — enrichirParIa', () => {
     )
     expect(out).toEqual({})
   })
+
+  // GUIC-704 · fiche riche — la fiche doit être auto-suffisante pour DÉCIDER.
+  const RICHE = 'Global Business Group recrute un développeur fullstack expérimenté pour renforcer son équipe technique à Dakar sur des projets bancaires.'
+  it('remplace une description COURTE (snippet og) par la version riche du LLM', async () => {
+    const out = await enrichirParIa(
+      { texte: '…', url: 'https://x.sn/1', dejaConnu: { description: 'Poste à Dakar.' } },
+      { typesConnus: TYPES, appeler: llm({ description: RICHE }) },
+    )
+    expect(out.description).toBe(RICHE)
+  })
+
+  it('ne REMPLACE PAS une description déjà longue par une plus courte', async () => {
+    const dejaLongue = RICHE
+    const out = await enrichirParIa(
+      { texte: '…', url: 'https://x.sn/1', dejaConnu: { description: dejaLongue } },
+      { typesConnus: TYPES, appeler: llm({ description: 'Poste dev.' }) },
+    )
+    expect(out.description).toBeUndefined()
+  })
+
+  it('comble les nouveaux champs de décision : profil, comment postuler, lieu, rémunération', async () => {
+    const out = await enrichirParIa(
+      { texte: '…', url: 'https://x.sn/1', dejaConnu: {} },
+      { typesConnus: TYPES, appeler: llm({
+        profil: 'Bac+3 en informatique, 2 ans d’expérience React.',
+        commentPostuler: 'Envoyer CV à jobs@gbg.sn avant le 30 août.',
+        lieu: 'Dakar, Plateau',
+        remuneration: '500 000 FCFA/mois',
+      }) },
+    )
+    expect(out.profil).toBe('Bac+3 en informatique, 2 ans d’expérience React.')
+    expect(out.commentPostuler).toContain('jobs@gbg.sn')
+    expect(out.lieu).toBe('Dakar, Plateau')
+    expect(out.remuneration).toBe('500 000 FCFA/mois')
+  })
 })
