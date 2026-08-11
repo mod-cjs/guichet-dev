@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+const B='http://localhost:3211', TOKEN=readFileSync('/tmp/tok.txt','utf8').trim()
+const b=await chromium.launch(); const c=await b.newContext({viewport:{width:1440,height:900}}); const p=await c.newPage()
+const errs=[]; p.on('console',m=>m.type()==='error'&&errs.push(m.text()))
+const bad=[]; p.on('response',r=>r.status()>=400&&bad.push(`${r.status()} ${new URL(r.url()).pathname.slice(0,44)}`))
+await p.goto(`${B}/api/dev/login?uid=e2e-conseiller&to=/conseiller/checkin`,{waitUntil:'domcontentloaded'}); await p.waitForTimeout(1000)
+await p.goto(`${B}/checkin/v1/${TOKEN}`,{waitUntil:'domcontentloaded'}); await p.waitForTimeout(1200)
+const btn = p.getByRole('button',{name:/confirmer présence/i}).first()
+console.log('bouton trouve :', await btn.count())
+await btn.click(); await p.waitForTimeout(2000)
+console.log('apres clic    :', (await p.innerText('body')).replace(/\n+/g,' | ').slice(0,200))
+console.log('4xx/5xx       :', bad.length?bad:'aucune')
+console.log('erreurs       :', errs.length?errs.slice(0,2):'0')
+await b.close()

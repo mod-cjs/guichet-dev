@@ -18,7 +18,7 @@ export default function MesRessourcesFavoritesPage() {
           href="/jeune/mes-favoris"
           className="inline-flex items-center gap-1 text-fs-200 font-black text-gj-grey hover:text-gj-ink mb-space-2"
         >
-          ← Mes favoris (opportunités)
+          ← Mes sauvegardes (opportunités)
         </Link>
         <h1 className="text-fs-800 font-black text-color-text-primary">Mes ressources favorites</h1>
         <p className="text-fs-300 text-color-text-secondary mt-space-1">

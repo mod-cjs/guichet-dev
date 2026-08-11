@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
+import { RetraitCandidature } from './RetraitCandidature'
 import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
 import { TYPE_CAT } from '@/components/opportunites/opportunite-type-meta'
 import { CAT_TILE_CLASSES } from './candidature-type-compat'
@@ -25,6 +26,8 @@ const dateFmt = new Intl.DateTimeFormat('fr-FR', {
  *  - Vue        → step "EnRevue"
  *  - Retenue    → step "Decision" + decision "Acceptee"
  *  - Refusee    → step "Decision" + decision "Refusee"
+ *  - Retiree    → step "Decision" SANS décision (GUIC-689 : le recruteur n'a
+ *                 rien décidé, c'est le candidat qui s'est retiré)
  */
 function pipelineFromStatut(
   statut: CandidatureDetailDTO['statut'],
@@ -36,6 +39,11 @@ function pipelineFromStatut(
       return { step: 'EnRevue', decision: null }
     case 'Retenue':
       return { step: 'Decision', decision: 'Acceptee' }
+    // GUIC-689 — retrait par le candidat : `decision: null`. Sans ce cas
+    // explicite, `Retiree` tombait dans le `default` et le stepper annonçait
+    // « Refusée » — un refus du recruteur qui n'a jamais eu lieu.
+    case 'Retiree':
+      return { step: 'Decision', decision: null }
     case 'Refusee':
     default:
       return { step: 'Decision', decision: 'Refusee' }
@@ -83,8 +91,8 @@ const STATUT_PILL: Record<
  *  - Stepper 5 étapes (réutilise CandidaturePipelineStepper)
  *  - Section « Ma candidature » (lettre motivation collapsible + lien CV)
  *  - Section « Échanges » (stub)
- *  - CTA « Voir l'opportunité » (GUIC-689 : pas de CTA de retrait — feature
- *    inexistante, voir commentaire au niveau du bloc CTAs)
+ *  - CTAs « Voir l'opportunité » et « Retirer ma candidature » (GUIC-689 — le
+ *    retrait est masqué dès qu'une décision du recruteur existe)
  */
 export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const pipeline = pipelineFromStatut(candidature.statut)
@@ -222,10 +230,14 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
           Voir l&apos;opportunité
           <Icon name="arrow-right" size={16} />
         </Link>
-        {/* GUIC-689 (finding A3) — pas de bouton "Retirer ma candidature" : ni route
-            API ni statut Prisma `Retiree` n'existent. L'ajouter engagerait des
-            décisions produit (notification recruteur, réversibilité, CDP) hors
-            périmètre de ce ticket ; feature à traiter dans une story dédiée. */}
+        {/* GUIC-689 — le retrait existe désormais vraiment : statut `Retiree`,
+            route dédiée et notification au recruteur. Le composant se masque
+            lui-même dès qu'une décision a été prise. */}
+        <RetraitCandidature
+          candidatureId={candidature.id}
+          statut={candidature.statut}
+          titreOffre={candidature.opportunite.titre}
+        />
       </div>
     </article>
   )

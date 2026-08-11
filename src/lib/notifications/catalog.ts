@@ -49,6 +49,11 @@ const EVENTS: NotificationEventDef[] = [
   // Non critique : opt-out utilisateur historique GUIC-513 (notifCandidatures) à respecter.
   def('candidature.created.recruteur', 'm3', 'Nouvelle candidature reçue', ['recruteur'], ['in_app']),
   def('candidature.statut_change', 'm3', 'Statut de candidature mis à jour', ['beneficiaire'], ['in_app', 'whatsapp'], true),
+  // GUIC-689 — retrait par le candidat. Sans cette entrée, `emitEvent` sort en
+  // silence (`getEventDef` inconnu) : le recruteur continuerait d'instruire un
+  // dossier abandonné, et la modale qui promet « le recruteur en sera informé »
+  // mentirait.
+  def('candidature.retiree.recruteur', 'm3', 'Candidature retirée par le candidat', ['recruteur'], ['in_app']),
   def('opportunite.created_recruteur', 'm3', 'Offre soumise par un recruteur', ['admin'], ['in_app']),
   def('opportunite.approved', 'm3', 'Offre approuvée / publiée', ['recruteur'], ['in_app', 'email']),
   def('opportunite.rejected', 'm3', 'Offre rejetée', ['recruteur'], ['in_app', 'email']),

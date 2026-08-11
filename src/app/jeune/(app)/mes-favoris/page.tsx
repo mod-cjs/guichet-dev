@@ -3,13 +3,13 @@ import Link from 'next/link'
 import { MesFavoris } from '@/components/jeune/MesFavoris'
 import { PageHeader } from '@/components/ui'
 
-export const metadata: Metadata = { title: 'Mes favoris' }
+export const metadata: Metadata = { title: 'Mes sauvegardes' }
 
 export default function MesFavorisPage() {
   return (
     <div>
       <PageHeader
-        title="Mes favoris"
+        title="Mes sauvegardes"
         subtitle="Les opportunités que vous avez sauvegardées"
         actions={
           <Link
