@@ -6,6 +6,15 @@
 
 ## 1. Accès aux dashboards (Grafana, Netdata) — remplace le tunnel SSH
 
+> **État (2026-08-11) : en attente, bloqué sur l'absence de domaine.** Le tunnel est créé côté
+> Cloudflare (étape 1 ci-dessous faite, jeton obtenu) — mais les Public Hostnames (étape 2)
+> exigent une zone Cloudflare, et aucun domaine réellement inutilisé n'est disponible :
+> `consortiumjeunessesenegal.org` **et** `guichetjeunesse.sn` portent tous deux du courrier
+> Google Workspace actif (vérifié via `dig MX`, 4-5 enregistrements chacun) — les basculer sans
+> précaution couperait le courrier de l'organisation. Décision retenue : enregistrer un domaine
+> dédié uniquement à l'ops le jour où ce sera prioritaire, plutôt que prendre ce risque
+> maintenant. **Le tunnel SSH reste la voie d'accès en attendant.**
+
 **Le problème que ça résout** : Grafana et Netdata sont volontairement en boucle locale
 (`127.0.0.1`, jamais `0.0.0.0`) — aujourd'hui, les consulter exige une clé SSH sur un serveur
 qui héberge aussi la SSO et le BRM. Ce n'est praticable ni pour plusieurs personnes
