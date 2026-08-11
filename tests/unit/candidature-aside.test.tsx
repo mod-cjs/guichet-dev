@@ -49,7 +49,7 @@ describe('GUIC-689 (É-13) — prochaine étape', () => {
     ['Vue', /étudie ton dossier/i],
     ['Retenue', /retenue/i],
     ['Refusee', /pas été retenue/i],
-    ['Retiree', /retirée/i],
+    ['Retiree', /retir[ée]/i],   // « tu as retiré » ou « retirée » : le fait, pas l'accord
   ])('statut %s → %s', (statut, attendu) => {
     render(<CandidatureAside candidature={avec({ statut })} />)
     expect(screen.getByTestId('aside-prochaine-etape').textContent).toMatch(attendu)
