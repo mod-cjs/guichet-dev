@@ -76,11 +76,11 @@ describe('GUIC-704 — AdminPartenairesTable (refonte : agrégats + filtres + tr
 
   it('header 4 KPI conforme maquette (comptes actifs, offres publiées, trend du mois)', () => {
     renderTable([row()])
-    expect(screen.getByText('Comptes recruteurs actifs')).toBeInTheDocument()
-    expect(screen.getByText('Offres publiées')).toBeInTheDocument()
+    expect(screen.getByText('Comptes recruteurs actifs')).toBeInTheDocument() // label unique de tuile
     expect(screen.getByText('7')).toBeInTheDocument() // comptes actifs
-    expect(screen.getByText('42')).toBeInTheDocument() // offres publiées
+    expect(screen.getByText('42')).toBeInTheDocument() // offres publiées (valeur du résumé)
     expect(screen.getByText(/\+4 ce mois/)).toBeInTheDocument() // trend
+    expect(screen.getAllByText(/Offres publiées/i).length).toBeGreaterThan(0)
   })
 
   it('état vide', () => {

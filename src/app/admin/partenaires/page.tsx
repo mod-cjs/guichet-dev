@@ -35,6 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       currentPage={data.currentPage}
       totalPages={data.totalPages}
       kpis={data.kpis}
+      resume={data.resume}
       secteursDispo={data.secteursDispo}
       statut={statut}
       tri={tri}

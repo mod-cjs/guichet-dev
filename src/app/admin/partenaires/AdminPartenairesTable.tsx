@@ -8,7 +8,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { PartenaireCard } from '@/components/ui/PartenaireCard'
 import { sectorLabel } from '@/lib/partenaire-secteur'
-import type { PartenaireRow, PartenaireKpis, StatutPartenaire, TriPartenaire } from '@/lib/loaders/admin-partenaires'
+import type { PartenaireRow, PartenaireKpis, ResumePartenaires, StatutPartenaire, TriPartenaire } from '@/lib/loaders/admin-partenaires'
 import { PartenaireFormModal, type PartenaireValues } from './PartenaireFormModal'
 import { PartenaireSheet } from './PartenaireSheet'
 
@@ -20,11 +20,27 @@ export interface AdminPartenairesTableProps {
   currentPage?: number
   totalPages?: number
   kpis: PartenaireKpis
+  resume: ResumePartenaires
   secteursDispo: string[]
   statut: StatutPartenaire
   tri: TriPartenaire
   secteur: string
   search?: string
+}
+
+/** Tuile KPI de synthèse (header maquette). `trend` = « +N ce mois ». */
+function StatTuile({ valeur, label, trend }: { valeur: number; label: string; trend?: number }) {
+  return (
+    <div className="rounded-[12px] px-[15px] py-[12px] flex-1 min-w-[140px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
+      <div className="flex items-baseline gap-[8px]">
+        <span className="text-[22px] font-black leading-none" style={{ color: 'var(--gj-ink)' }}>{valeur.toLocaleString('fr-FR')}</span>
+        {trend !== undefined && trend > 0 && (
+          <span className="text-[11px] font-black" style={{ color: 'var(--gj-green-ink)' }}>+{trend} ce mois</span>
+        )}
+      </div>
+      <div className="text-[11.5px] font-bold mt-[4px]" style={{ color: 'var(--gj-grey)' }}>{label}</div>
+    </div>
+  )
 }
 
 const CHIPS: { key: StatutPartenaire; label: string; kpi: keyof PartenaireKpis }[] = [
@@ -69,7 +85,7 @@ function SelectFiltre({ label, value, onChange, options }: { label: string; valu
  * « letterhead » des organisations recruteurs ; clic carte → dossier slide-over
  * (vérifier / éditer / fiche complète). Filtres, recherche et pagination conservés.
  */
-export function AdminPartenairesTable({ items, total, currentPage = 1, totalPages = 1, kpis, secteursDispo, statut, tri, secteur, search = '' }: AdminPartenairesTableProps) {
+export function AdminPartenairesTable({ items, total, currentPage = 1, totalPages = 1, kpis, resume, secteursDispo, statut, tri, secteur, search = '' }: AdminPartenairesTableProps) {
   const router = useRouter()
   const etat: EtatUrl = { statut, q: search, secteur, tri }
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
@@ -87,6 +103,14 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
         <div className="mb-4">
           <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Partenaires</h1>
           <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{total} organisation{total > 1 ? 's' : ''} recruteur{total > 1 ? 's' : ''}</p>
+        </div>
+
+        {/* Header 4 KPI (conformité maquette) */}
+        <div className="flex gap-[10px] flex-wrap mb-4">
+          <StatTuile valeur={resume.total} label="Partenaires" trend={resume.nouveauxCeMois} />
+          <StatTuile valeur={resume.verifies} label="Vérifiés" />
+          <StatTuile valeur={resume.comptesActifs} label="Comptes recruteurs actifs" />
+          <StatTuile valeur={resume.offresPubliees} label="Offres publiées" />
         </div>
 
         {/* Chips statut avec compteurs */}

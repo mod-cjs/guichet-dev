@@ -1,8 +1,11 @@
 /**
  * GUIC-704 — loader de la console Partenaires (organisations recruteurs).
  *
- * Partenaire = Organisation (naît côté recruteur/SSO — pas de création admin) + son
- * COMPTE recruteur (`Utilisateur` par `cjsUid`). On agrège en base les vrais chiffres
+ * Partenaire = Organisation + son COMPTE recruteur (`Utilisateur` par `cjsUid`).
+ * NB : l'Organisation est bien créée CÔTÉ ADMIN — aujourd'hui dans `admin/utilisateurs`
+ * (`creerOrganisationPourRecruteur`), pas ici. Le découplage (org ≠ compte, 0..N) est
+ * spécifié dans `.agent_context/specs/partenaires-recruteurs-decouplage.md`.
+ * On agrège en base les vrais chiffres
  * (offres publiées, candidatures reçues) et on joint le statut du compte, puis on filtre
  * (secteur / vérifié / suspendu) et on trie EN MÉMOIRE sur un lot borné — comme la
  * modération. « Suspendu » vit sur le compte recruteur (pas une colonne Organisation),
@@ -133,6 +136,15 @@ export function trierPartenaires(rows: PartenaireRow[], tri: TriPartenaire): Par
   }
 }
 
+/** Synthèse globale (header 4 KPI de la maquette) — indépendante des filtres/page. */
+export interface ResumePartenaires {
+  total: number
+  nouveauxCeMois: number
+  verifies: number
+  comptesActifs: number
+  offresPubliees: number
+}
+
 export interface PartenairesData {
   rows: PartenaireRow[]
   total: number
@@ -140,6 +152,12 @@ export interface PartenairesData {
   totalPages: number
   kpis: PartenaireKpis
   secteursDispo: string[]
+  resume: ResumePartenaires
+}
+
+/** Premier jour du mois courant (UTC) — pour le trend « +N ce mois ». Injectable pour les tests. */
+export function debutDuMois(maintenant: Date): Date {
+  return new Date(Date.UTC(maintenant.getUTCFullYear(), maintenant.getUTCMonth(), 1))
 }
 
 /** Statut d'Utilisateur (enum) → RecruteurStatut. */
@@ -202,5 +220,18 @@ export async function getPartenairesData(params: {
   const currentPage = Math.min(page, totalPages)
   const rows = filtered.slice((currentPage - 1) * PAGE_SIZE_P, currentPage * PAGE_SIZE_P)
 
-  return { rows, total, currentPage, totalPages, kpis, secteursDispo }
+  return { rows, total, currentPage, totalPages, kpis, secteursDispo, resume: await calculerResume() }
+}
+
+/** Synthèse globale (header 4 KPI, indépendante des filtres) — un KPI = une requête réelle. */
+export async function calculerResume(maintenant: Date = new Date()): Promise<ResumePartenaires> {
+  const uids = (await prisma.organisation.findMany({ select: { cjsUid: true }, distinct: ['cjsUid'] })).map((o) => o.cjsUid)
+  const [total, nouveauxCeMois, verifies, comptesActifs, offresPubliees] = await Promise.all([
+    prisma.organisation.count(),
+    prisma.organisation.count({ where: { createdAt: { gte: debutDuMois(maintenant) } } }),
+    prisma.organisation.count({ where: { estVerifie: true } }),
+    uids.length ? prisma.utilisateur.count({ where: { cjsUid: { in: uids }, statut: 'actif' } }) : Promise.resolve(0),
+    prisma.opportunite.count({ where: { statut: 'publiee', organisationId: { not: null } } }),
+  ])
+  return { total, nouveauxCeMois, verifies, comptesActifs, offresPubliees }
 }
