@@ -27,6 +27,12 @@ test.describe('R1 — recruteur publie une offre @smoke', () => {
     await editor.click()
     await editor.pressSequentially('Missions E2E : développement web. Profil junior motivé. Conditions : présentiel Dakar.')
 
+    // GUIC-684 — rattachement à au moins un programme OBLIGATOIRE.
+    await page
+      .getByRole('group', { name: 'Programmes de rattachement' })
+      .getByRole('button', { name: 'YEAH' })
+      .click()
+
     await page.getByRole('button', { name: /soumettre à validation/i }).click()
 
     // Redirection avec ?creee=1 + offre visible.

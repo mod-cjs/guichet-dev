@@ -30,6 +30,13 @@ test.describe('C2 — publication conseiller @secondaire', () => {
     await page.locator('[contenteditable="true"]').first().pressSequentially('Atelier E2E — contenu de description suffisant.')
     await page.locator('#pub-date').fill('2026-12-01T10:00')
     await page.locator('#pub-lieu').fill('Salle A — Centre E2E')
+
+    // GUIC-684 — rattachement à au moins un programme OBLIGATOIRE.
+    await page
+      .getByRole('group', { name: 'Programmes de rattachement' })
+      .getByRole('button', { name: 'YEAH' })
+      .click()
+
     await page.getByRole('button', { name: /soumettre pour validation/i }).click()
 
     // Retour à la liste + preuve DB : Evenement en_relecture rattaché au centre du conseiller.

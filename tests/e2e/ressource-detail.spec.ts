@@ -7,7 +7,10 @@ import { test, expect } from '@playwright/test'
 
 test.describe('P5 — détail ressource public @secondaire', () => {
   test('liste → détail ressource', async ({ page }) => {
-    await page.goto('/ressources')
+    // GUIC-689 (Lot F2) — `/ressources` nu affiche désormais l'ACCUEIL médiathèque
+    // (bandeau, catégories, étagères) ; la vue liste vit derrière `vue=liste`,
+    // exactement là où mène le lien « Toutes les ressources → » de l'accueil.
+    await page.goto('/ressources?vue=liste')
     await expect(page.getByTestId('results-count').first()).toBeVisible()
 
     // Ouvre la première ressource (données du seed dev).
