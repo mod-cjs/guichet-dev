@@ -9,7 +9,9 @@ jest.mock('@/app/admin/partenaires/actions', () => ({
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }))
 
 import { AdminPartenairesTable } from '@/app/admin/partenaires/AdminPartenairesTable'
-import type { PartenaireRow, PartenaireKpis } from '@/lib/loaders/admin-partenaires'
+import type { PartenaireRow, PartenaireKpis, ResumePartenaires } from '@/lib/loaders/admin-partenaires'
+
+const RESUME: ResumePartenaires = { total: 13, nouveauxCeMois: 4, verifies: 9, comptesActifs: 7, offresPubliees: 42 }
 
 function row(over: Partial<PartenaireRow> = {}): PartenaireRow {
   return {
@@ -24,7 +26,7 @@ function renderTable(items: PartenaireRow[], over: Record<string, unknown> = {})
   return render(
     <AdminPartenairesTable
       items={items} total={items.length} currentPage={1} totalPages={1}
-      kpis={KPIS} secteursDispo={['Numerique', 'Sante']} statut="tous" tri="nom" secteur="" search=""
+      kpis={KPIS} resume={RESUME} secteursDispo={['Numerique', 'Sante']} statut="tous" tri="nom" secteur="" search=""
       {...over}
     />,
   )
@@ -70,6 +72,15 @@ describe('GUIC-704 — AdminPartenairesTable (refonte : agrégats + filtres + tr
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('button', { name: /^Dévérifier/ })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: /Éditer/ })).toBeInTheDocument()
+  })
+
+  it('header 4 KPI conforme maquette (comptes actifs, offres publiées, trend du mois)', () => {
+    renderTable([row()])
+    expect(screen.getByText('Comptes recruteurs actifs')).toBeInTheDocument()
+    expect(screen.getByText('Offres publiées')).toBeInTheDocument()
+    expect(screen.getByText('7')).toBeInTheDocument() // comptes actifs
+    expect(screen.getByText('42')).toBeInTheDocument() // offres publiées
+    expect(screen.getByText(/\+4 ce mois/)).toBeInTheDocument() // trend
   })
 
   it('état vide', () => {

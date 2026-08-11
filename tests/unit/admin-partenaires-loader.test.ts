@@ -11,6 +11,7 @@ import {
   kpisPartenaires,
   filtrerPartenaires,
   trierPartenaires,
+  debutDuMois,
   type PartenaireRow,
   type OrgRaw,
 } from '@/lib/loaders/admin-partenaires'
@@ -82,6 +83,11 @@ describe('GUIC-704 — loader partenaires (helpers purs)', () => {
     expect(filtrerPartenaires(rows, 'verifies').map((r) => r.id)).toEqual(['a', 'c'])
     expect(filtrerPartenaires(rows, 'non_verifies').map((r) => r.id)).toEqual(['b'])
     expect(filtrerPartenaires(rows, 'suspendus').map((r) => r.id)).toEqual(['c'])
+  })
+
+  it('debutDuMois : premier jour du mois courant en UTC (pour le trend « +N ce mois »)', () => {
+    expect(debutDuMois(new Date('2026-08-10T12:34:00Z')).toISOString()).toBe('2026-08-01T00:00:00.000Z')
+    expect(debutDuMois(new Date('2026-01-31T23:59:00Z')).toISOString()).toBe('2026-01-01T00:00:00.000Z')
   })
 
   it('trierPartenaires : nom / offres / candidatures / récent', () => {
