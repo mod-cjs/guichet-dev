@@ -41,20 +41,20 @@ describe('GUIC-704 — AdminPartenairesTable (refonte : agrégats + filtres + tr
 
   it('carte : affiche offres publiées ET candidatures reçues (agrégats réels)', () => {
     renderTable([row()])
-    expect(screen.getByText(/4/)).toBeInTheDocument() // publiées
-    expect(screen.getByText(/37/)).toBeInTheDocument() // candidatures
-    expect(screen.getByText(/candidatures?/i)).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument() // offres publiées
+    expect(screen.getByText('37')).toBeInTheDocument() // candidatures reçues
+    expect(screen.getAllByText(/candidatures?/i).length).toBeGreaterThan(0)
   })
 
   it('carte : badge « Suspendu » quand le compte recruteur est inactif', () => {
     renderTable([row({ recruteurStatut: 'inactif' })])
-    expect(screen.getByText(/Suspendu/i)).toBeInTheDocument()
+    expect(screen.getByText('Suspendu')).toBeInTheDocument() // badge carte (≠ chip « Suspendus »)
   })
 
   it('chips de statut AVEC compteurs (dont Suspendus) et param ?statut=', () => {
     renderTable([row()])
-    expect(screen.getByRole('link', { name: /Vérifiés · 1/ })).toHaveAttribute('href', expect.stringContaining('statut=verifies'))
-    expect(screen.getByRole('link', { name: /Suspendus · 1/ })).toHaveAttribute('href', expect.stringContaining('statut=suspendus'))
+    expect(screen.getByRole('tab', { name: /Vérifiés · 1/ })).toHaveAttribute('href', expect.stringContaining('statut=verifies'))
+    expect(screen.getByRole('tab', { name: /Suspendus · 1/ })).toHaveAttribute('href', expect.stringContaining('statut=suspendus'))
   })
 
   it('contrôles filtre secteur + tri', () => {

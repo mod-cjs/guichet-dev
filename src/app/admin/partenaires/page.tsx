@@ -2,17 +2,16 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
-import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
-import { AdminPartenairesTable, type PartenaireRow } from './AdminPartenairesTable'
+import { getPartenairesData, parseStatutPartenaire, parseTriPartenaire } from '@/lib/loaders/admin-partenaires'
+import { AdminPartenairesTable } from './AdminPartenairesTable'
 
 export const metadata: Metadata = { title: 'Partenaires — Admin CJS' }
 
-const PAGE_SIZE = 20
-
 interface SP {
   page?: string
-  verifie?: string
+  statut?: string
+  secteur?: string
+  tri?: string
   q?: string
 }
 
@@ -23,53 +22,23 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
   const q = (sp.q ?? '').trim()
-  const verifieFilter = sp.verifie === 'oui' ? true : sp.verifie === 'non' ? false : undefined
+  const statut = parseStatutPartenaire(sp.statut)
+  const tri = parseTriPartenaire(sp.tri)
+  const secteur = (sp.secteur ?? '').trim()
 
-  const where: Prisma.OrganisationWhereInput = {
-    ...(q ? { nom: { contains: q } } : {}),
-    ...(verifieFilter !== undefined ? { estVerifie: verifieFilter } : {}),
-  }
-
-  const [rows, total] = await Promise.all([
-    prisma.organisation.findMany({
-      where,
-      select: {
-        id: true,
-        nom: true,
-        description: true,
-        logoUrl: true,
-        secteur: true,
-        region: true,
-        email: true,
-        estVerifie: true,
-        _count: { select: { opportunites: true } },
-      },
-      orderBy: { nom: 'asc' },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.organisation.count({ where }),
-  ])
-
-  const items: PartenaireRow[] = rows.map((o) => ({
-    id: o.id,
-    nom: o.nom,
-    description: o.description,
-    logoUrl: o.logoUrl,
-    secteur: o.secteur,
-    region: o.region,
-    email: o.email,
-    estVerifie: o.estVerifie,
-    opportunitesCount: o._count.opportunites,
-  }))
+  const data = await getPartenairesData({ q, statut, tri, secteur: secteur || undefined, page })
 
   return (
     <AdminPartenairesTable
-      items={items}
-      total={total}
-      currentPage={page}
-      totalPages={Math.ceil(total / PAGE_SIZE)}
-      verifieFilter={sp.verifie === 'oui' ? 'oui' : sp.verifie === 'non' ? 'non' : 'tous'}
+      items={data.rows}
+      total={data.total}
+      currentPage={data.currentPage}
+      totalPages={data.totalPages}
+      kpis={data.kpis}
+      secteursDispo={data.secteursDispo}
+      statut={statut}
+      tri={tri}
+      secteur={secteur}
       search={q}
     />
   )

@@ -12,6 +12,11 @@ export interface PartenaireCardData {
   estVerifie: boolean
   opportunitesCount: number
   logoUrl?: string | null
+  /** Agrégats réels (refonte GUIC-704). */
+  publieesCount?: number
+  candidaturesCount?: number
+  /** Statut du compte recruteur : `inactif` = suspendu (ne peut plus publier). */
+  recruteurStatut?: 'actif' | 'inactif' | 'anonymise' | 'inconnu'
 }
 
 export interface PartenaireCardProps {
@@ -34,7 +39,9 @@ function initials(nom: string): string {
  * pastille pleine, badge vérifié. Cliquable : ouvre le dossier via `onOpen`.
  */
 export function PartenaireCard({ partenaire, onOpen }: PartenaireCardProps) {
-  const { id, nom, secteur, region, estVerifie, logoUrl, opportunitesCount } = partenaire
+  const { id, nom, secteur, region, estVerifie, logoUrl, opportunitesCount, publieesCount, candidaturesCount, recruteurStatut } = partenaire
+  const suspendu = recruteurStatut === 'inactif'
+  const offres = publieesCount ?? opportunitesCount
   const cardStyle = {
     '--sc': `var(${sectorVar(secteur)})`,
     display: 'flex',
@@ -112,10 +119,21 @@ export function PartenaireCard({ partenaire, onOpen }: PartenaireCardProps) {
         )}
       </div>
 
-      {/* Corps : offres publiées */}
-      <div style={{ padding: '12px 15px', fontSize: 12.5, color: 'var(--gj-grey)' }}>
-        <b style={{ color: 'var(--gj-ink)', fontSize: 15 }}>{opportunitesCount}</b>{' '}
-        offre{opportunitesCount > 1 ? 's' : ''} publiée{opportunitesCount > 1 ? 's' : ''}
+      {/* Corps : agrégats réels (offres publiées + candidatures) + statut compte */}
+      <div style={{ padding: '12px 15px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', fontSize: 12.5, color: 'var(--gj-grey)' }}>
+        <span>
+          <b style={{ color: 'var(--gj-ink)', fontSize: 15 }}>{offres}</b> offre{offres > 1 ? 's' : ''} publiée{offres > 1 ? 's' : ''}
+        </span>
+        {candidaturesCount !== undefined && (
+          <span>
+            <b style={{ color: 'var(--gj-ink)', fontSize: 15 }}>{candidaturesCount}</b> candidature{candidaturesCount > 1 ? 's' : ''}
+          </span>
+        )}
+        {suspendu && (
+          <span style={{ marginLeft: 'auto', flexShrink: 0, borderRadius: 999, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '3px 8px', background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+            Suspendu
+          </span>
+        )}
       </div>
     </button>
   )
