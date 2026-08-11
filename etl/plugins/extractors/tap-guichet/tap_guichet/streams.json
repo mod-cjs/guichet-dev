@@ -476,7 +476,8 @@
               "En_attente",
               "Vue",
               "Retenue",
-              "Refusee"
+              "Refusee",
+              "Retiree"
             ],
             "description": "Décision côté offre : `En_attente`, `Vue`, `Retenue`, `Refusee`.",
             "x-cjs-tier": "public"
