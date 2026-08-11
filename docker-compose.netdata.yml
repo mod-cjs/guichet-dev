@@ -34,6 +34,13 @@ services:
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
+      # GUIC-545 — trouvé au premier déploiement réel (cgroup v1, répertoires pourtant
+      # world-readable dr-xr-xr-x) : "CGROUP: cannot open directory ... Permission denied"
+      # sur cpu,cpuacct/blkio/memory. Le profil seccomp par défaut de Docker bloque certains
+      # appels de la découverte cgroup de Netdata, indépendamment des permissions Unix et des
+      # capacités déjà accordées (SYS_ADMIN/SYS_PTRACE) — sans lui, seules les métriques HÔTE
+      # globales (via /proc, /sys) remontent, pas la répartition par conteneur.
+      - seccomp:unconfined
     volumes:
       - ./infra/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
       - netdata_lib:/var/lib/netdata
