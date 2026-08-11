@@ -1,0 +1,35 @@
+# GUIC-575 — Cloudflare Tunnel : rend Grafana et Netdata accessibles SANS ouvrir de port et
+# SANS dépendre d'un accès SSH sur un serveur mutualisé (SSO + BRM + Guichet).
+#
+# POURQUOI PAS un port publié classique : Grafana et Netdata sont volontairement en boucle
+# locale (`127.0.0.1`, docker-compose.observabilite.yml / docker-compose.netdata.yml) — les
+# ouvrir sur Internet exposerait 30 jours de logs pseudonymisés et les métriques machine
+# derrière un simple mot de passe. `cloudflared` ne change rien à ça : il n'ouvre AUCUN port
+# entrant, il établit une connexion SORTANTE vers le réseau Cloudflare (comme un tunnel SSH
+# inversé et permanent). L'accès est ensuite gardé par IDENTITÉ (Cloudflare Access, e-mail
+# nommé et révocable) plutôt que par POSSESSION d'une clé SSH — plus adapté à plusieurs
+# personnes d'astreinte qui n'ont pas toutes vocation à administrer le serveur.
+#
+# `network_mode: host` : Grafana (127.0.0.1:3000) et Netdata (127.0.0.1:19999) sont DÉJÀ
+# publiés sur la boucle locale de l'hôte — cloudflared en mode host les atteint directement,
+# sans avoir à rejoindre leurs réseaux Docker internes (`observabilite`) ni à republier quoi
+# que ce soit. La frontière de sécurité ne bouge pas : ce qui était joignable par tunnel SSH
+# (loopback hôte) reste le même périmètre, cloudflared devient juste un second chemin vers ce
+# périmètre, gardé par Cloudflare Access.
+#
+# Démarrage (sur le serveur), APRÈS avoir créé le tunnel et ses politiques d'accès côté
+# Cloudflare (voir docs/cloudflare-acces-dashboards.md — étape manuelle, ne peut pas être
+# scriptée depuis ce dépôt) :
+#   docker compose -f docker-compose.cloudflared.yml --env-file /etc/guichet/cloudflared.env up -d
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.7.3
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN obligatoire — voir docs/cloudflare-acces-dashboards.md}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }

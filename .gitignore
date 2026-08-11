@@ -19,6 +19,7 @@ tsconfig.tsbuildinfo
 .env.prod
 .env.migration
 .env.observabilite
+.env.cloudflared
 
 # Prisma
 prisma/migrations/*.sql.lock
