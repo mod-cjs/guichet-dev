@@ -4,6 +4,11 @@
  * GUIC-474 — Présence événement (DB réelle). Prouve : création d'un événement
  * type `Cours` rattaché à un centre + marquage de présence (upsert `present`)
  * via l'action admin. Auth/cache mockés ; prisma réel (MariaDB 3307).
+ *
+ * GUIC-674 — Le test empruntait le premier centre et le premier utilisateur
+ * trouvés en base. Sur une base vierge il échouait en `beforeAll` ; sur une base
+ * peuplée, il marquait présent un VRAI compte. Il pose maintenant ses deux
+ * fixtures et les retire.
  */
 import { prisma } from '@/lib/prisma'
 
@@ -25,9 +30,22 @@ let userCjsUid: string
 let evId: string | null = null
 
 beforeAll(async () => {
-  const centre = await prisma.centre.findFirst({ select: { id: true } })
-  const user = await prisma.utilisateur.findFirst({ select: { cjsUid: true } })
-  if (!centre || !user) throw new Error('Fixture manquante (centre/utilisateur)')
+  const centre = await prisma.centre.create({
+    data: {
+      nom: 'Centre fixture GUIC-474',
+      region: 'Dakar',
+      adresse: 'Fixture intégration — supprimé en fin de suite',
+      latitude: 14.6928,
+      longitude: -17.4467,
+      telephone: '+221338000474',
+      responsable: 'Fixture',
+    },
+    select: { id: true },
+  })
+  const user = await prisma.utilisateur.create({
+    data: { cjsUid: 'fixture-presence-guic474', nom: 'Fixture', prenom: 'Présence' },
+    select: { cjsUid: true },
+  })
   centreId = centre.id
   userCjsUid = user.cjsUid
 })
@@ -38,7 +56,14 @@ afterEach(async () => {
     evId = null
   }
 })
-afterAll(async () => { await prisma.$disconnect() })
+afterAll(async () => {
+  // Ordre imposé par les FK : inscriptions → événements → centre, puis l'utilisateur.
+  await prisma.inscriptionEvenement.deleteMany({ where: { cjsUid: userCjsUid } }).catch(() => {})
+  await prisma.evenement.deleteMany({ where: { centreId } }).catch(() => {})
+  await prisma.centre.delete({ where: { id: centreId } }).catch(() => {})
+  await prisma.utilisateur.delete({ where: { cjsUid: userCjsUid } }).catch(() => {})
+  await prisma.$disconnect()
+})
 
 describe('GUIC-474 — présence événement (DB réelle)', () => {
   it('crée un Cours au centre puis marque présent (walk-in upsert)', async () => {
