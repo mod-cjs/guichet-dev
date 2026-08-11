@@ -14,8 +14,10 @@ set -Eeuo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/db-url.sh"
 
 GUICHET_ENV_FILE="${GUICHET_ENV_FILE:-/etc/guichet/prod.env}"
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guichet}"
-NETWORK="${BACKUP_NETWORK:-${COMPOSE_PROJECT_NAME}_guichet}"
+# GUIC-662 — même correctif que backup.sh : le réseau applicatif est l'EXTERNE
+# ${SERVICES_NETWORK:-cjs-net} (docker-compose.prod.yml, `external: true`), pas
+# ${COMPOSE_PROJECT_NAME}_guichet, que Docker ne crée jamais dans ce cas.
+NETWORK="${BACKUP_NETWORK:-${SERVICES_NETWORK:-cjs-net}}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/guichet}"
 MARIADB_IMAGE="${MARIADB_IMAGE:-mariadb:10.11}"
 
