@@ -21,6 +21,8 @@ function make(over: Partial<CandidatureDetailDTO> = {}): CandidatureDetailDTO {
     cvUrl: 'https://cdn/cv.pdf',
     soumiseA: '2026-05-01T10:00:00.000Z',
     updatedAt: '2026-05-02T11:00:00.000Z',
+    // GUIC-689 (É-13) — champs ajoutés au DTO pour l'aside.
+    entretien: null,
     opportunite: {
       slug: 'stage-data',
       titre: 'Stage Data — Sonatel',
@@ -28,6 +30,8 @@ function make(over: Partial<CandidatureDetailDTO> = {}): CandidatureDetailDTO {
       deadline: '2026-06-30T23:59:59.000Z',
       type: 'Stage',
       domaine: 'Numerique',
+      region: 'Dakar',
+      remuneration: null,
       description: 'Mission analytics…',
     },
     ...over,
