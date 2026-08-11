@@ -17,8 +17,8 @@
 
 | Story | Ce qui bloque | Décisions attendues | Poids |
 |---|---|---|---|
-| **É-18** — Filtres « Format » et « Lieu » de l'agenda | Un champ absent du modèle | 2 | Petit |
-| **É-19** — Notation et attestation d'événement | Fonctionnalité entièrement à créer | 5 | Gros, à scinder |
+| **É-18** — Filtres « Format » et « Lieu » de l'agenda | Un champ absent — mais `Webinar` encode déjà une partie du cas | 3 (dont : qui porte le champ) | Petit |
+| **É-19** — Notation et attestation d'événement | L'émargement EXISTE et fonctionne, il n'est pas utilisé | 6 | Gros, à scinder |
 | **É-30** — Checklist « Profil recherché — où en es-tu ? » | La donnée existe mais **personne ne la saisit** | 2 | Moyen |
 
 Une constante : **aucune des trois n'est bloquée par un problème technique.**
@@ -45,9 +45,14 @@ Référence : `events-web.jsx:98-153`.
 
 ### Ce qui manque
 
-**Aucun champ « format ».** Présentiel / en ligne est une invention de la
-maquette : rien dans le modèle ne distingue les deux. Un filtre branché sur
-rien serait un contrôle mort.
+**Correction du 2026-08-11 (retour lead)** — j'avais écrit que le format
+n'existait « nulle part ». C'est inexact : `TypeEvenement` contient déjà
+**`Webinar`**, et `Cours` porte en commentaire « présence par badge ». Le cas
+« en ligne » est donc partiellement encodé.
+
+Il reste insuffisant : une `Formation` peut se tenir en ligne, et la dériver du
+type mentirait dans ce cas. Un champ `mode` explicite reste nécessaire —
+simplement, il complète le modèle au lieu de le créer.
 
 Le filtre « Lieu » est plus subtil. La région est atteignable **par le centre**,
 et aujourd'hui les 16 événements en ont un — le filtre marcherait. Mais rien
@@ -61,10 +66,18 @@ Proposition : `ModeEvenement { Presentiel, EnLigne, Hybride }` sur `Evenement`.
 Un hybride est-il un cas réel chez vous, ou deux valeurs suffisent-elles ?
 
 **D-2 — Que fait-on des 16 événements existants ?**
-Ils ont tous un centre : `Presentiel` est une valeur de reprise défendable.
-Mais une reprise automatique inscrit une affirmation en base — si un de ces
-16 était en ligne, il devient faux. L'alternative est un champ nullable et une
-reprise à la main par les conseillers.
+Ils ont tous un centre : `Presentiel` est une valeur de reprise défendable, et
+`Webinar` donne déjà `EnLigne` sans ambiguïté. Une reprise automatique inscrit
+malgré tout une affirmation en base — si une `Formation` du lot était en ligne,
+elle devient fausse. L'alternative est un champ nullable, repris à la main.
+
+**D-2 bis — QUI porte ce champ ?**
+La saisie vit dans `EvenementFormModal` (admin) et `PublicationForm`
+(conseiller) — des écrans que la **session parallèle est en train de refondre**.
+Deux sessions sur le même formulaire produiront un conflit.
+Recommandation : le champ `mode` rejoint leur lot d'enrichissement du modèle
+événement ; la session v5 le consomme ensuite côté agenda public, sans toucher
+à leurs écrans.
 
 ### Ce que ça implique
 
@@ -95,13 +108,26 @@ présence à un événement *est* modélisée. Elle n'est simplement jamais
 alimentée — zéro inscription en base.
 
 (`CheckIn` existe et fonctionne, mais il enregistre une venue **au centre**,
-pas la participation à un événement précis. Les deux ne se confondent pas.)
+pas la participation à un événement précis — voir ci-dessous le chemin par
+scan, qui referme cet écart sans migration.)
 
 ### Ce qui manque
 
-Tout le reste : aucun modèle de note ni d'avis, aucune génération
-d'attestation. Ce sont **deux fonctionnalités distinctes** qu'il faut cesser
-de traiter comme une seule.
+**Correction du 2026-08-11 (retour lead)** — la présence n'est pas seulement
+modélisée, elle est **déjà écrite par le code** : `marquerPresenceEvenement`
+fait un upsert `statut: 'present'`, avec création walk-in si la personne
+n'était pas inscrite. Le circuit d'émargement existe et fonctionne ; il n'est
+simplement pas encore utilisé (0 ligne).
+
+Le lead signale par ailleurs que **l'émargement peut se faire par SCAN**, comme
+la fréquentation des centres. Vérification faite : `CheckIn` ne référence
+**aucun événement**, ni sur `dev` ni sur les deux branches admin. Le scan
+enregistre une venue *au centre*, pas la participation à un événement précis.
+C'est le seul chaînon manquant.
+
+Reste réellement à créer : le modèle de note/avis, et la génération
+d'attestation. Ce sont **deux fonctionnalités distinctes** qu'il faut cesser de
+traiter comme une seule.
 
 ### Décisions attendues
 
@@ -134,9 +160,18 @@ Modèle `AvisEvenement` (note 1-5, commentaire optionnel, unicité
 `[cjsUid, evenementId]`), API, écran ; puis génération PDF + stockage MinIO +
 route de téléchargement authentifiée.
 
-**Prérequis dur** : sans émargement réellement pratiqué, l'attestation n'a
-aucune base. Les 0 inscriptions actuelles disent que le circuit n'est pas
-encore en service.
+**Chemin recommandé pour la présence — sans migration.** Au moment du scan,
+résoudre l'événement en cours dans ce centre et appeler
+`marquerPresenceEvenement`. Le scan connaît déjà la personne et le centre,
+l'heure fait le reste : ni champ `evenementId` sur `CheckIn`, ni migration.
+
+**D-4 bis — deux événements simultanés dans le même centre ?**
+Soit le conseiller choisit à l'écran, soit on ne rattache rien et la venue
+reste une simple fréquentation. C'est la seule ambiguïté du procédé.
+
+**Prérequis qui demeure** : l'attestation n'a de base que si l'émargement est
+réellement pratiqué. Les 0 inscriptions actuelles disent que le circuit n'est
+pas encore en service — mais l'outil, lui, est prêt.
 
 ---
 
@@ -192,6 +227,9 @@ rien » — un message décourageant produit par une table vide.
 2. **É-30 ensuite**, mais en commençant par D-8 : sans saisie des compétences
    requises, tout le reste est décoratif. Une passe de rattachement sur les 42
    offres existantes vaut mieux qu'un algorithme.
+   Point d'entrée disponible tout de suite : le formulaire de dépôt d'offre
+   recruteur (`mes-offres/nouvelle`) est **hors périmètre admin**, donc
+   portable par la session v5 sans coordination.
 3. **É-19 en dernier**, scindée en deux : la notation est faisable ;
    l'attestation dépend d'un émargement qui n'est pas encore pratiqué et d'une
    décision institutionnelle. Les mener ensemble bloquerait la première sur la
