@@ -28,10 +28,11 @@ Trois contraintes se croisent :
 docker compose $CT ps -q app | xargs -r docker inspect --format '{{index .Config.Image}}'
 ```
 
-⚠️ **La sauvegarde préprod est cassée** (`scripts/backup/backup.sh` attaque la base
-par le mauvais réseau — dette connue, cf. `docs/go-live-checklist.md`). Le seul
-retour arrière fiable est le **redéploiement de l'image notée ci-dessus**. Les
-migrations de ce lot étant additives, ça suffit.
+La sauvegarde préprod fonctionne désormais (`scripts/backup/backup.sh` +
+`restore-drill.sh` ciblent `cjs-net`, GUIC-662/GUIC-571) — lancer
+`bash scripts/backup/backup.sh` avant de migrer reste la bonne pratique. Le
+redéploiement de l'image notée ci-dessus reste le retour arrière **le plus
+rapide** pour une migration additive, mais n'est plus le seul filet.
 
 ---
 

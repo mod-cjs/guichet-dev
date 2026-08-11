@@ -33,6 +33,7 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 - Logs applicatifs, `requestId`, Loki/Grafana, rétention CDP : `docs/observabilite.md`
 - Dashboard Grafana : tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`), voir §5-6 de
   `docs/observabilite.md`
+- Métriques machine (disque, mémoire, CPU) : `docs/netdata.md` — collecte prête, alerting pas encore vérifié
 - Disponibilité indépendante du serveur (sonde externe, WhatsApp) : `docs/supervision-disponibilite.md`
 - Règles d'alerte réelles (ce qui déclenche, quel seuil) : `infra/observabilite/grafana/provisioning/alerting/rules.yml`
 - Canaux de contact (e-mail, webhook) : `infra/observabilite/grafana/provisioning/alerting/contact-points.yml`
@@ -62,7 +63,9 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 | SPF/DKIM/DMARC | Absent — le mail d'astreinte peut finir en spam | GUIC-577 |
 | Copie hors-site des sauvegardes | `BACKUP_OFFSITE_CMD` non défini | GUIC-571 |
 | Relais WhatsApp d'astreinte | Cloudflare Worker pas construit | GUIC-575 |
-| Crontab `GUICHET-BACKUP` (quotidienne + drill hebdo) | En cours d'installation | GUIC-571 |
+| Métriques machine (disque/mémoire) | Netdata jamais déployé — `rules.yml` lui délègue ces seuils, personne ne les surveille aujourd'hui. Compose prêt (`docs/netdata.md`), à déployer et vérifier en réel — alerting non branché. | GUIC-545 |
+| Sonde externe de disponibilité | Conçue, testée côté Grafana/Loki, mais le compte UptimeRobot réel (3 sondes) reste à créer — sans lui, une panne serveur totale ne préviendrait personne | GUIC-575 |
+| Contacts d'astreinte | Tableau vide dans `docs/runbook-production.md` §7 — **marqué No-Go explicite pour le go-live** | GUIC-159 |
 
 Une entrée retirée de ce tableau doit l'être **parce qu'elle est réellement résolue et
 vérifiée en réel**, pas parce que le code a été écrit — cohérent avec `docs/tests-robustesse.md`.

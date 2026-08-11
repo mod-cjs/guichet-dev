@@ -1,0 +1,55 @@
+# GUIC-545 — Métriques MACHINE (disque, mémoire, CPU, réseau, conteneurs). Complète Loki/Grafana
+# (docker-compose.observabilite.yml), qui ne voit que les LOGS applicatifs — la saturation
+# disque/mémoire n'apparaît dans aucun log, donc n'était surveillée par rien.
+#
+# `rules.yml` (alerting Loki) délègue explicitement ces seuils à Netdata :
+#   « Saturation disque et mémoire -> Netdata (GUIC-545), pas Loki : ce sont des métriques
+#     machine, elles n'apparaissent dans aucun log. Les seuils y sont définis, pas ici. »
+# Sans ce fichier déployé, ce délégué n'existe nulle part — angle mort réel sur un serveur
+# mutualisé (SSO + BRM + Guichet) où « un disque plein arrête les trois plateformes ».
+#
+# Démarrage (sur le serveur) :
+#   docker compose -f docker-compose.netdata.yml up -d
+#
+# ⚠️ AUCUN port n'est exposé publiquement (même principe que Grafana) : accès au tableau de bord
+# par tunnel SSH (`ssh -L 19999:127.0.0.1:19999 <serveur>` puis http://localhost:19999).
+#
+# ⚠️ ALERTING NON VÉRIFIÉ EN RÉEL — ce compose déploie la collecte et le tableau de bord, pas
+# encore une notification automatique testée jusqu'à réception (contrairement à Grafana/Loki,
+# vérifié en exécution réelle — docs/supervision-disponibilite.md). Décision à prendre : notifier
+# via le module e-mail natif de Netdata (health_alarm_notify.conf, nécessite un MTA dans le
+# conteneur — à valider) ou exposer les métriques à Grafana (endpoint Prometheus natif de
+# Netdata) pour réutiliser le canal d'astreinte déjà testé (SMTP, contact-points.yml).
+
+services:
+  netdata:
+    image: netdata/netdata:v2.10.3
+    restart: unless-stopped
+    # Nécessaire pour voir les VRAIES interfaces/disques de l'hôte, pas la vue isolée d'un
+    # conteneur — voir infra/netdata/netdata.conf pour la contrepartie (bind 127.0.0.1 only).
+    pid: host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ./infra/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      # Lecture seule : métriques par conteneur (CPU/mémoire de l'app, de Loki, etc.), jamais
+      # d'écriture — même garde-fou que Promtail (docker-compose.observabilite.yml).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  netdata_lib:
+  netdata_cache:

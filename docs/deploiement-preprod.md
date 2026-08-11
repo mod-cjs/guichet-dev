@@ -116,7 +116,7 @@ reste compatible. Sinon, restaurer une sauvegarde (cf. §6 du runbook prod).
 | Mauvais réseau partagé | app ne joint pas Redis/Neo4j/MinIO | `SERVICES_NETWORK=<nom réel>` (`docker network ls`) |
 | `deploy.sh` en préprod | ne combine pas les deux compose → pas de port 8081 | combiner `-f prod -f test` à la main |
 | Migration après bascule | trafic sur schéma non migré | migrer **avant** `up -d` |
-| **Backup préprod cassé** | `mariadb-dump : base injoignable` (mauvais réseau) | dette connue — migrer sur schéma additif = risque accepté ; à corriger |
+| ~~Backup préprod cassé~~ (corrigé GUIC-662/GUIC-571) | `mariadb-dump : base injoignable` (mauvais réseau) | résolu — `backup.sh` et `restore-drill.sh` ciblent `cjs-net` par défaut ; crontab `GUICHET-BACKUP` installée |
 | Secret en clair dans `test.env` | ligne malformée → variable vide silencieuse | pas d'espace après `=` ; `chmod 600` |
 
 ---
