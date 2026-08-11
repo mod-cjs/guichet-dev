@@ -197,12 +197,21 @@ silencieusement morte :
    Grafana refusait le point de contact e-mail.
 3. **`clamp_min` n'existe pas en LogQL** → les deux règles de taux 5xx en erreur de syntaxe.
 
+## Compte UptimeRobot — état réel
+
+Le compte est créé et les sondes sont liées à l'**URL préprod**. Reste à dupliquer sur le
+domaine **prod** une fois celui-ci en service (le domaine n'existe pas encore) — dupliquer, pas
+migrer, pour garder les deux environnements supervisés indépendamment une fois la prod ouverte.
+
 ## Ce qui reste à faire — le ticket n'est pas clos
 
 Son critère d'acceptation est *« chaque seuil déclenche une alerte réellement reçue par une
 personne identifiée (testé) »*. Il manque :
 
-- le **relais WhatsApp** (hors dépôt) et **GUIC-577** pour un e-mail fiable ;
+- **dupliquer les sondes UptimeRobot sur le domaine prod**, une fois celui-ci en service ;
+- le **relais WhatsApp** — protection Cloudflare pas encore en place, brainstorm en cours (voir
+  `docs/ops-index.md`) — et **GUIC-577** pour un e-mail fiable ;
 - un **test de bout en bout par seuil**, sur le serveur, jusqu'à réception ;
-- le **tableau d'astreinte et le chemin d'escalade** — à arbitrer, puis à reporter dans le runbook
+- le **tableau d'astreinte et le chemin d'escalade** — partiellement complété (canal e-mail),
+  Infra/Plesk/SSO/Décision métier restent à désigner, à reporter dans le runbook
   (`docs/runbook-production.md` §7, aujourd'hui vide et marqué No-Go).

@@ -61,11 +61,12 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 | Sujet | État | Ticket |
 |---|---|---|
 | SPF/DKIM/DMARC | Absent — le mail d'astreinte peut finir en spam | GUIC-577 |
-| Copie hors-site des sauvegardes | `BACKUP_OFFSITE_CMD` non défini | GUIC-571 |
-| Relais WhatsApp d'astreinte | Cloudflare Worker pas construit | GUIC-575 |
+| Copie hors-site des sauvegardes | Décision explicitement différée (destination pas encore choisie) — `BACKUP_OFFSITE_CMD` non défini, sans urgence tant qu'aucune échéance n'est fixée | GUIC-571 |
+| Protection plateforme/serveur (Cloudflare) | Pas encore en place — à trancher : usage attendu (WAF/anti-DDoS devant le domaine ? relais WhatsApp ? accès Zero Trust aux dashboards ?) avant toute implémentation | GUIC-575 |
+| Numéro WhatsApp d'astreinte | Pas encore disponible — bloque le canal webhook `contact-points.yml` (`ALERTE_WEBHOOK_URL`), même une fois le relais Cloudflare construit | GUIC-575 |
 | Métriques machine (disque/mémoire) | Netdata jamais déployé — `rules.yml` lui délègue ces seuils, personne ne les surveille aujourd'hui. Compose prêt (`docs/netdata.md`), à déployer et vérifier en réel — alerting non branché. | GUIC-545 |
-| Sonde externe de disponibilité | Conçue, testée côté Grafana/Loki, mais le compte UptimeRobot réel (3 sondes) reste à créer — sans lui, une panne serveur totale ne préviendrait personne | GUIC-575 |
-| Contacts d'astreinte | Tableau vide dans `docs/runbook-production.md` §7 — **marqué No-Go explicite pour le go-live** | GUIC-159 |
+| Sonde externe de disponibilité | **Résolu pour la préprod** — UptimeRobot configuré et lié à l'URL préprod. Reste à dupliquer sur le domaine prod une fois celui-ci en service. | GUIC-575 |
+| Contacts d'astreinte | **Partiel** — « Astreinte applicative » complétée (les deux mêmes adresses que les alertes Grafana : `odiallo@`/`adiop@consortiumjeunessesenegal.org`). Infra/Plesk, SSO et Décision métier restent vides — **toujours No-Go tant que ces 3 lignes ne sont pas complétées** (`docs/runbook-production.md` §7). | GUIC-159 |
 
 Une entrée retirée de ce tableau doit l'être **parce qu'elle est réellement résolue et
 vérifiée en réel**, pas parce que le code a été écrit — cohérent avec `docs/tests-robustesse.md`.

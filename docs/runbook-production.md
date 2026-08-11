@@ -222,12 +222,13 @@ Ensuite seulement, restaurer.
 
 ## 7. Contacts et astreinte
 
-> **À compléter avant le go-live — ce tableau vide est un No-Go (§1).**
+> **Partiellement complété — 3 lignes sur 4 restent vides : toujours un No-Go (§1)
+> tant qu'elles ne le sont pas.**
 > Un runbook sans contact joignable n'est pas un runbook.
 
 | Rôle | Qui | Joignable | Quand l'appeler |
 |---|---|---|---|
-| Astreinte applicative | *à compléter* | *à compléter* | 5xx, rollback, doute sur la base |
+| Astreinte applicative | `odiallo@consortiumjeunessesenegal.org`, `adiop@consortiumjeunessesenegal.org` (mêmes destinataires que les alertes Grafana, `infra/observabilite/grafana/provisioning/alerting/contact-points.yml`) | E-mail | 5xx, rollback, doute sur la base |
 | Infra / Plesk / serveur | *à compléter* | *à compléter* | MariaDB, réseau, TLS, MinIO, Redis |
 | SSO (CJS Auth) | *à compléter* | *à compléter* | Connexion impossible pour tous |
 | Décision métier | *à compléter* | *à compléter* | Perte de données, communication utilisateurs |
