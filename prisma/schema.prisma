@@ -197,6 +197,12 @@ enum StatutCandidature {
   Vue
   Retenue
   Refusee
+  // GUIC-689 — retrait à l'initiative du CANDIDAT. État terminal : la ligne est
+  // conservée (traçabilité, et la contrainte d'unicité `[cjsUid, opportuniteId]`
+  // rend de fait la re-candidature impossible — le retrait est annoncé comme
+  // irréversible à l'utilisateur). Distinct de `Refusee`, qui est une décision
+  // du recruteur : les confondre fausserait les statistiques des deux côtés.
+  Retiree
 
   @@map("statut_candidature")
 }

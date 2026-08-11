@@ -69,6 +69,9 @@ const STATUT_PILL: Record<
   Vue: { label: 'En revue', className: 'bg-gj-blue-soft text-gj-blue' },
   Retenue: { label: 'Retenue', className: 'bg-gj-green-soft text-gj-green-ink' },
   Refusee: { label: 'Non retenue', className: 'bg-gj-red-soft text-gj-red-ink' },
+  // GUIC-689 — retrait par le candidat. Libellé neutre (gris) : ce n'est ni un
+  // refus du recruteur, ni un succès.
+  Retiree: { label: 'Retirée', className: 'bg-gj-bg text-color-text-secondary' },
 }
 
 /**

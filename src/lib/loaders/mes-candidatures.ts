@@ -36,6 +36,10 @@ export const STATUT_TO_STEP: Record<StatutCandidature, StatutMapping> = {
   Vue: { currentStep: 'EnRevue', decision: null },
   Retenue: { currentStep: 'Decision', decision: 'Acceptee' },
   Refusee: { currentStep: 'Decision', decision: 'Refusee' },
+  // GUIC-689 — retrait par le CANDIDAT. `decision: null` volontairement : le
+  // recruteur n'a rien décidé, et afficher « Refusée » ferait porter au jeune
+  // un refus qui n'a jamais eu lieu.
+  Retiree: { currentStep: 'Decision', decision: null },
 }
 
 export async function loadMesCandidatures(cjsUid: string): Promise<CandidatureMock[]> {
