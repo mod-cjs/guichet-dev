@@ -115,6 +115,10 @@ services:
       - grafana_data:/var/lib/grafana
     entrypoint: ['/bin/sh', '/select-contact-points.sh']
     networks: [observabilite]
+    # GUIC-545 — joint Prometheus (docker-compose.netdata.yml, network_mode: host, 127.0.0.1:9090)
+    # depuis ce réseau bridge séparé. Même mécanisme que backup.sh pour joindre MariaDB.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       loki:
         condition: service_healthy

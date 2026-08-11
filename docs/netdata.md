@@ -36,18 +36,27 @@ collectées. Deux constats du premier déploiement réel :
   `sendmail: account default not found: no configuration file available` (code 78). L'image
   officielle n'embarque pas d'agent d'envoi configuré.
 
-## Alerting — pas encore branché, décision à prendre
+## Alerting — voie retenue : Prometheus → Grafana
 
-Contrairement à Loki/Grafana (vérifié en exécution réelle jusqu'à réception d'une alerte —
-`docs/supervision-disponibilite.md`), la notification automatique n'est pas fonctionnelle.
-Deux options :
+Le module e-mail natif de Netdata est écarté (constat ci-dessus). Voie retenue : un serveur
+**Prometheus** racle Netdata (`infra/netdata/prometheus.yml`), Grafana l'interroge en PromQL et
+alerte par le canal déjà testé (SMTP, `contact-points.yml`) — un seul chemin d'astreinte à
+maintenir, pas un second non éprouvé.
 
-1. **Module e-mail natif de Netdata** — écarté par le constat ci-dessus, sauf à installer et
-   configurer un MTA dans le conteneur (complexité supplémentaire, chemin d'alerte non éprouvé).
-2. **Exposer les métriques à Grafana** (endpoint Prometheus natif de Netdata,
-   `/api/v1/allmetrics?format=prometheus`) pour réutiliser le canal d'astreinte déjà testé
-   (SMTP, `infra/observabilite/grafana/provisioning/alerting/contact-points.yml`).
+```bash
+docker compose -f docker-compose.netdata.yml up -d   # inclut désormais prometheus
+```
 
-Option 2 devient la voie recommandée après ce constat — un seul canal d'astreinte à maintenir,
-plutôt que déboguer un MTA dans un conteneur pour un chemin d'alerte qui resterait non éprouvé.
-Pas encore fait : ajouter une source de données Prometheus à Grafana.
+Prometheus tourne en `network_mode: host` comme Netdata (`127.0.0.1:9090`, jamais public) — il
+racle Netdata en `127.0.0.1:19999` directement. Grafana, sur son réseau bridge séparé, le joint
+via `host.docker.internal:9090` (même mécanisme que `backup.sh` pour MariaDB) — nécessite
+`extra_hosts: host.docker.internal:host-gateway` sur le service `grafana`
+(`docker-compose.observabilite.yml`), déjà ajouté. Source de données provisionnée avec un **UID
+explicite** (`infra/observabilite/grafana/provisioning/datasources/prometheus.yml`) — la leçon
+de GUIC-576 (Loki) : sans lui, toute règle qui la référence échoue silencieusement.
+
+**Pas encore fait** : les règles d'alerte disque/mémoire dans `rules.yml`. Volontairement pas
+écrites tant que les noms exacts des métriques Prometheus exposées par cette version de Netdata
+n'ont pas été vérifiés en réel (`curl http://127.0.0.1:19999/api/v1/allmetrics?format=prometheus`)
+— écrire des règles contre des noms devinés reproduirait le bug déjà corrigé sur l'alerting ETL
+(régex qui ne matchait jamais le vocabulaire réel).

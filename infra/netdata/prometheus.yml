@@ -1,0 +1,27 @@
+# GUIC-545 — Racle les métriques Netdata pour les rendre interrogeables en PromQL par Grafana.
+#
+# POURQUOI un serveur Prometheus, et pas Grafana directement sur Netdata : l'endpoint
+# `/api/v1/allmetrics?format=prometheus` de Netdata n'est qu'un point d'EXPOSITION de métriques
+# (ce qu'un « scraper » vient lire), pas une API de requête. Grafana a besoin d'une vraie API
+# PromQL pour interroger et alerter — même schéma que Loki : Grafana interroge Loki, jamais les
+# fichiers de log bruts directement.
+#
+# `help=no&types=no` : Netdata expose par défaut des lignes HELP/TYPE volumineuses, inutiles une
+# fois raclées — les couper réduit le volume sans perdre de donnée.
+
+global:
+  scrape_interval: 30s
+  # Mutualisé avec SSO+BRM : pas la peine de racler plus vite que le rythme auquel on regarde
+  # réellement un dashboard.
+
+scrape_configs:
+  - job_name: netdata
+    metrics_path: /api/v1/allmetrics
+    params:
+      format: [prometheus]
+      help: ['no']
+      types: ['no']
+    static_configs:
+      # Prometheus tourne en network_mode: host (docker-compose.netdata.yml), comme Netdata —
+      # 127.0.0.1 désigne donc le même hôte, sans host.docker.internal.
+      - targets: ['127.0.0.1:19999']

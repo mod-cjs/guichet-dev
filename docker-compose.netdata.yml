@@ -14,12 +14,11 @@
 # ⚠️ AUCUN port n'est exposé publiquement (même principe que Grafana) : accès au tableau de bord
 # par tunnel SSH (`ssh -L 19999:127.0.0.1:19999 <serveur>` puis http://localhost:19999).
 #
-# ⚠️ ALERTING NON VÉRIFIÉ EN RÉEL — ce compose déploie la collecte et le tableau de bord, pas
-# encore une notification automatique testée jusqu'à réception (contrairement à Grafana/Loki,
-# vérifié en exécution réelle — docs/supervision-disponibilite.md). Décision à prendre : notifier
-# via le module e-mail natif de Netdata (health_alarm_notify.conf, nécessite un MTA dans le
-# conteneur — à valider) ou exposer les métriques à Grafana (endpoint Prometheus natif de
-# Netdata) pour réutiliser le canal d'astreinte déjà testé (SMTP, contact-points.yml).
+# ALERTING (GUIC-545) — le module e-mail natif de Netdata est confirmé NON fonctionnel en réel
+# (pas de MTA dans l'image officielle, docs/netdata.md). Voie retenue : Prometheus racle Netdata
+# (infra/netdata/prometheus.yml), Grafana interroge Prometheus en PromQL et alerte par le canal
+# déjà testé (SMTP, contact-points.yml) — mêmes règles rules.yml que pour Loki, un seul chemin
+# d'astreinte à maintenir plutôt que d'en construire un second, non éprouvé.
 
 services:
   netdata:
@@ -57,6 +56,32 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
 
+  prometheus:
+    image: prom/prometheus:v3.8.1
+    restart: unless-stopped
+    # Même réseau hôte que Netdata : le racle en 127.0.0.1, pas de host.docker.internal requis
+    # ici. Nécessaire aussi côté sortant : Grafana (docker-compose.observabilite.yml, réseau
+    # bridge séparé) joint CE service via host.docker.internal:9090 — le même mécanisme déjà
+    # utilisé pour joindre MariaDB depuis un conteneur (backup.sh, docker-compose.prod.yml).
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Rétention courte, volontairement : ce Prometheus sert l'alerting temps réel, pas
+      # l'analyse historique — cohérent avec le rôle de Netdata (dashboard d'astreinte), pas un
+      # entrepôt de métriques. Loki, lui, retient 30 jours pour les logs (contrainte CDP).
+      - --storage.tsdb.retention.time=15d
+      # AUCUN port public (même principe que Grafana/Netdata) : `network_mode: host` publierait
+      # sinon 9090 sur TOUTES les interfaces par défaut.
+      - --web.listen-address=127.0.0.1:9090
+    volumes:
+      - ./infra/netdata/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
 volumes:
   netdata_lib:
   netdata_cache:
+  prometheus_data:
