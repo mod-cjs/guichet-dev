@@ -18,12 +18,15 @@ describe('<CandidaturesClient />', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(CANDIDATURES_MOCK.length)
   })
 
-  it('filtre par étape EnRevue ne montre que les EnRevue', () => {
+  // GUIC-689 (É-14) — le filtre porte désormais sur le GROUPE, pas sur l'étape :
+  // « En cours » réunit Envoyée et En revue. L'intention du test — un filtre
+  // restreint bien la liste — est inchangée.
+  it('filtre « En cours » ne montre que les candidatures envoyées ou en revue', () => {
     render(<CandidaturesClient items={CANDIDATURES_MOCK} />)
-    fireEvent.click(screen.getByRole('button', { name: /En revue/i }))
+    fireEvent.click(screen.getByRole('button', { name: /En cours/i }))
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(
-      CANDIDATURES_MOCK.filter((c) => c.currentStep === 'EnRevue').length,
+      CANDIDATURES_MOCK.filter((c) => c.currentStep === 'Envoyee' || c.currentStep === 'EnRevue').length,
     )
   })
 
