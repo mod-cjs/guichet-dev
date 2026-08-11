@@ -22,9 +22,9 @@ function renderVue(lignes: LigneMonitoring[], resume = RESUME) {
 describe('GUIC-704 — Monitoring (refonte registre)', () => {
   it('affiche la synthèse : nombre de sources et sources en alerte', () => {
     renderVue([ligne()])
-    expect(screen.getByText(/3/).closest('*')).toBeInTheDocument()
-    expect(screen.getByText(/Sources/i)).toBeInTheDocument()
-    expect(screen.getByText(/En alerte/i)).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument() // tuile Sources
+    expect(screen.getByText('Sources')).toBeInTheDocument()
+    expect(screen.getByText('En alerte')).toBeInTheDocument()
   })
 
   it('badge santé OK pour une source saine', () => {
@@ -40,9 +40,10 @@ describe('GUIC-704 — Monitoring (refonte registre)', () => {
 
   it('source en alerte chute_zero : libellé explicite + bandeau actionnable avec lien', () => {
     renderVue([ligne({ nom: 'LinkedIn Jobs', alerte: 'chute_zero' })])
-    expect(screen.getByText(/Chute à zéro/i)).toBeInTheDocument()
-    // Bandeau d'alerte : lien vers la gestion des sources pour agir.
-    const lien = screen.getByRole('link', { name: /LinkedIn Jobs|Gérer|Voir la source/i })
+    // « Chute à zéro » apparaît 2× (badge de ligne + bandeau) — c'est voulu.
+    expect(screen.getAllByText(/Chute à zéro/i).length).toBeGreaterThan(0)
+    // Bandeau d'alerte : lien actionnable vers la gestion des sources.
+    const lien = screen.getByRole('link', { name: /Voir la source/i })
     expect(lien).toHaveAttribute('href', expect.stringContaining('/admin/sources-veille'))
   })
 
