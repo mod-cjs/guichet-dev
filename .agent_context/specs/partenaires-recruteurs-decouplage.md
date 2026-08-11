@@ -167,3 +167,9 @@ Chaque étage = commits RED→GREEN, garde-fous (charte qualité), vérif labo r
 7. **Le stack rebase sur dev migré** → `schema.prisma` du stack aligné (cjsUid nullable + statut) → **tue le drift**. Le code Phase 2a se construit sur ce schéma aligné.
 
 **Séquencement** : la migration atterrit sur dev **avant** le code ; le code Phase 2a reste dans le stack et part dans le **pivot groupé**. Le rebase (étape 7) est le moment naturel pour la **passe de réconciliation schéma** du stack (retirer le hack local `programme_id`, aligner sur dev).
+
+### ⚠️ Correction (consigne de session) — NE PAS pousser tôt
+La refonte admin **reste 100 % locale jusqu'à une version complète** ; on lance **toutes les PR ensemble** (pivot groupé cohérent), on ne met **jamais en ligne** un morceau incomplet. Donc :
+- **GUIC-705** (branche + migration, authored depuis `origin/dev`) est **committée en LOCAL uniquement** — **aucun push, aucune PR** pour l'instant. Elle rejoindra le pivot groupé.
+- L'intérêt de « authored depuis dev » n'est PAS de merger tôt, mais d'être **pivot-ready** (timeline propre, zéro drift au moment du pivot).
+- **Développement Phase 2a en local** : on applique le `ALTER` additif à la **base locale du stack** + on reflète `cjsUid` nullable + `statut` dans le `schema.prisma` **du stack** (mirroring local de GUIC-705, adapté au schéma drifté du stack) pour pouvoir coder/tester. Tout reste local ; au pivot, le stack rebase sur dev migré et se réconcilie.

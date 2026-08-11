@@ -37,11 +37,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   })
   if (!org) notFound()
 
-  // Partenaire = recruteur : on charge aussi le COMPTE (personne) propriétaire.
-  const recruteur = await prisma.utilisateur.findUnique({
-    where: { cjsUid: org.cjsUid },
-    select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, statut: true },
-  })
+  // Compte recruteur (personne) propriétaire — null si partenaire SANS compte (GUIC-705).
+  const recruteur = org.cjsUid
+    ? await prisma.utilisateur.findUnique({
+        where: { cjsUid: org.cjsUid },
+        select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, statut: true },
+      })
+    : null
 
   const infos = [
     ['Secteur', org.secteur?.replace(/_/g, ' ')],

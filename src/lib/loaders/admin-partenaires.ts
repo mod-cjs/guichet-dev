@@ -41,7 +41,7 @@ export interface OrgRaw {
   region: string | null
   email: string | null
   estVerifie: boolean
-  cjsUid: string
+  cjsUid: string | null // GUIC-705 : null = partenaire sans compte recruteur
   createdAt: Date
 }
 
@@ -56,7 +56,7 @@ export interface PartenaireRow {
   region: string | null
   email: string | null
   estVerifie: boolean
-  cjsUid: string
+  cjsUid: string | null
   createdAt: Date
   opportunitesCount: number
   publieesCount: number
@@ -193,7 +193,7 @@ export async function getPartenairesData(params: {
   })) as OrgRaw[]
 
   const ids = raws.map((r) => r.id)
-  const cjsUids = [...new Set(raws.map((r) => r.cjsUid))]
+  const cjsUids = [...new Set(raws.map((r) => r.cjsUid).filter((u): u is string => !!u))] // exclut les sans-compte
 
   // 1 requête pour les agrégats : par opportunité (statut + nb candidatures), agrégée par org.
   const opps = ids.length
@@ -210,7 +210,7 @@ export async function getPartenairesData(params: {
     : []
   const statutParUid = new Map(users.map((u) => [u.cjsUid, versRecruteurStatut(u.statut)]))
 
-  const all = raws.map((r) => mapPartenaireRow(r, agg[r.id], statutParUid.get(r.cjsUid)))
+  const all = raws.map((r) => mapPartenaireRow(r, agg[r.id], r.cjsUid ? statutParUid.get(r.cjsUid) : undefined))
   const kpis = kpisPartenaires(all)
   const secteursDispo = [...new Set(all.map((r) => r.secteur).filter((s): s is string => !!s))].sort((a, b) => a.localeCompare(b, 'fr'))
 
@@ -225,7 +225,7 @@ export async function getPartenairesData(params: {
 
 /** Synthèse globale (header 4 KPI, indépendante des filtres) — un KPI = une requête réelle. */
 export async function calculerResume(maintenant: Date = new Date()): Promise<ResumePartenaires> {
-  const uids = (await prisma.organisation.findMany({ select: { cjsUid: true }, distinct: ['cjsUid'] })).map((o) => o.cjsUid)
+  const uids = (await prisma.organisation.findMany({ select: { cjsUid: true }, distinct: ['cjsUid'] })).map((o) => o.cjsUid).filter((u): u is string => !!u)
   const [total, nouveauxCeMois, verifies, comptesActifs, offresPubliees] = await Promise.all([
     prisma.organisation.count(),
     prisma.organisation.count({ where: { createdAt: { gte: debutDuMois(maintenant) } } }),

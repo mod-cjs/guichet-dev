@@ -408,7 +408,8 @@ model Diplome {
 
 model Organisation {
   id         String   @id @default(uuid()) @db.VarChar(36)
-  cjsUid     String   @map("cjs_uid") @db.VarChar(36)
+  // GUIC-705 (découplage, mirroring local de la migration dev) : nullable = partenaire sans compte.
+  cjsUid     String?  @map("cjs_uid") @db.VarChar(36)
   nom        String   @db.VarChar(200)
   description String?  @db.Text // GUIC-510 — présentation du partenaire (affichée admin/recruteur)
   secteur    Domaine?
@@ -419,6 +420,8 @@ model Organisation {
   siteWeb    String?  @map("site_web") @db.VarChar(500)
   logoUrl    String?  @map("logo_url") @db.VarChar(500)
   estVerifie Boolean  @default(false) @map("est_verifie")
+  // GUIC-705 — levier org-level (masque toutes les offres), distinct du statut de la personne.
+  statut     StatutOrganisation @default(active)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -426,6 +429,14 @@ model Organisation {
 
   @@index([cjsUid])
   @@map("organisations")
+}
+
+/// GUIC-705 — statut org-level d'un partenaire (découplage org ≠ compte recruteur).
+enum StatutOrganisation {
+  active
+  suspendue
+
+  @@map("statut_organisation")
 }
 
 // ─────────────────────────────────────────────
