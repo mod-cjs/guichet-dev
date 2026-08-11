@@ -5,6 +5,7 @@ jest.mock('@/app/admin/partenaires/actions', () => ({
   basculerVerifiePartenaire: jest.fn().mockResolvedValue({ ok: true }),
   modifierPartenaire: jest.fn().mockResolvedValue({ ok: true }),
   basculerStatutRecruteur: jest.fn().mockResolvedValue({ ok: true }),
+  creerPartenaire: jest.fn().mockResolvedValue({ id: 'new-org' }),
 }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }))
 
@@ -81,6 +82,15 @@ describe('GUIC-704 — AdminPartenairesTable (refonte : agrégats + filtres + tr
     expect(screen.getByText('42')).toBeInTheDocument() // offres publiées (valeur du résumé)
     expect(screen.getByText(/\+4 ce mois/)).toBeInTheDocument() // trend
     expect(screen.getAllByText(/Offres publiées/i).length).toBeGreaterThan(0)
+  })
+
+  it('bouton « Ajouter un partenaire » ouvre le formulaire de création (GUIC-705)', async () => {
+    renderTable([row()])
+    await userEvent.click(screen.getByRole('button', { name: /Ajouter un partenaire/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Ajouter un partenaire/i)).toBeInTheDocument()
+    // champ Nom présent dans le formulaire de création
+    expect(within(dialog).getByLabelText(/Nom/i)).toBeInTheDocument()
   })
 
   it('état vide', () => {
