@@ -92,3 +92,8 @@ etl/transform/logs/
 !.env.etl.example
 etl/transform/profiles/*/.user.yml
 .pytest_cache/
+
+# Scripts de vérification jetables (sessions de debug) — jamais versionnés
+/chk*.mjs
+/cons*.mjs
+/recr*.mjs
