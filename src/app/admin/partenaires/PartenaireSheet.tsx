@@ -87,16 +87,27 @@ export function PartenaireSheet({ partenaire: p, onClose, onEdit, onToast }: Par
             </div>
           </div>
 
-          {/* Coordonnées / stats */}
+          {/* Coordonnées / agrégats réels */}
           <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', margin: 0 }}>
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <dt style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)' }}>Email</dt>
               <dd style={{ margin: 0, fontSize: 13, color: 'var(--gj-ink)', wordBreak: 'break-word' }}>{p.email || '—'}</dd>
             </div>
             <div>
               <dt style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)' }}>Offres publiées</dt>
-              <dd style={{ margin: 0, fontSize: 13, color: 'var(--gj-ink)', fontWeight: 700 }}>{p.opportunitesCount}</dd>
+              <dd style={{ margin: 0, fontSize: 13, color: 'var(--gj-ink)', fontWeight: 700 }}>{p.publieesCount ?? p.opportunitesCount}</dd>
             </div>
+            <div>
+              <dt style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--gj-grey)' }}>Candidatures reçues</dt>
+              <dd style={{ margin: 0, fontSize: 13, color: 'var(--gj-ink)', fontWeight: 700 }}>{p.candidaturesCount ?? 0}</dd>
+            </div>
+            {p.recruteurStatut === 'inactif' && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <span style={{ display: 'inline-block', borderRadius: 999, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', padding: '3px 8px', background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+                  Compte recruteur suspendu
+                </span>
+              </div>
+            )}
           </dl>
 
           {/* Présentation */}
