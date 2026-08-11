@@ -298,7 +298,16 @@
      ========================================================= */
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
-  --focus-ring-color:  #00B287;        /* teal lumineux, AA contraste */
+  /* Indicateur BICOLORE — WCAG 2.2 §1.4.11 (É-04).
+     L'ancien #00B287 n'atteignait 3:1 sur AUCUNE des surfaces claires
+     (2.72 sur blanc · 2.53 sur le fond de page · 1.78 sur un aplat teal) :
+     rejeter l'ambre v5 ne suffisait pas, l'existant était hors norme aussi.
+     Aucune couleur unique ne passe partout — un ton sombre échoue sur fond
+     sombre, un ton clair sur fond clair. Deux tons contrastés entre eux (6.99)
+     garantissent qu'au moins l'un des deux atteint 3:1 sur chaque surface.
+     Ratios recalculés en continu par tests/unit/focus-ring-wcag.test.ts. */
+  --focus-ring-color:  #026463;        /* trait principal — 6.99 sur blanc, 6.50 sur le fond de page */
+  --focus-ring-halo:   #FFFFFF;        /* liseré externe — 15.79 sur surface sombre, 4.84 sur teal */
   --focus-ring:        var(--focus-ring-width) solid var(--focus-ring-color);
   /* Halo transparent utilisé sur les champs (Input/Select) au focus.
      Remplace l'ancien rgba(0,178,135,.18) en dur. */
@@ -484,6 +493,12 @@
 :where(button, a, [role="button"], input, select, textarea, [tabindex]):focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+  /* Liseré externe : le `box-shadow` part de la bordure et s'étend AU-DELÀ de
+     l'outline (décalage + épaisseur + 2px), qui reste peint par-dessus. On
+     obtient halo · trait · halo — l'indicateur reste perceptible aussi bien sur
+     un fond clair (le trait sombre porte) que sur un fond sombre ou un aplat
+     teal (le halo porte). Voir --focus-ring-halo. */
+  box-shadow: 0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width) + 2px) var(--focus-ring-halo);
   border-radius: var(--gj-r-sm);
 }
 
@@ -621,6 +636,9 @@
 :root[data-kbd="on"] :focus-visible {
   outline: 4px solid var(--focus-ring-color) !important;
   outline-offset: 3px !important;
+  /* Le mode renforcé garde le liseré bicolore, sinon il serait MOINS lisible
+     que le focus par défaut sur fond sombre — l'inverse de son intention. */
+  box-shadow: 0 0 0 9px var(--focus-ring-halo) !important;
   border-radius: 3px;
 }
 :root[data-kbd="on"] a:focus-visible,

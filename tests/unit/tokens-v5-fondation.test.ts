@@ -214,10 +214,16 @@ describe('GUIC-690 — sentinelles de coordination et de structure', () => {
     expect(token('--gj-admin-badge-muted-bg')).toBe('rgba(255,255,255,.12)')
   })
 
-  it('É-04 — focus ring : statu quo #00B287, l’ambre v5 est rejeté (WCAG 1.4.11)', () => {
-    expect(token('--focus-ring-color')).toBe('#00B287')
-    // preuve chiffrée du rejet : l'ambre v5 n'atteint pas 3:1 sur le fond de page
+  it('É-04 — focus ring bicolore : l’ambre v5 ET l’ancien teal sont rejetés (WCAG 1.4.11)', () => {
+    // Le statu quo #00B287 n'atteignait 3:1 sur AUCUNE surface claire : rejeter
+    // l'ambre ne suffisait pas, l'existant était hors norme lui aussi.
+    expect(contrast('#00B287', resolveToken('--gj-bg'))).toBeLessThan(3)
     expect(contrast('#f8a309', resolveToken('--gj-bg'))).toBeLessThan(3)
+
+    // Indicateur bicolore : le trait porte sur fond clair, le halo sur fond
+    // sombre. Ratios détaillés dans tests/unit/focus-ring-wcag.test.ts.
+    expect(contrast(token('--focus-ring-color'), resolveToken('--gj-bg'))).toBeGreaterThanOrEqual(3)
+    expect(contrast(token('--focus-ring-color'), token('--focus-ring-halo'))).toBeGreaterThanOrEqual(3)
   })
 
   it('structurels repo conservés (É-01 : container 1280, plancher 11px, tap 44px…)', () => {
