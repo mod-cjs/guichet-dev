@@ -16,3 +16,5 @@ export type {
   CandidatureFilter,
 } from './types'
 export { PIPELINE_STEPS, STEP_LABELS, FILTER_LABELS } from './types'
+export { RetraitCandidature } from './RetraitCandidature'
+export type { RetraitCandidatureProps } from './RetraitCandidature'

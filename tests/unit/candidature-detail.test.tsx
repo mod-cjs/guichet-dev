@@ -4,6 +4,12 @@
  * est déjà couvert par tests/integration/candidature-detail-page.test.tsx.
  */
 import { render, screen } from '@testing-library/react'
+
+// GUIC-689 — l'écran porte désormais `RetraitCandidature`, un composant client
+// qui rafraîchit la page après le retrait. Sans routeur monté, React lève
+// « invariant expected app router to be mounted ».
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
+
 import { CandidatureDetail } from '@/components/candidatures/CandidatureDetail'
 import type { CandidatureDetailDTO } from '@/lib/candidature-detail-loader'
 
@@ -70,10 +76,28 @@ describe('<CandidatureDetail /> — cibles tactiles CTA (GUIC-689, finding D)', 
   })
 })
 
-describe('<CandidatureDetail /> — pas de CTA retrait mensonger (GUIC-689, finding A3)', () => {
-  it('ne rend aucun bouton "Retirer ma candidature" (feature inexistante : ni route ni statut Retiree)', () => {
+/**
+ * GUIC-689 — Cette sentinelle interdisait le bouton « Retirer ma candidature »
+ * parce que la fonctionnalité N'EXISTAIT PAS : ni route, ni statut `Retiree`.
+ * Elle protégeait contre un CTA menteur, pas contre le retrait lui-même.
+ *
+ * La fonctionnalité existe désormais (route dédiée, statut terminal,
+ * notification au recruteur). L'invariant utile n'est donc plus « aucun
+ * bouton » mais « un bouton qui n'apparaît que là où il agit ».
+ */
+describe('<CandidatureDetail /> — le CTA de retrait n’apparaît que s’il agit', () => {
+  it('candidature envoyée → le bouton est proposé', () => {
     render(<CandidatureDetail candidature={make({ statut: 'En_attente' })} />)
-    expect(screen.queryByTestId('detail-cta-withdraw')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Retirer ma candidature/i)).not.toBeInTheDocument()
+    expect(screen.getByTestId('detail-cta-retrait')).toBeInTheDocument()
+  })
+
+  it('décision prise → plus de bouton : le retrait n’est plus possible côté serveur', () => {
+    render(<CandidatureDetail candidature={make({ statut: 'Retenue' })} />)
+    expect(screen.queryByTestId('detail-cta-retrait')).not.toBeInTheDocument()
+  })
+
+  it('déjà retirée → plus de bouton', () => {
+    render(<CandidatureDetail candidature={make({ statut: 'Retiree' })} />)
+    expect(screen.queryByTestId('detail-cta-retrait')).not.toBeInTheDocument()
   })
 })
