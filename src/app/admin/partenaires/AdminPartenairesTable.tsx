@@ -90,6 +90,7 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
   const etat: EtatUrl = { statut, q: search, secteur, tri }
   const [feedback, setFeedback] = useState<{ message: string; variant: ToastVariant } | null>(null)
   const [editing, setEditing] = useState<PartenaireValues | null>(null)
+  const [creating, setCreating] = useState(false)
   const [sheetTarget, setSheetTarget] = useState<PartenaireRow | null>(null)
 
   function openEdit(p: PartenaireRow) {
@@ -100,9 +101,14 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
   return (
     <div style={{ padding: '22px 28px 40px' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div className="mb-4">
-          <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Partenaires</h1>
-          <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{total} organisation{total > 1 ? 's' : ''} recruteur{total > 1 ? 's' : ''}</p>
+        <div className="mb-4 flex items-start justify-between gap-[12px] flex-wrap">
+          <div>
+            <h1 className="text-[24px] font-black" style={{ color: 'var(--gj-ink)' }}>Partenaires</h1>
+            <p className="text-[13px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{total} organisation{total > 1 ? 's' : ''} recruteur{total > 1 ? 's' : ''}</p>
+          </div>
+          <button type="button" onClick={() => setCreating(true)} className="inline-flex items-center gap-[6px] font-black text-[13px] rounded-[10px] px-[14px] py-[9px]" style={{ background: 'var(--gj-teal)', color: '#fff' }}>
+            <Icon name="plus" size={15} /> Ajouter un partenaire
+          </button>
         </div>
 
         {/* Header 4 KPI (conformité maquette) */}
@@ -174,6 +180,15 @@ export function AdminPartenairesTable({ items, total, currentPage = 1, totalPage
           onClose={() => setEditing(null)}
           partenaire={editing}
           onSuccess={() => setFeedback({ message: 'Partenaire mis à jour.', variant: 'success' })}
+        />
+      )}
+
+      {creating && (
+        <PartenaireFormModal
+          isOpen
+          onClose={() => setCreating(false)}
+          partenaire={{ id: '', nom: '', description: null, logoUrl: null, secteur: null, region: null, email: null }}
+          onSuccess={() => setFeedback({ message: 'Partenaire créé.', variant: 'success' })}
         />
       )}
       {feedback && <Toast message={feedback.message} variant={feedback.variant} onClose={() => setFeedback(null)} />}

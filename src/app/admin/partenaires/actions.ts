@@ -55,6 +55,39 @@ export async function basculerVerifiePartenaire(id: string, verifie: boolean): P
   return { ok: true }
 }
 
+/**
+ * GUIC-705 — Créer un partenaire AUTONOME (Organisation SANS compte recruteur : `cjsUid` null).
+ * Découplage org ≠ compte : un partenaire peut exister avant/sans qu'un recruteur y soit rattaché
+ * (partenaire référencé, employeur curé promu). Le rattachement d'un recruteur est une action à part.
+ */
+export async function creerPartenaire(input: PartenaireInput): Promise<{ id: string }> {
+  const session = await assertAdmin()
+  const data = partenaireSchema.parse(input)
+  const org = await prisma.organisation.create({
+    data: {
+      nom: data.nom,
+      cjsUid: null, // sans compte recruteur
+      statut: 'active',
+      description: data.description ? sanitizeRichHtml(data.description) || null : null,
+      logoUrl: data.logoUrl?.trim() || null,
+      secteur: data.secteur ?? null,
+      region: data.region ?? null,
+      adresse: data.adresse?.trim() || null,
+      telephone: data.telephone?.trim() || null,
+      email: data.email?.trim() || null,
+      siteWeb: data.siteWeb?.trim() || null,
+    },
+    select: { id: true },
+  })
+  await recordAudit(session.cjsUid, 'partenaire.create', {
+    targetType: 'organisation',
+    targetId: org.id,
+    meta: { nom: data.nom, sansCompte: true },
+  })
+  revalidate()
+  return { id: org.id }
+}
+
 /** Modifier les champs éditables d'un partenaire. */
 export async function modifierPartenaire(id: string, input: PartenaireInput): Promise<{ ok: true }> {
   const session = await assertAdmin()

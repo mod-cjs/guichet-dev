@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/Select'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { htmlToPlainText } from '@/lib/rich-html'
-import { modifierPartenaire } from './actions'
+import { modifierPartenaire, creerPartenaire } from './actions'
 
 const opt = (...v: string[]) => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 const DOMAINES = opt('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
@@ -46,12 +46,15 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  // GUIC-705 — création (partenaire autonome sans compte) si pas d'id, sinon édition.
+  const enCreation = !partenaire.id
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     startTransition(async () => {
       try {
-        await modifierPartenaire(partenaire.id, {
+        const champs = {
           nom,
           // Éditeur riche : un corps sans texte (ex. "<p></p>") est traité comme vide.
           description: htmlToPlainText(description).trim() ? description : null,
@@ -63,7 +66,9 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
           email: email.trim() || null,
           siteWeb: siteWeb.trim() || null,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
+        } as any
+        if (enCreation) await creerPartenaire(champs)
+        else await modifierPartenaire(partenaire.id, champs)
         onSuccess?.()
         onClose()
       } catch (err) {
@@ -75,7 +80,7 @@ export function PartenaireFormModal({ isOpen, onClose, partenaire, onSuccess }: 
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Modifier le partenaire">
+    <Modal isOpen={isOpen} onClose={onClose} title={enCreation ? 'Ajouter un partenaire' : 'Modifier le partenaire'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-space-3">
         <Input id="pa-nom" label="Nom" required value={nom} onChange={(e) => setNom(e.target.value)} />
         <Input id="pa-logo" label="Logo (URL)" type="url" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
