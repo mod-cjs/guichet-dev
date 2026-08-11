@@ -1,0 +1,68 @@
+# Index Ops — Guichet Jeunesse
+
+> Point d'entrée unique : pour chaque tâche opérationnelle, où regarder. Ce document
+> n'explique rien en détail — il pointe vers le document qui le fait, pour éviter que
+> l'info se disperse en silence sur 8+ fichiers sans qu'on sache par où commencer
+> (GUIC-700, trouvé en configurant réellement les sauvegardes/l'observabilité).
+
+## Fichiers de secrets — la carte, à ne jamais confondre
+
+Cause réelle d'un incident de cette phase : `GRAFANA_ADMIN_PASSWORD` documenté dans le
+mauvais fichier (`/etc/guichet/prod.env` au lieu de `/etc/guichet/observabilite.env`) —
+Grafana refusait de démarrer sans que la doc ne pointe vers la bonne cause.
+
+| Fichier | Contient | Consommé par | Portée |
+|---|---|---|---|
+| `/etc/guichet/prod.env` | Secrets applicatifs **PROD** (DB, Redis, S3, SSO, LLM…) | `docker-compose.prod.yml` | Prod uniquement |
+| `/etc/guichet/test.env` | Mêmes clés, valeurs **PRÉPROD** | `docker-compose.prod.yml` + `docker-compose.test.yml` combinés | Préprod uniquement |
+| `/etc/guichet/observabilite.env` | Mot de passe admin Grafana, destinataires d'astreinte, SMTP | `docker-compose.observabilite.yml` | Partagé — pile à cycle de vie indépendant |
+| `<checkout>/.env.etl` (ou `GUICHET_ETL_ENV_FILE`) | Secrets Meltano + connexion à l'entrepôt Postgres | `docker-compose.etl.yml` | Partagé |
+| Externe (Cloudflare Worker, hors dépôt) | Token Meta WhatsApp Cloud API | Relais d'astreinte (GUIC-575) | Sonde de disponibilité |
+
+Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
+`.env.observabilite.example`.
+
+## Par tâche
+
+### Déployer
+- Préprod : `docs/deploiement-preprod.md` (ou `-refonte-v5.md` pour la branche v5)
+- Mise en prod + rollback : `docs/runbook-production.md`
+- Checklist des pièges avant/pendant go-live : `docs/go-live-checklist.md`
+
+### Superviser / observer
+- Logs applicatifs, `requestId`, Loki/Grafana, rétention CDP : `docs/observabilite.md`
+- Dashboard Grafana : tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`), voir §5-6 de
+  `docs/observabilite.md`
+- Disponibilité indépendante du serveur (sonde externe, WhatsApp) : `docs/supervision-disponibilite.md`
+- Règles d'alerte réelles (ce qui déclenche, quel seuil) : `infra/observabilite/grafana/provisioning/alerting/rules.yml`
+- Canaux de contact (e-mail, webhook) : `infra/observabilite/grafana/provisioning/alerting/contact-points.yml`
+
+### Sauvegarder / restaurer
+- Stratégie, crontab, variables : `scripts/backup/README.md`
+- Exercice de restauration : **obligatoire avant tout go-live** — un go-live sans exercice réussi est refusé
+
+### Pipeline ETL / Data Hub
+- Bout en bout, crontab, dépannage réel : `docs/datahub-briefing-etl.md`
+- Spec + historique des bugs réels rencontrés en préprod : `.agent_context/specs/M13-durcissement-etl.md`
+
+### Crons applicatifs (HTTP interne)
+- Génération crontab, parité avec `vercel.json` : `scripts/cron/README.md` + `scripts/cron/jobs.json`
+
+### Secrets
+- Rotation après fuite : `docs/rotation-secrets-GUIC-625.md`
+- Carte des fichiers en service : cette page, ci-dessus
+
+### Architecture / décisions de mise en prod
+- `.agent_context/specs/M14-mise-en-prod.md`
+
+## Dette connue (au 2026-08-11) — ce qui n'est pas encore prêt
+
+| Sujet | État | Ticket |
+|---|---|---|
+| SPF/DKIM/DMARC | Absent — le mail d'astreinte peut finir en spam | GUIC-577 |
+| Copie hors-site des sauvegardes | `BACKUP_OFFSITE_CMD` non défini | GUIC-571 |
+| Relais WhatsApp d'astreinte | Cloudflare Worker pas construit | GUIC-575 |
+| Crontab `GUICHET-BACKUP` (quotidienne + drill hebdo) | En cours d'installation | GUIC-571 |
+
+Une entrée retirée de ce tableau doit l'être **parce qu'elle est réellement résolue et
+vérifiée en réel**, pas parce que le code a été écrit — cohérent avec `docs/tests-robustesse.md`.

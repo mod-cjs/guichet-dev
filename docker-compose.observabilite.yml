@@ -7,7 +7,10 @@
 # ferait tomber la supervision à chaque `docker compose up` applicatif.
 #
 # Démarrage (sur le serveur) :
-#   docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/prod.env up -d
+#   docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/observabilite.env up -d
+#
+# GUIC-700 — fichier de secrets DÉDIÉ (voir .env.observabilite.example), pas /etc/guichet/prod.env :
+# aucune dépendance technique réelle à ce dernier, quel que soit l'environnement.
 #
 # ⚠️ AUCUN port n'est exposé publiquement. Grafana n'écoute que sur la BOUCLE LOCALE : on y accède
 # par tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`). Un Grafana ouvert sur Internet, c'est
@@ -66,7 +69,7 @@ services:
       GF_SECURITY_ADMIN_USER:      ${GRAFANA_ADMIN_USER:-admin}
       # Obligatoire : pas de valeur par défaut. Le service refuse de démarrer sans, plutôt que
       # de tourner avec le mot de passe « admin » bien connu.
-      GF_SECURITY_ADMIN_PASSWORD:  ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD obligatoire dans /etc/guichet/prod.env}
+      GF_SECURITY_ADMIN_PASSWORD:  ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD obligatoire dans /etc/guichet/observabilite.env}
       GF_AUTH_ANONYMOUS_ENABLED:   'false'
       GF_USERS_ALLOW_SIGN_UP:      'false'
       # Aucune télémétrie ni appel sortant : cohérent avec la contrainte CDP (auto-hébergé).

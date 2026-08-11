@@ -102,8 +102,12 @@ services **étrangers** : y envoyer nos logs, même pseudonymisés, constituerai
 données hors du Sénégal pour une plateforme soumise à la CDP (22 000 jeunes).
 
 ```bash
-docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/prod.env up -d
+docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/observabilite.env up -d
 ```
+
+**Fichier dédié, distinct de `/etc/guichet/prod.env`** (GUIC-700) : cycle de vie séparé de
+l'application (voir `.env.observabilite.example`) — aucune dépendance technique au nom
+`prod.env`, quel que soit l'environnement (préprod ou prod).
 
 Trois services, **aucun port public** — Grafana n'écoute que sur la boucle locale :
 
@@ -111,8 +115,8 @@ Trois services, **aucun port public** — Grafana n'écoute que sur la boucle lo
 ssh -L 3000:127.0.0.1:3000 <serveur>   # puis http://localhost:3000
 ```
 
-`GRAFANA_ADMIN_PASSWORD` est **obligatoire** dans `/etc/guichet/prod.env` : le service refuse de
-démarrer sans, plutôt que de tourner avec le mot de passe `admin` bien connu.
+`GRAFANA_ADMIN_PASSWORD` est **obligatoire** dans `/etc/guichet/observabilite.env` : le service
+refuse de démarrer sans, plutôt que de tourner avec le mot de passe `admin` bien connu.
 
 ### Répondre à « que s'est-il passé pour cette requête ? »
 
@@ -164,12 +168,15 @@ valent mieux qu'un : ce qui entre dans Loki y reste 30 jours.
 Deux configurations à poser sur la machine. **Une seule passe par Plesk** — et c'est celle qui
 comporte un piège.
 
-### a) Le secret Grafana — pas de Plesk, un simple fichier
+### a) Le secret Grafana — pas de Plesk, un fichier dédié
+
+Fichier séparé de `/etc/guichet/prod.env` (voir `.env.observabilite.example` pour le gabarit
+complet — mot de passe admin, destinataires d'astreinte, SMTP) :
 
 ```bash
-openssl rand -base64 24                       # mot de passe solide
-sudo sh -c 'echo "GRAFANA_ADMIN_PASSWORD=<mot-de-passe>" >> /etc/guichet/prod.env'
-sudo chmod 600 /etc/guichet/prod.env
+openssl rand -hex 24                                 # mot de passe solide
+sudo sh -c 'echo "GRAFANA_ADMIN_PASSWORD=<mot-de-passe>" >> /etc/guichet/observabilite.env'
+sudo chmod 600 /etc/guichet/observabilite.env
 ```
 
 Sans cette variable, Grafana **refuse de démarrer** — voulu : mieux vaut un service absent qu'un

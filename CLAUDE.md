@@ -76,6 +76,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 → **SSO** : `docs/sso.md` · **Conventions** : `docs/conventions.md` · **Métier** : `docs/metier.md`
 → **Interop** : `docs/interconnexion.md` · **Architecture** : `docs/architecture.md`
 → **SSO source** : `../cjs_auth/` (lecture seule — contrats, webhooks, flows auth)
+→ **Ops (déploiement, sauvegardes, observabilité, secrets)** : `docs/ops-index.md` — point d'entrée unique
 
 ---
 
