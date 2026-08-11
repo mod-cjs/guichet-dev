@@ -1,20 +1,21 @@
 'use client'
 import { Chip } from '@/components/ui'
-import { FILTER_LABELS, type CandidatureFilter } from './types'
+import { GROUPE_LABELS, type CandidatureGroupe } from './types'
 
-const FILTER_ORDER: CandidatureFilter[] = [
+// GUIC-689 (É-14) — regroupement par intention, « Brouillons » gardé à part :
+// c'est la seule catégorie où le jeune a quelque chose à finir.
+const FILTER_ORDER: CandidatureGroupe[] = [
   'all',
-  'Brouillon',
-  'Envoyee',
-  'EnRevue',
-  'Entretien',
-  'Decision',
+  'Brouillons',
+  'EnCours',
+  'Entretiens',
+  'Cloturees',
 ]
 
 export interface CandidaturesFilterChipsProps {
-  active: CandidatureFilter
-  counts: Record<CandidatureFilter, number>
-  onChange: (filter: CandidatureFilter) => void
+  active: CandidatureGroupe
+  counts: Record<CandidatureGroupe, number>
+  onChange: (filter: CandidatureGroupe) => void
 }
 
 /**
@@ -45,7 +46,7 @@ export function CandidaturesFilterChips({
             data-filter={filter}
           >
             <span className="flex items-center gap-1.5">
-              <span>{FILTER_LABELS[filter]}</span>
+              <span>{GROUPE_LABELS[filter]}</span>
               <span
                 className={[
                   'inline-flex min-w-[18px] justify-center rounded-gj-pill px-1 text-[10px] font-bold',

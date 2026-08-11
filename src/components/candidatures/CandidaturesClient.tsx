@@ -6,7 +6,8 @@ import { EmptyState, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
 import { CandidatureCard } from './CandidatureCard'
 import { CandidaturesFilterChips } from './CandidaturesFilterChips'
-import type { CandidatureFilter, CandidatureMock, PipelineStep } from './types'
+import { groupeDeLEtape } from './types'
+import type { CandidatureGroupe, CandidatureMock, PipelineStep } from './types'
 
 const STEPS: PipelineStep[] = ['Brouillon', 'Envoyee', 'EnRevue', 'Entretien', 'Decision']
 
@@ -60,16 +61,17 @@ export interface CandidaturesClientProps {
   items: CandidatureMock[]
 }
 
-function computeCounts(items: CandidatureMock[]): Record<CandidatureFilter, number> {
-  const base: Record<CandidatureFilter, number> = {
+function computeCounts(items: CandidatureMock[]): Record<CandidatureGroupe, number> {
+  // GUIC-689 (É-14) — compté par GROUPE, pas par étape : chaque candidature
+  // tombe dans un seul groupe, donc la somme des quatre égale `all`.
+  const base: Record<CandidatureGroupe, number> = {
     all: items.length,
-    Brouillon: 0,
-    Envoyee: 0,
-    EnRevue: 0,
-    Entretien: 0,
-    Decision: 0,
+    Brouillons: 0,
+    EnCours: 0,
+    Entretiens: 0,
+    Cloturees: 0,
   }
-  for (const item of items) base[item.currentStep] += 1
+  for (const item of items) base[groupeDeLEtape(item.currentStep)] += 1
   return base
 }
 
@@ -83,13 +85,13 @@ function computeCounts(items: CandidatureMock[]): Record<CandidatureFilter, numb
  */
 export function CandidaturesClient({ items }: CandidaturesClientProps) {
   const router = useRouter()
-  const [filter, setFilter] = useState<CandidatureFilter>('all')
+  const [filter, setFilter] = useState<CandidatureGroupe>('all')
 
   const counts = useMemo(() => computeCounts(items), [items])
   const stats = useMemo(() => computeStats(items), [items])
 
   const filtered = useMemo(
-    () => (filter === 'all' ? items : items.filter((i) => i.currentStep === filter)),
+    () => (filter === 'all' ? items : items.filter((i) => groupeDeLEtape(i.currentStep) === filter)),
     [items, filter],
   )
 
