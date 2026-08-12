@@ -55,8 +55,11 @@ via `host.docker.internal:9090` (même mécanisme que `backup.sh` pour MariaDB) 
 explicite** (`infra/observabilite/grafana/provisioning/datasources/prometheus.yml`) — la leçon
 de GUIC-576 (Loki) : sans lui, toute règle qui la référence échoue silencieusement.
 
-**Pas encore fait** : les règles d'alerte disque/mémoire dans `rules.yml`. Volontairement pas
-écrites tant que les noms exacts des métriques Prometheus exposées par cette version de Netdata
-n'ont pas été vérifiés en réel (`curl http://127.0.0.1:19999/api/v1/allmetrics?format=prometheus`)
-— écrire des règles contre des noms devinés reproduirait le bug déjà corrigé sur l'alerting ETL
-(régex qui ne matchait jamais le vocabulaire réel).
+**Règles d'alerte écrites et déployées** (`rules.yml`, groupe `guichet-machine`) — disque
+(`mount_point="/"`, seuils 80 %/90 %) et mémoire disponible (`netdata_mem_available_MiB_average`,
+seuils 6/3 Gio), contre les noms de métriques vérifiés en réel, pas devinés.
+
+**Ce qui reste à faire** : contrairement à Grafana/Loki (vérifié en exécution réelle jusqu'à
+réception d'un e-mail — `docs/supervision-disponibilite.md`), ces règles n'ont pas encore été
+testées jusqu'à réception (déclencher artificiellement un seuil et confirmer l'e-mail). À faire
+avant de considérer ce point réellement clos.

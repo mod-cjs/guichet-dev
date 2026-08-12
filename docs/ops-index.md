@@ -34,7 +34,7 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 - Logs applicatifs, `requestId`, Loki/Grafana, rétention CDP : `docs/observabilite.md`
 - Dashboard Grafana : tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`), voir §5-6 de
   `docs/observabilite.md`
-- Métriques machine (disque, mémoire, CPU) : `docs/netdata.md` — collecte prête, alerting pas encore vérifié
+- Métriques machine (disque, mémoire, CPU) : `docs/netdata.md` — collecte + alerting déployés (`rules.yml`, groupe `guichet-machine`)
 - Accéder aux dashboards sans tunnel SSH (Cloudflare Tunnel + Access) et protéger le domaine public (WAF) : `docs/cloudflare-acces-dashboards.md`
 - Disponibilité indépendante du serveur (sonde externe, WhatsApp) : `docs/supervision-disponibilite.md`
 - Règles d'alerte réelles (ce qui déclenche, quel seuil) : `infra/observabilite/grafana/provisioning/alerting/rules.yml`
@@ -67,7 +67,6 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 | Accès dashboards (Cloudflare Tunnel + Access) | **En attente — bloqué sur l'absence de domaine dédié.** Le tunnel côté Cloudflare est créé (jeton obtenu), mais la création des Public Hostnames exige une zone Cloudflare, et aucun domaine disponible n'est réellement inutilisé (`consortiumjeunessesenegal.org` et `guichetjeunesse.sn` portent tous deux du courrier Google Workspace actif — vérifié via `dig MX`). Décision : enregistrer un domaine dédié à l'ops, quand ce sera prioritaire. **Le tunnel SSH reste la voie d'accès en attendant.** | GUIC-575 |
 | Protection WAF/anti-DDoS du domaine public | Marche à suivre documentée (`docs/cloudflare-acces-dashboards.md` §2) — nécessite une coordination sur le changement de nameservers (risque MX/e-mail), pas encore planifiée | GUIC-575 |
 | Numéro WhatsApp d'astreinte | Pas encore disponible — bloque le canal webhook `contact-points.yml` (`ALERTE_WEBHOOK_URL`), même une fois le relais Cloudflare construit | GUIC-575 |
-| Métriques machine (disque/mémoire) | **Netdata + Prometheus déployés**, source de données Grafana provisionnée. Reste : écrire les règles d'alerte `rules.yml` — volontairement différé jusqu'à vérification des noms exacts de métriques exposées en réel (`docs/netdata.md`). | GUIC-545 |
 | Sonde externe de disponibilité | **Résolu pour la préprod** — UptimeRobot configuré et lié à l'URL préprod. Reste à dupliquer sur le domaine prod une fois celui-ci en service. | GUIC-575 |
 | Contacts d'astreinte | **Partiel** — « Astreinte applicative » complétée (les deux mêmes adresses que les alertes Grafana : `odiallo@`/`adiop@consortiumjeunessesenegal.org`). Infra/Plesk, SSO et Décision métier restent vides — **toujours No-Go tant que ces 3 lignes ne sont pas complétées** (`docs/runbook-production.md` §7). | GUIC-159 |
 
