@@ -37,3 +37,50 @@ describe('GUIC-576 — rules.yml : alertes appuyées sur le label marqueur, pas 
     expect(bloc).toMatch(/marqueur\s*=\s*"✗"/)
   })
 })
+
+describe('GUIC-545 — rules.yml : alertes disque/mémoire contre les vrais noms de métriques Netdata', () => {
+  function bloc(uid: string): string {
+    return contenu.split(`uid: ${uid}`)[1]?.split(/- uid:/)[0] ?? ''
+  }
+
+  it('les règles disque interrogent Prometheus, filtrées sur le vrai point de montage racine', () => {
+    for (const uid of ['guichet-disque-alerte', 'guichet-disque-avertissement']) {
+      const b = bloc(uid)
+      expect(b).toMatch(/datasourceUid:\s*prometheus/)
+      // mount_point="/" précisément : Netdata expose aussi des pseudo-systèmes de fichiers
+      // noyau (efivarfs, bpf, tracefs...) à 0 GiB — les inclure fausserait le taux réel.
+      expect(b).toMatch(/mount_point="\/"/)
+      expect(b).toMatch(/netdata_disk_space_GiB_average/)
+    }
+  })
+
+  it('les règles mémoire utilisent la métrique "available", pas used/free bruts (cache récupérable)', () => {
+    for (const uid of ['guichet-memoire-alerte', 'guichet-memoire-avertissement']) {
+      const b = bloc(uid)
+      expect(b).toMatch(/datasourceUid:\s*prometheus/)
+      expect(b).toMatch(/netdata_mem_available_MiB_average/)
+      // Pas de dimension "used"/"free" ici : piège vécu en réel avec le swap Netdata (99,9 %
+      // plein mais 15 Gio disponibles, aucun incident) — available reflète ce que le noyau
+      // donnerait réellement à une nouvelle application.
+      expect(b).not.toMatch(/dimension="used"/)
+      expect(b).not.toMatch(/dimension="free"/)
+    }
+  })
+
+  it('les 4 règles machine sont sévérité alerte/avertissement et alertent en l’absence de données', () => {
+    expect(bloc('guichet-disque-alerte')).toMatch(/severite:\s*alerte/)
+    expect(bloc('guichet-memoire-alerte')).toMatch(/severite:\s*alerte/)
+    expect(bloc('guichet-disque-avertissement')).toMatch(/severite:\s*avertissement/)
+    expect(bloc('guichet-memoire-avertissement')).toMatch(/severite:\s*avertissement/)
+    // noDataState: Alerting — l'absence de données est en soi un incident de supervision
+    // (Prometheus/Netdata injoignables), pas une absence de problème.
+    for (const uid of [
+      'guichet-disque-alerte',
+      'guichet-disque-avertissement',
+      'guichet-memoire-alerte',
+      'guichet-memoire-avertissement',
+    ]) {
+      expect(bloc(uid)).toMatch(/noDataState:\s*Alerting/)
+    }
+  })
+})

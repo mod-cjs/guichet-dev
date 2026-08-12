@@ -8,8 +8,10 @@
 # ⚠️ NE SONT ÉCRITES ICI QUE LES RÈGLES DONT LE SIGNAL EXISTE. Une alerte branchée sur un signal
 # absent ne se déclenche jamais et donne une fausse sécurité — pire que pas d'alerte du tout,
 # parce qu'on croit être couvert.
-#   - Saturation disque et mémoire -> **Netdata** (GUIC-545), pas Loki : ce sont des métriques
-#     machine, elles n'apparaissent dans aucun log. Les seuils y sont définis, pas ici.
+#   - Saturation disque et mémoire -> **Netdata → Prometheus** (GUIC-545) : ce sont des métriques
+#     machine, elles n'apparaissent dans aucun log — Loki ne peut pas les voir. Les seuils sont
+#     ci-dessous (groupe guichet-machine), contre les noms de métriques vérifiés en réel
+#     (`curl http://127.0.0.1:19999/api/v1/allmetrics?format=prometheus`), pas devinés.
 #   - Indisponibilité totale -> **sonde externe** (GUIC-575) : Grafana meurt avec le serveur.
 
 apiVersion: 1
@@ -248,4 +250,154 @@ groups:
                 - evaluator: { type: gt, params: [0] }
               refId: C
         noDataState: OK
+        execErrState: Error
+
+  - orgId: 1
+    name: guichet-machine
+    folder: Guichet
+    interval: 1m
+    rules:
+      # ── Saturation disque (GUIC-545) ──────────────────────────────────────
+      # « Un disque plein arrête les trois plateformes » (SSO + BRM + Guichet, serveur
+      # mutualisé, docker-compose.prod.yml). Filtré sur mount_point="/" précisément : Netdata
+      # expose aussi des pseudo-systèmes de fichiers noyau (efivarfs, bpf, tracefs, pstore,
+      # configfs — tous à 0 GiB), les inclure pollue le calcul du taux réel.
+      - uid: guichet-disque-alerte
+        title: Disque presque plein
+        condition: C
+        for: 5m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Plus de 90 % du disque racine est utilisé.'
+          description: >-
+            Voir Netdata (tableau de bord, disque). Purger les sauvegardes/dumps obsolètes
+            (scripts/backup/README.md rétention) avant tout — un disque plein bloque
+            migrations, sauvegardes ET logs en même temps.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: >-
+                netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                /
+                (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                 + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                * 100
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [90] }
+              refId: C
+        # Absence de données = Prometheus/Netdata ne répondent plus — en soi un incident de
+        # supervision (vécu en réel ce jour : les deux ont tourné en boucle de redémarrage
+        # plusieurs dizaines de minutes sans que rien ne le signale).
+        noDataState: Alerting
+        execErrState: Error
+
+      - uid: guichet-disque-avertissement
+        title: Disque en hausse
+        condition: C
+        for: 15m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Plus de 80 % du disque racine est utilisé — tendance à surveiller.'
+          description: 'À regarder demain si ça persiste, avant que ça devienne critique.'
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: >-
+                netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                /
+                (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                 + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                * 100
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [80] }
+              refId: C
+        noDataState: Alerting
+        execErrState: Error
+
+      # ── Mémoire disponible (GUIC-545) ──────────────────────────────────────
+      # `available`, pas `used`/`free` bruts : le cache et les buffers comptent comme
+      # « utilisés » dans ces derniers alors qu'ils sont récupérables à la demande — piège
+      # observé en réel avec l'alerte swap de Netdata (99,9 % swap plein, mais 15 Gio
+      # disponibles, aucun incident réel). `available` est ce que le noyau donnerait
+      # effectivement à une nouvelle application, mêmes seuils absolus (Gio) que `free -h`.
+      - uid: guichet-memoire-alerte
+        title: Mémoire disponible critique
+        condition: C
+        for: 5m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Moins de 3 Gio de mémoire disponible sur le serveur mutualisé.'
+          description: >-
+            Voir Netdata (tableau de bord, mémoire par conteneur) pour identifier quel
+            service consomme — SSO, BRM et Guichet partagent cette machine.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: 'netdata_mem_available_MiB_average{chart="mem.available",dimension="avail"}'
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [3072] } # 3 Gio
+              refId: C
+        noDataState: Alerting
+        execErrState: Error
+
+      - uid: guichet-memoire-avertissement
+        title: Mémoire disponible en baisse
+        condition: C
+        for: 15m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Moins de 6 Gio de mémoire disponible — tendance à surveiller.'
+          description: 'À regarder demain si ça persiste, avant que ça devienne critique.'
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: 'netdata_mem_available_MiB_average{chart="mem.available",dimension="avail"}'
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [6144] } # 6 Gio
+              refId: C
+        noDataState: Alerting
         execErrState: Error
