@@ -72,6 +72,12 @@ describe('registre des documents légaux', () => {
     expect(serialise).not.toContain('[finalité')
     expect(serialise).not.toMatch(/\[à compléter\]/i)
   })
+
+  it('désigne l’assistant par sa fonction, jamais par son nom de produit', () => {
+    // Décision PO 2026-08-14 : les textes légaux décrivent une fonction, pas
+    // une marque — un nom de produit change, un contrat lui survit.
+    expect(JSON.stringify(DOCUMENTS_LEGAUX)).not.toContain('Yaye')
+  })
 })
 
 describe('cohérence des coordonnées CDP entre documents', () => {
@@ -137,25 +143,42 @@ describe('contenu fidèle aux .docx sources', () => {
     expect(screen.getByRole('heading', { name: 'Réclamation' })).toBeInTheDocument()
   })
 
-  it('signale les CGU provisoires au lieu de les faire passer pour en vigueur', () => {
-    // GUIC-233 les qualifiait de « version provisoire, à compléter par le
-    // service juridique » — la mention doit rester visible.
-    expect(CGU.estCoquille).toBe(true)
-    render(<LegalDocument document={CGU} />)
+  it('avertit l’utilisateur sur un document encore provisoire', () => {
+    // Plus aucun document n'est une coquille aujourd'hui, mais le mécanisme
+    // doit rester fonctionnel : on le vérifie sur un document synthétique
+    // plutôt que sur un document réel, qui peut être complété à tout moment.
+    render(
+      <LegalDocument
+        document={{ ...CGU, slug: 'test-coquille', estCoquille: true, sections: [] }}
+      />,
+    )
     expect(screen.getByText(/Document en cours de rédaction/i)).toBeInTheDocument()
   })
 
-  it('conserve le contenu GUIC-233 des CGU et des mentions légales', () => {
-    // Ces deux pages existaient déjà (GUIC-233) : le passage au modèle typé
-    // ne doit rien perdre.
-    expect(CGU.sections.map((s) => s.titre)).toEqual([
-      '1. Objet',
-      '2. Accès au service',
-      '3. Engagements de l’utilisateur',
-      '4. Modification & résiliation',
-    ])
+  it('conserve la substance GUIC-233 des CGU et des mentions légales', () => {
+    // Ces deux pages existaient déjà (GUIC-233) : ni le passage au modèle typé
+    // ni la complétion des CGU ne doivent perdre leur contenu d'origine.
+    const titres = CGU.sections.map((s) => s.titre)
+    for (const attendu of ['Objet', 'Accès au service', 'Engagements', 'Modification & résiliation']) {
+      expect(titres.some((t) => t.includes(attendu))).toBe(true)
+    }
     expect(JSON.stringify(CGU)).toContain('Aucun mot de passe local n’est stocké')
     expect(JSON.stringify(MENTIONS_LEGALES)).toContain('coordinateur national')
+  })
+
+  it('couvre dans les CGU les services réellement rendus', () => {
+    // GUIC-233 s'arrêtait à 4 sections génériques : le contrat ne disait rien
+    // des candidatures, des réservations, de l'agent conversationnel ni de la
+    // responsabilité sur les annonces de tiers. Un contrat muet sur le service
+    // n'en est pas un.
+    const cgu = JSON.stringify(CGU)
+    expect(cgu).toContain('agent conversationnel')
+    expect(cgu).toContain('candidature')
+    expect(cgu).toContain('mineur')
+    expect(cgu).toContain('gratuit')
+    expect(cgu).toContain('droit sénégalais')
+    // L'assistant est présenté comme faillible, jamais comme un conseil.
+    expect(cgu).toMatch(/ne remplacent ni un conseiller/)
   })
 
   it('déclare l’hébergeur réel — jamais Vercel ni les États-Unis (GUIC-568)', () => {
@@ -172,12 +195,13 @@ describe('contenu fidèle aux .docx sources', () => {
   it('déclare les traitements qui sortent de l’Union européenne', () => {
     // L'Article 6 de la politique ne parle que de « prestataires techniques ».
     // Tant qu'il n'est pas révisé, les mentions légales sont le seul endroit où
-    // l'utilisateur apprend que ses échanges avec Yaye partent aux États-Unis
-    // (llm-client.ts — DEFAULT_LOCATION = 'us-central1', non surchargé en prod).
+    // l'utilisateur apprend que ses échanges avec l'agent conversationnel
+    // partent aux États-Unis (llm-client.ts — DEFAULT_LOCATION = 'us-central1',
+    // non surchargé en prod).
     const section = MENTIONS_LEGALES.sections.find((s) => s.titre.includes('transferts'))
     expect(section).toBeDefined()
     const texte = JSON.stringify(section)
-    expect(texte).toContain('Yaye')
+    expect(texte).toContain('agent conversationnel')
     expect(texte).toContain('États-Unis')
     expect(texte).toContain('WhatsApp')
     // Ces transferts ont été déclarés à la CDP (info PO 2026-08-14) : le dire

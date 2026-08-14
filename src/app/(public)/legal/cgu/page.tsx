@@ -4,18 +4,17 @@ import { LegalDocument } from '@/components/legal'
 import { CGU } from '@/content/legal'
 
 /**
- * `/legal/cgu` — reprise du contenu GUIC-233 dans le modèle typé.
+ * `/legal/cgu` — CGU complétées le 2026-08-14 (les 4 sections provisoires de
+ * GUIC-233 sont conservées et étendues à l'ensemble des services rendus).
  *
- * GUIC-233 qualifiait lui-même ce texte de « version provisoire, à compléter
- * par le service juridique » : `estCoquille` reste donc vrai, et avec lui le
- * `robots: noindex` — un texte provisoire n'a pas à remonter en recherche
- * comme s'il faisait foi.
+ * Le `robots: noindex` posé tant que le texte était provisoire est retiré :
+ * le document fait désormais foi. Sa validation juridique reste à obtenir,
+ * cf. l'en-tête de `src/content/legal/cgu.ts`.
  */
 export const metadata: Metadata = {
   title: CGU.titre,
   description: CGU.resume,
   ...withCanonical('/legal/cgu'),
-  robots: { index: false, follow: true },
 }
 
 export const dynamic = 'force-static'

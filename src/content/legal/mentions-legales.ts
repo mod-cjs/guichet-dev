@@ -93,9 +93,9 @@ export const MENTIONS_LEGALES: DocumentLegal = {
           type: 'definitions',
           items: [
             {
-              terme: 'Assistant conversationnel Yaye',
+              terme: 'Agent conversationnel',
               valeur:
-                'vos échanges avec l’assistant sont traités par Google Cloud (Vertex AI) sur une infrastructure située aux États-Unis.',
+                'vos échanges avec l’agent conversationnel sont traités par Google Cloud (Vertex AI) sur une infrastructure située aux États-Unis.',
             },
             {
               terme: 'Notifications WhatsApp',

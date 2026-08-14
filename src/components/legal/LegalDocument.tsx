@@ -43,7 +43,7 @@ function Bloc({ bloc }: { bloc: BlocLegal }) {
 
     case 'encart':
       return (
-        <div className="mb-space-3 rounded-gj-lg border-l-4 border-gj-teal bg-gj-teal/5 px-space-4 py-space-3">
+        <div className="mb-space-3 rounded-gj-lg bg-gj-teal/5 px-space-4 py-space-3">
           {bloc.titre ? (
             <p className="text-fs-300 font-bold text-color-text-primary mb-space-1">{bloc.titre}</p>
           ) : null}
