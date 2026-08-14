@@ -1,0 +1,172 @@
+/**
+ * @jest-environment node
+ *
+ * GUIC-706 — API d'administration des fonctionnalités.
+ *
+ * La validation vit côté serveur et pas seulement côté interface : un toggle grisé
+ * n'empêche pas un appel direct. Chaque refus attendu ici correspond à un geste qu'un
+ * navigateur ne proposerait pas mais qu'un `curl` permet.
+ */
+jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
+jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
+
+const mockGetFlags = jest.fn()
+const mockSetFlag = jest.fn()
+jest.mock('@/lib/flags', () => ({
+  getFlags: (...a: unknown[]) => mockGetFlags(...a),
+  setFlag: (...a: unknown[]) => mockSetFlag(...a),
+}))
+const mockGetHits = jest.fn()
+jest.mock('@/lib/flags/metrics', () => ({ getFlagHits: (...a: unknown[]) => mockGetHits(...a) }))
+
+import { NextRequest } from 'next/server'
+import { getSession } from '@/lib/auth'
+import { recordAudit } from '@/lib/audit'
+import { GET, PUT } from '@/app/api/admin/systeme/flags/route'
+import { catalogDefaults, FEATURE_FLAGS } from '@/lib/flags/catalog'
+
+const mockSession = getSession as jest.Mock
+
+const ADMIN = { cjsUid: 'a1', roles: ['admin'] }
+const MODERATEUR = { cjsUid: 'm1', roles: ['moderator'] }
+const CONSEILLER = { cjsUid: 'c1', roles: ['conseiller'] }
+
+const MASQUABLE = FEATURE_FLAGS.find((f) => !f.locked && f.defaultEnabled)!.key
+const VERROUILLE = FEATURE_FLAGS.find((f) => f.locked)!.key
+
+function requete(body: unknown, url = 'http://localhost/api/admin/systeme/flags'): NextRequest {
+  return new NextRequest(url, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockGetFlags.mockResolvedValue(catalogDefaults())
+  mockSetFlag.mockImplementation(async (key: string, enabled: boolean) => ({
+    ...catalogDefaults(),
+    [key]: enabled,
+  }))
+  mockGetHits.mockResolvedValue({})
+})
+
+describe('GET — consultation', () => {
+  it('rend l’état, le catalogue et les compteurs à un administrateur', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    const res = await GET()
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.data.flags).toBeDefined()
+    expect(json.data.catalogue).toHaveLength(FEATURE_FLAGS.length)
+    expect(json.data.hits).toBeDefined()
+  })
+
+  it('reste ouvert au modérateur', async () => {
+    // Lecture autorisée : un modérateur doit pouvoir constater qu'un module est masqué
+    // plutôt que conclure à une panne devant une file vide.
+    mockSession.mockResolvedValue(MODERATEUR)
+    expect((await GET()).status).toBe(200)
+  })
+
+  it('indique au client ce qu’il a le droit de modifier', async () => {
+    // Sans ce drapeau, l'interface afficherait des toggles actifs à un modérateur, qui
+    // se heurterait à un 403 après coup.
+    mockSession.mockResolvedValue(MODERATEUR)
+    expect((await (await GET()).json()).data.canManage).toBe(false)
+    mockSession.mockResolvedValue(ADMIN)
+    expect((await (await GET()).json()).data.canManage).toBe(true)
+  })
+
+  it('refuse un conseiller', async () => {
+    mockSession.mockResolvedValue(CONSEILLER)
+    expect((await GET()).status).toBe(403)
+  })
+
+  it('refuse une requête sans session', async () => {
+    mockSession.mockResolvedValue(null)
+    expect((await GET()).status).toBe(403)
+  })
+})
+
+describe('PUT — bascule', () => {
+  it('applique la bascule demandée par un administrateur', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    const res = await PUT(requete({ key: MASQUABLE, enabled: false, note: 'vague 1' }))
+    expect(res.status).toBe(200)
+    expect(mockSetFlag).toHaveBeenCalledWith(
+      MASQUABLE,
+      false,
+      expect.objectContaining({ updatedBy: 'a1', note: 'vague 1' }),
+    )
+  })
+
+  it('refuse le modérateur', async () => {
+    // La garde d'écriture, testée là où elle compte : sur la route, pas seulement sur le
+    // prédicat.
+    mockSession.mockResolvedValue(MODERATEUR)
+    const res = await PUT(requete({ key: MASQUABLE, enabled: false }))
+    expect(res.status).toBe(403)
+    expect(mockSetFlag).not.toHaveBeenCalled()
+  })
+
+  it('refuse un corps sans clé exploitable', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    expect((await PUT(requete({}))).status).toBe(400)
+    expect(mockSetFlag).not.toHaveBeenCalled()
+  })
+
+  it('refuse un corps illisible', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    const req = new NextRequest('http://localhost/api/admin/systeme/flags', {
+      method: 'PUT',
+      body: 'pas du json',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    expect((await PUT(req)).status).toBe(400)
+  })
+
+  it('traduit un refus du service en 400 plutôt qu’en 500', async () => {
+    // Clé inconnue, flag verrouillé, dépendance masquée : ce sont des erreurs de demande,
+    // pas des pannes. Un 500 les ferait passer pour un incident.
+    mockSession.mockResolvedValue(ADMIN)
+    mockSetFlag.mockRejectedValue(new Error('Fonctionnalité verrouillée'))
+    expect((await PUT(requete({ key: VERROUILLE, enabled: false }))).status).toBe(400)
+  })
+
+  it('journalise la bascule avec son sens et sa raison', async () => {
+    // Une bascule change ce que voient 22 000 personnes sans passer par un déploiement :
+    // le journal d'audit est la seule trace de l'acte.
+    mockSession.mockResolvedValue(ADMIN)
+    await PUT(requete({ key: MASQUABLE, enabled: false, note: 'incident' }))
+    expect(recordAudit).toHaveBeenCalledWith(
+      'a1',
+      'feature.flag.update',
+      expect.objectContaining({
+        targetType: 'feature_flag',
+        targetId: MASQUABLE,
+        meta: expect.objectContaining({ enabled: false, note: 'incident' }),
+      }),
+    )
+  })
+
+  it('ne journalise pas une bascule refusée', async () => {
+    mockSession.mockResolvedValue(MODERATEUR)
+    await PUT(requete({ key: MASQUABLE, enabled: false }))
+    expect(recordAudit).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET ?format=export — instantané', () => {
+  it('rend une configuration réimportable', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    const json = await (
+      await GET(new NextRequest('http://localhost/api/admin/systeme/flags?format=export'))
+    ).json()
+    // Instantané plat `{ clé: booléen }` : c'est ce qui permet de rejouer en production
+    // une configuration éprouvée en recette, et de sauvegarder l'état avant un incident.
+    expect(json.data.flags).toEqual(catalogDefaults())
+    expect(json.data.exportedAt).toBeDefined()
+  })
+})
