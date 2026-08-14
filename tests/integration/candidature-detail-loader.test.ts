@@ -24,6 +24,11 @@ const ROW = {
   cvUrl: 'https://cdn/cv.pdf',
   soumiseA: new Date('2026-05-01T10:00:00Z'),
   updatedAt: new Date('2026-05-02T11:00:00Z'),
+  // GUIC-689 (É-13) — le `select` du loader demande désormais les entretiens.
+  // Le mock reflète la requête réelle : lui laisser omettre le champ ferait
+  // passer un `?.` défensif pour de la robustesse alors qu'il masquerait un
+  // oubli de `select`.
+  entretiens: [],
   opportunite: {
     slug: 'stage-data',
     titre: 'Stage Data',
@@ -32,6 +37,8 @@ const ROW = {
     type: 'Stage',
     domaine: 'Numerique',
     description: 'Mission analytics…',
+    region: 'Dakar',
+    remuneration: null,
   },
 }
 

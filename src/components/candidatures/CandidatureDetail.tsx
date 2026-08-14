@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
+import { CandidatureAside } from './CandidatureAside'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
 import { RetraitCandidature } from './RetraitCandidature'
 import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
@@ -165,6 +166,13 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         />
       </Card>
 
+      {/* GUIC-689 (É-13) — desktop : contenu principal à gauche, aside à droite.
+          Mobile : l'aside passe SOUS le contenu — « prochaine étape » y est utile
+          mais ne doit pas repousser la candidature elle-même sous la ligne de
+          flottaison. */}
+      <div className="lg:grid lg:grid-cols-[1.6fr_1fr] lg:gap-space-4 flex flex-col gap-space-4">
+        <div className="flex flex-col gap-space-4">
+
       {/* Section « Ma candidature » */}
       <Card>
         <h2 className="text-fs-500 font-bold text-color-text-primary">Ma candidature</h2>
@@ -219,6 +227,13 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
           Aucun message pour le moment — les retours du recruteur s&apos;afficheront ici.
         </p>
       </Card>
+
+        </div>
+
+        <aside>
+          <CandidatureAside candidature={candidature} />
+        </aside>
+      </div>
 
       {/* CTAs */}
       <div className="flex flex-col gap-space-2 sm:flex-row sm:justify-end">
