@@ -14,6 +14,10 @@
  *      défauts du catalogue : une coupure Redis rouvrirait sinon au public exactement ce
  *      qu'on vient de masquer.
  */
+// `tests/setup.ts` neutralise `@/lib/flags` pour toutes les suites (tout ouvert, sans
+// I/O). Celle-ci éprouve précisément le module réel : elle lève donc le mock global.
+jest.unmock('@/lib/flags')
+
 const mockRedisGet = jest.fn()
 const mockRedisSet = jest.fn()
 const mockRedisIncr = jest.fn()
@@ -188,7 +192,9 @@ describe('setFlag — écriture', () => {
     mockRedisSet.mockImplementation(async () => { ordre.push('set'); return 'OK' })
     mockRedisIncr.mockImplementation(async () => { ordre.push('incr'); return 2 })
     await setFlag(MASQUABLE, false, { updatedBy: 'u1' })
-    expect(ordre).toEqual(['set', 'incr'])
+    // On regarde les deux dernières opérations : la lecture de l'état courant peut avoir
+    // repeuplé le cache au passage, ce qui produit un `set` antérieur sans rapport.
+    expect(ordre.slice(-2)).toEqual(['set', 'incr'])
   })
 
   it('reste fonctionnel si Redis refuse l’écriture', async () => {

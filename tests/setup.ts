@@ -21,6 +21,26 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
+// GUIC-706 — Les fonctionnalités sont TOUTES ouvertes par défaut dans les tests.
+//
+// À partir du lot 3, les loaders, les navigations et les gardes appelleront `getFlags()`,
+// qui touche Redis et la base. Sans ce mock, les 648 suites existantes se mettraient à
+// dépendre d'une infrastructure qu'elles n'utilisent pas, pour un comportement qu'elles
+// ne testent pas. Le mock ne travestit rien : « tout ouvert » est exactement l'état de la
+// production avant le lancement séquentiel.
+//
+// Les suites qui éprouvent un module MASQUÉ (lots 5 et 6) lèvent ce mock explicitement
+// via `jest.unmock('@/lib/flags')`, ce qui rend leur intention lisible d'un coup d'œil.
+jest.mock('@/lib/flags', () => {
+  const reel = jest.requireActual('@/lib/flags')
+  const { catalogDefaults } = jest.requireActual('@/lib/flags/catalog')
+  return {
+    ...reel,
+    getFlags: async () => catalogDefaults(),
+    isEnabled: async (key: string) => catalogDefaults()[key] === true,
+  }
+})
+
 // Polyfill TextEncoder/TextDecoder pour jsdom sous Node récent (≥ 20/24).
 // Certains modules (undici via @vercel/blob, génération QR, etc.) les importent au
 // chargement, or jsdom ne les expose pas globalement → "ReferenceError: TextEncoder

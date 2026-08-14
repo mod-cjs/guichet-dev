@@ -17,6 +17,10 @@ import type { Prisma } from '@prisma/client'
  * requête métier (une page/route ne casse pas si l'audit échoue).
  */
 export type AuditAction =
+  // GUIC-706 — ouverture ou masquage d'une fonctionnalité depuis l'admin. Acte lourd :
+  // il change ce que voient les 22 000 utilisateurs sans passer par un déploiement, donc
+  // sans laisser de trace dans l'historique Git. Le journal est la seule trace.
+  | 'feature.flag.update'
   | 'fiche_beneficiaire.view'
   | 'export.utilisateurs'
   | 'export.opportunites'

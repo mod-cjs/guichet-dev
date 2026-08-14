@@ -2300,6 +2300,25 @@ model LlmConfig {
   @@map("llm_config")
 }
 
+/// Surcharges d'ouverture des fonctionnalités (GUIC-706), pilotées depuis
+/// /admin/systeme/fonctionnalites. La source de vérité reste le catalogue en code
+/// (src/lib/flags/catalog.ts) : cette table ne porte QUE les écarts au défaut, si bien
+/// qu'ajouter une fonctionnalité ne demande aucune migration. Une clé absente vaut le
+/// `defaultEnabled` du catalogue ; une clé devenue inconnue du catalogue est ignorée à
+/// la lecture plutôt que supprimée, pour qu'un retrait temporaire en code ne perde pas
+/// l'arbitrage de l'administrateur.
+model FeatureFlag {
+  key       String   @id @db.VarChar(64)
+  enabled   Boolean
+  /// Raison de la bascule (vague d'ouverture, incident…) — reprise dans la note de service.
+  note      String?  @db.VarChar(280)
+  updatedBy String?  @map("updated_by") @db.VarChar(36) // cjs_uid de l'admin
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("feature_flags")
+}
+
 /// Curation automatisée d'opportunités (GUIC-595). Méthode d'extraction déterministe
 /// SANS LLM, en cascade : `auto` essaie jsonld → rss → html_selecteurs → article_regex.
 enum MethodeExtraction {
