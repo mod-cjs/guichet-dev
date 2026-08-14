@@ -14,16 +14,17 @@
  * + Let's Encrypt) et que les serveurs sont **en Belgique**. Corrigé ici
  * d'après l'arbitrage du 2026-08-14.
  *
- * Entité retenue : **OVH SAS**, 2 rue Kellermann, 59100 Roubaix, France,
- * RCS Lille Métropole 424 761 419 — l'entité contractante principale
- * d'OVHcloud — avec la localisation physique des serveurs indiquée séparément
- * (datacenter de Bruxelles). C'est la formulation standard : elle nomme le
- * cocontractant et dit où les données résident, sans confondre les deux.
+ * Entité : **OVH SAS**, 2 rue Kellermann, 59100 Roubaix, France, RCS Lille
+ * Métropole 424 761 419. **Confirmé par le PO le 2026-08-14 : le contrat est
+ * bien avec OVH France, et le datacenter est en Belgique.** La filiale belge
+ * OVHcloud DC Belgium SRL n'est donc PAS le cocontractant — ne pas la
+ * substituer ici.
  *
- * ⚠️ À CONFIRMER SUR FACTURE — si le contrat CJS est porté par la filiale
- * belge **OVHcloud DC Belgium SRL** (BCE/TVA BE 1010.368.925, Berchem-
- * Sainte-Agathe 1082, Bruxelles) plutôt que par OVH SAS, c'est elle qu'il faut
- * nommer ici. Vérification d'une minute sur une facture OVH.
+ * Entité contractante et localisation des serveurs sont volontairement
+ * dissociées : les confondre serait inexact dans les deux sens. Nommer
+ * seulement « OVH Belgique » ne remplit pas l'obligation d'identifier
+ * l'hébergeur ; n'indiquer que Roubaix laisserait croire que les données sont
+ * en France alors qu'elles sont à Bruxelles.
  *
  * Corriger l'hébergement ne supprime pas tout transfert hors du Sénégal, il le
  * déplace : `llm-client.ts` fixe `DEFAULT_LOCATION = 'us-central1'` et la

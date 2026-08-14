@@ -138,9 +138,9 @@ Ajout d'une section **« Localisation de vos données et transferts »** : appli
 | Immatriculation | RCS Lille Métropole 424 761 419 | idem |
 | Serveurs | datacenter de Bruxelles, Belgique | [OVHcloud Brussels](https://www.ovhcloud.com/en/datacenter/europe/belgium/brussels/) |
 
-Formulation standard : l'entité contractante est nommée, la localisation physique des serveurs est indiquée séparément — sans confondre les deux.
+**Confirmé par le PO le 2026-08-14** : le contrat est avec **OVH France**, le datacenter est **en Belgique**. La filiale belge OVHcloud DC Belgium SRL (BCE BE 1010.368.925) n'est pas le cocontractant — ne pas la substituer.
 
-⚠️ **À confirmer sur facture** : si le contrat CJS est porté par la filiale **OVHcloud DC Belgium SRL** (BCE/TVA BE 1010.368.925, Berchem-Sainte-Agathe 1082, Bruxelles) plutôt que par OVH SAS, c'est elle qu'il faut nommer. Vérification d'une minute.
+Entité contractante et localisation des serveurs sont dissociées à dessein : les confondre serait inexact dans les deux sens. « OVH Belgique » seul ne remplit pas l'obligation d'identifier l'hébergeur ; « Roubaix, France » seul laisserait croire que les données sont en France.
 
 ⚠️ **`vercel.json` est une configuration morte** : il déclare encore `"regions": ["cdg1"]` (Paris) et 11 crons Vercel alors que la prod est sur OVH. Troisième affirmation contradictoire sur l'hébergement, à nettoyer dans son propre ticket.
 
