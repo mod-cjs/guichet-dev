@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LIENS_FOOTER_LEGAUX } from '@/content/legal'
 
 export function Footer() {
   return (
@@ -30,15 +31,17 @@ export function Footer() {
       </div>
       <div className="border-t border-white/10">
         <div className="container-page py-space-3 flex flex-wrap gap-x-space-4 gap-y-space-2 justify-center text-fs-100 text-white/60">
-          <Link href="/legal/cgu" className="text-white/80 hover:text-white no-underline transition-colors">
-            CGU
-          </Link>
-          <Link href="/legal/confidentialite" className="text-white/80 hover:text-white no-underline transition-colors">
-            Confidentialité
-          </Link>
-          <Link href="/legal/mentions-legales" className="text-white/80 hover:text-white no-underline transition-colors">
-            Mentions légales
-          </Link>
+          {/* GUIC-605 — liens dérivés du registre `src/content/legal` : un document
+              retiré du registre disparaît d'ici, au lieu d'y laisser un lien mort. */}
+          {LIENS_FOOTER_LEGAUX.map(({ slug, libelle }) => (
+            <Link
+              key={slug}
+              href={`/legal/${slug}`}
+              className="text-white/80 hover:text-white no-underline transition-colors"
+            >
+              {libelle}
+            </Link>
+          ))}
         </div>
       </div>
       <div className="border-t border-white/10 py-space-3">
