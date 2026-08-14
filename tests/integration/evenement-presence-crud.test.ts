@@ -25,14 +25,41 @@ const ADMIN = {
   region: null, roles: ['admin'], accessToken: 'x', refreshToken: 'y', expiresAt: 0, onboardingComplete: true,
 }
 
+const CENTRE_NOM = 'Centre fixture GUIC-474'
+const USER_UID = 'fixture-presence-guic474'
+
 let centreId: string
 let userCjsUid: string
 let evId: string | null = null
 
+/**
+ * GUIC-642 — purge des fixtures d'un run précédent, AVANT de les recréer.
+ *
+ * `USER_UID` est une clé primaire fixe : dès qu'un run s'interrompt avant son
+ * `afterAll`, la ligne survit et TOUS les runs suivants échouent sur
+ * « Unique constraint failed on the constraint: PRIMARY ». Pire, le centre était
+ * créé avant l'utilisateur, donc chaque échec laissait un centre orphelin de
+ * plus (8 accumulés avant ce correctif).
+ *
+ * Un test à fixtures d'identifiant fixe doit nettoyer en entrée, pas seulement
+ * en sortie : la sortie n'est pas garantie de s'exécuter.
+ */
+async function purgerFixtures() {
+  const centres = await prisma.centre.findMany({ where: { nom: CENTRE_NOM }, select: { id: true } })
+  const centreIds = centres.map((c) => c.id)
+  await prisma.inscriptionEvenement.deleteMany({ where: { cjsUid: USER_UID } })
+  if (centreIds.length > 0) {
+    await prisma.evenement.deleteMany({ where: { centreId: { in: centreIds } } })
+    await prisma.centre.deleteMany({ where: { id: { in: centreIds } } })
+  }
+  await prisma.utilisateur.deleteMany({ where: { cjsUid: USER_UID } })
+}
+
 beforeAll(async () => {
+  await purgerFixtures()
   const centre = await prisma.centre.create({
     data: {
-      nom: 'Centre fixture GUIC-474',
+      nom: CENTRE_NOM,
       region: 'Dakar',
       adresse: 'Fixture intégration — supprimé en fin de suite',
       latitude: 14.6928,
@@ -43,7 +70,7 @@ beforeAll(async () => {
     select: { id: true },
   })
   const user = await prisma.utilisateur.create({
-    data: { cjsUid: 'fixture-presence-guic474', nom: 'Fixture', prenom: 'Présence' },
+    data: { cjsUid: USER_UID, nom: 'Fixture', prenom: 'Présence' },
     select: { cjsUid: true },
   })
   centreId = centre.id
@@ -57,11 +84,11 @@ afterEach(async () => {
   }
 })
 afterAll(async () => {
-  // Ordre imposé par les FK : inscriptions → événements → centre, puis l'utilisateur.
-  await prisma.inscriptionEvenement.deleteMany({ where: { cjsUid: userCjsUid } }).catch(() => {})
-  await prisma.evenement.deleteMany({ where: { centreId } }).catch(() => {})
-  await prisma.centre.delete({ where: { id: centreId } }).catch(() => {})
-  await prisma.utilisateur.delete({ where: { cjsUid: userCjsUid } }).catch(() => {})
+  // GUIC-642 — même purge qu'en entrée : elle cible par NOM et par uid constants,
+  // donc elle nettoie même quand `beforeAll` s'est interrompu avant d'affecter
+  // `centreId` (l'ancienne version passait alors `id: undefined` à un `delete`,
+  // qui échouait en laissant le centre derrière lui).
+  await purgerFixtures().catch(() => {})
   await prisma.$disconnect()
 })
 

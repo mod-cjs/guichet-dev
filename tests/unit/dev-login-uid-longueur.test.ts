@@ -23,7 +23,7 @@
  * garde les routes versionnées et toute route dev future ajoutée au dépôt ; la correction
  * de `DEV_ADMIN_UID` elle-même reste locale à chaque poste (cf. GUIC-641).
  */
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DEV_API_DIR = join(process.cwd(), 'src', 'app', 'api', 'dev')
@@ -55,12 +55,24 @@ interface UidDeclare {
   valeur: string
 }
 
-/** Tous les uid codés en dur dans les routes /api/dev/login-*. */
+/**
+ * Tous les uid codés en dur dans les routes /api/dev/login-*.
+ *
+ * GUIC-642 — on lisait `route.ts` dans TOUT dossier `login*`, en supposant qu'un
+ * dossier présent contient sa route. Les dossiers `login-admin`,
+ * `login-conseiller` et `login-recruteur` étant hors dépôt (`.git/info/exclude`),
+ * leur état varie d'un poste à l'autre : absents en CI, et ici présents mais
+ * VIDES après une copie incomplète du dépôt qui a emporté les fichiers non
+ * versionnés. Le test plantait alors en ENOENT sur toute la machine.
+ *
+ * On indexe donc sur les fichiers réellement présents, pas sur les dossiers.
+ */
 function uidsDeclares(): UidDeclare[] {
   return readdirSync(DEV_API_DIR, { withFileTypes: true })
     .filter((e) => e.isDirectory() && e.name.startsWith('login'))
     .flatMap((e) => {
       const fichier = join(DEV_API_DIR, e.name, 'route.ts')
+      if (!existsSync(fichier)) return []
       const source = readFileSync(fichier, 'utf8')
       return [...source.matchAll(RE_UID_CONST)].map((m) => ({
         fichier: `${e.name}/route.ts`,
