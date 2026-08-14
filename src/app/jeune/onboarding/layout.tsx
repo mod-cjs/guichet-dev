@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import { SkipLink } from '@/components/ui/SkipLink'
+import { MentionFormulaire } from '@/components/legal'
 
 /**
  * Layout dédié `/jeune/onboarding/*` — funnel obligatoire (5 écrans).
@@ -46,6 +47,13 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       </div>
       <main id="main" className="bg-gj-surface min-h-[calc(100dvh-3rem)]">
         {children}
+        {/* GUIC-607 — mention d'information CDP posée au niveau du layout et non
+            d'un écran : le funnel entier est le point de collecte, donc aucune
+            étape ajoutée plus tard ne peut collecter sans mention. Informative
+            seulement — le consentement opt-in tracé relève de GUIC-608. */}
+        <div className="border-t border-gj-line px-space-4 py-space-4 max-w-[76ch] mx-auto">
+          <MentionFormulaire finalite="créer et gérer votre compte, puis vous orienter vers les opportunités, formations et services adaptés à votre profil" />
+        </div>
       </main>
     </>
   )
