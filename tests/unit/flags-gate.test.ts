@@ -20,7 +20,9 @@ const mockGetSession = jest.fn()
 jest.mock('@/lib/auth', () => ({ getSession: (...a: unknown[]) => mockGetSession(...a) }))
 
 import { NextRequest } from 'next/server'
-import { gateFlags } from '@/lib/flags/gate'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { gateFlags, CIBLE_MUETTE } from '@/lib/flags/gate'
 import { catalogDefaults, FEATURE_FLAGS } from '@/lib/flags/catalog'
 
 /** Un flag qui ferme les jeunes, avec une route utilisateur et une fermeture muette. */
@@ -71,7 +73,17 @@ describe('fermeture muette', () => {
     const res = await gateFlags(req(MUET.userRoutes[0]))
     expect(res).not.toBeNull()
     expect(res!.headers.get('location')).toBeNull()
-    expect(res!.headers.get('x-middleware-rewrite')).toContain('/masque')
+    expect(res!.headers.get('x-middleware-rewrite')).toContain(CIBLE_MUETTE)
+  })
+
+  it('vise un chemin qu’aucune route n’occupe', () => {
+    // La cible muette doit rester SANS page, pour que Next serve son not-found comme pour
+    // une adresse inventée. Une page dédiée appelant `notFound()` a été essayée : elle
+    // renvoie bien 404 mais avec un corps VIDE, donc visiblement différent d'un vrai 404 —
+    // ce qui trahit le dispositif au lieu de le dissimuler. Si quelqu'un crée un jour une
+    // route à cet emplacement, la fermeture muette redeviendrait reconnaissable.
+    const dossier = resolve(__dirname, '..', '..', 'src', 'app', CIBLE_MUETTE.slice(1))
+    expect(existsSync(dossier)).toBe(false)
   })
 
   it('compte le refus', async () => {

@@ -23,9 +23,20 @@ import { flagForPath, getFlagDef, resolveAudience } from '@/lib/flags/catalog'
  */
 const SURFACES_MACHINE = ['/api/whatsapp', '/api/webhooks', '/api/interconnexion', '/api/cron', '/api/internal']
 
-/** Rendues par réécriture : l'URL demandée reste affichée. */
-const PAGE_MUETTE = '/masque'
+/**
+ * Cibles de réécriture — l'URL demandée reste affichée dans la barre d'adresse.
+ *
+ * `PAGE_MUETTE` ne correspond volontairement à AUCUNE route : Next sert alors son
+ * not-found, exactement comme pour une adresse inventée. Une page dédiée appelant
+ * `notFound()` a été essayée et écartée — elle renvoie bien un 404 mais avec un corps
+ * vide, donc visiblement différent d'un vrai 404, ce qui trahit le dispositif au lieu de
+ * le dissimuler. Un test interdit qu'une route vienne un jour occuper ce chemin.
+ */
+const PAGE_MUETTE = '/__introuvable'
 const PAGE_EXPLICITE = '/indisponible'
+
+/** Exporté pour que les tests vérifient qu'aucune route ne l'occupe. */
+export const CIBLE_MUETTE = PAGE_MUETTE
 
 /**
  * Réponse à substituer quand la route relève d'une fonctionnalité masquée pour le
