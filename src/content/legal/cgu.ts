@@ -13,12 +13,15 @@
  * fonctionne, mais il n'a pas été relu par un juriste. À faire valider avant
  * mise en production.
  *
- * ⚠️ MINEURS — l'article 3 exige une autorisation parentale pour les moins de
- * 18 ans, mais RIEN ne l'impose techniquement : `stepIdentiteSchema`
+ * MINEURS — l'article 3 exige une autorisation parentale pour les moins de
+ * 18 ans. Elle n'est pas contrôlée techniquement : `stepIdentiteSchema`
  * (`src/lib/validations/onboarding.ts`) collecte la date de naissance sans
- * aucun contrôle d'âge, et aucune trace d'autorisation n'est conservée. Le
- * contrat promet donc une garde que le produit n'applique pas. À arbitrer :
- * soit implémenter le contrôle, soit retirer l'exigence.
+ * vérification d'âge, et aucune trace d'autorisation n'est conservée.
+ *
+ * Arbitrage PO du 2026-08-14 : on garde l'exigence dans le contrat sans la
+ * porter dans le produit. C'est une clause déclarative, comme l'exactitude des
+ * informations fournies (art. 6) — décision prise en connaissance de cause, ne
+ * pas la rouvrir sans nouvel arbitrage.
  */
 import type { DocumentLegal } from './types'
 import { CONTACT_CDP } from './contact'
