@@ -81,6 +81,14 @@ const SECTIONS: NavSection[] = [
       { id: 'yaye-modele', href: '/admin/yaye/modele', icon: 'settings', label: 'Modèle IA' },
     ],
   },
+  {
+    // GUIC-706 — amorce du hub « Système & Exploitation » prévu §5.6 de
+    // `.agent_context/specs/admin-console-refonte.md`.
+    title: 'Système',
+    items: [
+      { id: 'fonctionnalites', href: '/admin/systeme/fonctionnalites', icon: 'target', label: 'Fonctionnalités' },
+    ],
+  },
 ]
 
 /** Tous les hrefs de nav — sert à ne garder actif que l'entrée la plus spécifique. */
