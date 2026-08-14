@@ -8,10 +8,10 @@
  * plateforme (opportunités et candidatures, agenda, centres et réservations,
  * bibliothèque, messagerie, assistant Yaye, notifications WhatsApp).
  *
- * ⚠️ VALIDATION JURIDIQUE REQUISE — ce texte est un contrat opposable à
- * ~22 000 utilisateurs. Il est rédigé pour coller au service tel qu'il
- * fonctionne, mais il n'a pas été relu par un juriste. À faire valider avant
- * mise en production.
+ * ⚠️ VALIDATION JURIDIQUE REQUISE — ce texte est un contrat opposable aux
+ * utilisateurs de la plateforme. Il est rédigé pour coller au service tel
+ * qu'il fonctionne, mais il n'a pas été relu par un juriste. À faire valider
+ * avant mise en production.
  *
  * MINEURS — l'article 3 exige une autorisation parentale pour les moins de
  * 18 ans. Elle n'est pas contrôlée techniquement : `stepIdentiteSchema`
