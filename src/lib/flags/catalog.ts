@@ -82,11 +82,18 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     },
   }),
 
-  def('m6.ressources', 'm6', 'Ressources documentaires', 'Guides, articles, modèles et formations en ligne.', {
-    userRoutes: ['/ressources', '/jeune/mes-formations', '/conseiller/publications'],
+  def('m6.ressources', 'm6', 'Ressources documentaires', 'Guides, articles, modèles et fiches pratiques.', {
+    userRoutes: ['/ressources'],
     adminRoutes: ['/admin/ressources'],
     apiPrefixes: ['/api/ressources', '/api/favoris/ressources'],
-    navIds: ['ressources', 'formations', 'publications'],
+    navIds: ['ressources'],
+  }),
+
+  def('m6.formations', 'm6', 'Suivi de formation', 'Le parcours de formation en ligne d’un jeune et sa progression.', {
+    userRoutes: ['/jeune/mes-formations'],
+    navIds: ['formations'],
+    closes: ['beneficiaire'],
+    dependsOn: ['m6.ressources'],
   }),
 
   def('m4.bibliotheque', 'm4', 'Bibliothèque physique', 'Le catalogue de livres des centres et les emprunts.', {
@@ -102,10 +109,20 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     },
   }),
 
-  def('m4.checkin', 'm4', 'Carte CJS & pointage', 'Le badge QR du jeune et son scan à l’accueil du centre.', {
-    userRoutes: ['/checkin', '/jeune/ma-carte', '/conseiller/checkin', '/centre-staff/checkins'],
-    apiPrefixes: ['/api/cjs-card', '/api/v1/checkin'],
-    navIds: ['checkin', 'ma-carte'],
+  def('m4.carte_cjs', 'm4', 'Carte CJS', 'La carte de membre du jeune et son QR code personnel.', {
+    userRoutes: ['/jeune/ma-carte'],
+    apiPrefixes: ['/api/cjs-card'],
+    navIds: ['ma-carte'],
+    closes: ['beneficiaire'],
+  }),
+
+  // Le pointage suppose une carte à scanner : sans elle, le comptoir n'a rien à lire.
+  def('m4.checkin', 'm4', 'Pointage de présence', 'Le scan du badge à l’accueil d’un centre et le comptage des présences.', {
+    userRoutes: ['/checkin', '/conseiller/checkin', '/centre-staff/checkins'],
+    apiPrefixes: ['/api/v1/checkin'],
+    navIds: ['checkin'],
+    closes: ['beneficiaire', 'conseiller'],
+    dependsOn: ['m4.carte_cjs'],
     crons: ['/api/cron/cleanup-checkins'],
   }),
 
@@ -124,9 +141,64 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     dependsOn: ['m3.opportunites', 'm3.candidatures'],
   }),
 
+  def('m9.offres', 'm9', 'Publication d’offres', 'La création et la gestion des offres par un recruteur.', {
+    userRoutes: ['/recruteur/mes-offres'],
+    navIds: ['offres'],
+    closes: ['recruteur'],
+    dependsOn: ['m9.recruteur'],
+  }),
+
+  def('m9.pipeline', 'm9', 'Suivi des candidatures', 'Le vivier et le tableau kanban de sélection du recruteur.', {
+    userRoutes: ['/recruteur/candidatures'],
+    apiPrefixes: ['/api/recruteur/candidatures'],
+    navIds: ['candidatures'],
+    closes: ['recruteur'],
+    dependsOn: ['m9.recruteur', 'm3.candidatures'],
+  }),
+
+  // Dépend d'une OAuth Google externe : sans flag propre, une panne côté Google casserait
+  // un item de navigation sans qu'on puisse le retirer.
+  def('m9.entretiens', 'm9', 'Entretiens & visioconférence', 'La planification d’entretiens et les liens Google Meet.', {
+    userRoutes: ['/recruteur/entretiens'],
+    apiPrefixes: ['/api/recruteur/google-meet'],
+    navIds: ['entretiens'],
+    closes: ['recruteur'],
+    dependsOn: ['m9.recruteur'],
+  }),
+
+  def('m9.modeles_emails', 'm9', 'Modèles d’e-mails', 'Les réponses types que le recruteur envoie aux candidats.', {
+    userRoutes: ['/recruteur/modeles-emails'],
+    navIds: ['modeles-emails'],
+    closes: ['recruteur'],
+    dependsOn: ['m9.recruteur'],
+  }),
+
   def('m8.conseiller', 'm8', 'Espace conseiller', 'L’intégralité de l’espace des agents de centre.', {
     userRoutes: ['/conseiller'],
     closes: ['conseiller'],
+  }),
+
+  def('m8.beneficiaires', 'm8', 'Suivi des bénéficiaires', 'L’annuaire et les fiches de suivi des jeunes rattachés au centre.', {
+    userRoutes: ['/conseiller/beneficiaires'],
+    navIds: ['benef'],
+    closes: ['conseiller'],
+    dependsOn: ['m8.conseiller'],
+  }),
+
+  def('m8.publications', 'm8', 'Publications de centre', 'La rédaction de contenus par les conseillers.', {
+    userRoutes: ['/conseiller/publications'],
+    navIds: ['publications'],
+    closes: ['conseiller'],
+    dependsOn: ['m8.conseiller', 'm6.ressources'],
+  }),
+
+  // Agenda dérivé de Réservation + Événement (GUIC-497) : il n'a de contenu que si l'une
+  // au moins de ces deux sources est ouverte.
+  def('m8.agenda_conseiller', 'm8', 'Agenda du conseiller', 'Le planning quotidien d’un agent : réservations et événements du centre.', {
+    userRoutes: ['/conseiller/agenda'],
+    navIds: ['agenda'],
+    closes: ['conseiller'],
+    dependsOn: ['m8.conseiller'],
   }),
 
   def('m8.centre_staff', 'm8', 'Espace centre (ancien)', 'L’ancien espace personnel de centre, en cours de migration.', {
@@ -206,9 +278,14 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     crons: ['/api/cron/veille-sources'],
   }),
 
-  def('m13.datahub', 'm13', 'Data Hub', 'Les flux d’export et le suivi de consultation.', {
+  def('m13.datahub', 'm13', 'Data Hub', 'Les flux d’export ouverts aux systèmes partenaires.', {
     adminRoutes: ['/admin/data-hub', '/api/admin/export'],
-    apiPrefixes: ['/api/v1/export', '/api/v1/track'],
+    apiPrefixes: ['/api/v1/export'],
+    closes: [],
+  }),
+
+  def('m13.consultations', 'm13', 'Traçage des consultations', 'La mesure de ce que les jeunes consultent, web, IA et WhatsApp confondus.', {
+    apiPrefixes: ['/api/v1/track'],
     closes: [],
   }),
 
@@ -234,10 +311,24 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   // ── Irréductibles — interrupteurs d'incident, pas leviers de lancement ──────
   def('m3.opportunites', 'm3', 'Catalogue d’opportunités', 'Emplois, stages, bourses, formations et appels à projets.', {
-    userRoutes: ['/opportunites', '/jeune/mes-favoris'],
+    userRoutes: ['/opportunites'],
     adminRoutes: ['/admin/opportunites', '/admin/types-opportunite', '/api/admin/export/opportunites'],
-    apiPrefixes: ['/api/opportunites', '/api/favoris'],
-    navIds: ['opp-all', 'opp-emploi', 'opp-bourse', 'opp-formation', 'opp-concours', 'favoris'],
+    apiPrefixes: ['/api/opportunites'],
+    navIds: ['opp-all', 'opp-emploi', 'opp-bourse', 'opp-formation', 'opp-concours'],
+  }),
+
+  def('m3.favoris', 'm3', 'Sauvegardes', 'La mise de côté d’une opportunité ou d’une ressource pour y revenir.', {
+    userRoutes: ['/jeune/mes-favoris'],
+    apiPrefixes: ['/api/favoris'],
+    navIds: ['favoris'],
+    closes: ['beneficiaire'],
+    dependsOn: ['m3.opportunites'],
+  }),
+
+  def('m3.programmes', 'm3', 'Rattachement aux programmes', 'Le lien entre un contenu et les programmes YEAH, YJC, EduPop, Yaakaar.', {
+    adminRoutes: ['/admin/programmes'],
+    closes: [],
+    crons: ['/api/cron/programme-integrity'],
   }),
 
   def('m3.candidatures', 'm3', 'Candidatures', 'Le dépôt de candidature et son suivi.', {

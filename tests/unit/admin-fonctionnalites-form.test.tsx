@@ -103,6 +103,38 @@ describe('décompte d’état', () => {
   })
 })
 
+describe('publics ciblés', () => {
+  it('affiche une pastille par public masqué', async () => {
+    // La question « qui perd quoi » est le cœur de la décision d'ouverture. En phrase, elle
+    // se lit ; en pastilles, elle se balaie — et c'est un balayage qu'on fait, pas une
+    // lecture, quand on compare une dizaine de lignes.
+    afficher()
+    const cible = FEATURE_FLAGS.find((f) => f.closes.length >= 2 && !f.locked)!
+    await userEvent.type(screen.getByRole('searchbox'), cible.label)
+    const ligne = screen.getByLabelText(new RegExp(cible.label, 'i')).closest('li')!
+    const pastilles = within(ligne).getAllByTestId('pastille-audience')
+    expect(pastilles).toHaveLength(cible.closes.length)
+  })
+
+  it('nomme les publics en clair plutôt qu’avec les clés techniques', async () => {
+    afficher()
+    const cible = FEATURE_FLAGS.find((f) => f.closes.includes('beneficiaire') && !f.locked)!
+    await userEvent.type(screen.getByRole('searchbox'), cible.label)
+    const ligne = screen.getByLabelText(new RegExp(cible.label, 'i')).closest('li')!
+    expect(within(ligne).getByText('Jeunes')).toBeInTheDocument()
+  })
+
+  it('signale le traitement interne au lieu de n’afficher aucune pastille', async () => {
+    // Une ligne sans pastille serait ambiguë : oubli d'affichage ou absence de public ?
+    afficher()
+    const interne = FEATURE_FLAGS.find((f) => f.closes.length === 0 && !f.locked)!
+    await userEvent.type(screen.getByRole('searchbox'), interne.label)
+    const ligne = screen.getByLabelText(new RegExp(interne.label, 'i')).closest('li')!
+    expect(within(ligne).queryAllByTestId('pastille-audience')).toHaveLength(0)
+    expect(within(ligne).getByText(/interne/i)).toBeInTheDocument()
+  })
+})
+
 describe('lecture seule', () => {
   it('neutralise toutes les bascules pour un modérateur', () => {
     afficher({}, false)

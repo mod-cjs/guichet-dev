@@ -51,11 +51,44 @@ function ongletDe(f: FeatureFlagDef): Onglet {
   return 'donnees'
 }
 
-const LIBELLE_AUDIENCE: Record<string, string> = {
-  anonyme: 'visiteurs',
-  beneficiaire: 'jeunes',
-  recruteur: 'recruteurs',
-  conseiller: 'conseillers',
+/** Publics, nommés en clair et colorés par espace — les couleurs d'identité de rôle v3. */
+const AUDIENCE: Record<string, { label: string; fond: string; encre: string }> = {
+  anonyme: { label: 'Visiteurs', fond: 'var(--gj-line, #E5E7EB)', encre: '#374151' },
+  beneficiaire: { label: 'Jeunes', fond: 'var(--gj-teal-soft, #D7F0EA)', encre: '#0B5C51' },
+  recruteur: { label: 'Recruteurs', fond: 'var(--gj-blue-soft, #E0EAFF)', encre: '#1A3FA8' },
+  conseiller: { label: 'Conseillers', fond: 'var(--gj-yellow-soft, #FDF0CE)', encre: '#7A5A00' },
+}
+
+/**
+ * Publics qui perdent la fonctionnalité.
+ *
+ * En pastilles plutôt qu'en phrase : « qui perd quoi » est le cœur de la décision
+ * d'ouverture, et sur une dizaine de lignes comparées côte à côte on balaie, on ne lit pas.
+ */
+function PastillesAudience({ closes }: { closes: readonly string[] }) {
+  if (closes.length === 0) {
+    // Une ligne sans pastille serait ambiguë : oubli d'affichage ou absence de public ?
+    return (
+      <span className="text-fs-100 text-color-text-secondary">Traitement interne</span>
+    )
+  }
+  return (
+    <>
+      {closes.map((a) => {
+        const { label, fond, encre } = AUDIENCE[a] ?? { label: a, fond: 'var(--gj-line)', encre: '#374151' }
+        return (
+          <span
+            key={a}
+            data-testid="pastille-audience"
+            className="text-fs-100 font-bold rounded-gj-sm px-space-1 whitespace-nowrap"
+            style={{ background: fond, color: encre }}
+          >
+            {label}
+          </span>
+        )
+      })}
+    </>
+  )
 }
 
 export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }: Props) {
@@ -203,19 +236,20 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
                     )}
                   </div>
                   <p className="text-fs-200 text-color-text-secondary m-0">{f.description}</p>
-                  <p className="text-fs-100 text-color-text-secondary m-0">
-                    {f.closes.length > 0
-                      ? `Masque pour les ${f.closes.map((a) => LIBELLE_AUDIENCE[a] ?? a).join(', ')}.`
-                      : 'Traitement interne, sans interface utilisateur.'}
-                    {!ouvert && (hits[f.key] ?? 0) > 0 && (
-                      // Un trafic sur un module masqué est le signal recherché : soit la
-                      // demande existe, soit un lien subsiste quelque part.
-                      <> {hits[f.key]} tentative{hits[f.key] > 1 ? 's' : ''} d’accès depuis.</>
-                    )}
-                    {!ouvert && bloquants.length > 0 && (
-                      <> Ouverture bloquée par {bloquants.join(', ')}.</>
-                    )}
-                  </p>
+                  <div className="flex items-center gap-space-1 flex-wrap">
+                    <span className="text-fs-100 text-color-text-secondary">Masque pour</span>
+                    <PastillesAudience closes={f.closes} />
+                  </div>
+                  {(!ouvert && ((hits[f.key] ?? 0) > 0 || bloquants.length > 0)) && (
+                    <p className="text-fs-100 text-color-text-secondary m-0">
+                      {(hits[f.key] ?? 0) > 0 && (
+                        // Un trafic sur un module masqué est le signal recherché : soit la
+                        // demande existe, soit un lien subsiste quelque part.
+                        <>{hits[f.key]} tentative{hits[f.key] > 1 ? 's' : ''} d’accès depuis. </>
+                      )}
+                      {bloquants.length > 0 && <>Ouverture bloquée par {bloquants.join(', ')}.</>}
+                    </p>
+                  )}
                 </div>
                 <Switch
                   checked={ouvert}
