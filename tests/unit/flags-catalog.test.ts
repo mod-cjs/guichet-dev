@@ -99,6 +99,19 @@ describe('catalogue — règles de sûreté', () => {
     }
   })
 
+  it('ne rend explicite une fermeture que devant un public identifié', () => {
+    // §2.2 — l'invisibilité protège d'une divulgation à un public inconnu. Un recruteur ou
+    // un conseiller est une personne rattachée, sous contrat : lui opposer un 404 muet
+    // dégrade son travail sans rien protéger, et le support n'a rien à lui répondre.
+    // Mais l'exception ne doit jamais déborder sur les visiteurs et les jeunes, sinon la
+    // règle d'invisibilité tombe par une porte dérobée.
+    const PROFESSIONNELS = new Set(['recruteur', 'conseiller'])
+    for (const f of FEATURE_FLAGS.filter((x) => x.silentClose === false)) {
+      expect(f.closes.length).toBeGreaterThan(0)
+      for (const audience of f.closes) expect(PROFESSIONNELS.has(audience)).toBe(true)
+    }
+  })
+
   it('associe un inventaire d’engagements à toute fermeture progressive', () => {
     // §7.1 — sans inventaire, l'admin basculerait à l'aveugle sur un module où des
     // utilisateurs ont un engagement en cours (livre emprunté, créneau réservé).

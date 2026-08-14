@@ -87,6 +87,20 @@ export interface FeatureFlagDef {
   closeMode: CloseMode
   /** Requis si `closeMode === 'drain'`. */
   engagements?: EngagementSource
+  /**
+   * Fermeture muette (défaut) ou explicite.
+   *
+   * `true` — 404 indiscernable d'une route inexistante : l'utilisateur ignore que la
+   * fonctionnalité existe. C'est la règle générale.
+   *
+   * `false` — un message dit que la fonctionnalité est temporairement indisponible.
+   * Réservé aux publics **identifiés** (recruteur, conseiller) : ce sont des personnes
+   * rattachées, sous contrat, dont on connaît le nom. Leur opposer un 404 muet dégrade
+   * leur travail sans rien protéger — l'invisibilité vise un public inconnu, pas un
+   * collègue qui perd son formulaire en cours. Jamais applicable aux visiteurs ni aux
+   * bénéficiaires.
+   */
+  silentClose: boolean
   /** Valeur en l'absence de surcharge en base. */
   defaultEnabled: boolean
   /** Socle non masquable : toggle grisé côté UI et refus côté serveur. */

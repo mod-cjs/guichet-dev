@@ -39,6 +39,8 @@ function def(
     requires: o.requires ?? [],
     closeMode: o.closeMode ?? 'sec',
     engagements: o.engagements,
+    // Muette par défaut : l'invisibilité est la règle, l'explication l'exception.
+    silentClose: o.silentClose ?? true,
     defaultEnabled: o.defaultEnabled ?? true,
     locked: o.locked ?? false,
   }
@@ -126,6 +128,18 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     crons: ['/api/cron/cleanup-checkins'],
   }),
 
+  // L'émargement d'un événement passe par le token de la CARTE
+  // (`/api/v1/checkin/[token]/presence`, GUIC-474) : il tient donc à la fois de l'agenda
+  // et de la carte. Extrait en flag propre pour que le graphe de dépendances porte ce
+  // couplage — sinon masquer la carte prive silencieusement l'agenda de son émargement,
+  // et le conseiller constate que « le scan ne marche plus » sur un module ouvert.
+  def('m5.emargement', 'm5', 'Émargement des événements', 'Le pointage des participants à un atelier, par scan du badge.', {
+    apiPrefixes: ['/api/v1/checkin/x/presence'],
+    closes: ['conseiller'],
+    silentClose: false,
+    dependsOn: ['m5.agenda', 'm4.carte_cjs'],
+  }),
+
   def('x.messagerie', 'x', 'Messagerie interne', 'Les échanges directs entre jeunes, conseillers et recruteurs.', {
     userRoutes: ['/jeune/messagerie', '/recruteur/messagerie', '/conseiller/messagerie'],
     navIds: ['messagerie'],
@@ -138,6 +152,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     adminRoutes: ['/admin/partenaires'],
     apiPrefixes: ['/api/recruteur'],
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m3.opportunites', 'm3.candidatures'],
   }),
 
@@ -145,6 +160,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/recruteur/mes-offres'],
     navIds: ['offres'],
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m9.recruteur'],
   }),
 
@@ -153,6 +169,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     apiPrefixes: ['/api/recruteur/candidatures'],
     navIds: ['candidatures'],
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m9.recruteur', 'm3.candidatures'],
   }),
 
@@ -163,6 +180,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     apiPrefixes: ['/api/recruteur/google-meet'],
     navIds: ['entretiens'],
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m9.recruteur'],
   }),
 
@@ -170,18 +188,21 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/recruteur/modeles-emails'],
     navIds: ['modeles-emails'],
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m9.recruteur'],
   }),
 
   def('m8.conseiller', 'm8', 'Espace conseiller', 'L’intégralité de l’espace des agents de centre.', {
     userRoutes: ['/conseiller'],
     closes: ['conseiller'],
+    silentClose: false,
   }),
 
   def('m8.beneficiaires', 'm8', 'Suivi des bénéficiaires', 'L’annuaire et les fiches de suivi des jeunes rattachés au centre.', {
     userRoutes: ['/conseiller/beneficiaires'],
     navIds: ['benef'],
     closes: ['conseiller'],
+    silentClose: false,
     dependsOn: ['m8.conseiller'],
   }),
 
@@ -189,6 +210,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/conseiller/publications'],
     navIds: ['publications'],
     closes: ['conseiller'],
+    silentClose: false,
     dependsOn: ['m8.conseiller', 'm6.ressources'],
   }),
 
@@ -198,6 +220,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/conseiller/agenda'],
     navIds: ['agenda'],
     closes: ['conseiller'],
+    silentClose: false,
     dependsOn: ['m8.conseiller'],
   }),
 
@@ -209,6 +232,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/conseiller/bibliotheque', '/centre-staff/bibliotheque'],
     navIds: ['bibliotheque'],
     closes: ['conseiller'],
+    silentClose: false,
     dependsOn: ['m8.conseiller', 'm4.bibliotheque'],
   }),
 
@@ -216,6 +240,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/conseiller/reservations', '/centre-staff/reservations'],
     navIds: ['resa'],
     closes: ['conseiller'],
+    silentClose: false,
     dependsOn: ['m8.conseiller', 'm4.reservations'],
   }),
 
@@ -223,6 +248,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/centre-staff'],
     apiPrefixes: ['/api/centre-staff', '/api/staff'],
     closes: ['conseiller'],
+    silentClose: false,
   }),
 
   // ── Vague 3 — coût externe ou risque ────────────────────────────────────────
@@ -246,11 +272,14 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m12.reco', 'm12', 'Recommandations IA', 'Le score de correspondance affiché sur une opportunité.', {
     dependsOn: ['m12.yaye'],
+    // Un score de correspondance sans catalogue à recommander n'a pas d'objet.
+    requires: ['m3.opportunites'],
     crons: ['/api/cron/yaye-reco-precompute'],
   }),
 
   def('m12.adequation', 'm12', 'Score d’adéquation', 'Le score candidat/offre qui classe le vivier du recruteur.', {
     closes: ['recruteur'],
+    silentClose: false,
     dependsOn: ['m12.yaye'],
   }),
 
@@ -371,6 +400,14 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     crons: ['/api/cron/cleanup-centre-events'],
   }),
 
+  // ⚠️ COUPLAGE PAR LA DONNÉE (lot 4) — `reservations-batch` clôt les réservations échues
+  // en `Passee` ou `NonHonoree` selon qu'un CheckIn existe. Si le pointage est masqué,
+  // personne ne peut badger : le batch enregistrerait EN BASE que tous les jeunes venus au
+  // rendez-vous étaient absents, et `no_show` part au Data Hub en tier public — donnée
+  // fausse, définitive, et sortie de la plateforme.
+  // Règle retenue : quand `m4.checkin` est masqué, le batch clôt en `Passee` avec
+  // `meta.motif = 'pointage_masque'`. Une décision d'administration ne doit jamais
+  // produire une trace défavorable à un utilisateur.
   def('m4.reservations', 'm4', 'Réservation de ressources', 'La réservation de salles et d’équipements en centre.', {
     userRoutes: ['/jeune/mes-reservations-centres'],
     apiPrefixes: ['/api/reservations'],

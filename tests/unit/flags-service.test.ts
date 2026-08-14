@@ -44,8 +44,14 @@ jest.mock('@/lib/logger', () => ({ logger: { warn: jest.fn(), info: jest.fn(), e
 import { getFlags, isEnabled, setFlag, __resetFlagsCache } from '@/lib/flags'
 import { catalogDefaults, FEATURE_FLAGS } from '@/lib/flags/catalog'
 
-/** Un flag masquable et non verrouillé, quel que soit l'état futur du catalogue. */
-const MASQUABLE = FEATURE_FLAGS.find((f) => !f.locked && f.defaultEnabled)!.key
+/**
+ * Un flag masquable sans contrainte : ni verrouillé, ni parent d'un flag ouvert — masquer
+ * un parent est légitimement refusé, ce que vérifie une suite dédiée. Choisi dynamiquement
+ * pour que l'ajout d'une dépendance au catalogue ne casse pas ces tests-ci.
+ */
+const MASQUABLE = FEATURE_FLAGS.find(
+  (f) => !f.locked && f.defaultEnabled && !FEATURE_FLAGS.some((o) => o.dependsOn.includes(f.key)),
+)!.key
 /** Un flag verrouillé — le socle, jamais désactivable. */
 const VERROUILLE = FEATURE_FLAGS.find((f) => f.locked)!.key
 
