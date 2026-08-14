@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui'
 import { RecruteurSidebar } from '@/components/layout/RecruteurSidebar'
 import { RecruteurSearch } from '@/components/layout/RecruteurSearch'
 import { RecruteurBottomNav } from '@/components/layout/RecruteurBottomNav'
@@ -34,6 +35,9 @@ function BellLink({ unread, size, boxed }: { unread: number; size: number; boxed
 
 export default async function RecruteurLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
+  // GUIC-706 — calcul côté serveur : filtrer côté client afficherait la navigation
+  // complète le temps du premier rendu, soit la trace même qu'on retire.
+  const masques = await masquesUtilisateur(session?.roles)
   const ctx = session ? await getRecruteurContext(session.cjsUid) : null
 
   // GUIC-526 (D4) — rôle SSO requis ; rôle sans organisation liée → écran
@@ -67,7 +71,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
       </div>
 
       <div className="flex min-h-screen md:h-screen md:overflow-hidden">
-        <RecruteurSidebar companyName={ctx.organisationNom} verified={ctx.estVerifie} candidaturesCount={nav.aExaminer} messagesCount={messagesNonLus} />
+        <RecruteurSidebar masques={masques} companyName={ctx.organisationNom} verified={ctx.estVerifie} candidaturesCount={nav.aExaminer} messagesCount={messagesNonLus} />
         <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
           {/* TopBar desktop (design v3 Lot 10) : recherche + notifications + avatar */}
           <div
@@ -86,7 +90,7 @@ export default async function RecruteurLayout({ children }: { children: React.Re
         </div>
       </div>
 
-      <RecruteurBottomNav candidatsBadge={nav.aExaminer} messagesBadge={messagesNonLus} />
+      <RecruteurBottomNav masques={masques} candidatsBadge={nav.aExaminer} messagesBadge={messagesNonLus} />
     </>
   )
 }

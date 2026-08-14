@@ -16,6 +16,11 @@ jest.mock('@/lib/flags', () => ({
   getFlags: (...a: unknown[]) => mockGetFlags(...a),
   setFlag: (...a: unknown[]) => mockSetFlag(...a),
 }))
+const mockPurgeSitemap = jest.fn()
+jest.mock('@/lib/seo/sitemap', () => ({ purgerCacheSitemap: () => mockPurgeSitemap() }))
+const mockRevalidate = jest.fn()
+jest.mock('next/cache', () => ({ revalidatePath: (...a: unknown[]) => mockRevalidate(...a) }))
+
 const mockGetHits = jest.fn()
 jest.mock('@/lib/flags/metrics', () => ({ getFlagHits: (...a: unknown[]) => mockGetHits(...a) }))
 
@@ -50,6 +55,7 @@ beforeEach(() => {
     [key]: enabled,
   }))
   mockGetHits.mockResolvedValue({})
+  mockPurgeSitemap.mockResolvedValue(undefined)
 })
 
 describe('GET — consultation', () => {
@@ -149,6 +155,16 @@ describe('PUT — bascule', () => {
         meta: expect.objectContaining({ enabled: false, note: 'incident' }),
       }),
     )
+  })
+
+  it('purge le sitemap, qui a deux caches et prendrait sinon deux heures', async () => {
+    // Redis 1 h ET l'ISR de Next (revalidate 3600). Sans les purger, les moteurs
+    // continueraient d'annoncer une page masquée pendant que tout le reste a basculé
+    // en quelques secondes — et enverraient du trafic vers un 404.
+    mockSession.mockResolvedValue(ADMIN)
+    await PUT(requete({ key: MASQUABLE, enabled: false }))
+    expect(mockPurgeSitemap).toHaveBeenCalled()
+    expect(mockRevalidate).toHaveBeenCalledWith('/sitemap.xml')
   })
 
   it('ne journalise pas une bascule refusée', async () => {

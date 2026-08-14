@@ -8,6 +8,7 @@
 import type { MetadataRoute } from 'next'
 import { appUrl } from '@/lib/app-url'
 import { prisma } from '@/lib/prisma'
+import { lienMasque, masquesUtilisateur } from '@/lib/flags/ui'
 import { redis } from '@/lib/redis'
 
 type SitemapEntry = MetadataRoute.Sitemap[number]
@@ -125,6 +126,29 @@ function deserialize(raw: string): SitemapEntry[] {
 }
 
 /**
+ * Retire les URL relevant d'une fonctionnalité masquée aux visiteurs.
+ *
+ * Le rattachement se fait sur le chemin, comme pour les navigations et le gate : les trois
+ * surfaces tranchent ainsi avec la même règle, et une URL ne peut pas rester indexée
+ * pendant que sa route répond 404.
+ */
+async function filtrerSitemap(entries: SitemapEntry[]): Promise<SitemapEntry[]> {
+  const masques = await masquesUtilisateur(null)
+  if (masques.length === 0) return entries
+  const base = appUrl()
+  return entries.filter((e) => !lienMasque(e.url.startsWith(base) ? e.url.slice(base.length) : e.url, masques))
+}
+
+/** Purge du cache — appelée après une bascule, sinon le sitemap garde jusqu'à 1 h de retard. */
+export async function purgerCacheSitemap(): Promise<void> {
+  try {
+    await redis.del(CACHE_KEY)
+  } catch {
+    // Best-effort : le TTL rattrapera.
+  }
+}
+
+/**
  * Entrées du sitemap avec cache Redis 1h. En cas d'échec Redis, on lit la DB ;
  * en cas d'échec DB, on renvoie au moins les pages statiques (jamais un 500).
  */
@@ -143,7 +167,10 @@ export async function getSitemapEntries(now: Date = new Date()): Promise<Sitemap
     // DB indisponible → sitemap réduit aux pages statiques.
   }
 
-  const entries = buildSitemapEntries(content, now)
+  // GUIC-706 — le sitemap s'adresse aux moteurs, donc à la face `anonyme`. Laisser une
+  // URL masquée y figurer ferait indexer puis visiter une page qui répond 404, et Google
+  // continuerait d'y envoyer du trafic pendant des jours.
+  const entries = await filtrerSitemap(buildSitemapEntries(content, now))
 
   try {
     await redis.set(CACHE_KEY, serialize(entries), 'EX', CACHE_TTL_SECONDS)

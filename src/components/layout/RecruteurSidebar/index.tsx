@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { filtrerSections } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 interface Item {
@@ -28,6 +29,11 @@ export interface RecruteurSidebarProps {
   offresCount?: number | null
   candidaturesCount?: number | null
   messagesCount?: number | null
+  /**
+   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur. Le filtrage se fait
+   * au rendu : côté client, la navigation complète apparaîtrait le temps du premier rendu.
+   */
+  masques?: readonly string[]
 }
 
 /**
@@ -35,7 +41,7 @@ export interface RecruteurSidebarProps {
  * Sidebar BLANCHE, accent BLEU, carte entreprise + carte « Besoin de profils ? ».
  * Calquée sur `design-guichet-v3/recruteur-shell.jsx`. Drawer mobile + collapse desktop.
  */
-export function RecruteurSidebar({ companyName, verified, offresCount, candidaturesCount, messagesCount }: RecruteurSidebarProps = {}) {
+export function RecruteurSidebar({ companyName, verified, offresCount, candidaturesCount, messagesCount, masques = [] }: RecruteurSidebarProps = {}) {
   const pathname = usePathname() ?? ''
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -137,7 +143,7 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
 
         {/* Sections */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {SECTIONS.map((section, sIdx) => (
+          {filtrerSections(SECTIONS, masques).map((section, sIdx) => (
             <div key={section.title ?? `s-${sIdx}`}>
               {section.title && !collapsed && (
                 <div style={{ fontSize: 9.5, color: 'var(--gj-grey)', fontWeight: 800, letterSpacing: '.5px', textTransform: 'uppercase', padding: '14px 10px 5px' }}>{section.title}</div>

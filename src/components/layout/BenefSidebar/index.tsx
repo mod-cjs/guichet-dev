@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import * as nav from 'next/navigation'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { filtrerSections } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 
@@ -30,6 +31,13 @@ export interface BenefSidebarProps {
   active?: string
   /** Sections personnalisées (défaut fourni). */
   sections?: BenefSidebarSection[]
+  /**
+   * GUIC-706 — clés de fonctionnalités masquées pour ce visiteur, calculées côté serveur
+   * par `masquesUtilisateur`. Le filtrage se fait au rendu : le calculer côté client
+   * afficherait la navigation complète le temps du premier rendu, soit la trace même
+   * qu'on cherche à retirer.
+   */
+  masques?: readonly string[]
   userName?: string
   userMeta?: string
   userInitials?: string
@@ -190,6 +198,7 @@ function resolveActiveId(
 export function BenefSidebar({
   active,
   sections = DEFAULT_SECTIONS,
+  masques = [],
   userName,
   userMeta,
   userInitials,
@@ -211,7 +220,11 @@ export function BenefSidebar({
   // `useRouter` peut être indisponible dans certains tests qui ne mockent
   // que `usePathname` (cf. tests/unit/benef-sidebar.test.tsx). On guard.
   const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
-  const activeId = active ?? resolveActiveId(pathname, searchParams, sections)
+  // GUIC-706 — sections filtrées AVANT toute autre logique : l'item actif doit être
+  // résolu sur ce qui est réellement affiché, sinon un item masqué pourrait rester
+  // désigné comme actif et laisser son intitulé visible dans l'état de la barre.
+  const sectionsVisibles = filtrerSections(sections, masques)
+  const activeId = active ?? resolveActiveId(pathname, searchParams, sectionsVisibles)
   const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [loggingOut, setLoggingOut] = useState(false)
@@ -348,7 +361,7 @@ export function BenefSidebar({
       ) : null}
 
       {/* Sections */}
-      {sections.map((section, sIdx) => (
+      {sectionsVisibles.map((section, sIdx) => (
         <div key={section.title ?? `section-${sIdx}`}>
           {section.title ? (
             <div

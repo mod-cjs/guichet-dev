@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
@@ -31,9 +32,12 @@ export async function MobileTopShell() {
 export async function MobileBottomShell() {
   const session = await getSession()
   if (!session) return null
+  // GUIC-706 — trois des cinq items sont masquables. Calcul côté serveur : côté client,
+  // la barre s'afficherait complète le temps du premier rendu.
+  const masques = await masquesUtilisateur(session.roles)
   return (
     <MobileShellGate>
-      <BottomNav />
+      <BottomNav masques={masques} />
     </MobileShellGate>
   )
 }

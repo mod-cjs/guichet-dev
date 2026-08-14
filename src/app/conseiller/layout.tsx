@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui'
 import { getConseillerContext, countReservationsAValider } from '@/lib/loaders/conseiller'
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
@@ -26,6 +27,9 @@ export const dynamic = 'force-dynamic'
  */
 export default async function ConseillerLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
+  // GUIC-706 — calcul côté serveur : filtrer côté client afficherait la navigation
+  // complète le temps du premier rendu, soit la trace même qu'on retire.
+  const masques = await masquesUtilisateur(session?.roles)
   if (!session) redirect('/auth/connexion')
 
   const ctx = await getConseillerContext(session.cjsUid)
@@ -71,6 +75,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
 
       <div className="flex min-h-screen md:h-screen md:overflow-hidden" style={{ background: 'var(--gj-bg)' }}>
         <ConseillerSidebar
+          masques={masques}
           name={fullName}
           role={roleLabel}
           initials={ctx.initials}
@@ -105,7 +110,7 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         </div>
       </div>
 
-      <ConseillerBottomNav reservationsBadge={reservationsBadge} messagesBadge={messagesBadge} />
+      <ConseillerBottomNav masques={masques} reservationsBadge={reservationsBadge} messagesBadge={messagesBadge} />
     </>
   )
 }

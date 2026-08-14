@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { lienMasque } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 interface NavItem {
@@ -38,22 +39,34 @@ const ITEMS: NavItem[] = [
 
 interface BottomNavProps {
   badges?: Partial<Record<string, number>>
+  /**
+   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur.
+   *
+   * Trois des cinq items sont rattachés à une fonctionnalité masquable. La grille était
+   * figée à cinq colonnes : retirer un item la déformait. Elle suit désormais le nombre
+   * d'items réellement affichés.
+   */
+  masques?: readonly string[]
 }
 
-export function BottomNav({ badges = {} }: BottomNavProps) {
+export function BottomNav({ badges = {}, masques = [] }: BottomNavProps) {
   const pathname = usePathname()
+  const items = ITEMS.filter((i) => !lienMasque(i.href, masques))
 
   return (
     <nav
-      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
-        grid grid-cols-5"
+      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav grid"
       style={{
+        // GUIC-706 — colonnes suivant le nombre d'items affichés. La grille était figée à
+        // cinq : masquer une fonctionnalité laissait un trou dans la barre de navigation
+        // mobile des 22 000 utilisateurs.
+        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
         paddingBottom: 'calc(6px + var(--safe-bottom))',
         zIndex: 'var(--gj-z-bottom-nav)',
       }}
       aria-label="Navigation principale"
     >
-      {ITEMS.map(item => {
+      {items.map(item => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href) === true)
         const badge = badges[item.href]
         return (

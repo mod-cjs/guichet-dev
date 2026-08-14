@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { filtrerSections } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { ConseillerCentreSwitcher } from '@/components/layout/ConseillerCentreSwitcher'
 import type { ConseillerCentre } from '@/lib/loaders/conseiller'
@@ -33,6 +34,11 @@ export interface ConseillerSidebarProps {
   reservationsBadge?: number | null
   /** Messages non lus (badge doré). */
   messagesBadge?: number | null
+  /**
+   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur. Le filtrage se fait
+   * au rendu : côté client, la navigation complète apparaîtrait le temps du premier rendu.
+   */
+  masques?: readonly string[]
 }
 
 /**
@@ -48,6 +54,7 @@ export function ConseillerSidebar({
   activeCentreId,
   reservationsBadge,
   messagesBadge,
+  masques = [],
 }: ConseillerSidebarProps) {
   const pathname = usePathname() ?? ''
 
@@ -116,7 +123,7 @@ export function ConseillerSidebar({
 
         {/* Sections */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {SECTIONS.map((section, sIdx) => (
+          {filtrerSections(SECTIONS, masques).map((section, sIdx) => (
             <div key={section.title ?? `s-${sIdx}`}>
               {section.title && (
                 <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)', fontWeight: 800, letterSpacing: '.5px', textTransform: 'uppercase', padding: '14px 10px 5px' }}>{section.title}</div>

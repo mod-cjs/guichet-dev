@@ -14,6 +14,8 @@ import { getFlags, setFlag } from '@/lib/flags'
 import { getFlagHits } from '@/lib/flags/metrics'
 import { canManageFlags, canViewFlags } from '@/lib/flags/rbac'
 import { FEATURE_FLAGS } from '@/lib/flags/catalog'
+import { purgerCacheSitemap } from '@/lib/seo/sitemap'
+import { revalidatePath } from 'next/cache'
 import type { ApiResponse } from '@/types/api'
 
 function refus(message: string, status: 400 | 403) {
@@ -79,6 +81,12 @@ export async function PUT(request: NextRequest) {
     // Un 500 les ferait passer pour un incident d'infrastructure.
     return refus(err instanceof Error ? err.message : 'Bascule refusée.', 400)
   }
+
+  // GUIC-706 — le sitemap a DEUX caches : Redis 1 h et l'ISR de Next (revalidate 3600).
+  // Sans purge des deux, une fonctionnalité masquée resterait annoncée aux moteurs jusqu'à
+  // deux heures, alors que tout le reste bascule en quelques secondes.
+  await purgerCacheSitemap()
+  revalidatePath('/sitemap.xml')
 
   await recordAudit(session.cjsUid, 'feature.flag.update', {
     targetType: 'feature_flag',

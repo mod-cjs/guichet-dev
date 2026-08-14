@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { lienMasque } from '@/lib/flags/ui'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 
@@ -22,16 +23,20 @@ const AUTH_LINKS = [
   { href: '/jeune/mon-profil',      label: 'Mon profil',    match: (p: string) => p.startsWith('/jeune/mon-profil') },
 ]
 
-interface Props { isAuthenticated: boolean }
+interface Props {
+  isAuthenticated: boolean
+  /** GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur par le Header. */
+  masques?: readonly string[]
+}
 
-export function HeaderNav({ isAuthenticated }: Props) {
+export function HeaderNav({ isAuthenticated, masques = [] }: Props) {
   // usePathname() peut retourner null (Storybook hors contexte Next router,
   // ou edge case rendu) — on retombe sur '/' qui ne matchera que la home.
   const pathname = usePathname() ?? '/'
 
   return (
     <nav className="hidden md:flex items-center">
-      {PUBLIC_LINKS.map(link => {
+      {PUBLIC_LINKS.filter(l => !lienMasque(l.href, masques)).map(link => {
         const active = link.match(pathname)
         return (
           <Link
@@ -70,7 +75,7 @@ export function HeaderNav({ isAuthenticated }: Props) {
       {isAuthenticated && (
         <>
           <span className="mx-[6px] h-5 w-px bg-gj-line" aria-hidden />
-          {AUTH_LINKS.map(link => {
+          {AUTH_LINKS.filter(l => !lienMasque(l.href, masques)).map(link => {
             const active = link.match(pathname)
             return (
               <Link

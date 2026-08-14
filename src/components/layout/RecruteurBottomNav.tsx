@@ -8,6 +8,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { lienMasque } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 interface NavItem { href: string; icon: IconName; label: string }
@@ -28,10 +29,14 @@ const SECONDARY: NavItem[] = [
 
 const H = 64
 
-export function RecruteurBottomNav({ candidatsBadge = 0, messagesBadge = 0 }: { candidatsBadge?: number; messagesBadge?: number } = {}) {
+export function RecruteurBottomNav({ candidatsBadge = 0, messagesBadge = 0, masques = [] }: { candidatsBadge?: number; messagesBadge?: number; masques?: readonly string[] } = {}) {
   const badgeFor = (href: string) =>
     href === '/recruteur/candidatures' ? candidatsBadge : href === '/recruteur/messagerie' ? messagesBadge : 0
   const pathname = usePathname() ?? ''
+  // GUIC-706 — les deux niveaux sont filtrés : un item masqué ne doit pas se réfugier
+  // dans le menu « Plus », qui est une navigation comme une autre.
+  const primaires = PRIMARY.filter((i) => !lienMasque(i.href, masques))
+  const secondaires = SECONDARY.filter((i) => !lienMasque(i.href, masques))
   const [plus, setPlus] = useState(false)
   const close = useCallback(() => setPlus(false), [])
 
@@ -64,7 +69,7 @@ export function RecruteurBottomNav({ candidatsBadge = 0, messagesBadge = 0 }: { 
           style={{ bottom: H, background: '#fff', borderTop: '1px solid var(--gj-line)', borderRadius: '16px 16px 0 0', padding: '10px 12px calc(12px + env(safe-area-inset-bottom, 0px))' }}
         >
           <div style={{ height: 4, width: 36, borderRadius: 2, background: 'var(--gj-line)', margin: '2px auto 10px' }} aria-hidden />
-          {SECONDARY.map((s) => (
+          {secondaires.map((s) => (
             <Link key={s.href} href={s.href} onClick={close} role="menuitem" className="no-underline flex items-center gap-[12px]" style={{ padding: '12px 8px', color: isActive(s.href) ? 'var(--gj-blue-ink, #1A3FA8)' : 'var(--gj-ink)', fontWeight: isActive(s.href) ? 800 : 600, fontSize: 14, borderBottom: '1px solid var(--gj-line)' }}>
               <Icon name={s.icon} size={18} /> {s.label}
             </Link>
@@ -81,7 +86,7 @@ export function RecruteurBottomNav({ candidatsBadge = 0, messagesBadge = 0 }: { 
         className="md:hidden fixed left-0 right-0 z-[270] flex"
         style={{ bottom: 0, height: `calc(${H}px + env(safe-area-inset-bottom, 0px))`, paddingBottom: 'env(safe-area-inset-bottom, 0px)', background: '#fff', borderTop: '1px solid var(--gj-line)' }}
       >
-        {PRIMARY.map((it) => {
+        {primaires.map((it) => {
           const on = isActive(it.href)
           const badge = badgeFor(it.href)
           return (
