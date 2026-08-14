@@ -1,4 +1,9 @@
-// GUIC-706 — Filtrage des navigations.
+// GUIC-706 — Filtrage des navigations — module PUR, importable côté client.
+//
+// Aucun import serveur ici : ces fonctions sont appelées depuis des composants client
+// ('use client'). Le calcul des masques vit dans `ui-server.ts` — l'y laisser ferait
+// entrer Prisma et ioredis dans le bundle navigateur, et le build échoue alors sur
+// « Module not found: Can't resolve 'dns' ».
 //
 // POURQUOI PAR `href` ET NON PAR IDENTIFIANT. Les neuf barres de navigation ont des formes
 // hétérogènes : les barres latérales portent des `id`, les bottom-navs raisonnent en liens
@@ -9,38 +14,7 @@
 // `uiIds` reste réservé aux affordances SANS lien — onglets internes, sections titrées,
 // puces de filtre — traitées au lot 5.
 
-import { getFlags } from '@/lib/flags'
-import { logger } from '@/lib/logger'
-import { FEATURE_FLAGS, flagForPath, resolveAudience } from './catalog'
-
-/**
- * Clés masquées **pour ce visiteur**. Calculée côté serveur puis passée aux composants de
- * navigation : les filtrer côté client produirait un affichage complet le temps du premier
- * rendu, soit exactement la trace qu'on retire.
- *
- * Rend une liste vide plutôt que d'échouer si l'état est illisible — perdre son menu est
- * pire pour l'utilisateur que voir un lien qui mène à un 404.
- */
-export async function masquesUtilisateur(
-  roles: readonly string[] | null | undefined,
-): Promise<string[]> {
-  const face = resolveAudience(roles)
-  // L'administration voit la navigation entière : c'est ainsi qu'elle atteint ce qu'elle
-  // prépare pendant que le module est fermé au public.
-  if (face === 'admin') return []
-
-  let flags: Record<string, boolean>
-  try {
-    flags = await getFlags()
-  } catch (err) {
-    logger.warn('[flags] navigation non filtrée, état illisible', { err: String(err) })
-    return []
-  }
-
-  return FEATURE_FLAGS.filter((f) => flags[f.key] === false && f.closes.includes(face)).map(
-    (f) => f.key,
-  )
-}
+import { flagForPath } from './catalog'
 
 /**
  * Vrai si ce lien mène à une fonctionnalité masquée.

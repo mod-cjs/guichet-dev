@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
@@ -30,6 +31,7 @@ import { countUnreadNotifications } from '@/lib/loaders/notifications'
  */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
+  const masques = await masquesUtilisateur(session?.roles)
 
   if (!session) {
     return (
@@ -40,7 +42,7 @@ export default async function PublicLayout({ children }: { children: React.React
             sur mobile, `100vh` inclut la zone derrière la barre d'URL → le shell
             « s'étire » quand la barre se masque au scroll. `svh` ne bouge pas. */}
         <main id="main" className="min-h-[100svh]">{children}</main>
-        <Footer />
+        <Footer masques={masques} />
         {/* GUIC-373 — Yaye bubble universel sur les pages publiques.
             GUIC-376 — état partagé via YayeProvider. */}
         <YayeBubble />

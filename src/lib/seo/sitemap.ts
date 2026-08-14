@@ -8,7 +8,8 @@
 import type { MetadataRoute } from 'next'
 import { appUrl } from '@/lib/app-url'
 import { prisma } from '@/lib/prisma'
-import { lienMasque, masquesUtilisateur } from '@/lib/flags/ui'
+import { lienMasque } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { redis } from '@/lib/redis'
 
 type SitemapEntry = MetadataRoute.Sitemap[number]

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { masquesUtilisateur } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { Header } from '@/components/layout/Header'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'

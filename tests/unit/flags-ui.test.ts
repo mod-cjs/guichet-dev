@@ -12,7 +12,8 @@
 const mockGetFlags = jest.fn()
 jest.mock('@/lib/flags', () => ({ getFlags: () => mockGetFlags() }))
 
-import { masquesUtilisateur, lienMasque, filtrerSections } from '@/lib/flags/ui'
+import { lienMasque, filtrerSections } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { catalogDefaults, FEATURE_FLAGS } from '@/lib/flags/catalog'
 
 const JEUNE = FEATURE_FLAGS.find(

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
-import { masquesUtilisateur } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { RecruteurSidebar } from '@/components/layout/RecruteurSidebar'
 import { RecruteurSearch } from '@/components/layout/RecruteurSearch'
 import { RecruteurBottomNav } from '@/components/layout/RecruteurBottomNav'

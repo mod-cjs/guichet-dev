@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth'
-import { masquesUtilisateur } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'

@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
-import { masquesUtilisateur } from '@/lib/flags/ui'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { HeaderNav } from './HeaderNav'
 
