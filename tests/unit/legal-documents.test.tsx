@@ -190,6 +190,10 @@ describe('contenu fidèle aux .docx sources', () => {
     expect(mentions).not.toContain('Vercel')
     expect(mentions).toContain('OVH')
     expect(mentions).toContain('Belgique')
+    // Des mentions légales doivent porter le nom ET l'adresse de l'hébergeur :
+    // l'un sans l'autre ne remplit pas l'obligation.
+    expect(mentions).toContain('2 rue Kellermann')
+    expect(mentions).toContain('424 761 419')
   })
 
   it('déclare les traitements qui sortent de l’Union européenne', () => {

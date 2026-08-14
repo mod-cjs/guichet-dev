@@ -129,10 +129,20 @@ Corrigé dans `mentions-legales.ts`, avec deux gardes de non-régression dans `l
 
 Ajout d'une section **« Localisation de vos données et transferts »** : application, base et fichiers en Belgique ; traitements hors UE nommés (Yaye → Google Cloud aux États-Unis, WhatsApp → Meta). C'est aujourd'hui le **seul endroit** où l'utilisateur l'apprend, l'Article 6 de la politique ne le dit pas.
 
-**Bloquants avant merge :**
+**Hébergeur déclaré** — recherche du 2026-08-14 :
 
-- ⚠️ **Adresse postale de l'hébergeur manquante.** Des mentions légales doivent porter le nom **et** l'adresse de l'hébergeur. Seul « OVH Belgique » est connu — raison sociale exacte et adresse à fournir.
-- ⚠️ **`vercel.json` est une configuration morte** : il déclare encore `"regions": ["cdg1"]` (Paris) et 11 crons Vercel alors que la prod est sur OVH. Troisième affirmation contradictoire sur l'hébergement, à nettoyer dans son propre ticket.
+| Champ | Valeur | Source |
+|---|---|---|
+| Entité | OVH SAS | [Annuaire des Entreprises](https://annuaire-entreprises.data.gouv.fr/entreprise/ovh-ovhcloud-424761419) |
+| Adresse | 2 rue Kellermann, 59100 Roubaix, France | idem |
+| Immatriculation | RCS Lille Métropole 424 761 419 | idem |
+| Serveurs | datacenter de Bruxelles, Belgique | [OVHcloud Brussels](https://www.ovhcloud.com/en/datacenter/europe/belgium/brussels/) |
+
+Formulation standard : l'entité contractante est nommée, la localisation physique des serveurs est indiquée séparément — sans confondre les deux.
+
+⚠️ **À confirmer sur facture** : si le contrat CJS est porté par la filiale **OVHcloud DC Belgium SRL** (BCE/TVA BE 1010.368.925, Berchem-Sainte-Agathe 1082, Bruxelles) plutôt que par OVH SAS, c'est elle qu'il faut nommer. Vérification d'une minute.
+
+⚠️ **`vercel.json` est une configuration morte** : il déclare encore `"regions": ["cdg1"]` (Paris) et 11 crons Vercel alors que la prod est sur OVH. Troisième affirmation contradictoire sur l'hébergement, à nettoyer dans son propre ticket.
 
 ---
 

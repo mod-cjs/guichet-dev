@@ -14,9 +14,16 @@
  * + Let's Encrypt) et que les serveurs sont **en Belgique**. Corrigé ici
  * d'après l'arbitrage du 2026-08-14.
  *
- * ⚠️ ADRESSE POSTALE DE L'HÉBERGEUR À COMPLÉTER — la raison sociale exacte et
- * l'adresse d'OVH Belgique n'ont pas été fournies. Des mentions légales doivent
- * porter le nom ET l'adresse de l'hébergeur : à renseigner avant le merge.
+ * Entité retenue : **OVH SAS**, 2 rue Kellermann, 59100 Roubaix, France,
+ * RCS Lille Métropole 424 761 419 — l'entité contractante principale
+ * d'OVHcloud — avec la localisation physique des serveurs indiquée séparément
+ * (datacenter de Bruxelles). C'est la formulation standard : elle nomme le
+ * cocontractant et dit où les données résident, sans confondre les deux.
+ *
+ * ⚠️ À CONFIRMER SUR FACTURE — si le contrat CJS est porté par la filiale
+ * belge **OVHcloud DC Belgium SRL** (BCE/TVA BE 1010.368.925, Berchem-
+ * Sainte-Agathe 1082, Bruxelles) plutôt que par OVH SAS, c'est elle qu'il faut
+ * nommer ici. Vérification d'une minute sur une facture OVH.
  *
  * Corriger l'hébergement ne supprime pas tout transfert hors du Sénégal, il le
  * déplace : `llm-client.ts` fixe `DEFAULT_LOCATION = 'us-central1'` et la
@@ -70,8 +77,13 @@ export const MENTIONS_LEGALES: DocumentLegal = {
         {
           type: 'definitions',
           items: [
-            { terme: 'Hébergeur', valeur: 'OVH Belgique' },
-            { terme: 'Localisation des serveurs', valeur: 'Belgique (Union européenne)' },
+            { terme: 'Hébergeur', valeur: 'OVH SAS' },
+            { terme: 'Adresse', valeur: '2 rue Kellermann, 59100 Roubaix, France' },
+            { terme: 'Immatriculation', valeur: 'RCS Lille Métropole 424 761 419' },
+            {
+              terme: 'Localisation des serveurs',
+              valeur: 'datacenter de Bruxelles, Belgique (Union européenne)',
+            },
           ],
         },
         {
