@@ -107,7 +107,11 @@ Ces points exigent une révision des .docx par le responsable données. Les page
 
 2. **Notice sous-déclarante.** Catégories réellement traitées mais absentes des documents : CV et pièces jointes, lettres de motivation, conversations Yaye (transcripts verbatim, PII brutes — cf. [cdp-purge.ts](../../src/lib/ia/cdp-purge.ts)), numéro et échanges WhatsApp, présence/badge en centre (GUIC-474), et **situation de handicap** (GUIC-660) — donnée sensible au sens de la loi 2008-12.
 
-3. **Transferts hors Sénégal non déclarés.** Le site lui-même est hébergé par **Vercel Inc. (Californie, États-Unis)** — c'est écrit noir sur blanc dans les mentions légales de GUIC-233. S'y ajoutent Vertex AI (Google Cloud) pour les conversations Yaye et Meta Cloud API pour WhatsApp. La politique Art. 6 ne mentionne que « nos prestataires techniques », sans nommer personne ni signaler de transfert hors du territoire, alors que la loi 2008-12 l'encadre. Les deux pages se contredisent sur le même site.
+3. **Transferts hors Sénégal — déclarés à la CDP, mais tus à l'utilisateur.** Information PO du 2026-08-14 : les transferts **ont bien été déclarés à la CDP**. La formalité légale est donc remplie — c'est l'obligation d'*information de la personne concernée* qui ne l'est pas. La politique Art. 6 ne mentionne que « nos prestataires techniques », sans nommer personne ni signaler de sortie du territoire.
+
+   L'hébergement est désormais **corrigé côté code** (voir §4bis) : Belgique, pas États-Unis. Mais cela **déplace** le sujet sans le clore — [llm-client.ts:58](../../src/lib/ia/llm-client.ts#L58) fixe `DEFAULT_LOCATION = 'us-central1'` et la production ne surcharge pas `GOOGLE_CLOUD_LOCATION` : **les conversations Yaye sont traitées en Iowa**. Ces transcripts contiennent des PII *brutes* — [cdp-purge.ts](../../src/lib/ia/cdp-purge.ts) le documente (motifs de réservation, lettres de motivation, recherches libres). S'y ajoute Meta Cloud API pour WhatsApp.
+
+   Les mentions légales déclarent désormais ces transferts **et** le fait qu'ils sont déclarés à la CDP. Reste à répercuter dans la politique. Question ouverte, hors de ce lot : basculer `GOOGLE_CLOUD_LOCATION` sur `europe-west1` (Belgique) alignerait l'IA sur l'hébergement et supprimerait le transfert — à arbitrer sur coût, latence et disponibilité du modèle.
 
 **Engagement non tenu :**
 
@@ -115,7 +119,20 @@ Ces points exigent une révision des .docx par le responsable données. Les page
 
 **Défaut de conception à corriger en GUIC-608 :** le panneau cookies du document présente « Cookies essentiels » comme une case à cocher. Des cookies essentiels ne peuvent pas être refusés — état verrouillé, pas case décochable.
 
-**Mentions légales :** hébergeur et directeur de la publication ont été retrouvés dans GUIC-233 — plus rien ne manque.
+---
+
+## 4bis. Hébergement — correction du 2026-08-14
+
+GUIC-233 déclarait « Vercel Inc., 340 S Lemon Ave, Walnut, CA 91789, États-Unis ». **Faux sur deux points** : la production a migré sur **OVH** (GUIC-568 — `scripts/deploy/deploy.sh`, OVH/Plesk, Nginx + Let's Encrypt ; GUIC-683 signale que les crons Vercel ne s'exécutent plus), et les serveurs sont **en Belgique**.
+
+Corrigé dans `mentions-legales.ts`, avec deux gardes de non-régression dans `legal-documents.test.tsx` : « Vercel » ne doit jamais réapparaître, « OVH » et « Belgique » doivent être présents.
+
+Ajout d'une section **« Localisation de vos données et transferts »** : application, base et fichiers en Belgique ; traitements hors UE nommés (Yaye → Google Cloud aux États-Unis, WhatsApp → Meta). C'est aujourd'hui le **seul endroit** où l'utilisateur l'apprend, l'Article 6 de la politique ne le dit pas.
+
+**Bloquants avant merge :**
+
+- ⚠️ **Adresse postale de l'hébergeur manquante.** Des mentions légales doivent porter le nom **et** l'adresse de l'hébergeur. Seul « OVH Belgique » est connu — raison sociale exacte et adresse à fournir.
+- ⚠️ **`vercel.json` est une configuration morte** : il déclare encore `"regions": ["cdg1"]` (Paris) et 11 crons Vercel alors que la prod est sur OVH. Troisième affirmation contradictoire sur l'hébergement, à nettoyer dans son propre ticket.
 
 ---
 

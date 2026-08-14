@@ -155,8 +155,35 @@ describe('contenu fidèle aux .docx sources', () => {
       '4. Modification & résiliation',
     ])
     expect(JSON.stringify(CGU)).toContain('Aucun mot de passe local n’est stocké')
-    expect(JSON.stringify(MENTIONS_LEGALES)).toContain('Vercel Inc.')
     expect(JSON.stringify(MENTIONS_LEGALES)).toContain('coordinateur national')
+  })
+
+  it('déclare l’hébergeur réel — jamais Vercel ni les États-Unis (GUIC-568)', () => {
+    const mentions = JSON.stringify(MENTIONS_LEGALES)
+    // GUIC-233 annonçait « Vercel Inc., Californie, États-Unis ». La production
+    // a migré sur OVH (cf. scripts/deploy/deploy.sh) et les serveurs sont en
+    // Belgique : ces deux mentions ne doivent jamais réapparaître comme
+    // hébergeur, une adresse d'hébergement fausse est une fausse déclaration.
+    expect(mentions).not.toContain('Vercel')
+    expect(mentions).toContain('OVH')
+    expect(mentions).toContain('Belgique')
+  })
+
+  it('déclare les traitements qui sortent de l’Union européenne', () => {
+    // L'Article 6 de la politique ne parle que de « prestataires techniques ».
+    // Tant qu'il n'est pas révisé, les mentions légales sont le seul endroit où
+    // l'utilisateur apprend que ses échanges avec Yaye partent aux États-Unis
+    // (llm-client.ts — DEFAULT_LOCATION = 'us-central1', non surchargé en prod).
+    const section = MENTIONS_LEGALES.sections.find((s) => s.titre.includes('transferts'))
+    expect(section).toBeDefined()
+    const texte = JSON.stringify(section)
+    expect(texte).toContain('Yaye')
+    expect(texte).toContain('États-Unis')
+    expect(texte).toContain('WhatsApp')
+    // Ces transferts ont été déclarés à la CDP (info PO 2026-08-14) : le dire
+    // est à l'avantage de l'utilisateur, et le taire donnerait l'impression
+    // d'un transfert sauvage alors que la formalité légale est remplie.
+    expect(texte).toContain('déclarés à la Commission de Protection des Données Personnelles')
   })
 
   it('complète les mentions légales, qui ne sont donc plus une coquille', () => {
