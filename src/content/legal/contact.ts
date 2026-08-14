@@ -31,12 +31,26 @@ export const CONTACT_CDP = {
   delaiReponse: '15 jours',
 } as const
 
-/** Autorité de contrôle — recours de l'utilisateur. */
+/**
+ * Autorité de contrôle — recours de l'utilisateur.
+ *
+ * L'adresse « Almadies, Dakar » de l'Article 10 du .docx source était erronée
+ * (information PO du 2026-08-14). Une adresse de recours fausse est le pire
+ * endroit où se tromper : c'est celle qu'un utilisateur utilise quand il
+ * estime que ses droits n'ont pas été respectés.
+ *
+ * Corollaire — cela explique l'adresse orpheline « 3e étage, Bâtiment B,
+ * Complexe SICAP Point E » que le document de consentement donnait comme
+ * adresse courrier du CJS : c'était en réalité celle de la CDP, recopiée dans
+ * le mauvais bloc. L'arbitrage qui avait retenu le CDEPS de Guédiawaye pour le
+ * CJS était donc correct.
+ */
 export const AUTORITE_CDP = {
   nom: 'Commission de Protection des Données Personnelles (CDP)',
   site: 'https://cdp.sn',
   email: 'contactcdp@cdp.sn',
-  adresse: 'Almadies, Dakar, Sénégal',
+  adresse:
+    'Complexe SICAP Point E, Immeuble A, 1er étage, Avenue Cheikh Anta Diop x Canal IV, Dakar, Sénégal',
 } as const
 
 /** Loi de référence, citée à l'identique dans les 4 documents. */

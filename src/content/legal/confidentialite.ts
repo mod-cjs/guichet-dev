@@ -8,13 +8,21 @@
  * - Art. 1 : `guichetjeunesse.ss` → `.sn` (typo de la source).
  * - Art. 9 : délai de réponse 30 j → **15 j**, pour s'aligner sur la page
  *   « Vos droits » et ne pas publier deux délais contradictoires.
+ * - Art. 2 : « identifiant, mot de passe (chiffré) » → identifiant unique CJS
+ *   fourni par le SSO, aucun mot de passe collecté. Art. 8 : « hachage des
+ *   mots de passe » → authentification déléguée. Arbitrage PO du 2026-08-14 :
+ *   le Guichet est en SSO pur, il ne détient aucun mot de passe. L'article 2
+ *   s'auto-délimite (« Le site https://www.guichetjeunesse.sn […] collecte »)
+ *   donc une ligne vraie pour un autre site du CJS est ici une erreur de
+ *   périmètre — et sur-déclarer est une fausse déclaration au même titre que
+ *   sous-déclarer. Les CGU (§2) l'affirmaient déjà : les deux pages ne se
+ *   contredisent plus. **À répercuter dans le .docx source.**
  * - Coordonnées centralisées dans `contact.ts`.
  *
  * Écarts NON corrigés (mise à jour documentaire à demander au responsable
  * données — cf. `.agent_context/specs/GUIC-605-conformite-cdp-legal.md` §5) :
- * les mots de passe déclarés Art. 2 alors que le Guichet est en SSO pur, les
- * catégories réellement traitées mais non listées (CV, conversations Yaye,
- * WhatsApp, handicap), et les transferts hors Sénégal (Vertex AI, Meta).
+ * les catégories réellement traitées mais non listées (CV, conversations avec
+ * l'agent, WhatsApp, handicap), et les transferts hors Sénégal.
  */
 import type { DocumentLegal } from './types'
 import { AUTORITE_CDP, CONTACT_CDP, LOI_CDP, PHRASE_EXERCICE_DROITS, SITES_COUVERTS } from './contact'
@@ -67,7 +75,11 @@ export const CONFIDENTIALITE: DocumentLegal = {
               terme: "Données d'identification",
               valeur: 'nom, prénom, adresse email, numéro de téléphone.',
             },
-            { terme: 'Données de connexion', valeur: 'identifiant, mot de passe (chiffré).' },
+            {
+              terme: 'Données de connexion',
+              valeur:
+                'identifiant unique CJS fourni par le service d’authentification du Consortium. Aucun mot de passe n’est collecté ni conservé par le Guichet Jeunesse.',
+            },
             {
               terme: 'Données de profil',
               valeur: 'statut (particulier/entreprise), centres d’intérêt professionnels.',
@@ -185,7 +197,7 @@ export const CONFIDENTIALITE: DocumentLegal = {
         {
           type: 'paragraphe',
           texte:
-            'Le CJS met en œuvre les mesures techniques et organisationnelles appropriées pour protéger vos données : chiffrement HTTPS/SSL, hachage des mots de passe, contrôle des accès, sauvegardes régulières, mises à jour de sécurité.',
+            'Le CJS met en œuvre les mesures techniques et organisationnelles appropriées pour protéger vos données : chiffrement HTTPS/SSL, authentification déléguée au service d’authentification du Consortium, contrôle des accès, sauvegardes régulières, mises à jour de sécurité.',
         },
       ],
     },

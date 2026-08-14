@@ -7,6 +7,10 @@
  * Écarts assumés vis-à-vis du .docx (arbitrages PO 2026-08-14) :
  * - §5 : téléphone `+221 33 824 83 83` → `+221 33 877 78 05`, valeur retenue
  *   par la politique et le document de consentement (2 sources sur 3).
+ * - §2 : « identifiant, mot de passe (chiffré) » → identifiant unique CJS
+ *   fourni par le SSO, aucun mot de passe collecté (arbitrage PO du
+ *   2026-08-14, même correction qu'à l'Art. 2 de la politique — le Guichet est
+ *   en SSO pur). **À répercuter dans le .docx source.**
  * - §3 : le titre « Combien de temps conservons-nous vos données ? » avait
  *   perdu son niveau de titre dans la source (fondu dans la section 3) — il
  *   est rétabli en section à part entière, d'où 7 sections rendues pour 6
@@ -54,7 +58,11 @@ export const INFORMATIONS_COLLECTE: DocumentLegal = {
               terme: "Données d'identification",
               valeur: 'nom, prénom, adresse email, numéro de téléphone.',
             },
-            { terme: 'Données de connexion', valeur: 'identifiant, mot de passe (chiffré).' },
+            {
+              terme: 'Données de connexion',
+              valeur:
+                'identifiant unique CJS fourni par le service d’authentification du Consortium. Aucun mot de passe n’est collecté ni conservé par le Guichet Jeunesse.',
+            },
             {
               terme: 'Données de profil',
               valeur: 'statut (particulier/entreprise), centres d’intérêt professionnels.',

@@ -15,6 +15,7 @@ import { Footer } from '@/components/layout/Footer'
 import { LegalDocument } from '@/components/legal/LegalDocument'
 import { MentionFormulaire } from '@/components/legal/MentionFormulaire'
 import {
+  AUTORITE_CDP,
   CGU,
   CONFIDENTIALITE,
   CONTACT_CDP,
@@ -22,6 +23,7 @@ import {
   INFORMATIONS_COLLECTE,
   LIENS_FOOTER_LEGAUX,
   MENTIONS_LEGALES,
+  PHRASE_EXERCICE_DROITS,
   VOS_DROITS,
   getDocumentLegal,
 } from '@/content/legal'
@@ -92,13 +94,40 @@ describe('cohérence des coordonnées CDP entre documents', () => {
     expect(serialise).not.toContain('33 824 83 83')
   })
 
-  it('ne publie que l’adresse retenue (jamais SICAP Point E)', () => {
-    expect(serialise).not.toContain('SICAP Point E')
+  it('n’attribue jamais au CJS l’adresse SICAP Point E, qui est celle de la CDP', () => {
+    // Le .docx de consentement donnait « 3e étage, Bâtiment B, Complexe SICAP
+    // Point E » comme adresse courrier du CJS : c'était celle de la CDP, dans
+    // le mauvais bloc. Le CJS répond au CDEPS de Guédiawaye.
+    expect(CONTACT_CDP.adresse).toContain('CDEPS de Guédiawaye')
+    expect(CONTACT_CDP.adresse).not.toContain('SICAP')
+    expect(PHRASE_EXERCICE_DROITS).not.toContain('SICAP')
+  })
+
+  it('publie l’adresse réelle de la CDP pour le recours', () => {
+    // Une adresse de recours fausse est le pire endroit où se tromper : c'est
+    // celle qu'un utilisateur utilise quand ses droits n'ont pas été respectés.
+    expect(AUTORITE_CDP.adresse).toContain('SICAP Point E')
+    expect(AUTORITE_CDP.adresse).toContain('Cheikh Anta Diop')
+    expect(serialise).not.toContain('Almadies')
   })
 
   it('corrige la typo `guichetjeunesse.ss` de l’Article 1', () => {
     expect(serialise).not.toContain('guichetjeunesse.ss')
     expect(serialise).toContain('guichetjeunesse.sn')
+  })
+
+  it('ne déclare jamais collecter de mot de passe — le Guichet est en SSO pur', () => {
+    // Deux pages du même site se contredisaient : la politique (Art. 2) et la
+    // notice (§2) déclaraient un « mot de passe (chiffré) » que les CGU (§2)
+    // niaient à juste titre. Sur-déclarer est une fausse déclaration au même
+    // titre que sous-déclarer : la CDP vérifierait un traitement inexistant.
+    expect(serialise).not.toContain('mot de passe (chiffré)')
+    expect(serialise).not.toContain('hachage des mots de passe')
+    // La seule affirmation qui subsiste est la bonne, et elle est explicite.
+    expect(JSON.stringify(CGU)).toContain('Aucun mot de passe local n’est stocké')
+    for (const doc of [CONFIDENTIALITE, INFORMATIONS_COLLECTE]) {
+      expect(JSON.stringify(doc)).toContain('Aucun mot de passe n’est collecté')
+    }
   })
 })
 

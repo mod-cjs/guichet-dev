@@ -103,7 +103,13 @@ Ces points exigent une révision des .docx par le responsable données. Les page
 
 **Fausse déclaration :**
 
-1. **« Données de connexion : identifiant, mot de passe (chiffré) »** (politique Art. 2, notice §2). Le Guichet **ne collecte aucun mot de passe** — SSO CJS OAuth2/OIDC, aucun login local. L'Art. 8 promet en outre un « hachage des mots de passe » qui n'a pas d'objet ici. **Les CGU de GUIC-233 disent l'inverse et disent vrai** : « Aucun mot de passe local n'est stocké par la plateforme » (§2). Deux pages du même site se contredisent donc déjà sur ce point.
+1. ~~**« Données de connexion : identifiant, mot de passe (chiffré) »**~~ — **CORRIGÉ le 2026-08-14.** La politique (Art. 2 et Art. 8) et la notice (§2) déclaraient un mot de passe que le Guichet ne détient pas — SSO CJS OAuth2/OIDC, aucun login local — pendant que les CGU (§2) affirmaient à juste titre le contraire. Deux pages du même site se contredisaient.
+
+   Corrigé aux 3 endroits : Art. 2 et notice §2 déclarent désormais l'identifiant unique CJS fourni par le SSO en précisant qu'aucun mot de passe n'est collecté ; Art. 8 remplace le « hachage des mots de passe », sans objet, par l'authentification déléguée.
+
+   Justification de la correction unilatérale : l'Article 2 s'auto-délimite (« Le site https://www.guichetjeunesse.sn […] collecte les catégories suivantes »), donc une ligne vraie pour un autre site du CJS est ici une **erreur de périmètre**, de même nature que la typo `.ss` ou le téléphone déjà arbitrés. Et sur-déclarer est une fausse déclaration au même titre que sous-déclarer : la CDP contrôlerait un traitement inexistant.
+
+   **À répercuter dans les .docx source.** Garde ajoutée : aucun document légal ne peut plus contenir « mot de passe (chiffré) » ni « hachage des mots de passe ».
 
 2. **Notice sous-déclarante.** Catégories réellement traitées mais absentes des documents : CV et pièces jointes, lettres de motivation, conversations Yaye (transcripts verbatim, PII brutes — cf. [cdp-purge.ts](../../src/lib/ia/cdp-purge.ts)), numéro et échanges WhatsApp, présence/badge en centre (GUIC-474), et **situation de handicap** (GUIC-660) — donnée sensible au sens de la loi 2008-12.
 
