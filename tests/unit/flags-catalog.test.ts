@@ -80,7 +80,7 @@ describe('catalogue — règles de sûreté', () => {
     // fermer de route utilisateur ni masquer d'entrée de navigation.
     for (const f of FEATURE_FLAGS.filter((x) => x.closes.length === 0)) {
       expect(f.userRoutes).toHaveLength(0)
-      expect(f.navIds).toHaveLength(0)
+      expect(f.uiIds).toHaveLength(0)
     }
   })
 

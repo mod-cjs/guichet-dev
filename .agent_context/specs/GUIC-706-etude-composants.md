@@ -161,7 +161,55 @@ professionnels.
 | **Réservation spontanée vs sur créneau** | ❌ Pas de distinction en base |
 | **Carte CJS** | ✅ Déjà fait (`m4.carte_cjs`), séparé du pointage |
 
-## 5. Ce qui reste à trancher
+## 5. Les onglets et conteneurs — une surface à part entière
+
+> « Il ne faut aucune trace de la fonctionnalité, même pas un onglet. » — PO, 2026-08-14
+
+Le champ du catalogue s'appelait `navIds`, ce qui invitait à ne traiter que les barres de
+navigation. Or **un onglet « Ressources » sur la page des favoris est une trace au même
+titre qu'un lien de menu**. Renommé `uiIds`, il couvre désormais toute affordance nommant
+une fonctionnalité.
+
+### 5.1 Inventaire — 11 barres d'onglets hors administration
+
+| Fichier | Ce qui peut nommer un module masqué |
+|---|---|
+| `src/components/jeune/MesFavoris.tsx:117` | chips de type — **Opportunités / Ressources** |
+| `src/components/evenements/MesInscriptionsClient.tsx:76` | onglets d'inscriptions (agenda) |
+| `src/components/centres/ReservationsTabs/index.tsx:90` | onglets de réservations |
+| `src/app/(public)/agenda/agenda-client.tsx:208` | affichage des événements |
+| `src/components/jeune/NotificationsClient.tsx:168` | onglets de notifications |
+| `src/components/features/NotificationsDrawer/index.tsx:150` | idem, en tiroir |
+| `src/app/conseiller/reservations/page.tsx:61` | filtres de réservations |
+| `src/app/conseiller/bibliotheque/page.tsx:80` | filtres d'emprunts |
+| `src/app/conseiller/agenda/page.tsx:103` | vues jour/semaine/mois |
+| `src/app/centre-staff/(protected)/bibliotheque/biblio-staff-tabs.tsx` | onglets bibliothèque |
+| `src/app/recruteur/modeles-emails/ModelesEmailsClient.tsx` | onglets de modèles |
+
+S'y ajoutent les **sections titrées** : `CentreEvenementsSection` sur la fiche centre
+nomme l'agenda ; `CentreServicesGrid` nomme les services du centre.
+
+### 5.2 La règle du conteneur
+
+Filtrer les items ne suffit pas — **le contenant est lui-même une trace** :
+
+- une section dont tout le contenu est masqué disparaît **avec son titre** ;
+- un groupe de navigation vidé disparaît **avec son intitulé** ;
+- **un tablist réduit à un seul choix disparaît** : un onglet unique n'est plus un choix,
+  c'est un titre, et sa présence signale qu'on a retiré quelque chose à côté.
+
+Ce dernier point est le moins intuitif et le plus révélateur. Sur la page des favoris,
+retirer « Ressources » laisserait « Tout » et « Opportunités » — deux onglets au contenu
+identique, ce qui *montre* l'absence au lieu de la cacher.
+
+### 5.3 Vérification
+
+Le lot 5 vérifie par test, pour chaque flag masqué, qu'aucun de ses `uiIds` n'apparaît dans
+le rendu **et** qu'aucun conteneur vide ne subsiste. La seconde assertion est celle qui
+manque partout ailleurs : on teste facilement qu'un élément a disparu, rarement que son
+étiquette est partie avec.
+
+## 6. Ce qui reste à trancher
 
 1. **Message explicite sur les espaces professionnels** plutôt que 404 muet (§2.4).
 2. **Reste-à-écouler affiché** pour les fermetures `drain` (§2.2).

@@ -61,12 +61,27 @@ export interface FeatureFlagDef {
   /** Préfixes d'API utilisateur couverts. Jamais `/api/admin`. */
   apiPrefixes: string[]
   /**
-   * `id` d'items de navigation à masquer. Les identifiants peuvent se répéter d'un espace
-   * à l'autre (`agenda` existe chez le bénéficiaire et chez le conseiller) : le filtrage
-   * croise toujours l'identifiant AVEC l'audience courante, si bien qu'un item ne
-   * disparaît que pour les publics listés dans `closes`.
+   * Identifiants de TOUTE affordance d'interface nommant la fonctionnalité — pas seulement
+   * les barres de navigation :
+   *   - items de nav (sidebars, bottom-navs, header) ;
+   *   - **onglets à l'intérieur d'une page** (11 `role="tablist"` hors admin) ;
+   *   - sections titrées (`CentreEvenementsSection`…) ;
+   *   - puces de filtre et chips de type.
+   *
+   * Le champ s'appelait `navIds`, un nom qui invitait à ne traiter que les barres de
+   * navigation — et donc à laisser un onglet nommer une fonctionnalité masquée. Or un
+   * onglet « Ressources » sur la page des favoris est une trace au même titre qu'un lien.
+   *
+   * Deux règles de filtrage, appliquées au lot 5 :
+   *   1. Le filtrage croise l'identifiant AVEC l'audience courante : un même `agenda`
+   *      existe chez le bénéficiaire et chez le conseiller, et ne disparaît que pour les
+   *      publics listés dans `closes`.
+   *   2. **Un conteneur vidé disparaît avec son étiquette.** Une section sans contenu, un
+   *      tablist réduit à un seul choix, un groupe de nav sans item : le contenant est
+   *      lui-même une trace. Un onglet unique n'est plus un choix, c'est un titre — et il
+   *      signale qu'on a retiré quelque chose.
    */
-  navIds: string[]
+  uiIds: string[]
   /** Chemins de tâches planifiées à court-circuiter (tels qu'écrits dans `vercel.json`). */
   crons: string[]
   /**

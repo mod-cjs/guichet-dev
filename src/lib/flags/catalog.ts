@@ -32,7 +32,7 @@ function def(
     userRoutes: o.userRoutes ?? [],
     adminRoutes: o.adminRoutes ?? [],
     apiPrefixes: o.apiPrefixes ?? [],
-    navIds: o.navIds ?? [],
+    uiIds: o.uiIds ?? [],
     crons: o.crons ?? [],
     closes: o.closes ?? CONSOMMATEURS,
     dependsOn: o.dependsOn ?? [],
@@ -75,7 +75,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/agenda', '/jeune/mes-inscriptions'],
     adminRoutes: ['/admin/evenements', '/admin/analytics/evenements', '/api/admin/evenements'],
     apiPrefixes: ['/api/evenements'],
-    navIds: ['agenda', 'evenements'],
+    uiIds: ['agenda', 'evenements'],
     closeMode: 'drain',
     engagements: {
       model: 'inscriptionEvenement',
@@ -88,12 +88,12 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/ressources'],
     adminRoutes: ['/admin/ressources'],
     apiPrefixes: ['/api/ressources', '/api/favoris/ressources'],
-    navIds: ['ressources'],
+    uiIds: ['ressources'],
   }),
 
   def('m6.formations', 'm6', 'Suivi de formation', 'Le parcours de formation en ligne d’un jeune et sa progression.', {
     userRoutes: ['/jeune/mes-formations'],
-    navIds: ['formations'],
+    uiIds: ['formations'],
     closes: ['beneficiaire'],
     dependsOn: ['m6.ressources'],
   }),
@@ -102,7 +102,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/jeune/bibliotheque'],
     adminRoutes: ['/admin/bibliotheque', '/api/admin/bibliotheque'],
     apiPrefixes: ['/api/bibliotheque'],
-    navIds: ['bibliotheque'],
+    uiIds: ['bibliotheque'],
     closeMode: 'drain',
     engagements: {
       model: 'emprunt',
@@ -114,7 +114,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m4.carte_cjs', 'm4', 'Carte CJS', 'La carte de membre du jeune et son QR code personnel.', {
     userRoutes: ['/jeune/ma-carte'],
     apiPrefixes: ['/api/cjs-card'],
-    navIds: ['ma-carte'],
+    uiIds: ['ma-carte'],
     closes: ['beneficiaire'],
   }),
 
@@ -122,7 +122,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m4.checkin', 'm4', 'Pointage de présence', 'Le scan du badge à l’accueil d’un centre et le comptage des présences.', {
     userRoutes: ['/checkin', '/conseiller/checkin', '/centre-staff/checkins'],
     apiPrefixes: ['/api/v1/checkin'],
-    navIds: ['checkin'],
+    uiIds: ['checkin'],
     closes: ['beneficiaire', 'conseiller'],
     dependsOn: ['m4.carte_cjs'],
     crons: ['/api/cron/cleanup-checkins'],
@@ -142,7 +142,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('x.messagerie', 'x', 'Messagerie interne', 'Les échanges directs entre jeunes, conseillers et recruteurs.', {
     userRoutes: ['/jeune/messagerie', '/recruteur/messagerie', '/conseiller/messagerie'],
-    navIds: ['messagerie'],
+    uiIds: ['messagerie'],
     closes: ['beneficiaire', 'recruteur', 'conseiller'],
   }),
 
@@ -158,7 +158,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m9.offres', 'm9', 'Publication d’offres', 'La création et la gestion des offres par un recruteur.', {
     userRoutes: ['/recruteur/mes-offres'],
-    navIds: ['offres'],
+    uiIds: ['offres'],
     closes: ['recruteur'],
     silentClose: false,
     dependsOn: ['m9.recruteur'],
@@ -167,7 +167,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m9.pipeline', 'm9', 'Suivi des candidatures', 'Le vivier et le tableau kanban de sélection du recruteur.', {
     userRoutes: ['/recruteur/candidatures'],
     apiPrefixes: ['/api/recruteur/candidatures'],
-    navIds: ['candidatures'],
+    uiIds: ['candidatures'],
     closes: ['recruteur'],
     silentClose: false,
     dependsOn: ['m9.recruteur', 'm3.candidatures'],
@@ -178,7 +178,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m9.entretiens', 'm9', 'Entretiens & visioconférence', 'La planification d’entretiens et les liens Google Meet.', {
     userRoutes: ['/recruteur/entretiens'],
     apiPrefixes: ['/api/recruteur/google-meet'],
-    navIds: ['entretiens'],
+    uiIds: ['entretiens'],
     closes: ['recruteur'],
     silentClose: false,
     dependsOn: ['m9.recruteur'],
@@ -186,7 +186,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m9.modeles_emails', 'm9', 'Modèles d’e-mails', 'Les réponses types que le recruteur envoie aux candidats.', {
     userRoutes: ['/recruteur/modeles-emails'],
-    navIds: ['modeles-emails'],
+    uiIds: ['modeles-emails'],
     closes: ['recruteur'],
     silentClose: false,
     dependsOn: ['m9.recruteur'],
@@ -200,7 +200,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m8.beneficiaires', 'm8', 'Suivi des bénéficiaires', 'L’annuaire et les fiches de suivi des jeunes rattachés au centre.', {
     userRoutes: ['/conseiller/beneficiaires'],
-    navIds: ['benef'],
+    uiIds: ['benef'],
     closes: ['conseiller'],
     silentClose: false,
     dependsOn: ['m8.conseiller'],
@@ -208,7 +208,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m8.publications', 'm8', 'Publications de centre', 'La rédaction de contenus par les conseillers.', {
     userRoutes: ['/conseiller/publications'],
-    navIds: ['publications'],
+    uiIds: ['publications'],
     closes: ['conseiller'],
     silentClose: false,
     dependsOn: ['m8.conseiller', 'm6.ressources'],
@@ -218,7 +218,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   // au moins de ces deux sources est ouverte.
   def('m8.agenda_conseiller', 'm8', 'Agenda du conseiller', 'Le planning quotidien d’un agent : réservations et événements du centre.', {
     userRoutes: ['/conseiller/agenda'],
-    navIds: ['agenda'],
+    uiIds: ['agenda'],
     closes: ['conseiller'],
     silentClose: false,
     dependsOn: ['m8.conseiller'],
@@ -230,7 +230,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   // l'espace conseiller.
   def('m8.comptoir_biblio', 'm8', 'Comptoir de bibliothèque', 'Le prêt et le retour de livres au guichet d’un centre.', {
     userRoutes: ['/conseiller/bibliotheque', '/centre-staff/bibliotheque'],
-    navIds: ['bibliotheque'],
+    uiIds: ['bibliotheque'],
     closes: ['conseiller'],
     silentClose: false,
     dependsOn: ['m8.conseiller', 'm4.bibliotheque'],
@@ -238,7 +238,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
 
   def('m8.validation_reservations', 'm8', 'Validation des réservations', 'La file des demandes de réservation à traiter par le centre.', {
     userRoutes: ['/conseiller/reservations', '/centre-staff/reservations'],
-    navIds: ['resa'],
+    uiIds: ['resa'],
     closes: ['conseiller'],
     silentClose: false,
     dependsOn: ['m8.conseiller', 'm4.reservations'],
@@ -298,7 +298,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/jeune/notifications', '/recruteur/notifications', '/conseiller/notifications'],
     adminRoutes: ['/admin/notifications'],
     apiPrefixes: ['/api/notifications'],
-    navIds: ['notifications'],
+    uiIds: ['notifications'],
     closes: ['beneficiaire', 'recruteur', 'conseiller'],
   }),
 
@@ -361,13 +361,13 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/opportunites'],
     adminRoutes: ['/admin/opportunites', '/admin/types-opportunite', '/api/admin/export/opportunites'],
     apiPrefixes: ['/api/opportunites'],
-    navIds: ['opp-all', 'opp-emploi', 'opp-bourse', 'opp-formation', 'opp-concours'],
+    uiIds: ['opp-all', 'opp-emploi', 'opp-bourse', 'opp-formation', 'opp-concours'],
   }),
 
   def('m3.favoris', 'm3', 'Sauvegardes', 'La mise de côté d’une opportunité ou d’une ressource pour y revenir.', {
     userRoutes: ['/jeune/mes-favoris'],
     apiPrefixes: ['/api/favoris'],
-    navIds: ['favoris'],
+    uiIds: ['favoris'],
     closes: ['beneficiaire'],
     dependsOn: ['m3.opportunites'],
   }),
@@ -382,7 +382,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/jeune/mes-candidatures', '/jeune/candidature'],
     adminRoutes: ['/admin/candidatures', '/api/admin/candidatures'],
     apiPrefixes: ['/api/candidatures'],
-    navIds: ['candidatures'],
+    uiIds: ['candidatures'],
     dependsOn: ['m3.opportunites'],
     closeMode: 'drain',
     engagements: {
@@ -396,7 +396,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     userRoutes: ['/centres'],
     adminRoutes: ['/admin/centres', '/admin/analytics/centres', '/api/admin/analytics/centres'],
     apiPrefixes: ['/api/centres'],
-    navIds: ['centres'],
+    uiIds: ['centres'],
     crons: ['/api/cron/cleanup-centre-events'],
   }),
 
@@ -411,7 +411,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m4.reservations', 'm4', 'Réservation de ressources', 'La réservation de salles et d’équipements en centre.', {
     userRoutes: ['/jeune/mes-reservations-centres'],
     apiPrefixes: ['/api/reservations'],
-    navIds: ['resa', 'reservations'],
+    uiIds: ['resa', 'reservations'],
     dependsOn: ['m4.centres'],
     crons: ['/api/cron/reservations-batch'],
     closeMode: 'drain',
