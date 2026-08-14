@@ -96,8 +96,8 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     dependsOn: ['m6.ressources'],
   }),
 
-  def('m4.bibliotheque', 'm4', 'Bibliothèque physique', 'Le catalogue de livres des centres et les emprunts.', {
-    userRoutes: ['/jeune/bibliotheque', '/conseiller/bibliotheque', '/centre-staff/bibliotheque'],
+  def('m4.bibliotheque', 'm4', 'Bibliothèque physique', 'Le catalogue de livres consultable par les jeunes et l’emprunt en ligne.', {
+    userRoutes: ['/jeune/bibliotheque'],
     adminRoutes: ['/admin/bibliotheque', '/api/admin/bibliotheque'],
     apiPrefixes: ['/api/bibliotheque'],
     navIds: ['bibliotheque'],
@@ -199,6 +199,24 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     navIds: ['agenda'],
     closes: ['conseiller'],
     dependsOn: ['m8.conseiller'],
+  }),
+
+  // Le comptoir est le poste de travail du conseiller, distinct du catalogue que consulte
+  // le jeune : prêter et rendre un livre au guichet n'est pas la même fonctionnalité que
+  // le parcourir en ligne. Sans ce flag, retirer le comptoir imposait de fermer TOUT
+  // l'espace conseiller.
+  def('m8.comptoir_biblio', 'm8', 'Comptoir de bibliothèque', 'Le prêt et le retour de livres au guichet d’un centre.', {
+    userRoutes: ['/conseiller/bibliotheque', '/centre-staff/bibliotheque'],
+    navIds: ['bibliotheque'],
+    closes: ['conseiller'],
+    dependsOn: ['m8.conseiller', 'm4.bibliotheque'],
+  }),
+
+  def('m8.validation_reservations', 'm8', 'Validation des réservations', 'La file des demandes de réservation à traiter par le centre.', {
+    userRoutes: ['/conseiller/reservations', '/centre-staff/reservations'],
+    navIds: ['resa'],
+    closes: ['conseiller'],
+    dependsOn: ['m8.conseiller', 'm4.reservations'],
   }),
 
   def('m8.centre_staff', 'm8', 'Espace centre (ancien)', 'L’ancien espace personnel de centre, en cours de migration.', {
@@ -354,7 +372,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   }),
 
   def('m4.reservations', 'm4', 'Réservation de ressources', 'La réservation de salles et d’équipements en centre.', {
-    userRoutes: ['/jeune/mes-reservations-centres', '/conseiller/reservations', '/centre-staff/reservations'],
+    userRoutes: ['/jeune/mes-reservations-centres'],
     apiPrefixes: ['/api/reservations'],
     navIds: ['resa', 'reservations'],
     dependsOn: ['m4.centres'],

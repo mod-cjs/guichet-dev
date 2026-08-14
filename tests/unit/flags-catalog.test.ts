@@ -8,8 +8,8 @@
  * reste accessible) ou un **verrou mort** (un flag qu'on ne peut plus rouvrir). D'où des
  * invariants testés plutôt que documentés.
  */
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 import {
   FEATURE_FLAGS,
@@ -106,6 +106,48 @@ describe('catalogue — règles de sûreté', () => {
       if (f.closeMode === 'drain') expect(f.engagements).toBeDefined()
       else expect(f.engagements).toBeUndefined()
     }
+  })
+})
+
+describe('catalogue — couverture des espaces de travail', () => {
+  /**
+   * Un espace professionnel est le poste de travail de quelqu'un. Chacune de ses pages
+   * doit relever d'un flag qui ferme SON public — sinon la seule façon de retirer un outil
+   * à un conseiller est de lui fermer tout son espace, ce qui n'est pas un réglage mais
+   * une mise à l'arrêt.
+   *
+   * Le piège est discret : `/conseiller/bibliotheque` relève naturellement du flag
+   * « bibliothèque », lequel ne ferme que les jeunes. La route est donc couverte, et
+   * pourtant le comptoir du conseiller reste impossible à fermer seul.
+   */
+  const ESPACES: { prefixe: string; audience: string }[] = [
+    { prefixe: '/conseiller', audience: 'conseiller' },
+    { prefixe: '/recruteur', audience: 'recruteur' },
+  ]
+
+  function pagesDe(prefixe: string): string[] {
+    const racine = resolve(__dirname, '..', '..', 'src', 'app', prefixe.slice(1))
+    const out: string[] = []
+    const walk = (dir: string, url: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (!e.isDirectory()) {
+          if (e.name === 'page.tsx') out.push(url)
+          continue
+        }
+        if (e.name.startsWith('_') || e.name.startsWith('@')) continue
+        walk(join(dir, e.name), url + (e.name.startsWith('(') ? '' : `/${e.name}`))
+      }
+    }
+    walk(racine, prefixe)
+    return out
+  }
+
+  it.each(ESPACES)('rend chaque page de $prefixe fermable pour son public', ({ prefixe, audience }) => {
+    const orphelines = pagesDe(prefixe).filter((route) => {
+      const key = flagForPath(route.replace(/\[[^\]]+\]/g, 'x'))
+      return !key || !getFlagDef(key)?.closes.includes(audience as never)
+    })
+    expect(orphelines).toEqual([])
   })
 })
 
