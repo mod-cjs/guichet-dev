@@ -4,10 +4,15 @@
  * GUIC-689 — INTÉGRATION RÉELLE : `listOpportunites` (prisma + Redis NON mockés,
  * MariaDB docker gj-maria port 3307) contre une vraie table `opportunites`.
  *
- * Isolation : région `Sedhiou`, 0 opportunité publiée pré-existante (vérifié en
- * base au moment d'écrire ce test) — les fixtures créées ici sont donc les SEULES
- * candidates possibles, aucun risque de faux positif/négatif par pollution d'un
- * autre jeu de données.
+ * Isolation : région `Sedhiou` + slugs préfixés `test-guic689-filtres`. Chaque
+ * assertion ne porte QUE sur les slugs des fixtures de ce fichier.
+ *
+ * GUIC-642 — l'isolation reposait auparavant sur « 0 opportunité publiée
+ * pré-existante en Sedhiou, vérifié en base au moment d'écrire ce test ». C'est
+ * un instantané d'un jeu de données, pas une contrainte : sur une base réaliste
+ * (87 opportunités publiées en Sedhiou), le test virait au rouge sans qu'aucun
+ * code de production n'ait changé. Ne jamais réintroduire d'assertion sur un
+ * total global — la région est un filtre, pas un espace réservé à ce test.
  *
  * Preuve du bug (avant fix) : `remuneration` et `deadline` n'étaient ni lus par la
  * route ni transformés en clause SQL par le loader — basculer ces filtres ne
@@ -132,7 +137,23 @@ describe('GUIC-689 — filtre rémunération (règle métier, DB réelle)', () =
     // seulement pour obtenir une clé de cache Redis distincte du bloc deadline
     // ci-dessous, qui interroge la MÊME région à un instant différent de l'état DB.
     const res = await listOpportunites({ ...base, domaine: 'Culture' })
-    expect(res.total).toBe(7)
+    const slugs = res.items.map((i) => i.slug)
+    // GUIC-642 — on assertait `res.total === 7`, ce qui comptait aussi les
+    // opportunités réelles de la région. Ce qui est testé ici, c'est qu'aucune
+    // fixture n'est écartée en l'absence de filtre : on l'exprime directement.
+    // `sortBy: 'recent'` garantit que les fixtures, créées à l'instant, sont en
+    // tête de la première page.
+    expect(slugs).toEqual(
+      expect.arrayContaining([
+        negociable.slug,
+        indemniteTransport.slug,
+        boursePartielle.slug,
+        nonRemunere.slug,
+        vide.slug,
+        nul.slug,
+        benevole.slug,
+      ]),
+    )
   })
 })
 
