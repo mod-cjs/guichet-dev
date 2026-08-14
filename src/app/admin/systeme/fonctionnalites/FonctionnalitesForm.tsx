@@ -27,11 +27,12 @@ interface Props {
   canManage: boolean
 }
 
-type Onglet = 'parcours' | 'espaces' | 'ia' | 'canaux' | 'donnees' | 'socle'
+type Onglet = 'parcours' | 'conseillers' | 'recruteurs' | 'ia' | 'canaux' | 'donnees' | 'socle'
 
 const ONGLETS: { value: Onglet; label: string }[] = [
   { value: 'parcours', label: 'Parcours jeune' },
-  { value: 'espaces', label: 'Espaces pro' },
+  { value: 'conseillers', label: 'Conseillers' },
+  { value: 'recruteurs', label: 'Recruteurs' },
   { value: 'ia', label: 'Assistant IA' },
   { value: 'canaux', label: 'Canaux' },
   { value: 'donnees', label: 'Données & interop' },
@@ -39,13 +40,21 @@ const ONGLETS: { value: Onglet; label: string }[] = [
 ]
 
 /**
- * Domaine d'un flag. Le verrouillage prime sur le module : le socle se lit d'un bloc,
- * et l'administrateur qui cherche à ouvrir quelque chose n'a jamais à le traverser.
+ * Domaine d'un flag.
+ *
+ * Le verrouillage prime sur le module : le socle se lit d'un bloc, et l'administrateur
+ * qui cherche à ouvrir quelque chose n'a jamais à le traverser.
+ *
+ * Conseillers et recruteurs ont chacun leur onglet : ils n'ont ni les mêmes outils ni les
+ * mêmes rythmes d'ouverture — le personnel des centres travaille dès la préparation, les
+ * partenaires arrivent avec le catalogue — et les mêler obligeait à trier de l'œil deux
+ * métiers sans rapport à chaque consultation.
  */
 function ongletDe(f: FeatureFlagDef): Onglet {
   if (f.locked) return 'socle'
   if (['m3', 'm4', 'm5', 'm6'].includes(f.module)) return 'parcours'
-  if (['m8', 'm9'].includes(f.module)) return 'espaces'
+  if (f.module === 'm8') return 'conseillers'
+  if (f.module === 'm9') return 'recruteurs'
   if (f.module === 'm12') return 'ia'
   if (f.module === 'm11' || f.module === 'x') return 'canaux'
   return 'donnees'

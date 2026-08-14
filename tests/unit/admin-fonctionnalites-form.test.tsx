@@ -61,6 +61,30 @@ describe('navigation par onglets', () => {
     expect(somme).toBe(FEATURE_FLAGS.length)
   })
 
+  it('donne un onglet propre à chaque espace professionnel', async () => {
+    // Conseillers et recruteurs n'ont ni les mêmes outils ni les mêmes rythmes
+    // d'ouverture. Les mêler dans un « espaces pro » obligeait à trier de l'œil deux
+    // métiers sans rapport à chaque consultation.
+    afficher()
+    const attendu = (module: string) =>
+      FEATURE_FLAGS.filter((f) => f.module === module && !f.locked).length
+
+    for (const [nom, module] of [
+      ['Conseillers', 'm8'],
+      ['Recruteurs', 'm9'],
+    ] as const) {
+      const onglet = screen.getByRole('tab', { name: new RegExp(nom, 'i') })
+      expect(onglet.textContent).toContain(String(attendu(module)))
+      await userEvent.click(onglet)
+      const libelles = screen.getAllByRole('switch').map((s) => s.getAttribute('aria-label') ?? '')
+      const cles = FEATURE_FLAGS.filter((f) =>
+        libelles.some((l) => l.startsWith(f.label)),
+      )
+      // Aucune fuite d'un métier dans l'onglet de l'autre.
+      expect(cles.every((f) => f.module === module)).toBe(true)
+    }
+  })
+
   it('change de contenu quand on change d’onglet', async () => {
     afficher()
     const [premier, second] = screen.getAllByRole('tab')
