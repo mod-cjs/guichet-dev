@@ -76,3 +76,23 @@ export async function outilMasque(
     return false
   }
 }
+
+/**
+ * Outils MASQUÉS pour cet interlocuteur — niveau 2.
+ *
+ * Sert à filtrer À LA FOIS le registre, les définitions envoyées au modèle et le prompt.
+ * Filtrer les seules définitions ne suffirait pas : l'agent tolère les appels émis en
+ * texte brut, parsés contre les clés du registre puis exécutés — une porte qui resterait
+ * ouverte sur un outil retiré.
+ */
+export async function outilsMasques(
+  roles: readonly string[] | null | undefined,
+): Promise<Set<string>> {
+  const masques = new Set<string>()
+  // Parcourt la table de correspondance, pas le registre : le masquage est une propriété
+  // du catalogue de fonctionnalités, indépendante des outils réellement enregistrés.
+  for (const outil of Object.keys(FLAG_PAR_OUTIL)) {
+    if (await outilMasque(outil, roles)) masques.add(outil)
+  }
+  return masques
+}

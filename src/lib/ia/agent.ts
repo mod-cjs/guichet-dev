@@ -17,7 +17,8 @@ import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
 import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { buildSourcesLabel, type SourcesInput } from './sources-label'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
-import { outilMasque } from '@/lib/flags/yaye'
+import { outilMasque, outilsMasques } from '@/lib/flags/yaye'
+import { construireSystemPrompt } from './prompt-outils'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { escaladeMessage, escaladeTitre } from './escalade-message'
@@ -251,7 +252,7 @@ function buildContextBlock(p: RunAgentParams): string {
  * plus prétendre au niveau d'autorité des instructions. (Repli dans le message user plutôt qu'un
  * message user séparé pour éviter deux tours `user` consécutifs, que Gemini/Vertex rejette.)
  */
-function buildMessages(p: RunAgentParams): Msg[] {
+function buildMessages(p: RunAgentParams, systemPrompt: string = SYSTEM_PROMPT): Msg[] {
   const ctx = buildContextBlock(p)
   // Date du jour → permet de résoudre les dates relatives (« demain », « lundi prochain ») en
   // AAAA-MM-JJ pour les réservations. Format ISO court.
@@ -259,7 +260,7 @@ function buildMessages(p: RunAgentParams): Msg[] {
   const dateLine = `[Date du jour : ${today}]`
   const userContent = ctx ? `${dateLine}\n${ctx}\n\n———\n\n${p.message}` : `${dateLine}\n\n${p.message}`
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
     { role: 'user', content: userContent },
   ]
@@ -529,7 +530,15 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
   // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
   const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
-  const messages = buildMessages({ ...p, graphContext })
+  // GUIC-706 (niveau 2) — le registre, les définitions envoyées au modèle ET le prompt
+  // sont réduits aux outils réellement disponibles. Filtrer les seules définitions
+  // laisserait passer les appels émis en texte brut, parsés contre les clés du registre.
+  const masques = await outilsMasques(p.roles)
+  const promptSysteme = construireSystemPrompt(masques)
+  const definitions = TOOL_DEFINITIONS.filter((d) => !masques.has(d.function.name))
+  const nomsOutils = Object.keys(TOOLS).filter((n) => !masques.has(n))
+
+  const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
   // Auto-réparation : relance UNE fois avec une consigne d'action si le modèle échoue à agir
@@ -547,7 +556,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
     // Prompt système selon la phase : routage minimal (décision) vs persona complet (rédaction).
-    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
+    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : promptSysteme } as Msg
     // Température : basse pour décider (routage déterministe), haute pour rédiger (ton varié).
     const temperature = phase === 'synth' ? CONFIG.temperatureFinal : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
@@ -560,7 +569,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       client.chat.completions.create({
         model,
         messages,
-        tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+        tools: definitions as unknown as OpenAI.Chat.ChatCompletionTool[],
         tool_choice: 'auto',
         max_tokens: CONFIG.maxTokens,
         ...tuning,
@@ -577,7 +586,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     // l'appel EN TEXTE dans le contenu → on le récupère plutôt que de le jeter.
     if (!choice || toolCalls.length === 0) {
       const content = choice?.content ?? ''
-      const parsed = parseTextToolCalls(content, Object.keys(TOOLS))
+      const parsed = parseTextToolCalls(content, nomsOutils)
       // Fix 3 — PLUSIEURS appels texte exécutés dans le même round (multi-tool).
       if (parsed.calls.length && round < CONFIG.maxToolRounds - 1) {
         const tcs = parsed.calls.map((c, i) => ({ id: `text_${round}_${i}`, name: c.name, argStr: JSON.stringify(c.args) }))
@@ -592,7 +601,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       if (parsed.unknown.length && !repaired && round < CONFIG.maxToolRounds - 1) {
         repaired = true
         const attempted = parsed.unknown[0]
-        const suggestion = nearestToolName(attempted, Object.keys(TOOLS))
+        const suggestion = nearestToolName(attempted, nomsOutils)
         messages.push({ role: 'system', content: `L'outil « ${attempted} » n'existe pas.${suggestion ? ` Le bon est « ${suggestion} ».` : ''} Émets un appel d'outil VALIDE (structuré), n'écris pas l'appel en texte.` } as Msg)
         continue
       }
@@ -709,7 +718,15 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
   // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
   const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
-  const messages = buildMessages({ ...p, graphContext })
+  // GUIC-706 (niveau 2) — le registre, les définitions envoyées au modèle ET le prompt
+  // sont réduits aux outils réellement disponibles. Filtrer les seules définitions
+  // laisserait passer les appels émis en texte brut, parsés contre les clés du registre.
+  const masques = await outilsMasques(p.roles)
+  const promptSysteme = construireSystemPrompt(masques)
+  const definitions = TOOL_DEFINITIONS.filter((d) => !masques.has(d.function.name))
+  const nomsOutils = Object.keys(TOOLS).filter((n) => !masques.has(n))
+
+  const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
   // Séparation ROUTAGE / SYNTHÈSE (cf. runAgent). En streaming, on ne DIFFUSE PAS les tokens de la
@@ -718,7 +735,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
-    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
+    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : promptSysteme } as Msg
     const temperature = phase === 'synth' ? CONFIG.temperatureFinal : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
       temperature,
@@ -729,7 +746,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
     const stream = await client.chat.completions.create({
       model,
       messages,
-      tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+      tools: definitions as unknown as OpenAI.Chat.ChatCompletionTool[],
       tool_choice: 'auto',
       max_tokens: CONFIG.maxTokens,
       ...tuning,
@@ -769,7 +786,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
     // Aucun outil structuré. Récupération d'appels émis EN TEXTE (cf. runAgent, Llama MaaS).
     if (toolCalls.length === 0) {
-      const parsed = parseTextToolCalls(content, Object.keys(TOOLS))
+      const parsed = parseTextToolCalls(content, nomsOutils)
       // Fix 3 — plusieurs appels texte exécutés dans le même round (multi-tool).
       if (parsed.calls.length && round < CONFIG.maxToolRounds - 1) {
         const tcs = parsed.calls.map((c, i) => ({ id: `text_${round}_${i}`, name: c.name, argStr: JSON.stringify(c.args) }))
@@ -785,7 +802,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
       // Fix 3b — nom d'outil tenté mais inconnu → correction au modèle, relance une fois.
       if (parsed.unknown.length && round < CONFIG.maxToolRounds - 1) {
         const attempted = parsed.unknown[0]
-        const suggestion = nearestToolName(attempted, Object.keys(TOOLS))
+        const suggestion = nearestToolName(attempted, nomsOutils)
         messages.push({ role: 'system', content: `L'outil « ${attempted} » n'existe pas.${suggestion ? ` Le bon est « ${suggestion} ».` : ''} Émets un appel d'outil VALIDE (structuré).` } as Msg)
         continue
       }

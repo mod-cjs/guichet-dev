@@ -17,17 +17,21 @@ import { SYSTEM_PROMPT } from '@/lib/ia/agent'
 import { TOOLS } from '@/lib/ia/tools'
 
 const TOUS = new Set(Object.keys(TOOLS))
+/** Rien de masqué — le cas nominal. */
+const RIEN = new Set<string>()
 
 describe('non-régression du prompt', () => {
   it('reproduit à l’identique le prompt actuel quand rien n’est retiré', () => {
     // La garantie centrale : tant qu'aucun module n'est masqué — l'immense majorité du
     // temps — l'agent reçoit exactement le texte réglé empiriquement.
-    expect(construireSystemPrompt(TOUS)).toBe(SYSTEM_PROMPT)
+    expect(construireSystemPrompt(RIEN)).toBe(SYSTEM_PROMPT)
   })
 
   it('n’associe les lignes de routage qu’à des outils réels', () => {
     for (const l of LIGNES_ROUTAGE) {
-      for (const o of l.outils) expect(TOUS.has(o)).toBe(true)
+      for (const o of [l.primaire, ...(l.autres ?? [])].filter(Boolean)) {
+        expect(TOUS.has(o as string)).toBe(true)
+      }
     }
   })
 
@@ -37,7 +41,8 @@ describe('non-régression du prompt', () => {
 })
 
 describe('retrait d’un outil', () => {
-  const SANS_AGENDA = new Set([...TOUS].filter((o) => o !== 'search_events'))
+  /** Seul l'agenda est masqué. */
+  const SANS_AGENDA = new Set(['search_events'])
 
   it('retire son nom du prompt', () => {
     expect(construireSystemPrompt(SANS_AGENDA)).not.toContain('search_events')
@@ -55,8 +60,13 @@ describe('retrait d’un outil', () => {
   })
 
   it('ne touche pas aux autres outils', () => {
+    // Tous les outils ne sont pas nommés dans le prompt — certains ne servent qu'au
+    // contexte. On vérifie donc que ceux qui y figuraient y figurent encore.
+    const complet = construireSystemPrompt(RIEN)
     const p = construireSystemPrompt(SANS_AGENDA)
-    for (const o of SANS_AGENDA) expect(p).toContain(o)
+    for (const o of TOUS) {
+      if (o !== 'search_events' && complet.includes(o)) expect(p).toContain(o)
+    }
   })
 
   it('laisse un texte cohérent, sans virgule orpheline ni double espace', () => {
@@ -71,7 +81,9 @@ describe('retrait d’un outil', () => {
 
 describe('aucun outil masquable disponible', () => {
   // Cas extrême mais atteignable : tous les modules fermés pendant une préparation.
-  const MINIMAL = new Set(['get_user_profile', 'get_realtime_data', 'query_knowledge_graph', 'escalate_to_advisor'])
+  const GARDES = new Set(['get_user_profile', 'get_realtime_data', 'query_knowledge_graph', 'escalate_to_advisor'])
+  /** Tout le masquable est masqué ; seuls contexte et sécurité subsistent. */
+  const MINIMAL = new Set([...TOUS].filter((o) => !GARDES.has(o)))
 
   it('produit encore un prompt exploitable', () => {
     const p = construireSystemPrompt(MINIMAL)
@@ -86,6 +98,6 @@ describe('aucun outil masquable disponible', () => {
 
   it('ne nomme aucun outil retiré', () => {
     const p = construireSystemPrompt(MINIMAL)
-    for (const o of [...TOUS].filter((x) => !MINIMAL.has(x))) expect(p).not.toContain(o)
+    for (const o of MINIMAL) expect(p).not.toContain(o)
   })
 })
