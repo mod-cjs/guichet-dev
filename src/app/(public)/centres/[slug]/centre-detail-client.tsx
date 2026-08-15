@@ -16,6 +16,12 @@ import {
 import type { CentreDetail } from '@/lib/loaders/centres'
 
 export interface CentreDetailClientProps {
+  /**
+   * GUIC-706 — l'agenda est-il masqué pour ce visiteur ? Décidé côté serveur : la fiche
+   * centre est une surface d'incidence, elle annonce les événements du centre depuis la
+   * page d'un autre module.
+   */
+  agendaMasque?: boolean
   centre: CentreDetail
   userCentrePrincipalId?: string | null
   userIsConnected: boolean
@@ -51,6 +57,7 @@ function buildItineraryHref(centre: CentreDetail): string {
  * Spec : `.agent_context/specs/M4-centres-lot7.md` §5 Wave 3.
  */
 export function CentreDetailClient({
+  agendaMasque = false,
   centre,
   userCentrePrincipalId,
   userIsConnected: _userIsConnected,
@@ -209,10 +216,14 @@ export function CentreDetailClient({
               )}
             </section>
             <CentreEquipeSection agents={centre.agents} />
-            <CentreEvenementsSection
-              evenements={centre.evenementsAVenir}
-              centreSlug={centre.slug}
-            />
+            {/* La section part ENTIÈRE, titre compris : un encart « Événements à venir au
+                centre » vide annoncerait le module qu'on masque. */}
+            {!agendaMasque && (
+              <CentreEvenementsSection
+                evenements={centre.evenementsAVenir}
+                centreSlug={centre.slug}
+              />
+            )}
           </div>
           <aside
             className="flex flex-col"

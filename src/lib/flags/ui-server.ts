@@ -38,3 +38,21 @@ export async function masquesUtilisateur(
     (f) => f.key,
   )
 }
+
+/**
+ * Vrai si cette fonctionnalité est masquée pour ce visiteur.
+ *
+ * Destinée aux SURFACES D'INCIDENCE (§3.6 de la spec) : les endroits où un module se
+ * montre depuis la page d'un AUTRE module — une section du tableau de bord, un encart de
+ * la fiche centre, une carte de l'accueil. Fermer la route ne suffit pas, ces mentions
+ * survivent et nomment ce qu'on masque.
+ *
+ * Règle d'usage : produire l'ABSENCE DE LA SECTION ENTIÈRE, jamais une section vide. Un
+ * titre « Événements à venir » suivi de rien ne cache pas l'absence, il la montre.
+ */
+export async function estMasquee(
+  key: string,
+  roles: readonly string[] | null | undefined,
+): Promise<boolean> {
+  return (await masquesUtilisateur(roles)).includes(key)
+}

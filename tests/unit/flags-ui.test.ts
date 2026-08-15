@@ -13,7 +13,7 @@ const mockGetFlags = jest.fn()
 jest.mock('@/lib/flags', () => ({ getFlags: () => mockGetFlags() }))
 
 import { lienMasque, filtrerSections } from '@/lib/flags/ui'
-import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { estMasquee, masquesUtilisateur } from '@/lib/flags/ui-server'
 import { catalogDefaults, FEATURE_FLAGS } from '@/lib/flags/catalog'
 
 const JEUNE = FEATURE_FLAGS.find(
@@ -117,5 +117,31 @@ describe('filtrerSections — la règle du conteneur', () => {
 
   it('rend une liste vide plutôt qu’une coquille quand tout est masqué', () => {
     expect(filtrerSections(sections, ['m3.opportunites', 'm5.agenda', 'm2.profil'])).toHaveLength(1)
+  })
+})
+
+describe('estMasquee — surfaces d’incidence', () => {
+  it('dit vrai quand la fonctionnalité est masquée pour ce visiteur', async () => {
+    mockGetFlags.mockResolvedValue(masque(JEUNE.key))
+    await expect(estMasquee(JEUNE.key, ['beneficiaire'])).resolves.toBe(true)
+  })
+
+  it('dit faux pour un public que le flag ne ferme pas', async () => {
+    const jeunesSeuls = FEATURE_FLAGS.find(
+      (f) => f.closes.includes('beneficiaire') && !f.closes.includes('conseiller') && !f.locked,
+    )!
+    mockGetFlags.mockResolvedValue(masque(jeunesSeuls.key))
+    await expect(estMasquee(jeunesSeuls.key, ['conseiller', 'beneficiaire'])).resolves.toBe(false)
+  })
+
+  it('dit faux pour un administrateur', async () => {
+    mockGetFlags.mockResolvedValue(masque(JEUNE.key))
+    await expect(estMasquee(JEUNE.key, ['admin'])).resolves.toBe(false)
+  })
+
+  it('dit faux plutôt que d’échouer si l’état est illisible', async () => {
+    // Une panne ne doit pas faire disparaître une section légitime du tableau de bord.
+    mockGetFlags.mockRejectedValue(new Error('panne'))
+    await expect(estMasquee(JEUNE.key, ['beneficiaire'])).resolves.toBe(false)
   })
 })

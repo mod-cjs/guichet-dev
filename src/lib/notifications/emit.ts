@@ -10,6 +10,7 @@ import { prisma } from '@/lib/prisma'
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import type { ModeNotification, TypeNotification } from '@prisma/client'
+import { notificationMasquee } from '@/lib/flags/notifications'
 import { getEventDef, type NotificationChannelId, type NotificationRole } from './catalog'
 import { resolveChannels, type ChannelPref } from './resolve'
 import { ChannelError, type ChannelMessage, type GenericChannel } from './message'
@@ -138,8 +139,21 @@ export async function deliver(
  * @param eventKey clé du catalogue (src/lib/notifications/catalog.ts).
  */
 export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<void> {
-  if (!getEventDef(eventKey)) {
+  const def = getEventDef(eventKey)
+  if (!def) {
     logger.warn('[notif] événement inconnu du catalogue', { eventKey })
+    return
+  }
+
+  // GUIC-706 — un module masqué ne notifie plus. C'est la fuite la plus insidieuse des
+  // surfaces d'incidence : elle SORT de la plateforme. Un jeune recevrait un WhatsApp ou
+  // un e-mail à propos d'une fonctionnalité devenue invisible pour lui, et cliquerait sur
+  // un lien qui répond 404.
+  //
+  // Filtré ici, à l'émission, plutôt qu'à la livraison : une notification retenue en file
+  // partirait quand même au rejeu de la DLQ.
+  if (await notificationMasquee(def.module)) {
+    logger.info('[notif] événement ignoré, module masqué', { eventKey, module: def.module })
     return
   }
   const externalEnabled = process.env.NOTIFICATIONS_ENABLED === 'true'

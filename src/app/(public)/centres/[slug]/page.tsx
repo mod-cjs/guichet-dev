@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { trackVuePage } from '@/lib/analytics/consultation-server'
 import { getCentreBySlug } from '@/lib/loaders/centres'
+import { estMasquee } from '@/lib/flags/ui-server'
 import { CentreDetailClient } from './centre-detail-client'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
@@ -48,6 +49,8 @@ export default async function CentreDetailPage({ params, searchParams }: RoutePa
 
   const session = await getSession()
 
+  const agendaMasque = await estMasquee('m5.agenda', session?.roles)
+
   // GUIC-688 — trace serveur. `centre_viewed` continue d'être émis côté client
   // vers `/api/v1/track` : double écriture assumée le temps de la transition.
   const sp = (await searchParams) ?? {}
@@ -80,6 +83,7 @@ export default async function CentreDetailPage({ params, searchParams }: RoutePa
     <>
       <JsonLd data={breadcrumb} />
       <CentreDetailClient
+        agendaMasque={agendaMasque}
         centre={centre}
         userCentrePrincipalId={userCentrePrincipalId}
         userIsConnected={Boolean(session)}
