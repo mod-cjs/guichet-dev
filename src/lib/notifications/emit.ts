@@ -29,8 +29,6 @@ export const REGISTRY: Partial<Record<NotificationChannelId, GenericChannel>> = 
   email: emailChannel,
 }
 
-/** Canaux externes (coût + consentement) — gardés derrière NOTIFICATIONS_ENABLED. */
-const EXTERNAL: readonly NotificationChannelId[] = ['whatsapp', 'sms', 'email']
 const SENT_TTL_S = 60 * 60 * 24 * 7 // 7 jours
 /** File morte du moteur (format ChannelMessage) — distincte du legacy `notif:dlq` (GUIC-83). */
 export const ENGINE_DLQ_KEY = 'notif:dlq:v2'
