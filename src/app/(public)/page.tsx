@@ -4,8 +4,6 @@ import { redirect } from 'next/navigation'
 import { WelcomeHeroMobile } from '@/components/home/WelcomeHeroMobile'
 import { WelcomeHeroWeb } from '@/components/home/WelcomeHeroWeb'
 import { Icon } from '@/components/ui/Icon'
-import { lienMasque } from '@/lib/flags/ui'
-import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { getSession } from '@/lib/auth'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/json-ld'
@@ -25,10 +23,6 @@ const SECTIONS = [
 
 export default async function Accueil() {
   const session = await getSession()
-  // GUIC-706 — les raccourcis de l'accueil nomment les modules : c'est une surface
-  // d'incidence, pas une navigation. Fermer /agenda sans retirer sa carte laisserait le
-  // module annoncé sur la page la plus visitée du site.
-  const masques = await masquesUtilisateur(session?.roles)
   if (session) {
     redirect(session.onboardingComplete ? '/jeune/tableau-de-bord' : '/jeune/onboarding/objectifs')
   }
@@ -40,10 +34,10 @@ export default async function Accueil() {
 
       {/* HERO responsive — mobile (< 1024px) vs web (≥ 1024px) */}
       <div className="lg:hidden">
-        <WelcomeHeroMobile masques={masques} />
+        <WelcomeHeroMobile />
       </div>
       <div className="hidden lg:block">
-        <WelcomeHeroWeb masques={masques} />
+        <WelcomeHeroWeb />
       </div>
 
       {/* SECTIONS services — container max-w-7xl centré, padding cohérent */}
@@ -67,7 +61,7 @@ export default async function Accueil() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-4">
-          {SECTIONS.filter(s => !lienMasque(s.href, masques)).map(s => (
+          {SECTIONS.map(s => (
             <Link
               key={s.href}
               href={s.href}

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { lienMasque } from '@/lib/flags/ui'
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 
@@ -24,7 +23,7 @@ const STATS = [
  * CTA sur fond sombre), inscription en lien souligné, pastilles type/urgence
  * distinctes sur la carte d'offre.
  */
-export function WelcomeHeroWeb({ masques = [] }: { masques?: readonly string[] } = {}) {
+export function WelcomeHeroWeb() {
   return (
     <section
       className="relative overflow-hidden"
@@ -91,8 +90,7 @@ export function WelcomeHeroWeb({ masques = [] }: { masques?: readonly string[] }
           </p>
 
           <div className="flex items-center" style={{ marginTop: 32, gap: 18 }}>
-            {!lienMasque('/opportunites', masques) && (
-          <Link
+            <Link
               href="/opportunites"
               className="inline-flex items-center justify-center gap-2 font-black no-underline"
               style={{
@@ -107,7 +105,6 @@ export function WelcomeHeroWeb({ masques = [] }: { masques?: readonly string[] }
               Explorer les opportunités
               <Icon name="arrow-right" size={16} aria-hidden />
             </Link>
-        )}
             <Link
               href="/auth/connexion"
               className="inline-flex items-center justify-center font-bold"
