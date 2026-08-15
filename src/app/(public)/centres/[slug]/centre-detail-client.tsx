@@ -311,10 +311,15 @@ export function CentreDetailClient({
             onPhoneClick={handlePhoneClick}
             onEmailClick={handleEmailClick}
           />
-          <CentreEvenementsSection
-            evenements={centre.evenementsAVenir}
-            centreSlug={centre.slug}
-          />
+          {/* Second point de rendu (variante mobile) — la fiche centre en a DEUX. Traiter
+              le premier seulement laissait la section visible sur mobile, c'est-à-dire
+              pour la majorité des 22 000 utilisateurs. */}
+          {!agendaMasque && (
+            <CentreEvenementsSection
+              evenements={centre.evenementsAVenir}
+              centreSlug={centre.slug}
+            />
+          )}
         </div>
       </div>
 
