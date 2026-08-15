@@ -11,6 +11,7 @@ import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import type { ModeNotification, TypeNotification } from '@prisma/client'
 import { notificationMasquee } from '@/lib/flags/notifications'
+import { canalOuvert } from '@/lib/flags/canaux'
 import { getEventDef, type NotificationChannelId, type NotificationRole } from './catalog'
 import { resolveChannels, type ChannelPref } from './resolve'
 import { ChannelError, type ChannelMessage, type GenericChannel } from './message'
@@ -156,7 +157,17 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
     logger.info('[notif] événement ignoré, module masqué', { eventKey, module: def.module })
     return
   }
-  const externalEnabled = process.env.NOTIFICATIONS_ENABLED === 'true'
+  // GUIC-706 — l'ouverture de chaque canal passe désormais par le catalogue, qui permet
+  // de couper l'e-mail sans couper le SMS. `NOTIFICATIONS_ENABLED` survit à l'intérieur de
+  // `canalOuvert` comme interrupteur d'urgence : c'est le seul levier qui répond encore
+  // quand la base et Redis sont tombés.
+  //
+  // Résolu UNE fois pour toute l'émission plutôt qu'à chaque destinataire : un événement
+  // touchant plusieurs personnes ferait sinon autant de lectures redondantes.
+  const ouverts = new Set<string>()
+  for (const canal of ['in_app', 'email', 'sms', 'whatsapp'] as const) {
+    if (await canalOuvert(canal)) ouverts.add(canal)
+  }
 
   for (const r of ctx.recipients) {
     try {
@@ -186,7 +197,7 @@ export async function emitEvent(eventKey: string, ctx: EmitContext): Promise<voi
       })
 
       for (const canal of channels) {
-        if (EXTERNAL.includes(canal) && !externalEnabled) continue
+        if (!ouverts.has(canal)) continue
         const adapter = REGISTRY[canal]
         if (!adapter) {
           logger.warn('[notif] canal résolu mais non implémenté', { canal, eventKey })

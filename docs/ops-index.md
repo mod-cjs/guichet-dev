@@ -28,6 +28,7 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 ### Déployer
 - Préprod : `docs/deploiement-preprod.md` (ou `-refonte-v5.md` pour la branche v5)
 - Mise en prod + rollback : `docs/runbook-production.md`
+- Ouvrir / masquer une fonctionnalité : `docs/runbook-fonctionnalites.md` (GUIC-706)
 - Checklist des pièges avant/pendant go-live : `docs/go-live-checklist.md`
 
 ### Superviser / observer
