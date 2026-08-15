@@ -17,6 +17,7 @@ import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
 import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { buildSourcesLabel, type SourcesInput } from './sources-label'
 import { TOOLS, TOOL_DEFINITIONS } from './tools'
+import { outilMasque } from '@/lib/flags/yaye'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { escaladeMessage, escaladeTitre } from './escalade-message'
@@ -363,6 +364,15 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
 
   if (!tool) {
     result = { ok: false, error: `Outil inconnu: ${name}` }
+  } else if (await outilMasque(name, ctx.roles)) {
+    // GUIC-706 — le module dont cet outil tire ses données est masqué pour cet
+    // interlocuteur. On refuse l'exécution plutôt que de servir un contenu dont la page
+    // répondra 404 : la card mènerait à une impasse, et Yaye aurait promis ce que la
+    // plateforme cache.
+    //
+    // Le message est celui d'une indisponibilité ordinaire, pas d'un masquage : le prompt
+    // prévoit ce cas et Yaye le reformule avec ses mots, sans jargon technique.
+    result = { ok: false, error: 'Fonctionnalité momentanément indisponible.' }
   } else {
     try {
       result = await tool.execute(args, ctx)
