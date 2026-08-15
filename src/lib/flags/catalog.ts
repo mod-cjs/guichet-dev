@@ -66,9 +66,10 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m2.onboarding', 'm2', 'Parcours d’accueil', 'Les étapes suivies à la première connexion.', {
     closes: [],
     locked: true,
-    // L'étape « centre principal » charge la liste des centres : masquer `m4.centres`
-    // sans rendre l'étape conditionnelle casserait un parcours pourtant verrouillé.
-    requires: ['m4.centres'],
+    // L'étape « centre principal » charge la liste des centres. Elle se SAUTE désormais
+    // quand ils sont masqués (cf. sa page) : le parcours reste intact et les centres
+    // redeviennent pilotables. C'est pour cela que `requires` a disparu — le verrou
+    // protégeait le parcours en rendant les centres définitivement inouvrables.
     adminRoutes: ['/admin/onboarding'],
   }),
 

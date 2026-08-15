@@ -15,6 +15,7 @@ import { getFlagHits } from '@/lib/flags/metrics'
 import { canManageFlags, canViewFlags } from '@/lib/flags/rbac'
 import { FEATURE_FLAGS, getFlagDef } from '@/lib/flags/catalog'
 import { cascade } from '@/lib/flags/cascade'
+import { compteEngagements } from '@/lib/flags/engagements'
 import { purgerCacheSitemap } from '@/lib/seo/sitemap'
 import { revalidatePath } from 'next/cache'
 import type { ApiResponse } from '@/types/api'
@@ -40,9 +41,18 @@ export async function GET(request?: NextRequest) {
   const cascadeKey = request?.nextUrl.searchParams.get('cascade')
   if (cascadeKey) {
     const vise = request!.nextUrl.searchParams.get('enabled') !== 'false'
-    const sequence = cascade(cascadeKey, vise)
-      .filter((k) => flags[k] !== vise)
-      .map((k) => ({ key: k, label: getFlagDef(k)?.label ?? k }))
+    const cles = cascade(cascadeKey, vise).filter((k) => flags[k] !== vise)
+    // Le décompte n'a de sens qu'à la fermeture : à l'ouverture, rien n'est en cours.
+    // Sans lui, l'administrateur bascule à l'aveugle sur un module où des gens attendent
+    // quelque chose — un livre chez eux, un créneau réservé, un dossier en instruction.
+    const sequence = await Promise.all(
+      cles.map(async (k) => ({
+        key: k,
+        label: getFlagDef(k)?.label ?? k,
+        engagements: vise ? 0 : await compteEngagements(k),
+        engagementsLabel: getFlagDef(k)?.engagements?.label ?? null,
+      })),
+    )
     return NextResponse.json({ data: { sequence, enabled: vise } })
   }
 

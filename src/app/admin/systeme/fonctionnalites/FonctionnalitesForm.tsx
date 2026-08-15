@@ -19,6 +19,14 @@ import type { FeatureFlagDef } from '@/lib/flags/types'
  * répétition n'informe plus, elle allonge.
  */
 
+/** Une étape de séquence, telle que l'annonce le serveur. */
+interface Etape {
+  key: string
+  label: string
+  engagements: number
+  engagementsLabel: string | null
+}
+
 interface Props {
   catalogue: readonly FeatureFlagDef[]
   initialFlags: Record<string, boolean>
@@ -108,7 +116,7 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
   const [erreur, setErreur] = useState<string | null>(null)
   // Séquence annoncée par le serveur, en attente de confirmation.
   const [aConfirmer, setAConfirmer] = useState<
-    { flag: FeatureFlagDef; ouvrir: boolean; sequence: { key: string; label: string }[] } | null
+    { flag: FeatureFlagDef; ouvrir: boolean; sequence: Etape[] } | null
   >(null)
 
   const masquees = useMemo(
@@ -151,7 +159,7 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
         `/api/admin/systeme/flags?cascade=${encodeURIComponent(f.key)}&enabled=${ouvrir}`,
       )
       const json = await res.json()
-      const sequence: { key: string; label: string }[] = json?.data?.sequence ?? []
+      const sequence: Etape[] = json?.data?.sequence ?? []
       if (sequence.length > 1) {
         setAConfirmer({ flag: f, ouvrir, sequence })
         return
@@ -230,7 +238,17 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
           </p>
           <ol className="text-fs-200 text-color-text-secondary m-0 pl-space-4">
             {aConfirmer.sequence.map((e) => (
-              <li key={e.key}>{e.label}</li>
+              <li key={e.key}>
+                {e.label}
+                {e.engagements > 0 && (
+                  // Ce que la bascule laisse derrière elle : les titulaires gardent
+                  // l'accès à ce qui les concerne, personne d'autre ne voit rien.
+                  <span className="text-color-text-secondary">
+                    {' '}— {e.engagements} {e.engagementsLabel ?? 'engagements'} en cours,
+                    conservés pour leurs titulaires
+                  </span>
+                )}
+              </li>
             ))}
           </ol>
           <p className="text-fs-100 text-color-text-secondary m-0">
