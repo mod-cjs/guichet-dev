@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-490 (US-8) — Création d'offre par le recruteur.
@@ -82,6 +83,7 @@ function toDate(value?: string | null): Date | null {
  * @throws FORBIDDEN (non-recruteur) · NO_ORGANISATION (aucune organisation liée) · ZodError (champs invalides).
  */
 export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promise<{ id: string }> {
+  await assertFlag('m9.offres')
   const session = await assertRecruteur()
 
   const ctx = await getRecruteurContext(session.cjsUid)

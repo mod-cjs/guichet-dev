@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronCourtCircuite } from '@/lib/flags/guard'
 import { logger } from '@/lib/logger'
 import { runEval } from '@/lib/ia/metrics/eval-run'
 import { materializeSummaries } from '@/lib/ia/metrics/materialize'
@@ -23,6 +24,13 @@ const FENETRE_MS = 24 * 3600 * 1000
 const FENETRE_GARDE_MS = 7 * FENETRE_MS
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
+  // GUIC-706 — court-circuit plutôt que 404 : un 404 sur une tâche planifiée serait
+  // compté comme un échec d'exécution et déclencherait une alerte pour une fermeture
+  // pourtant volontaire.
+  if (await cronCourtCircuite('/api/cron/yaye-eval')) {
+    return NextResponse.json({ data: { skipped: 'fonctionnalite_masquee' } })
+  }
+
   const secret = process.env.CRON_SECRET
   const provided = request.headers.get('authorization')
   if (!secret || provided !== `Bearer ${secret}`) {

@@ -34,6 +34,7 @@ function def(
     apiPrefixes: o.apiPrefixes ?? [],
     uiIds: o.uiIds ?? [],
     crons: o.crons ?? [],
+    cronsEntretien: o.cronsEntretien ?? [],
     closes: o.closes ?? CONSOMMATEURS,
     dependsOn: o.dependsOn ?? [],
     requires: o.requires ?? [],
@@ -125,7 +126,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     uiIds: ['checkin'],
     closes: ['beneficiaire', 'conseiller'],
     dependsOn: ['m4.carte_cjs'],
-    crons: ['/api/cron/cleanup-checkins'],
+    cronsEntretien: ['/api/cron/cleanup-checkins'],
   }),
 
   // L'émargement d'un événement passe par le token de la CARTE
@@ -255,7 +256,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m12.yaye', 'm12', 'Assistant IA — Yaye', 'Interrupteur général de l’IA : coupe tout appel au modèle.', {
     adminRoutes: ['/admin/yaye', '/admin/analytics/yaye', '/api/admin/ia', '/api/admin/yaye'],
     closes: ['anonyme', 'beneficiaire', 'recruteur', 'conseiller'],
-    crons: ['/api/cron/yaye-graph-sync'],
+    cronsEntretien: ['/api/cron/yaye-graph-sync'],
   }),
 
   def('m12.yaye_chat', 'm12', 'Yaye — conversation', 'La bulle d’assistance et la page de discussion.', {
@@ -375,7 +376,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
   def('m3.programmes', 'm3', 'Rattachement aux programmes', 'Le lien entre un contenu et les programmes YEAH, YJC, EduPop, Yaakaar.', {
     adminRoutes: ['/admin/programmes'],
     closes: [],
-    crons: ['/api/cron/programme-integrity'],
+    cronsEntretien: ['/api/cron/programme-integrity'],
   }),
 
   def('m3.candidatures', 'm3', 'Candidatures', 'Le dépôt de candidature et son suivi.', {
@@ -397,7 +398,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     adminRoutes: ['/admin/centres', '/admin/analytics/centres', '/api/admin/analytics/centres'],
     apiPrefixes: ['/api/centres'],
     uiIds: ['centres'],
-    crons: ['/api/cron/cleanup-centre-events'],
+    cronsEntretien: ['/api/cron/cleanup-centre-events'],
   }),
 
   // ⚠️ COUPLAGE PAR LA DONNÉE (lot 4) — `reservations-batch` clôt les réservations échues
@@ -413,7 +414,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     apiPrefixes: ['/api/reservations'],
     uiIds: ['resa', 'reservations'],
     dependsOn: ['m4.centres'],
-    crons: ['/api/cron/reservations-batch'],
+    cronsEntretien: ['/api/cron/reservations-batch'],
     closeMode: 'drain',
     engagements: {
       model: 'reservation',

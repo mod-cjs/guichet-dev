@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-514 — Actions Entretiens (recruteur).
@@ -42,6 +43,7 @@ const schema = z.object({
 export type PlanifierEntretienInput = z.input<typeof schema>
 
 export async function planifierEntretien(input: PlanifierEntretienInput): Promise<{ id: string }> {
+  await assertFlag('m9.entretiens')
   const session = await assertRecruteur()
   const parsed = schema.parse(input)
 
@@ -108,10 +110,12 @@ async function majStatutEntretien(id: string, statut: 'Annule' | 'Termine', acti
 }
 
 export async function annulerEntretien(id: string): Promise<{ ok: true }> {
+  await assertFlag('m9.entretiens')
   return majStatutEntretien(id, 'Annule', 'entretien.annule')
 }
 
 /** GUIC-515 — marque un entretien comme terminé. */
 export async function terminerEntretien(id: string): Promise<{ ok: true }> {
+  await assertFlag('m9.entretiens')
   return majStatutEntretien(id, 'Termine', 'entretien.termine')
 }

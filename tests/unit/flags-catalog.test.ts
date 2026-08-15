@@ -174,10 +174,18 @@ describe('catalogue — couverture des tâches planifiées', () => {
     // d'évaluation implicite.
     const vus = new Map<string, string>()
     for (const f of FEATURE_FLAGS) {
-      for (const cron of f.crons) {
+      for (const cron of [...f.crons, ...f.cronsEntretien]) {
         expect(vus.has(cron)).toBe(false)
         vus.set(cron, f.key)
       }
+    }
+  })
+
+  it('ne classe jamais une même tâche à la fois coupée et d’entretien', () => {
+    // Les deux listes disent l'inverse l'une de l'autre : une tâche présente dans les deux
+    // rendrait son sort dépendant de l'ordre de lecture.
+    for (const f of FEATURE_FLAGS) {
+      for (const cron of f.crons) expect(f.cronsEntretien).not.toContain(cron)
     }
   })
 
@@ -185,7 +193,7 @@ describe('catalogue — couverture des tâches planifiées', () => {
     // Un cron référencé mais absent de vercel.json signale un renommage non répercuté :
     // le flag croirait le couper alors qu'il ne coupe rien.
     for (const f of FEATURE_FLAGS) {
-      for (const cron of f.crons) expect(crons).toContain(cron)
+      for (const cron of [...f.crons, ...f.cronsEntretien]) expect(crons).toContain(cron)
     }
   })
 })

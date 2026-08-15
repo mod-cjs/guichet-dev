@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
@@ -46,6 +47,7 @@ export interface PublicationInput {
 }
 
 export async function creerPublication(input: PublicationInput): Promise<ApiResponse<{ id: string }>> {
+  await assertFlag('m8.publications')
   const session = await getSession()
   if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
   const ctx = await getConseillerContext(session.cjsUid)

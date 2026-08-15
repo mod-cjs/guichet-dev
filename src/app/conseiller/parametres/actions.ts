@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
@@ -19,6 +20,7 @@ const schema = z.object({
 export type PreferencesNotifInput = z.input<typeof schema>
 
 export async function modifierPreferencesNotif(input: PreferencesNotifInput): Promise<ApiResponse<{ ok: true }>> {
+  await assertFlag('m8.conseiller')
   const session = await getSession()
   if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
   const ctx = await getConseillerContext(session.cjsUid)

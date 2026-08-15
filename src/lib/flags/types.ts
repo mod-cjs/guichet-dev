@@ -82,8 +82,19 @@ export interface FeatureFlagDef {
    *      signale qu'on a retiré quelque chose.
    */
   uiIds: string[]
-  /** Chemins de tâches planifiées à court-circuiter (tels qu'écrits dans `vercel.json`). */
+  /**
+   * Tâches planifiées COURT-CIRCUITÉES quand le flag est masqué : celles dont l'effet est
+   * visible par l'utilisateur ou dont le coût est ce qu'on cherche à couper.
+   */
   crons: string[]
+  /**
+   * Tâches planifiées qui CONTINUENT de tourner, flag masqué ou non.
+   *
+   * Les tâches d'entretien préparent la donnée pour l'ouverture — projection du graphe,
+   * purges, clôtures. Les couper créerait un arriéré à rattraper au pire moment, celui où
+   * l'on rouvre. Listées ici pour être explicitement exemptées, et non oubliées.
+   */
+  cronsEntretien: string[]
   /**
    * Publics qui perdent la fonctionnalité. Les faces absentes restent ouvertes : c'est ce
    * qui permet au recruteur de continuer à publier et au conseiller à préparer pendant

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronCourtCircuite } from '@/lib/flags/guard'
 import { timingSafeEqual } from 'node:crypto'
 import { logger } from '@/lib/logger'
 import { executerVeille } from '@/lib/curation/robot/run'
@@ -25,6 +26,13 @@ function secretValide(provided: string | null, secret: string): boolean {
 export const maxDuration = 300
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
+  // GUIC-706 — court-circuit plutôt que 404 : un 404 sur une tâche planifiée serait
+  // compté comme un échec d'exécution et déclencherait une alerte pour une fermeture
+  // pourtant volontaire.
+  if (await cronCourtCircuite('/api/cron/veille-sources')) {
+    return NextResponse.json({ data: { skipped: 'fonctionnalite_masquee' } })
+  }
+
   const secret = process.env.CRON_SECRET
   const provided = request.headers.get('authorization')
   if (!secret || !secretValide(provided, secret)) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { webhookIgnore } from '@/lib/flags/guard'
 import { verifyWebhookSignature, sendTextMessage } from '@/lib/whatsapp'
 import {
   createLinkToken,
@@ -153,6 +154,13 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get('x-hub-signature-256')
   if (!verifyWebhookSignature(body, signature)) {
     return new Response('Forbidden', { status: 403 })
+  }
+
+  // GUIC-706 — canal masqué : on accuse réception et on ignore. Un 404 ou un 5xx ferait
+  // retrier Meta en boucle, et l'accusé de réception est ce qui clôt l'échange proprement.
+  // La signature est vérifiée AVANT, pour ne pas offrir un accusé de réception gratuit.
+  if (await webhookIgnore('m11.whatsapp')) {
+    return new Response('OK', { status: 200 })
   }
 
   let payload: unknown
