@@ -16,6 +16,7 @@ import { canManageFlags, canViewFlags } from '@/lib/flags/rbac'
 import { FEATURE_FLAGS, getFlagDef } from '@/lib/flags/catalog'
 import { cascade } from '@/lib/flags/cascade'
 import { compteEngagements } from '@/lib/flags/engagements'
+import { checklistOuverture } from '@/lib/flags/prelaunch'
 import { purgerCacheSitemap } from '@/lib/seo/sitemap'
 import { revalidatePath } from 'next/cache'
 import type { ApiResponse } from '@/types/api'
@@ -53,7 +54,9 @@ export async function GET(request?: NextRequest) {
         engagementsLabel: getFlagDef(k)?.engagements?.label ?? null,
       })),
     )
-    return NextResponse.json({ data: { sequence, enabled: vise } })
+    // À l'ouverture seulement : la checklist n'a d'objet que devant un module froid.
+    const checklist = vise ? await checklistOuverture(cascadeKey, flags) : null
+    return NextResponse.json({ data: { sequence, enabled: vise, checklist } })
   }
 
   // Instantané plat, réimportable : c'est ce qui permet de rejouer en production une

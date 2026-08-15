@@ -116,7 +116,7 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
   const [erreur, setErreur] = useState<string | null>(null)
   // Séquence annoncée par le serveur, en attente de confirmation.
   const [aConfirmer, setAConfirmer] = useState<
-    { flag: FeatureFlagDef; ouvrir: boolean; sequence: Etape[] } | null
+    { flag: FeatureFlagDef; ouvrir: boolean; sequence: Etape[]; checklist: string[] } | null
   >(null)
 
   const masquees = useMemo(
@@ -160,8 +160,11 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
       )
       const json = await res.json()
       const sequence: Etape[] = json?.data?.sequence ?? []
-      if (sequence.length > 1) {
-        setAConfirmer({ flag: f, ouvrir, sequence })
+      const checklist: string[] = json?.data?.checklist?.avertissements ?? []
+      // On confirme dès qu'il y a quelque chose à dire : une séquence de groupe, ou une
+      // ouverture sur un module froid. Une bascule simple et sans risque reste directe.
+      if (sequence.length > 1 || checklist.length > 0) {
+        setAConfirmer({ flag: f, ouvrir, sequence, checklist })
         return
       }
     } catch {
@@ -233,8 +236,8 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
           style={{ borderColor: 'var(--gj-yellow, #F4B930)', background: 'var(--color-surface-raised)' }}
         >
           <p className="text-fs-300 font-bold text-color-text-primary m-0">
-            {aConfirmer.ouvrir ? 'Ouvrir' : 'Masquer'} « {aConfirmer.flag.label} » entraîne{' '}
-            {aConfirmer.sequence.length} bascules
+            {aConfirmer.ouvrir ? 'Ouvrir' : 'Masquer'} « {aConfirmer.flag.label} »
+            {aConfirmer.sequence.length > 1 && <> entraîne {aConfirmer.sequence.length} bascules</>}
           </p>
           <ol className="text-fs-200 text-color-text-secondary m-0 pl-space-4">
             {aConfirmer.sequence.map((e) => (
@@ -251,8 +254,17 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
               </li>
             ))}
           </ol>
+          {aConfirmer.checklist.length > 0 && (
+            <ul className="text-fs-200 m-0 pl-space-4" style={{ color: 'var(--gj-yellow-ink, #7A5A00)' }}>
+              {aConfirmer.checklist.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          )}
           <p className="text-fs-100 text-color-text-secondary m-0">
-            L’ordre est imposé par les dépendances. Tout est appliqué d’un bloc, ou rien.
+            {aConfirmer.sequence.length > 1
+              ? 'L’ordre est imposé par les dépendances. Tout est appliqué d’un bloc, ou rien.'
+              : 'Vous pouvez ouvrir malgré ces avertissements.'}
           </p>
           <div className="flex gap-space-2">
             <button
@@ -261,7 +273,11 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
               className="h-11 px-space-4 rounded-gj-md text-fs-200 font-bold"
               style={{ background: 'var(--gj-teal-deep, #0B5C51)', color: '#fff' }}
             >
-              Appliquer les {aConfirmer.sequence.length} bascules
+              {aConfirmer.sequence.length > 1
+                ? `Appliquer les ${aConfirmer.sequence.length} bascules`
+                : aConfirmer.ouvrir
+                  ? 'Ouvrir quand même'
+                  : 'Masquer'}
             </button>
             <button
               type="button"
