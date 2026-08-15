@@ -113,24 +113,17 @@ export interface SetFlagOptions {
 }
 
 /**
- * Bascule une fonctionnalité et rend la carte résultante.
+ * Vérifie qu'une bascule est légitime dans un état donné, sans rien écrire.
  *
- * La validation est côté service et non seulement côté interface : un toggle grisé
- * n'empêche pas un appel direct à l'API.
+ * Extrait de `setFlag` pour que `setFlags` puisse valider TOUTE la séquence avant d'en
+ * appliquer la moindre étape : c'est ce qui rend la cascade atomique.
  *
- * @throws si la clé est inconnue, si le flag est verrouillé, ou si une dépendance est
- *   masquée — ouvrir un enfant dont le parent est fermé donnerait un état incohérent.
+ * @throws si la clé est inconnue, verrouillée, ou si une dépendance s'y oppose.
  */
-export async function setFlag(
-  key: string,
-  enabled: boolean,
-  { updatedBy, note }: SetFlagOptions,
-): Promise<FlagMap> {
+function valideBascule(key: string, enabled: boolean, courant: FlagMap): void {
   const def = getFlagDef(key)
   if (!def) throw new Error(`Fonctionnalité inconnue : ${key}`)
   if (def.locked) throw new Error(`Fonctionnalité verrouillée : ${key}`)
-
-  const courant = await getFlags()
 
   if (enabled) {
     const manquantes = def.dependsOn.filter((dep) => courant[dep] !== true)
@@ -150,14 +143,58 @@ export async function setFlag(
       )
     }
   }
+}
 
-  await prisma.featureFlag.upsert({
-    where: { key },
-    create: { key, enabled, note: note ?? null, updatedBy },
-    update: { enabled, note: note ?? null, updatedBy },
-  })
+/**
+ * Bascule UNE fonctionnalité. Cas particulier d'une séquence à un élément.
+ *
+ * La validation vit côté service et non seulement côté interface : un toggle grisé
+ * n'empêche pas un appel direct à l'API.
+ */
+export async function setFlag(
+  key: string,
+  enabled: boolean,
+  options: SetFlagOptions,
+): Promise<FlagMap> {
+  return setFlags([{ key, enabled }], options)
+}
 
-  const map = { ...courant, [key]: enabled }
+/**
+ * Applique une SÉQUENCE de bascules — le geste de groupe (§ cascade).
+ *
+ * ATOMIQUE : toute la séquence est validée sur l'état simulé avant la première écriture.
+ * Sans cela, une séquence interrompue laisserait un parent ouvert et ses enfants fermés,
+ * soit exactement l'état incohérent que les dépendances servent à empêcher. Mieux vaut ne
+ * rien faire que faire à moitié.
+ *
+ * @throws si la séquence est vide, ou si l'une de ses étapes est refusée.
+ */
+export async function setFlags(
+  bascules: readonly { key: string; enabled: boolean }[],
+  { updatedBy, note }: SetFlagOptions,
+): Promise<FlagMap> {
+  if (bascules.length === 0) throw new Error('Aucune bascule demandée.')
+
+  const courant = await getFlags()
+
+  // Validation intégrale sur un état SIMULÉ : chaque étape est jugée dans l'état que les
+  // précédentes auront produit, sans quoi une cascade légitime serait refusée à sa
+  // deuxième étape.
+  const simule: FlagMap = { ...courant }
+  for (const { key, enabled } of bascules) {
+    valideBascule(key, enabled, simule)
+    simule[key] = enabled
+  }
+
+  for (const { key, enabled } of bascules) {
+    await prisma.featureFlag.upsert({
+      where: { key },
+      create: { key, enabled, note: note ?? null, updatedBy },
+      update: { enabled, note: note ?? null, updatedBy },
+    })
+  }
+
+  const map = simule
 
   // ORDRE IMPOSÉ : la carte d'abord, la version ensuite. Une instance qui verrait la
   // nouvelle version avant la nouvelle carte relirait l'ancienne et se croirait à jour

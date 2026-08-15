@@ -106,6 +106,10 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
   const [recherche, setRecherche] = useState('')
   const [enCours, setEnCours] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Séquence annoncée par le serveur, en attente de confirmation.
+  const [aConfirmer, setAConfirmer] = useState<
+    { flag: FeatureFlagDef; ouvrir: boolean; sequence: { key: string; label: string }[] } | null
+  >(null)
 
   const masquees = useMemo(
     () => catalogue.filter((f) => flags[f.key] === false).length,
@@ -135,8 +139,32 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
   /** Une dépendance masquée rend l'ouverture impossible : on l'annonce avant le clic. */
   const bloquePar = (f: FeatureFlagDef) => f.dependsOn.filter((d) => flags[d] === false)
 
-  async function bascule(f: FeatureFlagDef, ouvert: boolean) {
+  /**
+   * Demande la séquence au serveur. Si elle dépasse la seule fonctionnalité visée, on
+   * confirme d'abord : basculer six choses quand l'administrateur en a cliqué une doit
+   * être annoncé, jamais subi.
+   */
+  async function demander(f: FeatureFlagDef, ouvrir: boolean) {
     setErreur(null)
+    try {
+      const res = await fetch(
+        `/api/admin/systeme/flags?cascade=${encodeURIComponent(f.key)}&enabled=${ouvrir}`,
+      )
+      const json = await res.json()
+      const sequence: { key: string; label: string }[] = json?.data?.sequence ?? []
+      if (sequence.length > 1) {
+        setAConfirmer({ flag: f, ouvrir, sequence })
+        return
+      }
+    } catch {
+      // Séquence indisponible : on tente la bascule simple, le serveur tranchera.
+    }
+    await bascule(f, ouvrir, false)
+  }
+
+  async function bascule(f: FeatureFlagDef, ouvert: boolean, enCascade: boolean) {
+    setErreur(null)
+    setAConfirmer(null)
     setEnCours(f.key)
     // Optimiste : la bascule est instantanée à l'écran, et rétablie si le serveur refuse.
     const avant = flags
@@ -145,7 +173,7 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
       const res = await fetch('/api/admin/systeme/flags', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: f.key, enabled: ouvert }),
+        body: JSON.stringify({ key: f.key, enabled: ouvert, cascade: enCascade }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -186,6 +214,45 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
           className="rounded-gj-md border-[1.5px] border-gj-red bg-color-surface-raised p-space-2 text-fs-200 text-color-text-primary"
         >
           {erreur}
+        </div>
+      )}
+
+      {aConfirmer && (
+        <div
+          role="alertdialog"
+          aria-label="Confirmer la bascule groupée"
+          className="rounded-gj-md border-[1.5px] p-space-3 flex flex-col gap-space-2"
+          style={{ borderColor: 'var(--gj-yellow, #F4B930)', background: 'var(--color-surface-raised)' }}
+        >
+          <p className="text-fs-300 font-bold text-color-text-primary m-0">
+            {aConfirmer.ouvrir ? 'Ouvrir' : 'Masquer'} « {aConfirmer.flag.label} » entraîne{' '}
+            {aConfirmer.sequence.length} bascules
+          </p>
+          <ol className="text-fs-200 text-color-text-secondary m-0 pl-space-4">
+            {aConfirmer.sequence.map((e) => (
+              <li key={e.key}>{e.label}</li>
+            ))}
+          </ol>
+          <p className="text-fs-100 text-color-text-secondary m-0">
+            L’ordre est imposé par les dépendances. Tout est appliqué d’un bloc, ou rien.
+          </p>
+          <div className="flex gap-space-2">
+            <button
+              type="button"
+              onClick={() => bascule(aConfirmer.flag, aConfirmer.ouvrir, true)}
+              className="h-11 px-space-4 rounded-gj-md text-fs-200 font-bold"
+              style={{ background: 'var(--gj-teal-deep, #0B5C51)', color: '#fff' }}
+            >
+              Appliquer les {aConfirmer.sequence.length} bascules
+            </button>
+            <button
+              type="button"
+              onClick={() => setAConfirmer(null)}
+              className="h-11 px-space-4 rounded-gj-md text-fs-200 font-bold border-[1.5px] border-color-border-default"
+            >
+              Annuler
+            </button>
+          </div>
         </div>
       )}
 
@@ -263,7 +330,7 @@ export function FonctionnalitesForm({ catalogue, initialFlags, hits, canManage }
                 <Switch
                   checked={ouvert}
                   disabled={inerte}
-                  onChange={(next) => bascule(f, next)}
+                  onChange={(next) => demander(f, next)}
                   aria-label={`${f.label} — ${ouvert ? 'ouvert' : 'masqué'} aux utilisateurs`}
                 />
               </li>

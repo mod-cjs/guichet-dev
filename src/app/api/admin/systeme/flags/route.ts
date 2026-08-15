@@ -10,10 +10,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
-import { getFlags, setFlag } from '@/lib/flags'
+import { getFlags, setFlags } from '@/lib/flags'
 import { getFlagHits } from '@/lib/flags/metrics'
 import { canManageFlags, canViewFlags } from '@/lib/flags/rbac'
-import { FEATURE_FLAGS } from '@/lib/flags/catalog'
+import { FEATURE_FLAGS, getFlagDef } from '@/lib/flags/catalog'
+import { cascade } from '@/lib/flags/cascade'
 import { purgerCacheSitemap } from '@/lib/seo/sitemap'
 import { revalidatePath } from 'next/cache'
 import type { ApiResponse } from '@/types/api'
@@ -32,6 +33,18 @@ export async function GET(request?: NextRequest) {
   }
 
   const flags = await getFlags()
+
+  // Séquence à appliquer pour amener une fonctionnalité à l'état voulu, SANS l'appliquer.
+  // Le panneau s'en sert pour annoncer ce qui va basculer avant de demander confirmation :
+  // un refus sec dit ce qui bloque, il ne dit pas comment faire.
+  const cascadeKey = request?.nextUrl.searchParams.get('cascade')
+  if (cascadeKey) {
+    const vise = request!.nextUrl.searchParams.get('enabled') !== 'false'
+    const sequence = cascade(cascadeKey, vise)
+      .filter((k) => flags[k] !== vise)
+      .map((k) => ({ key: k, label: getFlagDef(k)?.label ?? k }))
+    return NextResponse.json({ data: { sequence, enabled: vise } })
+  }
 
   // Instantané plat, réimportable : c'est ce qui permet de rejouer en production une
   // configuration éprouvée en recette, et de capturer l'état avant une bascule d'incident.
@@ -69,13 +82,23 @@ export async function PUT(request: NextRequest) {
   const enabled = champs.enabled
   const note = typeof champs.note === 'string' && champs.note.trim() ? champs.note.trim() : undefined
 
+  const enCascade = champs.cascade === true
+  const courant = await getFlags()
+
   if (!key || typeof enabled !== 'boolean') {
     return refus('Requête invalide : `key` (texte) et `enabled` (booléen) sont requis.', 400)
   }
 
+  // Une séquence complète est appliquée d'un bloc — atomique, et journalisée UNE fois :
+  // cinq lignes d'audit séparées seraient à recoller après coup lors d'une analyse.
+  const sequence = enCascade ? cascade(key, enabled).filter((k) => courant[k] !== enabled) : [key]
+
   let flags: Record<string, boolean>
   try {
-    flags = await setFlag(key, enabled, { updatedBy: session.cjsUid, note })
+    flags = await setFlags(
+      sequence.map((k) => ({ key: k, enabled })),
+      { updatedBy: session.cjsUid, note },
+    )
   } catch (err) {
     // Clé inconnue, flag verrouillé, dépendance masquée : erreurs de demande, pas pannes.
     // Un 500 les ferait passer pour un incident d'infrastructure.
@@ -91,7 +114,7 @@ export async function PUT(request: NextRequest) {
   await recordAudit(session.cjsUid, 'feature.flag.update', {
     targetType: 'feature_flag',
     targetId: key,
-    meta: { enabled, note: note ?? null },
+    meta: { enabled, note: note ?? null, sequence },
   })
 
   return NextResponse.json({ data: { flags } })

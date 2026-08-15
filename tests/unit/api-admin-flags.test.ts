@@ -11,10 +11,10 @@ jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
 
 const mockGetFlags = jest.fn()
-const mockSetFlag = jest.fn()
+const mockSetFlags = jest.fn()
 jest.mock('@/lib/flags', () => ({
   getFlags: (...a: unknown[]) => mockGetFlags(...a),
-  setFlag: (...a: unknown[]) => mockSetFlag(...a),
+  setFlags: (...a: unknown[]) => mockSetFlags(...a),
 }))
 const mockPurgeSitemap = jest.fn()
 jest.mock('@/lib/seo/sitemap', () => ({ purgerCacheSitemap: () => mockPurgeSitemap() }))
@@ -50,9 +50,9 @@ function requete(body: unknown, url = 'http://localhost/api/admin/systeme/flags'
 beforeEach(() => {
   jest.clearAllMocks()
   mockGetFlags.mockResolvedValue(catalogDefaults())
-  mockSetFlag.mockImplementation(async (key: string, enabled: boolean) => ({
+  mockSetFlags.mockImplementation(async (bascules: { key: string; enabled: boolean }[]) => ({
     ...catalogDefaults(),
-    [key]: enabled,
+    ...Object.fromEntries(bascules.map((b) => [b.key, b.enabled])),
   }))
   mockGetHits.mockResolvedValue({})
   mockPurgeSitemap.mockResolvedValue(undefined)
@@ -101,9 +101,8 @@ describe('PUT — bascule', () => {
     mockSession.mockResolvedValue(ADMIN)
     const res = await PUT(requete({ key: MASQUABLE, enabled: false, note: 'vague 1' }))
     expect(res.status).toBe(200)
-    expect(mockSetFlag).toHaveBeenCalledWith(
-      MASQUABLE,
-      false,
+    expect(mockSetFlags).toHaveBeenCalledWith(
+      [{ key: MASQUABLE, enabled: false }],
       expect.objectContaining({ updatedBy: 'a1', note: 'vague 1' }),
     )
   })
@@ -114,13 +113,13 @@ describe('PUT — bascule', () => {
     mockSession.mockResolvedValue(MODERATEUR)
     const res = await PUT(requete({ key: MASQUABLE, enabled: false }))
     expect(res.status).toBe(403)
-    expect(mockSetFlag).not.toHaveBeenCalled()
+    expect(mockSetFlags).not.toHaveBeenCalled()
   })
 
   it('refuse un corps sans clé exploitable', async () => {
     mockSession.mockResolvedValue(ADMIN)
     expect((await PUT(requete({}))).status).toBe(400)
-    expect(mockSetFlag).not.toHaveBeenCalled()
+    expect(mockSetFlags).not.toHaveBeenCalled()
   })
 
   it('refuse un corps illisible', async () => {
@@ -137,7 +136,7 @@ describe('PUT — bascule', () => {
     // Clé inconnue, flag verrouillé, dépendance masquée : ce sont des erreurs de demande,
     // pas des pannes. Un 500 les ferait passer pour un incident.
     mockSession.mockResolvedValue(ADMIN)
-    mockSetFlag.mockRejectedValue(new Error('Fonctionnalité verrouillée'))
+    mockSetFlags.mockRejectedValue(new Error('Fonctionnalité verrouillée'))
     expect((await PUT(requete({ key: VERROUILLE, enabled: false }))).status).toBe(400)
   })
 
@@ -152,7 +151,7 @@ describe('PUT — bascule', () => {
       expect.objectContaining({
         targetType: 'feature_flag',
         targetId: MASQUABLE,
-        meta: expect.objectContaining({ enabled: false, note: 'incident' }),
+        meta: expect.objectContaining({ enabled: false, note: 'incident', sequence: [MASQUABLE] }),
       }),
     )
   })
@@ -171,6 +170,62 @@ describe('PUT — bascule', () => {
     mockSession.mockResolvedValue(MODERATEUR)
     await PUT(requete({ key: MASQUABLE, enabled: false }))
     expect(recordAudit).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET ?cascade — annoncer avant d’appliquer', () => {
+  it('rend la séquence sans rien basculer', async () => {
+    // Le panneau doit pouvoir annoncer ce qui va changer AVANT de demander confirmation.
+    // Un refus sec dit ce qui bloque, il ne dit pas comment faire.
+    mockSession.mockResolvedValue(ADMIN)
+    const parent = FEATURE_FLAGS.find(
+      (f) => !f.locked && FEATURE_FLAGS.some((o) => o.dependsOn.includes(f.key)),
+    )!
+    const json = await (
+      await GET(new NextRequest(`http://localhost/api/admin/systeme/flags?cascade=${parent.key}&enabled=false`))
+    ).json()
+    expect(json.data.sequence.length).toBeGreaterThan(1)
+    expect(json.data.sequence.at(-1).key).toBe(parent.key)
+    expect(mockSetFlags).not.toHaveBeenCalled()
+  })
+
+  it('n’annonce que ce qui change réellement', async () => {
+    // Une fonctionnalité déjà dans l'état visé ne doit pas figurer dans le décompte :
+    // annoncer « 6 bascules » quand 4 sont déjà faites induit en erreur.
+    mockSession.mockResolvedValue(ADMIN)
+    const parent = FEATURE_FLAGS.find(
+      (f) => !f.locked && FEATURE_FLAGS.some((o) => o.dependsOn.includes(f.key)),
+    )!
+    mockGetFlags.mockResolvedValue({ ...catalogDefaults(), [parent.key]: false })
+    const json = await (
+      await GET(new NextRequest(`http://localhost/api/admin/systeme/flags?cascade=${parent.key}&enabled=false`))
+    ).json()
+    expect(json.data.sequence.map((s: { key: string }) => s.key)).not.toContain(parent.key)
+  })
+})
+
+describe('PUT cascade — appliquer le groupe', () => {
+  it('applique toute la séquence en une opération', async () => {
+    mockSession.mockResolvedValue(ADMIN)
+    const parent = FEATURE_FLAGS.find(
+      (f) => !f.locked && FEATURE_FLAGS.some((o) => o.dependsOn.includes(f.key)),
+    )!
+    await PUT(requete({ key: parent.key, enabled: false, cascade: true }))
+    const sequence = mockSetFlags.mock.calls[0][0] as { key: string }[]
+    expect(sequence.length).toBeGreaterThan(1)
+    expect(sequence.at(-1)!.key).toBe(parent.key)
+  })
+
+  it('ne journalise qu’une entrée pour tout le groupe', async () => {
+    // Cinq lignes d'audit séparées seraient à recoller après coup lors d'une analyse
+    // post-incident. La séquence appliquée figure dans le méta de l'entrée unique.
+    mockSession.mockResolvedValue(ADMIN)
+    const parent = FEATURE_FLAGS.find(
+      (f) => !f.locked && FEATURE_FLAGS.some((o) => o.dependsOn.includes(f.key)),
+    )!
+    await PUT(requete({ key: parent.key, enabled: false, cascade: true }))
+    expect(recordAudit).toHaveBeenCalledTimes(1)
+    expect((recordAudit as jest.Mock).mock.calls[0][2].meta.sequence.length).toBeGreaterThan(1)
   })
 })
 
