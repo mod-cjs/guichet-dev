@@ -40,10 +40,10 @@ export default async function Accueil() {
 
       {/* HERO responsive — mobile (< 1024px) vs web (≥ 1024px) */}
       <div className="lg:hidden">
-        <WelcomeHeroMobile />
+        <WelcomeHeroMobile masques={masques} />
       </div>
       <div className="hidden lg:block">
-        <WelcomeHeroWeb />
+        <WelcomeHeroWeb masques={masques} />
       </div>
 
       {/* SECTIONS services — container max-w-7xl centré, padding cohérent */}

@@ -14,13 +14,14 @@ import { MobileShellGate } from './MobileShellGate'
 export async function MobileTopShell() {
   const session = await getSession()
   if (!session) return null
+  const masques = await masquesUtilisateur(session.roles)
   // GUIC-247 — badge cloche : non-lues lues côté serveur (best-effort).
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
   // GUIC-447 — présence photo (best-effort) pour éviter le 404 proxy.
   const hasPhoto = await getHasProfilePhoto(session.cjsUid).catch(() => false)
   return (
     <MobileShellGate>
-      <AppTopbar session={session} unread={unread} hasPhoto={hasPhoto} />
+      <AppTopbar masques={masques} session={session} unread={unread} hasPhoto={hasPhoto} />
     </MobileShellGate>
   )
 }

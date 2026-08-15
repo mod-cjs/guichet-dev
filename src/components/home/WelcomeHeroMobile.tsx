@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { lienMasque } from '@/lib/flags/ui'
 import { Icon } from '@/components/ui/Icon'
 
 const STATS = [
@@ -17,7 +18,7 @@ const STATS = [
  * (« Explorer les opportunités », jaune — CTA sur fond sombre), inscription
  * en lien secondaire souligné.
  */
-export function WelcomeHeroMobile() {
+export function WelcomeHeroMobile({ masques = [] }: { masques?: readonly string[] } = {}) {
   return (
     <div
       className="flex flex-col mx-auto"
@@ -122,7 +123,8 @@ export function WelcomeHeroMobile() {
           paddingBottom: 'calc(22px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Link
+        {!lienMasque('/opportunites', masques) && (
+          <Link
           href="/opportunites"
           className="inline-flex items-center justify-center gap-2 w-full font-black no-underline"
           style={{
@@ -138,6 +140,7 @@ export function WelcomeHeroMobile() {
           <span>Explorer les opportunités</span>
           <Icon name="arrow-right" size={16} aria-hidden />
         </Link>
+        )}
         <Link
           href="/auth/connexion"
           className="inline-flex items-center justify-center w-full font-bold mt-space-2"
