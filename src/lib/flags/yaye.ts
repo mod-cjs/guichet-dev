@@ -4,15 +4,22 @@
 // propose spontanément des événements d'un agenda fermé — et le lien de sa card mène à un
 // 404 posé par le gate.
 //
-// LA GARDE EST À L'EXÉCUTION, PAS AU CATALOGUE D'OUTILS. L'agent continue donc de
-// connaître l'outil et peut le mentionner ; il n'obtient simplement rien, et reformule
-// l'échec avec ses mots comme il le fait déjà pour toute panne d'outil.
+// LA GARDE EST À L'EXÉCUTION, PAS AU CATALOGUE D'OUTILS. Elle supprime la fuite de
+// DONNÉES : l'outil ne rend rien, et l'agent reformule l'échec avec ses mots comme il le
+// fait déjà pour toute panne d'outil.
 //
-// C'est un compromis assumé. Filtrer le catalogue supposerait de découper un prompt de
-// 779 lignes qui nomme les outils en toutes lettres à 17 endroits, et dont le réglage est
-// empirique — le code mesure 7/24 appels d'outil sous un prompt contre 23/24 sous l'autre.
-// Le niveau 1 supprime la fuite de DONNÉES sans toucher à ce réglage ; il laisse la fuite
-// d'EXISTENCE, Yaye pouvant nommer une fonctionnalité qu'on cache.
+// Le niveau 2 (`outilsMasques` ci-dessous, consommé par `construireSystemPrompt`) retire
+// en plus l'outil du registre, des définitions envoyées au modèle et des zones du prompt
+// qui le nomment. RÉSIDU MESURÉ : le nom de l'outil disparaît, mais le prompt décrit aussi
+// le produit en PROSE FRANÇAISE — section « Ta mission », dialogues d'exemple — hors des
+// zones paramétrées. Une mesure du 2026-08-15 compte encore 1 mention pour l'agenda, 3
+// pour la bibliothèque, 9 pour les centres, 19 pour les opportunités. Yaye peut donc
+// nommer le concept sans jamais pouvoir agir dessus ni en tirer la moindre donnée.
+//
+// Ce résidu n'est pas traité, et c'est délibéré : le prompt fait 779 lignes, son réglage
+// est empirique — le code mesure 7/24 appels d'outil sous un prompt contre 23/24 sous
+// l'autre — et paramétrer sa narration reviendrait à le réécrire sans pouvoir mesurer la
+// régression a posteriori.
 
 import { getFlags } from '@/lib/flags'
 import { logger } from '@/lib/logger'

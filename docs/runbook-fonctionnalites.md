@@ -49,6 +49,14 @@ Même geste. La confirmation affiche en plus une **checklist** :
 La checklist **n'est pas bloquante**. « Ouvrir quand même » existe ; ce qu'on évite, c'est
 de le faire sans le savoir.
 
+### La cascade n'est pas symétrique
+
+Masquer entraîne ce qui **dépend** de la fonctionnalité ; ouvrir n'entraîne que ce dont
+elle **a besoin**. Rouvrir la bibliothèque ne rouvre donc pas le comptoir d'emprunt : on
+peut vouloir rendre le catalogue visible avant de rouvrir le guichet. Défaire une
+fermeture en cascade demande autant de bascules qu'elle en avait entraînées — le panneau
+affiche à tout moment la liste de ce qui reste masqué.
+
 ## Après une bascule
 
 **Le compteur de tentatives** est le seul détecteur de fuite dont on dispose. Un module
@@ -77,8 +85,12 @@ dernier recours.
 
 ## Ce que le dispositif ne couvre pas
 
-- **Les outils de Yaye** — l'agent peut proposer un contenu d'un module masqué. Ne pas
-  masquer `m5` ni `m12` en production tant que ce point n'est pas levé.
+- **La prose de Yaye** — l'agent ne peut plus ni servir les données d'un module masqué ni
+  le proposer spontanément : l'outil est retiré de son registre et de son prompt. Mais le
+  prompt décrit aussi le produit en français courant, hors des zones filtrées ; interrogé
+  frontalement sur un module fermé, Yaye peut encore en parler — sans jamais rien en tirer.
+  Vérifié en réel le 2026-08-15 : agenda masqué, aucun outil appelé, mais réponse
+  conversationnelle sur le sujet nommé.
 - **L'accueil public** — décision produit : ses cartes de raccourci ne suivent pas les
   flags.
 - **Les liens partenaires** (YEAH, e-learning) — hors périmètre, ce sont d'autres
@@ -86,5 +98,5 @@ dernier recours.
 
 ## En cas de doute
 
-Ne rien masquer sans avoir lu le décompte d'engagements. Une fermeture se rattrape en un
-clic ; une donnée fausse partie au Data Hub, non.
+Ne rien masquer sans avoir lu le décompte d'engagements. Une fermeture se rattrape à la
+main ; une donnée fausse partie au Data Hub, non.

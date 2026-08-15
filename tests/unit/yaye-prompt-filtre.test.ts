@@ -15,6 +15,7 @@
 import { construireSystemPrompt, LIGNES_ROUTAGE, CAPACITES } from '@/lib/ia/prompt-outils'
 import { SYSTEM_PROMPT } from '@/lib/ia/agent'
 import { TOOLS } from '@/lib/ia/tools'
+import { FLAG_PAR_OUTIL } from '@/lib/flags/yaye'
 
 const TOUS = new Set(Object.keys(TOOLS))
 /** Rien de masqué — le cas nominal. */
@@ -73,6 +74,29 @@ describe('retrait d’un outil', () => {
     // Une énumération assemblée mécaniquement produit vite « , et , » : Yaye lit ce texte
     // comme une consigne, une phrase bancale dégrade sa réponse.
     const p = construireSystemPrompt(SANS_AGENDA)
+    expect(p).not.toMatch(/,\s*,/)
+    expect(p).not.toMatch(/ {2,}/)
+    expect(p).not.toMatch(/,\s*\./)
+  })
+})
+
+describe('masquage par fonctionnalité — le groupement réel', () => {
+  // On ne masque JAMAIS un outil seul : `outilsMasques` part du catalogue et retire d'un
+  // bloc tous les outils rattachés au même flag. Éprouver outil par outil donnerait un
+  // faux positif — masquer `reserve_resource` sans `get_reservable_resources` laisse son
+  // nom dans le prompt, cité par la ligne de routage de son jumeau resté disponible.
+  const OUTILS_PAR_FLAG = Object.entries(FLAG_PAR_OUTIL).reduce<Record<string, string[]>>(
+    (acc, [outil, key]) => ({ ...acc, [key]: [...(acc[key] ?? []), outil] }),
+    {},
+  )
+
+  it.each(Object.entries(OUTILS_PAR_FLAG))('%s — ne laisse aucun nom d’outil', (_key, outils) => {
+    const p = construireSystemPrompt(new Set(outils))
+    for (const o of outils) expect(p).not.toContain(o)
+  })
+
+  it.each(Object.entries(OUTILS_PAR_FLAG))('%s — laisse un texte propre', (_key, outils) => {
+    const p = construireSystemPrompt(new Set(outils))
     expect(p).not.toMatch(/,\s*,/)
     expect(p).not.toMatch(/ {2,}/)
     expect(p).not.toMatch(/,\s*\./)
