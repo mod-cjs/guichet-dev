@@ -92,6 +92,18 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
     uiIds: ['ressources'],
   }),
 
+  // L'inclusion est un cas à part : on peut vouloir masquer la page de RÉGLAGES tant que
+  // le module n'est pas abouti, mais jamais cesser d'APPLIQUER les préférences déjà
+  // enregistrées. Le script d'application vit dans le layout jeune et n'est pas couvert
+  // par ce flag — un utilisateur qui a choisi le contraste élevé le conserve, même si la
+  // page qui lui a permis de le choisir disparaît. Masquer une adaptation déjà accordée
+  // reviendrait à la retirer à qui en dépend.
+  def('m2.accessibilite', 'm2', 'Réglages d’accessibilité', 'La page où l’utilisateur choisit contraste, taille de texte et animations.', {
+    userRoutes: ['/jeune/accessibilite'],
+    uiIds: ['accessibilite'],
+    closes: ['beneficiaire'],
+  }),
+
   def('m6.formations', 'm6', 'Suivi de formation', 'Le parcours de formation en ligne d’un jeune et sa progression.', {
     userRoutes: ['/jeune/mes-formations'],
     uiIds: ['formations'],

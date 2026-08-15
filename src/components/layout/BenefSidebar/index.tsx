@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import * as nav from 'next/navigation'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { filtrerSections } from '@/lib/flags/ui'
+import { filtrerSections, lienMasque } from '@/lib/flags/ui'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
 
@@ -458,6 +458,7 @@ export function BenefSidebar({
           GUIC-376). Carte gradient teal — même registre que le hero de la
           page dédiée. L'activation des réglages reste un choix réfléchi :
           la carte mène à /jeune/accessibilite, pas de panneau superposé. */}
+      {!lienMasque('/jeune/accessibilite', masques) && (
       <Link
         href="/jeune/accessibilite"
         aria-label="Inclusion & accessibilité"
@@ -549,6 +550,7 @@ export function BenefSidebar({
           <Icon name="chevron-right" size={17} />
         </span>
       </Link>
+      )}
 
       {/* GUIC-376 — Footer compte, séparé par un border-top.
           GUIC-658 — Notifications retiré (la cloche BenefTopBar reste le

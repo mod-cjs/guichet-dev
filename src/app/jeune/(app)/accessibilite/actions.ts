@@ -29,7 +29,7 @@ const prefsSchema = z
   .strict()
 
 export async function modifierPrefsAccessibilite(prefs: unknown): Promise<void> {
-  await assertFlag('m2.profil')
+  await assertFlag('m2.accessibilite')
   const session = await getSession()
   if (!session) throw new Error('UNAUTHORIZED')
 

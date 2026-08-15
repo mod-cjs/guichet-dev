@@ -122,6 +122,31 @@ describe('catalogue — règles de sûreté', () => {
   })
 })
 
+describe('catalogue — accessibilité', () => {
+  it('ne ferme que la page de réglages, jamais l’application des préférences', () => {
+    // Masquer la page où l'on CHOISIT contraste, taille de texte et animations est
+    // légitime tant que le module n'est pas abouti. Cesser d'APPLIQUER un réglage déjà
+    // enregistré ne l'est jamais : ce serait retirer une adaptation à qui en dépend.
+    //
+    // Le script d'application vit dans le layout `/jeune`. Le flag ne doit donc couvrir
+    // que la page elle-même — s'il englobait un préfixe plus large, il emporterait
+    // l'application avec les réglages.
+    const a11y = getFlagDef('m2.accessibilite')
+    expect(a11y).toBeDefined()
+    expect(a11y!.userRoutes).toEqual(['/jeune/accessibilite'])
+    for (const route of a11y!.userRoutes) {
+      expect(flagForPath('/jeune/tableau-de-bord')).not.toBe('m2.accessibilite')
+      expect(route.startsWith('/jeune/accessibilite')).toBe(true)
+    }
+  })
+
+  it('ne ferme l’accessibilité à personne d’autre qu’au bénéficiaire', () => {
+    // Un conseiller qui accompagne un jeune en situation de handicap doit continuer
+    // d'accéder aux réglages pour l'aider à les poser.
+    expect(getFlagDef('m2.accessibilite')!.closes).toEqual(['beneficiaire'])
+  })
+})
+
 describe('catalogue — couverture des espaces de travail', () => {
   /**
    * Un espace professionnel est le poste de travail de quelqu'un. Chacune de ses pages
