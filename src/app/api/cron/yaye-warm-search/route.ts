@@ -39,13 +39,6 @@ import type { ApiResponse } from '@/types/api'
 export const maxDuration = 300
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse>> {
-  // GUIC-706 — court-circuit plutôt que 404 : un 404 sur une tâche planifiée serait
-  // compté comme un échec d'exécution et déclencherait une alerte pour une fermeture
-  // pourtant volontaire.
-  if (await cronCourtCircuite('/api/cron/yaye-warm-search')) {
-    return NextResponse.json({ data: { skipped: 'fonctionnalite_masquee' } })
-  }
-
   const secret = process.env.CRON_SECRET
   const provided = request.headers.get('authorization')
 
@@ -54,6 +47,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       { error: { code: 'UNAUTHORIZED', message: 'Non autorisé' } },
       { status: 401 },
     )
+  }
+
+  // GUIC-706 — APRÈS le contrôle du secret : répondre « masqué » à un appelant non
+  // authentifié lui apprendrait qu'une fonctionnalité est fermée, et contournerait
+  // l'autorisation. Court-circuit et non 404 : un 404 serait compté comme un échec
+  // d'exécution et alerterait pour une fermeture voulue.
+  if (await cronCourtCircuite('/api/cron/yaye-warm-search')) {
+    return NextResponse.json({ data: { skipped: 'fonctionnalite_masquee' } })
   }
 
   try {
