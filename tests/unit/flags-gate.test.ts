@@ -16,6 +16,11 @@ jest.mock('@/lib/flags', () => ({ getFlags: () => mockGetFlags() }))
 const mockRecordBlock = jest.fn()
 jest.mock('@/lib/flags/metrics', () => ({ recordFlagBlock: (...a: unknown[]) => mockRecordBlock(...a) }))
 
+const mockAUnEngagement = jest.fn()
+jest.mock('@/lib/flags/engagements', () => ({
+  aUnEngagement: (...a: unknown[]) => mockAUnEngagement(...a),
+}))
+
 const mockGetSession = jest.fn()
 jest.mock('@/lib/auth', () => ({ getSession: (...a: unknown[]) => mockGetSession(...a) }))
 
@@ -40,6 +45,7 @@ beforeEach(() => {
   mockGetFlags.mockResolvedValue(catalogDefaults())
   mockGetSession.mockResolvedValue({ cjsUid: 'u1', roles: ['beneficiaire'] })
   mockRecordBlock.mockResolvedValue(undefined)
+  mockAUnEngagement.mockResolvedValue(false)
 })
 
 describe('laisser passer', () => {
@@ -147,6 +153,45 @@ describe('faces d’audience', () => {
     mockGetFlags.mockResolvedValue(masque(jeunesSeuls.key))
     mockGetSession.mockResolvedValue({ cjsUid: 'c1', roles: ['beneficiaire', 'conseiller'] })
     await expect(gateFlags(req(jeunesSeuls.userRoutes[0]))).resolves.toBeNull()
+  })
+})
+
+describe('fermeture progressive — le titulaire garde sa sortie', () => {
+  const DRAIN = FEATURE_FLAGS.find((f) => f.closeMode === 'drain' && f.drainRoutes.length > 0)!
+
+  it('laisse passer le titulaire d’un engagement sur la route de sortie', async () => {
+    // Un jeune qui a un livre chez lui doit continuer de voir sa date de retour. Sans
+    // cela, il passerait en retard sans le savoir, pour une décision d'administration.
+    mockGetFlags.mockResolvedValue(masque(DRAIN.key))
+    mockAUnEngagement.mockResolvedValue(true)
+    await expect(gateFlags(req(DRAIN.drainRoutes[0]))).resolves.toBeNull()
+  })
+
+  it('ferme la même sortie à qui n’a aucun engagement', async () => {
+    // La sortie est un droit personnel, pas une porte ouverte : elle ne doit pas devenir
+    // le contournement du masquage pour tout le monde.
+    mockGetFlags.mockResolvedValue(masque(DRAIN.key))
+    mockAUnEngagement.mockResolvedValue(false)
+    await expect(gateFlags(req(DRAIN.drainRoutes[0]))).resolves.not.toBeNull()
+  })
+
+  it('ferme l’ENTRÉE même au titulaire', async () => {
+    // On ferme ce qui crée de nouveaux engagements. Le titulaire consulte, il ne réserve
+    // plus — sinon la fermeture ne fermerait rien.
+    const entree = DRAIN.userRoutes.find((r) => !DRAIN.drainRoutes.some((d) => d.startsWith(r)))
+      ?? DRAIN.userRoutes[0]
+    if (DRAIN.drainRoutes.includes(entree)) return
+    mockGetFlags.mockResolvedValue(masque(DRAIN.key))
+    mockAUnEngagement.mockResolvedValue(true)
+    await expect(gateFlags(req(entree))).resolves.not.toBeNull()
+  })
+
+  it('ne consulte les engagements que sur une sortie', async () => {
+    // Une requête par page sur toutes les routes masquées serait un coût permanent pour
+    // un cas rare.
+    mockGetFlags.mockResolvedValue(masque(MUET.key))
+    await gateFlags(req(MUET.userRoutes[0]))
+    expect(mockAUnEngagement).not.toHaveBeenCalled()
   })
 })
 

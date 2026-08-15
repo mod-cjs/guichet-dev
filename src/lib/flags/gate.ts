@@ -11,6 +11,7 @@ import { getSession } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { getFlags } from '@/lib/flags'
 import { recordFlagBlock } from '@/lib/flags/metrics'
+import { aUnEngagement } from '@/lib/flags/engagements'
 import { flagForPath, getFlagDef, resolveAudience } from '@/lib/flags/catalog'
 
 /**
@@ -77,6 +78,18 @@ export async function gateFlags(request: NextRequest): Promise<NextResponse | nu
   // à ouvrir (§2.1).
   if (face === 'admin') return null
   if (!def.closes.includes(face)) return null
+
+  // FERMETURE PROGRESSIVE — l'entrée ferme, la sortie reste ouverte au titulaire d'un
+  // engagement en cours, et à lui seul. Un jeune qui a un livre chez lui doit continuer de
+  // voir sa date de retour : sans cela il passerait en retard sans le savoir, pour une
+  // décision d'administration.
+  //
+  // La lecture n'a lieu que sur une route de SORTIE. L'interroger sur toutes les routes
+  // masquées serait un coût permanent pour un cas rare.
+  const surSortie = def.drainRoutes.some(
+    (r) => pathname === r || pathname.startsWith(r + '/'),
+  )
+  if (surSortie && (await aUnEngagement(key, session?.cjsUid))) return null
 
   // Un accès refusé sur un module censé invisible est le seul signal de fuite disponible.
   await recordFlagBlock(key)

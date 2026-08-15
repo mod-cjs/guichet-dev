@@ -40,6 +40,7 @@ function def(
     requires: o.requires ?? [],
     closeMode: o.closeMode ?? 'sec',
     engagements: o.engagements,
+    drainRoutes: o.drainRoutes ?? [],
     // Muette par défaut : l'invisibilité est la règle, l'explication l'exception.
     silentClose: o.silentClose ?? true,
     defaultEnabled: o.defaultEnabled ?? true,
@@ -83,6 +84,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
       activeStates: ['inscrit', 'liste_attente'],
       label: 'inscriptions à des événements à venir',
     },
+    drainRoutes: ['/jeune/mes-inscriptions'],
   }),
 
   def('m6.ressources', 'm6', 'Ressources documentaires', 'Guides, articles, modèles et fiches pratiques.', {
@@ -122,6 +124,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
       activeStates: ['initie', 'en_cours', 'en_retard'],
       label: 'emprunts en cours',
     },
+    drainRoutes: ['/jeune/bibliotheque/mes-emprunts'],
   }),
 
   def('m4.carte_cjs', 'm4', 'Carte CJS', 'La carte de membre du jeune et son QR code personnel.', {
@@ -403,6 +406,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
       activeStates: ['En_attente', 'Vue'],
       label: 'candidatures en cours d’instruction',
     },
+    drainRoutes: ['/jeune/mes-candidatures'],
   }),
 
   def('m4.centres', 'm4', 'Centres CJS', 'L’annuaire des centres et leurs fiches.', {
@@ -433,6 +437,7 @@ export const FEATURE_FLAGS: readonly FeatureFlagDef[] = [
       activeStates: ['EnAttente', 'Acceptee'],
       label: 'réservations à venir',
     },
+    drainRoutes: ['/jeune/mes-reservations-centres'],
   }),
 ] as const
 

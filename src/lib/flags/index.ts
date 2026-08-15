@@ -133,14 +133,35 @@ function valideBascule(key: string, enabled: boolean, courant: FlagMap): void {
       )
     }
   } else {
-    // Symétrique : masquer un parent laisserait ses enfants dans un état inatteignable.
+    // Deux natures de blocage, rapportées ENSEMBLE plutôt qu'une à la fois : les découvrir
+    // successivement obligerait l'administrateur à retenter autant de fois qu'il reste
+    // d'obstacles, sans jamais voir l'ampleur réelle de ce qu'il demande.
+    const obstacles: string[] = []
+
+    // Un dépendant ouvert : le masquer laisserait un enfant sans parent.
     const dependants = FEATURE_FLAGS.filter(
       (f) => f.dependsOn.includes(key) && courant[f.key] === true,
     )
     if (dependants.length > 0) {
-      throw new Error(
-        `Impossible de masquer ${key} : ${dependants.map((f) => f.key).join(', ')} en dépend${dependants.length > 1 ? 'ent' : ''}.`,
+      obstacles.push(
+        `${dependants.map((f) => f.key).join(', ')} en dépend${dependants.length > 1 ? 'ent' : ''}`,
       )
+    }
+
+    // DÉPENDANCE INVERSE — `requires` dit « ce flag a besoin que tel autre reste ouvert ».
+    // Le parcours d'accueil, verrouillé, charge la liste des centres : masquer les centres
+    // casserait un parcours qu'on ne peut même pas fermer pour compenser. Et contrairement
+    // à un dépendant, aucune cascade ne peut lever cet obstacle — il faut modifier le code
+    // qui l'exige.
+    const exigeants = FEATURE_FLAGS.filter(
+      (f) => f.requires.includes(key) && courant[f.key] !== false,
+    )
+    if (exigeants.length > 0) {
+      obstacles.push(`${exigeants.map((f) => f.key).join(', ')} l’exige${exigeants.length > 1 ? 'nt' : ''}`)
+    }
+
+    if (obstacles.length > 0) {
+      throw new Error(`Impossible de masquer ${key} : ${obstacles.join(' ; ')}.`)
     }
   }
 }

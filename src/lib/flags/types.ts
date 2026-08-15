@@ -114,6 +114,16 @@ export interface FeatureFlagDef {
   /** Requis si `closeMode === 'drain'`. */
   engagements?: EngagementSource
   /**
+   * Routes de SORTIE — celles qui restent ouvertes au titulaire d'un engagement en cours,
+   * et à lui seul, une fois l'entrée fermée.
+   *
+   * Sans elles, `closeMode: 'drain'` n'est qu'une intention : rien ne dit par où un jeune
+   * consulte la date de retour du livre qu'il a chez lui. Toujours un sous-ensemble de
+   * `userRoutes` — une sortie hors périmètre serait ouverte par une autre règle, et le
+   * drain n'aurait aucun effet observable.
+   */
+  drainRoutes: string[]
+  /**
    * Fermeture muette (défaut) ou explicite.
    *
    * `true` — 404 indiscernable d'une route inexistante : l'utilisateur ignore que la

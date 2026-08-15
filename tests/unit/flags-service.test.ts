@@ -176,6 +176,27 @@ describe('setFlag — validation', () => {
   })
 })
 
+describe('setFlag — dépendance inverse', () => {
+  it('refuse de masquer une fonctionnalité qu’un flag ouvert exige', async () => {
+    // `requires` dit « ce flag a besoin que tel autre reste ouvert ». Le parcours
+    // d'accueil, verrouillé, charge la liste des centres : masquer les centres casserait
+    // un parcours qu'on ne peut même pas fermer pour compenser.
+    const exigeant = FEATURE_FLAGS.find((f) => f.requires.length > 0)
+    if (!exigeant) return
+    const exige = exigeant.requires[0]
+    await expect(setFlag(exige, false, { updatedBy: 'u1' })).rejects.toThrow()
+  })
+
+  it('nomme ce qui exige, pas seulement ce qui est refusé', async () => {
+    // Un refus qui ne dit pas d'où il vient laisse l'administrateur sans recours.
+    const exigeant = FEATURE_FLAGS.find((f) => f.requires.length > 0)
+    if (!exigeant) return
+    await expect(setFlag(exigeant.requires[0], false, { updatedBy: 'u1' })).rejects.toThrow(
+      expect.objectContaining({ message: expect.stringContaining(exigeant.key) }),
+    )
+  })
+})
+
 describe('setFlag — écriture', () => {
   it('persiste la surcharge et rend la carte à jour', async () => {
     await expect(setFlag(MASQUABLE, false, { updatedBy: 'u1', note: 'vague 1' })).resolves.toMatchObject({
