@@ -58,19 +58,19 @@ describe('GET /api/profil/activity', () => {
   it('appelle loadRecentActivity avec le limit par défaut (10) sans param', async () => {
     mockGetSession.mockResolvedValue(SESSION)
     await GET(req('http://localhost/api/profil/activity'))
-    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 10)
+    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 10, ['beneficiaire'])
   })
 
   it('parse et transmet ?limit=5', async () => {
     mockGetSession.mockResolvedValue(SESSION)
     await GET(req('http://localhost/api/profil/activity?limit=5'))
-    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 5)
+    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 5, ['beneficiaire'])
   })
 
   it('ignore un limit non-numérique et utilise le défaut', async () => {
     mockGetSession.mockResolvedValue(SESSION)
     await GET(req('http://localhost/api/profil/activity?limit=abc'))
-    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 10)
+    expect(mockLoadRecentActivity).toHaveBeenCalledWith('uid-abc', 10, ['beneficiaire'])
   })
 
   it('retourne les items dans data.items', async () => {

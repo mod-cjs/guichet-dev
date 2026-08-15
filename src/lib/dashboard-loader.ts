@@ -1,3 +1,4 @@
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
 import { prisma } from '@/lib/prisma'
 import type { ActivityItem, DashboardCounts } from '@/types/profil'
 
@@ -40,7 +41,18 @@ export function clampLimit(limit: number): number {
   return Math.floor(limit)
 }
 
-export async function loadRecentActivity(cjsUid: string, limit: number = ACTIVITY_LIMIT_DEFAULT): Promise<ActivityItem[]> {
+/** Module dont relève chaque nature d'activité. Les natures absentes ne sont jamais masquées. */
+const TYPE_ACTIVITE_FLAG: Record<string, string | undefined> = {
+  candidature: 'm3.candidatures',
+  inscription_evenement: 'm5.agenda',
+  favori_ressource: 'm3.favoris',
+}
+
+export async function loadRecentActivity(
+  cjsUid: string,
+  limit: number = ACTIVITY_LIMIT_DEFAULT,
+  roles?: readonly string[] | null,
+): Promise<ActivityItem[]> {
   const take = clampLimit(limit)
 
   // Marge : chaque source peut être dominante, on prend `take` partout puis on tronque après merge.
@@ -127,6 +139,18 @@ export async function loadRecentActivity(cjsUid: string, limit: number = ACTIVIT
     })),
   ]
 
-  items.sort((a, b) => b.date.localeCompare(a.date))
-  return items.slice(0, take)
+  // GUIC-706 — surface d'incidence : le fil d'activité agrège six sources relevant de
+  // modules différents. Une ligne « inscription à un événement » y nommerait un agenda
+  // masqué, et son lien mènerait à un 404. On filtre AVANT de tronquer, sinon les lignes
+  // retirées consommeraient des places et le fil paraîtrait plus pauvre qu'il ne l'est.
+  const masques = await masquesUtilisateur(roles)
+  const visibles = masques.length === 0
+    ? items
+    : items.filter((i) => {
+        const key = TYPE_ACTIVITE_FLAG[i.type]
+        return !key || !masques.includes(key)
+      })
+
+  visibles.sort((a, b) => b.date.localeCompare(a.date))
+  return visibles.slice(0, take)
 }
