@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
 import { RichContent } from '@/components/ui/RichContent'
 import { MembresSection, type MembreVM } from './MembresSection'
+import { FusionnerPartenaire } from './FusionnerPartenaire'
 
 export const metadata: Metadata = { title: 'Partenaire — Admin CJS' }
 
@@ -136,6 +137,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </div>
           )}
         </div>
+
+        {/* GUIC-706 (Q5) — fusion (doublon curé ↔ partenaire recruteur) */}
+        <FusionnerPartenaire sourceId={org.id} sourceNom={org.nom} />
       </div>
     </div>
   )

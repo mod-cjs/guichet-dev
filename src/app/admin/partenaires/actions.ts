@@ -326,6 +326,25 @@ export interface UtilisateurTrouve {
   statut: string
 }
 
+/** GUIC-706 (Q5) — recherche d'organisations pour une fusion (exclut la source). Bornée. */
+export interface OrganisationTrouvee {
+  id: string
+  nom: string
+  estVerifie: boolean
+}
+
+export async function rechercherOrganisations(query: string, excludeId?: string): Promise<OrganisationTrouvee[]> {
+  await assertAdmin()
+  const q = query.trim()
+  if (q.length < 2) return []
+  return prisma.organisation.findMany({
+    where: { nom: { contains: q }, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { id: true, nom: true, estVerifie: true },
+    take: 8,
+    orderBy: { nom: 'asc' },
+  })
+}
+
 export async function rechercherUtilisateurs(query: string): Promise<UtilisateurTrouve[]> {
   await assertAdmin()
   const q = query.trim()
