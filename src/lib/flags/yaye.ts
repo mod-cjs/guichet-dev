@@ -53,6 +53,24 @@ export const FLAG_PAR_OUTIL: Record<string, string> = {
 }
 
 /**
+ * Intention de `query_knowledge_graph` → fonctionnalité dont elle tire ses données.
+ *
+ * L'outil n'est pas dans `FLAG_PAR_OUTIL` : le masquer entier priverait Yaye de tout son
+ * raisonnement sur les offres dès qu'une seule bibliothèque ferme. La garde est donc posée
+ * un cran plus fin, sur l'intention.
+ *
+ * NON IMPLÉMENTÉE — la table est vide, le comportement vient au commit suivant.
+ */
+export const FLAG_PAR_INTENTION: Record<string, string> = {}
+
+/** Intentions MASQUÉES pour cet interlocuteur. NON IMPLÉMENTÉE. */
+export async function intentionsMasquees(
+  _roles: readonly string[] | null | undefined,
+): Promise<Set<string>> {
+  return new Set()
+}
+
+/**
  * Vrai si cet outil doit refuser de s'exécuter pour cet interlocuteur.
  *
  * Un visiteur sans rôle est traité en anonyme : la bulle Yaye est montée sur les pages
@@ -65,6 +83,7 @@ export const FLAG_PAR_OUTIL: Record<string, string> = {
 export async function outilMasque(
   outil: string,
   roles: readonly string[] | null | undefined,
+  _args?: Record<string, unknown>,
 ): Promise<boolean> {
   const key = FLAG_PAR_OUTIL[outil]
   if (!key) return false
