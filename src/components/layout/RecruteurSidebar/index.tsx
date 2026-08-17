@@ -2,21 +2,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { filtrerSections } from '@/lib/flags/ui'
-import { Icon, type IconName } from '@/components/ui/Icon'
-
-interface Item {
-  id: string
-  href: string
-  icon: IconName
-  label: string
-  badge?: number | null
-}
-
-interface Section {
-  title?: string
-  items: Item[]
-}
+import { Icon } from '@/components/ui/Icon'
+import type { RecruteurNavSection } from './nav'
 
 const STORAGE_KEY = 'gj-recruteur-sidebar-collapsed'
 
@@ -25,15 +12,14 @@ export interface RecruteurSidebarProps {
   companyName?: string | null
   /** Partenaire vérifié (badge). */
   verified?: boolean
-  /** Compteurs de nav (offres, candidatures à examiner, messages non lus). */
-  offresCount?: number | null
-  candidaturesCount?: number | null
-  messagesCount?: number | null
   /**
-   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur. Le filtrage se fait
-   * au rendu : côté client, la navigation complète apparaîtrait le temps du premier rendu.
+   * GUIC-706 — sections À AFFICHER, déjà filtrées par le layout serveur, compteurs inclus.
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités
+   * cachées.
    */
-  masques?: readonly string[]
+  sections?: readonly RecruteurNavSection[]
 }
 
 /**
@@ -41,7 +27,7 @@ export interface RecruteurSidebarProps {
  * Sidebar BLANCHE, accent BLEU, carte entreprise + carte « Besoin de profils ? ».
  * Calquée sur `design-guichet-v3/recruteur-shell.jsx`. Drawer mobile + collapse desktop.
  */
-export function RecruteurSidebar({ companyName, verified, offresCount, candidaturesCount, messagesCount, masques = [] }: RecruteurSidebarProps = {}) {
+export function RecruteurSidebar({ companyName, verified, sections = [] }: RecruteurSidebarProps = {}) {
   const pathname = usePathname() ?? ''
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -71,26 +57,6 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   const width = collapsed ? 64 : 256
 
-  const SECTIONS: Section[] = [
-    { items: [{ id: 'home', href: '/recruteur/tableau-de-bord', icon: 'home', label: 'Tableau de bord' }] },
-    {
-      title: 'Recrutement',
-      items: [
-        { id: 'offres', href: '/recruteur/mes-offres', icon: 'employment', label: 'Mes offres', badge: offresCount ?? null },
-        { id: 'candidatures', href: '/recruteur/candidatures', icon: 'document', label: 'Candidatures', badge: candidaturesCount ?? null },
-        { id: 'entretiens', href: '/recruteur/entretiens', icon: 'calendar', label: 'Entretiens' },
-        { id: 'modeles-emails', href: '/recruteur/modeles-emails', icon: 'resources', label: 'Modèles d’emails' },
-        { id: 'messagerie', href: '/recruteur/messagerie', icon: 'chat', label: 'Messagerie', badge: messagesCount ?? null },
-      ],
-    },
-    {
-      title: 'Entreprise',
-      items: [
-        { id: 'company', href: '/recruteur/profil-entreprise', icon: 'users', label: 'Profil entreprise' },
-        { id: 'settings', href: '/recruteur/parametres', icon: 'settings', label: 'Paramètres' },
-      ],
-    },
-  ]
 
   return (
     <>
@@ -143,7 +109,7 @@ export function RecruteurSidebar({ companyName, verified, offresCount, candidatu
 
         {/* Sections */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {filtrerSections(SECTIONS, masques).map((section, sIdx) => (
+          {sections.map((section, sIdx) => (
             <div key={section.title ?? `s-${sIdx}`}>
               {section.title && !collapsed && (
                 <div style={{ fontSize: 9.5, color: 'var(--gj-grey)', fontWeight: 800, letterSpacing: '.5px', textTransform: 'uppercase', padding: '14px 10px 5px' }}>{section.title}</div>

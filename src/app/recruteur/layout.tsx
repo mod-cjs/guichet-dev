@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { filtrerSections, lienMasque } from '@/lib/flags/ui'
+import { sectionsRecruteur } from '@/components/layout/RecruteurSidebar/nav'
+import { RECRUTEUR_PRIMAIRES, RECRUTEUR_SECONDAIRES } from '@/components/layout/bottom-nav-pro.nav'
 import { RecruteurSidebar } from '@/components/layout/RecruteurSidebar'
 import { RecruteurSearch } from '@/components/layout/RecruteurSearch'
 import { RecruteurBottomNav } from '@/components/layout/RecruteurBottomNav'
@@ -71,7 +74,14 @@ export default async function RecruteurLayout({ children }: { children: React.Re
       </div>
 
       <div className="flex min-h-screen md:h-screen md:overflow-hidden">
-        <RecruteurSidebar masques={masques} companyName={ctx.organisationNom} verified={ctx.estVerifie} candidaturesCount={nav.aExaminer} messagesCount={messagesNonLus} />
+        <RecruteurSidebar
+          companyName={ctx.organisationNom}
+          verified={ctx.estVerifie}
+          sections={filtrerSections(
+            sectionsRecruteur({ candidatures: nav.aExaminer, messages: messagesNonLus }),
+            masques,
+          )}
+        />
         <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
           {/* TopBar desktop (design v3 Lot 10) : recherche + notifications + avatar */}
           <div
@@ -90,7 +100,12 @@ export default async function RecruteurLayout({ children }: { children: React.Re
         </div>
       </div>
 
-      <RecruteurBottomNav masques={masques} candidatsBadge={nav.aExaminer} messagesBadge={messagesNonLus} />
+      <RecruteurBottomNav
+        primaires={RECRUTEUR_PRIMAIRES.filter((i) => !lienMasque(i.href, masques))}
+        secondaires={RECRUTEUR_SECONDAIRES.filter((i) => !lienMasque(i.href, masques))}
+        candidatsBadge={nav.aExaminer}
+        messagesBadge={messagesNonLus}
+      />
     </>
   )
 }

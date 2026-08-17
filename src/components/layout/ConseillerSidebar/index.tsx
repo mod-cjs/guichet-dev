@@ -1,23 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { filtrerSections } from '@/lib/flags/ui'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import type { ConseillerNavSection } from './nav'
 import { ConseillerCentreSwitcher } from '@/components/layout/ConseillerCentreSwitcher'
 import type { ConseillerCentre } from '@/lib/loaders/conseiller'
-
-interface Item {
-  id: string
-  href: string
-  icon: IconName
-  label: string
-  badge?: number | null
-}
-
-interface Section {
-  title?: string
-  items: Item[]
-}
 
 export interface ConseillerSidebarProps {
   /** Nom complet du conseiller (carte utilisateur). */
@@ -30,15 +17,14 @@ export interface ConseillerSidebarProps {
   centres: ConseillerCentre[]
   /** Centre actif. */
   activeCentreId: string
-  /** Réservations à valider (badge doré). */
-  reservationsBadge?: number | null
-  /** Messages non lus (badge doré). */
-  messagesBadge?: number | null
   /**
-   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur. Le filtrage se fait
-   * au rendu : côté client, la navigation complète apparaîtrait le temps du premier rendu.
+   * GUIC-706 — sections À AFFICHER, déjà filtrées par le layout serveur.
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités
+   * cachées. Il rend ce qu'on lui donne, sans savoir ce qui en a été retiré.
    */
-  masques?: readonly string[]
+  sections: readonly ConseillerNavSection[]
 }
 
 /**
@@ -52,39 +38,13 @@ export function ConseillerSidebar({
   initials,
   centres,
   activeCentreId,
-  reservationsBadge,
-  messagesBadge,
-  masques = [],
+  sections,
 }: ConseillerSidebarProps) {
   const pathname = usePathname() ?? ''
 
   const isActive = (href: string) =>
     href === '/conseiller' ? pathname === '/conseiller' : pathname === href || pathname.startsWith(href + '/')
 
-  const SECTIONS: Section[] = [
-    { items: [{ id: 'home', href: '/conseiller', icon: 'home', label: 'Tableau de bord' }] },
-    {
-      title: 'Activité du centre',
-      items: [
-        { id: 'resa', href: '/conseiller/reservations', icon: 'calendar', label: 'Réservations', badge: reservationsBadge ?? null },
-        { id: 'agenda', href: '/conseiller/agenda', icon: 'clock', label: 'Agenda & RDV' },
-        { id: 'checkin', href: '/conseiller/checkin', icon: 'target', label: 'Check-in présence' },
-        { id: 'messagerie', href: '/conseiller/messagerie', icon: 'chat', label: 'Messagerie', badge: messagesBadge ?? null },
-      ],
-    },
-    {
-      title: 'Gestion',
-      items: [
-        { id: 'benef', href: '/conseiller/beneficiaires', icon: 'users', label: 'Bénéficiaires' },
-        { id: 'bibliotheque', href: '/conseiller/bibliotheque', icon: 'learning', label: 'Bibliothèque' },
-        { id: 'publications', href: '/conseiller/publications', icon: 'employment', label: 'Publications' },
-      ],
-    },
-    {
-      title: 'Compte',
-      items: [{ id: 'settings', href: '/conseiller/parametres', icon: 'settings', label: 'Paramètres' }],
-    },
-  ]
 
   return (
     <>
@@ -123,7 +83,7 @@ export function ConseillerSidebar({
 
         {/* Sections */}
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {filtrerSections(SECTIONS, masques).map((section, sIdx) => (
+          {sections.map((section, sIdx) => (
             <div key={section.title ?? `s-${sIdx}`}>
               {section.title && (
                 <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)', fontWeight: 800, letterSpacing: '.5px', textTransform: 'uppercase', padding: '14px 10px 5px' }}>{section.title}</div>

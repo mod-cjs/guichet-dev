@@ -1,57 +1,28 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { lienMasque } from '@/lib/flags/ui'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import type { BottomNavItem } from './nav'
 
-interface NavItem {
-  href: string
-  icon: IconName
-  label: string
-}
-
-/**
- * 5 onglets de la nav bénéficiaire mobile — signature v5 (GUIC-689 Lot E1).
- * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
- * aucun emoji comme icône de nav.
- *
- * Conforme `design-guichet-v5/phone.jsx:181-185` (confirmé dans
- * `screens.jsx` et `mobile-flows.jsx`) : Accueil / Explorer / Candidatures /
- * Centres CJS / Profil.
- *
- * Décision produit (lead) : Agenda et Ressources quittent la bottom-nav au
- * profit de Candidatures et Profil — « Mes candidatures » est un parcours
- * central du produit qui n'était présent dans AUCUNE chrome persistante
- * mobile jusqu'ici (introuvable au doigt). Agenda/Ressources restent
- * accessibles via la sidebar desktop et les liens de contenu.
- *
- * Historique : item Profil retiré en v2 (cf ancienne note GUIC-205) puis
- * remplacé par Centres ; les deux coexistent désormais dans la signature v5
- * (5 colonnes toujours respectées).
- */
-const ITEMS: NavItem[] = [
-  { href: '/',                        icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites',            icon: 'search',   label: 'Explorer' },
-  { href: '/jeune/mes-candidatures',  icon: 'document', label: 'Candidatures' },
-  { href: '/centres',                 icon: 'pin',      label: 'Centres CJS' },
-  { href: '/jeune/mon-profil',        icon: 'user',     label: 'Profil' },
-]
 
 interface BottomNavProps {
   badges?: Partial<Record<string, number>>
   /**
-   * GUIC-706 — clés masquées pour ce visiteur, calculées côté serveur.
+   * GUIC-706 — items À AFFICHER, déjà filtrés par le serveur.
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités
+   * cachées — y compris à un visiteur anonyme.
    *
    * Trois des cinq items sont rattachés à une fonctionnalité masquable. La grille était
    * figée à cinq colonnes : retirer un item la déformait. Elle suit désormais le nombre
    * d'items réellement affichés.
    */
-  masques?: readonly string[]
+  items: readonly BottomNavItem[]
 }
 
-export function BottomNav({ badges = {}, masques = [] }: BottomNavProps) {
+export function BottomNav({ badges = {}, items }: BottomNavProps) {
   const pathname = usePathname()
-  const items = ITEMS.filter((i) => !lienMasque(i.href, masques))
 
   return (
     <nav

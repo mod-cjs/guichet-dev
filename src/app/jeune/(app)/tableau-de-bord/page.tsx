@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { estMasquee, masquesUtilisateur } from '@/lib/flags/ui-server'
+import { lienMasque } from '@/lib/flags/ui'
 import { getSession } from '@/lib/auth'
 import { loadDashboardCounts } from '@/lib/dashboard-loader'
 import { loadDashboardData } from '@/lib/loaders/dashboard'
@@ -80,7 +81,7 @@ export default async function TableauDeBordPage() {
 
   return (
     <div className="flex flex-col gap-space-5">
-      <WebDashHero masques={masques}
+      <WebDashHero opportunitesVisibles={!lienMasque('/opportunites', masques)}
         prenom={session.prenom ?? ''}
         candidaturesEnCours={counts.candidatures}
         oppsRecommandees={recoOpps.length}

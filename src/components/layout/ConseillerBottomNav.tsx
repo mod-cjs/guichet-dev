@@ -8,38 +8,31 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { lienMasque } from '@/lib/flags/ui'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import type { BottomNavItem } from './bottom-nav-pro.nav'
 
-interface NavItem { href: string; icon: IconName; label: string }
+/**
+ * GUIC-706 — items À AFFICHER, déjà filtrés par le layout serveur.
+ *
+ * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+ * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités cachées.
+ */
+interface BottomNavProProps {
+  primaires: readonly BottomNavItem[]
+  secondaires: readonly BottomNavItem[]
+}
 
-const PRIMARY: NavItem[] = [
-  { href: '/conseiller', icon: 'home', label: 'Accueil' },
-  { href: '/conseiller/reservations', icon: 'calendar', label: 'Résa' },
-  { href: '/conseiller/checkin', icon: 'target', label: 'Scan' },
-  { href: '/conseiller/messagerie', icon: 'chat', label: 'Messages' },
-]
 
-const SECONDARY: NavItem[] = [
-  { href: '/conseiller/agenda', icon: 'clock', label: 'Agenda & RDV' },
-  { href: '/conseiller/beneficiaires', icon: 'users', label: 'Bénéficiaires' },
-  { href: '/conseiller/bibliotheque', icon: 'learning', label: 'Bibliothèque' },
-  { href: '/conseiller/publications', icon: 'employment', label: 'Publications' },
-  { href: '/conseiller/notifications', icon: 'bell', label: 'Notifications' },
-  { href: '/conseiller/parametres', icon: 'settings', label: 'Paramètres' },
-]
 
 const H = 64
 const ACTIVE = 'var(--gj-teal-deep)'
 
-export function ConseillerBottomNav({ reservationsBadge = 0, messagesBadge = 0, masques = [] }: { reservationsBadge?: number; messagesBadge?: number; masques?: readonly string[] } = {}) {
+export function ConseillerBottomNav({ reservationsBadge = 0, messagesBadge = 0, primaires, secondaires }: BottomNavProProps & { reservationsBadge?: number; messagesBadge?: number }) {
   const badgeFor = (href: string) =>
     href === '/conseiller/reservations' ? reservationsBadge : href === '/conseiller/messagerie' ? messagesBadge : 0
   const pathname = usePathname() ?? ''
   // GUIC-706 — les deux niveaux sont filtrés : un item masqué ne doit pas se réfugier
   // dans le menu « Plus », qui est une navigation comme une autre.
-  const primaires = PRIMARY.filter((i) => !lienMasque(i.href, masques))
-  const secondaires = SECONDARY.filter((i) => !lienMasque(i.href, masques))
   const [plus, setPlus] = useState(false)
   const close = useCallback(() => setPlus(false), [])
 
@@ -54,7 +47,7 @@ export function ConseillerBottomNav({ reservationsBadge = 0, messagesBadge = 0, 
 
   const isActive = (href: string) =>
     href === '/conseiller' ? pathname === '/conseiller' : pathname === href || pathname.startsWith(href + '/')
-  const plusActive = SECONDARY.some((s) => isActive(s.href))
+  const plusActive = secondaires.some((s) => isActive(s.href))
 
   const itemStyle = (on: boolean): React.CSSProperties => ({
     flex: 1, background: 'transparent', border: 0, cursor: 'pointer', textDecoration: 'none',

@@ -1,13 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { lienMasque } from '@/lib/flags/ui'
 import { Icon } from '@/components/ui/Icon'
 import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 interface Props {
-  /** GUIC-706 — clés masquées pour ce visiteur (calcul serveur). */
-  masques?: readonly string[]
+  /**
+   * GUIC-706 — le bouton mène au catalogue d'opportunités. `false` le retire.
+   *
+   * Un booléen, pas une clé : les props d'un composant client sont sérialisées dans le
+   * HTML, et une clé de flag y annoncerait la fonctionnalité cachée. Un booléen ne dit rien
+   * de plus que le DOM rendu.
+   */
+  opportunitesVisibles?: boolean
   prenom:               string
   candidaturesEnCours?: number
   oppsRecommandees?:    number
@@ -23,7 +28,7 @@ interface Props {
  * GUIC-400 — le CTA "Yaye, dis-moi comment continuer" pilote le drawer
  * `YayeSidePanel` via `YayeProvider` (déjà présent dans `/jeune/(app)/layout.tsx`).
  */
-export function WebDashHero({ masques = [], 
+export function WebDashHero({ opportunitesVisibles = true, 
   prenom,
   candidaturesEnCours = 0,
   oppsRecommandees    = 0,
@@ -73,7 +78,7 @@ export function WebDashHero({ masques = [],
           )}
         </p>
         <div className="flex flex-wrap gap-space-3 mt-space-4">
-          {!lienMasque('/opportunites', masques) && (
+          {opportunitesVisibles && (
           <Link
             href="/opportunites"
             className="inline-flex items-center gap-space-2 px-space-4 py-space-3

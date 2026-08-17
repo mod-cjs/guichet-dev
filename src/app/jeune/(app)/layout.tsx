@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { filtrerSections, lienMasque } from '@/lib/flags/ui'
+import { SECTIONS_BENEF } from '@/components/layout/BenefSidebar/nav'
 import { Header } from '@/components/layout/Header'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
 import { BenefTopBar } from '@/components/layout/BenefTopBar'
@@ -76,7 +78,8 @@ export default async function JeuneLayout({ children }: { children: React.ReactN
           Wrapper sticky pour la garder visible au scroll. */}
       <div className="hidden lg:block sticky top-0 h-screen">
         <BenefSidebar
-          masques={masques}
+          sections={filtrerSections(SECTIONS_BENEF, masques)}
+          accessibiliteVisible={!lienMasque('/jeune/accessibilite', masques)}
           userName={userName || undefined}
           userMeta={userMeta}
           userInitials={userInitials || undefined}

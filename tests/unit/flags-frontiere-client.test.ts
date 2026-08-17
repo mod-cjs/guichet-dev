@@ -56,6 +56,17 @@ describe('la frontière', () => {
     expect(coupables).toEqual([])
   })
 
+  it('aucun module client n’importe une liste pilotée par le catalogue', () => {
+    // Un import de VALEUR depuis un module de définition embarque toute la liste dans le
+    // bundle, où un lecteur la comparerait au rendu pour déduire ce qui est caché. Les
+    // définitions filtrables restent côté serveur ; le composant reçoit le résultat. On ne
+    // s'en remet pas au tree-shaking : la garantie est structurelle.
+    const coupables = CLIENTS.filter(({ code }) =>
+      /^import\s+(?!type\b)\{[^}]*\}\s+from\s+['"][^'"]*nav(-liens)?['"]/m.test(code),
+    ).map((f) => f.chemin)
+    expect(coupables).toEqual([])
+  })
+
   it('aucun module client ne nomme une clé du catalogue', () => {
     // Dernier filet : une clé écrite en dur (`'m5.agenda'`) atteindrait le navigateur même
     // sans passer par une prop.
