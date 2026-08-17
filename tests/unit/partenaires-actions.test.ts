@@ -11,7 +11,7 @@ jest.mock('@/lib/prisma', () => ({ prisma: { organisation: { update: jest.fn(), 
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
-import { basculerVerifiePartenaire, modifierPartenaire, creerPartenaire } from '@/app/admin/partenaires/actions'
+import { basculerVerifiePartenaire, modifierPartenaire, creerPartenaire, basculerStatutOrganisation } from '@/app/admin/partenaires/actions'
 
 const mockSession = getSession as jest.Mock
 const mockAudit = recordAudit as jest.Mock
@@ -61,6 +61,22 @@ describe('GUIC-510 — actions partenaires', () => {
     mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
     await expect(creerPartenaire({ nom: '  ' })).rejects.toThrow()
     expect(mockPrisma.organisation.create).not.toHaveBeenCalled()
+  })
+
+  // GUIC-705 — suspension ORG-LEVEL (masque toutes les offres du partenaire)
+  it('basculerStatutOrganisation : suspendre → statut suspendue + audit partenaire.statut', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
+    await basculerStatutOrganisation('p1', 'suspendue')
+    expect(mockPrisma.organisation.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'p1' }, data: { statut: 'suspendue' } }),
+    )
+    expect(mockAudit).toHaveBeenCalledWith('admin', 'partenaire.statut', expect.any(Object))
+  })
+
+  it('basculerStatutOrganisation : non-admin → FORBIDDEN', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'j', roles: ['beneficiaire'] })
+    await expect(basculerStatutOrganisation('p1', 'suspendue')).rejects.toThrow(/FORBIDDEN/)
+    expect(mockPrisma.organisation.update).not.toHaveBeenCalled()
   })
 
   it('modifier → écrit les champs éditables + audit update', async () => {
