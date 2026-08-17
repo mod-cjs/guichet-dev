@@ -6,8 +6,8 @@ import { countUnreadMessages } from '@/lib/loaders/messagerie'
 
 /**
  * GUIC-512 — Loaders de l'Espace Recruteur/Partenaire.
- * Tout est tiré de la base : l'organisation du recruteur (via `cjsUid`), ses
- * opportunités (recruteurUid OU organisationId) et les candidatures reçues.
+ * L'organisation du recruteur vient de sa MEMBERSHIP active (GUIC-706, découplage 0..N),
+ * ses opportunités (recruteurUid OU organisationId) et les candidatures reçues.
  */
 
 export interface RecruteurContext {
@@ -19,12 +19,28 @@ export interface RecruteurContext {
   logoUrl: string | null
 }
 
-/** Contexte recruteur (org + identité) pour le chrome (sidebar/topbar). */
+const ORG_SELECT = { id: true, nom: true, estVerifie: true, logoUrl: true } as const
+
+/**
+ * Contexte recruteur (org + identité) pour le chrome (sidebar/topbar).
+ * GUIC-706 — l'org vient de `MembreOrganisation` ACTIF (0..N) : titulaire préféré si la
+ * personne est membre de plusieurs orgs. Fallback legacy `Organisation.cjsUid` conservé
+ * tant que le backfill n'a pas couvert une org (transition sûre).
+ */
 export async function getRecruteurContext(cjsUid: string): Promise<RecruteurContext> {
-  const [user, org] = await Promise.all([
+  const [user, membre] = await Promise.all([
     prisma.utilisateur.findUnique({ where: { cjsUid }, select: { prenom: true } }),
-    prisma.organisation.findFirst({ where: { cjsUid }, select: { id: true, nom: true, estVerifie: true, logoUrl: true } }),
+    prisma.membreOrganisation.findFirst({
+      where: { cjsUid, statut: 'actif' },
+      // enum RoleMembre { titulaire, recruteur } → 'asc' place titulaire en premier.
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      select: { organisation: { select: ORG_SELECT } },
+    }),
   ])
+  const org =
+    membre?.organisation ??
+    (await prisma.organisation.findFirst({ where: { cjsUid }, select: ORG_SELECT }))
+
   return {
     cjsUid,
     prenom: user?.prenom ?? '',
