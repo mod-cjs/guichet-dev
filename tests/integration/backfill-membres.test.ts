@@ -22,15 +22,19 @@ async function purge() {
 let orgAvecCompte = ''
 let orgSansCompte = ''
 let orgOrpheline = ''
+let orgAnonyme = ''
 const uid = `${PREFIX}-uid-titulaire`
+const uidAnon = `${PREFIX}-uid-anonyme`
 
 beforeAll(async () => {
   await purge()
   await prisma.utilisateur.create({ data: { cjsUid: uid, nom: `${PREFIX} Titulaire`, prenom: 'Awa' } })
+  await prisma.utilisateur.create({ data: { cjsUid: uidAnon, nom: `${PREFIX} Anonyme`, prenom: '—', statut: 'anonymise' } })
   const a = await prisma.organisation.create({ data: { nom: `${PREFIX} Avec Compte`, cjsUid: uid, statut: 'active' }, select: { id: true } })
   const s = await prisma.organisation.create({ data: { nom: `${PREFIX} Sans Compte`, cjsUid: null, statut: 'active' }, select: { id: true } })
   const o = await prisma.organisation.create({ data: { nom: `${PREFIX} Orpheline`, cjsUid: `${PREFIX}-uid-fantome`, statut: 'active' }, select: { id: true } })
-  orgAvecCompte = a.id; orgSansCompte = s.id; orgOrpheline = o.id
+  const an = await prisma.organisation.create({ data: { nom: `${PREFIX} Anonyme`, cjsUid: uidAnon, statut: 'active' }, select: { id: true } })
+  orgAvecCompte = a.id; orgSansCompte = s.id; orgOrpheline = o.id; orgAnonyme = an.id
 })
 afterAll(async () => {
   await purge()
@@ -53,6 +57,11 @@ describe('GUIC-706 — backfillMembresTitulaires (DB réelle)', () => {
 
   it('org orpheline (cjsUid sans utilisateur) → 0 membre', async () => {
     const n = await prisma.membreOrganisation.count({ where: { organisationId: orgOrpheline } })
+    expect(n).toBe(0)
+  })
+
+  it('org dont le cjsUid pointe un compte ANONYMISÉ → 0 membre (personne déliée, matrice §4)', async () => {
+    const n = await prisma.membreOrganisation.count({ where: { organisationId: orgAnonyme } })
     expect(n).toBe(0)
   })
 
