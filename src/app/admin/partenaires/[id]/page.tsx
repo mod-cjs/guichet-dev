@@ -6,15 +6,13 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { Icon } from '@/components/ui/Icon'
 import { RichContent } from '@/components/ui/RichContent'
-import { RecruteurStatutButton } from '../RecruteurStatutButton'
+import { MembresSection, type MembreVM } from './MembresSection'
 
 export const metadata: Metadata = { title: 'Partenaire — Admin CJS' }
 
 const STATUT_LABEL: Record<string, string> = {
   brouillon: 'Brouillon', publiee: 'Publiée', archivee: 'Archivée', expiree: 'Expirée',
 }
-
-const COMPTE_LABEL: Record<string, string> = { actif: 'Actif', inactif: 'Suspendu', anonymise: 'Anonymisé' }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -37,13 +35,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   })
   if (!org) notFound()
 
-  // Compte recruteur (personne) propriétaire — null si partenaire SANS compte (GUIC-705).
-  const recruteur = org.cjsUid
-    ? await prisma.utilisateur.findUnique({
-        where: { cjsUid: org.cjsUid },
+  // GUIC-706 (Phase 2b) — Membres (0..N) : rattachements + détails personne (batch par cjsUid,
+  // le lien MembreOrganisation.cjsUid → Utilisateur est logique, pas une FK Prisma).
+  const membresRaw = await prisma.membreOrganisation.findMany({
+    where: { organisationId: org.id },
+    select: { id: true, cjsUid: true, role: true, statut: true },
+    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+  })
+  const membreUsers = membresRaw.length
+    ? await prisma.utilisateur.findMany({
+        where: { cjsUid: { in: membresRaw.map((m) => m.cjsUid) } },
         select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, statut: true },
       })
-    : null
+    : []
+  const parUid = new Map(membreUsers.map((u) => [u.cjsUid, u]))
+  const membres: MembreVM[] = membresRaw.map((m) => {
+    const u = parUid.get(m.cjsUid)
+    return {
+      id: m.id,
+      cjsUid: m.cjsUid,
+      nom: u ? `${u.prenom} ${u.nom}`.trim() : m.cjsUid,
+      contact: u ? [u.email, u.telephone].filter(Boolean).join(' · ') : '',
+      role: m.role,
+      statut: m.statut,
+      personneStatut: u?.statut ?? 'inconnu',
+    }
+  })
 
   const infos = [
     ['Secteur', org.secteur?.replace(/_/g, ' ')],
@@ -96,28 +113,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           )}
         </div>
 
-        {/* Compte recruteur (personne) — partenaire = recruteur */}
-        <div className="rounded-[14px] p-[18px] mb-4" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
-          <h2 className="text-[14px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>Compte recruteur</h2>
-          {!recruteur ? (
-            <p className="text-[13px]" style={{ color: 'var(--gj-grey)' }}>Aucun compte recruteur associé (organisation sans propriétaire).</p>
-          ) : (
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[14px] font-black" style={{ color: 'var(--gj-ink)' }}>{`${recruteur.prenom} ${recruteur.nom}`.trim()}</span>
-                  <span className="inline-block rounded-full text-[10px] font-black px-[8px] py-[2px] uppercase tracking-wide" style={recruteur.statut === 'actif' ? { background: 'var(--gj-green-soft, #e6f6ec)', color: 'var(--gj-green-ink, #1a7a3d)' } : { background: 'var(--gj-line)', color: 'var(--gj-grey)' }}>
-                    {COMPTE_LABEL[recruteur.statut] ?? recruteur.statut}
-                  </span>
-                </div>
-                <p className="text-[12.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{[recruteur.email, recruteur.telephone].filter(Boolean).join(' · ') || '—'}</p>
-              </div>
-              {recruteur.statut !== 'anonymise' && (
-                <RecruteurStatutButton cjsUid={recruteur.cjsUid} actif={recruteur.statut === 'actif'} nom={`${recruteur.prenom} ${recruteur.nom}`.trim()} />
-              )}
-            </div>
-          )}
-        </div>
+        {/* GUIC-706 — Membres 0..N (remplace « Compte recruteur » 1:1) */}
+        <MembresSection organisationId={org.id} membres={membres} />
 
         <div className="rounded-[14px] p-[18px]" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)' }}>
           <h2 className="text-[14px] font-black mb-[12px]" style={{ color: 'var(--gj-ink)' }}>

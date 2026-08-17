@@ -254,6 +254,39 @@ export async function changerStatutMembre(membreId: string, statut: 'actif' | 'r
   return { ok: true }
 }
 
+/**
+ * GUIC-706 — recherche d'utilisateurs à rattacher comme membre (proxy local de `/users/find`).
+ * Cherche par nom/prénom/email/téléphone ; exclut les comptes anonymisés. Borné.
+ */
+export interface UtilisateurTrouve {
+  cjsUid: string
+  nom: string
+  prenom: string
+  email: string | null
+  telephone: string | null
+  statut: string
+}
+
+export async function rechercherUtilisateurs(query: string): Promise<UtilisateurTrouve[]> {
+  await assertAdmin()
+  const q = query.trim()
+  if (q.length < 2) return []
+  return prisma.utilisateur.findMany({
+    where: {
+      statut: { not: 'anonymise' },
+      OR: [
+        { nom: { contains: q } },
+        { prenom: { contains: q } },
+        { email: { contains: q } },
+        { telephone: { contains: q } },
+      ],
+    },
+    select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, statut: true },
+    take: 8,
+    orderBy: { nom: 'asc' },
+  })
+}
+
 // GUIC-705 — Le statut d'un COMPTE recruteur (personne) est un levier PERSONNE :
 // il passe par l'unique action canonique `changerStatutUtilisateur`
 // (`src/app/admin/utilisateurs/actions.ts`). La suspension du PARTENAIRE
