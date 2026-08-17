@@ -127,6 +127,9 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
     Prisma.sql`statut = 'publiee'`,
     Prisma.sql`deleted_at IS NULL`,
     Prisma.sql`(deadline IS NULL OR deadline >= NOW())`,
+    // GUIC-705 — gate de visibilité : un partenaire SUSPENDU masque toutes ses offres.
+    // Les offres sans organisation liée (curées non promues) restent visibles.
+    Prisma.sql`(organisation_id IS NULL OR organisation_id NOT IN (SELECT id FROM organisations WHERE statut = 'suspendue'))`,
   ]
   // GUIC-256 : multi-select via IN (...) si tableau, égalité si single.
   const domaines = asArray(f.domaine)
@@ -224,7 +227,8 @@ const DETAIL_INCLUDE = {
 /** Détail public d'une opportunité par slug, ou null si introuvable/non publiée. */
 export async function getOpportuniteDetail(slug: string): Promise<OpportuniteDetail | null> {
   const o = await prisma.opportunite.findFirst({
-    where: { slug, statut: 'publiee', deletedAt: null },
+    // GUIC-705 — gate : offre masquée si son partenaire est suspendu (org-level).
+    where: { slug, statut: 'publiee', deletedAt: null, NOT: { org: { statut: 'suspendue' } } },
     include: DETAIL_INCLUDE,
   })
   if (!o) return null
