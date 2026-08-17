@@ -12,6 +12,8 @@ jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
 jest.mock('@/lib/prisma', () => ({ prisma: { opportunite: { findUnique: jest.fn() } } }))
 jest.mock('@/lib/loaders/recruteur', () => ({ getRecruteurContext: jest.fn() }))
+// GUIC-706 — gate de publication (org active ET membre actif ET personne active) : mocké ok par défaut.
+jest.mock('@/lib/decouplage/publication-gate', () => ({ verifierGatePublication: jest.fn() }))
 jest.mock('@/lib/services/opportunite-service', () => ({
   // Arrow lazy → `mockCreate` déréférencé au runtime (const déjà initialisée).
   OpportuniteService: jest.fn().mockImplementation(() => ({ create: mockCreate })),
@@ -21,11 +23,13 @@ import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getRecruteurContext } from '@/lib/loaders/recruteur'
+import { verifierGatePublication } from '@/lib/decouplage/publication-gate'
 import { creerOffreRecruteur } from '@/app/recruteur/mes-offres/actions'
 
 const mockSession = getSession as jest.Mock
 const mockAudit = recordAudit as jest.Mock
 const mockCtx = getRecruteurContext as jest.Mock
+const mockGate = verifierGatePublication as jest.Mock
 const mockPrisma = prisma as unknown as { opportunite: { findUnique: jest.Mock } }
 
 const RECRUTEUR = { cjsUid: 'rec-1', roles: ['recruteur'] }
@@ -43,6 +47,7 @@ beforeEach(() => {
   mockPrisma.opportunite.findUnique.mockResolvedValue(null) // slug libre
   mockCreate.mockResolvedValue({ id: 'opp-1', statut: 'brouillon' })
   mockCtx.mockResolvedValue(CTX)
+  mockGate.mockResolvedValue({ ok: true })
 })
 
 describe('GUIC-490 — creerOffreRecruteur', () => {
@@ -90,6 +95,14 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockCtx.mockResolvedValue({ ...CTX, organisationId: null, organisationNom: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(creerOffreRecruteur(EMPLOI as any)).rejects.toThrow(/NO_ORGANISATION/)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('GUIC-706 — org suspendue / membre révoqué → gate bloque, aucune écriture', async () => {
+    mockSession.mockResolvedValue(RECRUTEUR)
+    mockGate.mockResolvedValue({ ok: false, raison: 'ORG_SUSPENDUE' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(creerOffreRecruteur(EMPLOI as any)).rejects.toThrow(/ORG_SUSPENDUE/)
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
