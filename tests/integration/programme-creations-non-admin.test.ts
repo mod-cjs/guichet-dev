@@ -76,7 +76,7 @@ describe('GUIC-684 — offre créée par un recruteur', () => {
     type: 'stage' as const,
     titre: `${PREFIX}Stage recruteur`,
     description: 'Fixture intégration.',
-    domaine: 'Numerique' as const,
+    domaine: 'Economie' as const,
     region: 'Dakar' as const,
     dureeMois: 6,
   }

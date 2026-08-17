@@ -15,7 +15,7 @@ import { htmlToPlainText } from '@/lib/rich-html'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
-const DOMAINES = ['Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre'] as const
+const DOMAINES = ['Economie', 'Economie', 'Economie', 'Citoyennete', 'Ecologie', 'BienEtre', 'Employabilite', 'Culture', 'Autre'] as const
 const REGIONS = ['Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou'] as const
 
 async function assertRecruteur(): Promise<CJSSession> {

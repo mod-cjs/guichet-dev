@@ -169,15 +169,18 @@ enum TypeVolontariat {
   @@map("type_volontariat")
 }
 
+/// Taxonomie des domaines — refonte PO du 2026-08-17 : neuf valeurs deviennent six.
+/// Vocabulaire, libellés et correspondance : `src/lib/domaines.ts` (source unique).
 enum Domaine {
-  Agriculture
-  Numerique
-  Entrepreneuriat
+  BienEtre
   Citoyennete
-  Environnement
-  Sante
-  Education
   Culture
+  Ecologie
+  Economie
+  Employabilite
+  /// Repli TECHNIQUE, jamais proposé à l'utilisateur : `domaineOuAutre()` s'en
+  /// sert quand la curation extrait un domaine non reconnu. Le supprimer ferait
+  /// échouer la publication d'un item mal étiqueté.
   Autre
 
   @@map("domaine")

@@ -29,7 +29,7 @@ function make(over: Partial<CandidatureDetailDTO> = {}): CandidatureDetailDTO {
       organisation: 'Sonatel',
       deadline: '2026-06-30T23:59:59.000Z',
       type: 'Stage',
-      domaine: 'Numerique',
+      domaine: 'Economie',
       region: 'Dakar',
       remuneration: null,
       description: 'Mission analytics…',

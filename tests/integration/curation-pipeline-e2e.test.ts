@@ -90,7 +90,7 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     const payload = item?.payloadExtrait as Record<string, unknown>
     expect(payload.organisation).toBe('ONG Teranga')
     expect(payload.region).toBe('Dakar') // mappé sur l'enum
-    expect(payload.domaine).toBe('Numerique') // Informatique → Numerique
+    expect(payload.domaine).toBe('Economie') // Informatique → Numerique
     expect(payload.typeId).toBe(typeEmploi!.id) // du typeDefaut source
 
     // ── US-4 : DÉDUPLICATION (annonce unique → reste a_valider) ────────────

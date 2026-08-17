@@ -49,7 +49,7 @@ async function itemApprouve(sourceId: string, payloadOver: Record<string, unknow
         description: 'Poste basé à Dakar.',
         organisation: 'ONG Teranga',
         region: 'Dakar',
-        domaine: 'Numerique',
+        domaine: 'Economie',
         typeId: TYPE_EMPLOI,
         deadline: '2026-12-31',
         ...payloadOver,
@@ -118,7 +118,7 @@ describe('GUIC-601 — publierItem', () => {
     expect(opp?.titre).toBe(`${PREFIX} Assistant logistique`)
     expect(opp?.organisationLibelle).toBe('ONG Teranga')
     expect(opp?.region).toBe('Dakar')
-    expect(opp?.domaine).toBe('Numerique')
+    expect(opp?.domaine).toBe('Economie')
     expect(opp?.lienExterne).toBe(it.urlCanonique) // traçabilité vers la source
     expect(opp?.typeRef?.slug).toBe('emploi')
     expect(opp?.emploi).not.toBeNull() // sous-type minimal créé

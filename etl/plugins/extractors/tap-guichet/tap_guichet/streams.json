@@ -292,14 +292,12 @@
               "string"
             ],
             "enum": [
-              "Agriculture",
-              "Numerique",
-              "Entrepreneuriat",
+              "BienEtre",
               "Citoyennete",
-              "Environnement",
-              "Sante",
-              "Education",
               "Culture",
+              "Ecologie",
+              "Economie",
+              "Employabilite",
               "Autre"
             ],
             "description": "Secteur d'activité : agriculture, numérique, entrepreneuriat, citoyenneté, environnement, santé, éducation, culture, autre.",

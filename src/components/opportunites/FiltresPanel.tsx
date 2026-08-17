@@ -3,6 +3,8 @@ import { Icon, Chip } from '@/components/ui'
 import { typeLabel } from './OpportuniteTypeChip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import type { OpportuniteSortBy } from '@/types/opportunite'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
+import type { Domaine } from '@prisma/client'
 
 /** Valeurs des filtres pilotées par le parent (état dans l'URL). */
 export interface FiltresValue {
@@ -43,18 +45,9 @@ export interface FiltresPanelProps {
   programmes?: { slug: string; nom: string }[]
 }
 
-// Valeurs d'enum (alignées sur prisma/schema.prisma) — figées côté client.
-const DOMAINES = [
-  'Agriculture',
-  'Numerique',
-  'Entrepreneuriat',
-  'Citoyennete',
-  'Environnement',
-  'Sante',
-  'Education',
-  'Culture',
-  'Autre',
-] as const
+// GUIC-689 — vocabulaire lu depuis la source unique `@/lib/domaines`. Il était
+// recopié ici : cinq copies d'une même liste dérivent tôt ou tard.
+const DOMAINES = DOMAINES_VISIBLES
 
 const TYPES = [
   'Emploi',
@@ -65,21 +58,9 @@ const TYPES = [
   'Appel_a_projets',
 ] as const
 
-/** Mapping enrichi des libellés de domaine — valeur enum inchangée, label enrichi. */
-const DOMAINE_LABELS: Record<string, string> = {
-  Agriculture:    'Agriculture & élevage',
-  Numerique:      'Numérique / Tech',
-  Entrepreneuriat: 'Entrepreneuriat',
-  Citoyennete:    'Citoyenneté',
-  Environnement:  'Environnement',
-  Sante:          'Santé',
-  Education:      'Éducation',
-  Culture:        'Culture',
-  Autre:          'Autre',
-}
 
 function humanizeDomaine(value: string): string {
-  return DOMAINE_LABELS[value] ?? value.replace(/_/g, ' ')
+  return libelleDomaine(value as Domaine)
 }
 
 /**

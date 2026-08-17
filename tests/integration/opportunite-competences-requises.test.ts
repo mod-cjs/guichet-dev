@@ -50,7 +50,7 @@ const offre = {
   type: 'stage' as const,
   titre: `${PREFIX}Stage`,
   description: 'Fixture intégration.',
-  domaine: 'Numerique' as const,
+  domaine: 'Economie' as const,
   region: 'Dakar' as const,
   dureeMois: 6,
   programmeSlugs: ['yjc'],

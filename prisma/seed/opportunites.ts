@@ -20,29 +20,29 @@ type Entry = [
 
 const ENTRIES: Entry[] = [
   // Agriculture
-  ['Stage en maraîchage irrigué', 'Stage', 'Agriculture', 'Saint_Louis', 'Ferme Agricole de Ngalèle', '80 000 FCFA/mois'],
-  ['Technicien en aviculture', 'Emploi', 'Agriculture', 'Thies', 'GIE Agropole Sud', 'Salaire négociable'],
-  ["Formation à l'agroécologie", 'Formation', 'Agriculture', 'Fatick', 'SOS Sahel', null],
-  ['Appel à projets agritech', 'Appel_a_projets', 'Agriculture', 'Dakar', 'Délégation à l’Entrepreneuriat Rapide (DER/FJ)', "Jusqu'à 5 000 000 FCFA"],
-  ['Volontariat reboisement agricole', 'Volontariat', 'Agriculture', 'Kaffrine', 'Enda Tiers Monde', 'Non rémunéré'],
-  ['Bourse de formation agropastorale', 'Bourse', 'Agriculture', 'Matam', 'PNUD Sénégal', 'Bourse complète'],
+  ['Stage en maraîchage irrigué', 'Stage', 'Economie', 'Saint_Louis', 'Ferme Agricole de Ngalèle', '80 000 FCFA/mois'],
+  ['Technicien en aviculture', 'Emploi', 'Economie', 'Thies', 'GIE Agropole Sud', 'Salaire négociable'],
+  ["Formation à l'agroécologie", 'Formation', 'Economie', 'Fatick', 'SOS Sahel', null],
+  ['Appel à projets agritech', 'Appel_a_projets', 'Economie', 'Dakar', 'Délégation à l’Entrepreneuriat Rapide (DER/FJ)', "Jusqu'à 5 000 000 FCFA"],
+  ['Volontariat reboisement agricole', 'Volontariat', 'Economie', 'Kaffrine', 'Enda Tiers Monde', 'Non rémunéré'],
+  ['Bourse de formation agropastorale', 'Bourse', 'Economie', 'Matam', 'PNUD Sénégal', 'Bourse complète'],
 
   // Numérique
-  ['Développeur web junior', 'Emploi', 'Numerique', 'Dakar', 'CTIC Dakar', '350 000 FCFA/mois'],
-  ['Stage data et analyse', 'Stage', 'Numerique', 'Dakar', 'Sonatel', '100 000 FCFA/mois'],
-  ['Formation développeur full-stack', 'Formation', 'Numerique', 'Thies', 'Simplon Sénégal', null],
-  ['Bourse école du code', 'Bourse', 'Numerique', 'Dakar', 'Orange Sénégal', 'Bourse complète'],
-  ['Appel à projets fintech jeunes', 'Appel_a_projets', 'Numerique', 'Dakar', 'Wave Mobile Money', "Jusqu'à 3 000 000 FCFA"],
-  ['Technicien support informatique', 'Emploi', 'Numerique', 'Ziguinchor', 'Baobab+', 'Salaire négociable'],
-  ['Volontariat médiation numérique', 'Volontariat', 'Numerique', 'Louga', 'Conseil National de la Jeunesse', 'Indemnité de transport'],
+  ['Développeur web junior', 'Emploi', 'Economie', 'Dakar', 'CTIC Dakar', '350 000 FCFA/mois'],
+  ['Stage data et analyse', 'Stage', 'Economie', 'Dakar', 'Sonatel', '100 000 FCFA/mois'],
+  ['Formation développeur full-stack', 'Formation', 'Economie', 'Thies', 'Simplon Sénégal', null],
+  ['Bourse école du code', 'Bourse', 'Economie', 'Dakar', 'Orange Sénégal', 'Bourse complète'],
+  ['Appel à projets fintech jeunes', 'Appel_a_projets', 'Economie', 'Dakar', 'Wave Mobile Money', "Jusqu'à 3 000 000 FCFA"],
+  ['Technicien support informatique', 'Emploi', 'Economie', 'Ziguinchor', 'Baobab+', 'Salaire négociable'],
+  ['Volontariat médiation numérique', 'Volontariat', 'Economie', 'Louga', 'Conseil National de la Jeunesse', 'Indemnité de transport'],
 
   // Entrepreneuriat
-  ['Incubation de startups jeunes', 'Appel_a_projets', 'Entrepreneuriat', 'Dakar', 'Délégation à l’Entrepreneuriat Rapide (DER/FJ)', 'Financement et accompagnement'],
-  ["Formation création d'entreprise", 'Formation', 'Entrepreneuriat', 'Kaolack', 'ANPEJ', null],
-  ['Conseiller en microfinance', 'Emploi', 'Entrepreneuriat', 'Diourbel', 'Crédit Mutuel du Sénégal', 'Salaire selon profil'],
-  ['Stage gestion de coopérative', 'Stage', 'Entrepreneuriat', 'Kolda', 'GIE Agropole Sud', '60 000 FCFA/mois'],
-  ['Bourse entrepreneuriat féminin', 'Bourse', 'Entrepreneuriat', 'Sedhiou', 'ONG Aide et Action', 'Bourse et capital de démarrage'],
-  ['Appel à projets économie sociale', 'Appel_a_projets', 'Entrepreneuriat', 'Tambacounda', 'PNUD Sénégal', "Jusqu'à 2 000 000 FCFA"],
+  ['Incubation de startups jeunes', 'Appel_a_projets', 'Economie', 'Dakar', 'Délégation à l’Entrepreneuriat Rapide (DER/FJ)', 'Financement et accompagnement'],
+  ["Formation création d'entreprise", 'Formation', 'Economie', 'Kaolack', 'ANPEJ', null],
+  ['Conseiller en microfinance', 'Emploi', 'Economie', 'Diourbel', 'Crédit Mutuel du Sénégal', 'Salaire selon profil'],
+  ['Stage gestion de coopérative', 'Stage', 'Economie', 'Kolda', 'GIE Agropole Sud', '60 000 FCFA/mois'],
+  ['Bourse entrepreneuriat féminin', 'Bourse', 'Economie', 'Sedhiou', 'ONG Aide et Action', 'Bourse et capital de démarrage'],
+  ['Appel à projets économie sociale', 'Appel_a_projets', 'Economie', 'Tambacounda', 'PNUD Sénégal', "Jusqu'à 2 000 000 FCFA"],
 
   // Citoyenneté
   ['Volontariat civique communautaire', 'Volontariat', 'Citoyennete', 'Kaffrine', 'Conseil National de la Jeunesse', 'Indemnité mensuelle'],
@@ -52,26 +52,26 @@ const ENTRIES: Entry[] = [
   ['Appel à projets engagement citoyen', 'Appel_a_projets', 'Citoyennete', 'Thies', 'Consortium Jeunesse Sénégal', "Jusqu'à 1 500 000 FCFA"],
 
   // Environnement
-  ['Technicien gestion des déchets', 'Emploi', 'Environnement', 'Dakar', 'SOS Sahel', 'Salaire négociable'],
-  ['Volontariat protection du littoral', 'Volontariat', 'Environnement', 'Ziguinchor', 'Enda Tiers Monde', 'Non rémunéré'],
-  ['Formation énergies renouvelables', 'Formation', 'Environnement', 'Thies', 'ISEP de Thiès', null],
-  ['Bourse master environnement', 'Bourse', 'Environnement', 'Dakar', 'Université Cheikh Anta Diop', 'Bourse complète'],
-  ['Stage suivi de la biodiversité', 'Stage', 'Environnement', 'Tambacounda', 'PNUD Sénégal', '70 000 FCFA/mois'],
+  ['Technicien gestion des déchets', 'Emploi', 'Ecologie', 'Dakar', 'SOS Sahel', 'Salaire négociable'],
+  ['Volontariat protection du littoral', 'Volontariat', 'Ecologie', 'Ziguinchor', 'Enda Tiers Monde', 'Non rémunéré'],
+  ['Formation énergies renouvelables', 'Formation', 'Ecologie', 'Thies', 'ISEP de Thiès', null],
+  ['Bourse master environnement', 'Bourse', 'Ecologie', 'Dakar', 'Université Cheikh Anta Diop', 'Bourse complète'],
+  ['Stage suivi de la biodiversité', 'Stage', 'Ecologie', 'Tambacounda', 'PNUD Sénégal', '70 000 FCFA/mois'],
 
   // Santé
-  ['Agent communautaire de santé', 'Emploi', 'Sante', 'Matam', 'ONG Aide et Action', 'Salaire négociable'],
-  ['Stage en santé publique', 'Stage', 'Sante', 'Dakar', 'PNUD Sénégal', '90 000 FCFA/mois'],
-  ['Formation aux premiers secours', 'Formation', 'Sante', 'Louga', 'SOS Sahel', null],
-  ['Volontariat sensibilisation nutrition', 'Volontariat', 'Sante', 'Kolda', 'Enda Tiers Monde', 'Indemnité de transport'],
-  ['Bourse de formation infirmier', 'Bourse', 'Sante', 'Saint_Louis', 'Université Cheikh Anta Diop', 'Bourse partielle'],
+  ['Agent communautaire de santé', 'Emploi', 'BienEtre', 'Matam', 'ONG Aide et Action', 'Salaire négociable'],
+  ['Stage en santé publique', 'Stage', 'BienEtre', 'Dakar', 'PNUD Sénégal', '90 000 FCFA/mois'],
+  ['Formation aux premiers secours', 'Formation', 'BienEtre', 'Louga', 'SOS Sahel', null],
+  ['Volontariat sensibilisation nutrition', 'Volontariat', 'BienEtre', 'Kolda', 'Enda Tiers Monde', 'Indemnité de transport'],
+  ['Bourse de formation infirmier', 'Bourse', 'BienEtre', 'Saint_Louis', 'Université Cheikh Anta Diop', 'Bourse partielle'],
 
   // Éducation
-  ['Enseignant vacataire de mathématiques', 'Emploi', 'Education', 'Diourbel', 'ONG Aide et Action', 'Salaire horaire'],
-  ['Stage assistant pédagogique', 'Stage', 'Education', 'Dakar', 'Simplon Sénégal', '60 000 FCFA/mois'],
-  ['Formation de formateurs', 'Formation', 'Education', 'Kaolack', 'Consortium Jeunesse Sénégal', null],
-  ["Bourse d'excellence universitaire", 'Bourse', 'Education', 'Dakar', 'Université Cheikh Anta Diop', 'Bourse complète'],
-  ['Volontariat alphabétisation', 'Volontariat', 'Education', 'Fatick', 'Enda Tiers Monde', 'Indemnité mensuelle'],
-  ['Appel à projets éducation rurale', 'Appel_a_projets', 'Education', 'Sedhiou', 'PNUD Sénégal', "Jusqu'à 2 000 000 FCFA"],
+  ['Enseignant vacataire de mathématiques', 'Emploi', 'Employabilite', 'Diourbel', 'ONG Aide et Action', 'Salaire horaire'],
+  ['Stage assistant pédagogique', 'Stage', 'Employabilite', 'Dakar', 'Simplon Sénégal', '60 000 FCFA/mois'],
+  ['Formation de formateurs', 'Formation', 'Employabilite', 'Kaolack', 'Consortium Jeunesse Sénégal', null],
+  ["Bourse d'excellence universitaire", 'Bourse', 'Employabilite', 'Dakar', 'Université Cheikh Anta Diop', 'Bourse complète'],
+  ['Volontariat alphabétisation', 'Volontariat', 'Employabilite', 'Fatick', 'Enda Tiers Monde', 'Indemnité mensuelle'],
+  ['Appel à projets éducation rurale', 'Appel_a_projets', 'Employabilite', 'Sedhiou', 'PNUD Sénégal', "Jusqu'à 2 000 000 FCFA"],
 
   // Culture
   ['Médiateur culturel', 'Emploi', 'Culture', 'Saint_Louis', 'Conseil National de la Jeunesse', 'Salaire négociable'],

@@ -5,6 +5,7 @@ import { Button, Sheet } from '@/components/ui'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import { typeLabel } from './OpportuniteTypeChip'
 import type { FiltresValue } from './FiltresPanel'
+import { DOMAINES_VISIBLES } from '@/lib/domaines'
 
 /**
  * Bottom-sheet de filtres du catalogue d'opportunités — mobile (GUIC-188).
@@ -30,17 +31,8 @@ const TYPES: TypeOpportunite[] = [
   'Appel_a_projets',
 ]
 
-const DOMAINES: Domaine[] = [
-  'Agriculture',
-  'Numerique',
-  'Entrepreneuriat',
-  'Citoyennete',
-  'Environnement',
-  'Sante',
-  'Education',
-  'Culture',
-  'Autre',
-]
+// GUIC-689 — source unique (cf. `@/lib/domaines`).
+const DOMAINES: readonly Domaine[] = DOMAINES_VISIBLES
 
 export interface OpportunitesFiltersSheetProps {
   isOpen: boolean

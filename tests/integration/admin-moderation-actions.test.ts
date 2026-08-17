@@ -37,7 +37,7 @@ async function makeBrouillon(): Promise<string> {
       description: 'Fixture intégration GUIC-462.',
       type: 'Bourse',
       organisation: 'Org Test',
-      domaine: 'Entrepreneuriat',
+      domaine: 'Economie',
       statut: 'brouillon',
     },
     select: { id: true },

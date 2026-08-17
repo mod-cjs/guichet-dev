@@ -19,9 +19,12 @@ import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import { generateUniqueSlug } from '@/lib/slug'
 import { assertAuMoinsUnProgramme } from '@/lib/programmes/rattachement'
 import type { CJSSession } from '@/types/user'
+import { DOMAINES_VISIBLES } from '@/lib/domaines'
 
 // ── Enums (miroir prisma/schema.prisma) ─────────────────────────────────────────
-const DOMAINES = ['Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre'] as const
+// GUIC-689 — plus de miroir manuel de l'enum : source unique `@/lib/domaines`.
+// `Autre` est exclu volontairement — un recruteur ne dépose pas « non classé ».
+const DOMAINES = DOMAINES_VISIBLES
 const REGIONS = ['Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou'] as const
 const NIVEAUX = ['BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT'] as const
 const TYPE_CONTRAT = ['CDI', 'CDD', 'FREELANCE', 'ALTERNANCE', 'STAGE_ALTERNE'] as const

@@ -31,7 +31,7 @@ jest.mock('@/lib/opportunites-loader', () => ({
 
 /** Une valeur d'exemple valide par clé — utilisée pour construire l'URL de test. */
 const SAMPLE_VALUES: Record<(typeof FILTER_PARAM_KEYS)[number], string> = {
-  domaine: 'Numerique',
+  domaine: 'Economie',
   type: 'Emploi',
   region: 'Thies',
   programme: 'yeah',

@@ -25,7 +25,7 @@ const ITEM = {
   slug: 'stage-agriculture',
   titre: 'Stage en agriculture',
   type: 'Stage',
-  domaine: 'Agriculture',
+  domaine: 'Economie',
   region: 'Dakar',
   organisation: 'CJS',
   remuneration: null,
@@ -62,10 +62,10 @@ describe('GET /api/opportunites', () => {
   })
 
   it('transmet les filtres, la recherche, le tri et la page au loader', async () => {
-    await route.GET(req('?q=stage&domaine=Numerique&type=Emploi&region=Thies&sort_by=deadline&page=2'))
+    await route.GET(req('?q=stage&domaine=Economie&type=Emploi&region=Thies&sort_by=deadline&page=2'))
     expect(mockListOpportunites).toHaveBeenCalledWith({
       q: 'stage',
-      domaine: 'Numerique',
+      domaine: 'Economie',
       type: 'Emploi',
       region: 'Thies',
       page: 2,

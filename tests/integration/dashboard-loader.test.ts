@@ -51,8 +51,11 @@ describe('loadDashboardData', () => {
     const call = mockOpportuniteFindMany.mock.calls[0][0]
     expect(call.where.statut).toBe('publiee')
     expect(call.where.deletedAt).toBeNull()
-    // Whitelist enum Domaine : "Numérique" (accent) doit être normalisé vers "Numerique" (enum Prisma)
-    expect(call.where.domaine).toEqual({ in: ['Numerique', 'Agriculture'] })
+    // GUIC-689 — « Numérique » et « Agriculture » sont du TEXTE LIBRE saisi à
+    // l'onboarding. Ils ne correspondent plus à aucune valeur d'enum depuis la
+    // refonte de taxonomie : le normaliseur par mots-clés les ramène tous deux
+    // sur `Economie`, dédoublonné. Sans lui, ce filtre serait devenu muet.
+    expect(call.where.domaine).toEqual({ in: ['Economie'] })
     expect(call.take).toBe(5)
   })
 
@@ -65,7 +68,7 @@ describe('loadDashboardData', () => {
         slug:      'bourse-agri',
         titre:     'Bourse Agri',
         type:      'Bourse',
-        domaine:   'Agriculture',
+        domaine:   'Economie',
         region:    'Tambacounda',
         organisation: 'ANIDA',
         organisationLibelle: null,
@@ -149,7 +152,7 @@ describe('loadDashboardData', () => {
         id:       'cand-2',
         statut:   'Retenue',
         soumiseA: new Date('2026-04-02T09:00:00Z'),
-        opportunite: { titre: 'Bourse UCAD', deadline: null, domaine: 'Education' },
+        opportunite: { titre: 'Bourse UCAD', deadline: null, domaine: 'Employabilite' },
       },
     ])
 

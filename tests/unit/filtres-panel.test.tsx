@@ -180,17 +180,17 @@ describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
   })
 
   // F19 — Labels domaine enrichis
-  it('F19 : "Numerique" est affiché comme "Numérique / Tech"', () => {
+  it('F19 : les domaines sont affichés avec leur libellé accentué', () => {
     setup()
-    expect(screen.getByLabelText('Numérique / Tech')).toBeInTheDocument()
+    expect(screen.getByLabelText('Économie')).toBeInTheDocument()
     // Le label brut ne doit pas apparaître
-    expect(screen.queryByLabelText('Numerique')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Economie')).not.toBeInTheDocument()
   })
 
-  it('F19 : "Agriculture" est affiché comme "Agriculture & élevage"', () => {
+  it('F19 : un domaine renommé porte bien son nouveau libellé', () => {
     setup()
-    expect(screen.getByLabelText('Agriculture & élevage')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Agriculture')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Écologie')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ecologie')).not.toBeInTheDocument()
   })
 
   // F23 — Icône filtre dans l'en-tête

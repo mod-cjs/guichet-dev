@@ -32,16 +32,27 @@ const REGIONS: Record<string, Region> = {
   sedhiou: Region.Sedhiou,
 }
 
-/** Synonymes/mots-clés → domaine. Le premier trouvé dans le texte l'emporte. */
+/**
+ * Synonymes/mots-clés → domaine. Le premier trouvé dans le texte l'emporte,
+ * d'où l'ordre : du plus spécifique au plus large.
+ *
+ * GUIC-689 — réécrite pour la taxonomie à six catégories. Trois anciens
+ * domaines (numérique, agriculture, entrepreneuriat) fusionnent dans
+ * `Economie`, qui devient le plus large : il passe donc en dernier.
+ *
+ * « bourse » a été RETIRÉ des mots-clés : c'est un TYPE d'offre, pas un thème.
+ * Il envoyait une bourse agricole vers l'éducation, quel que soit son sujet.
+ */
 const DOMAINES: Array<[RegExp, Domaine]> = [
-  [/informatique|numerique|digital|tech|logiciel|data|developpeur|web/, Domaine.Numerique],
-  [/agricole|agriculture|elevage|peche|agro/, Domaine.Agriculture],
-  [/entrepreneur|entreprise|startup|business|commerce|gestion/, Domaine.Entrepreneuriat],
-  [/citoyen|civique|gouvernance|droits/, Domaine.Citoyennete],
-  [/environnement|climat|ecologie|energie|dechet/, Domaine.Environnement],
-  [/sante|medical|medecine|infirmier|soin/, Domaine.Sante],
-  [/education|formation|enseignement|scolaire|pedagog|bourse|etudes?/, Domaine.Education],
-  [/culture|art|musique|patrimoine|cinema/, Domaine.Culture],
+  [/\bsante|medical|medecine|infirmier|soin|bien-?etre|mental|psycho/, Domaine.BienEtre],
+  [/citoyen|civique|gouvernance|droits|benevol/, Domaine.Citoyennete],
+  // `\b` obligatoire : sans lui, « agriculture » contient « culture » et une
+  // offre agricole partait en Culture. L'ancien ordre masquait le piège —
+  // Agriculture était testé avant. On ne s'appuie plus sur l'ordre pour ça.
+  [/\bculture|\bart\b|\barts\b|musique|patrimoine|cinema/, Domaine.Culture],
+  [/environnement|climat|\becologie|energie|dechet|biodiversite/, Domaine.Ecologie],
+  [/education|formation|enseignement|scolaire|pedagog|insertion|orientation|employabilite/, Domaine.Employabilite],
+  [/informatique|numerique|digital|tech|logiciel|data|developpeur|web|agricole|agriculture|elevage|peche|agro|entrepreneur|entreprise|startup|business|commerce|gestion|finance/, Domaine.Economie],
 ]
 
 export function mapperRegion(texte: string | undefined): Region | undefined {

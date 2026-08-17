@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/Button'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { modifierPartenaire } from './actions'
 import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 const opt = (...v: string[]) => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
-const DOMAINES = opt('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
+// GUIC-689 — idem : liste non typée, remplacée par la source unique.
+const DOMAINES = DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) }))
 const REGIONS = opt('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou')
 
 export interface PartenaireValues {

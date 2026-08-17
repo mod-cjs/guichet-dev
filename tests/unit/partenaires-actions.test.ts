@@ -55,7 +55,7 @@ describe('GUIC-510 — actions partenaires', () => {
   it('modifier → écrit les champs éditables + audit update', async () => {
     mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await modifierPartenaire('p1', { nom: 'Sonatel', secteur: 'Numerique', email: 'rh@sonatel.sn' } as any)
+    await modifierPartenaire('p1', { nom: 'Sonatel', secteur: 'Economie', email: 'rh@sonatel.sn' } as any)
     const call = mockPrisma.organisation.update.mock.calls[0][0]
     expect(call.where).toEqual({ id: 'p1' })
     expect(call.data.nom).toBe('Sonatel')
