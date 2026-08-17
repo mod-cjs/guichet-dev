@@ -189,30 +189,8 @@ export async function promouvoirEmployeur(input: {
   return { organisationId: orgId }
 }
 
-/**
- * Activer / suspendre le COMPTE recruteur (personne) propriétaire du partenaire.
- * Partenaire = recruteur : on gère l'organisation ET son compte au même endroit.
- * Bascule `Utilisateur.statut` actif ↔ inactif ; ne touche jamais `anonymise`.
- * Attribution de rôle = SSO (`cjs_auth`).
- */
-export async function basculerStatutRecruteur(
-  cjsUid: string,
-  actif: boolean,
-  organisationId?: string,
-): Promise<{ ok: true }> {
-  const session = await assertAdmin()
-  const uid = idSchema.parse(cjsUid)
-
-  const user = await prisma.utilisateur.findUnique({ where: { cjsUid: uid }, select: { statut: true } })
-  if (!user) throw new Error('NOT_FOUND')
-  if (user.statut === 'anonymise') throw new Error('COMPTE_ANONYMISE')
-
-  await prisma.utilisateur.update({ where: { cjsUid: uid }, data: { statut: actif ? 'actif' : 'inactif' } })
-  await recordAudit(session.cjsUid, 'recruteur.statut', {
-    targetType: 'utilisateur',
-    targetId: uid,
-    meta: { statut: actif ? 'actif' : 'inactif' },
-  })
-  revalidate(organisationId)
-  return { ok: true }
-}
+// GUIC-705 — Le statut d'un COMPTE recruteur (personne) est un levier PERSONNE :
+// il passe par l'unique action canonique `changerStatutUtilisateur`
+// (`src/app/admin/utilisateurs/actions.ts`). La suspension du PARTENAIRE
+// (masque ses offres) est le levier ORG distinct `basculerStatutOrganisation`
+// ci-dessus. L'ancien doublon `basculerStatutRecruteur` a été supprimé.

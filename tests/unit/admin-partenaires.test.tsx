@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 jest.mock('@/app/admin/partenaires/actions', () => ({
   basculerVerifiePartenaire: jest.fn().mockResolvedValue({ ok: true }),
   modifierPartenaire: jest.fn().mockResolvedValue({ ok: true }),
-  basculerStatutRecruteur: jest.fn().mockResolvedValue({ ok: true }),
   creerPartenaire: jest.fn().mockResolvedValue({ id: 'new-org' }),
 }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }))

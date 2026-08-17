@@ -113,7 +113,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 <p className="text-[12.5px] mt-[3px]" style={{ color: 'var(--gj-grey)' }}>{[recruteur.email, recruteur.telephone].filter(Boolean).join(' · ') || '—'}</p>
               </div>
               {recruteur.statut !== 'anonymise' && (
-                <RecruteurStatutButton cjsUid={recruteur.cjsUid} organisationId={org.id} actif={recruteur.statut === 'actif'} nom={`${recruteur.prenom} ${recruteur.nom}`.trim()} />
+                <RecruteurStatutButton cjsUid={recruteur.cjsUid} actif={recruteur.statut === 'actif'} nom={`${recruteur.prenom} ${recruteur.nom}`.trim()} />
               )}
             </div>
           )}

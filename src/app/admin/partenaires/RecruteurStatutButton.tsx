@@ -3,17 +3,20 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
-import { basculerStatutRecruteur } from './actions'
+import { changerStatutUtilisateur } from '@/app/admin/utilisateurs/actions'
 
-/** Active/suspend le compte recruteur (personne) depuis la fiche partenaire. */
+/**
+ * Active/suspend le COMPTE recruteur (personne) depuis la fiche partenaire.
+ * Découplage org ≠ compte : le statut d'une PERSONNE passe par l'unique action
+ * canonique `changerStatutUtilisateur` (espace Utilisateurs). La suspension du
+ * PARTENAIRE (masque ses offres) est un levier distinct (`basculerStatutOrganisation`).
+ */
 export function RecruteurStatutButton({
   cjsUid,
-  organisationId,
   actif,
   nom,
 }: {
   cjsUid: string
-  organisationId: string
   actif: boolean
   nom: string
 }) {
@@ -23,12 +26,8 @@ export function RecruteurStatutButton({
   function toggle() {
     if (actif && !window.confirm(`Suspendre le compte recruteur « ${nom} » ?`)) return
     startTransition(async () => {
-      try {
-        await basculerStatutRecruteur(cjsUid, !actif, organisationId)
-        router.refresh()
-      } catch {
-        /* silencieux */
-      }
+      const res = await changerStatutUtilisateur(cjsUid, actif ? 'inactif' : 'actif')
+      if (res.ok) router.refresh()
     })
   }
 
