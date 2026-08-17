@@ -6,21 +6,26 @@
 jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
-jest.mock('@/lib/prisma', () => ({ prisma: { organisation: { update: jest.fn(), create: jest.fn() } } }))
+jest.mock('@/lib/prisma', () => ({ prisma: { organisation: { update: jest.fn(), create: jest.fn(), findUnique: jest.fn() }, opportunite: { update: jest.fn() } } }))
 
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
-import { basculerVerifiePartenaire, modifierPartenaire, creerPartenaire, basculerStatutOrganisation } from '@/app/admin/partenaires/actions'
+import { basculerVerifiePartenaire, modifierPartenaire, creerPartenaire, basculerStatutOrganisation, promouvoirEmployeur } from '@/app/admin/partenaires/actions'
 
 const mockSession = getSession as jest.Mock
 const mockAudit = recordAudit as jest.Mock
-const mockPrisma = prisma as unknown as { organisation: { update: jest.Mock; create: jest.Mock } }
+const mockPrisma = prisma as unknown as {
+  organisation: { update: jest.Mock; create: jest.Mock; findUnique: jest.Mock }
+  opportunite: { update: jest.Mock }
+}
 
 beforeEach(() => {
   jest.clearAllMocks()
   mockPrisma.organisation.update.mockResolvedValue({})
   mockPrisma.organisation.create.mockResolvedValue({ id: 'new-org' })
+  mockPrisma.organisation.findUnique.mockResolvedValue({ id: 'existing-org' })
+  mockPrisma.opportunite.update.mockResolvedValue({})
 })
 
 describe('GUIC-510 — actions partenaires', () => {
@@ -77,6 +82,34 @@ describe('GUIC-510 — actions partenaires', () => {
     mockSession.mockResolvedValue({ cjsUid: 'j', roles: ['beneficiaire'] })
     await expect(basculerStatutOrganisation('p1', 'suspendue')).rejects.toThrow(/FORBIDDEN/)
     expect(mockPrisma.organisation.update).not.toHaveBeenCalled()
+  })
+
+  // GUIC-705 — promotion curation→partenaire : rattacher une offre curée à une Organisation
+  it('promouvoirEmployeur : rattache à un partenaire EXISTANT (organisationId) + set organisationId', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
+    await promouvoirEmployeur({ opportuniteId: 'op1', organisationId: 'existing-org' })
+    expect(mockPrisma.opportunite.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'op1' }, data: { organisationId: 'existing-org' } }),
+    )
+    expect(mockPrisma.organisation.create).not.toHaveBeenCalled()
+    expect(mockAudit).toHaveBeenCalledWith('admin', 'partenaire.promotion', expect.any(Object))
+  })
+
+  it('promouvoirEmployeur : CRÉE un partenaire sans compte (nom) puis rattache', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
+    await promouvoirEmployeur({ opportuniteId: 'op1', nom: 'GIZ Sénégal' })
+    expect(mockPrisma.organisation.create).toHaveBeenCalled()
+    const created = mockPrisma.organisation.create.mock.calls[0][0].data
+    expect(created.cjsUid ?? null).toBeNull() // sans compte
+    expect(mockPrisma.opportunite.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'op1' }, data: { organisationId: 'new-org' } }),
+    )
+  })
+
+  it('promouvoirEmployeur : non-admin → FORBIDDEN', async () => {
+    mockSession.mockResolvedValue({ cjsUid: 'j', roles: ['beneficiaire'] })
+    await expect(promouvoirEmployeur({ opportuniteId: 'op1', organisationId: 'x' })).rejects.toThrow(/FORBIDDEN/)
+    expect(mockPrisma.opportunite.update).not.toHaveBeenCalled()
   })
 
   it('modifier → écrit les champs éditables + audit update', async () => {
