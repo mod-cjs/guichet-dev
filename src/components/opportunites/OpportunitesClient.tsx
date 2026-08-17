@@ -14,6 +14,8 @@ import { OpportunitesListHeader, type ActiveChip } from './OpportunitesListHeade
 import { useFavoris } from './FavorisProvider'
 import { regionLabel } from '@/lib/regions'
 import type { OpportuniteListItem, OpportuniteSortBy } from '@/types/opportunite'
+import { libelleDomaine } from '@/lib/domaines'
+import type { Domaine } from '@prisma/client'
 
 interface OpportunitesClientProps {
   initialRegion: string | null
@@ -242,7 +244,9 @@ export function OpportunitesClient({ initialRegion, programmes = [] }: Opportuni
   if (filters.domaine) {
     activeChips.push({
       key: `dom-${filters.domaine}`,
-      label: filters.domaine.replace(/_/g, ' '),
+      // GUIC-689 — libellé de la source unique : `replace('_')` laissait
+      // passer « BienEtre » et « Employabilite » tels quels à l'écran.
+      label: libelleDomaine(filters.domaine as Domaine),
       onRemove: () => pushFilters({ ...filters, domaine: undefined }),
     })
   }

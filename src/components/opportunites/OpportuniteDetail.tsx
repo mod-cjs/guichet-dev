@@ -18,6 +18,8 @@ import { loginUrl, opportuniteSlugUrl } from '@/lib/routes'
 import { regionLabel } from '@/lib/regions'
 import { appDomain } from '@/lib/app-url'
 import { categorieDepuisType, classeCategorie } from '@/lib/design/categories'
+import { libelleDomaine } from '@/lib/domaines'
+import type { Domaine } from '@prisma/client'
 
 // Lazy-load le formulaire de candidature : il n'est jamais nécessaire au premier
 // rendu (anonyme ou avant clic CTA). Bénéfice mesuré attendu : ~25 KB gzip
@@ -295,7 +297,9 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
     // GUIC-689 (B.6) — puce domaine (maquette lot3-opps-web.jsx L.459), 4ᵉ position :
     // `detail.domaine` n'est jamais null, donc toujours affichée (contrairement aux
     // puces ci-dessus, optionnelles selon les données de l'offre).
-    chips.push({ icon: 'target', label: humanize(detail.domaine) })
+    // GUIC-689 — `humanize` casse les noms composés de la nouvelle taxonomie
+    // (« BienEtre » → « Bienetre »). Libellé pris à la source.
+    chips.push({ icon: 'target', label: libelleDomaine(detail.domaine as Domaine) })
     // F1.2 (GUIC-689) — compteur de vues, jamais affiché jusqu'ici bien que
     // suivi côté serveur (lot3-opps-web.jsx:420-428). Aligné sur la
     // présentation de RessourceDetailHero (singulier/pluriel).
@@ -315,7 +319,7 @@ export function OpportuniteDetail({ detail, viewer, matchScore, onClose }: Oppor
   const cells = useMemo(() => {
     const out: { label: string; value: string }[] = [
       { label: 'Type', value: humanize(detail.type) },
-      { label: 'Domaine', value: humanize(detail.domaine) },
+      { label: 'Domaine', value: libelleDomaine(detail.domaine as Domaine) },
     ]
 
     // Niveau d'étude minimum : priorité au champ du sous-type quand il en a un

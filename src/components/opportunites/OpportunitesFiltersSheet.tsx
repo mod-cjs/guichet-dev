@@ -5,7 +5,7 @@ import { Button, Sheet } from '@/components/ui'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import { typeLabel } from './OpportuniteTypeChip'
 import type { FiltresValue } from './FiltresPanel'
-import { DOMAINES_VISIBLES } from '@/lib/domaines'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 /**
  * Bottom-sheet de filtres du catalogue d'opportunités — mobile (GUIC-188).
@@ -172,7 +172,7 @@ export function OpportunitesFiltersSheet({
           <div className="flex flex-wrap gap-space-1">
             {DOMAINES.map((d) => (
               <PillToggle key={d} selected={draft.domaine === d} onClick={() => toggle('domaine', d)}>
-                {humanize(d)}
+                {libelleDomaine(d)}
               </PillToggle>
             ))}
           </div>

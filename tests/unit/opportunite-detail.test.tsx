@@ -56,7 +56,10 @@ const baseDetail: Detail = {
   titre: 'Stage Data Science · 6 mois',
   description: 'Rejoins la cellule Innovation pour construire des modèles prédictifs.',
   type: 'STAGE',
-  domaine: 'TECH',
+  // GUIC-689 — était `'TECH'`, une valeur absente de l'enum `Domaine` que le
+  // typage lâche du fixture laissait passer. Le libellé affiché venait donc
+  // d'un formatage générique, pas du référentiel.
+  domaine: 'Economie',
   region: 'DAKAR',
   organisation: 'Sonatel',
   remuneration: '350 000 F/mois',
@@ -788,7 +791,7 @@ describe('<OpportuniteDetail /> — Wave 6', () => {
     it('puce domaine dans le hero (icône target) — nouvelle puce du hero', () => {
       renderDetail()
       const chip = screen
-        .getAllByText('Tech')
+        .getAllByText('Économie')
         .map((el) => el.closest('span'))
         .find((span) => span?.querySelector('use')?.getAttribute('href') === '/icons.svg#i-target')
       expect(chip).toBeTruthy()
