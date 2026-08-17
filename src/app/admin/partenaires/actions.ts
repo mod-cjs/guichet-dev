@@ -135,6 +135,54 @@ export async function modifierPartenaire(id: string, input: PartenaireInput): Pr
 }
 
 /**
+ * GUIC-705 — Promotion « curation → partenaire » : rattache une offre curée (dont l'employeur
+ * n'était qu'un `organisationLibelle` texte) à une Organisation gérable — existante
+ * (`organisationId`) ou créée à la volée SANS compte (`nom`). Ne crée jamais en silence :
+ * l'admin fournit soit l'id (après suggestion de dédup), soit le nom validé.
+ */
+const promotionSchema = z
+  .object({
+    opportuniteId: z.string().min(1),
+    organisationId: z.string().min(1).optional(),
+    nom: z.string().trim().min(2).max(200).optional(),
+  })
+  .refine((d) => Boolean(d.organisationId) !== Boolean(d.nom), {
+    message: 'Fournir soit organisationId (existant), soit nom (création) — pas les deux.',
+  })
+
+export async function promouvoirEmployeur(input: {
+  opportuniteId: string
+  organisationId?: string
+  nom?: string
+}): Promise<{ organisationId: string }> {
+  const session = await assertAdmin()
+  const data = promotionSchema.parse(input)
+
+  let orgId: string
+  if (data.organisationId) {
+    const existe = await prisma.organisation.findUnique({ where: { id: data.organisationId }, select: { id: true } })
+    if (!existe) throw new Error('NOT_FOUND')
+    orgId = existe.id
+  } else {
+    const cree = await prisma.organisation.create({
+      data: { nom: data.nom as string, cjsUid: null, statut: 'active' },
+      select: { id: true },
+    })
+    orgId = cree.id
+  }
+
+  await prisma.opportunite.update({ where: { id: data.opportuniteId }, data: { organisationId: orgId } })
+  await recordAudit(session.cjsUid, 'partenaire.promotion', {
+    targetType: 'opportunite',
+    targetId: data.opportuniteId,
+    meta: { organisationId: orgId, cree: !data.organisationId },
+  })
+  revalidate(orgId)
+  revalidatePath('/admin/opportunites')
+  return { organisationId: orgId }
+}
+
+/**
  * Activer / suspendre le COMPTE recruteur (personne) propriétaire du partenaire.
  * Partenaire = recruteur : on gère l'organisation ET son compte au même endroit.
  * Bascule `Utilisateur.statut` actif ↔ inactif ; ne touche jamais `anonymise`.
