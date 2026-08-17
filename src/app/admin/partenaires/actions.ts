@@ -150,6 +150,13 @@ const promotionSchema = z
     message: 'Fournir soit organisationId (existant), soit nom (création) — pas les deux.',
   })
 
+/** GUIC-705 — suggestions de dédup pour la promotion (partenaires existants proches du libellé). */
+export async function suggestionsPartenaire(libelle: string): Promise<import('@/lib/partenaire-dedup').SuggestionPartenaire[]> {
+  await assertAdmin()
+  const { suggererPartenaires } = await import('@/lib/partenaire-dedup')
+  return suggererPartenaires(libelle)
+}
+
 export async function promouvoirEmployeur(input: {
   opportuniteId: string
   organisationId?: string

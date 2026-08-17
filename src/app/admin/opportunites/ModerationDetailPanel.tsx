@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
+import { RattacherPartenaireModal } from './RattacherPartenaireModal'
 
 const SRC_LABEL: Record<ModerationDetail['source'], string> = {
   recruteur: 'Recruteur',
@@ -40,6 +42,10 @@ export function ModerationDetailPanel({
   onCorriger: () => void
 }) {
   const asideRef = useRef<HTMLElement>(null)
+  const router = useRouter()
+  const [rattacherOpen, setRattacherOpen] = useState(false)
+  // GUIC-705 — offre curée sans partenaire lié = promouvoir un employeur texte en Organisation.
+  const rattachable = !detail.partenaire && !!detail.organisationLibelle
   // Accessibilité (checklist §6) : fermeture au clavier + focus au panneau à l'ouverture.
   useEffect(() => {
     asideRef.current?.focus()
@@ -148,6 +154,24 @@ export function ModerationDetailPanel({
             </section>
           )}
 
+          {/* GUIC-705 — Rattacher un employeur curé (texte) à un partenaire géré */}
+          {rattachable && (
+            <section style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--gj-surface)', border: '1px dashed var(--gj-line-2)', borderRadius: 11, padding: '13px 14px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ fontSize: 13.5, color: 'var(--gj-ink)' }}>{detail.organisationLibelle}</b>
+                <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 3 }}>Employeur non rattaché à un partenaire géré.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRattacherOpen(true)}
+                className="inline-flex items-center gap-[6px] font-bold text-[12.5px] rounded-[9px] px-[12px] py-[8px]"
+                style={{ background: 'var(--gj-teal)', color: '#fff', flex: 'none' }}
+              >
+                <Icon name="plus" size={13} /> Rattacher à un partenaire
+              </button>
+            </section>
+          )}
+
           {/* Historique */}
           {detail.historique.length > 0 && (
             <section>
@@ -181,6 +205,21 @@ export function ModerationDetailPanel({
           </button>
         </footer>
       </aside>
+
+      {rattacherOpen && detail.organisationLibelle && (
+        <RattacherPartenaireModal
+          isOpen
+          onClose={() => setRattacherOpen(false)}
+          opportuniteId={detail.id}
+          libelle={detail.organisationLibelle}
+          onDone={(_m, ok) => {
+            if (ok) {
+              router.refresh()
+              onClose()
+            }
+          }}
+        />
+      )}
     </>
   )
 }
