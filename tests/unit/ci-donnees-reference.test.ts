@@ -103,6 +103,16 @@ describe('GUIC-674 — le seed couvre ce que les tests exigent', () => {
     expect(Object.fromEntries(manquants)).toEqual({})
   })
 
+  it('le référentiel de COMPÉTENCES est amorcé lui aussi', () => {
+    // Oubli réel : `opportunite-competences-requises` supposait ce référentiel
+    // présent. Vrai sur une base de développement semée à la main, faux sur la
+    // base vierge de la CI — le test passait en local et cassait `dev`.
+    const src = readFileSync(resolve(RACINE, 'prisma/seed/reference.ts'), 'utf-8')
+    // Importé ET appelé : un import inutilisé ne sème rien.
+    expect(src).toMatch(/import \{ seedSkills \}/)
+    expect(src).toMatch(/await seedSkills\(prisma\)/)
+  })
+
   it('les quatre programmes CJS sont dans le seed', () => {
     expect(PROGRAMMES_SEED.map((p) => p.slug).sort()).toEqual(
       ['edupop', 'yaakaar', 'yeah', 'yjc'],
