@@ -17,7 +17,7 @@ const RESUME: ResumePartenaires = { total: 13, nouveauxCeMois: 4, verifies: 9, c
 function row(over: Partial<PartenaireRow> = {}): PartenaireRow {
   return {
     id: 'o1', nom: 'Sonatel', description: null, logoUrl: null, secteur: 'Numerique', region: 'Dakar',
-    email: 'rh@sonatel.sn', estVerifie: true, cjsUid: 'rec-1', createdAt: new Date('2026-08-01'),
+    email: 'rh@sonatel.sn', estVerifie: true, statut: 'active', cjsUid: 'rec-1', createdAt: new Date('2026-08-01'),
     opportunitesCount: 5, publieesCount: 4, candidaturesCount: 37, recruteurStatut: 'actif', ...over,
   }
 }
@@ -49,9 +49,9 @@ describe('GUIC-704 — AdminPartenairesTable (refonte : agrégats + filtres + tr
     expect(screen.getAllByText(/candidatures?/i).length).toBeGreaterThan(0)
   })
 
-  it('carte : badge « Suspendu » quand le compte recruteur est inactif', () => {
-    renderTable([row({ recruteurStatut: 'inactif' })])
-    expect(screen.getByText('Suspendu')).toBeInTheDocument() // badge carte (≠ chip « Suspendus »)
+  it('carte : badge « Suspendu » quand l’ORG est suspendue (org-level, GUIC-705)', () => {
+    renderTable([row({ statut: 'suspendue' })])
+    expect(screen.getByText('Suspendu')).toBeInTheDocument() // badge org (≠ chip « Suspendus »)
   })
 
   it('chips de statut AVEC compteurs (dont Suspendus) et param ?statut=', () => {

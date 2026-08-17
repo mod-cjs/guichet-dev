@@ -15,7 +15,9 @@ export interface PartenaireCardData {
   /** Agrégats réels (refonte GUIC-704). */
   publieesCount?: number
   candidaturesCount?: number
-  /** Statut du compte recruteur : `inactif` = suspendu (ne peut plus publier). */
+  /** Statut ORG-LEVEL (GUIC-705) : `suspendue` = partenaire suspendu (offres masquées). */
+  statut?: 'active' | 'suspendue'
+  /** Statut du compte recruteur (personne) — affiché sur la fiche, pas le badge carte. */
   recruteurStatut?: 'actif' | 'inactif' | 'anonymise' | 'inconnu'
 }
 
@@ -39,8 +41,8 @@ function initials(nom: string): string {
  * pastille pleine, badge vérifié. Cliquable : ouvre le dossier via `onOpen`.
  */
 export function PartenaireCard({ partenaire, onOpen }: PartenaireCardProps) {
-  const { id, nom, secteur, region, estVerifie, logoUrl, opportunitesCount, publieesCount, candidaturesCount, recruteurStatut } = partenaire
-  const suspendu = recruteurStatut === 'inactif'
+  const { id, nom, secteur, region, estVerifie, logoUrl, opportunitesCount, publieesCount, candidaturesCount, statut } = partenaire
+  const suspendu = statut === 'suspendue' // GUIC-705 : suspension org-level
   const offres = publieesCount ?? opportunitesCount
   const cardStyle = {
     '--sc': `var(${sectorVar(secteur)})`,

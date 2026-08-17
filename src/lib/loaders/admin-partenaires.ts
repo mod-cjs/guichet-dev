@@ -24,6 +24,8 @@ export type TriPartenaire = (typeof TRIS_PARTENAIRE)[number]
 
 /** Statut du compte recruteur propriétaire (Utilisateur.statut), `inconnu` si pas de compte. */
 export type RecruteurStatut = 'actif' | 'inactif' | 'anonymise' | 'inconnu'
+/** Statut org-level du partenaire (GUIC-705) — levier de suspension distinct du compte. */
+export type StatutOrg = 'active' | 'suspendue'
 
 export function parseStatutPartenaire(v?: string): StatutPartenaire {
   return (STATUTS_PARTENAIRE as readonly string[]).includes(v ?? '') ? (v as StatutPartenaire) : 'tous'
@@ -41,6 +43,7 @@ export interface OrgRaw {
   region: string | null
   email: string | null
   estVerifie: boolean
+  statut: string // GUIC-705 : Organisation.statut (active/suspendue)
   cjsUid: string | null // GUIC-705 : null = partenaire sans compte recruteur
   createdAt: Date
 }
@@ -56,6 +59,7 @@ export interface PartenaireRow {
   region: string | null
   email: string | null
   estVerifie: boolean
+  statut: StatutOrg
   cjsUid: string | null
   createdAt: Date
   opportunitesCount: number
@@ -91,6 +95,7 @@ export function mapPartenaireRow(r: OrgRaw, agg: AggOrg | undefined, recruteurSt
     region: r.region,
     email: r.email,
     estVerifie: r.estVerifie,
+    statut: r.statut === 'suspendue' ? 'suspendue' : 'active',
     cjsUid: r.cjsUid,
     createdAt: r.createdAt,
     opportunitesCount: agg?.total ?? 0,
@@ -105,7 +110,7 @@ export function kpisPartenaires(rows: PartenaireRow[]): PartenaireKpis {
     tous: rows.length,
     verifies: rows.filter((r) => r.estVerifie).length,
     nonVerifies: rows.filter((r) => !r.estVerifie).length,
-    suspendus: rows.filter((r) => r.recruteurStatut === 'inactif').length,
+    suspendus: rows.filter((r) => r.statut === 'suspendue').length, // GUIC-705 : org-level
   }
 }
 
@@ -116,7 +121,7 @@ export function filtrerPartenaires(rows: PartenaireRow[], statut: StatutPartenai
     case 'non_verifies':
       return rows.filter((r) => !r.estVerifie)
     case 'suspendus':
-      return rows.filter((r) => r.recruteurStatut === 'inactif')
+      return rows.filter((r) => r.statut === 'suspendue') // GUIC-705 : org-level (≠ compte recruteur)
     default:
       return rows
   }
@@ -188,7 +193,7 @@ export async function getPartenairesData(params: {
     take: FETCH_CAP_P,
     select: {
       id: true, nom: true, description: true, logoUrl: true, secteur: true,
-      region: true, email: true, estVerifie: true, cjsUid: true, createdAt: true,
+      region: true, email: true, estVerifie: true, statut: true, cjsUid: true, createdAt: true,
     },
   })) as OrgRaw[]
 

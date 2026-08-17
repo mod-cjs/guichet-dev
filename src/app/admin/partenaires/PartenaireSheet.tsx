@@ -8,7 +8,7 @@ import { Icon } from '@/components/ui/Icon'
 import { RichContent } from '@/components/ui/RichContent'
 import type { ToastVariant } from '@/components/ui/Toast'
 import { sectorLabel, sectorVar } from '@/lib/partenaire-secteur'
-import { basculerVerifiePartenaire } from './actions'
+import { basculerVerifiePartenaire, basculerStatutOrganisation } from './actions'
 import type { PartenaireRow } from './AdminPartenairesTable'
 
 export interface PartenaireSheetProps {
@@ -50,6 +50,22 @@ export function PartenaireSheet({ partenaire: p, onClose, onEdit, onToast }: Par
       try {
         await basculerVerifiePartenaire(p.id, !p.estVerifie)
         onToast(p.estVerifie ? `« ${p.nom} » dévérifié.` : `« ${p.nom} » vérifié.`, 'success')
+        router.refresh()
+        onClose()
+      } catch {
+        onToast('Action impossible.', 'danger')
+      }
+    })
+  }
+
+  // GUIC-705 — suspension ORG-LEVEL (masque les offres), distincte du compte recruteur.
+  function toggleStatut() {
+    if (!p) return
+    const suspendre = p.statut !== 'suspendue'
+    startTransition(async () => {
+      try {
+        await basculerStatutOrganisation(p.id, suspendre ? 'suspendue' : 'active')
+        onToast(suspendre ? `« ${p.nom} » suspendu.` : `« ${p.nom} » réactivé.`, 'success')
         router.refresh()
         onClose()
       } catch {
@@ -134,6 +150,14 @@ export function PartenaireSheet({ partenaire: p, onClose, onEdit, onToast }: Par
               style={{ ...actBtn, background: 'transparent', color: 'var(--gj-teal-deep)', border: '1.5px solid var(--gj-teal)' }}
             >
               <Icon name="settings" size={14} /> Éditer
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={toggleStatut}
+              style={{ ...actBtn, background: 'transparent', color: p.statut === 'suspendue' ? 'var(--gj-green-ink)' : 'var(--gj-red-ink)', border: `1.5px solid ${p.statut === 'suspendue' ? 'var(--gj-green)' : 'var(--gj-red)'}`, opacity: pending ? 0.6 : 1 }}
+            >
+              <Icon name={p.statut === 'suspendue' ? 'check' : 'alert'} size={14} /> {p.statut === 'suspendue' ? 'Réactiver' : 'Suspendre'}
             </button>
             <Link
               href={`/admin/partenaires/${p.id}`}

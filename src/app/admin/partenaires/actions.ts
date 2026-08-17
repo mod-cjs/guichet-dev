@@ -88,6 +88,24 @@ export async function creerPartenaire(input: PartenaireInput): Promise<{ id: str
   return { id: org.id }
 }
 
+/**
+ * GUIC-705 — Suspendre / réactiver un partenaire (levier ORG-LEVEL).
+ * `suspendue` masque TOUTES ses offres côté jeune et empêche toute publication — distinct
+ * de la désactivation d'un COMPTE recruteur (personne, `changerStatutUtilisateur`).
+ */
+export async function basculerStatutOrganisation(id: string, statut: 'active' | 'suspendue'): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const pid = idSchema.parse(id)
+  await prisma.organisation.update({ where: { id: pid }, data: { statut } })
+  await recordAudit(session.cjsUid, 'partenaire.statut', {
+    targetType: 'organisation',
+    targetId: pid,
+    meta: { statut },
+  })
+  revalidate(pid)
+  return { ok: true }
+}
+
 /** Modifier les champs éditables d'un partenaire. */
 export async function modifierPartenaire(id: string, input: PartenaireInput): Promise<{ ok: true }> {
   const session = await assertAdmin()
