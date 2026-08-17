@@ -4,6 +4,7 @@
 
 import { getStaffSession } from '@/lib/auth/staff-session'
 import { prisma } from '@/lib/prisma'
+import { etatFrequentation } from '@/lib/centres/frequentation'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,8 +44,35 @@ export default async function StaffCheckInsPage({
     take:    200,
   })
 
+  // GUIC-689 (M4) — état du jour, CALCULÉ à l'affichage : rien n'est stocké,
+  // et une entrée oubliée reste ouverte plutôt que d'être clôturée d'office.
+  const etat = await etatFrequentation(session.centreId)
+
   return (
     <section className="flex flex-col gap-space-4">
+      <div
+        className="rounded-gj-lg bg-white p-space-3 shadow-gj-sm flex flex-wrap gap-space-4"
+        data-testid="staff-frequentation-jour"
+      >
+        <div>
+          <p className="text-fs-600 font-black text-gj-teal-deep tabular-nums">{etat.presents.length}</p>
+          <p className="text-fs-200 text-color-text-secondary">
+            présent{etat.presents.length > 1 ? 's' : ''} en ce moment
+          </p>
+        </div>
+        <div>
+          <p className="text-fs-600 font-black text-color-text-primary tabular-nums">
+            {/* Jamais de moyenne inventée : sans sortie scannée, on écrit « — ».
+                Un « 0 min » se lirait « ils sont repartis aussitôt ». */}
+            {etat.duree.moyenneMinutes === null ? '—' : `${etat.duree.moyenneMinutes} min`}
+          </p>
+          <p className="text-fs-200 text-color-text-secondary">
+            durée moyenne, mesurée sur {etat.duree.partMesuree} % des {etat.duree.passages} passage
+            {etat.duree.passages > 1 ? 's' : ''} du jour
+          </p>
+        </div>
+      </div>
+
       <header>
         <h1 className="text-fs-600 font-bold text-color-text-primary">Check-ins</h1>
         <p className="text-fs-300 text-color-text-secondary">

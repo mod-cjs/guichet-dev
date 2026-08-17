@@ -365,6 +365,8 @@ model Utilisateur {
   // Lot 3 — Bibliothèque physique (GUIC-274)
   emprunts              Emprunt[]
 
+  sortiesCentre    SortieCentre[]
+
   @@index([email])
   @@index([telephone])
   @@index([statut])
@@ -872,6 +874,8 @@ model Centre {
   // Lot 3 — Bibliothèque physique (GUIC-274) : exemplaires localisés dans ce centre
   exemplaires      Exemplaire[]
   programmes       CentreProgramme[]
+
+  sortiesCentre    SortieCentre[]
 
   @@index([region])
   @@index([slug])
@@ -1865,7 +1869,12 @@ model CheckIn {
   jwtNonce        String?    @unique @map("jwt_nonce") @db.VarChar(64)
   /// Horodatage du passage. Table append-only : sert de watermark de réplication.
   effectueA       DateTime   @default(now()) @map("effectue_a")
-  /// Durée de présence en minutes, quand elle a pu être mesurée.
+  /// @deprecated Toujours NUL — jamais renseigné. Utiliser `duree_minutes` du
+  /// flux `sorties`. Conservé pour ne pas casser les consommateurs existants.
+  //
+  // Le remplir supposerait de MODIFIER cette ligne, or `effectueA` est la clé
+  // de réplication : une ligne modifiée sans que `effectueA` bouge n'est jamais
+  // relue par l'ETL. D'où la durée portée par la sortie (cf. M4, lot 1).
   dwellMinutes    Int?       @map("dwell_minutes")
   meta            Json?
 
@@ -1873,10 +1882,57 @@ model CheckIn {
   centre      Centre       @relation(fields: [centreId], references: [id])
   reservation Reservation? @relation(fields: [reservationId], references: [id])
 
+  sortie      SortieCentre?
+
   @@index([centreId, effectueA])
   @@index([cjsUid, effectueA])
   @@index([effectueA, id])
   @@map("check_ins")
+}
+
+/// Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie.
+/// La durée de présence vit ici et non sur le passage d'entrée.
+//
+// Table SÉPARÉE de `check_ins` plutôt qu'un sens Entree/Sortie dans celle-ci :
+// neuf points de comptage lisent `check_ins`, décrite par le flux Data Hub
+// comme « la mesure de fréquentation réelle ». Y mêler les sorties doublerait
+// ces comptages, jusque dans l'export public, sans qu'aucun test ne le signale.
+//
+// La durée est calculée à l'INSERTION : la reporter sur l'entrée supposerait de
+// modifier une ligne dont `effectueA` est la clé de réplication — l'ETL ne la
+// relirait jamais.
+model SortieCentre {
+  /// Identifiant de la sortie.
+  id           String     @id @default(uuid()) @db.VarChar(36)
+  /// Entrée appariée. NUL pour une sortie orpheline — quelqu'un entré avant la
+  /// mise en service, ou dont l'entrée a échoué. On l'enregistre quand même :
+  /// refuser au comptoir n'apprend rien et perd la trace.
+  checkInId    String?    @unique @map("check_in_id") @db.VarChar(36)
+  /// Jeune concerné — clé de jointure vers `utilisateurs`.
+  cjsUid       String     @map("cjs_uid") @db.VarChar(36)
+  /// Centre où la sortie a été enregistrée.
+  centreId     String     @map("centre_id") @db.VarChar(36)
+  /// Mode d'enregistrement, même vocabulaire que l'entrée.
+  via          CheckInVia
+  scannerId    String?    @map("scanner_id") @db.VarChar(36)
+  /// Idempotence : un jeton rejoué ne crée pas deux sorties.
+  jwtNonce     String?    @unique @map("jwt_nonce") @db.VarChar(64)
+  /// Horodatage de la sortie. Append-only : watermark de réplication.
+  effectueA    DateTime   @default(now()) @map("effectue_a")
+  /// Durée de présence, calculée à l'insertion et jamais recalculée.
+  /// NUL pour une orpheline : on ne sait pas quand la personne est arrivée, et
+  /// une durée supposée se lirait comme une durée mesurée.
+  dureeMinutes Int?       @map("duree_minutes")
+  meta         Json?
+
+  checkIn     CheckIn?    @relation(fields: [checkInId], references: [id], onDelete: SetNull)
+  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid])
+  centre      Centre      @relation(fields: [centreId], references: [id])
+
+  @@index([centreId, effectueA])
+  @@index([cjsUid, effectueA])
+  @@index([effectueA, id])
+  @@map("sorties_centre")
 }
 
 /// Table KPI événementiel INSERT-only — retention 6 mois (purge auto).

@@ -545,7 +545,49 @@ sources:
             meta:
               cjs_tier: "public"
           - name: "dwell_minutes"
-            description: "Durée de présence en minutes, quand elle a pu être mesurée."
+            description: "@deprecated Toujours NUL — jamais renseigné. Utiliser `duree_minutes` du flux `sorties`. Conservé pour ne pas casser les consommateurs existants."
+            meta:
+              cjs_tier: "public"
+      - name: "sorties"
+        description: "Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie. La durée de présence vit ici et non sur le passage d'entrée."
+        loaded_at_field: "effectue_a"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la sortie."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "check_in_id"
+            description: "Entrée appariée. NUL pour une sortie orpheline — quelqu'un entré avant la mise en service, ou dont l'entrée a échoué. On l'enregistre quand même : refuser au comptoir n'apprend rien et perd la trace."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "cjs_uid"
+            description: "Jeune concerné — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "centre_id"
+            description: "Centre où la sortie a été enregistrée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "via"
+            description: "Mode d'enregistrement, même vocabulaire que l'entrée."
+            meta:
+              cjs_tier: "public"
+          - name: "effectue_a"
+            description: "Horodatage de la sortie. Append-only : watermark de réplication."
+            meta:
+              cjs_tier: "public"
+          - name: "duree_minutes"
+            description: "Durée de présence, calculée à l'insertion et jamais recalculée. NUL pour une orpheline : on ne sait pas quand la personne est arrivée, et une durée supposée se lirait comme une durée mesurée."
             meta:
               cjs_tier: "public"
       - name: "ressources"

@@ -61,6 +61,7 @@ jest.mock('@/lib/analytics/centre-events', () => ({
 const mockCentre = jest.fn()
 const mockUser = jest.fn()
 const mockCheckInCreate = jest.fn()
+const mockCheckInFindFirst = jest.fn().mockResolvedValue(null)
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     centre:      { findUnique: (...a: unknown[]) => mockCentre(...a) },
@@ -69,7 +70,13 @@ jest.mock('@/lib/prisma', () => ({
       findUnique: jest.fn(),
       update:     jest.fn(),
     },
-    checkIn:     { create: (...a: unknown[]) => mockCheckInCreate(...a) },
+    checkIn: {
+      create: (...a: unknown[]) => mockCheckInCreate(...a),
+      // GUIC-689 — la route lit l'état pour déduire le sens du passage.
+      // `null` = aucune entrée ouverte → chemin ENTRÉE, celui que ces tests
+      // couvrent.
+      findFirst: (...a: unknown[]) => mockCheckInFindFirst(...a),
+    },
   },
 }))
 
