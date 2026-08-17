@@ -31,6 +31,18 @@ export interface ProjectionReport {
   relations: Record<string, number>
 }
 
+/**
+ * GUIC-706 — aplatit une opportunité en propriétés de nœud Neo4j, en portant le drapeau
+ * `orgSuspendue` (un partenaire suspendu masque ses offres, y compris dans le graphe) et
+ * en retirant l'objet `org` imbriqué (Neo4j ne stocke pas de map imbriquée comme propriété).
+ */
+export function oppNodeProps<T extends { org?: { statut: string } | null }>(
+  row: T,
+): Omit<T, 'org'> & { orgSuspendue: boolean } {
+  const { org, ...rest } = row
+  return { ...rest, orgSuspendue: org?.statut === 'suspendue' }
+}
+
 // ── Nœuds ─────────────────────────────────────────────────────────────────────
 
 async function projectNodes(): Promise<Record<string, number>> {
@@ -134,13 +146,16 @@ async function projectNodes(): Promise<Record<string, number>> {
   counts.Beneficiaire = await mergeNodes('Beneficiaire', 'cjsUid', beneficiaires)
 
   // Opportunités décompressées : nœud commun + 1 label de sous-type (spec §2).
-  const opps = await prisma.opportunite.findMany({
+  const oppsRaw = await prisma.opportunite.findMany({
     where: { deletedAt: null },
     select: {
       id: true, slug: true, titre: true, domaine: true, region: true, statut: true,
       deadline: true, remuneration: true, niveauEtudeMin: true, organisationLibelle: true, vues: true,
+      // GUIC-706 — le statut de l'org alimente le drapeau de visibilité porté sur le nœud.
+      org: { select: { statut: true } },
     },
   })
+  const opps = oppsRaw.map(oppNodeProps)
   counts.Opportunite = await mergeNodes('Opportunite', 'id', opps)
   counts.OpportuniteSousTypes = await projectOpportuniteSubtypes()
 

@@ -8,6 +8,13 @@
 //    d'un autre bénéficiaire (isolation inter-bénéficiaires, doc 07).
 //  - Lecture seule : aucun CREATE/MERGE ici (le pipeline de projection est le seul scripteur).
 
+/**
+ * GUIC-706 — filtre de visibilité d'une opportunité pour le bénéficiaire : publiée ET dont
+ * le partenaire n'est PAS suspendu (`orgSuspendue` porté sur le nœud par la projection).
+ * `coalesce(...false)` : les offres sans org (drapeau absent) restent visibles.
+ */
+const visible = (a: string): string => `${a}.statut = 'publiee' AND coalesce(${a}.orgSuspendue, false) = false`
+
 /** Projection commune d'une opportunité (mêmes champs que `GraphOpportunite`). */
 const RETURN_OPP = `
   o.id AS id, o.slug AS slug, o.titre AS titre, o.type AS type,
@@ -19,7 +26,7 @@ const RETURN_OPP = `
 /** Recherche simple d'opportunités publiées non expirées. */
 export const SEARCH_OPPORTUNITES = `
   MATCH (o:Opportunite)
-  WHERE o.statut = 'publiee'
+  WHERE ${visible('o')}
     AND ($domaine IS NULL OR o.domaine = $domaine)
     AND ($region  IS NULL OR o.region  = $region)
     AND ($type    IS NULL OR o.type    = $type)
@@ -40,7 +47,7 @@ export const SKILL_GAP_MISSING = `
 /** Formations publiées qui développent un ensemble de compétences (par slug). */
 export const FORMATIONS_FOR_SKILLS = `
   MATCH (o:Opportunite:Formation)-[:DEVELOPPE]->(c:Competence)
-  WHERE c.slug IN $slugs AND o.statut = 'publiee'
+  WHERE c.slug IN $slugs AND ${visible('o')}
     AND (o.deadline IS NULL OR o.deadline >= datetime())
   RETURN DISTINCT ${RETURN_OPP}
   LIMIT $limit
@@ -50,7 +57,7 @@ export const FORMATIONS_FOR_SKILLS = `
 export const ELIGIBLE_OPPORTUNITES = `
   MATCH (b:Beneficiaire {cjsUid: $uid})
   MATCH (o:Opportunite)
-  WHERE o.statut = 'publiee'
+  WHERE ${visible('o')}
     AND (o.niveauEtudeMin IS NULL OR o.niveauEtudeMin IN $allowedNiveaux)
     AND (o.deadline IS NULL OR o.deadline >= datetime())
     AND NOT EXISTS { MATCH (b)-[:A_POSTULE]->(o) }
@@ -68,7 +75,7 @@ export const ELIGIBLE_OPPORTUNITES = `
 export const COLLABORATIVE_RECO = `
   MATCH (b:Beneficiaire {cjsUid: $uid})-[:A_POSTULE]->(:Opportunite)
         <-[:A_POSTULE]-(autre:Beneficiaire)-[:A_POSTULE]->(reco:Opportunite)
-  WHERE reco.statut = 'publiee'
+  WHERE ${visible('reco')}
     AND NOT EXISTS { MATCH (b)-[:A_POSTULE]->(reco) }
   RETURN reco.id AS id, reco.slug AS slug, reco.titre AS titre,
          count(DISTINCT autre) AS popularite
@@ -82,7 +89,8 @@ export const COLLABORATIVE_RECO = `
  */
 export const MULTI_ENTITY_PATH = `
   MATCH (o:Opportunite)-[:REQUIERT]->(comp:Competence)<-[:DEVELOPPE]-(f:Opportunite:Formation)
-  WHERE o.statut = 'publiee'
+  WHERE ${visible('o')}
+    AND coalesce(f.orgSuspendue, false) = false
     AND ($domaine IS NULL OR o.domaine = $domaine)
     AND ($region  IS NULL OR o.region  = $region)
   OPTIONAL MATCH (p:Programme)-[:FINANCE]->(o)
