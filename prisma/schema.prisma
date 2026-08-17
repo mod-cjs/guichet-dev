@@ -207,7 +207,7 @@ enum StatutEvenement {
   termine
   annule
   en_relecture // GUIC-477 — en attente de validation admin
-  refuse       // GUIC-477 — refusée par l'admin
+  refuse // GUIC-477 — refusée par l'admin
 
   @@map("statut_evenement")
 }
@@ -325,31 +325,31 @@ model Utilisateur {
 
 // Profil enrichi — rempli par le jeune après inscription
 model ProfilJeune {
-  id                String    @id @default(uuid()) @db.VarChar(36)
-  cjsUid            String    @unique @map("cjs_uid") @db.VarChar(36)
-  photoUrl          String?   @map("photo_url") @db.VarChar(500)
-  biographie        String?   @db.Text
+  id                 String          @id @default(uuid()) @db.VarChar(36)
+  cjsUid             String          @unique @map("cjs_uid") @db.VarChar(36)
+  photoUrl           String?         @map("photo_url") @db.VarChar(500)
+  biographie         String?         @db.Text
   // JSON arrays stockés en texte — ex: ["JavaScript","Python"] ou ["Agriculture","Numérique"]
-  competences       Json?
-  domainesInteret   Json?     @map("domaines_interet")
-  niveauEtude       String?   @map("niveau_etude") @db.VarChar(50)
-  situationEmploi   String?   @map("situation_emploi") @db.VarChar(50)
+  competences        Json?
+  domainesInteret    Json?           @map("domaines_interet")
+  niveauEtude        String?         @map("niveau_etude") @db.VarChar(50)
+  situationEmploi    String?         @map("situation_emploi") @db.VarChar(50)
   // GUIC-660 — données socio-démographiques inclusion (auto-déclarées, facultatives,
   // hors score de complétion). Voir .agent_context/specs/GUIC-660-profil-handicap-zone.md
-  situationHandicap Handicap?       @map("situation_handicap")
-  zoneHabitation    ZoneHabitation? @map("zone_habitation")
+  situationHandicap  Handicap?       @map("situation_handicap")
+  zoneHabitation     ZoneHabitation? @map("zone_habitation")
   // Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()
-  completionScore   Int       @default(0) @map("completion_score")
-  profileVisibility String    @default("public") @map("profile_visibility") @db.VarChar(20)
+  completionScore    Int             @default(0) @map("completion_score")
+  profileVisibility  String          @default("public") @map("profile_visibility") @db.VarChar(20)
   // CV stocké (GUIC-223 / GUIC-224) — réutilisable depuis CandidatureModal
-  cvUrl             String?   @map("cv_url") @db.VarChar(500)
-  cvUploadedAt      DateTime? @map("cv_uploaded_at")
+  cvUrl              String?         @map("cv_url") @db.VarChar(500)
+  cvUploadedAt       DateTime?       @map("cv_uploaded_at")
   // GUIC-581 — Préférences d'accessibilité (page /jeune/accessibilite).
   // Shape { text, contrast, gray, motion, spacing, falc, kbd } — validé par Zod
   // dans l'action modifierPrefsAccessibilite ; cache localStorage côté client.
-  prefsAccessibilite Json?    @map("prefs_accessibilite")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  prefsAccessibilite Json?           @map("prefs_accessibilite")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
   // Lot 7 — Centre de rattachement principal (GUIC-350, ADR centre principal hybride)
   // Renseigné à l'onboarding via auto-suggest par région SSO, modifiable ensuite.
@@ -407,28 +407,65 @@ model Diplome {
 // ─────────────────────────────────────────────
 
 model Organisation {
-  id         String   @id @default(uuid()) @db.VarChar(36)
+  id          String             @id @default(uuid()) @db.VarChar(36)
   // GUIC-705 (découplage, mirroring local de la migration dev) : nullable = partenaire sans compte.
-  cjsUid     String?  @map("cjs_uid") @db.VarChar(36)
-  nom        String   @db.VarChar(200)
-  description String?  @db.Text // GUIC-510 — présentation du partenaire (affichée admin/recruteur)
-  secteur    Domaine?
-  region     Region?
-  adresse    String?  @db.VarChar(300)
-  telephone  String?  @db.VarChar(20)
-  email      String?  @db.VarChar(255)
-  siteWeb    String?  @map("site_web") @db.VarChar(500)
-  logoUrl    String?  @map("logo_url") @db.VarChar(500)
-  estVerifie Boolean  @default(false) @map("est_verifie")
+  cjsUid      String?            @map("cjs_uid") @db.VarChar(36)
+  nom         String             @db.VarChar(200)
+  description String?            @db.Text // GUIC-510 — présentation du partenaire (affichée admin/recruteur)
+  secteur     Domaine?
+  region      Region?
+  adresse     String?            @db.VarChar(300)
+  telephone   String?            @db.VarChar(20)
+  email       String?            @db.VarChar(255)
+  siteWeb     String?            @map("site_web") @db.VarChar(500)
+  logoUrl     String?            @map("logo_url") @db.VarChar(500)
+  estVerifie  Boolean            @default(false) @map("est_verifie")
   // GUIC-705 — levier org-level (masque toutes les offres), distinct du statut de la personne.
-  statut     StatutOrganisation @default(active)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  statut      StatutOrganisation @default(active)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
   opportunites Opportunite[]
+  membres      MembreOrganisation[] // GUIC-706 (Phase 2b) — rattachements 0..N
 
   @@index([cjsUid])
   @@map("organisations")
+}
+
+/// GUIC-706 (Phase 2b) — rattachement d'une PERSONNE (compte SSO) à un partenaire, 0..N.
+/// Découple l'organisation de son/ses compte(s) recruteur(s) : une org peut avoir 0
+/// (partenaire référencé sans compte), 1 (titulaire) ou N membres (multi-recruteurs,
+/// rotation RH). Le RÔLE recruteur lui-même reste attribué côté SSO (cjs_auth) — ici on
+/// ne modélise que le rattachement + son statut local.
+model MembreOrganisation {
+  id             String       @id @default(uuid()) @db.VarChar(36)
+  organisationId String       @map("organisation_id") @db.VarChar(36)
+  cjsUid         String       @map("cjs_uid") @db.VarChar(36)
+  role           RoleMembre   @default(recruteur)
+  statut         StatutMembre @default(actif)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, cjsUid])
+  @@index([cjsUid])
+  @@map("membres_organisation")
+}
+
+/// titulaire = référent principal (issu du backfill de `Organisation.cjsUid`) ; recruteur = membre standard.
+enum RoleMembre {
+  titulaire
+  recruteur
+
+  @@map("role_membre")
+}
+
+/// actif = publie pour l'org ; revoke = ne publie plus (ses offres déjà publiées restent).
+enum StatutMembre {
+  actif
+  revoke
+
+  @@map("statut_membre")
 }
 
 /// GUIC-705 — statut org-level d'un partenaire (découplage org ≠ compte recruteur).
@@ -489,10 +526,10 @@ model Opportunite {
   moderePar  String?   @map("modere_par") @db.VarChar(36)
   modereLe   DateTime? @map("modere_le")
 
-  vues           Int               @default(0)
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  deletedAt      DateTime?         @map("deleted_at")
+  vues      Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   org       Organisation?    @relation(fields: [organisationId], references: [id], onDelete: SetNull)
   typeRef   OpportuniteType? @relation(fields: [typeId], references: [id])
@@ -511,12 +548,12 @@ model Opportunite {
   mobilite      OpportuniteMobilite?
   volontariat   OpportuniteVolontariat?
 
-  skills       OpportuniteSkill[]
-  tags         OpportuniteTag[]
-  candidatures Candidature[]
-  drafts       CandidatureDraft[]
-  favoris      OpportuniteFavorite[]
-  itemsCuration ItemCuration[]      @relation("CurationPubliee")
+  skills        OpportuniteSkill[]
+  tags          OpportuniteTag[]
+  candidatures  Candidature[]
+  drafts        CandidatureDraft[]
+  favoris       OpportuniteFavorite[]
+  itemsCuration ItemCuration[]        @relation("CurationPubliee")
 
   @@index([statut, deletedAt])
   @@index([type, domaine])
@@ -556,8 +593,8 @@ model Candidature {
   soumiseA             DateTime          @default(now()) @map("soumise_a")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
-  utilisateur Utilisateur @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
-  opportunite Opportunite @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
+  utilisateur  Utilisateur          @relation(fields: [cjsUid], references: [cjsUid], onDelete: Cascade)
+  opportunite  Opportunite          @relation(fields: [opportuniteId], references: [id], onDelete: Cascade)
   conversation Conversation?
   entretiens   Entretien[]
   relances     RelanceCandidature[]
@@ -896,16 +933,16 @@ model InteropLog {
 // ─────────────────────────────────────────────
 
 model ConversationWhatsApp {
-  id        String   @id @default(uuid()) @db.VarChar(36)
-  telephone String   @db.VarChar(20)
-  cjsUid    String?  @map("cjs_uid") @db.VarChar(36)
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  telephone String    @db.VarChar(20)
+  cjsUid    String?   @map("cjs_uid") @db.VarChar(36)
   // Horodatage de la liaison téléphone ↔ compte via lien magique (GUIC-140).
   // NULL tant que le numéro n'est pas lié à un cjs_uid.
   linkedAt  DateTime? @map("linked_at")
   // Contexte de conversation sérialisé (historique Groq)
   contexte  Json?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   // GUIC-140 — droit à l'oubli (CDP) : la suppression d'un compte purge sa
   // conversation WhatsApp (téléphone + messages = PII) au lieu de la détacher.
@@ -1143,22 +1180,22 @@ model CertificatMoodle {
 // Permet la reprise multi-device et la résilience (cybercafé, switch desktop/mobile).
 // Une seule ligne par utilisateur (clé = cjs_uid). Supprimé à la finalisation.
 model OnboardingDraft {
-  cjsUid        String    @id @map("cjs_uid") @db.VarChar(36)
+  cjsUid            String    @id @map("cjs_uid") @db.VarChar(36)
   // Tableau d'IDs d'objectifs (ex: ["emploi","projet"]) — JSON
-  objectifs     Json?
-  telephone     String?   @db.VarChar(20)
-  prenom        String?   @db.VarChar(100)
-  nom           String?   @db.VarChar(100)
-  dateNaissance DateTime? @map("date_naissance")
+  objectifs         Json?
+  telephone         String?   @db.VarChar(20)
+  prenom            String?   @db.VarChar(100)
+  nom               String?   @db.VarChar(100)
+  dateNaissance     DateTime? @map("date_naissance")
   // Stocké en VARCHAR car peut contenir une valeur non encore alignée sur l'enum Region (saisie partielle).
-  genre         String?   @db.VarChar(20)
-  region        String?   @db.VarChar(50)
-  commune       String?   @db.VarChar(100)
+  genre             String?   @db.VarChar(20)
+  region            String?   @db.VarChar(50)
+  commune           String?   @db.VarChar(100)
   // GUIC-660 — stockés en VARCHAR (comme genre/region) pour la reprise multi-device
   // avant persistance finale (enum) au step 3 de l'onboarding.
-  situationHandicap String? @map("situation_handicap") @db.VarChar(20)
-  zoneHabitation    String? @map("zone_habitation")    @db.VarChar(10)
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  situationHandicap String?   @map("situation_handicap") @db.VarChar(20)
+  zoneHabitation    String?   @map("zone_habitation") @db.VarChar(10)
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   @@map("onboarding_drafts")
 }
@@ -1202,7 +1239,7 @@ model OpportuniteType {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  opportunites Opportunite[]
+  opportunites  Opportunite[]
   sourcesVeille SourceVeille[]
 
   @@map("opportunite_types")
@@ -1675,11 +1712,11 @@ enum StatutEscalade {
 /// ce modèle porte uniquement l'ÉTAT de traitement (statut + qui/quand), mutable
 /// par le staff depuis le panel admin. On ne mute jamais `agent_logs` (append-only).
 model EscaladeYaye {
-  id        String         @id @default(uuid()) @db.VarChar(36)
-  sessionId String         @map("session_id") @db.VarChar(36)
-  cjsUid    String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
-  role      String?        @db.VarChar(40)
-  centreId  String?        @map("centre_id") @db.VarChar(36)
+  id           String         @id @default(uuid()) @db.VarChar(36)
+  sessionId    String         @map("session_id") @db.VarChar(36)
+  cjsUid       String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
+  role         String?        @db.VarChar(40)
+  centreId     String?        @map("centre_id") @db.VarChar(36)
   canal        CanalAgent
   raison       String?        @db.Text // pourquoi l'escalade — peut contenir des PII
   stade        String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
@@ -1986,16 +2023,16 @@ enum StatutItemCuration {
 /// Journal d'une exécution du robot de découverte sur une source (GUIC-597, US-2).
 /// Alimente le monitoring US-7 (nb rapporté, erreurs, durée, dernière vérif).
 model ExecutionVeille {
-  id           String          @id @default(uuid()) @db.VarChar(36)
-  sourceId     String          @map("source_id") @db.VarChar(36)
-  demarreLe    DateTime        @map("demarre_le")
-  dureeMs      Int             @map("duree_ms")
-  nbLiensDecouverts Int        @default(0) @map("nb_liens_decouverts")
-  nbNouveautes Int             @default(0) @map("nb_nouveautes")
-  nbErreurs    Int             @default(0) @map("nb_erreurs")
-  statut       StatutExecution
-  messageErreur String?        @map("message_erreur") @db.Text
-  createdAt    DateTime        @default(now()) @map("created_at")
+  id                String          @id @default(uuid()) @db.VarChar(36)
+  sourceId          String          @map("source_id") @db.VarChar(36)
+  demarreLe         DateTime        @map("demarre_le")
+  dureeMs           Int             @map("duree_ms")
+  nbLiensDecouverts Int             @default(0) @map("nb_liens_decouverts")
+  nbNouveautes      Int             @default(0) @map("nb_nouveautes")
+  nbErreurs         Int             @default(0) @map("nb_erreurs")
+  statut            StatutExecution
+  messageErreur     String?         @map("message_erreur") @db.Text
+  createdAt         DateTime        @default(now()) @map("created_at")
 
   source SourceVeille   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   items  ItemCuration[]
@@ -2010,27 +2047,27 @@ model ExecutionVeille {
 /// remplis par les US suivantes (US-3 extraction, US-5 validation). `opportuniteId`
 /// (US-6 publication) sera ajouté plus tard pour ne pas coupler `Opportunite` ici.
 model ItemCuration {
-  id             String             @id @default(uuid()) @db.VarChar(36)
-  sourceId       String             @map("source_id") @db.VarChar(36)
-  executionId    String?            @map("execution_id") @db.VarChar(36)
-  urlCanonique   String             @map("url_canonique") @db.VarChar(500)
-  empreinte      String             @unique @db.VarChar(64)
-  titre          String?            @db.VarChar(300)
-  payloadExtrait Json?              @map("payload_extrait")
-  scoreCompletude Int?              @map("score_completude")
-  nbTentatives   Int                @default(0) @map("nb_tentatives")
+  id               String             @id @default(uuid()) @db.VarChar(36)
+  sourceId         String             @map("source_id") @db.VarChar(36)
+  executionId      String?            @map("execution_id") @db.VarChar(36)
+  urlCanonique     String             @map("url_canonique") @db.VarChar(500)
+  empreinte        String             @unique @db.VarChar(64)
+  titre            String?            @db.VarChar(300)
+  payloadExtrait   Json?              @map("payload_extrait")
+  scoreCompletude  Int?               @map("score_completude")
+  nbTentatives     Int                @default(0) @map("nb_tentatives")
   // GUIC-599 — dédup CONTENU : sha256(titre+org normalisés). Distinct de `empreinte`
   // (clé URL). Indexé pour la recherche de doublon exact.
-  empreinteContenu String?          @map("empreinte_contenu") @db.VarChar(64)
-  doublonDeId    String?            @map("doublon_de_id") @db.VarChar(36)
-  statut         StatutItemCuration @default(decouvert)
-  motifRejet     String?            @map("motif_rejet") @db.Text
-  modereePar     String?            @map("moderee_par") @db.VarChar(36)
-  modereeLe      DateTime?          @map("moderee_le")
+  empreinteContenu String?            @map("empreinte_contenu") @db.VarChar(64)
+  doublonDeId      String?            @map("doublon_de_id") @db.VarChar(36)
+  statut           StatutItemCuration @default(decouvert)
+  motifRejet       String?            @map("motif_rejet") @db.Text
+  modereePar       String?            @map("moderee_par") @db.VarChar(36)
+  modereeLe        DateTime?          @map("moderee_le")
   // GUIC-601 — traçabilité : Opportunite créée à la publication (idempotence : non null = publié).
-  opportuniteId  String?            @map("opportunite_id") @db.VarChar(36)
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
+  opportuniteId    String?            @map("opportunite_id") @db.VarChar(36)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
 
   source      SourceVeille     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   execution   ExecutionVeille? @relation(fields: [executionId], references: [id], onDelete: SetNull)
