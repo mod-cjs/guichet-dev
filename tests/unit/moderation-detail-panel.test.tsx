@@ -4,6 +4,13 @@
  * historique de modération. Fermeture. Actions déléguées (mockées).
  */
 import { render, screen, fireEvent } from '@testing-library/react'
+
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }))
+jest.mock('@/app/admin/partenaires/actions', () => ({
+  suggestionsPartenaire: jest.fn().mockResolvedValue([]),
+  promouvoirEmployeur: jest.fn().mockResolvedValue({ organisationId: 'x' }),
+}))
+
 import { ModerationDetailPanel } from '@/app/admin/opportunites/ModerationDetailPanel'
 import type { ModerationDetail } from '@/lib/loaders/moderation-detail'
 
@@ -27,6 +34,7 @@ const DETAIL: ModerationDetail = {
   champsTypes: [{ label: 'Contrat', value: 'CDD' }],
   description: 'Nous recrutons des agents commerciaux. Frais de dossier obligatoires de 10 000 FCFA.',
   partenaire: { nom: 'Ets. Ndiaye & Fils', estVerifie: false, offresPubliees: 3 },
+  organisationLibelle: null,
   historique: [
     { action: 'opportunite.create', verbe: 'Création', actorLabel: 'recruteur ndiaye', dateLabel: 'il y a 2 j', detail: null },
   ],
@@ -97,5 +105,31 @@ describe('GUIC-702 — ModerationDetailPanel (rendu)', () => {
     expect(apercu).toHaveAttribute('href', '/admin/opportunites/o1/apercu')
     expect(apercu).toHaveAttribute('target', '_blank')
     expect(apercu).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+
+  // GUIC-705 — promotion « curation → partenaire » : offre curée SANS partenaire lié
+  const CUREE: ModerationDetail = {
+    ...DETAIL,
+    source: 'veille',
+    partenaire: null,
+    organisationLibelle: 'GIZ Sénégal',
+  }
+
+  it('propose « Rattacher à un partenaire » quand l’offre est curée sans partenaire lié', () => {
+    renderPanel(CUREE)
+    expect(screen.getByRole('button', { name: /Rattacher à un partenaire/i })).toBeInTheDocument()
+  })
+
+  it('n’affiche PAS « Rattacher » quand un partenaire est déjà lié', () => {
+    renderPanel()
+    expect(screen.queryByRole('button', { name: /Rattacher à un partenaire/i })).not.toBeInTheDocument()
+  })
+
+  it('ouvre le modal de rattachement au clic (libellé employeur affiché)', async () => {
+    renderPanel(CUREE)
+    fireEvent.click(screen.getByRole('button', { name: /Rattacher à un partenaire/i }))
+    // le modal reprend le libellé pour la création « Créer « GIZ Sénégal » »
+    // findBy → attend la résolution de suggestionsPartenaire (useEffect) dans act()
+    expect(await screen.findByRole('button', { name: /Créer « GIZ Sénégal »/ })).toBeInTheDocument()
   })
 })

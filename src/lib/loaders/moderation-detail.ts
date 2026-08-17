@@ -158,6 +158,8 @@ export interface ModerationDetail {
   champsTypes: ChampType[]
   description: string
   partenaire: { nom: string; estVerifie: boolean; offresPubliees: number } | null
+  /** GUIC-705 — employeur texte (offre curée) ; « rattachable » si présent SANS partenaire lié. */
+  organisationLibelle: string | null
   historique: HistoriqueEntry[]
 }
 
@@ -237,6 +239,7 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
     champsTypes: champsSousType(o),
     description: o.description,
     partenaire,
+    organisationLibelle: o.organisationLibelle ?? null,
     historique,
   }
 }
