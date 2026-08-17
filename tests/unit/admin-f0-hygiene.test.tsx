@@ -16,6 +16,11 @@ jest.mock('@/components/ui/Icon', () => ({
 }))
 
 // ── Server actions mockées ────────────────────────────────────────────────
+// GUIC-706 — le panneau de modération importe les actions partenaires (next/cache server-only).
+jest.mock('@/app/admin/partenaires/actions', () => ({
+  suggestionsPartenaire: jest.fn().mockResolvedValue([]),
+  promouvoirEmployeur: jest.fn().mockResolvedValue({ organisationId: 'x' }),
+}))
 jest.mock('@/app/admin/opportunites/actions', () => ({
   approuverOpportunite: jest.fn(),
   rejeterOpportunite: jest.fn(),

@@ -8,6 +8,12 @@ import { AdminModerationList } from '@/app/admin/opportunites/AdminModerationLis
 import type { ModerationRow } from '@/lib/loaders/admin-moderation'
 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+// GUIC-706 — le panneau de modération référence les actions partenaires (modal « Rattacher »),
+// qui importent next/cache (server-only) : mock pour éviter le chargement en jsdom.
+jest.mock('@/app/admin/partenaires/actions', () => ({
+  suggestionsPartenaire: jest.fn().mockResolvedValue([]),
+  promouvoirEmployeur: jest.fn().mockResolvedValue({ organisationId: 'x' }),
+}))
 jest.mock('@/app/admin/opportunites/actions', () => ({
   approuverOpportunite: jest.fn(),
   rejeterOpportunite: jest.fn(),
