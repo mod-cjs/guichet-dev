@@ -76,7 +76,8 @@ describe('GET /api/opportunites/[slug]', () => {
   it('ne requête que les opportunités publiées et non supprimées', async () => {
     await route.GET(req(), ctx)
     const where = mockFindFirst.mock.calls[0][0].where
-    expect(where).toEqual({ slug: 'stage-agriculture', statut: 'publiee', deletedAt: null })
+    // GUIC-705 — gate de visibilité : un partenaire suspendu masque ses offres (détail).
+    expect(where).toEqual({ slug: 'stage-agriculture', statut: 'publiee', deletedAt: null, NOT: { org: { statut: 'suspendue' } } })
   })
 
   it('renvoie 404 quand le slug est inconnu ou non publié', async () => {
