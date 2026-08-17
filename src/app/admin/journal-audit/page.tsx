@@ -26,6 +26,11 @@ const ACTION_META: Record<string, { text: string; tone: AuditRow['tone']; icon: 
   'recruteur.statut': { text: 'a modifié le statut d’un recruteur', tone: 'grey', icon: 'users' },
   'partenaire.verify': { text: 'a modifié la vérification d’un partenaire', tone: 'green', icon: 'check-circle' },
   'partenaire.update': { text: 'a modifié un partenaire', tone: 'grey', icon: 'settings' },
+  'partenaire.create': { text: 'a créé un partenaire', tone: 'green', icon: 'plus' },
+  'partenaire.statut': { text: 'a suspendu / réactivé un partenaire', tone: 'grey', icon: 'block' },
+  'partenaire.promotion': { text: 'a rattaché une offre à un partenaire', tone: 'green', icon: 'attach' },
+  'partenaire.membre.rattache': { text: 'a rattaché un membre à un partenaire', tone: 'green', icon: 'users' },
+  'partenaire.membre.statut': { text: 'a révoqué / réactivé un membre', tone: 'grey', icon: 'users' },
 }
 
 /** Identifiant court lisible quand le nom n'est pas résolvable. */

@@ -189,6 +189,71 @@ export async function promouvoirEmployeur(input: {
   return { organisationId: orgId }
 }
 
+/**
+ * GUIC-706 (Phase 2b) — rattacher une PERSONNE (compte SSO) à un partenaire (0..N).
+ * L'admin lie un utilisateur EXISTANT (trouvé via recherche/`/users/find`) ; le RÔLE
+ * recruteur reste attribué côté SSO. `role` = titulaire (référent) ou recruteur (défaut).
+ */
+const rattacherMembreSchema = z.object({
+  organisationId: z.string().min(1),
+  cjsUid: z.string().min(1),
+  role: z.enum(['titulaire', 'recruteur']).default('recruteur'),
+})
+
+export async function rattacherMembre(input: {
+  organisationId: string
+  cjsUid: string
+  role?: 'titulaire' | 'recruteur'
+}): Promise<{ id: string }> {
+  const session = await assertAdmin()
+  const data = rattacherMembreSchema.parse(input)
+
+  const org = await prisma.organisation.findUnique({ where: { id: data.organisationId }, select: { id: true } })
+  if (!org) throw new Error('NOT_FOUND')
+  const user = await prisma.utilisateur.findUnique({ where: { cjsUid: data.cjsUid }, select: { cjsUid: true } })
+  if (!user) throw new Error('UTILISATEUR_INCONNU')
+  const existe = await prisma.membreOrganisation.findUnique({
+    where: { organisationId_cjsUid: { organisationId: data.organisationId, cjsUid: data.cjsUid } },
+    select: { id: true },
+  })
+  if (existe) throw new Error('DEJA_MEMBRE')
+
+  const membre = await prisma.membreOrganisation.create({
+    data: { organisationId: data.organisationId, cjsUid: data.cjsUid, role: data.role, statut: 'actif' },
+    select: { id: true },
+  })
+  await recordAudit(session.cjsUid, 'partenaire.membre.rattache', {
+    targetType: 'organisation',
+    targetId: data.organisationId,
+    meta: { cjsUid: data.cjsUid, role: data.role },
+  })
+  revalidate(data.organisationId)
+  return { id: membre.id }
+}
+
+/**
+ * GUIC-706 — révoquer / réactiver un membre (levier MEMBRE-level). `revoke` : ce recruteur
+ * ne publie plus pour l'org, mais ses offres déjà publiées RESTENT (distinct du levier org
+ * qui masque tout, et du levier personne qui coupe le compte partout).
+ */
+export async function changerStatutMembre(membreId: string, statut: 'actif' | 'revoke'): Promise<{ ok: true }> {
+  const session = await assertAdmin()
+  const id = idSchema.parse(membreId)
+  const st = z.enum(['actif', 'revoke']).parse(statut)
+  const membre = await prisma.membreOrganisation.update({
+    where: { id },
+    data: { statut: st },
+    select: { organisationId: true },
+  })
+  await recordAudit(session.cjsUid, 'partenaire.membre.statut', {
+    targetType: 'organisation',
+    targetId: membre.organisationId,
+    meta: { membreId: id, statut: st },
+  })
+  revalidate(membre.organisationId)
+  return { ok: true }
+}
+
 // GUIC-705 — Le statut d'un COMPTE recruteur (personne) est un levier PERSONNE :
 // il passe par l'unique action canonique `changerStatutUtilisateur`
 // (`src/app/admin/utilisateurs/actions.ts`). La suspension du PARTENAIRE

@@ -44,6 +44,12 @@ export type AuditAction =
   | 'partenaire.verify'
   | 'partenaire.update'
   | 'recruteur.statut'
+  // GUIC-705/706 — découplage org ≠ compte : création/statut org, promotion, membres 0..N.
+  | 'partenaire.create'
+  | 'partenaire.statut'
+  | 'partenaire.promotion'
+  | 'partenaire.membre.rattache'
+  | 'partenaire.membre.statut'
   // GUIC-485 / GUIC-230 — examen des candidatures recruteur (pipeline + CV + PII).
   | 'candidature.statut'
   | 'candidature.cv.read'
