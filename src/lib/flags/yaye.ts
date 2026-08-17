@@ -28,13 +28,20 @@ import { getFlagDef, resolveAudience } from './catalog'
 /**
  * Outil → fonctionnalité dont il tire ses données.
  *
- * QUATRE OUTILS SONT VOLONTAIREMENT ABSENTS :
- *   - `get_user_profile`, `get_realtime_data`, `query_knowledge_graph` portent le contexte
- *     de la conversation. Les couper ferait répondre Yaye à côté au lieu de refuser
- *     proprement — c'est pire qu'un refus.
+ * QUATRE OUTILS SONT ABSENTS D'ICI, POUR TROIS RAISONS DIFFÉRENTES :
+ *   - `get_user_profile` et `get_realtime_data` portent le contexte de la conversation.
+ *     Les couper ferait répondre Yaye à côté au lieu de refuser proprement — pire qu'un
+ *     refus. `get_realtime_data` ne rend d'ailleurs que les candidatures et favoris DE LA
+ *     PERSONNE : cohérent avec la sémantique `drain`, un titulaire d'engagement continue
+ *     de voir ce qui le concerne.
  *   - `escalate_to_advisor` est un dispositif de sécurité, déclenché DE FORCE sur signal
  *     de danger, hors du choix du modèle. Le rendre masquable retirerait le recours
  *     humain à une personne en détresse.
+ *   - `query_knowledge_graph` EST GARDÉ, mais par intention (cf. `FLAG_PAR_INTENTION`).
+ *     Il avait d'abord été rangé avec les outils de contexte : erreur de lecture, c'est un
+ *     second moteur de récupération, et l'exemption ouvrait une fuite de données que les
+ *     niveaux 1 et 2 croyaient avoir fermée. Le masquer en bloc priverait Yaye de tout son
+ *     raisonnement sur les offres dès qu'une seule bibliothèque ferme.
  */
 export const FLAG_PAR_OUTIL: Record<string, string> = {
   search_opportunities: 'm3.opportunites',

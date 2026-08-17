@@ -22,7 +22,7 @@ const mockGetFlags = jest.fn()
 jest.mock('@/lib/flags', () => ({ getFlags: () => mockGetFlags() }))
 jest.mock('@/lib/logger', () => ({ logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() } }))
 
-import { outilMasque, FLAG_PAR_OUTIL } from '@/lib/flags/yaye'
+import { outilMasque, FLAG_PAR_OUTIL, FLAG_PAR_INTENTION } from '@/lib/flags/yaye'
 import { catalogDefaults, getFlagDef } from '@/lib/flags/catalog'
 
 const masque = (key: string) => ({ ...catalogDefaults(), [key]: false })
@@ -42,14 +42,17 @@ describe('table de correspondance', () => {
   it('laisse hors garde les outils de contexte et la sécurité', () => {
     // Retirer le contexte ferait répondre Yaye à côté au lieu de refuser proprement, et
     // retirer l'escalade priverait de recours humain une personne en détresse.
-    for (const outil of [
-      'get_user_profile',
-      'get_realtime_data',
-      'query_knowledge_graph',
-      'escalate_to_advisor',
-    ]) {
+    for (const outil of ['get_user_profile', 'get_realtime_data', 'escalate_to_advisor']) {
       expect(FLAG_PAR_OUTIL[outil]).toBeUndefined()
     }
+  })
+
+  it('n’inscrit pas le graphe ici — il est gardé par intention', () => {
+    // ATTENTION AU CONTRESENS : son absence de cette table n'est PAS une exemption. Rangé
+    // d'abord avec les outils de contexte, il ouvrait une fuite de données — c'est un
+    // second moteur de récupération. Voir `flags-yaye-intentions.test.ts`.
+    expect(FLAG_PAR_OUTIL['query_knowledge_graph']).toBeUndefined()
+    expect(Object.keys(FLAG_PAR_INTENTION).length).toBeGreaterThan(0)
   })
 
   it('couvre les outils qui puisent dans un module masquable', () => {

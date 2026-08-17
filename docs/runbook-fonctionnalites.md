@@ -86,11 +86,12 @@ dernier recours.
 ## Ce que le dispositif ne couvre pas
 
 - **La prose de Yaye** — l'agent ne peut plus ni servir les données d'un module masqué ni
-  le proposer spontanément : l'outil est retiré de son registre et de son prompt. Mais le
-  prompt décrit aussi le produit en français courant, hors des zones filtrées ; interrogé
-  frontalement sur un module fermé, Yaye peut encore en parler — sans jamais rien en tirer.
-  Vérifié en réel le 2026-08-15 : agenda masqué, aucun outil appelé, mais réponse
-  conversationnelle sur le sujet nommé.
+  le proposer spontanément : l'outil est retiré de son registre et de son prompt, et le
+  graphe de connaissances est gardé intention par intention. Mais le prompt décrit aussi le
+  produit en français courant, hors des zones filtrées ; interrogé frontalement sur un
+  module fermé, Yaye peut encore en parler — sans jamais rien en tirer. Vérifié en réel le
+  2026-08-15 : agenda masqué, aucun outil appelé, mais réponse conversationnelle sur le
+  sujet nommé.
 - **L'accueil public** — décision produit : ses cartes de raccourci ne suivent pas les
   flags.
 - **Les liens partenaires** (YEAH, e-learning) — hors périmètre, ce sont d'autres
