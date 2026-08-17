@@ -68,7 +68,6 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 | Protection WAF/anti-DDoS du domaine public | Marche à suivre documentée (`docs/cloudflare-acces-dashboards.md` §2) — nécessite une coordination sur le changement de nameservers (risque MX/e-mail), pas encore planifiée | GUIC-575 |
 | Numéro WhatsApp d'astreinte | Pas encore disponible — bloque le canal webhook `contact-points.yml` (`ALERTE_WEBHOOK_URL`), même une fois le relais Cloudflare construit | GUIC-575 |
 | Sonde externe de disponibilité | **Résolu pour la préprod** — UptimeRobot configuré et lié à l'URL préprod. Reste à dupliquer sur le domaine prod une fois celui-ci en service. | GUIC-575 |
-| Contacts d'astreinte | **Partiel** — « Astreinte applicative » complétée (les deux mêmes adresses que les alertes Grafana : `odiallo@`/`adiop@consortiumjeunessesenegal.org`). Infra/Plesk, SSO et Décision métier restent vides — **toujours No-Go tant que ces 3 lignes ne sont pas complétées** (`docs/runbook-production.md` §7). | GUIC-159 |
 
 Une entrée retirée de ce tableau doit l'être **parce qu'elle est réellement résolue et
 vérifiée en réel**, pas parce que le code a été écrit — cohérent avec `docs/tests-robustesse.md`.

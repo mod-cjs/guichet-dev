@@ -222,16 +222,16 @@ Ensuite seulement, restaurer.
 
 ## 7. Contacts et astreinte
 
-> **Partiellement complété — 3 lignes sur 4 restent vides : toujours un No-Go (§1)
-> tant qu'elles ne le sont pas.**
-> Un runbook sans contact joignable n'est pas un runbook.
+> **Complété.** Équipe réduite à ce stade : les deux mêmes développeurs couvrent l'astreinte
+> applicative et l'infra ; le tech lead porte les décisions métier. À élargir nommément à
+> mesure que l'équipe grandit — jamais en pointant un rôle plutôt qu'une personne.
 
 | Rôle | Qui | Joignable | Quand l'appeler |
 |---|---|---|---|
 | Astreinte applicative | `odiallo@consortiumjeunessesenegal.org`, `adiop@consortiumjeunessesenegal.org` (mêmes destinataires que les alertes Grafana, `infra/observabilite/grafana/provisioning/alerting/contact-points.yml`) | E-mail | 5xx, rollback, doute sur la base |
-| Infra / Plesk / serveur | *à compléter* | *à compléter* | MariaDB, réseau, TLS, MinIO, Redis |
-| SSO (CJS Auth) | *à compléter* | *à compléter* | Connexion impossible pour tous |
-| Décision métier | *à compléter* | *à compléter* | Perte de données, communication utilisateurs |
+| Infra / Plesk / serveur | `odiallo@consortiumjeunessesenegal.org`, `adiop@consortiumjeunessesenegal.org` | E-mail | MariaDB, réseau, TLS, MinIO, Redis |
+| SSO (CJS Auth) | `odiallo@consortiumjeunessesenegal.org`, `adiop@consortiumjeunessesenegal.org` | E-mail | Connexion impossible pour tous |
+| Décision métier | `adiop@consortiumjeunessesenegal.org` (tech lead) | E-mail | Perte de données, communication utilisateurs |
 
 **Le seuil d'escalade doit être bas.** Réveiller quelqu'un coûte moins cher qu'une base corrompue.
 
