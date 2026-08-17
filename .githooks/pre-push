@@ -3,17 +3,56 @@
 # Exécution : ~90 s  |  Bloque si erreurs
 set -e
 
+if [ "${GUIC_HOOKS_OFF:-0}" = "1" ]; then
+  echo "⏭  pre-push sauté (GUIC_HOOKS_OFF=1)"
+  exit 0
+fi
+
 echo ""
 echo "🔍 pre-push : validation complète (miroir CI)…"
 echo ""
 
-echo "⏳ [1/3] lint…"
+# ── [0/4] Dérive de schéma ────────────────────────────────────────────────────
+# GUIC-689 — chaque worktree a sa propre base (scripts/dev/isolate-worktree-db.sh),
+# mais l'alignement est MANUEL. Après un changement de branche vers un schéma
+# différent, on teste contre une base qui ne correspond plus au code : la suite
+# passe ou échoue pour de mauvaises raisons.
+#
+# Cette vérification passe AVANT les tests : découvrir la dérive après 90 s de
+# suite inutile n'apprend rien.
+#
+# Elle ne bloque JAMAIS sur une base injoignable (CI sans conteneur, poste sans
+# Docker) — un garde-fou qui crie à tort finit contourné, et `--no-verify`
+# redevient une habitude.
+echo "⏳ [0/4] dérive base ↔ schéma…"
+DERIVE=0
+npx prisma migrate diff \
+  --from-config-datasource prisma.config.ts \
+  --to-schema prisma/schema.prisma \
+  --exit-code >/dev/null 2>&1 || DERIVE=$?
+
+case "$DERIVE" in
+  0) echo "   base alignée sur le schéma de la branche" ;;
+  2)
+    echo ""
+    echo "✗ La base pointée par DATABASE_URL a DÉRIVÉ du schema.prisma de cette branche."
+    echo "  Les tests tourneraient contre un schéma qui n'est pas celui du code."
+    echo ""
+    echo "  Réparer :  bash scripts/dev/isolate-worktree-db.sh"
+    echo "  (⚠ un enum qui rétrécit tronque les lignes hors cible — neutraliser d'abord)"
+    echo ""
+    exit 1
+    ;;
+  *) echo "   base injoignable ou diff indisponible — vérification sautée" ;;
+esac
+
+echo "⏳ [1/4] lint…"
 npm run lint --silent
 
-echo "⏳ [2/3] tests…"
+echo "⏳ [2/4] tests…"
 npm run test -- --no-coverage
 
-echo "⏳ [3/3] build Next.js…"
+echo "⏳ [3/4] build Next.js…"
 npm run build
 
 echo ""
