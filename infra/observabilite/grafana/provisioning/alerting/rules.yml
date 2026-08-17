@@ -2,7 +2,10 @@
 #
 # Chaque règle porte un label `severite` :
 #   alerte         -> on réveille quelqu'un, maintenant ;
-#   avertissement  -> on regarde demain.
+#   avertissement  -> on regarde demain ;
+#   rappel         -> une décision assumée (ex. pause volontaire), pas une panne — cadence
+#                     hebdomadaire (notification-policies.yml), pour ne pas disparaître des
+#                     radars sans fatiguer personne (GUIC-571).
 # Sans cette distinction, tout devient urgent, donc plus rien ne l'est.
 #
 # ⚠️ NE SONT ÉCRITES ICI QUE LES RÈGLES DONT LE SIGNAL EXISTE. Une alerte branchée sur un signal
@@ -400,4 +403,55 @@ groups:
                 - evaluator: { type: lt, params: [6144] } # 6 Gio
               refId: C
         noDataState: Alerting
+        execErrState: Error
+
+  - orgId: 1
+    name: guichet-rappels
+    folder: Guichet
+    interval: 5m
+    rules:
+      # ── Rappel — sauvegarde MinIO en pause (GUIC-571) ─────────────────────
+      # Décision du 17/08 : la clé applicative S3 est refusée par MinIO (Access Denied, à
+      # investiguer) et aucun stockage externe n'est encore choisi — plutôt que d'échouer
+      # chaque nuit (ce que backup.sh faisait avant, en `exit 4` fatal pour tout le script,
+      # coupant aussi la purge et la copie hors-site de la partie MariaDB qui, elle, marche),
+      # S3_ENDPOINT/S3_BUCKET sont retirés de test.env : backup.sh utilise alors son propre
+      # chemin de sortie propre déjà existant (« MinIO non configuré → sauvegarde objet
+      # ignorée », backup.sh backup_minio()) — pas une erreur, un choix.
+      # C'est ce choix que cette règle rappelle, une fois par semaine, pour qu'il ne devienne
+      # pas une dette oubliée. `severite: rappel`, pas `alerte` : pas de raison de réveiller
+      # quelqu'un pour une décision déjà prise et assumée.
+      - uid: guichet-minio-pause-rappel
+        title: 'Rappel : sauvegarde MinIO toujours en pause'
+        condition: C
+        for: 0m
+        labels:
+          severite: rappel
+        annotations:
+          summary: 'La sauvegarde MinIO (CV/justificatifs) est en pause depuis le 17/08/2026.'
+          description: >-
+            Décision assumée, pas une panne : clé applicative S3 refusée (Access Denied),
+            pas de stockage externe encore choisi. Les CV et justificatifs (données
+            personnelles CDP) ne sont pas sauvegardés tant que ce n'est pas réglé.
+            Voir docs/ops-index.md.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 93600, to: 0 } # 26h, même fenêtre que sauvegarde-absente
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "MinIO non configuré" [26h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+              refId: C
+        # OK, pas Alerting : l'absence totale de ligne de sauvegarde relève déjà de
+        # guichet-sauvegarde-absente — pas la peine de le redire ici.
+        noDataState: OK
         execErrState: Error
