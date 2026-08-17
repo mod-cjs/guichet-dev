@@ -76,7 +76,7 @@ beforeAll(async () => {
       typeId: type.id,
       type: 'Emploi',
       organisation: 'Fixture GUIC-689',
-      domaine: 'Numerique',
+      domaine: 'Economie',
       recruteurUid: RECRUTEUR,
     },
     select: { id: true },

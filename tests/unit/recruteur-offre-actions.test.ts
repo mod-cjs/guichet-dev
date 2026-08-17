@@ -35,7 +35,7 @@ const CTX = {
 }
 const EMPLOI = {
   type: 'emploi', titre: 'Développeur web', description: 'Rejoignez notre équipe.',
-  domaine: 'Numerique', region: 'Dakar', typeContrat: 'CDD', dureeContratMois: 12,
+  domaine: 'Economie', region: 'Dakar', typeContrat: 'CDD', dureeContratMois: 12,
   // GUIC-684 — une offre relève d'au moins un programme, y compris côté recruteur.
   programmeSlugs: ['yjc'],
 }
@@ -125,7 +125,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await expect(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Numerique' , programmeSlugs: ['yjc'] } as any),
+      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Economie' , programmeSlugs: ['yjc'] } as any),
     ).rejects.toThrow()
     expect(mockCreate).not.toHaveBeenCalled()
   })
@@ -134,7 +134,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await creerOffreRecruteur(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Numerique', dureeMois: 6, indemnise: true , programmeSlugs: ['yjc'] } as any,
+      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Economie', dureeMois: 6, indemnise: true , programmeSlugs: ['yjc'] } as any,
     )
     const input = mockCreate.mock.calls[0][0]
     expect(input.type).toBe('stage')

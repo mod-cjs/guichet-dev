@@ -48,7 +48,7 @@ describe('GUIC-28 — CRUD opportunité (DB réelle)', () => {
         slug,
         description: 'Fixture intégration GUIC-28.',
         organisationLibelle: 'CJS',
-        domaine: 'Entrepreneuriat',
+        domaine: 'Economie',
         statut: 'brouillon',
         // GUIC-684 — rattachement obligatoire à au moins un programme.
         programmeSlugs: ['yaakaar'],

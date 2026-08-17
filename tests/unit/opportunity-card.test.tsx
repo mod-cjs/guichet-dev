@@ -22,7 +22,7 @@ const baseItem: OpportuniteListItem = {
   slug: 'stage-data-science',
   titre: 'Stage Data Science · 6 mois',
   type: 'Stage',
-  domaine: 'Numerique',
+  domaine: 'Economie',
   region: 'Dakar',
   organisation: 'Sonatel — Innovation',
   remuneration: '350 000 F/mois',

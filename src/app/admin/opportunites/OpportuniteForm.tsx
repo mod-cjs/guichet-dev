@@ -11,13 +11,17 @@ import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { creerOpportunite, modifierOpportunite } from './actions'
 import type { SousTypeSlug } from '@/lib/services/opportunite-service'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 // ─── Options d'enum (miroir de prisma/schema.prisma) ───────────────────────────
 
 type Opt = { value: string; label: string }
 const opts = (...v: string[]): Opt[] => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 
-const DOMAINES = opts('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
+// GUIC-689 — la liste était recopiée en `string[]` NON typé : après la refonte
+// de taxonomie, tsc n'aurait rien signalé et le formulaire aurait proposé des
+// valeurs mortes, l'échec n'arrivant qu'à l'enregistrement.
+const DOMAINES = DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) }))
 const REGIONS = opts('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou')
 const NIVEAUX = opts('BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT')
 const TYPE_CONTRAT = opts('CDI', 'CDD', 'FREELANCE', 'ALTERNANCE', 'STAGE_ALTERNE')

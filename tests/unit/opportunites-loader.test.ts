@@ -32,7 +32,7 @@ const ROW = {
   slug: 'stage-agriculture',
   titre: 'Stage en agriculture',
   type: 'Stage',
-  domaine: 'Agriculture',
+  domaine: 'Economie',
   region: 'Dakar',
   organisation: 'CJS',
   remuneration: null,
@@ -66,12 +66,12 @@ describe('listOpportunites — filtrage et visibilité', () => {
   })
 
   it('transmet les filtres domaine, type et région en paramètres', async () => {
-    await listOpportunites({ ...base, domaine: 'Numerique', type: 'Emploi', region: 'Thies' })
+    await listOpportunites({ ...base, domaine: 'Economie', type: 'Emploi', region: 'Thies' })
     const { sql, values } = rowsSql()
     expect(sql).toContain('domaine = ?')
     expect(sql).toContain('type = ?')
     expect(sql).toContain('region = ?')
-    expect(values).toEqual(expect.arrayContaining(['Numerique', 'Emploi', 'Thies']))
+    expect(values).toEqual(expect.arrayContaining(['Economie', 'Emploi', 'Thies']))
   })
 
   it('n’ajoute pas de filtre quand domaine/type/région sont absents', async () => {
@@ -106,7 +106,7 @@ describe('listOpportunites — tri et pagination', () => {
       slug: 'stage-agriculture',
       titre: 'Stage en agriculture',
       type: 'Stage',
-      domaine: 'Agriculture',
+      domaine: 'Economie',
       region: 'Dakar',
       organisation: 'CJS',
       remuneration: null,

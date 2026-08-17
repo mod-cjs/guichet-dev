@@ -82,7 +82,7 @@ export async function seedOrganisation(
       id,
       cjsUid,
       nom:        opts.nom ?? 'Organisation E2E',
-      secteur:    'Numerique',
+      secteur:    'Economie',
       region:     'Dakar',
       estVerifie: true,
     },
@@ -141,7 +141,7 @@ export async function seedOpportunite(opts: {
       description:    'Description E2E suffisamment longue pour un rendu réaliste du détail.',
       type:           (opts.type ?? 'Stage') as never,
       organisation:   'Organisation E2E',
-      domaine:        (opts.domaine ?? 'Numerique') as never,
+      domaine:        (opts.domaine ?? 'Economie') as never,
       region:         (opts.region ?? 'Dakar') as never,
       deadline,
       statut:         (opts.statut ?? 'publiee') as never,
@@ -169,7 +169,7 @@ export async function seedProfilJeuneComplet(
   const data = {
     niveauEtude:     complet ? 'Licence' : null,
     situationEmploi: complet ? 'en_recherche' : null,
-    domainesInteret: complet ? ['Numerique'] : [],
+    domainesInteret: complet ? ['Economie'] : [],
   }
   await prisma.profilJeune.upsert({
     where:  { cjsUid },

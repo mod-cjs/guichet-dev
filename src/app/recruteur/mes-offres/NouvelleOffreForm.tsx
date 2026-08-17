@@ -14,11 +14,16 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { creerOffreRecruteur, type CreerOffreRecruteurInput } from './actions'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 type Opt = { value: string; label: string }
 const opt = (...v: string[]): Opt[] => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 
-const DOMAINES = opt('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
+// GUIC-689 — SIXIÈME copie du vocabulaire, oubliée lors de la refonte de
+// taxonomie : ce formulaire proposait encore les neuf anciennes catégories et
+// se pré-remplissait sur « Numerique », valeur devenue inexistante. Un
+// recruteur qui ne touchait pas au champ voyait sa création refusée.
+const DOMAINES = DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) }))
 const REGIONS = opt('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou')
 const NIVEAUX = opt('BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT')
 const TYPE_CONTRAT = opt('CDI', 'CDD', 'FREELANCE', 'ALTERNANCE', 'STAGE_ALTERNE')
@@ -69,7 +74,10 @@ export function NouvelleOffreForm({
     const common = {
       titre: g('titre') ?? '',
       description: g('description') ?? '',
-      domaine: g('domaine') ?? 'Numerique',
+      // Pas de valeur par défaut : le champ est `required`, donc le navigateur
+      // impose un choix. Un défaut arbitraire classerait l'offre à la place du
+      // recruteur.
+      domaine: g('domaine') ?? '',
       region: g('region') ?? null,
       remuneration: g('remuneration') ?? null,
       deadline: g('deadline') ?? null,
@@ -162,7 +170,7 @@ export function NouvelleOffreForm({
             onChange={setDesc}
           />
           <div className="grid gap-[12px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-            <Select name="domaine" label="Domaine" required options={DOMAINES} defaultValue="Numerique" />
+            <Select name="domaine" label="Domaine" required options={DOMAINES} defaultValue="" />
             <Select name="region" label="Région" options={REGIONS} placeholder="—" />
             <Input name="deadline" label="Date limite" type="date" />
             <Input name="remuneration" label="Rémunération" maxLength={100} placeholder="Ex. 250 000 FCFA / mois" />

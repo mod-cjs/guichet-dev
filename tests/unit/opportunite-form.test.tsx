@@ -66,7 +66,7 @@ describe('GUIC-28 — OpportuniteForm (création)', () => {
     // La description est un éditeur riche (Tiptap) — saisie non simulable en jsdom ;
     // ce test vérifie le passage type + base + details, pas le corps riche lui-même.
     await user.type(screen.getByLabelText(/^Organisation/), 'CJS')
-    await user.selectOptions(screen.getByLabelText(/Domaine/), 'Numerique')
+    await user.selectOptions(screen.getByLabelText(/Domaine/), 'Economie')
     await user.type(screen.getByLabelText(/Montant total/), '500000')
     await user.type(screen.getByLabelText(/Organisme financeur/), 'CJS')
     await user.click(screen.getByRole('button', { name: 'YEAH' }))
@@ -99,7 +99,7 @@ describe('GUIC-28 — OpportuniteForm (édition)', () => {
   const initial = {
     id: 'opp-9',
     type: 'emploi' as const,
-    base: { titre: 'Dev', slug: 'dev', description: 'x', organisationLibelle: 'Sonatel', domaine: 'Numerique', statut: 'publiee' },
+    base: { titre: 'Dev', slug: 'dev', description: 'x', organisationLibelle: 'Sonatel', domaine: 'Economie', statut: 'publiee' },
     details: { typeContrat: 'CDI', teletravail: true },
     programmeSlugs: ['yeah'],
   }
