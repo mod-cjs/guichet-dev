@@ -9,7 +9,7 @@ import { jobPostingJsonLd, eventJsonLd, type JsonLdObject } from './json-ld'
 /** JobPosting d'une opportunité publiée, ou null si introuvable/non publiée. */
 export async function getOpportuniteJsonLd(slug: string): Promise<JsonLdObject | null> {
   const o = await prisma.opportunite.findFirst({
-    where: { slug, statut: 'publiee', deletedAt: null },
+    where: { slug, statut: 'publiee', deletedAt: null, NOT: { org: { statut: 'suspendue' } } }, // GUIC-705
     select: {
       slug: true,
       titre: true,

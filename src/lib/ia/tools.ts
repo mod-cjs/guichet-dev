@@ -239,6 +239,7 @@ const searchOpportunities: AgentTool = {
     const where: Prisma.OpportuniteWhereInput = {
       statut: 'publiee',
       deletedAt: null,
+      NOT: { org: { statut: 'suspendue' } }, // GUIC-705 — Yaye ne recommande pas les offres d'un partenaire suspendu
       OR: [{ deadline: null }, { deadline: { gte: new Date() } }],
     }
     if (inEnum(Domaine, args.domaine)) where.domaine = args.domaine

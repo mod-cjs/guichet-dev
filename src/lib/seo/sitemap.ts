@@ -86,7 +86,7 @@ export function buildSitemapEntries(content: DynamicContent, now: Date): Sitemap
 async function loadDynamicContent(): Promise<DynamicContent> {
   const [opportunites, evenements, ressources, centres] = await Promise.all([
     prisma.opportunite.findMany({
-      where: { statut: 'publiee', deletedAt: null },
+      where: { statut: 'publiee', deletedAt: null, NOT: { org: { statut: 'suspendue' } } }, // GUIC-705
       select: { slug: true, updatedAt: true },
     }),
     prisma.evenement.findMany({

@@ -28,6 +28,7 @@ export async function loadHomeStats(): Promise<HomeStats> {
       where: {
         statut: 'publiee',
         deletedAt: null,
+        NOT: { org: { statut: 'suspendue' } }, // GUIC-705
         OR: [{ deadline: null }, { deadline: { gte: now } }],
       },
     }),

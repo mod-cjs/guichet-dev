@@ -49,9 +49,9 @@ function toOpp(r: OppRow): GraphOpportunite {
   }
 }
 
-/** Filtre « publiée + non expirée ». */
+/** Filtre « publiée + non expirée + partenaire non suspendu » (GUIC-705). */
 function publishedNotExpired(): Prisma.OpportuniteWhereInput {
-  return { statut: 'publiee', deletedAt: null, OR: [{ deadline: null }, { deadline: { gte: new Date() } }] }
+  return { statut: 'publiee', deletedAt: null, NOT: { org: { statut: 'suspendue' } }, OR: [{ deadline: null }, { deadline: { gte: new Date() } }] }
 }
 
 export class PrismaGraphAdapter implements GraphPort {
