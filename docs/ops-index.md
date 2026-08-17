@@ -34,7 +34,7 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 - Logs applicatifs, `requestId`, Loki/Grafana, rétention CDP : `docs/observabilite.md`
 - Dashboard Grafana : tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`), voir §5-6 de
   `docs/observabilite.md`
-- Métriques machine (disque, mémoire, CPU) : `docs/netdata.md` — collecte + alerting déployés (`rules.yml`, groupe `guichet-machine`)
+- Métriques machine (disque, mémoire, CPU) : `docs/netdata.md` — collecte + alerting déployés et **vérifiés jusqu'à réception réelle** (`rules.yml`, groupe `guichet-machine`)
 - Accéder aux dashboards sans tunnel SSH (Cloudflare Tunnel + Access) et protéger le domaine public (WAF) : `docs/cloudflare-acces-dashboards.md`
 - Disponibilité indépendante du serveur (sonde externe, WhatsApp) : `docs/supervision-disponibilite.md`
 - Règles d'alerte réelles (ce qui déclenche, quel seuil) : `infra/observabilite/grafana/provisioning/alerting/rules.yml`
@@ -58,11 +58,11 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 ### Architecture / décisions de mise en prod
 - `.agent_context/specs/M14-mise-en-prod.md`
 
-## Dette connue (au 2026-08-11) — ce qui n'est pas encore prêt
+## Dette connue (au 2026-08-17) — ce qui n'est pas encore prêt
 
 | Sujet | État | Ticket |
 |---|---|---|
-| SPF/DKIM/DMARC | Absent — le mail d'astreinte peut finir en spam | GUIC-577 |
+| SPF/DKIM/DMARC | **Diagnostiqué (17/08)** : SPF déjà cassé (deux enregistrements TXT `v=spf1` distincts sur `consortiumjeunessesenegal.org` — Google Workspace + OVH — invalide par la RFC, `permerror` probable côté receveurs). Fusion proposée : `v=spf1 include:_spf.google.com include:mx.ovh.com ~all` — à appliquer côté DNS, pas encore fait. DKIM **bloqué** : SMTP2GO n'utilise pas un `include:` classique mais un flux « Verified Sender Domain » générant 3 CNAME propres au compte (accès tableau de bord SMTP2GO introuvable pour l'instant). DMARC : reporté (décision de l'adresse de rapports agrégés non prise). Brevo (`brevo-code=…`) détecté dans le DNS, pas d'usage d'envoi confirmé — à ne pas inclure au SPF tant que non confirmé. | GUIC-577 |
 | Copie hors-site des sauvegardes | Décision explicitement différée (destination pas encore choisie) — `BACKUP_OFFSITE_CMD` non défini, sans urgence tant qu'aucune échéance n'est fixée | GUIC-571 |
 | Sauvegarde MinIO (CV/justificatifs) | **En pause, décision assumée (17/08)** — clé applicative S3 refusée par MinIO (`Access Denied`), pas de stockage externe encore choisi. `S3_ENDPOINT`/`S3_BUCKET` retirés de `test.env` : `backup.sh` skip proprement (code existant), plus d'échec nocturne. Rappel hebdomadaire (`guichet-minio-pause-rappel`, `severite: rappel`) tant que non résolu — CV/justificatifs (données CDP) non sauvegardés en attendant. | GUIC-571 |
 | Accès dashboards (Cloudflare Tunnel + Access) | **En attente — bloqué sur l'absence de domaine dédié.** Le tunnel côté Cloudflare est créé (jeton obtenu), mais la création des Public Hostnames exige une zone Cloudflare, et aucun domaine disponible n'est réellement inutilisé (`consortiumjeunessesenegal.org` et `guichetjeunesse.sn` portent tous deux du courrier Google Workspace actif — vérifié via `dig MX`). Décision : enregistrer un domaine dédié à l'ops, quand ce sera prioritaire. **Le tunnel SSH reste la voie d'accès en attendant.** | GUIC-575 |

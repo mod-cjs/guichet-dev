@@ -59,7 +59,8 @@ de GUIC-576 (Loki) : sans lui, toute règle qui la référence échoue silencieu
 (`mount_point="/"`, seuils 80 %/90 %) et mémoire disponible (`netdata_mem_available_MiB_average`,
 seuils 6/3 Gio), contre les noms de métriques vérifiés en réel, pas devinés.
 
-**Ce qui reste à faire** : contrairement à Grafana/Loki (vérifié en exécution réelle jusqu'à
-réception d'un e-mail — `docs/supervision-disponibilite.md`), ces règles n'ont pas encore été
-testées jusqu'à réception (déclencher artificiellement un seuil et confirmer l'e-mail). À faire
-avant de considérer ce point réellement clos.
+**Vérifié en exécution réelle (2026-08-17)** : seuil de la règle mémoire abaissé
+temporairement sur le fichier serveur (pas commité), Grafana redémarré pour recharger, e-mail
+d'alerte reçu après le délai `for: 5m`, seuil réel restauré. La chaîne complète Netdata →
+Prometheus → Grafana → SMTP fonctionne de bout en bout, comme Grafana/Loki
+(`docs/supervision-disponibilite.md`).
