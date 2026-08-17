@@ -6,7 +6,8 @@
 
 ## 1. Accès aux dashboards (Grafana, Netdata) — remplace le tunnel SSH
 
-> **État (2026-08-11) : en attente, bloqué sur l'absence de domaine.** Le tunnel est créé côté
+> **État (2026-08-11, inchangé au 2026-08-17) : en attente, bloqué sur l'absence de domaine.**
+> Le tunnel est créé côté
 > Cloudflare (étape 1 ci-dessous faite, jeton obtenu) — mais les Public Hostnames (étape 2)
 > exigent une zone Cloudflare, et aucun domaine réellement inutilisé n'est disponible :
 > `consortiumjeunessesenegal.org` **et** `guichetjeunesse.sn` portent tous deux du courrier

@@ -210,8 +210,10 @@ personne identifiée (testé) »*. Il manque :
 
 - **dupliquer les sondes UptimeRobot sur le domaine prod**, une fois celui-ci en service ;
 - le **relais WhatsApp** — protection Cloudflare pas encore en place, brainstorm en cours (voir
-  `docs/ops-index.md`) — et **GUIC-577** pour un e-mail fiable ;
-- un **test de bout en bout par seuil**, sur le serveur, jusqu'à réception ;
-- le **tableau d'astreinte et le chemin d'escalade** — partiellement complété (canal e-mail),
-  Infra/Plesk/SSO/Décision métier restent à désigner, à reporter dans le runbook
+  `docs/ops-index.md`) — et **GUIC-577** pour un e-mail fiable (SPF diagnostiqué, DKIM bloqué
+  sur l'accès SMTP2GO — voir `docs/ops-index.md`).
+
+Résolu depuis : **test de bout en bout jusqu'à réception** (vrai e-mail `sauvegarde-absente`
+reçu, puis synthétique pour disque/mémoire le 17/08 — `docs/netdata.md`) et **tableau
+d'astreinte** (4 rôles complétés, `docs/runbook-production.md` §7, GUIC-159).
   (`docs/runbook-production.md` §7, aujourd'hui vide et marqué No-Go).
