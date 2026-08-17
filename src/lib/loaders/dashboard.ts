@@ -139,6 +139,9 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
   const oppsWhere: Prisma.OpportuniteWhereInput = {
     statut:    'publiee',
     deletedAt: null,
+    // GUIC-705/706 — gate de visibilité jeune : un partenaire suspendu masque ses offres,
+    // y compris dans les recommandations du dashboard.
+    NOT: { org: { statut: 'suspendue' } },
     OR: [
       { deadline: null },
       { deadline: { gte: now } },

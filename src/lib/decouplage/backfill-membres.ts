@@ -33,9 +33,13 @@ export async function backfillMembresTitulaires(): Promise<BackfillResult> {
     return { crees: 0, ignoresSansCompte, ignoresOrphelines: 0, dejaPresents: 0 }
   }
 
-  // utilisateurs réellement existants parmi les cjsUid référencés
+  // utilisateurs éligibles : existants ET NON anonymisés (matrice §4 — un compte
+  // anonymisé est délié, il ne devient pas titulaire).
   const uids = [...new Set(orgs.map((o) => o.cjsUid as string))]
-  const users = await prisma.utilisateur.findMany({ where: { cjsUid: { in: uids } }, select: { cjsUid: true } })
+  const users = await prisma.utilisateur.findMany({
+    where: { cjsUid: { in: uids }, statut: { not: 'anonymise' } },
+    select: { cjsUid: true },
+  })
   const existants = new Set(users.map((u) => u.cjsUid))
 
   // membres titulaires déjà présents (rejeu) — clé (org, cjsUid)
