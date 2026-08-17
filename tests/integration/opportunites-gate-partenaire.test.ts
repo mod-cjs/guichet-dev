@@ -27,7 +27,9 @@ beforeAll(async () => {
   await prisma.opportunite.create({
     data: {
       slug, titre: `${PREFIX} Développeur`, description: 'Poste de test à Dakar.',
-      type: 'Emploi', domaine: 'Numerique', organisation: `${PREFIX} Employeur`,
+      // 'Autre' : valeur présente dans TOUTES les versions de l'enum Domaine (la
+      // taxonomie a bougé GUIC-689 sur dev) → test stable, il porte sur org.statut.
+      type: 'Emploi', domaine: 'Autre', organisation: `${PREFIX} Employeur`,
       statut: 'publiee', organisationId: orgId,
     },
   })
