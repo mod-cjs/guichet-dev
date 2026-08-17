@@ -80,6 +80,36 @@ describe('retrait d’un outil', () => {
   })
 })
 
+describe('intentions du graphe dans le prompt', () => {
+  // Deux lignes de routage prescrivent `query_knowledge_graph`. L'outil n'étant plus masqué
+  // en bloc mais gardé par intention, ces lignes survivaient au filtrage et invitaient
+  // Yaye à un appel voué au refus — en nommant l'identifiant d'intention au passage.
+  it('retire la ligne qui prescrit une intention masquée', () => {
+    const p = construireSystemPrompt(RIEN, new Set(['apercu_marche']))
+    expect(p).not.toContain('apercu_marche')
+  })
+
+  it('conserve la ligne quand l’intention reste ouverte', () => {
+    expect(construireSystemPrompt(RIEN, new Set(['livre_disponible']))).toContain('apercu_marche')
+  })
+
+  it('retire la consigne de raisonnement quand toutes ses intentions ferment', () => {
+    const toutes = new Set(['ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours'])
+    expect(construireSystemPrompt(RIEN, toutes)).not.toContain('**Raisonnement** sur les opportunités')
+  })
+
+  it('la conserve tant qu’une seule de ses intentions reste', () => {
+    const p = construireSystemPrompt(RIEN, new Set(['ecart_competences', 'eligibilite', 'parcours']))
+    expect(p).toContain('**Raisonnement** sur les opportunités')
+  })
+
+  it('sans intention masquée, rend le prompt d’aujourd’hui', () => {
+    // La propriété de sûreté, à nouveau : le nouveau paramètre ne doit rien changer par
+    // défaut.
+    expect(construireSystemPrompt(RIEN, new Set())).toBe(SYSTEM_PROMPT)
+  })
+})
+
 describe('masquage par fonctionnalité — le groupement réel', () => {
   // On ne masque JAMAIS un outil seul : `outilsMasques` part du catalogue et retire d'un
   // bloc tous les outils rattachés au même flag. Éprouver outil par outil donnerait un

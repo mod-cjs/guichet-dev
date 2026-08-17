@@ -16,9 +16,9 @@ import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
 import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
 import { buildSourcesLabel, type SourcesInput } from './sources-label'
-import { TOOLS, TOOL_DEFINITIONS } from './tools'
-import { outilMasque, outilsMasques } from '@/lib/flags/yaye'
-import { construireSystemPrompt } from './prompt-outils'
+import { TOOLS } from './tools'
+import { outilMasque } from '@/lib/flags/yaye'
+import { surfaceDisponible } from './surface-outils'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
 import { escaladeMessage, escaladeTitre } from './escalade-message'
@@ -530,13 +530,10 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
   // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
   const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
-  // GUIC-706 (niveau 2) — le registre, les définitions envoyées au modèle ET le prompt
-  // sont réduits aux outils réellement disponibles. Filtrer les seules définitions
-  // laisserait passer les appels émis en texte brut, parsés contre les clés du registre.
-  const masques = await outilsMasques(p.roles)
-  const promptSysteme = construireSystemPrompt(masques)
-  const definitions = TOOL_DEFINITIONS.filter((d) => !masques.has(d.function.name))
-  const nomsOutils = Object.keys(TOOLS).filter((n) => !masques.has(n))
+  // GUIC-706 — registre, définitions et prompt réduits à ce qui est réellement disponible
+  // pour cet interlocuteur, calculés en un seul endroit (cf. surface-outils.ts) : les deux
+  // chemins, direct et streaming, doivent offrir la même surface.
+  const { promptSysteme, definitions, nomsOutils } = await surfaceDisponible(p.roles)
 
   const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
@@ -718,13 +715,10 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
   // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
   const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
-  // GUIC-706 (niveau 2) — le registre, les définitions envoyées au modèle ET le prompt
-  // sont réduits aux outils réellement disponibles. Filtrer les seules définitions
-  // laisserait passer les appels émis en texte brut, parsés contre les clés du registre.
-  const masques = await outilsMasques(p.roles)
-  const promptSysteme = construireSystemPrompt(masques)
-  const definitions = TOOL_DEFINITIONS.filter((d) => !masques.has(d.function.name))
-  const nomsOutils = Object.keys(TOOLS).filter((n) => !masques.has(n))
+  // GUIC-706 — registre, définitions et prompt réduits à ce qui est réellement disponible
+  // pour cet interlocuteur, calculés en un seul endroit (cf. surface-outils.ts) : les deux
+  // chemins, direct et streaming, doivent offrir la même surface.
+  const { promptSysteme, definitions, nomsOutils } = await surfaceDisponible(p.roles)
 
   const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)

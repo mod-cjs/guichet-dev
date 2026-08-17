@@ -28,6 +28,9 @@ export interface LigneRoutage {
   autres?: string[]
   /** Formulation de repli, sans les mentions de `autres`. */
   variante?: string
+  /** Intentions de `query_knowledge_graph` que la ligne PRESCRIT. La ligne tombe quand
+   * TOUTES sont masquées : tant qu'une reste, la consigne garde un objet. */
+  intentions?: string[]
 }
 
 export const LIGNES_ROUTAGE: readonly LigneRoutage[] = [
@@ -43,8 +46,8 @@ export const LIGNES_ROUTAGE: readonly LigneRoutage[] = [
   { ligne: '- **Message long, confus ou hésitant** ("je sais pas trop mais j\'aimerais faire un truc en info ou en agro vers Dakar") → **extrais l\'intention utile** (domaine, lieu, type) et **lance la recherche**. Ne te contente pas d\'un texte général.' },
   { ligne: '- Conseil personnalisé ("une offre pour moi", "suis-je éligible ?") → récupère **d\'abord le profil**.' },
   { ligne: '- Question d\'état ("où en sont mes candidatures ?", "mes favoris") → utilise les **données temps réel**.' },
-  { ligne: '- **Raisonnement** sur les opportunités ("suis-je prêt pour cette offre ?", "qu\'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).' },
-  { ligne: '- **Question générale sur le marché** ("quels secteurs recrutent à Thiès ?", "qu\'est-ce qui embauche en ce moment ?", "quelles compétences sont demandées ?", "y a-t-il beaucoup d\'offres en agro ?") → **query_knowledge_graph** avec l\'intention `apercu_marche`. Donne les chiffres tels quels (ce sont des **offres**, jamais des personnes), en une ou deux phrases, et propose d\'enchaîner sur une recherche ciblée.', primaire: 'query_knowledge_graph' },
+  { ligne: '- **Raisonnement** sur les opportunités ("suis-je prêt pour cette offre ?", "qu\'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).', intentions: ['ecart_competences', 'eligibilite', 'reco_collaborative', 'parcours'] },
+  { ligne: '- **Question générale sur le marché** ("quels secteurs recrutent à Thiès ?", "qu\'est-ce qui embauche en ce moment ?", "quelles compétences sont demandées ?", "y a-t-il beaucoup d\'offres en agro ?") → **query_knowledge_graph** avec l\'intention `apercu_marche`. Donne les chiffres tels quels (ce sont des **offres**, jamais des personnes), en une ou deux phrases, et propose d\'enchaîner sur une recherche ciblée.', primaire: 'query_knowledge_graph', intentions: ['apercu_marche'] },
   { ligne: '- **Réserver une salle ou un véhicule** d\'un centre → d\'abord **get_reservable_resources** pour trouver la ressource et son identifiant. Puis **collecte ce qui manque, une info à la fois** : date (AAAA-MM-JJ), créneau (HH:MM–HH:MM), nombre de personnes, et un **motif d\'au moins 20 caractères**. Quand tu as tout, appelle **reserve_resource SANS confirmer** pour afficher le récapitulatif, demande « Je confirme ? », et n\'appelle **reserve_resource avec confirm=true qu\'APRÈS un oui explicite**. Ne réserve **jamais** sans cet accord.', primaire: 'get_reservable_resources', autres: ['reserve_resource'] },
   { ligne: '- **Badge / carte CJS** ("mon badge", "ma carte", "le QR pour entrer au centre") → utilise **get_badge**.', primaire: 'get_badge' },
   { ligne: '- **Bibliothèque / livres des centres** ("un livre sur…", "emprunter un livre", "où est ce livre") → d\'abord **search_library** (titre/auteur/thème) pour trouver le livre, l\'exemplaire disponible et son emplacement (centre · rayon · étagère · position). Pour emprunter, prends l\'**exemplaireId** d\'un exemplaire disponible, appelle **borrow_book SANS confirmer** pour le récapitulatif, puis **confirm=true seulement APRÈS un oui explicite** — rappelle que l\'emprunt se finalise **au scan du badge au centre**. Pour « mes emprunts » / « quand rendre » → **get_active_loans**.', primaire: 'search_library', autres: ['borrow_book', 'get_active_loans'] },
@@ -96,9 +99,15 @@ function enumere(parties: string[]): string {
  * Une ligne tombe si l'outil qu'elle prescrit est retiré, et bascule sur sa variante si
  * elle cite un outil retiré en contre-exemple.
  */
-export function sectionRoutage(masques: ReadonlySet<string>): string {
+export function sectionRoutage(
+  masques: ReadonlySet<string>,
+  intentions: ReadonlySet<string> = new Set(),
+): string {
   return LIGNES_ROUTAGE.flatMap((l) => {
     if (l.primaire && masques.has(l.primaire)) return []
+    // Le graphe n'est plus masqué en bloc mais gardé par intention : une ligne qui les
+    // prescrit toutes fermées inviterait un appel voué au refus.
+    if (l.intentions?.length && l.intentions.every((i) => intentions.has(i))) return []
     const citeUnRetire = (l.autres ?? []).some((o) => masques.has(o))
     return [(citeUnRetire && l.variante ? l.variante : l.ligne) + '\n']
   }).join('')
@@ -117,14 +126,17 @@ export function phraseCapacites(masques: ReadonlySet<string>): string {
  * registre partiel — un double de test, un outil retiré du code — amputerait
  * silencieusement les consignes.
  */
-export function construireSystemPrompt(masques: ReadonlySet<string>): string {
+export function construireSystemPrompt(
+  masques: ReadonlySet<string>,
+  intentions: ReadonlySet<string> = new Set(),
+): string {
   return (
     PROMPT_AVANT_CAPACITES +
     phraseCapacites(masques) +
     PROMPT_ENTRE_A +
     (masques.has(PUCE_RECHERCHE.outil) ? PUCE_RECHERCHE.variante : PUCE_RECHERCHE.ligne) +
     PROMPT_ENTRE_B +
-    sectionRoutage(masques) +
+    sectionRoutage(masques, intentions) +
     PROMPT_APRES_ROUTAGE
   )
 }
