@@ -61,6 +61,10 @@ const inputSchema = z.discriminatedUnion('type', [emploiSchema, stageSchema])
 /** Entrée acceptée par le formulaire recruteur (les nombres peuvent arriver en string). */
 export type CreerOffreRecruteurInput = z.input<typeof inputSchema>
 
+/** Codes d'échec MÉTIER retournés (mappés en message clair côté formulaire). */
+export type CreerOffreEchec = 'NO_ORGANISATION' | 'VALIDATION' | 'ORG_SUSPENDUE' | 'PERSONNE_INACTIVE' | 'NON_MEMBRE' | 'MEMBRE_INACTIF'
+export type CreerOffreResult = { ok: true; id: string } | { ok: false; code: CreerOffreEchec }
+
 /** Garde de rôle recruteur — fail-closed. Retourne la session (acteur audit). */
 async function assertRecruteur(): Promise<CJSSession> {
   const session = await getSession()
@@ -75,20 +79,25 @@ function toDate(value?: string | null): Date | null {
 
 /**
  * Crée une offre recruteur, soumise à validation CJS (`brouillon`).
- * @throws FORBIDDEN (non-recruteur) · NO_ORGANISATION (aucune organisation liée) · ZodError (champs invalides).
+ * Retourne un résultat discriminé : les échecs MÉTIER (gate de publication, absence
+ * d'organisation, champs invalides) reviennent en `{ ok:false, code }` — mappables en
+ * message clair côté formulaire (Next.js masque le message des throw en prod).
+ * @throws FORBIDDEN (non-recruteur) — garde de sécurité, jamais atteinte via l'UI.
  */
-export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promise<{ id: string }> {
+export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promise<CreerOffreResult> {
   const session = await assertRecruteur()
 
   const ctx = await getRecruteurContext(session.cjsUid)
-  if (!ctx.organisationId || !ctx.organisationNom) throw new Error('NO_ORGANISATION')
+  if (!ctx.organisationId || !ctx.organisationNom) return { ok: false, code: 'NO_ORGANISATION' }
 
   // GUIC-706 — gate de publication (spec §4) : org active ET membre actif ET personne active.
   // Un membre révoqué ou une org suspendue ne peut plus émettre d'offre pour ce partenaire.
   const gate = await verifierGatePublication(session.cjsUid, ctx.organisationId)
-  if (!gate.ok) throw new Error(gate.raison)
+  if (!gate.ok) return { ok: false, code: gate.raison }
 
-  const parsed = inputSchema.parse(raw)
+  const validation = inputSchema.safeParse(raw)
+  if (!validation.success) return { ok: false, code: 'VALIDATION' }
+  const parsed = validation.data
 
   const slug = await generateUniqueSlug(parsed.titre, async (s) =>
     (await prisma.opportunite.findUnique({ where: { slug: s }, select: { id: true } })) !== null,
@@ -147,5 +156,5 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
 
   revalidatePath('/recruteur/mes-offres')
   revalidatePath('/admin/opportunites') // apparaît dans la file de modération CJS
-  return { id: created.id }
+  return { ok: true, id: created.id }
 }

@@ -13,6 +13,7 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { creerOffreRecruteur, type CreerOffreRecruteurInput } from './actions'
+import { MESSAGE_ECHEC_OFFRE } from './echec-messages'
 
 type Opt = { value: string; label: string }
 const opt = (...v: string[]): Opt[] => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
@@ -84,10 +85,11 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
 
     start(async () => {
       try {
-        await creerOffreRecruteur(payload)
-        router.push('/recruteur/mes-offres?creee=1')
+        const res = await creerOffreRecruteur(payload)
+        if (res.ok) router.push('/recruteur/mes-offres?creee=1')
+        else setToast({ msg: MESSAGE_ECHEC_OFFRE[res.code], variant: 'error' })
       } catch {
-        setToast({ msg: 'Vérifiez les champs obligatoires (titre, description, type de contrat / durée).', variant: 'error' })
+        setToast({ msg: 'Une erreur est survenue. Réessayez.', variant: 'error' })
       }
     })
   }
