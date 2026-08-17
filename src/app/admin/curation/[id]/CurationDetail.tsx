@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { approuverItem, rejeterItem, mettreEnAttenteItem, editerItem } from '../actions'
 import { publierItem } from '../publier'
 import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
-import { DOMAINES_VISIBLES, domaineProposePourCuration, libelleDomaine } from '@/lib/domaines'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 /** GUIC-600 — US-5 : détail éditable + actions de validation. */
 

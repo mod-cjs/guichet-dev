@@ -68,6 +68,13 @@ describe('GUIC-689 — l’écran de curation offre un choix, plus un champ libr
   })
 
   it('la proposition automatique alimente la valeur initiale', () => {
-    expect(src).toMatch(/domaineProposePourCuration/)
+    // Assertion portée sur la PAGE, qui calcule la valeur, et non sur le
+    // composant : l'y chercher se satisfaisait d'un import inutilisé — un test
+    // vert grâce à du code mort ne prouve rien.
+    const page = readFileSync(
+      resolve(process.cwd(), 'src/app/admin/curation/[id]/page.tsx'),
+      'utf-8',
+    )
+    expect(page).toMatch(/domaine:\s*domaineProposePourCuration\(/)
   })
 })
