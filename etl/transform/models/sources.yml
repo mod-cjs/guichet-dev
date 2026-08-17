@@ -545,7 +545,7 @@ sources:
             meta:
               cjs_tier: "public"
           - name: "dwell_minutes"
-            description: "Durée de présence en minutes, quand elle a pu être mesurée."
+            description: "@deprecated Toujours NUL — jamais renseigné. Utiliser `duree_minutes` du flux `sorties`. Conservé pour ne pas casser les consommateurs existants."
             meta:
               cjs_tier: "public"
       - name: "ressources"
