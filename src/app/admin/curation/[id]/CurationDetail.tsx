@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { approuverItem, rejeterItem, mettreEnAttenteItem, editerItem } from '../actions'
 import { publierItem } from '../publier'
 import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
+import { DOMAINES_VISIBLES, domaineProposePourCuration, libelleDomaine } from '@/lib/domaines'
 
 /** GUIC-600 — US-5 : détail éditable + actions de validation. */
 
@@ -188,7 +189,20 @@ export function CurationDetail({
           <Textarea id="c-desc" label="Description" rows={5} value={c.description} onChange={(e) => set('description', e.target.value)} />
           <Input id="c-org" label="Organisation" value={c.organisation} onChange={(e) => set('organisation', e.target.value)} />
           <Input id="c-region" label="Région" value={c.region} onChange={(e) => set('region', e.target.value)} />
-          <Input id="c-domaine" label="Domaine" value={c.domaine} onChange={(e) => set('domaine', e.target.value)} />
+          {/* GUIC-689 — CHOIX explicite, plus un champ libre : `domaineOuAutre()`
+              n'acceptait que la correspondance exacte avec un nom d'enum, tout le
+              reste retombant silencieusement sur `Autre`. La proposition vient du
+              normaliseur par mots-clés ; l'admin confirme ou corrige. */}
+          <Select
+            id="c-domaine"
+            label="Domaine"
+            options={[
+              { value: '', label: '— à choisir —' },
+              ...DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) })),
+            ]}
+            value={c.domaine}
+            onChange={(e) => set('domaine', e.target.value)}
+          />
           <Select id="c-type" label="Type d’opportunité" options={typeOptions} value={c.typeId} onChange={(e) => set('typeId', e.target.value)} />
           <Input id="c-deadline" label="Deadline (AAAA-MM-JJ)" value={c.deadline} onChange={(e) => set('deadline', e.target.value)} />
           <Input id="c-lien" label="Lien source" type="url" value={c.lienSource} onChange={(e) => set('lienSource', e.target.value)} />

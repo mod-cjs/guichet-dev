@@ -97,6 +97,12 @@ describe('GUIC-689 — plus aucune liste de domaines recopiée', () => {
     'src/app/admin/opportunites/OpportuniteForm.tsx',
     'src/app/admin/partenaires/PartenaireFormModal.tsx',
     'src/app/recruteur/mes-offres/actions.ts',
+    // GUIC-689 — SIXIÈME copie, oubliée de la première passe : ce formulaire
+    // proposait encore les neuf anciennes catégories et se pré-remplissait sur
+    // « Numerique », devenue inexistante. Le recruteur qui ne touchait pas au
+    // champ voyait sa création refusée.
+    'src/app/recruteur/mes-offres/NouvelleOffreForm.tsx',
+    'src/app/admin/curation/[id]/CurationDetail.tsx',
   ]
 
   it.each(FICHIERS)('%s ne recopie plus l’ancien vocabulaire', (f) => {

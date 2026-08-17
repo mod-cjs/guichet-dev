@@ -18,6 +18,8 @@
  */
 import type { Domaine } from '@prisma/client'
 
+import { mapperDomaine } from '@/lib/curation/extraction/mapping'
+
 /**
  * Domaines proposés à l'utilisateur, dans l'ordre d'affichage.
  *
@@ -84,4 +86,23 @@ export const MIGRATION_DOMAINES: Record<string, Domaine> = {
 /** Libellé affichable d'un domaine, repli compris. */
 export function libelleDomaine(d: Domaine): string {
   return DOMAINE_LABELS[d] ?? DOMAINE_LABELS.Autre
+}
+
+/**
+ * Domaine PROPOSÉ pour un item de curation, à partir du texte extrait.
+ *
+ * Rend `''` — et jamais `Autre` — quand rien ne correspond : `Autre` est un
+ * repli technique, pas un choix. Une chaîne vide oblige l'admin à trancher, au
+ * lieu de lui faire valider un classement qu'il n'a pas fait.
+ *
+ * C'est ce qui manquait : `domaineOuAutre()` n'acceptait la valeur extraite que
+ * si elle correspondait EXACTEMENT à un nom d'enum. « informatique »,
+ * « Numérique » accentué ou une phrase entière retombaient tous sur `Autre`,
+ * sans que personne ne le voie.
+ */
+export function domaineProposePourCuration(texte: string | undefined | null): Domaine | '' {
+  if (!texte) return ''
+  const brut = texte.trim()
+  if ((DOMAINES_VISIBLES as readonly string[]).includes(brut)) return brut as Domaine
+  return mapperDomaine(brut) ?? ''
 }

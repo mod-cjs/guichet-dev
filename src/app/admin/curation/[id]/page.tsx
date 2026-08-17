@@ -5,6 +5,7 @@ import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import { CurationDetail } from './CurationDetail'
 import { loadProgrammeOptions } from '@/lib/programmes/options'
+import { domaineProposePourCuration } from '@/lib/domaines'
 
 export const metadata: Metadata = { title: 'Valider une opportunité — Admin CJS' }
 
@@ -46,7 +47,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         description: str(p.description),
         organisation: str(p.organisation),
         region: str(p.region),
-        domaine: str(p.domaine),
+        // GUIC-689 — on passe la PROPOSITION, pas le texte brut extrait : le
+        // sélecteur ne reconnaîtrait pas « informatique » et afficherait
+        // « à choisir » alors qu'une correspondance existe.
+        domaine: domaineProposePourCuration(str(p.domaine)),
         typeId: str(p.typeId),
         deadline: str(p.deadline),
         lienSource: str(p.lienSource) || item.urlCanonique,
