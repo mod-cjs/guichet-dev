@@ -62,7 +62,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await creerOffreRecruteur(EMPLOI as any)
-    expect(res).toEqual({ id: 'opp-1' })
+    expect(res).toEqual({ ok: true, id: 'opp-1' })
     expect(mockCreate).toHaveBeenCalledTimes(1)
     const input = mockCreate.mock.calls[0][0]
     expect(input.type).toBe('emploi')
@@ -90,41 +90,41 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     expect(mockCreate.mock.calls[0][0].base.skills).toEqual([{ skillId: 'sk-1' }, { skillId: 'sk-2' }])
   })
 
-  it('recruteur sans organisation → NO_ORGANISATION', async () => {
+  it('recruteur sans organisation → code NO_ORGANISATION (retour, pas throw)', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     mockCtx.mockResolvedValue({ ...CTX, organisationId: null, organisationNom: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(creerOffreRecruteur(EMPLOI as any)).rejects.toThrow(/NO_ORGANISATION/)
+    await expect(creerOffreRecruteur(EMPLOI as any)).resolves.toEqual({ ok: false, code: 'NO_ORGANISATION' })
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('GUIC-706 — org suspendue / membre révoqué → gate bloque, aucune écriture', async () => {
+  it('GUIC-706 — org suspendue / membre révoqué → code du gate (retour), aucune écriture', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     mockGate.mockResolvedValue({ ok: false, raison: 'ORG_SUSPENDUE' })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(creerOffreRecruteur(EMPLOI as any)).rejects.toThrow(/ORG_SUSPENDUE/)
+    await expect(creerOffreRecruteur(EMPLOI as any)).resolves.toEqual({ ok: false, code: 'ORG_SUSPENDUE' })
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('type hors {emploi, stage} → rejet, aucune écriture', async () => {
+  it('type hors {emploi, stage} → code VALIDATION, aucune écriture', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(creerOffreRecruteur({ ...EMPLOI, type: 'bourse' } as any)).rejects.toThrow()
+    await expect(creerOffreRecruteur({ ...EMPLOI, type: 'bourse' } as any)).resolves.toEqual({ ok: false, code: 'VALIDATION' })
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('titre vide → rejet Zod', async () => {
+  it('titre vide → code VALIDATION', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(creerOffreRecruteur({ ...EMPLOI, titre: '   ' } as any)).rejects.toThrow()
+    await expect(creerOffreRecruteur({ ...EMPLOI, titre: '   ' } as any)).resolves.toEqual({ ok: false, code: 'VALIDATION' })
   })
 
-  it('stage sans durée (dureeMois) → rejet Zod', async () => {
+  it('stage sans durée (dureeMois) → code VALIDATION', async () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await expect(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Numerique' } as any),
-    ).rejects.toThrow()
+    ).resolves.toEqual({ ok: false, code: 'VALIDATION' })
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
