@@ -52,22 +52,58 @@ export const FLAG_PAR_OUTIL: Record<string, string> = {
   get_notifications: 'x.notif_in_app',
 }
 
+/** L'outil dont les intentions sont gardées une par une. */
+export const OUTIL_GRAPHE = 'query_knowledge_graph'
+
 /**
  * Intention de `query_knowledge_graph` → fonctionnalité dont elle tire ses données.
  *
- * L'outil n'est pas dans `FLAG_PAR_OUTIL` : le masquer entier priverait Yaye de tout son
- * raisonnement sur les offres dès qu'une seule bibliothèque ferme. La garde est donc posée
- * un cran plus fin, sur l'intention.
+ * CET OUTIL EST UN SECOND MOTEUR DE RÉCUPÉRATION, pas un outil de contexte : chaque
+ * intention rend les données d'un module, et `livre_disponible` va jusqu'à l'emplacement
+ * physique de l'exemplaire (rayon · étagère · position). Il ne figure donc pas dans
+ * `FLAG_PAR_OUTIL` — le masquer entier priverait Yaye de tout son raisonnement sur les
+ * offres dès qu'une seule bibliothèque ferme. La garde est posée un cran plus fin.
  *
- * NON IMPLÉMENTÉE — la table est vide, le comportement vient au commit suivant.
+ * Chaque intention est rattachée au module dont elle SERT les données, pas à ceux qu'elle
+ * traverse en chemin : `ecart_competences` rend des formations mais répond « suis-je prêt
+ * pour cette offre ? », donc m3.
  */
-export const FLAG_PAR_INTENTION: Record<string, string> = {}
+export const FLAG_PAR_INTENTION: Record<string, string> = {
+  recherche: 'm3.opportunites',
+  eligibilite: 'm3.opportunites',
+  parcours: 'm3.opportunites',
+  apercu_marche: 'm3.opportunites',
+  ecart_competences: 'm3.opportunites',
+  reco_collaborative: 'm12.reco',
+  ressources_competences: 'm6.ressources',
+  livre_disponible: 'm4.bibliotheque',
+  acteurs_programme: 'm4.centres',
+}
 
-/** Intentions MASQUÉES pour cet interlocuteur. NON IMPLÉMENTÉE. */
+/**
+ * Intentions MASQUÉES pour cet interlocuteur.
+ *
+ * Refuser à l'exécution ne suffit pas : l'agent tolère les appels émis en texte brut, et le
+ * modèle continuerait de tenter une intention que sa description lui présente encore. Cette
+ * liste sert donc aussi à retirer l'intention de l'énumération envoyée au modèle — même
+ * raisonnement qu'au niveau 2 pour les outils.
+ */
 export async function intentionsMasquees(
-  _roles: readonly string[] | null | undefined,
+  roles: readonly string[] | null | undefined,
 ): Promise<Set<string>> {
-  return new Set()
+  const masquees = new Set<string>()
+  for (const intention of Object.keys(FLAG_PAR_INTENTION)) {
+    if (await intentionMasquee(intention, roles)) masquees.add(intention)
+  }
+  return masquees
+}
+
+/** Vrai si cette intention du graphe doit être refusée à cet interlocuteur. */
+async function intentionMasquee(
+  intention: string,
+  roles: readonly string[] | null | undefined,
+): Promise<boolean> {
+  return moduleMasque(FLAG_PAR_INTENTION[intention], roles)
 }
 
 /**
@@ -83,9 +119,31 @@ export async function intentionsMasquees(
 export async function outilMasque(
   outil: string,
   roles: readonly string[] | null | undefined,
-  _args?: Record<string, unknown>,
+  args?: Record<string, unknown>,
 ): Promise<boolean> {
-  const key = FLAG_PAR_OUTIL[outil]
+  // Le graphe se garde par intention, pas en bloc. Sans intention lisible on ne devine
+  // pas : l'outil s'exécute et sa propre validation rejette l'intention inconnue. Masquer
+  // ici reviendrait à fermer l'outil entier — ce que cette garde existe pour éviter.
+  if (outil === OUTIL_GRAPHE) {
+    const intention = args?.intent
+    if (typeof intention !== 'string') return false
+    return intentionMasquee(intention, roles)
+  }
+
+  return moduleMasque(FLAG_PAR_OUTIL[outil], roles)
+}
+
+/**
+ * Cœur commun aux deux gardes : ce module est-il fermé à cet interlocuteur ?
+ *
+ * Laisse passer si l'état est illisible — une panne ne doit pas rendre l'assistant
+ * inutile, et le gate protège de toute façon les pages vers lesquelles ses cards
+ * renvoient.
+ */
+async function moduleMasque(
+  key: string | undefined,
+  roles: readonly string[] | null | undefined,
+): Promise<boolean> {
   if (!key) return false
 
   const def = getFlagDef(key)
@@ -98,7 +156,7 @@ export async function outilMasque(
   try {
     return (await getFlags())[key] === false
   } catch (err) {
-    logger.warn('[flags] état illisible, outil Yaye laissé actif', { outil, err: String(err) })
+    logger.warn('[flags] état illisible, garde Yaye laissée ouverte', { key, err: String(err) })
     return false
   }
 }

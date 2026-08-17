@@ -365,7 +365,7 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
 
   if (!tool) {
     result = { ok: false, error: `Outil inconnu: ${name}` }
-  } else if (await outilMasque(name, ctx.roles)) {
+  } else if (await outilMasque(name, ctx.roles, args)) {
     // GUIC-706 — le module dont cet outil tire ses données est masqué pour cet
     // interlocuteur. On refuse l'exécution plutôt que de servir un contenu dont la page
     // répondra 404 : la card mènerait à une impasse, et Yaye aurait promis ce que la
