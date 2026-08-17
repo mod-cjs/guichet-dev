@@ -27,15 +27,18 @@ export async function GET(
 
   const page = Math.max(1, Number(request.nextUrl.searchParams.get('page')) || 1)
 
+  // GUIC-706 — gate de visibilité jeune : masquer les favoris dont le partenaire est
+  // suspendu (cohérent avec le détail qui 404). Les offres sans org restent visibles.
+  const favWhere = { cjsUid: session.cjsUid, opportunite: { NOT: { org: { statut: 'suspendue' as const } } } }
   const [favoris, total] = await Promise.all([
     prisma.opportuniteFavorite.findMany({
-      where: { cjsUid: session.cjsUid },
+      where: favWhere,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       select: { opportunite: { select: CARD_SELECT } },
     }),
-    prisma.opportuniteFavorite.count({ where: { cjsUid: session.cjsUid } }),
+    prisma.opportuniteFavorite.count({ where: favWhere }),
   ])
 
   return NextResponse.json({

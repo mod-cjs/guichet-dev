@@ -145,7 +145,11 @@ describe('GET /api/favoris', () => {
     ])
     expect(body.meta).toEqual({ total: 1, page: 1, limit: 20 })
 
-    expect(mockFavFindMany.mock.calls[0][0].where).toEqual({ cjsUid: 'uid-1' })
+    // GUIC-706 — le where inclut le gate de visibilité (partenaire suspendu masqué).
+    expect(mockFavFindMany.mock.calls[0][0].where).toEqual({
+      cjsUid: 'uid-1',
+      opportunite: { NOT: { org: { statut: 'suspendue' } } },
+    })
   })
 })
 
