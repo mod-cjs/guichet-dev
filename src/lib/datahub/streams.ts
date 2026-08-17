@@ -209,6 +209,34 @@ export const streams = {
     },
   }),
 
+  /**
+   * GUIC-689 (M4) — Sorties de centre. Append-only, comme les passages.
+   *
+   * Table SÉPARÉE de `checkins` : y mêler les sorties doublerait la mesure de
+   * fréquentation, ici comme dans les tableaux de bord. La DURÉE vit sur ce
+   * flux, `CheckIn.dwell_minutes` étant déprécié — le renseigner supposerait de
+   * modifier une ligne dont `effectue_a` est la clé de réplication, donc de la
+   * rendre invisible à l'ETL.
+   *
+   * `jwt_nonce` et `scanner_id` sont volontairement ABSENTS : l'un est un
+   * secret d'idempotence, l'autre identifie un agent. Ni l'un ni l'autre n'a sa
+   * place dans un export analytique.
+   */
+  sorties: defineStream('SortieCentre', {
+    primaryKey: 'id',
+    replicationKey: 'effectueA',
+    fields: {
+      id: { as: 'id', tier: 'pseudonyme' },
+      checkInId: { as: 'check_in_id', tier: 'pseudonyme' },
+      cjsUid: { as: 'cjs_uid', tier: 'pseudonyme' },
+      centreId: { as: 'centre_id', tier: 'pseudonyme' },
+      via: { as: 'via', tier: 'public' },
+      effectueA: { as: 'effectue_a', tier: 'public' },
+      /** NUL pour une sortie orpheline : aucune durée n'a pu être mesurée. */
+      dureeMinutes: { as: 'duree_minutes', tier: 'public' },
+    },
+  }),
+
   /** Catalogue de ressources documentaires. */
   ressources: defineStream('Ressource', {
     primaryKey: 'id',

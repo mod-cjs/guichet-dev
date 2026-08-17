@@ -1887,16 +1887,17 @@ model CheckIn {
   @@map("check_ins")
 }
 
-/// GUIC-689 (M4) — Sortie de centre, enregistrée par scan comme l'entrée.
-///
-/// Table SÉPARÉE de `check_ins`, et non un sens `Entree`/`Sortie` dans celle-ci :
-/// neuf points de comptage lisent `check_ins`, décrite par le flux Data Hub
-/// comme « la mesure de fréquentation réelle ». Y ajouter les sorties
-/// doublerait ces comptages, jusque dans l'export public, sans qu'aucun test
-/// existant ne le signale.
-///
-/// Append-only, comme l'entrée : `effectueA` sert de watermark de réplication,
-/// et la durée est calculée à l'INSERTION plutôt que reportée sur l'entrée.
+/// Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie.
+/// La durée de présence vit ici et non sur le passage d'entrée.
+//
+// Table SÉPARÉE de `check_ins` plutôt qu'un sens Entree/Sortie dans celle-ci :
+// neuf points de comptage lisent `check_ins`, décrite par le flux Data Hub
+// comme « la mesure de fréquentation réelle ». Y mêler les sorties doublerait
+// ces comptages, jusque dans l'export public, sans qu'aucun test ne le signale.
+//
+// La durée est calculée à l'INSERTION : la reporter sur l'entrée supposerait de
+// modifier une ligne dont `effectueA` est la clé de réplication — l'ETL ne la
+// relirait jamais.
 model SortieCentre {
   /// Identifiant de la sortie.
   id           String     @id @default(uuid()) @db.VarChar(36)
@@ -1904,7 +1905,9 @@ model SortieCentre {
   /// mise en service, ou dont l'entrée a échoué. On l'enregistre quand même :
   /// refuser au comptoir n'apprend rien et perd la trace.
   checkInId    String?    @unique @map("check_in_id") @db.VarChar(36)
+  /// Jeune concerné — clé de jointure vers `utilisateurs`.
   cjsUid       String     @map("cjs_uid") @db.VarChar(36)
+  /// Centre où la sortie a été enregistrée.
   centreId     String     @map("centre_id") @db.VarChar(36)
   /// Mode d'enregistrement, même vocabulaire que l'entrée.
   via          CheckInVia

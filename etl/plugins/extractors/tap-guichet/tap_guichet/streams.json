@@ -1072,6 +1072,76 @@
       }
     },
     {
+      "name": "sorties",
+      "path": "/api/v1/export/sorties",
+      "primary_keys": [
+        "id"
+      ],
+      "replication_key": "effectue_a",
+      "replication_method": "INCREMENTAL",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string"
+            ],
+            "description": "Identifiant de la sortie.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "check_in_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Entrée appariée. NUL pour une sortie orpheline — quelqu'un entré avant la mise en service, ou dont l'entrée a échoué. On l'enregistre quand même : refuser au comptoir n'apprend rien et perd la trace.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "cjs_uid": {
+            "type": [
+              "string"
+            ],
+            "description": "Jeune concerné — clé de jointure vers `utilisateurs`.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "centre_id": {
+            "type": [
+              "string"
+            ],
+            "description": "Centre où la sortie a été enregistrée.",
+            "x-cjs-tier": "pseudonyme"
+          },
+          "via": {
+            "type": [
+              "string"
+            ],
+            "enum": [
+              "QrCard",
+              "Manuel"
+            ],
+            "description": "Mode d'enregistrement, même vocabulaire que l'entrée.",
+            "x-cjs-tier": "public"
+          },
+          "effectue_a": {
+            "type": [
+              "string"
+            ],
+            "format": "date-time",
+            "description": "Horodatage de la sortie. Append-only : watermark de réplication.",
+            "x-cjs-tier": "public"
+          },
+          "duree_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Durée de présence, calculée à l'insertion et jamais recalculée. NUL pour une orpheline : on ne sait pas quand la personne est arrivée, et une durée supposée se lirait comme une durée mesurée.",
+            "x-cjs-tier": "public"
+          }
+        }
+      }
+    },
+    {
       "name": "ressources",
       "path": "/api/v1/export/ressources",
       "primary_keys": [

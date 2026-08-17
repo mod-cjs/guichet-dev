@@ -754,6 +754,46 @@ components:
             - "null"
           description: "@deprecated Toujours NUL — jamais renseigné. Utiliser `duree_minutes` du flux `sorties`. Conservé pour ne pas casser les consommateurs existants."
           "x-cjs-tier": "public"
+    sortiesRow:
+      type: "object"
+      description: "Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie. La durée de présence vit ici et non sur le passage d'entrée."
+      properties:
+        id:
+          type: "string"
+          description: "Identifiant de la sortie."
+          "x-cjs-tier": "pseudonyme"
+        check_in_id:
+          type:
+            - "string"
+            - "null"
+          description: "Entrée appariée. NUL pour une sortie orpheline — quelqu'un entré avant la mise en service, ou dont l'entrée a échoué. On l'enregistre quand même : refuser au comptoir n'apprend rien et perd la trace."
+          "x-cjs-tier": "pseudonyme"
+        cjs_uid:
+          type: "string"
+          description: "Jeune concerné — clé de jointure vers `utilisateurs`."
+          "x-cjs-tier": "pseudonyme"
+        centre_id:
+          type: "string"
+          description: "Centre où la sortie a été enregistrée."
+          "x-cjs-tier": "pseudonyme"
+        via:
+          type: "string"
+          enum:
+            - "QrCard"
+            - "Manuel"
+          description: "Mode d'enregistrement, même vocabulaire que l'entrée."
+          "x-cjs-tier": "public"
+        effectue_a:
+          type: "string"
+          format: "date-time"
+          description: "Horodatage de la sortie. Append-only : watermark de réplication."
+          "x-cjs-tier": "public"
+        duree_minutes:
+          type:
+            - "integer"
+            - "null"
+          description: "Durée de présence, calculée à l'insertion et jamais recalculée. NUL pour une orpheline : on ne sait pas quand la personne est arrivée, et une durée supposée se lirait comme une durée mesurée."
+          "x-cjs-tier": "public"
     ressourcesRow:
       type: "object"
       description: "Ressource documentaire du catalogue — PDF, vidéo, lien, guide ou outil."
@@ -1418,6 +1458,47 @@ paths:
                     type: "array"
                     items:
                       "$ref": "#/components/schemas/checkinsRow"
+                  meta:
+                    "$ref": "#/components/schemas/Meta"
+        "400":
+          description: "Curseur ou borne `since` malformés"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "401":
+          description: "Clé API absente, invalide, ou non configurée côté serveur"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+        "429":
+          description: "Quota dépassé (300 requêtes/minute par clé)"
+          content:
+            "application/json":
+              schema:
+                "$ref": "#/components/schemas/Erreur"
+  "/export/sorties":
+    get:
+      summary: "Exporter le flux sorties"
+      description: "Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie. La durée de présence vit ici et non sur le passage d'entrée."
+      operationId: "export_sorties"
+      parameters:
+        - "$ref": "#/components/parameters/since"
+        - "$ref": "#/components/parameters/cursor"
+        - "$ref": "#/components/parameters/limit"
+      responses:
+        "200":
+          description: "Page de sorties"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      "$ref": "#/components/schemas/sortiesRow"
                   meta:
                     "$ref": "#/components/schemas/Meta"
         "400":

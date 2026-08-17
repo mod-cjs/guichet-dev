@@ -102,9 +102,9 @@ describe('projectRow — sujet_hash masqué quand cjs_uid est présent (GUIC-695
 describe('allDescriptors — registre complet', () => {
   const all = allDescriptors()
 
-  it('couvre les treize flux du contrat', () => {
+  it('couvre les quatorze flux du contrat', () => {
     expect(all).toHaveLength(Object.keys(streams).length)
-    expect(all).toHaveLength(13)
+    expect(all).toHaveLength(14) // GUIC-689 (M4) — `sorties` ajouté
   })
 
   it('produit pour chaque flux un tri exploitable et une sélection non vide', () => {
