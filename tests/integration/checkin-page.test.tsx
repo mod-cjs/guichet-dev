@@ -91,7 +91,7 @@ describe('Page /checkin/v1/[token]', () => {
     expect(screen.queryByLabelText(/Email conseiller/i)).not.toBeInTheDocument()
   })
 
-  it('soumet le check-in standalone et affiche "Présent confirmé"', async () => {
+  it('soumet le check-in standalone et confirme une ARRIVÉE', async () => {
     mockVerify.mockResolvedValueOnce({ sub: 'user-12345678', nonce: 'n', iat: 1, exp: 9 })
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -101,7 +101,9 @@ describe('Page /checkin/v1/[token]', () => {
     render(ui as React.ReactElement)
     fireEvent.click(screen.getByRole('button', { name: /Confirmer présence sans réservation/i }))
     await waitFor(() => {
-      expect(screen.getByText(/Présent confirmé/i)).toBeInTheDocument()
+      // GUIC-689 — le même scan sert aussi la sortie : le libellé annonce
+      // désormais le SENS du passage, plus un « présent » ambigu.
+      expect(screen.getByText(/Arrivée confirmée/i)).toBeInTheDocument()
     })
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/checkin/ok'),

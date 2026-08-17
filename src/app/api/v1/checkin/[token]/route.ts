@@ -39,6 +39,7 @@ import {
 } from '@/lib/auth/verifyCJSCardToken'
 import { getCheckinOperator } from '@/lib/auth/checkin-operator'
 import { trackCentreEvent } from '@/lib/analytics/centre-events'
+import { enregistrerSortie } from '@/lib/centres/sortie'
 import type { ApiResponse } from '@/types/api'
 
 const NONCE_TTL_SECONDS = 24 * 3600
@@ -52,7 +53,13 @@ const BodySchema = z.object({
 })
 
 interface CheckInResponse {
-  checkInId:         string
+  /** GUIC-689 — sens déduit de l'état : le client n'a rien à choisir. */
+  sens:              'entree' | 'sortie'
+  checkInId?:        string
+  /** Présent en sortie uniquement. */
+  sortieId?:         string
+  /** Minutes de présence, `null` si la sortie n'a pu être appariée. */
+  dureeMinutes?:     number | null
   jeuneName:         string
   reservationStatut?: 'Passee'
 }
@@ -140,10 +147,29 @@ export async function POST(
     )
   }
 
+  // GUIC-689 (M4) — SENS du passage, déduit de l'état AVANT toute écriture.
+  //
+  // Un seul geste au comptoir : le staff scanne, le système sait. Lui demander
+  // de choisir ajouterait une étape et une erreur possible.
+  //
+  // Décidé avant la consommation du nonce, sans quoi on poserait la clé du
+  // mauvais espace et le second scan du même jeton — celui qui change de sens —
+  // serait refusé.
+  const entreeOuverte = await prisma.checkIn.findFirst({
+    where: { cjsUid: payload.sub, centreId, sortie: null },
+    orderBy: { effectueA: 'desc' },
+    select: { id: true },
+  })
+  const sens: 'entree' | 'sortie' = entreeOuverte ? 'sortie' : 'entree'
+
   // Anti-replay Redis (SET NX). Si la clé existe déjà → token déjà consommé.
   // GUIC-389 : pas de `redis.del` post-validation. Fermé la fenêtre de race
   // où deux requêtes parallèles avec même token pouvaient passer.
-  const nonceKey = `checkin:${payload.nonce}`
+  //
+  // GUIC-689 : un espace de clé PAR SENS. Le nonce restait sinon consommé après
+  // l'entrée, et la sortie du même jeton se voyait refusée en 409 — la carte
+  // n'aurait servi qu'une fois par jour.
+  const nonceKey = `${sens === 'sortie' ? 'checkout' : 'checkin'}:${payload.nonce}`
   try {
     const setRes = await redis.set(nonceKey, '1', 'EX', NONCE_TTL_SECONDS, 'NX')
     if (setRes !== 'OK') {
@@ -204,6 +230,32 @@ export async function POST(
     reservationStatut = 'Passee'
   }
 
+  if (sens === 'sortie') {
+    const sortie = await enregistrerSortie({
+      cjsUid:    utilisateur.cjsUid,
+      centreId,
+      via:       'QrCard',
+      scannerId: operator.kind === 'staff' ? null : null,
+      jwtNonce:  payload.nonce,
+    })
+
+    await trackCentreEvent({
+      type:     'centre_checkin_completed',
+      centreId,
+      cjsUid:   utilisateur.cjsUid,
+      metadata: { sens: 'sortie', dureeMinutes: sortie.dureeMinutes },
+    }).catch((err) => logger.warn('[checkout] tracking échoué', { err }))
+
+    return NextResponse.json<ApiResponse<CheckInResponse>>({
+      data: {
+        sens:         'sortie',
+        sortieId:     sortie.id,
+        dureeMinutes: sortie.dureeMinutes,
+        jeuneName:    `${utilisateur.prenom} ${utilisateur.nom}`,
+      },
+    })
+  }
+
   const checkIn = await prisma.checkIn.create({
     data: {
       cjsUid:          utilisateur.cjsUid,
@@ -229,6 +281,7 @@ export async function POST(
 
   return NextResponse.json<ApiResponse<CheckInResponse>>({
     data: {
+      sens: 'entree',
       checkInId: checkIn.id,
       jeuneName: `${utilisateur.prenom} ${utilisateur.nom}`,
       reservationStatut,
