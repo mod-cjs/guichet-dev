@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -15,6 +16,7 @@ import type { ApiResponse } from '@/types/api'
  * sans candidature (`candidatureId` null), le conseiller porte `recruteurUid`.
  */
 export async function contacterBeneficiaire(beneficiaireUid: string): Promise<void> {
+  await assertFlag('m8.conseiller')
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   const ctx = await getConseillerContext(session.cjsUid)
@@ -46,6 +48,7 @@ export async function contacterBeneficiaire(beneficiaireUid: string): Promise<vo
  * rattachements du conseiller.
  */
 export async function setActiveCentre(centreId: string): Promise<ApiResponse<{ centreId: string }>> {
+  await assertFlag('m8.conseiller')
   const session = await getSession()
   if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
   const ctx = await getConseillerContext(session.cjsUid)

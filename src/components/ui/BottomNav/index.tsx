@@ -1,59 +1,43 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import type { BottomNavItem } from './nav'
 
-interface NavItem {
-  href: string
-  icon: IconName
-  label: string
-}
-
-/**
- * 5 onglets de la nav bénéficiaire mobile — signature v5 (GUIC-689 Lot E1).
- * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
- * aucun emoji comme icône de nav.
- *
- * Conforme `design-guichet-v5/phone.jsx:181-185` (confirmé dans
- * `screens.jsx` et `mobile-flows.jsx`) : Accueil / Explorer / Candidatures /
- * Centres CJS / Profil.
- *
- * Décision produit (lead) : Agenda et Ressources quittent la bottom-nav au
- * profit de Candidatures et Profil — « Mes candidatures » est un parcours
- * central du produit qui n'était présent dans AUCUNE chrome persistante
- * mobile jusqu'ici (introuvable au doigt). Agenda/Ressources restent
- * accessibles via la sidebar desktop et les liens de contenu.
- *
- * Historique : item Profil retiré en v2 (cf ancienne note GUIC-205) puis
- * remplacé par Centres ; les deux coexistent désormais dans la signature v5
- * (5 colonnes toujours respectées).
- */
-const ITEMS: NavItem[] = [
-  { href: '/',                        icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites',            icon: 'search',   label: 'Explorer' },
-  { href: '/jeune/mes-candidatures',  icon: 'document', label: 'Candidatures' },
-  { href: '/centres',                 icon: 'pin',      label: 'Centres CJS' },
-  { href: '/jeune/mon-profil',        icon: 'user',     label: 'Profil' },
-]
 
 interface BottomNavProps {
   badges?: Partial<Record<string, number>>
+  /**
+   * GUIC-706 — items À AFFICHER, déjà filtrés par le serveur.
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités
+   * cachées — y compris à un visiteur anonyme.
+   *
+   * Trois des cinq items sont rattachés à une fonctionnalité masquable. La grille était
+   * figée à cinq colonnes : retirer un item la déformait. Elle suit désormais le nombre
+   * d'items réellement affichés.
+   */
+  items: readonly BottomNavItem[]
 }
 
-export function BottomNav({ badges = {} }: BottomNavProps) {
+export function BottomNav({ badges = {}, items }: BottomNavProps) {
   const pathname = usePathname()
 
   return (
     <nav
-      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
-        grid grid-cols-5"
+      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav grid"
       style={{
+        // GUIC-706 — colonnes suivant le nombre d'items affichés. La grille était figée à
+        // cinq : masquer une fonctionnalité laissait un trou dans la barre de navigation
+        // mobile des 22 000 utilisateurs.
+        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
         paddingBottom: 'calc(6px + var(--safe-bottom))',
         zIndex: 'var(--gj-z-bottom-nav)',
       }}
       aria-label="Navigation principale"
     >
-      {ITEMS.map(item => {
+      {items.map(item => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href) === true)
         const badge = badges[item.href]
         return (

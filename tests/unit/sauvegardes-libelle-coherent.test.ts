@@ -24,7 +24,7 @@ const lire = (p: string) => readFileSync(resolve(RACINE, p), 'utf-8')
 
 /** Le libellé porté par l'entrée de menu, lu à la source. */
 function libelleSidebar(): string {
-  const src = lire('src/components/layout/BenefSidebar/index.tsx')
+  const src = lire('src/components/layout/BenefSidebar/nav.ts')
   const ligne = src.split('\n').find((l) => l.includes("id: 'favoris'"))
   const m = ligne?.match(/label:\s*'([^']+)'/)
   if (!m) throw new Error('Entrée de menu « favoris » introuvable dans BenefSidebar')

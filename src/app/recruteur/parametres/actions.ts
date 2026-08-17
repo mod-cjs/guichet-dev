@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-513 — Préférences de notification du recruteur (Paramètres).
@@ -24,6 +25,7 @@ const schema = z.object({
 export type PreferencesNotifInput = z.input<typeof schema>
 
 export async function modifierPreferencesNotif(input: PreferencesNotifInput): Promise<{ ok: true }> {
+  await assertFlag('m9.recruteur')
   const session = await assertRecruteur()
   const parsed = schema.parse(input)
   await prisma.utilisateur.update({

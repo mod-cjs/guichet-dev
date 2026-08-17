@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/auth'
@@ -21,6 +22,7 @@ async function guard() {
 }
 
 export async function confirmerRetrait(empruntId: string): Promise<ApiResponse<{ id: string }>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
   try {
@@ -34,6 +36,7 @@ export async function confirmerRetrait(empruntId: string): Promise<ApiResponse<{
 }
 
 export async function enregistrerRetour(empruntId: string): Promise<ApiResponse<{ id: string }>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
   try {
@@ -117,6 +120,7 @@ const RET_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short
  * « à retirer » (réservés en ligne) + « à rendre » (en cours / en retard).
  */
 export async function identifierParCarte(rawQr: string): Promise<ApiResponse<JeuneIdentifie>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
 
@@ -165,6 +169,7 @@ export async function identifierParCarte(rawQr: string): Promise<ApiResponse<Jeu
 export async function rechercherLivresPourPret(
   q: string,
 ): Promise<ApiResponse<import('./types').LivrePret[]>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
   const term = q.trim().toLowerCase()
@@ -190,6 +195,7 @@ export interface ExemplaireInputConseiller {
 }
 
 export async function ajouterExemplaire(livreId: string, input: ExemplaireInputConseiller): Promise<ApiResponse<{ id: string }>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
   const codeBarre = input.codeBarre.trim()
@@ -222,6 +228,7 @@ export async function modifierExemplaire(
 }
 
 export async function retirerExemplaire(exemplaireId: string, livreId: string): Promise<ApiResponse<{ ok: true }>> {
+  await assertFlag('m8.comptoir_biblio')
   const g = await guard()
   if ('error' in g) return { error: g.error }
   try {

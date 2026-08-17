@@ -1,3 +1,5 @@
+import { getEventDef } from './catalog'
+import { notificationMasquee } from '@/lib/flags/notifications'
 // Outbox du centre de notifications — GUIC-547 évolution (modes validation/différé).
 // Envoie les lignes NotificationEnvoi en attente : validées par un humain, planifiées
 // (différé), ou re-tentées depuis la DLQ v2. Les coordonnées du destinataire sont
@@ -40,6 +42,19 @@ async function toMessage(envoi: NotificationEnvoi): Promise<ChannelMessage | nul
 
 /** Envoie une ligne d'outbox et met à jour son statut. */
 export async function sendEnvoi(envoi: NotificationEnvoi, valideePar?: string): Promise<void> {
+  // GUIC-706 — le rejeu court-circuite `emitEvent` : sans ce contrôle, une notification
+  // mise en file AVANT le masquage partirait quand même, et son lien mènerait à un 404.
+  // C'est la moitié du chemin qu'on oublie facilement — on filtre à l'émission et on
+  // laisse la file écouler ce qu'elle contenait déjà.
+  const def = getEventDef(envoi.eventKey)
+  if (def && (await notificationMasquee(def.module))) {
+    await prisma.notificationEnvoi.update({
+      where: { id: envoi.id },
+      data: { statut: 'abandonnee', erreur: 'fonctionnalité masquée' },
+    })
+    return
+  }
+
   const canal = envoi.canal as NotificationChannelId
   const adapter = REGISTRY[canal]
   const msg = await toMessage(envoi)

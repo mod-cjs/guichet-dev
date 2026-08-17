@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { lienMasque } from '@/lib/flags/ui'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { Icon } from '@/components/ui/Icon'
 import type { CJSSession } from '@/types/user'
@@ -18,6 +19,12 @@ import type { CJSSession } from '@/types/user'
  * fourni, sinon un `<Link>` server.
  */
 export interface AppTopbarProps {
+  /**
+   * GUIC-706 — clés masquées pour ce visiteur. La barre supérieure porte un raccourci
+   * codé en dur vers les sauvegardes : c'est une navigation, elle doit se filtrer comme
+   * les autres.
+   */
+  masques?: readonly string[]
   session?: CJSSession
   subtitle?: string
   userInitials?: string
@@ -38,6 +45,7 @@ function deriveInitials(session?: CJSSession, explicit?: string): string {
 }
 
 export function AppTopbar({
+  masques = [],
   session,
   subtitle,
   userInitials,
@@ -104,6 +112,7 @@ export function AppTopbar({
               écran vs drawer). Voir tests/unit/yaye-point-entree-unique.test.tsx */}
 
           {/* Favoris (cœur) — accès rapide depuis le mobile (GUIC-367) */}
+          {!lienMasque('/jeune/mes-favoris', masques) && (
           <Link
             href="/jeune/mes-favoris"
             aria-label="Mes favoris"
@@ -116,6 +125,7 @@ export function AppTopbar({
           >
             <Icon name="heart" size={20} />
           </Link>
+          )}
 
           {/* Bell notifications */}
           {onBellClick ? (

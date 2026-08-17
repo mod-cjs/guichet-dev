@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { lienMasque } from '@/lib/flags/ui'
 import { Icon } from '@/components/ui/Icon'
 
 export interface DashCenterItem {
@@ -10,6 +11,8 @@ export interface DashCenterItem {
 }
 
 interface Props {
+  /** GUIC-706 — clés masquées pour ce visiteur (calcul serveur). */
+  masques?: readonly string[]
   items: DashCenterItem[]
 }
 
@@ -18,18 +21,20 @@ interface Props {
  *
  * Référence : design-guichet-v2/web-dashboard.jsx#WebDashCenters (L.555-583)
  */
-export function WebDashCenters({ items }: Props) {
+export function WebDashCenters({ masques = [],  items }: Props) {
   return (
     <div className="bg-gj-surface border border-gj-line rounded-gj-md p-space-4
       flex flex-col gap-space-3">
       <div className="flex justify-between items-baseline">
         <h3 className="text-fs-300 font-black">Centres CJS près de toi</h3>
-        <Link
+        {!lienMasque('/centres', masques) && (
+          <Link
           href="/centres"
           className="text-fs-200 text-gj-teal-deep font-black hover:underline"
         >
           Carte →
         </Link>
+        )}
       </div>
       {items.length === 0 ? (
         <p className="text-fs-200 text-color-text-secondary py-space-3 text-center">

@@ -18,6 +18,6 @@ export async function GET(
   const parsed = raw ? Number(raw) : NaN
   const limit = Number.isFinite(parsed) ? parsed : ACTIVITY_LIMIT_DEFAULT
 
-  const items = await loadRecentActivity(session.cjsUid, limit)
+  const items = await loadRecentActivity(session.cjsUid, limit, session.roles)
   return NextResponse.json({ data: { items } })
 }

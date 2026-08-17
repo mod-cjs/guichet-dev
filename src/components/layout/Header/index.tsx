@@ -1,11 +1,15 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { lienMasque } from '@/lib/flags/ui'
+import { LIENS_PUBLICS, LIENS_CONNECTE } from './nav-liens'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { HeaderNav } from './HeaderNav'
 
 export async function Header() {
   const session = await getSession()
+  const masques = await masquesUtilisateur(session?.roles)
 
   return (
     <header
@@ -31,7 +35,11 @@ export async function Header() {
         </Link>
 
         {/* Nav desktop — composant client pour route active state via usePathname */}
-        <HeaderNav isAuthenticated={!!session} />
+        <HeaderNav
+          isAuthenticated={!!session}
+          liensPublics={LIENS_PUBLICS.filter((l) => !lienMasque(l.href, masques))}
+          liensConnecte={LIENS_CONNECTE.filter((l) => !lienMasque(l.href, masques))}
+        />
 
         {/* Côté droit */}
         <div className="ml-auto flex items-center gap-[4px] pl-[5px] flex-shrink-0 py-[10px]">

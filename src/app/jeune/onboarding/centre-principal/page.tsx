@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { estMasquee } from '@/lib/flags/ui-server'
 import { getCentresWithStatusAndHoraires } from '@/lib/loaders/centres'
 import { suggestCentrePrincipal, getUserRegion, resolveOnboardingRegion } from '@/lib/loaders/profil-onboarding'
 import { CentrePrincipalForm } from './centre-principal-form'
@@ -19,6 +20,18 @@ export default async function OnboardingCentrePrincipalPage() {
   const session = await getSession()
   if (!session) redirect('/auth/connexion')
   if (session.onboardingComplete) redirect('/jeune/tableau-de-bord')
+
+  // GUIC-706 — étape conditionnelle. Le parcours d'accueil est verrouillé, mais cette
+  // étape charge la liste des centres : sans ce saut, masquer les centres casserait un
+  // parcours qu'on ne peut même pas fermer pour compenser, et le service devait refuser
+  // la bascule. On saute plutôt qu'on ne rend : la page afficherait sinon une liste vide
+  // en demandant d'y choisir quelque chose.
+  //
+  // Placé APRÈS le contrôle de session : décider du saut avant d'authentifier
+  // renseignerait un visiteur anonyme sur l'état d'une fonctionnalité.
+  if (await estMasquee('m4.centres', session.roles)) {
+    redirect('/jeune/onboarding/recommandations')
+  }
 
   // La région saisie à l'étape profil est en base mais pas dans le JWT — la base
   // fait foi pour suggérer le bon centre (GUIC-448).

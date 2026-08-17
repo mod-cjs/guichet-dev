@@ -1,18 +1,19 @@
 import { render, screen } from '@testing-library/react'
 import { BottomNav } from '@/components/ui/BottomNav'
+import { BOTTOM_NAV_ITEMS } from '@/components/ui/BottomNav/nav'
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/opportunites',
 }))
 
-describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
+describe('<BottomNav items={BOTTOM_NAV_ITEMS} /> (signature v5 — GUIC-689)', () => {
   it('rend 5 items de navigation', () => {
-    const { container } = render(<BottomNav />)
+    const { container } = render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(container.querySelectorAll('a')).toHaveLength(5)
   })
 
   it('ne contient aucun emoji nav (règle CLAUDE.md)', () => {
-    const { container } = render(<BottomNav />)
+    const { container } = render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     // Les emojis interdits historiques utilisés dans la version précédente.
     const forbidden = ['🏠', '🔍', '📅', '📚', '👤']
     const text = container.textContent || ''
@@ -20,7 +21,7 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   })
 
   it('chaque item rend un <svg> (Icon sprite)', () => {
-    const { container } = render(<BottomNav />)
+    const { container } = render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     const links = container.querySelectorAll('a')
     links.forEach(link => {
       expect(link.querySelector('svg')).toBeTruthy()
@@ -28,23 +29,23 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   })
 
   it('marque l\'item actif via aria-current="page"', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     const active = screen.getByRole('link', { current: 'page' })
     expect(active).toHaveAttribute('href', '/opportunites')
   })
 
   it('affiche un badge sur l\'item demandé', () => {
-    render(<BottomNav badges={{ '/jeune/mes-candidatures': 3 }} />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} badges={{ '/jeune/mes-candidatures': 3 }} />)
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
   it('plafonne le badge à 9+', () => {
-    render(<BottomNav badges={{ '/jeune/mes-candidatures': 42 }} />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} badges={{ '/jeune/mes-candidatures': 42 }} />)
     expect(screen.getByText('9+')).toBeInTheDocument()
   })
 
   it('a un aria-label de navigation', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(screen.getByRole('navigation', { name: /navigation/i })).toBeInTheDocument()
   })
 
@@ -52,12 +53,12 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   // global `body:has(.gj-bottom-nav)` (globals.css) applique le padding-bottom
   // qui empêche le dernier item de contenu d'être masqué par la nav fixed.
   it('porte la classe gj-bottom-nav (sélecteur globals.css)', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(screen.getByRole('navigation')).toHaveClass('gj-bottom-nav')
   })
 
   it('est masquée à partir de md (≥ 768px) — md:hidden (GUIC-216)', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     const nav = screen.getByRole('navigation', { name: /navigation/i })
     expect(nav.className).toContain('md:hidden')
   })
@@ -71,7 +72,7 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   // 'user' (Profil) — toutes déjà présentes dans le sprite `public/icons.svg`,
   // aucune icône nouvelle ajoutée (hors périmètre).
   it('expose Accueil / Explorer / Candidatures / Centres CJS / Profil, dans cet ordre', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     const links = screen.getAllByRole('link')
     expect(links.map(l => l.textContent)).toEqual([
       'Accueil',
@@ -83,7 +84,7 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   })
 
   it('l\'item Candidatures pointe vers /jeune/mes-candidatures (parcours introuvable au doigt avant GUIC-689)', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(screen.getByRole('link', { name: /candidatures/i })).toHaveAttribute(
       'href',
       '/jeune/mes-candidatures',
@@ -91,12 +92,12 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   })
 
   it('l\'item Centres CJS pointe vers /centres', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(screen.getByRole('link', { name: /centres cjs/i })).toHaveAttribute('href', '/centres')
   })
 
   it('l\'item Profil pointe vers /jeune/mon-profil', () => {
-    render(<BottomNav />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} />)
     expect(screen.getByRole('link', { name: /^profil$/i })).toHaveAttribute(
       'href',
       '/jeune/mon-profil',
@@ -107,7 +108,7 @@ describe('<BottomNav /> (signature v5 — GUIC-689)', () => {
   // `text-[10px]`, sous le plancher `--fs-100` (11px) utilisé partout ailleurs
   // dans le composant.
   it('le badge compteur respecte le plancher 11px (text-fs-100, pas de text-[10px] en dur)', () => {
-    render(<BottomNav badges={{ '/jeune/mes-candidatures': 3 }} />)
+    render(<BottomNav items={BOTTOM_NAV_ITEMS} badges={{ '/jeune/mes-candidatures': 3 }} />)
     const badge = screen.getByText('3')
     expect(badge.className).toContain('text-fs-100')
     expect(badge.className).not.toContain('text-[10px]')

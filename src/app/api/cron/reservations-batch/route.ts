@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isEnabled } from '@/lib/flags'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { ApiResponse } from '@/types/api'
@@ -39,21 +40,39 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       include: { checkIns: { take: 1 } },
     })
 
+    // GUIC-706 — BÉNÉFICE DU DOUTE. Ce batch conclut à l'absence quand aucun passage
+    // badgé n'est associé. Si le pointage est masqué, PERSONNE ne peut badger : le batch
+    // enregistrerait EN BASE que tous les jeunes venus au rendez-vous étaient absents.
+    //
+    // La donnée est écrite, pas calculée à l'affichage : elle fausserait durablement le
+    // taux de non-présentation des centres, et `no_show` part au Data Hub en tier public,
+    // donc hors de la plateforme, sans rappel possible.
+    //
+    // Règle : une décision d'administration ne doit jamais produire une trace défavorable
+    // à un utilisateur. Pointage masqué, on clôt en `Passee` et on trace le motif, pour
+    // que l'analyse puisse écarter ces lignes plutôt que les subir.
+    const pointageMasque = await isEnabled('m4.checkin') === false
+
     let passees = 0
     let nonHonorees = 0
     for (const r of candidates) {
       const hasCheckIn = r.checkIns.length > 0
-      const nextStatut = hasCheckIn ? 'Passee' : 'NonHonoree'
+      const presume = hasCheckIn || pointageMasque
       await prisma.reservation.update({
         where: { id: r.id },
-        data: { statut: nextStatut },
+        data: {
+          statut: presume ? 'Passee' : 'NonHonoree',
+          ...(pointageMasque && !hasCheckIn
+            ? { raisonRefusOuAnnul: 'clôture sans badge : pointage masqué' }
+            : {}),
+        },
       })
-      if (hasCheckIn) passees++
+      if (presume) passees++
       else nonHonorees++
     }
 
     return NextResponse.json({
-      data: { passees, nonHonorees, total: candidates.length },
+      data: { passees, nonHonorees, total: candidates.length, pointageMasque },
     })
   } catch (err) {
     logger.error('cron/reservations-batch failed', {

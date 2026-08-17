@@ -2,6 +2,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { filtrerSections, lienMasque } from '@/lib/flags/ui'
+import { sectionsConseiller } from '@/components/layout/ConseillerSidebar/nav'
+import { CONSEILLER_PRIMAIRES, CONSEILLER_SECONDAIRES } from '@/components/layout/bottom-nav-pro.nav'
 import { getConseillerContext, countReservationsAValider } from '@/lib/loaders/conseiller'
 import { countUnreadMessages } from '@/lib/loaders/messagerie'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
@@ -26,6 +30,9 @@ export const dynamic = 'force-dynamic'
  */
 export default async function ConseillerLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
+  // GUIC-706 — calcul côté serveur : filtrer côté client afficherait la navigation
+  // complète le temps du premier rendu, soit la trace même qu'on retire.
+  const masques = await masquesUtilisateur(session?.roles)
   if (!session) redirect('/auth/connexion')
 
   const ctx = await getConseillerContext(session.cjsUid)
@@ -45,6 +52,14 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
 
   const fullName = `${ctx.prenom} ${ctx.nom}`.trim() || 'Conseiller'
   const roleLabel = ctx.role === 'conseiller' ? 'Conseiller' : ctx.role
+
+  // GUIC-706 — le filtrage est un calcul de SERVEUR. La sidebar reçoit les sections à
+  // afficher, jamais les clés masquées : les props d'un composant client sont sérialisées
+  // dans le HTML, et une liste de clés y annoncerait les fonctionnalités cachées.
+  const sectionsVisibles = filtrerSections(
+    sectionsConseiller({ reservations: reservationsBadge, messages: messagesBadge }),
+    masques,
+  )
 
   return (
     <>
@@ -71,13 +86,12 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
 
       <div className="flex min-h-screen md:h-screen md:overflow-hidden" style={{ background: 'var(--gj-bg)' }}>
         <ConseillerSidebar
+          sections={sectionsVisibles}
           name={fullName}
           role={roleLabel}
           initials={ctx.initials}
           centres={ctx.centres}
           activeCentreId={ctx.centreId}
-          reservationsBadge={reservationsBadge}
-          messagesBadge={messagesBadge}
         />
 
         <div className="flex-1 flex flex-col min-w-0 md:min-h-0">
@@ -105,7 +119,12 @@ export default async function ConseillerLayout({ children }: { children: ReactNo
         </div>
       </div>
 
-      <ConseillerBottomNav reservationsBadge={reservationsBadge} messagesBadge={messagesBadge} />
+      <ConseillerBottomNav
+        primaires={CONSEILLER_PRIMAIRES.filter((i) => !lienMasque(i.href, masques))}
+        secondaires={CONSEILLER_SECONDAIRES.filter((i) => !lienMasque(i.href, masques))}
+        reservationsBadge={reservationsBadge}
+        messagesBadge={messagesBadge}
+      />
     </>
   )
 }

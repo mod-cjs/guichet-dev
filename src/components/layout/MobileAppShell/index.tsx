@@ -1,4 +1,7 @@
 import { getSession } from '@/lib/auth'
+import { masquesUtilisateur } from '@/lib/flags/ui-server'
+import { lienMasque } from '@/lib/flags/ui'
+import { BOTTOM_NAV_ITEMS } from '@/components/ui/BottomNav/nav'
 import { AppTopbar } from '@/components/layout/AppTopbar'
 import { BottomNav } from '@/components/ui/BottomNav'
 import { countUnreadNotifications } from '@/lib/loaders/notifications'
@@ -13,13 +16,14 @@ import { MobileShellGate } from './MobileShellGate'
 export async function MobileTopShell() {
   const session = await getSession()
   if (!session) return null
+  const masques = await masquesUtilisateur(session.roles)
   // GUIC-247 — badge cloche : non-lues lues côté serveur (best-effort).
   const unread = await countUnreadNotifications(session.cjsUid).catch(() => 0)
   // GUIC-447 — présence photo (best-effort) pour éviter le 404 proxy.
   const hasPhoto = await getHasProfilePhoto(session.cjsUid).catch(() => false)
   return (
     <MobileShellGate>
-      <AppTopbar session={session} unread={unread} hasPhoto={hasPhoto} />
+      <AppTopbar masques={masques} session={session} unread={unread} hasPhoto={hasPhoto} />
     </MobileShellGate>
   )
 }
@@ -31,9 +35,12 @@ export async function MobileTopShell() {
 export async function MobileBottomShell() {
   const session = await getSession()
   if (!session) return null
+  // GUIC-706 — trois des cinq items sont masquables. Calcul côté serveur : côté client,
+  // la barre s'afficherait complète le temps du premier rendu.
+  const masques = await masquesUtilisateur(session.roles)
   return (
     <MobileShellGate>
-      <BottomNav />
+      <BottomNav items={BOTTOM_NAV_ITEMS.filter((i) => !lienMasque(i.href, masques))} />
     </MobileShellGate>
   )
 }
