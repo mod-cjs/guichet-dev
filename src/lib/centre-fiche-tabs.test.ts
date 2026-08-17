@@ -1,8 +1,9 @@
 import { CENTRE_TABS, parseTab, type CentreTab } from './centre-fiche-tabs'
 
 describe('centre-fiche-tabs — onglets de la fiche Centre (Phase A)', () => {
-  it('expose les onglets Phase A dans l\'ordre', () => {
-    expect(CENTRE_TABS.map((t) => t.value)).toEqual<CentreTab[]>(['vue', 'ressources', 'frequentation'])
+  it('expose les onglets dans l\'ordre maquette', () => {
+    // GUIC-687 — onglets Équipe / Bibliothèque / Événements ajoutés après la Phase A.
+    expect(CENTRE_TABS.map((t) => t.value)).toEqual<CentreTab[]>(['vue', 'equipe', 'ressources', 'frequentation', 'biblio', 'evenements'])
   })
 
   it('chaque onglet a un label + une icône', () => {
@@ -22,8 +23,14 @@ describe('centre-fiche-tabs — onglets de la fiche Centre (Phase A)', () => {
     expect(parseTab('frequentation')).toBe('frequentation')
   })
 
-  it('parseTab : normalise un onglet inconnu (ou d\'une phase future) vers vue', () => {
-    expect(parseTab('equipe')).toBe('vue')
+  it('parseTab : normalise un onglet inconnu vers vue', () => {
     expect(parseTab('xyz')).toBe('vue')
+    expect(parseTab('phase-future')).toBe('vue')
+  })
+
+  it('parseTab : lit les onglets ajoutés (GUIC-687)', () => {
+    expect(parseTab('equipe')).toBe('equipe')
+    expect(parseTab('biblio')).toBe('biblio')
+    expect(parseTab('evenements')).toBe('evenements')
   })
 })
