@@ -50,6 +50,7 @@ export type AuditAction =
   | 'partenaire.promotion'
   | 'partenaire.membre.rattache'
   | 'partenaire.membre.statut'
+  | 'partenaire.fusion'
   // GUIC-485 / GUIC-230 — examen des candidatures recruteur (pipeline + CV + PII).
   | 'candidature.statut'
   | 'candidature.cv.read'

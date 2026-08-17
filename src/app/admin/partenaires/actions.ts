@@ -255,6 +255,65 @@ export async function changerStatutMembre(membreId: string, statut: 'actif' | 'r
 }
 
 /**
+ * GUIC-706 (Q5) — fusionner deux organisations (doublon curé ↔ partenaire recruteur).
+ * La CIBLE est le partenaire canonique conservé ; la SOURCE est absorbée :
+ *  - ses offres sont réaffectées à la cible (`organisationId`),
+ *  - ses membres sont déplacés (les doublons — même personne des deux côtés — sont fusionnés,
+ *    la garde `@@unique([organisationId, cjsUid])` reste respectée),
+ *  - la vérification est propagée (ne jamais perdre un `estVerifie` acquis),
+ *  - la source est supprimée.
+ * Tout en transaction (atomique). Jamais de fusion silencieuse : action pilotée par l'admin.
+ */
+export async function fusionnerOrganisations(input: { sourceId: string; cibleId: string }): Promise<{
+  offresReaffectees: number
+  membresDeplaces: number
+}> {
+  const session = await assertAdmin()
+  const sourceId = idSchema.parse(input.sourceId)
+  const cibleId = idSchema.parse(input.cibleId)
+  if (sourceId === cibleId) throw new Error('MEME_ORGANISATION')
+
+  const [source, cible] = await Promise.all([
+    prisma.organisation.findUnique({ where: { id: sourceId }, select: { id: true, estVerifie: true } }),
+    prisma.organisation.findUnique({ where: { id: cibleId }, select: { id: true, estVerifie: true } }),
+  ])
+  if (!source || !cible) throw new Error('NOT_FOUND')
+
+  const resultat = await prisma.$transaction(async (tx) => {
+    const offres = await tx.opportunite.updateMany({ where: { organisationId: sourceId }, data: { organisationId: cibleId } })
+
+    const cibleUids = new Set(
+      (await tx.membreOrganisation.findMany({ where: { organisationId: cibleId }, select: { cjsUid: true } })).map((m) => m.cjsUid),
+    )
+    const sourceMembres = await tx.membreOrganisation.findMany({ where: { organisationId: sourceId }, select: { id: true, cjsUid: true } })
+    let membresDeplaces = 0
+    for (const m of sourceMembres) {
+      if (cibleUids.has(m.cjsUid)) {
+        await tx.membreOrganisation.delete({ where: { id: m.id } }) // déjà membre de la cible → fusion
+      } else {
+        await tx.membreOrganisation.update({ where: { id: m.id }, data: { organisationId: cibleId } })
+        membresDeplaces++
+      }
+    }
+
+    if (source.estVerifie && !cible.estVerifie) {
+      await tx.organisation.update({ where: { id: cibleId }, data: { estVerifie: true } })
+    }
+
+    await tx.organisation.delete({ where: { id: sourceId } })
+    return { offresReaffectees: offres.count, membresDeplaces }
+  })
+
+  await recordAudit(session.cjsUid, 'partenaire.fusion', {
+    targetType: 'organisation',
+    targetId: cibleId,
+    meta: { sourceId, cibleId, ...resultat },
+  })
+  revalidate(cibleId)
+  return resultat
+}
+
+/**
  * GUIC-706 — recherche d'utilisateurs à rattacher comme membre (proxy local de `/users/find`).
  * Cherche par nom/prénom/email/téléphone ; exclut les comptes anonymisés. Borné.
  */

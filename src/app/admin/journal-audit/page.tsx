@@ -31,6 +31,7 @@ const ACTION_META: Record<string, { text: string; tone: AuditRow['tone']; icon: 
   'partenaire.promotion': { text: 'a rattaché une offre à un partenaire', tone: 'green', icon: 'attach' },
   'partenaire.membre.rattache': { text: 'a rattaché un membre à un partenaire', tone: 'green', icon: 'users' },
   'partenaire.membre.statut': { text: 'a révoqué / réactivé un membre', tone: 'grey', icon: 'users' },
+  'partenaire.fusion': { text: 'a fusionné deux partenaires', tone: 'grey', icon: 'settings' },
 }
 
 /** Identifiant court lisible quand le nom n'est pas résolvable. */
