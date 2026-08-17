@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { OpportuniteService, type CreateOpportuniteInput } from '@/lib/services/opportunite-service'
 import { getRecruteurContext } from '@/lib/loaders/recruteur'
+import { verifierGatePublication } from '@/lib/decouplage/publication-gate'
 import { sanitizeRichHtml } from '@/lib/sanitize-html'
 import { generateUniqueSlug } from '@/lib/slug'
 import type { CJSSession } from '@/types/user'
@@ -81,6 +82,11 @@ export async function creerOffreRecruteur(raw: CreerOffreRecruteurInput): Promis
 
   const ctx = await getRecruteurContext(session.cjsUid)
   if (!ctx.organisationId || !ctx.organisationNom) throw new Error('NO_ORGANISATION')
+
+  // GUIC-706 — gate de publication (spec §4) : org active ET membre actif ET personne active.
+  // Un membre révoqué ou une org suspendue ne peut plus émettre d'offre pour ce partenaire.
+  const gate = await verifierGatePublication(session.cjsUid, ctx.organisationId)
+  if (!gate.ok) throw new Error(gate.raison)
 
   const parsed = inputSchema.parse(raw)
 
