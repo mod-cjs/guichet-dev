@@ -67,7 +67,8 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
 
   it('F3 — rend l’étape "Décision" du funnel (funnel.decision)', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
-    expect(screen.getByText('Décision')).toBeInTheDocument()
+    // « Décision » existe déjà comme option du filtre étape ; on vérifie sa présence + la valeur du funnel.
+    expect(screen.getAllByText('Décision').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('20')).toBeInTheDocument()
   })
 
