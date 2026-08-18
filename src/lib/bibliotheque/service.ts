@@ -48,6 +48,10 @@ export type BiblioErrorCode =
   | 'EMPRUNT_NON_CONFIRMABLE'
   | 'DOUBLON_EMPRUNT'
   | 'CENTRE_INTERDIT'
+  | 'EXEMPLAIRE_EMPRUNT_ACTIF'
+  | 'EXEMPLAIRE_HISTORIQUE'
+  | 'LIVRE_EMPRUNT_ACTIF'
+  | 'LIVRE_HISTORIQUE'
 
 export const BIBLIO_ERROR_STATUS: Record<BiblioErrorCode, number> = {
   LIVRE_NOT_FOUND: 404,
@@ -60,6 +64,10 @@ export const BIBLIO_ERROR_STATUS: Record<BiblioErrorCode, number> = {
   EMPRUNT_NON_CONFIRMABLE: 409,
   DOUBLON_EMPRUNT: 409,
   CENTRE_INTERDIT: 403,
+  EXEMPLAIRE_EMPRUNT_ACTIF: 409,
+  EXEMPLAIRE_HISTORIQUE: 409,
+  LIVRE_EMPRUNT_ACTIF: 409,
+  LIVRE_HISTORIQUE: 409,
 }
 
 const BIBLIO_ERROR_MESSAGES: Record<BiblioErrorCode, string> = {
@@ -73,6 +81,12 @@ const BIBLIO_ERROR_MESSAGES: Record<BiblioErrorCode, string> = {
   EMPRUNT_NON_CONFIRMABLE: "Cet emprunt ne peut pas être confirmé dans son état actuel.",
   DOUBLON_EMPRUNT: 'Tu as déjà un emprunt initié pour cet exemplaire.',
   CENTRE_INTERDIT: "Cet exemplaire n'appartient pas à ton centre.",
+  EXEMPLAIRE_EMPRUNT_ACTIF: 'Un emprunt est en cours pour cet exemplaire — impossible de le supprimer.',
+  EXEMPLAIRE_HISTORIQUE:
+    "Cet exemplaire a un historique d'emprunts — marque-le indisponible plutôt que de le supprimer.",
+  LIVRE_EMPRUNT_ACTIF: 'Un emprunt est en cours sur un exemplaire de ce livre — impossible de le supprimer.',
+  LIVRE_HISTORIQUE:
+    "Ce livre a un historique d'emprunts — marque ses exemplaires indisponibles plutôt que de le supprimer.",
 }
 
 export class BiblioDomainError extends Error {
@@ -89,6 +103,8 @@ export class BiblioDomainError extends Error {
 
 export interface EmplacementVue {
   exemplaireId: string
+  /** Code-barre physique de l'exemplaire (gestion catalogue). GUIC-522 F-08. */
+  codeBarre: string
   centreId: string
   centreNom: string
   rayon: string
@@ -138,6 +154,13 @@ export interface SearchLivresParams {
   centreId?: string
   page?: number
   pageSize?: number
+  /**
+   * Portée des emplacements exposés (GUIC-522 F-11) :
+   *  - 'disponibles' (défaut, recherche publique) : n'expose que les exemplaires DISPONIBLES.
+   *  - 'tous' (gestion catalogue admin/staff) : expose TOUS les exemplaires du centre, tous
+   *    statuts confondus (emprunté/réservé/indisponible inclus), nécessaire pour éditer/supprimer.
+   */
+  emplacements?: 'disponibles' | 'tous'
 }
 
 export interface SearchLivresResult {
@@ -149,6 +172,7 @@ export interface SearchLivresResult {
 
 function toEmplacement(ex: {
   id: string
+  codeBarre: string
   centreId: string
   rayon: string
   etagere: string
@@ -158,6 +182,7 @@ function toEmplacement(ex: {
 }): EmplacementVue {
   return {
     exemplaireId: ex.id,
+    codeBarre: ex.codeBarre,
     centreId: ex.centreId,
     centreNom: ex.centre.nom,
     rayon: ex.rayon,
@@ -167,27 +192,32 @@ function toEmplacement(ex: {
   }
 }
 
-function toLivreVue(livre: {
-  id: string
-  titre: string
-  auteur: string
-  isbn: string | null
-  theme: string
-  niveau: string | null
-  langue: string
-  resume: string | null
-  couvertureUrl: string | null
-  exemplaires: Array<{
+function toLivreVue(
+  livre: {
     id: string
-    centreId: string
-    rayon: string
-    etagere: string
-    position: string
-    statut: string
-    centre: { nom: string }
-  }>
-}): LivreVue {
+    titre: string
+    auteur: string
+    isbn: string | null
+    theme: string
+    niveau: string | null
+    langue: string
+    resume: string | null
+    couvertureUrl: string | null
+    exemplaires: Array<{
+      id: string
+      codeBarre: string
+      centreId: string
+      rayon: string
+      etagere: string
+      position: string
+      statut: string
+      centre: { nom: string }
+    }>
+  },
+  opts: { emplacements?: 'disponibles' | 'tous' } = {},
+): LivreVue {
   const dispo = livre.exemplaires.filter((e) => e.statut === 'disponible')
+  const emplacementsSource = opts.emplacements === 'tous' ? livre.exemplaires : dispo
   return {
     id: livre.id,
     titre: livre.titre,
@@ -200,7 +230,7 @@ function toLivreVue(livre: {
     couvertureUrl: livre.couvertureUrl,
     exemplairesTotal: livre.exemplaires.length,
     exemplairesDisponibles: dispo.length,
-    emplacements: dispo.map(toEmplacement),
+    emplacements: emplacementsSource.map(toEmplacement),
   }
 }
 
@@ -235,7 +265,12 @@ export async function searchLivres(params: SearchLivresParams): Promise<SearchLi
     }),
   ])
 
-  return { livres: livres.map(toLivreVue), total, page, pageSize }
+  return {
+    livres: livres.map((l) => toLivreVue(l, { emplacements: params.emplacements })),
+    total,
+    page,
+    pageSize,
+  }
 }
 
 /**
@@ -542,10 +577,24 @@ export async function updateLivre(id: string, input: Partial<LivreInput>): Promi
   syncLivreGraph(id)
 }
 
-/** Supprime un livre (et ses exemplaires en cascade). */
+/**
+ * Supprime un livre (et ses exemplaires en cascade) — SEULEMENT si AUCUN de ses
+ * exemplaires n'a jamais eu d'emprunt (actif ou passé). `Emprunt.exemplaireId` est en
+ * FK Restrict : un exemplaire avec historique ne se supprime jamais physiquement — les
+ * emprunts sont des enregistrements. GUIC-522 F-07.
+ */
 export async function deleteLivre(id: string): Promise<void> {
   const exists = await prisma.livre.findUnique({ where: { id }, select: { id: true } })
   if (!exists) throw new BiblioDomainError('LIVRE_NOT_FOUND')
+
+  const empruntsActifs = await prisma.emprunt.count({
+    where: { exemplaire: { livreId: id }, statut: { in: ACTIVE_STATUTS } },
+  })
+  if (empruntsActifs > 0) throw new BiblioDomainError('LIVRE_EMPRUNT_ACTIF')
+
+  const historique = await prisma.emprunt.count({ where: { exemplaire: { livreId: id } } })
+  if (historique > 0) throw new BiblioDomainError('LIVRE_HISTORIQUE')
+
   await prisma.livre.delete({ where: { id } })
 }
 
@@ -585,46 +634,96 @@ export async function updateExemplaire(
   syncExemplaireGraph(id)
 }
 
-/** Supprime un exemplaire (RBAC : son centre ; `null` = admin cross-centres). */
+/**
+ * Supprime un exemplaire (RBAC : son centre ; `null` = admin cross-centres) — SEULEMENT
+ * s'il n'a JAMAIS eu d'emprunt (actif ou passé). `Emprunt.exemplaireId` est en FK
+ * Restrict : un exemplaire avec historique ne se supprime jamais physiquement — les
+ * emprunts sont des enregistrements ; marque-le `indisponible` pour le retirer du fonds.
+ * GUIC-522 F-06.
+ */
 export async function deleteExemplaire(id: string, staffCentreId: string | null): Promise<void> {
   const ex = await prisma.exemplaire.findUnique({ where: { id }, select: { centreId: true } })
   if (!ex) throw new BiblioDomainError('EXEMPLAIRE_NOT_FOUND')
   if (staffCentreId && ex.centreId !== staffCentreId) throw new BiblioDomainError('CENTRE_INTERDIT')
+
+  const empruntsActifs = await prisma.emprunt.count({ where: { exemplaireId: id, statut: { in: ACTIVE_STATUTS } } })
+  if (empruntsActifs > 0) throw new BiblioDomainError('EXEMPLAIRE_EMPRUNT_ACTIF')
+
+  const historique = await prisma.emprunt.count({ where: { exemplaireId: id } })
+  if (historique > 0) throw new BiblioDomainError('EXEMPLAIRE_HISTORIQUE')
+
   await prisma.exemplaire.delete({ where: { id } })
   void import('@/lib/ia/graph/projection/project')
     .then((m) => m.syncExemplaireDeletion(id))
     .catch((err) => logger.warn('[biblio] suppression graphe exemplaire échouée (fail-soft)', { id, err: String(err) }))
 }
 
-/** Emprunts d'un centre filtrés par statut (file de traitement bibliothécaire). */
+/**
+ * Emprunts d'un centre filtrés par statut (supervision admin/staff, GUIC-522 F-04/F-09).
+ * `select` ciblé (jamais `include` plein) : le bénéficiaire (nom/prénom) est résolu via
+ * une requête batchée séparée sur `Utilisateur`, pas un `include` imbriqué.
+ */
 export async function getEmpruntsCentre(centreId: string, statuts: StatutEmprunt[]): Promise<EmpruntVue[]> {
   const emprunts = await prisma.emprunt.findMany({
     where: { exemplaire: { centreId }, statut: { in: statuts } },
     orderBy: { initieA: 'desc' },
-    include: { exemplaire: { include: { livre: true, centre: { select: { nom: true } } } } },
+    select: {
+      id: true,
+      statut: true,
+      cjsUid: true,
+      confirmePar: true,
+      initieA: true,
+      confirmeA: true,
+      dateRetourPrevue: true,
+      renduA: true,
+      exemplaire: {
+        select: {
+          id: true,
+          codeBarre: true,
+          centreId: true,
+          rayon: true,
+          etagere: true,
+          position: true,
+          livre: { select: { id: true, titre: true, auteur: true } },
+          centre: { select: { nom: true } },
+        },
+      },
+    },
     take: 200,
   })
-  return emprunts.map((e) => ({
-    id: e.id,
-    statut: e.statut,
-    livre: { id: e.exemplaire.livre.id, titre: e.exemplaire.livre.titre, auteur: e.exemplaire.livre.auteur },
-    exemplaire: {
-      id: e.exemplaire.id,
-      codeBarre: e.exemplaire.codeBarre,
-      centreId: e.exemplaire.centreId,
-      centreNom: e.exemplaire.centre.nom,
-      rayon: e.exemplaire.rayon,
-      etagere: e.exemplaire.etagere,
-      position: e.exemplaire.position,
-    },
-    initieA: e.initieA.toISOString(),
-    confirmeA: e.confirmeA?.toISOString() ?? null,
-    dateRetourPrevue: e.dateRetourPrevue?.toISOString() ?? null,
-    renduA: e.renduA?.toISOString() ?? null,
-    confirmePar: e.confirmePar ?? null,
-    // Résolu par getEmpruntsCentre (supervision admin/staff) — voir GUIC-522 F-09.
-    emprunteur: null,
-  }))
+
+  const cjsUids = [...new Set(emprunts.map((e) => e.cjsUid))]
+  const emprunteurs = cjsUids.length
+    ? await prisma.utilisateur.findMany({
+        where: { cjsUid: { in: cjsUids } },
+        select: { cjsUid: true, nom: true, prenom: true },
+      })
+    : []
+  const emprunteurParCjsUid = new Map(emprunteurs.map((u) => [u.cjsUid, u]))
+
+  return emprunts.map((e) => {
+    const u = emprunteurParCjsUid.get(e.cjsUid)
+    return {
+      id: e.id,
+      statut: e.statut,
+      livre: { id: e.exemplaire.livre.id, titre: e.exemplaire.livre.titre, auteur: e.exemplaire.livre.auteur },
+      exemplaire: {
+        id: e.exemplaire.id,
+        codeBarre: e.exemplaire.codeBarre,
+        centreId: e.exemplaire.centreId,
+        centreNom: e.exemplaire.centre.nom,
+        rayon: e.exemplaire.rayon,
+        etagere: e.exemplaire.etagere,
+        position: e.exemplaire.position,
+      },
+      initieA: e.initieA.toISOString(),
+      confirmeA: e.confirmeA?.toISOString() ?? null,
+      dateRetourPrevue: e.dateRetourPrevue?.toISOString() ?? null,
+      renduA: e.renduA?.toISOString() ?? null,
+      confirmePar: e.confirmePar ?? null,
+      emprunteur: u ? { nom: u.nom, prenom: u.prenom } : null,
+    }
+  })
 }
 
 /** Emprunts en cours (et initiés / en retard) d'un bénéficiaire + dates de retour. */
