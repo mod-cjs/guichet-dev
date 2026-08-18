@@ -50,6 +50,27 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
     expect(screen.getByText('68')).toBeInTheDocument()
   })
 
+  it('F1 — scoreMoyen null (aucun score calculé) : « — » sans "/100", pas de 0 fabriqué', () => {
+    render(<AdminCandidaturesTable {...defaultProps} kpis={{ ...KPIS, scoreMoyen: null }} />)
+    const kpiScore = screen.getByText(/Score IA moyen/i).closest('div')!.parentElement!
+    expect(within(kpiScore).getByText('—')).toBeInTheDocument()
+    expect(within(kpiScore).queryByText('/100')).toBeNull()
+    expect(within(kpiScore).getByText(/en cours/i)).toBeInTheDocument()
+  })
+
+  it('F2 — rend le KPI "Insertions" (national) issu de kpis.insertions', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    expect(screen.getByText(/^Insertions$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^3\s640$/)).toBeInTheDocument()
+    expect(screen.getByText(/national/i)).toBeInTheDocument()
+  })
+
+  it('F3 — rend l’étape "Décision" du funnel (funnel.decision)', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    expect(screen.getByText('Décision')).toBeInTheDocument()
+    expect(screen.getByText('20')).toBeInTheDocument()
+  })
+
   it('affiche la colonne Score IA (valeur + "en cours" si null)', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
     expect(screen.getByRole('columnheader', { name: /Score IA/i })).toBeInTheDocument()

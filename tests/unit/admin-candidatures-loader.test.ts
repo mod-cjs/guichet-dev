@@ -115,4 +115,9 @@ describe('GUIC-692 — loader Candidatures (helpers)', () => {
     expect(k.scoreMoyen).toBe(68) // arrondi
     expect(k.insertions).toBe(3640)
   })
+
+  it('kpisFromCounts : scoreMoyen null (aucun score calculé) plutôt que 0 fabriqué (F1)', () => {
+    const k = kpisFromCounts([{ statut: 'En_attente', _count: { id: 5 } }], null, 0)
+    expect(k.scoreMoyen).toBeNull()
+  })
 })
