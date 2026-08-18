@@ -106,4 +106,22 @@ describe('GUIC-692 — CandidatureDetailPanel', () => {
     expect(screen.queryByRole('button', { name: /Retenir/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /Refuser/i })).toBeNull()
   })
+
+  it('F8 — l’étape franchie du stepper utilise <Icon name="check" /> (pas le glyphe "✓")', () => {
+    const { container } = render(<CandidatureDetailPanel detail={{ ...DETAIL, etape: 'Decision' }} onClose={() => {}} />)
+    // Décision = index 3 → Reçue/Présélection/Entretien (index 0,1,2) sont "done".
+    const checkUses = container.querySelectorAll('svg use[href="/icons.svg#i-check"]')
+    expect(checkUses.length).toBeGreaterThanOrEqual(3)
+    expect(container.textContent).not.toMatch(/✓/)
+  })
+
+  it('F9 — voile et ombre du slide-over via tokens (--gj-overlay / --gj-shadow-panel), pas de rgba en dur', () => {
+    const { container } = render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
+    const scrim = container.querySelector('[style*="position: fixed"][style*="inset"]') as HTMLElement
+    expect(scrim.style.background).toMatch(/var\(--gj-overlay\)/)
+    expect(scrim.style.background).not.toMatch(/rgba/)
+    const aside = screen.getByRole('dialog')
+    expect(aside.style.boxShadow).toMatch(/var\(--gj-shadow-panel\)/)
+    expect(aside.style.boxShadow).not.toMatch(/rgba/)
+  })
 })

@@ -108,4 +108,13 @@ describe('GUIC-692 — AdminCandidaturesTable (supervision)', () => {
     render(<AdminCandidaturesTable {...defaultProps} rows={[]} total={0} totalPages={0} />)
     expect(screen.getAllByText(/aucune candidature/i).length).toBeGreaterThanOrEqual(1)
   })
+
+  it('F8 — le chevron ornemental de « Détail » utilise <Icon name="chevron-right" /> (pas le glyphe "›")', () => {
+    render(<AdminCandidaturesTable {...defaultProps} />)
+    const boutons = screen.getAllByRole('button', { name: /Détail de Awa Diop/i })
+    for (const b of boutons) {
+      expect(b.textContent).not.toMatch(/›/)
+      expect(b.querySelector('svg use[href="/icons.svg#i-chevron-right"]')).not.toBeNull()
+    }
+  })
 })
