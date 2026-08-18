@@ -1,5 +1,7 @@
 /** @jest-environment jsdom */
 /** GUIC-687 — onglet Bibliothèque : 4 KPIs + table emprunts en cours + recherche. */
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { render, screen, fireEvent } from '@testing-library/react'
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }), useSearchParams: () => new URLSearchParams('') }))
 import { CentreBibliotheque, type BiblioEmpruntRow } from '@/app/admin/centres/[id]/CentreBibliotheque'
@@ -38,5 +40,39 @@ describe('CentreBibliotheque', () => {
   it('état vide', () => {
     render(<CentreBibliotheque kpis={{ exemplaires: 0, enCours: 0, enRetard: 0, titres: 0 }} emprunts={[]} info={paginate(0, 1)} />)
     expect(screen.getByText(/Aucun emprunt en cours/i)).toBeInTheDocument()
+  })
+})
+
+// GUIC-522 — la fiche centre est une vue de SUPERVISION (admin), alignée sur le vocabulaire
+// de /admin/bibliotheque/gestion : « Réservé » (pas « À confirmer »), aucune action comptoir.
+describe('CentreBibliotheque — GUIC-522 vocabulaire supervision', () => {
+  const RESERVE: BiblioEmpruntRow = {
+    id: 'e3', titre: 'Sous l’orage', auteur: 'Seydou Badian', emprunteur: 'Fatou Diallo',
+    emprunteLe: '10 août 2026', retourPrevu: null, statut: 'initie', enRetard: false,
+  }
+
+  it('statut « initie » affiche « Réservé » (pas « À confirmer »)', () => {
+    render(<CentreBibliotheque kpis={KPIS} emprunts={[RESERVE]} info={paginate(1, 1)} />)
+    expect(screen.getByText('Réservé')).toBeInTheDocument()
+    expect(screen.queryByText('À confirmer')).not.toBeInTheDocument()
+  })
+
+  it('aucun bouton d’action comptoir (confirmer/retour) — supervision lecture seule', () => {
+    render(<CentreBibliotheque kpis={KPIS} emprunts={[...EMPRUNTS, RESERVE]} info={paginate(3, 1)} />)
+    expect(screen.queryByRole('button', { name: /confirmer/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /retour/i })).not.toBeInTheDocument()
+  })
+
+  // Le retard ne s'écrit jamais en base (voir src/lib/bibliotheque/retard.ts) : le loader de la
+  // fiche centre doit dériver via le helper unique `estEnRetard`, pas via un `statut === 'en_retard'`
+  // dupliqué en dur (source de désynchronisation avec /admin/bibliotheque/gestion).
+  it('le loader (page.tsx) dérive le retard via estEnRetard — pas de logique dupliquée', () => {
+    const src = readFileSync(
+      path.resolve(__dirname, '../../src/app/admin/centres/[id]/page.tsx'),
+      'utf8',
+    )
+    expect(src).toMatch(/estEnRetard/)
+    expect(src).toMatch(/@\/lib\/bibliotheque\/retard/)
+    expect(src).not.toMatch(/e\.statut === 'en_retard' \|\|/)
   })
 })
