@@ -130,4 +130,11 @@ describe('GUIC-692 — CandidatureDetailPanel', () => {
     expect(aside.style.boxShadow).toMatch(/var\(--gj-shadow-panel\)/)
     expect(aside.style.boxShadow).not.toMatch(/rgba/)
   })
+
+  it('F10 — le bouton fermer fait au moins 40px (cible tactile)', () => {
+    render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
+    const closeBtn = screen.getByRole('button', { name: /Fermer/i })
+    expect(Number.parseInt(closeBtn.style.width, 10)).toBeGreaterThanOrEqual(40)
+    expect(Number.parseInt(closeBtn.style.height, 10)).toBeGreaterThanOrEqual(40)
+  })
 })
