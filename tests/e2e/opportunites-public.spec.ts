@@ -13,9 +13,13 @@ const DEV_TITRE = 'Developpeur web junior E2E P2'
 const AGRI_TITRE = 'Technicien agricole E2E P2'
 
 test.beforeAll(async () => {
-  const a = await seedOpportunite({ slug: 'e2e-p2-dev-stage', titre: DEV_TITRE, type: 'Stage', domaine: 'Numerique' })
-  const b = await seedOpportunite({ slug: 'e2e-p2-agri-emploi', titre: AGRI_TITRE, type: 'Emploi', domaine: 'Agriculture' })
-  const c = await seedOpportunite({ slug: 'e2e-p2-bourse', titre: 'Bourse etudes E2E P2', type: 'Bourse', domaine: 'Education' })
+  // Domaines valides pour la taxonomie courante (BienEtre/Citoyennete/Culture/Ecologie/
+  // Economie/Employabilite/Autre) — les anciennes valeurs (Numerique/Agriculture/Education)
+  // ont été retirées par la refonte de la taxonomie, invalides silencieusement jusqu'ici
+  // (le cast `as never` de seedOpportunite masque l'erreur au compile-time).
+  const a = await seedOpportunite({ slug: 'e2e-p2-dev-stage', titre: DEV_TITRE, type: 'Stage', domaine: 'Employabilite' })
+  const b = await seedOpportunite({ slug: 'e2e-p2-agri-emploi', titre: AGRI_TITRE, type: 'Emploi', domaine: 'Ecologie' })
+  const c = await seedOpportunite({ slug: 'e2e-p2-bourse', titre: 'Bourse etudes E2E P2', type: 'Bourse', domaine: 'Economie' })
   stageSlug = a.slug
   cleanup = combineCleanups(a.cleanup, b.cleanup, c.cleanup)
 })
