@@ -74,10 +74,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const roles = roleRows.map((r) => r.role).filter((r): r is string => !!r)
+  const centreNomById = new Map(centres.map((c) => [c.id, c.nom]))
 
   return (
     <SessionsClient
-      rows={rows.map((r) => ({ ...r, debut: r.debut.toISOString() }))}
+      rows={rows.map((r) => ({
+        ...r,
+        debut: r.debut.toISOString(),
+        centreNom: r.centreId ? (centreNomById.get(r.centreId) ?? '—') : null,
+      }))}
       summary={summary}
       total={total}
       currentPage={page}

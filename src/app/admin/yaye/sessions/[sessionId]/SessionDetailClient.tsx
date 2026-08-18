@@ -24,6 +24,8 @@ export interface SessionDetailClientProps {
   transcript: ReconstructedTranscript
   refs: SessionRef[]
   user: { prenom: string; nom: string; telephone: string | null } | null
+  /** Nom du centre résolu (jamais le cuid brut) — « — » si aucun centre / centre inconnu. */
+  centreNom: string
   quality: { eval: EvalDetail | null; yqs: number | null; resolu: boolean; converti: boolean }
   feedback: { note: number; raison: string | null; tourIndex: number | null; createdAt: string }[]
   escalade: { id: string; statut: StatutEscalade; raison: string | null; signalDanger: string | null; createdAt: string } | null
@@ -98,7 +100,7 @@ function pct(x: number): string {
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function SessionDetailClient({ transcript: t, refs, user, quality, feedback, escalade }: SessionDetailClientProps) {
+export function SessionDetailClient({ transcript: t, refs, user, centreNom, quality, feedback, escalade }: SessionDetailClientProps) {
   const [tab, setTab] = useState<'conversation' | 'technique'>('conversation')
 
   const canalLabel = t.canal === 'whatsapp' ? 'WhatsApp' : t.canal === 'web' ? 'Web' : '—'
@@ -122,7 +124,7 @@ export function SessionDetailClient({ transcript: t, refs, user, quality, feedba
             <Meta label="Canal" value={canalLabel} />
             <Meta label="Utilisateur" value={userName} />
             {user?.telephone && <Meta label="Tél" value={user.telephone} />}
-            <Meta label="Centre" value={t.centreId ?? '—'} />
+            <Meta label="Centre" value={centreNom} />
             <Meta label="Tours" value={String(t.nbTours)} />
             <Meta label="Durée" value={dureeMs(t.dureeMs)} />
             {t.escalade && <Meta label="Escalade" value="Conseiller" tone="warn" />}

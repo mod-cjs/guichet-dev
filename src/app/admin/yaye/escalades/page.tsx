@@ -49,6 +49,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     prisma.centre.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' } }),
   ])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const centreNomById = new Map(centres.map((c) => [c.id, c.nom]))
 
   return (
     <EscaladesClient
@@ -56,6 +57,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         ...r,
         traiteA: r.traiteA ? r.traiteA.toISOString() : null,
         createdAt: r.createdAt.toISOString(),
+        centreNom: r.centreId ? (centreNomById.get(r.centreId) ?? '—') : null,
       }))}
       counts={counts}
       total={total}

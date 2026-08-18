@@ -17,6 +17,8 @@ export interface EscaladeRowDTO {
   cjsUid: string | null
   role: string | null
   centreId: string | null
+  /** Nom du centre résolu (jamais le cuid brut) — « — » si centre inconnu, null si aucun centre. */
+  centreNom: string | null
   canal: CanalAgent
   raison: string | null
   stade: string | null
@@ -187,7 +189,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                       {userLabel(e)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--gj-grey)' }}>
-                      {canalLabel(e.canal)}{e.centreId ? ` · ${e.centreId}` : ''}
+                      {canalLabel(e.canal)}{e.centreNom ? ` · ${e.centreNom}` : ''}
                     </div>
                     {e.cjsUid && (
                       <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>

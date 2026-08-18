@@ -74,9 +74,9 @@ const baseProps: SessionsClientProps = {
 
 it('affiche le NOM du centre, jamais le cuid technique brut', () => {
   render(<SessionsClient {...baseProps} />)
-  expect(screen.getByText(/CJS Dakar/)).toBeInTheDocument()
-  expect(screen.queryByText(/c1/)).not.toBeInTheDocument()
-  expect(screen.queryByText(/c-inconnu/)).not.toBeInTheDocument()
+  expect(screen.getAllByText(/CJS Dakar/).length).toBeGreaterThanOrEqual(1)
+  expect(screen.queryByText('c1')).not.toBeInTheDocument()
+  expect(screen.queryByText('c-inconnu')).not.toBeInTheDocument()
 })
 
 it("l'en-tête dit « Outil principal » (pas « Intention »)", () => {

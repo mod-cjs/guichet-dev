@@ -34,8 +34,9 @@ export interface SessionRow {
   dureeMs: number
   nbTours: number
   nbEvents: number
-  /** Outil/intention principal de la session (premier appelé), si présent. */
-  intentionPrincipale: string | null
+  /** Outil principal de la session (premier appelé), si présent. Nommage honnête :
+   *  c'est le premier OUTIL appelé, pas une intention détectée par un modèle. */
+  outilPrincipal: string | null
   hasErreur: boolean
   hasEscalade: boolean
   /** Bénéficiaire résolu (prénom/nom) — null si anonyme. */
@@ -162,7 +163,7 @@ export async function listSessions(
     const nbTours = evs.filter((e) => e.typeEvenement === 'message_recu').length
     const hasErreur = evs.some((e) => e.statut === 'echec' || e.typeEvenement === 'erreur')
     const hasEscalade = evs.some((e) => e.typeEvenement === 'escalade_conseiller')
-    const intentionPrincipale =
+    const outilPrincipal =
       evs.find((e) => e.toolCalled)?.toolCalled ?? null
     const minMs = g._min.tsMs != null ? Number(g._min.tsMs) : null
     const maxMs = g._max.tsMs != null ? Number(g._max.tsMs) : null
@@ -178,7 +179,7 @@ export async function listSessions(
       dureeMs: minMs != null && maxMs != null ? Math.max(0, maxMs - minMs) : 0,
       nbTours,
       nbEvents: g._count._all,
-      intentionPrincipale,
+      outilPrincipal,
       hasErreur,
       hasEscalade,
       user: u ? { prenom: u.prenom, nom: u.nom } : null,
@@ -193,17 +194,25 @@ export async function listSessions(
   return { rows, total }
 }
 
-/** Compteurs d'en-tête (sessions, escalades, erreurs) sur la fenêtre filtrée. */
+/**
+ * Compteurs d'en-tête (sessions, escalades, erreurs) sur la fenêtre filtrée.
+ * Le compteur `escalades` interroge `escaladeYaye` (même source que l'écran
+ * escalades, cf. `lib/ia/admin/escalades.ts`) — pas `agent_logs` — pour que les
+ * deux écrans comptent la même chose (GUIC-259 mineur).
+ */
 export async function sessionsSummary(
   f: SessionListFilters,
 ): Promise<{ sessions: number; escalades: number; erreurs: number }> {
   const where = buildWhere(f)
+  const escaladeWhere: Prisma.EscaladeYayeWhereInput = {
+    createdAt: { gte: f.from, lte: f.to },
+    ...(f.canal ? { canal: f.canal } : {}),
+    ...(f.role ? { role: f.role } : {}),
+    ...(f.centreId ? { centreId: f.centreId } : {}),
+  }
   const [distinct, escaladeSessions, erreurSessions] = await Promise.all([
     prisma.agentLog.groupBy({ by: ['sessionId'], where }),
-    prisma.agentLog.groupBy({
-      by: ['sessionId'],
-      where: { ...where, typeEvenement: 'escalade_conseiller' },
-    }),
+    prisma.escaladeYaye.groupBy({ by: ['sessionId'], where: escaladeWhere }),
     prisma.agentLog.groupBy({
       by: ['sessionId'],
       where: { ...where, typeEvenement: 'erreur' },

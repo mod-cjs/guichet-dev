@@ -23,7 +23,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   // Aucun événement → session inexistante.
   if (transcript.events.length === 0) notFound()
 
-  const [refs, evalScore, feedback, summary, escalade, user] = await Promise.all([
+  const [refs, evalScore, feedback, summary, escalade, user, centre] = await Promise.all([
     resolveSessionRefs(transcript),
     prisma.yayeEvalScore.findFirst({ where: { sessionId }, orderBy: { createdAt: 'desc' } }),
     prisma.yayeFeedback.findMany({ where: { sessionId }, orderBy: { createdAt: 'asc' } }),
@@ -32,6 +32,9 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     transcript.cjsUid
       ? prisma.utilisateur.findUnique({ where: { cjsUid: transcript.cjsUid }, select: { prenom: true, nom: true, telephone: true } })
       : Promise.resolve(null),
+    transcript.centreId
+      ? prisma.centre.findUnique({ where: { id: transcript.centreId }, select: { nom: true } })
+      : Promise.resolve(null),
   ])
 
   return (
@@ -39,6 +42,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
       transcript={transcript}
       refs={refs}
       user={user}
+      centreNom={centre?.nom ?? '—'}
       quality={{
         eval: evalScore
           ? {

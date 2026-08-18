@@ -17,11 +17,13 @@ export interface SessionRowDTO {
   cjsUid: string | null
   role: string | null
   centreId: string | null
+  /** Nom du centre résolu (jamais le cuid brut) — « — » si centre inconnu, null si aucun centre. */
+  centreNom: string | null
   debut: string
   dureeMs: number
   nbTours: number
   nbEvents: number
-  intentionPrincipale: string | null
+  outilPrincipal: string | null
   hasErreur: boolean
   hasEscalade: boolean
   user: { prenom: string; nom: string } | null
@@ -227,7 +229,7 @@ export function SessionsClient({
           >
             <span>Utilisateur</span>
             <span>Canal</span>
-            <span>Intention</span>
+            <span>Outil principal</span>
             <span>Tours</span>
             <span>Durée</span>
             <span>Début / état</span>
@@ -253,7 +255,7 @@ export function SessionsClient({
                       {userLabel(s)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.role ?? '—'}{s.centreId ? ` · ${s.centreId}` : ''}
+                      {s.role ?? '—'}{s.centreNom ? ` · ${s.centreNom}` : ''}
                     </div>
                   </div>
 
@@ -265,9 +267,9 @@ export function SessionsClient({
                     </span>
                   </span>
 
-                  {/* Intention (libellé métier) */}
+                  {/* Outil principal (libellé métier) */}
                   <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {intentLabel(s.intentionPrincipale)}
+                    {intentLabel(s.outilPrincipal)}
                   </div>
 
                   {/* Tours */}
