@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { Toast } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
@@ -951,22 +952,16 @@ function LivreForm({
         placeholder="https://…"
         type="url"
       />
-      <div className="flex flex-col gap-space-1">
-        <label htmlFor="admin-livre-resume" className="text-fs-300 font-bold text-color-text-primary">
-          Résumé (optionnel)
-        </label>
-        <textarea
-          id="admin-livre-resume"
-          value={data.resume}
-          onChange={(e) => set('resume', e.target.value)}
-          rows={3}
-          placeholder="Brève description du livre…"
-          className="w-full px-space-3 py-space-2 rounded-gj-md border-[1.5px] border-gj-line
-            bg-white font-[inherit] text-[16px] focus:outline-none
-            focus:border-gj-teal-deep focus:ring-[3px] focus:ring-[var(--focus-ring-soft)]
-            resize-y min-h-[80px]"
-        />
-      </div>
+      {/* GUIC-522 (F-18) — primitive Textarea (mêmes classes que le brut : zéro changement
+          visuel) : cohérent avec les autres champs du formulaire (Input) et la règle ui/. */}
+      <Textarea
+        id="admin-livre-resume"
+        label="Résumé (optionnel)"
+        value={data.resume}
+        onChange={(e) => set('resume', e.target.value)}
+        rows={3}
+        placeholder="Brève description du livre…"
+      />
     </div>
   )
 }
