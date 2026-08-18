@@ -6,7 +6,7 @@
  * F6 — le résultat de relance ({ envoyees, ignorees) était jeté par `onDone={() =>
  *      router.refresh()}` : la table doit afficher un Toast récapitulatif avant refresh.
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 const mockPush = jest.fn()
 const mockRefresh = jest.fn()
@@ -18,7 +18,7 @@ jest.mock('next/navigation', () => ({
 const mockChargerCandidatureDetail = jest.fn()
 jest.mock('@/app/admin/candidatures/actions', () => ({ chargerCandidatureDetail: (...a: unknown[]) => mockChargerCandidatureDetail(...a) }))
 
-const mockDetailPanel = jest.fn(() => null)
+const mockDetailPanel = jest.fn((..._a: unknown[]) => null)
 jest.mock('@/app/admin/candidatures/CandidatureDetailPanel', () => ({ CandidatureDetailPanel: (...a: unknown[]) => mockDetailPanel(...a) }))
 
 let capturedOnDone: ((r: { envoyees: number; ignorees: number }) => void) | undefined
@@ -46,7 +46,7 @@ describe('GUIC-692 — F5 : erreur/absence avalée à l’ouverture de la fiche'
   it('given chargerCandidatureDetail qui jette, when clic Détail, then Toast erreur + panneau non ouvert', async () => {
     mockChargerCandidatureDetail.mockRejectedValue(new Error('boom'))
     render(<AdminCandidaturesTable {...defaultProps} />)
-    fireEvent.click(screen.getByRole('button', { name: /Détail de Awa Diop/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Détail de Awa Diop/i })[0])
     await screen.findByText(/Impossible d.?ouvrir la fiche/i)
     expect(mockDetailPanel).not.toHaveBeenCalled()
   })
@@ -54,7 +54,7 @@ describe('GUIC-692 — F5 : erreur/absence avalée à l’ouverture de la fiche'
   it('given chargerCandidatureDetail qui renvoie null, when clic Détail, then Toast info "introuvable" + panneau non ouvert', async () => {
     mockChargerCandidatureDetail.mockResolvedValue(null)
     render(<AdminCandidaturesTable {...defaultProps} />)
-    fireEvent.click(screen.getByRole('button', { name: /Détail de Awa Diop/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Détail de Awa Diop/i })[0])
     await screen.findByText(/Candidature introuvable/i)
     expect(mockDetailPanel).not.toHaveBeenCalled()
   })
@@ -68,12 +68,13 @@ describe('GUIC-692 — F6 : résultat de relance jeté par la table', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Relancer$/i }))
     expect(capturedOnDone).toBeInstanceOf(Function)
 
-    capturedOnDone!({ envoyees: 3, ignorees: 1 })
+    act(() => { capturedOnDone!({ envoyees: 3, ignorees: 1 }) })
 
     await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1))
-    expect(screen.getByText(/3/)).toBeInTheDocument()
-    expect(screen.getByText(/relance/i)).toBeInTheDocument()
-    expect(screen.getByText(/1/)).toBeInTheDocument()
-    expect(screen.getByText(/ignor/i)).toBeInTheDocument()
+    const toastEl = await screen.findByRole('status')
+    expect(toastEl.textContent).toMatch(/3/)
+    expect(toastEl.textContent).toMatch(/relance/i)
+    expect(toastEl.textContent).toMatch(/1/)
+    expect(toastEl.textContent).toMatch(/ignor/i)
   })
 })
