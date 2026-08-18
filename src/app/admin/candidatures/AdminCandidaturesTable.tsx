@@ -145,12 +145,16 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
             <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--gj-ink)' }}>Candidatures</h1>
             <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginTop: 3 }}>
               {total} candidatures · supervision nationale
-              {bloqueesCount > 0 && (<> · <span style={{ fontWeight: 800, color: 'var(--gj-red-ink)' }}>{bloqueesCount} à relancer</span></>)}
+              {bloqueesCount > 0 && (<> · <span style={{ fontWeight: 800, color: 'var(--gj-red-ink)' }}>{bloqueesCount} à relancer au national</span></>)}
             </p>
           </div>
         </div>
 
-        {/* ── Funnel + KPIs ── */}
+        {/* ── Funnel + KPIs ──
+             Portée : calculés sur la recherche (q) uniquement — pas sur les chips
+             statut/étape (vue d'ensemble volontaire). Libellé explicite pour lever
+             l'ambiguïté (F12/F13). */}
+        <p style={{ fontSize: 11, color: 'var(--gj-grey)', marginBottom: 6 }}>Parcours &amp; indicateurs — hors filtres (statut/étape)</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: 16, marginBottom: 16 }} className="max-md:!grid-cols-1">
           <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
@@ -197,15 +201,15 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
 
         {/* ── Barre d'outils ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-          <form role="search" onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 13px', minHeight: 42, flex: 1, minWidth: 220 }}>
+          <form role="search" onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 13px', minHeight: 44, flex: 1, minWidth: 220 }}>
             <span aria-hidden style={{ color: 'var(--gj-grey)', display: 'inline-flex' }}><Icon name="search" size={16} /></span>
             <input type="search" name="q" placeholder="Rechercher un candidat, une offre, un recruteur… (Entrée)" defaultValue={q} aria-label="Rechercher une candidature" style={{ flex: 1, border: 0, outline: 0, background: 'transparent', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--gj-ink)' }} />
           </form>
-          <select aria-label="Filtrer par étape" value={etape} onChange={(e) => push({ etape: e.target.value })} style={{ minHeight: 42, borderRadius: 10, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-ink)', fontSize: 13, fontFamily: 'inherit', padding: '0 12px' }}>
+          <select aria-label="Filtrer par étape" value={etape} onChange={(e) => push({ etape: e.target.value })} style={{ minHeight: 44, borderRadius: 10, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-ink)', fontSize: 13, fontFamily: 'inherit', padding: '0 12px' }}>
             <option value="">Toutes les étapes</option>
             {ETAPES.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
           </select>
-          <a href={exportUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 800, padding: '0 14px', minHeight: 42, borderRadius: 10, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-ink)', textDecoration: 'none' }}>
+          <a href={exportUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 800, padding: '0 14px', minHeight: 44, borderRadius: 10, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)', color: 'var(--gj-ink)', textDecoration: 'none' }}>
             <Icon name="download" size={15} /> Exporter (CDP)
           </a>
         </div>
@@ -223,9 +227,9 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           <div role="region" aria-label="Sélection groupée" style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-admin-gold)', borderRadius: 12, padding: '10px 14px', marginBottom: 12, flexWrap: 'wrap' }}>
             <b style={{ fontSize: 13, color: 'var(--gj-admin-gold)' }}>{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</b>
             <span style={{ flex: 1 }} />
-            <button type="button" onClick={() => setRelanceIds([...selected])} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid transparent', background: 'var(--gj-admin-gold)', color: 'var(--gj-admin-on-gold)' }}><Icon name="bell" size={14} /> Relancer</button>
-            <a href={exportSelectedUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, textDecoration: 'none', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)' }}><Icon name="download" size={14} /> Exporter</a>
-            <button type="button" onClick={() => setSelected(new Set())} style={{ padding: '8px 13px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-grey)' }}>Annuler</button>
+            <button type="button" onClick={() => setRelanceIds([...selected])} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0 13px', minHeight: 44, borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid transparent', background: 'var(--gj-admin-gold)', color: 'var(--gj-admin-on-gold)' }}><Icon name="bell" size={14} /> Relancer</button>
+            <a href={exportSelectedUrl} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '0 13px', minHeight: 44, borderRadius: 9, fontSize: 12.5, fontWeight: 800, textDecoration: 'none', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)' }}><Icon name="download" size={14} /> Exporter</a>
+            <button type="button" onClick={() => setSelected(new Set())} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 13px', minHeight: 44, borderRadius: 9, fontSize: 12.5, fontWeight: 800, cursor: 'pointer', border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-grey)' }}>Annuler</button>
           </div>
         )}
 
@@ -235,8 +239,8 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
         <div aria-busy={isPending} style={{ opacity: isPending ? 0.55 : 1, pointerEvents: isPending ? 'none' : 'auto', transition: 'opacity .15s ease' }}>
         {/* ── Table (desktop) ── */}
         <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 900 }}>
-            <span><input type="checkbox" aria-label="Tout sélectionner" checked={allSelected} onChange={toggleAll} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 11, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 900 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44, cursor: 'pointer' }}><input type="checkbox" aria-label="Tout sélectionner" checked={allSelected} onChange={toggleAll} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></label>
             <span>Candidat</span>
             <span>Opportunité</span>
             <span>Soumise</span>
@@ -256,12 +260,12 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
             const sc = statutColors(c.statut)
             return (
               <div key={c.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center', minWidth: 900, background: selected.has(c.id) ? 'var(--gj-bg)' : 'transparent' }}>
-                <span><input type="checkbox" aria-label={`Sélectionner la candidature de ${c.candidatPrenom} ${c.candidatNom}`} checked={selected.has(c.id)} onChange={() => toggleRow(c.id)} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></span>
+                <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44, cursor: 'pointer' }}><input type="checkbox" aria-label={`Sélectionner la candidature de ${c.candidatPrenom} ${c.candidatNom}`} checked={selected.has(c.id)} onChange={() => toggleRow(c.id)} style={{ width: 16, height: 16, accentColor: 'var(--gj-admin-gold)', cursor: 'pointer' }} /></label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                   <span aria-hidden style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--gj-teal), var(--gj-teal-deep))', color: 'var(--gj-surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12 }}>{initials(c.candidatPrenom, c.candidatNom)}</span>
                   <div style={{ minWidth: 0 }}>
                     <Link href={`/admin/utilisateurs/${c.candidatCjsUid}`} className="hover:underline" style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.candidatPrenom} {c.candidatNom}</Link>
-                    <div className="num" style={{ fontSize: 10.5, color: 'var(--gj-grey)', fontFamily: 'ui-monospace, monospace', marginTop: 1 }}>{c.candidatCjsUid}</div>
+                    <div className="num" style={{ fontSize: 11, color: 'var(--gj-grey)', fontFamily: 'ui-monospace, monospace', marginTop: 1 }}>{c.candidatCjsUid}</div>
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}>
@@ -281,7 +285,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                 <span style={{ fontSize: 12, color: 'var(--gj-grey)', fontWeight: 700 }}>{ETAPE_LABEL[c.etape]}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'flex-end' }}>
                   {c.favori && <span aria-label="Favori recruteur" title="Favori recruteur" style={{ color: 'var(--gj-admin-gold)' }}><Icon name="bookmark" size={15} /></span>}
-                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loadingId === c.id ? 0.5 : 1 }}>{loadingId === c.id ? '…' : (<>Détail <Icon name="chevron-right" size={12} /></>)}</button>
+                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3, minHeight: 44, fontSize: 11.5, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loadingId === c.id ? 0.5 : 1 }}>{loadingId === c.id ? '…' : (<>Détail <Icon name="chevron-right" size={12} /></>)}</button>
                 </span>
               </div>
             )

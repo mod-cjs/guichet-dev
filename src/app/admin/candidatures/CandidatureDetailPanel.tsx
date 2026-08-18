@@ -24,7 +24,7 @@ function scoreColor(s: number): string { return s >= 75 ? 'var(--gj-green-ink)' 
 const H6: CSSProperties = { margin: '0 0 12px', paddingBottom: 9, borderBottom: '1px solid var(--gj-line)', fontSize: 10, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--gj-grey)', display: 'flex', alignItems: 'center', gap: 9 }
 const TICK: CSSProperties = { width: 3, height: 12, borderRadius: 2, background: 'var(--gj-admin-gold)', flex: 'none' }
 const KV: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 16px', background: 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 11, padding: '14px 15px' }
-const KVI: CSSProperties = { display: 'block', fontSize: 9.5, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', marginBottom: 4 }
+const KVI: CSSProperties = { display: 'block', fontSize: 11, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--gj-grey)', marginBottom: 4 }
 const FOOTBTN: CSSProperties = { flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 12px', borderRadius: 9, fontSize: 12.5, fontWeight: 800, border: '1px solid var(--gj-line-strong)', background: 'transparent', color: 'var(--gj-ink)', cursor: 'pointer' }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -62,7 +62,7 @@ export function CandidatureDetailPanel({ detail, onClose, onRelancer, onExporter
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
             <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sc.bg, color: sc.fg }}>{STATUT_LABEL[detail.statut] ?? detail.statut}</span>
             <span className="num" style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: detail.score == null ? 'var(--gj-line)' : 'var(--gj-admin-gold)', color: detail.score == null ? 'var(--gj-grey)' : 'var(--gj-admin-on-gold)' }}>Score {detail.score == null ? '—' : detail.score}</span>
-            <button type="button" onClick={onClose} aria-label="Fermer" style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Icon name="close" size={16} /></button>
+            <button type="button" onClick={onClose} aria-label="Fermer" style={{ marginLeft: 'auto', width: 40, height: 40, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Icon name="close" size={16} /></button>
           </div>
           <h3 style={{ margin: 0, fontSize: 18.5, fontWeight: 900, lineHeight: 1.25, color: 'var(--gj-ink)' }}>{detail.candidatPrenom} {detail.candidatNom} → {detail.opportuniteTitre}</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px 14px', marginTop: 10, fontSize: 12, color: 'var(--gj-grey)' }}>
@@ -185,7 +185,7 @@ export function CandidatureDetailPanel({ detail, onClose, onRelancer, onExporter
                     const cote = m.auteur === 'recruteur'
                     return (
                       <div key={m.id} style={{ alignSelf: cote ? 'flex-end' : 'flex-start', maxWidth: '85%', background: cote ? 'var(--gj-blue-soft)' : 'var(--gj-surface)', border: '1px solid var(--gj-line)', borderRadius: 11, padding: '9px 12px' }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', marginBottom: 3 }}>{m.auteur === 'recruteur' ? 'Recruteur' : m.auteur === 'candidat' ? 'Candidat' : 'Système'} · {m.dateLabel}</div>
+                        <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--gj-grey)', marginBottom: 3 }}>{m.auteur === 'recruteur' ? 'Recruteur' : m.auteur === 'candidat' ? 'Candidat' : 'Système'} · {m.dateLabel}</div>
                         <div style={{ fontSize: 13, color: 'var(--gj-ink)' }}>{m.corps}</div>
                       </div>
                     )
