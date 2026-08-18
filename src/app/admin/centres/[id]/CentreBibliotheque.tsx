@@ -21,7 +21,9 @@ const td: CSSProperties = { padding: 12, borderBottom: '1px solid var(--gj-line)
 const STATUT_VIEW: Record<string, { label: string; bg: string; fg: string }> = {
   en_cours: { label: 'En cours', bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' },
   en_retard: { label: 'En retard', bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' },
-  initie: { label: 'À confirmer', bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' },
+  // GUIC-522 — vue de SUPERVISION (admin), alignée sur /admin/bibliotheque/gestion : « Réservé »
+  // (pas « À confirmer » — l'admin ne confirme rien, le retrait se fait au comptoir du centre).
+  initie: { label: 'Réservé', bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' },
 }
 
 function H6({ children }: { children: React.ReactNode }) {

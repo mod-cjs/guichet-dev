@@ -16,6 +16,7 @@ import { jourCourant, statutOuverture } from '@/lib/centre-horaire'
 import { serviceLabel } from '@/lib/centre-services'
 import { getCentresAnalytics } from '@/lib/loaders/centres-analytics'
 import { getBibliothequeStats } from '@/lib/loaders/conseiller-bibliotheque'
+import { estEnRetard } from '@/lib/bibliotheque/retard'
 import { CentreFicheTabs } from './CentreFicheTabs'
 import { CentreBibliotheque, type BiblioEmpruntRow, type BiblioKpis } from './CentreBibliotheque'
 import { CentreBiblioCatalogue, type CatalogueLivre } from './CentreBiblioCatalogue'
@@ -307,7 +308,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       emprunteur: `${e.utilisateur.prenom} ${e.utilisateur.nom}`.trim(),
       emprunteLe: empFmt.format(e.initieA), retourPrevu: e.dateRetourPrevue ? empFmt.format(e.dateRetourPrevue) : null,
       statut: String(e.statut),
-      enRetard: e.statut === 'en_retard' || (e.dateRetourPrevue != null && e.statut === 'en_cours' && e.dateRetourPrevue < now),
+      // GUIC-522 — source unique de vérité (le statut `en_retard` n'est jamais écrit en base).
+      enRetard: estEnRetard({ statut: String(e.statut), dateRetourPrevue: e.dateRetourPrevue }, now),
     }))
     biblioCatalogue = livres.map((l) => ({
       id: l.id, titre: l.titre, auteur: l.auteur, theme: l.theme, isbn: l.isbn, niveau: l.niveau, langue: l.langue, resume: l.resume,
