@@ -48,7 +48,7 @@ function EmpruntRow({ emp, retard }: { emp: EmpruntVue; retard: boolean }) {
       <div
         style={{
           background: 'var(--gj-surface)',
-          border: retard ? '1.5px solid var(--gj-red, #ef4444)' : '1.5px solid var(--gj-line)',
+          border: retard ? '1.5px solid var(--gj-red)' : '1.5px solid var(--gj-line)',
           borderRadius: 14,
           padding: '14px 16px',
         }}
@@ -60,8 +60,8 @@ function EmpruntRow({ emp, retard }: { emp: EmpruntVue; retard: boolean }) {
               width: 40,
               height: 48,
               borderRadius: 8,
-              background: retard ? 'var(--gj-red-soft, #fee2e2)' : 'var(--gj-teal-soft)',
-              color: retard ? 'var(--gj-red, #ef4444)' : 'var(--gj-teal-deep)',
+              background: retard ? 'var(--gj-red-soft)' : 'var(--gj-teal-soft)',
+              color: retard ? 'var(--gj-red)' : 'var(--gj-teal-deep)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -113,8 +113,8 @@ function EmpruntRow({ emp, retard }: { emp: EmpruntVue; retard: boolean }) {
                     fontWeight: 700,
                     borderRadius: 20,
                     padding: '2px 10px',
-                    background: 'var(--gj-red-soft, #fee2e2)',
-                    color: 'var(--gj-red, #ef4444)',
+                    background: 'var(--gj-red-soft)',
+                    color: 'var(--gj-red)',
                   }}
                 >
                   En retard
@@ -124,7 +124,7 @@ function EmpruntRow({ emp, retard }: { emp: EmpruntVue; retard: boolean }) {
                 <span
                   style={{
                     fontSize: 12,
-                    color: retard ? 'var(--gj-red, #ef4444)' : 'var(--gj-grey)',
+                    color: retard ? 'var(--gj-red)' : 'var(--gj-grey)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 4,
@@ -167,8 +167,8 @@ function ReservationRow({ emp }: { emp: EmpruntVue }) {
               width: 40,
               height: 48,
               borderRadius: 8,
-              background: 'var(--gj-blue-soft, #dbeafe)',
-              color: 'var(--gj-blue-ink, #1e40af)',
+              background: 'var(--gj-blue-soft)',
+              color: 'var(--gj-blue-ink)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

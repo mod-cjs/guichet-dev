@@ -28,9 +28,9 @@ function StatCard({
   return (
     <div
       style={{
-        background: highlight ? 'var(--gj-red-soft, #fee2e2)' : 'var(--gj-surface)',
+        background: highlight ? 'var(--gj-red-soft)' : 'var(--gj-surface)',
         border: highlight
-          ? '1.5px solid var(--gj-red, #ef4444)'
+          ? '1.5px solid var(--gj-red)'
           : '1.5px solid var(--gj-line)',
         borderRadius: 14,
         padding: '20px 22px',
@@ -44,8 +44,11 @@ function StatCard({
           width: 38,
           height: 38,
           borderRadius: 10,
-          background: highlight ? 'rgba(239,68,68,.15)' : 'var(--gj-teal-soft)',
-          color: highlight ? 'var(--gj-red, #ef4444)' : 'var(--gj-teal-deep)',
+          // GUIC-522 F-14 — était une couleur rouge en RGB littéral, sans token ;
+          // `--gj-admin-crit-dim` est l'équivalent tokenisé le plus proche (chip un peu plus
+          // saturé que la carte, qui utilise déjà `--gj-red-soft` pour son propre fond).
+          background: highlight ? 'var(--gj-admin-crit-dim)' : 'var(--gj-teal-soft)',
+          color: highlight ? 'var(--gj-admin-crit)' : 'var(--gj-teal-deep)',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -59,7 +62,7 @@ function StatCard({
           style={{
             fontSize: 28,
             fontWeight: 900,
-            color: highlight ? 'var(--gj-red, #ef4444)' : 'var(--gj-ink)',
+            color: highlight ? 'var(--gj-red)' : 'var(--gj-ink)',
             lineHeight: 1.1,
           }}
         >
@@ -198,7 +201,7 @@ export default async function Page() {
                   padding: '11px 18px',
                   borderBottom: '1.5px solid var(--gj-line)',
                   background: 'var(--gj-bg)',
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight: 800,
                   color: 'var(--gj-grey)',
                   textTransform: 'uppercase',
@@ -210,7 +213,7 @@ export default async function Page() {
                 <span>Disponibles</span>
                 <span>Empruntés</span>
                 <span>Actifs</span>
-                <span style={{ color: 'var(--gj-red, #ef4444)' }}>En retard</span>
+                <span style={{ color: 'var(--gj-red)' }}>En retard</span>
               </div>
 
               {stats.centres.map((c) => (
@@ -271,7 +274,7 @@ export default async function Page() {
                     style={{
                       fontSize: 13,
                       fontWeight: 800,
-                      color: c.enRetard > 0 ? 'var(--gj-red, #ef4444)' : 'var(--gj-grey)',
+                      color: c.enRetard > 0 ? 'var(--gj-red)' : 'var(--gj-grey)',
                     }}
                   >
                     {c.enRetard > 0 ? (
@@ -280,7 +283,7 @@ export default async function Page() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 4,
-                          background: 'var(--gj-red-soft, #fee2e2)',
+                          background: 'var(--gj-red-soft)',
                           borderRadius: 20,
                           padding: '2px 10px',
                         }}
@@ -358,7 +361,7 @@ export default async function Page() {
                       <div
                         key={item.label}
                         style={{
-                          background: item.warn ? 'var(--gj-red-soft, #fee2e2)' : 'var(--gj-bg)',
+                          background: item.warn ? 'var(--gj-red-soft)' : 'var(--gj-bg)',
                           borderRadius: 8,
                           padding: '6px 8px',
                           textAlign: 'center',
@@ -368,12 +371,12 @@ export default async function Page() {
                           style={{
                             fontSize: 16,
                             fontWeight: 800,
-                            color: item.warn ? 'var(--gj-red, #ef4444)' : 'var(--gj-ink)',
+                            color: item.warn ? 'var(--gj-red)' : 'var(--gj-ink)',
                           }}
                         >
                           {item.val}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--gj-grey)', fontWeight: 700 }}>
+                        <div style={{ fontSize: 11, color: 'var(--gj-grey)', fontWeight: 700 }}>
                           {item.label}
                         </div>
                       </div>

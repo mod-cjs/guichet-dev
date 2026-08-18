@@ -102,9 +102,9 @@ const STATUT_LABEL: Record<string, string> = {
 function statutColor(statut: string): { bg: string; fg: string } {
   switch (statut) {
     case 'disponible':  return { bg: 'var(--gj-teal-soft)', fg: 'var(--gj-teal-deep)' }
-    case 'emprunte':    return { bg: 'var(--gj-yellow-soft, #fef9c3)', fg: 'var(--gj-yellow-ink, #92400e)' }
-    case 'reserve':     return { bg: 'var(--gj-blue-soft, #dbeafe)', fg: 'var(--gj-blue-ink, #1e40af)' }
-    case 'indisponible': return { bg: 'var(--gj-red-soft, #fee2e2)', fg: 'var(--gj-red, #ef4444)' }
+    case 'emprunte':    return { bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' }
+    case 'reserve':     return { bg: 'var(--gj-blue-soft)', fg: 'var(--gj-blue-ink)' }
+    case 'indisponible': return { bg: 'var(--gj-red-soft)', fg: 'var(--gj-red)' }
     default:            return { bg: 'var(--gj-bg)', fg: 'var(--gj-grey)' }
   }
 }
@@ -498,8 +498,8 @@ export function AdminBiblioCatalogueClient({
                               fontWeight: 800,
                               borderRadius: 20,
                               padding: '2px 8px',
-                              background: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-soft, #dcfce7)' : 'var(--gj-red-soft, #fee2e2)',
-                              color: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-ink, #166534)' : 'var(--gj-red, #ef4444)',
+                              background: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-soft)' : 'var(--gj-red-soft)',
+                              color: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-ink)' : 'var(--gj-red)',
                             }}
                           >
                             {livre.exemplairesDisponibles}/{livre.exemplairesTotal} disponibles
@@ -521,8 +521,9 @@ export function AdminBiblioCatalogueClient({
                         aria-label={`Modifier ${livre.titre}`}
                         onClick={() => openEditLivre(livre)}
                         style={{
-                          width: 32,
-                          height: 32,
+                          // GUIC-522 F-16 — tap-min 44px (icône gardée à 14px).
+                          minWidth: 44,
+                          minHeight: 44,
                           borderRadius: 8,
                           border: '1.5px solid var(--gj-line)',
                           background: 'var(--gj-surface)',
@@ -540,12 +541,13 @@ export function AdminBiblioCatalogueClient({
                         aria-label={`Supprimer ${livre.titre}`}
                         onClick={() => setConfirmDeleteLivre(livre)}
                         style={{
-                          width: 32,
-                          height: 32,
+                          // GUIC-522 F-16 — tap-min 44px (icône gardée à 14px).
+                          minWidth: 44,
+                          minHeight: 44,
                           borderRadius: 8,
-                          border: '1.5px solid var(--gj-red, #ef4444)',
+                          border: '1.5px solid var(--gj-red)',
                           background: 'var(--gj-surface)',
-                          color: 'var(--gj-red, #ef4444)',
+                          color: 'var(--gj-red)',
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -660,8 +662,9 @@ export function AdminBiblioCatalogueClient({
                                       })
                                     }
                                     style={{
-                                      width: 30,
-                                      height: 30,
+                                      // GUIC-522 F-16 — tap-min 44px (icône gardée à 13px).
+                                      minWidth: 44,
+                                      minHeight: 44,
                                       borderRadius: 7,
                                       border: '1.5px solid var(--gj-line)',
                                       background: 'var(--gj-surface)',
@@ -679,12 +682,13 @@ export function AdminBiblioCatalogueClient({
                                     aria-label="Supprimer l'exemplaire"
                                     onClick={() => setConfirmDeleteExemplaire(emp.exemplaireId)}
                                     style={{
-                                      width: 30,
-                                      height: 30,
+                                      // GUIC-522 F-16 — tap-min 44px (icône gardée à 13px).
+                                      minWidth: 44,
+                                      minHeight: 44,
                                       borderRadius: 7,
-                                      border: '1.5px solid var(--gj-red, #ef4444)',
+                                      border: '1.5px solid var(--gj-red)',
                                       background: 'var(--gj-surface)',
-                                      color: 'var(--gj-red, #ef4444)',
+                                      color: 'var(--gj-red)',
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
