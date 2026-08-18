@@ -338,6 +338,10 @@
   --gj-admin-warn-dim:        rgba(169,121,10,.15);
   --gj-admin-good:            #12A25E;
   --gj-admin-logo-filter:     none;                   /* logo naturel sur sidebar claire */
+  /* Ombre du panneau slide-over (fiches détail admin) — extrait des valeurs en dur
+     (GUIC-692, F9). Même valeur clair/sombre : aucun nouveau rendu visuel, juste
+     un token là où c'était un rgba() dupliqué dans le TSX. */
+  --gj-shadow-panel:          -24px 0 70px rgba(0,0,0,.4);
 
   /* Refonte « registre » (GUIC-680) — élévation par défaut = thème CLAIR.
      Repos plat (liseré de lumière, aucune ombre ambiante) ; --gj-lift au survol. */
@@ -420,6 +424,7 @@
   --gj-admin-warn-dim:        rgba(249,196,0,.15);
   --gj-admin-good:            #3BD68B;                /* --good */
   --gj-admin-logo-filter:     brightness(0) invert(1); /* logo blanc sur sidebar sombre */
+  --gj-shadow-panel:          -24px 0 70px rgba(0,0,0,.4);
 }
 
 /* =========================================================

@@ -281,7 +281,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                 <span style={{ fontSize: 12, color: 'var(--gj-grey)', fontWeight: 700 }}>{ETAPE_LABEL[c.etape]}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'flex-end' }}>
                   {c.favori && <span aria-label="Favori recruteur" title="Favori recruteur" style={{ color: 'var(--gj-admin-gold)' }}><Icon name="bookmark" size={15} /></span>}
-                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loadingId === c.id ? 0.5 : 1 }}>{loadingId === c.id ? '…' : 'Détail ›'}</button>
+                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11.5, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, cursor: 'pointer', whiteSpace: 'nowrap', opacity: loadingId === c.id ? 0.5 : 1 }}>{loadingId === c.id ? '…' : (<>Détail <Icon name="chevron-right" size={12} /></>)}</button>
                 </span>
               </div>
             )
@@ -313,7 +313,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
                     </div>
                   </div>
                   <Link href={`/admin/opportunites/${c.opportuniteId}/apercu`} className="hover:underline" style={{ display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)', textDecoration: 'none' }}>{c.opportuniteTitre}<span style={{ fontWeight: 400, color: 'var(--gj-grey)' }}> · {c.recruteur}</span></Link>
-                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ marginTop: 9, fontSize: 12, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>{loadingId === c.id ? 'Chargement…' : 'Voir le détail ›'}</button>
+                  <button type="button" onClick={() => openDetail(c.id)} disabled={loadingId === c.id} aria-label={`Détail de ${c.candidatPrenom} ${c.candidatNom}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 9, fontSize: 12, fontWeight: 800, color: 'var(--gj-admin-gold)', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>{loadingId === c.id ? 'Chargement…' : (<>Voir le détail <Icon name="chevron-right" size={12} /></>)}</button>
                 </div>
               )
             })}

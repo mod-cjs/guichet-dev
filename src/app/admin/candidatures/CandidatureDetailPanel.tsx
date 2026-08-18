@@ -54,15 +54,14 @@ export function CandidatureDetailPanel({ detail, onClose, onRelancer, onExporter
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,12,10,.6)', backdropFilter: 'blur(4px)', zIndex: 100 }} />
-      <aside role="dialog" aria-label={`Fiche candidature de ${detail.candidatPrenom} ${detail.candidatNom}`} style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 'min(560px, 96vw)', background: 'var(--gj-bg)', borderLeft: '1px solid var(--gj-line-strong)', boxShadow: '-24px 0 70px rgba(0,0,0,.4)', zIndex: 101, display: 'flex', flexDirection: 'column' }}>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--gj-overlay)', backdropFilter: 'blur(4px)', zIndex: 100 }} />
+      <aside role="dialog" aria-label={`Fiche candidature de ${detail.candidatPrenom} ${detail.candidatNom}`} style={{ position: 'fixed', top: 0, right: 0, height: '100vh', width: 'min(560px, 96vw)', background: 'var(--gj-bg)', borderLeft: '1px solid var(--gj-line-strong)', boxShadow: 'var(--gj-shadow-panel)', zIndex: 101, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ position: 'relative', padding: '18px 20px 15px', borderBottom: '1px solid var(--gj-line)', background: 'var(--gj-surface)' }}>
           <span aria-hidden style={{ position: 'absolute', left: 0, top: 0, height: 3, width: '100%', background: 'var(--gj-admin-gold)' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
             <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sc.bg, color: sc.fg }}>{STATUT_LABEL[detail.statut] ?? detail.statut}</span>
             <span className="num" style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: detail.score == null ? 'var(--gj-line)' : 'var(--gj-admin-gold)', color: detail.score == null ? 'var(--gj-grey)' : 'var(--gj-admin-on-gold)' }}>Score {detail.score == null ? '—' : detail.score}</span>
-            {detail.score != null && <span />}
             <button type="button" onClick={onClose} aria-label="Fermer" style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 9, border: '1px solid var(--gj-line)', background: 'var(--gj-bg)', color: 'var(--gj-grey)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Icon name="close" size={16} /></button>
           </div>
           <h3 style={{ margin: 0, fontSize: 18.5, fontWeight: 900, lineHeight: 1.25, color: 'var(--gj-ink)' }}>{detail.candidatPrenom} {detail.candidatNom} → {detail.opportuniteTitre}</h3>
@@ -80,7 +79,7 @@ export function CandidatureDetailPanel({ detail, onClose, onRelancer, onExporter
                 const done = i < ci, cur = i === ci
                 return (
                   <div key={p.value} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ width: 26, height: 26, margin: '0 auto 5px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 900, background: done ? 'var(--gj-green-soft)' : cur ? 'var(--gj-admin-gold)' : 'var(--gj-line)', color: done ? 'var(--gj-green-ink)' : cur ? 'var(--gj-admin-on-gold)' : 'var(--gj-grey)' }}>{done ? '✓' : i + 1}</div>
+                    <div style={{ width: 26, height: 26, margin: '0 auto 5px', borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 900, background: done ? 'var(--gj-green-soft)' : cur ? 'var(--gj-admin-gold)' : 'var(--gj-line)', color: done ? 'var(--gj-green-ink)' : cur ? 'var(--gj-admin-on-gold)' : 'var(--gj-grey)' }}>{done ? <Icon name="check" size={13} /> : i + 1}</div>
                     <b style={{ fontSize: 11, fontWeight: cur ? 800 : 600, color: cur ? 'var(--gj-ink)' : 'var(--gj-grey)' }}>{p.label}</b>
                   </div>
                 )
