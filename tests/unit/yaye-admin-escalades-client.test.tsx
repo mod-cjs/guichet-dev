@@ -31,6 +31,7 @@ const baseProps: EscaladesClientProps = {
       raison: 'sujet_sensible',
       stade: null,
       signalDanger: null,
+      priorite: 1,
       statut: 'en_attente',
       traitePar: null,
       traiteA: null,
@@ -91,4 +92,10 @@ it('affiche le NOM du centre, jamais le cuid technique brut (R-3)', () => {
   render(<EscaladesClient {...baseProps} />)
   expect(screen.getAllByText(/CJS Dakar/).length).toBeGreaterThanOrEqual(1)
   expect(screen.queryByText('c1')).not.toBeInTheDocument()
+})
+
+it('affiche un badge de priorité (en plus du badge Danger, mineur)', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  expect(screen.getByText(/Priorité 1/i)).toBeInTheDocument()
 })

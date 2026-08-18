@@ -84,3 +84,9 @@ it('affiche le NOM du centre (jamais le cuid technique brut) — R-3', () => {
   render(<SessionDetailClient {...baseProps} />)
   expect(screen.getByText('CJS Dakar')).toBeInTheDocument()
 })
+
+it('ne montre pas le téléphone du bénéficiaire sur cet écran (minimisation CDP — mineur)', () => {
+  render(<SessionDetailClient {...baseProps} />)
+  expect(screen.queryByText('+221770000000')).not.toBeInTheDocument()
+  expect(screen.queryByText('Tél')).not.toBeInTheDocument()
+})

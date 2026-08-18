@@ -84,3 +84,15 @@ it("l'en-tête dit « Outil principal » (pas « Intention »)", () => {
   expect(screen.getByText('Outil principal')).toBeInTheDocument()
   expect(screen.queryByText(/^Intention$/)).not.toBeInTheDocument()
 })
+
+it('affiche le nombre d\'échanges (nbEvents, mineur)', () => {
+  render(<SessionsClient {...baseProps} />)
+  expect(screen.getByText(/9 échanges/)).toBeInTheDocument()
+  expect(screen.getByText(/2 échanges/)).toBeInTheDocument()
+})
+
+it('propose un lien vers /admin/analytics/yaye (mineur)', () => {
+  render(<SessionsClient {...baseProps} />)
+  const link = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/admin/analytics/yaye')
+  expect(link).toBeTruthy()
+})
