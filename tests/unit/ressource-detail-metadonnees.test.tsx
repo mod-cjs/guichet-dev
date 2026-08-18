@@ -31,6 +31,13 @@ describe('GUIC-689 — métadonnées réellement disponibles', () => {
     expect(screen.queryByText('Format')).toBeNull()
   })
 
+  it('accepte `type` au contrat sans le rendre — l’appelant n’a pas à trier', () => {
+    // Le champ reste dans les props pour que la page passe la ressource telle
+    // quelle ; c'est le bloc qui décide de ne pas répéter le badge du hero.
+    const { container } = render(<RessourceMetadonnees {...base} type="Video" />)
+    expect(container.textContent).not.toMatch(/Video/)
+  })
+
   it('affiche le thème', () => {
     render(<RessourceMetadonnees {...base} />)
     expect(screen.getByText('Thème')).toBeInTheDocument()

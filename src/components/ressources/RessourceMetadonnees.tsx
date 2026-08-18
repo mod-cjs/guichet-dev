@@ -49,7 +49,9 @@ function Ligne({ label, valeur }: { label: string; valeur: string }) {
 }
 
 export function RessourceMetadonnees({
-  type,
+  // Conservé au contrat pour que l'appelant n'ait pas à savoir ce qu'on affiche,
+  // mais volontairement NON rendu : le hero porte déjà le badge de type.
+  type: _type,
   langue,
   niveau,
   theme,
