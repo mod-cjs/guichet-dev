@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { StatutEmprunt } from '@prisma/client'
+import { estEnRetard, whereEnRetard } from '@/lib/bibliotheque/retard'
 
 /**
  * GUIC-521 — Emprunts de la bibliothèque du centre, pour l'espace conseiller.
@@ -50,16 +51,18 @@ export async function getEmpruntsBibliotheque(
     emprunteur: `${e.utilisateur.prenom} ${e.utilisateur.nom}`.trim(),
     dateLabel: fmt(e.initieA) ?? '',
     retourLabel: fmt(e.dateRetourPrevue),
-    enRetard: e.statut === 'en_retard' || (e.dateRetourPrevue != null && e.statut === 'en_cours' && e.dateRetourPrevue < now),
+    enRetard: estEnRetard(e, now),
   }))
 }
 
 /** Compteurs par onglet (à confirmer / à rendre / en retard). */
 export async function getBibliothequeCounts(centreId: string): Promise<{ confirmer: number; rendre: number; retard: number }> {
+  // GUIC-522 — retard DÉRIVÉ (statut en_retard jamais écrit) : en_cours échu.
+  const now = new Date()
   const [confirmer, rendre, retard] = await Promise.all([
     prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'initie' } }),
     prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'en_cours' } }),
-    prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'en_retard' } }),
+    prisma.emprunt.count({ where: { exemplaire: { centreId }, ...whereEnRetard(now) } }),
   ])
   return { confirmer, rendre, retard }
 }
@@ -168,11 +171,13 @@ export interface BiblioStats {
 }
 
 export async function getBibliothequeStats(centreId: string): Promise<BiblioStats> {
+  // GUIC-522 — retard DÉRIVÉ (statut en_retard jamais écrit) : en_cours échu.
+  const now = new Date()
   const [titres, exemplaires, enCours, enRetard, aConfirmer] = await Promise.all([
     prisma.livre.count({ where: { exemplaires: { some: { centreId } } } }),
     prisma.exemplaire.count({ where: { centreId } }),
     prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: { in: ['en_cours', 'en_retard'] } } }),
-    prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'en_retard' } }),
+    prisma.emprunt.count({ where: { exemplaire: { centreId }, ...whereEnRetard(now) } }),
     prisma.emprunt.count({ where: { exemplaire: { centreId }, statut: 'initie' } }),
   ])
   return { titres, exemplaires, enCours, enRetard, aConfirmer }

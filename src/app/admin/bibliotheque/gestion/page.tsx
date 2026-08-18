@@ -8,6 +8,7 @@ import {
   searchLivres,
   getEmpruntsCentre,
 } from '@/lib/bibliotheque/service'
+import { estEnRetard } from '@/lib/bibliotheque/retard'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AdminBiblioCatalogueClient } from './AdminBiblioCatalogueClient'
@@ -61,8 +62,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     : [{ livres: [], total: 0, page: 1, pageSize: PAGE_SIZE }, [], []]
   const livres = catalogue.livres
   const totalPages = Math.max(1, Math.ceil(catalogue.total / PAGE_SIZE))
-  const enCours = actifs.filter((e) => e.statut === 'en_cours')
-  const enRetard = actifs.filter((e) => e.statut === 'en_retard')
+  // GUIC-522 — le retard est DÉRIVÉ (statut en_retard jamais écrit) : un en_cours échu est
+  // en retard. Sans ça, l'onglet « En retard » restait vide malgré des emprunts en retard.
+  const now = new Date()
+  const enRetard = actifs.filter((e) => estEnRetard(e, now))
+  const enCours = actifs.filter((e) => !estEnRetard(e, now))
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
