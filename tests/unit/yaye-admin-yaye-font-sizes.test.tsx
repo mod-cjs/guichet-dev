@@ -59,7 +59,7 @@ describe('EscaladesClient — aucun texte < 11px', () => {
       rows: [
         {
           id: 'e1', sessionId: 's1', cjsUid: 'u1', role: 'beneficiaire', centreId: 'c1', centreNom: 'CJS Dakar',
-          canal: 'whatsapp', raison: 'sujet_sensible', stade: 'accueil', signalDanger: 'violence', statut: 'prise_en_charge',
+          canal: 'whatsapp', raison: 'sujet_sensible', stade: 'accueil', signalDanger: 'violence', priorite: 1, statut: 'prise_en_charge',
           traitePar: 'conseiller-1', traiteA: new Date().toISOString(), createdAt: new Date().toISOString(),
           user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
         },

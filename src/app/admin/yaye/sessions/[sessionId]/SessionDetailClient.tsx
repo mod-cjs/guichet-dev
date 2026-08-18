@@ -23,7 +23,10 @@ export interface EvalDetail {
 export interface SessionDetailClientProps {
   transcript: ReconstructedTranscript
   refs: SessionRef[]
-  user: { prenom: string; nom: string; telephone: string | null } | null
+  /** Le téléphone n'est jamais affiché sur cet écran (minimisation CDP — reste
+   *  justifié côté escalade danger, cf. EscaladesClient) : champ optionnel et
+   *  volontairement ignoré au rendu, même s'il est fourni. */
+  user: { prenom: string; nom: string; telephone?: string | null } | null
   /** Nom du centre résolu (jamais le cuid brut) — « — » si aucun centre / centre inconnu. */
   centreNom: string
   quality: { eval: EvalDetail | null; yqs: number | null; resolu: boolean; converti: boolean }
@@ -123,7 +126,6 @@ export function SessionDetailClient({ transcript: t, refs, user, centreNom, qual
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             <Meta label="Canal" value={canalLabel} />
             <Meta label="Utilisateur" value={userName} />
-            {user?.telephone && <Meta label="Tél" value={user.telephone} />}
             <Meta label="Centre" value={centreNom} />
             <Meta label="Tours" value={String(t.nbTours)} />
             <Meta label="Durée" value={dureeMs(t.dureeMs)} />

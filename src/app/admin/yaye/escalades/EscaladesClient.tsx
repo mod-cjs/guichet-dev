@@ -23,6 +23,8 @@ export interface EscaladeRowDTO {
   raison: string | null
   stade: string | null
   signalDanger: string | null
+  /** 0 = normal, 1 = danger (fait aussi remonter en haut de file). */
+  priorite: number
   statut: StatutEscalade
   traitePar: string | null
   traiteA: string | null
@@ -222,6 +224,17 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                         Danger · {e.signalDanger}
                       </span>
                     )}
+                    <span
+                      title="Priorité de traitement (0 = normale)"
+                      style={{
+                        display: 'inline-block', fontSize: 11.5, fontWeight: 800,
+                        color: e.priorite > 0 ? 'var(--gj-red-ink)' : 'var(--gj-grey)',
+                        background: e.priorite > 0 ? 'var(--gj-red-soft)' : 'var(--gj-bg)',
+                        borderRadius: 999, padding: '1px 8px', marginBottom: 3, marginRight: 4,
+                      }}
+                    >
+                      Priorité {e.priorite}
+                    </span>
                     <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.raison ?? '—'}</div>
                     {e.stade && <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
                   </div>

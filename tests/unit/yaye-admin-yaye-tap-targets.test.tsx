@@ -32,7 +32,7 @@ const escaladesProps: EscaladesClientProps = {
   rows: [
     {
       id: 'e1', sessionId: 's1', cjsUid: 'u1', role: 'beneficiaire', centreId: 'c1', centreNom: 'CJS Dakar',
-      canal: 'whatsapp', raison: 'sujet_sensible', stade: null, signalDanger: null, statut: 'en_attente',
+      canal: 'whatsapp', raison: 'sujet_sensible', stade: null, signalDanger: null, priorite: 0, statut: 'en_attente',
       traitePar: null, traiteA: null, createdAt: new Date().toISOString(),
       user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
     },

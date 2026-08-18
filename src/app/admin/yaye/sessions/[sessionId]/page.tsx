@@ -29,8 +29,10 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     prisma.yayeFeedback.findMany({ where: { sessionId }, orderBy: { createdAt: 'asc' } }),
     prisma.yayeSessionSummary.findUnique({ where: { sessionId } }),
     prisma.escaladeYaye.findFirst({ where: { sessionId }, orderBy: { createdAt: 'desc' } }),
+    // Téléphone volontairement NON sélectionné : plus affiché sur cet écran
+    // (minimisation CDP — reste justifié côté escalade danger, cf. EscaladesClient).
     transcript.cjsUid
-      ? prisma.utilisateur.findUnique({ where: { cjsUid: transcript.cjsUid }, select: { prenom: true, nom: true, telephone: true } })
+      ? prisma.utilisateur.findUnique({ where: { cjsUid: transcript.cjsUid }, select: { prenom: true, nom: true } })
       : Promise.resolve(null),
     transcript.centreId
       ? prisma.centre.findUnique({ where: { id: transcript.centreId }, select: { nom: true } })

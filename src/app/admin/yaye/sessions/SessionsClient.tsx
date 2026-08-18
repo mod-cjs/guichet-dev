@@ -149,18 +149,27 @@ export function SessionsClient({
     <div style={{ padding: '22px 28px 40px', flex: 1, overflowY: 'auto' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         {/* ── En-tête ── */}
-        <div style={{ marginBottom: 14 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--gj-ink)' }}>Sessions Yaye</h1>
-          <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginTop: 3 }}>
-            {summary.sessions} sessions ·{' '}
-            <span style={{ fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>
-              {summary.escalades} escalade{summary.escalades > 1 ? 's' : ''}
-            </span>
-            {' · '}
-            <span style={{ fontWeight: 800, color: 'var(--gj-red-ink)' }}>
-              {summary.erreurs} avec erreur
-            </span>
-          </p>
+        <div style={{ marginBottom: 14, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 900, color: 'var(--gj-ink)' }}>Sessions Yaye</h1>
+            <p style={{ fontSize: 13, color: 'var(--gj-grey)', marginTop: 3 }}>
+              {summary.sessions} sessions ·{' '}
+              <span style={{ fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>
+                {summary.escalades} escalade{summary.escalades > 1 ? 's' : ''}
+              </span>
+              {' · '}
+              <span style={{ fontWeight: 800, color: 'var(--gj-red-ink)' }}>
+                {summary.erreurs} avec erreur
+              </span>
+            </p>
+          </div>
+          <Link
+            href="/admin/analytics/yaye"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--gj-line)', background: 'var(--gj-surface)' }}
+          >
+            <Icon name="chart" size={14} />
+            Voir les analytics
+          </Link>
         </div>
 
         {/* ── Barre de filtres ── */}
@@ -269,7 +278,7 @@ export function SessionsClient({
                       {userLabel(s)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {s.role ?? '—'}{s.centreNom ? ` · ${s.centreNom}` : ''}
+                      {s.role ?? '—'}{s.centreNom ? ` · ${s.centreNom}` : ''} · {s.nbEvents} échange{s.nbEvents > 1 ? 's' : ''}
                     </div>
                   </div>
 
