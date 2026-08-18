@@ -4,6 +4,8 @@
  * snapshot figé (6 clés formulaireData), entretiens, consentement CGU/IP, conversation
  * lecture seule, footer (Voir la conversation · Relancer · Exporter). Supervision. TDD — RED.
  */
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { render, screen, within } from '@testing-library/react'
 
 const mockPush = jest.fn()
@@ -116,10 +118,14 @@ describe('GUIC-692 — CandidatureDetailPanel', () => {
   })
 
   it('F9 — voile et ombre du slide-over via tokens (--gj-overlay / --gj-shadow-panel), pas de rgba en dur', () => {
-    const { container } = render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
-    const scrim = container.querySelector('[style*="position: fixed"][style*="inset"]') as HTMLElement
-    expect(scrim.style.background).toMatch(/var\(--gj-overlay\)/)
-    expect(scrim.style.background).not.toMatch(/rgba/)
+    // Le voile (`background`, propriété raccourcie) : jsdom/cssstyle rejette silencieusement
+    // les valeurs `var()` sur les propriétés raccourcies (limite connue du moteur CSS de test,
+    // sans rapport avec un navigateur réel) — vérifié sur la source, seule mesure fiable ici.
+    const src = readFileSync(join(process.cwd(), 'src/app/admin/candidatures/CandidatureDetailPanel.tsx'), 'utf-8')
+    expect(src).toMatch(/background:\s*'var\(--gj-overlay\)'/)
+    expect(src).not.toMatch(/rgba\(6,\s*12,\s*10/)
+    // L'ombre (`boxShadow`, propriété simple) : vérifiable au rendu, jsdom la conserve.
+    render(<CandidatureDetailPanel detail={DETAIL} onClose={() => {}} />)
     const aside = screen.getByRole('dialog')
     expect(aside.style.boxShadow).toMatch(/var\(--gj-shadow-panel\)/)
     expect(aside.style.boxShadow).not.toMatch(/rgba/)
