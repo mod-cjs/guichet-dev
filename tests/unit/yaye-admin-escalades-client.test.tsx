@@ -26,6 +26,7 @@ const baseProps: EscaladesClientProps = {
       cjsUid: 'u1',
       role: 'beneficiaire',
       centreId: 'c1',
+      centreNom: 'CJS Dakar',
       canal: 'whatsapp',
       raison: 'sujet_sensible',
       stade: null,
@@ -83,4 +84,11 @@ it('ne montre aucune erreur et rafraîchit quand le PATCH réussit', async () =>
     expect(refreshMock).toHaveBeenCalled()
   })
   expect(screen.queryByText(/Action impossible/i)).not.toBeInTheDocument()
+})
+
+it('affiche le NOM du centre, jamais le cuid technique brut (R-3)', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  expect(screen.getByText(/CJS Dakar/)).toBeInTheDocument()
+  expect(screen.queryByText(/c1/)).not.toBeInTheDocument()
 })

@@ -47,6 +47,7 @@ const baseProps: SessionDetailClientProps = {
   transcript,
   refs: [],
   user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
+  centreNom: 'CJS Dakar',
   quality: { eval: null, yqs: null, resolu: false, converti: false },
   feedback: [],
   escalade: null,
@@ -77,4 +78,9 @@ it('affiche le nom du bénéficiaire et le score du juge quand présent', () => 
 it('propose le formulaire de notation humaine (calibration)', () => {
   render(<SessionDetailClient {...baseProps} />)
   expect(screen.getByText(/Noter cette conversation/i)).toBeInTheDocument()
+})
+
+it('affiche le NOM du centre (jamais le cuid technique brut) — R-3', () => {
+  render(<SessionDetailClient {...baseProps} />)
+  expect(screen.getByText('CJS Dakar')).toBeInTheDocument()
 })
