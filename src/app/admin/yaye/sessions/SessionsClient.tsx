@@ -86,7 +86,7 @@ const selectStyle: React.CSSProperties = {
   border: '1.5px solid var(--gj-line)',
   borderRadius: 10,
   padding: '0 10px',
-  minHeight: 42,
+  minHeight: 44,
   fontSize: 13,
   fontFamily: 'inherit',
   color: 'var(--gj-ink)',
@@ -107,7 +107,7 @@ export function SessionsClient({
 }: SessionsClientProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
 
   function buildQs(next: Partial<typeof filtres> & { page?: string }): string {
     const merged = { ...filtres, page: '1', ...next }
@@ -166,11 +166,21 @@ export function SessionsClient({
         {/* ── Barre de filtres ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           {/* Dates */}
-          <form onSubmit={handleDates} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 42 }}>
+          <form onSubmit={handleDates} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 44 }}>
             <input type="date" name="from" defaultValue={filtres.from} aria-label="Du" style={{ border: 0, outline: 0, background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)' }} />
-            <span style={{ color: 'var(--gj-grey)', fontSize: 12 }}>→</span>
+            <span aria-hidden style={{ color: 'var(--gj-grey)', display: 'inline-flex', alignItems: 'center' }}>
+              <Icon name="arrow-right" size={13} />
+            </span>
             <input type="date" name="to" defaultValue={filtres.to} aria-label="Au" style={{ border: 0, outline: 0, background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)' }} />
-            <button type="submit" aria-label="Appliquer les dates" style={{ border: 0, background: 'transparent', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--gj-grey)' }}>
+            <button
+              type="submit"
+              aria-label="Appliquer les dates"
+              style={{
+                border: 0, background: 'transparent', cursor: 'pointer', padding: 0,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minHeight: 44, minWidth: 44, color: 'var(--gj-grey)',
+              }}
+            >
               <Icon name="arrow-right" size={15} />
             </button>
           </form>
@@ -222,9 +232,13 @@ export function SessionsClient({
         </div>
 
         {/* ── Table ── */}
-        <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
+        <div
+          data-testid="sessions-table"
+          aria-busy={isPending}
+          style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden', opacity: isPending ? 0.6 : 1, transition: 'opacity .15s ease' }}
+        >
           <div
-            style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }}
+            style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }}
             className="hidden md:grid"
           >
             <span>Utilisateur</span>
@@ -282,32 +296,32 @@ export function SessionsClient({
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{formatHeure(s.debut)}</span>
                     {s.yqs != null && (
-                      <span title="Yaye Quality Score" style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.yqs >= 70 ? 'var(--gj-green-soft)' : s.yqs >= 50 ? 'var(--gj-yellow-soft)' : 'var(--gj-red-soft)', color: s.yqs >= 70 ? 'var(--gj-green-ink)' : s.yqs >= 50 ? 'var(--gj-yellow-ink)' : 'var(--gj-red-ink)' }}>
+                      <span title="Yaye Quality Score" style={{ fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.yqs >= 70 ? 'var(--gj-green-soft)' : s.yqs >= 50 ? 'var(--gj-yellow-soft)' : 'var(--gj-red-soft)', color: s.yqs >= 70 ? 'var(--gj-green-ink)' : s.yqs >= 50 ? 'var(--gj-yellow-ink)' : 'var(--gj-red-ink)' }}>
                         {Math.round(s.yqs)}
                       </span>
                     )}
                     {s.drapeauRouge && (
-                      <span title="Drapeau rouge qualité (hallucination / CDP)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+                      <span title="Drapeau rouge qualité (hallucination / CDP)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
                         <Icon name="flame" size={10} />
                       </span>
                     )}
                     {s.converti && (
-                      <span title="A produit une action métier (candidature / réservation)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)' }}>
+                      <span title="A produit une action métier (candidature / réservation)" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-green-soft)', color: 'var(--gj-green-ink)' }}>
                         <Icon name="check-circle" size={10} />
                       </span>
                     )}
                     {s.feedback !== 0 && (
-                      <span title={`Retour utilisateur : ${s.feedback > 0 ? 'positif' : 'négatif'}`} style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.feedback > 0 ? 'var(--gj-green-soft)' : 'var(--gj-red-soft)', color: s.feedback > 0 ? 'var(--gj-green-ink)' : 'var(--gj-red-ink)' }}>
+                      <span title={`Retour utilisateur : ${s.feedback > 0 ? 'positif' : 'négatif'}`} style={{ fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: s.feedback > 0 ? 'var(--gj-green-soft)' : 'var(--gj-red-soft)', color: s.feedback > 0 ? 'var(--gj-green-ink)' : 'var(--gj-red-ink)' }}>
                         {s.feedback > 0 ? 'avis +' : 'avis −'}
                       </span>
                     )}
                     {s.hasEscalade && (
-                      <span title="Escalade conseiller" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>
+                      <span title="Escalade conseiller" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }}>
                         <Icon name="bell" size={10} />
                       </span>
                     )}
                     {s.hasErreur && (
-                      <span title="Erreur durant la session" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
+                      <span title="Erreur durant la session" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)' }}>
                         <Icon name="alert" size={10} />
                       </span>
                     )}

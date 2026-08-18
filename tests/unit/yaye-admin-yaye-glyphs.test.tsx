@@ -6,7 +6,7 @@
  */
 import { render, screen } from '@testing-library/react'
 import { SessionsClient, type SessionsClientProps } from '@/app/admin/yaye/sessions/SessionsClient'
-import { SessionDetailClient, type SessionDetailClientProps } from '@/app/admin/yaye/sessions/[sessionId]/SessionDetailClient'
+import { SessionDetailClient } from '@/app/admin/yaye/sessions/[sessionId]/SessionDetailClient'
 import type { ReconstructedTranscript } from '@/lib/ia/metrics/transcript'
 
 jest.mock('next/link', () => ({

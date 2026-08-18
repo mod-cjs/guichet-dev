@@ -78,7 +78,7 @@ const GRID = '1.3fr 1.6fr 1fr 1fr 1.4fr'
 export function EscaladesClient({ rows, counts, total, currentPage, totalPages, centres, filtres }: EscaladesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -155,7 +155,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
             value={filtres.centre}
             onChange={(e) => push({ centre: e.target.value })}
             aria-label="Filtrer par centre"
-            style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 36, fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)', cursor: 'pointer' }}
+            style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 44, fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)', cursor: 'pointer' }}
           >
             <option value="">Tous centres</option>
             {centres.map((c) => (
@@ -165,8 +165,12 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
         </div>
 
         {/* ── Table ── */}
-        <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
+        <div
+          data-testid="escalades-table"
+          aria-busy={isPending}
+          style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden', opacity: isPending ? 0.6 : 1, transition: 'opacity .15s ease' }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
             <span>Utilisateur</span>
             <span>Raison / stade</span>
             <span>Signalée</span>
@@ -210,7 +214,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     {e.signalDanger && (
                       <span
                         style={{
-                          display: 'inline-block', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                          display: 'inline-block', fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase',
                           letterSpacing: '.4px', color: 'var(--gj-surface)', background: 'var(--gj-red)',
                           borderRadius: 999, padding: '1px 8px', marginBottom: 3,
                         }}
@@ -229,12 +233,12 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                   <div style={{ minWidth: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sm.bg, color: sm.fg, whiteSpace: 'nowrap' }}>{sm.label}</span>
                     {e.statut !== 'en_attente' && e.traitePar && (
-                      <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         par {e.traitePar.slice(0, 8)}…{e.traiteA ? ` · ${relative(e.traiteA)}` : ''}
                       </div>
                     )}
                     {e.statut === 'en_attente' && e.signalDanger && (
-                      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-red-ink)', marginTop: 4 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-red-ink)', marginTop: 4 }}>
                         en attente {relative(e.createdAt)}
                       </div>
                     )}
@@ -292,8 +296,8 @@ function ActionBtn({ busy, onClick, icon, label, tone }: { busy: boolean; onClic
       onClick={onClick}
       disabled={busy}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 800,
-        padding: '7px 11px', borderRadius: 9, cursor: busy ? 'default' : 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 12, fontWeight: 800,
+        padding: '7px 11px', minHeight: 44, borderRadius: 9, cursor: busy ? 'default' : 'pointer',
         background: colors.bg, color: colors.fg, border: `1.5px solid ${colors.border}`,
         opacity: busy ? 0.6 : 1, fontFamily: 'inherit',
       }}

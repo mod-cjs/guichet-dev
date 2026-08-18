@@ -137,7 +137,7 @@ export function SessionDetailClient({ transcript: t, refs, user, centreNom, qual
         {/* ── Fiches métier liées (spec §57) ── */}
         {refs.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 7 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 7 }}>
               Fiches liées
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -149,7 +149,7 @@ export function SessionDetailClient({ transcript: t, refs, user, centreNom, qual
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, padding: '7px 12px', borderRadius: 999, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', color: 'var(--gj-teal-deep)', textDecoration: 'none', maxWidth: 320 }}
                 >
                   <Icon name={REF_ICON[r.kind]} size={14} />
-                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase' }}>{REF_LABEL[r.kind]}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase' }}>{REF_LABEL[r.kind]}</span>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
                   <Icon name="external" size={12} />
                 </Link>
@@ -211,7 +211,7 @@ function QualityPanel({
 
   return (
     <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 10 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 10 }}>
         Qualité &amp; résultat
       </div>
 
@@ -240,7 +240,7 @@ function QualityPanel({
               const critique = (k === 'fidelite' || k === 'conformiteCdp') && v < 0.6
               return (
                 <div key={k} style={{ border: '1px solid var(--gj-line)', borderRadius: 9, padding: '7px 9px' }}>
-                  <div style={{ fontSize: 10.5, color: 'var(--gj-grey)', fontWeight: 700 }}>{DIM_LABELS[k]}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', fontWeight: 700 }}>{DIM_LABELS[k]}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: critique ? 'var(--gj-red-ink)' : 'var(--gj-ink)' }}>{pct(v)}</div>
                 </div>
               )
@@ -251,7 +251,7 @@ function QualityPanel({
               « {ev.commentaire} »
             </p>
           )}
-          <p style={{ fontSize: 10.5, color: 'var(--gj-grey)', marginTop: 6 }}>Évaluée par {ev.juge}</p>
+          <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 6 }}>Évaluée par {ev.juge}</p>
         </div>
       ) : (
         <p style={{ fontSize: 12, color: 'var(--gj-grey)', marginTop: 10 }}>
@@ -401,7 +401,12 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
                   ))}
                 </div>
               )}
-              {turn.escalade && <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>↗ Escalade conseiller</span>}
+              {turn.escalade && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>
+                  <Icon name="external" size={12} />
+                  Escalade conseiller
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -417,8 +422,9 @@ function ConversationView({ t }: { t: ReconstructedTranscript }) {
           {turn.userText && <Bubble side="user" text={turn.userText} />}
           {turn.assistantText && <Bubble side="yaye" text={turn.assistantText} meta={turn.toolsUsed} />}
           {turn.escalade && (
-            <div style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)', background: 'var(--gj-yellow-soft)', padding: '4px 12px', borderRadius: 999 }}>
-              ↗ Escalade vers un conseiller
+            <div style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 800, color: 'var(--gj-yellow-ink)', background: 'var(--gj-yellow-soft)', padding: '4px 12px', borderRadius: 999 }}>
+              <Icon name="external" size={12} />
+              Escalade vers un conseiller
             </div>
           )}
         </div>
@@ -432,12 +438,12 @@ function Bubble({ side, text, meta }: { side: 'user' | 'yaye'; text: string; met
   return (
     <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
       <div style={{ maxWidth: '76%', padding: '10px 14px', borderRadius: 14, background: isUser ? 'var(--gj-teal)' : 'var(--gj-surface)', color: isUser ? 'var(--gj-surface)' : 'var(--gj-ink)', border: isUser ? 'none' : '1.5px solid var(--gj-line)' }}>
-        <div style={{ fontSize: 10, fontWeight: 800, opacity: 0.7, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.4px' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.7, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.4px' }}>
           {isUser ? 'Jeune' : 'Yaye'}
         </div>
         <div style={{ fontSize: 13.5, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{text}</div>
         {meta && meta.length > 0 && (
-          <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 6 }}>outils : {meta.join(', ')}</div>
+          <div style={{ fontSize: 11.5, opacity: 0.7, marginTop: 6 }}>outils : {meta.join(', ')}</div>
         )}
       </div>
     </div>
@@ -458,7 +464,7 @@ function Tags({ label, items }: { label: string; items: string[] }) {
 function TechniqueView({ events }: { events: TranscriptEvent[] }) {
   return (
     <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '64px 1.4fr 1fr 0.7fr 0.7fr', gap: 10, padding: '10px 16px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
+      <div style={{ display: 'grid', gridTemplateColumns: '64px 1.4fr 1fr 0.7fr 0.7fr', gap: 10, padding: '10px 16px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 11, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
         <span>Heure</span>
         <span>Événement</span>
         <span>Outil</span>
@@ -478,7 +484,7 @@ function TechniqueView({ events }: { events: TranscriptEvent[] }) {
               </span>
               <span style={{ fontSize: 12, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.toolCalled ?? '—'}</span>
               <span>
-                <span style={{ fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: st.bg, color: st.fg }}>{ev.statut}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: st.bg, color: st.fg }}>{ev.statut}</span>
               </span>
               <span style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{ev.dureeMs != null ? `${ev.dureeMs} ms` : '—'}</span>
             </summary>
