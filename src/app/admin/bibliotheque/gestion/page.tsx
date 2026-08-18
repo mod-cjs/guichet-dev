@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
 import {
-  getCatalogueCentre,
+  searchLivres,
   getEmpruntsCentre,
 } from '@/lib/bibliotheque/service'
 import { Icon } from '@/components/ui/Icon'
@@ -17,8 +17,14 @@ export const metadata: Metadata = { title: 'Bibliothèque — Gestion catalogue 
 
 export const dynamic = 'force-dynamic'
 
+const PAGE_SIZE = 20
+
 interface SP {
   centreId?: string
+  q?: string
+  theme?: string
+  niveau?: string
+  page?: string
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
@@ -37,15 +43,24 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const centreId = sp.centreId ?? centres[0]?.id ?? null
   const centreSelectionne = centres.find((c) => c.id === centreId) ?? null
 
+  const q = (sp.q ?? '').trim()
+  const theme = (sp.theme ?? '').trim()
+  const niveau = (sp.niveau ?? '').trim()
+  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
+
   // Données pour le centre sélectionné — supervision lecture seule (GUIC-522 F-04) :
   // « à confirmer » n'est plus une file de traitement admin (comptoir = staff via scan QR).
-  const [livres, actifs, reserves] = centreId
+  // Catalogue : recherche + pagination scopées centre, TOUS statuts d'exemplaire (mode
+  // gestion — contrairement à la recherche publique dispo-seule). GUIC-522 F-11/F-12.
+  const [catalogue, actifs, reserves] = centreId
     ? await Promise.all([
-        getCatalogueCentre(centreId),
+        searchLivres({ centreId, q, theme, niveau, page, pageSize: PAGE_SIZE, emplacements: 'tous' }),
         getEmpruntsCentre(centreId, ['en_cours', 'en_retard']),
         getEmpruntsCentre(centreId, ['initie']),
       ])
-    : [[], [], []]
+    : [{ livres: [], total: 0, page: 1, pageSize: PAGE_SIZE }, [], []]
+  const livres = catalogue.livres
+  const totalPages = Math.max(1, Math.ceil(catalogue.total / PAGE_SIZE))
   const enCours = actifs.filter((e) => e.statut === 'en_cours')
   const enRetard = actifs.filter((e) => e.statut === 'en_retard')
 
@@ -188,7 +203,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
               {centreSelectionne.nom}
             </span>
             <span style={{ fontSize: 12, color: 'var(--gj-grey)', marginLeft: 'auto' }}>
-              {livres.length} livre{livres.length !== 1 ? 's' : ''} ·{' '}
+              {catalogue.total} livre{catalogue.total !== 1 ? 's' : ''} ·{' '}
               {enCours.length} en cours ·{' '}
               {enRetard.length} en retard
             </span>
@@ -210,7 +225,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
               <Icon name="resources" size={18} style={{ color: 'var(--gj-teal-deep)' }} />
               Catalogue
             </h2>
-            <AdminBiblioCatalogueClient centreId={centreId} livres={livres} />
+            <AdminBiblioCatalogueClient
+              centreId={centreId}
+              livres={livres}
+              total={catalogue.total}
+              currentPage={page}
+              totalPages={totalPages}
+              q={q}
+              theme={theme}
+              niveau={niveau}
+            />
           </section>
 
           {/* ── Section : Emprunts ────────────────────────────────────── */}

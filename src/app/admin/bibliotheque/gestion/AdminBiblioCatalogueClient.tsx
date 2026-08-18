@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/Select'
 import { Toast } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Pagination } from '@/components/ui/Pagination'
 import type { LivreVue } from '@/lib/bibliotheque/service'
 import { BookCover } from '@/components/bibliotheque/BookCard'
 
@@ -16,6 +17,18 @@ import { BookCover } from '@/components/bibliotheque/BookCard'
 
 interface Props {
   centreId: string
+  /** Nombre total de livres correspondant à la recherche (GUIC-522 F-11/F-12). */
+  total: number
+  /** Page courante (1-based). */
+  currentPage: number
+  /** Nombre total de pages. */
+  totalPages: number
+  /** Recherche courante (titre/auteur/ISBN). */
+  q?: string
+  /** Filtre thème courant. */
+  theme?: string
+  /** Filtre niveau courant. */
+  niveau?: string
   livres: LivreVue[]
 }
 
@@ -98,8 +111,19 @@ function statutColor(statut: string): { bg: string; fg: string } {
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
-export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: Props) {
+export function AdminBiblioCatalogueClient({
+  centreId,
+  livres: initialLivres,
+  total,
+  currentPage,
+  totalPages,
+  q = '',
+  theme = '',
+  niveau = '',
+}: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const [, startTransition] = useTransition()
 
   // Modals
   const [modalLivreCreate, setModalLivreCreate] = useState(false)
@@ -138,6 +162,9 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
     setToast({ message, variant })
   }
 
+  // GUIC-522 F-06/F-07 — `error` est `{code, message}` (ApiResponse), pas une string :
+  // afficher le MESSAGE MÉTIER précis renvoyé par le serveur (ex. « historique d'emprunts »)
+  // au lieu d'un 500 générique.
   async function apiCall(url: string, method: string, body?: unknown): Promise<boolean> {
     setSubmitting(true)
     try {
@@ -147,9 +174,9 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
         credentials: 'same-origin',
         body: body ? JSON.stringify(body) : undefined,
       })
-      const json = (await res.json()) as { error?: string }
+      const json = (await res.json()) as { error?: { code?: string; message?: string } }
       if (!res.ok) {
-        showToast(json.error ?? 'Une erreur est survenue.', 'danger')
+        showToast(json.error?.message ?? 'Une erreur est survenue.', 'danger')
         return false
       }
       return true
@@ -289,10 +316,98 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
     }
   }
 
+  // ── Recherche + filtres (GUIC-522 F-11/F-12) — état propagé dans l'URL ─────
+
+  function pushWith(next: { q?: string; theme?: string; niveau?: string }) {
+    const sp = new URLSearchParams()
+    sp.set('centreId', centreId)
+    const nq = next.q ?? q
+    const nt = next.theme ?? theme
+    const nn = next.niveau ?? niveau
+    if (nq) sp.set('q', nq)
+    if (nt) sp.set('theme', nt)
+    if (nn) sp.set('niveau', nn)
+    startTransition(() => router.push(`${pathname}?${sp}`))
+  }
+
+  function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const value = (new FormData(e.currentTarget).get('q')?.toString() ?? '').trim()
+    pushWith({ q: value })
+  }
+
+  const paginationBase = (() => {
+    const sp = new URLSearchParams()
+    sp.set('centreId', centreId)
+    if (q) sp.set('q', q)
+    if (theme) sp.set('theme', theme)
+    if (niveau) sp.set('niveau', niveau)
+    return `${pathname}?${sp}`
+  })()
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Recherche + filtres */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form onSubmit={handleSearchSubmit} role="search">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            aria-label="Rechercher un livre (titre, auteur, ISBN)"
+            placeholder="Rechercher un livre, un auteur, un ISBN… (Entrée)"
+            style={{
+              width: '100%',
+              fontSize: 13,
+              borderRadius: 10,
+              padding: '9px 14px',
+              background: 'var(--gj-surface)',
+              border: '1.5px solid var(--gj-line)',
+              color: 'var(--gj-ink)',
+              fontFamily: 'inherit',
+            }}
+          />
+        </form>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <select
+            aria-label="Filtrer par thème"
+            value={theme}
+            onChange={(e) => pushWith({ theme: e.target.value })}
+            style={{
+              padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--gj-line)',
+              background: 'var(--gj-surface)', fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)',
+              fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            <option value="">Tous les thèmes</option>
+            {THEMES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Filtrer par niveau"
+            value={niveau}
+            onChange={(e) => pushWith({ niveau: e.target.value })}
+            style={{
+              padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--gj-line)',
+              background: 'var(--gj-surface)', fontSize: 12.5, fontWeight: 700, color: 'var(--gj-ink)',
+              fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            <option value="">Tous niveaux</option>
+            <option value="Débutant">Débutant</option>
+            <option value="Intermédiaire">Intermédiaire</option>
+            <option value="Avancé">Avancé</option>
+          </select>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--gj-grey)', margin: 0 }}>
+          {total} livre{total !== 1 ? 's' : ''} au catalogue de ce centre
+          {(q || theme || niveau) ? ' — filtré' : ''}.
+        </p>
+      </div>
 
       {/* Bouton créer */}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -375,6 +490,19 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
                             }}
                           >
                             {livre.theme}
+                          </span>
+                          {/* GUIC-522 F-10 — compteur disponibles/total, visible sans déplier. */}
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              borderRadius: 20,
+                              padding: '2px 8px',
+                              background: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-soft, #dcfce7)' : 'var(--gj-red-soft, #fee2e2)',
+                              color: livre.exemplairesDisponibles > 0 ? 'var(--gj-green-ink, #166534)' : 'var(--gj-red, #ef4444)',
+                            }}
+                          >
+                            {livre.exemplairesDisponibles}/{livre.exemplairesTotal} disponibles
                           </span>
                           <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>
                             {exemplairesCentre.length} ex. dans ce centre
@@ -500,6 +628,10 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
                                   <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--gj-ink)', margin: 0 }}>
                                     Rayon {emp.rayon} · Étagère {emp.etagere} · Pos. {emp.position}
                                   </p>
+                                  {/* GUIC-522 F-08 — code-barre visible pour la supervision/manipulation physique. */}
+                                  <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', margin: '2px 0 0', fontFamily: 'monospace' }}>
+                                    {emp.codeBarre}
+                                  </p>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                                     <span
                                       style={{
@@ -576,6 +708,13 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
         </ul>
       )}
 
+      {/* Pagination (GUIC-522 F-12) — état piloté par l'URL. */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+          <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl={paginationBase} ariaLabel="Pagination du catalogue" />
+        </div>
+      )}
+
       {/* ── Modals ──────────────────────────────────────────────────────── */}
 
       {/* Créer livre */}
@@ -646,7 +785,9 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
         <p className="text-fs-300 text-color-text-secondary">
           Supprimer{' '}
           <strong className="text-color-text-primary">{confirmDeleteLivre?.titre}</strong> et tous ses
-          exemplaires ? Cette action est irréversible.
+          exemplaires ? Suppression possible seulement si aucun emprunt, même passé, n&apos;existe sur
+          aucun de ses exemplaires. Un exemplaire avec historique ne se supprime pas — marquez-le
+          indisponible pour le retirer du fonds sans perdre l&apos;historique.
         </p>
       </Modal>
 
@@ -711,7 +852,9 @@ export function AdminBiblioCatalogueClient({ centreId, livres: initialLivres }: 
         }
       >
         <p className="text-fs-300 text-color-text-secondary">
-          Supprimer cet exemplaire ? Si un emprunt est en cours, l&apos;opération sera refusée.
+          Supprimer cet exemplaire ? Suppression possible seulement si aucun emprunt, même passé,
+          n&apos;existe sur cet exemplaire. Un exemplaire avec historique ne se supprime pas —
+          marquez-le indisponible pour le retirer du fonds sans perdre l&apos;historique.
         </p>
       </Modal>
 

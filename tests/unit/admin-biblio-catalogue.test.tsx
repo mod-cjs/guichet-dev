@@ -51,7 +51,7 @@ describe('AdminBiblioCatalogueClient — F-10 compteur dispo/total', () => {
 describe('AdminBiblioCatalogueClient — F-08 code-barre visible', () => {
   it('affiche le code-barre sur la ligne d’exemplaire dépliée', () => {
     render(<AdminBiblioCatalogueClient centreId="c1" livres={[livre()]} total={1} currentPage={1} totalPages={1} />)
-    fireEvent.click(screen.getByRole('button', { name: /Le Petit Prince/i }))
+    fireEvent.click(screen.getByRole('button', { expanded: false, name: /Le Petit Prince/i }))
     expect(screen.getByText(/CJS-DK-0001/)).toBeInTheDocument()
   })
 })
