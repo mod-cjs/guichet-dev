@@ -122,6 +122,11 @@ export interface EmpruntVue {
   confirmeA: string | null
   dateRetourPrevue: string | null
   renduA: string | null
+  /** cjsUid du staff ayant confirmé le retrait (scan badge). GUIC-522 F-09. */
+  confirmePar: string | null
+  /** Nom + prénom du bénéficiaire (résolu via cjsUid→Utilisateur). `null` si non résolu
+   *  dans ce contexte (ex. le bénéficiaire consultant ses propres emprunts). GUIC-522 F-09. */
+  emprunteur: { nom: string; prenom: string } | null
 }
 
 // ── Recherche & fiche (GUIC-342) ──────────────────────────────────
@@ -367,6 +372,9 @@ async function toEmpruntVue(empruntId: string): Promise<EmpruntVue> {
     confirmeA: e.confirmeA?.toISOString() ?? null,
     dateRetourPrevue: e.dateRetourPrevue?.toISOString() ?? null,
     renduA: e.renduA?.toISOString() ?? null,
+    confirmePar: e.confirmePar ?? null,
+    // Non résolu ici (usage initiation/confirmation/retour) — voir getEmpruntsCentre.
+    emprunteur: null,
   }
 }
 
@@ -613,6 +621,9 @@ export async function getEmpruntsCentre(centreId: string, statuts: StatutEmprunt
     confirmeA: e.confirmeA?.toISOString() ?? null,
     dateRetourPrevue: e.dateRetourPrevue?.toISOString() ?? null,
     renduA: e.renduA?.toISOString() ?? null,
+    confirmePar: e.confirmePar ?? null,
+    // Résolu par getEmpruntsCentre (supervision admin/staff) — voir GUIC-522 F-09.
+    emprunteur: null,
   }))
 }
 
@@ -640,5 +651,8 @@ export async function getEmpruntsActifs(cjsUid: string): Promise<EmpruntVue[]> {
     confirmeA: e.confirmeA?.toISOString() ?? null,
     dateRetourPrevue: e.dateRetourPrevue?.toISOString() ?? null,
     renduA: e.renduA?.toISOString() ?? null,
+    confirmePar: e.confirmePar ?? null,
+    // Le bénéficiaire consulte ses propres emprunts — pas besoin de résoudre son identité.
+    emprunteur: null,
   }))
 }

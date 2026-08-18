@@ -37,14 +37,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const centreId = sp.centreId ?? centres[0]?.id ?? null
   const centreSelectionne = centres.find((c) => c.id === centreId) ?? null
 
-  // Données pour le centre sélectionné
-  const [livres, aConfirmer, aRendre] = centreId
+  // Données pour le centre sélectionné — supervision lecture seule (GUIC-522 F-04) :
+  // « à confirmer » n'est plus une file de traitement admin (comptoir = staff via scan QR).
+  const [livres, actifs, reserves] = centreId
     ? await Promise.all([
         getCatalogueCentre(centreId),
-        getEmpruntsCentre(centreId, ['initie']),
         getEmpruntsCentre(centreId, ['en_cours', 'en_retard']),
+        getEmpruntsCentre(centreId, ['initie']),
       ])
     : [[], [], []]
+  const enCours = actifs.filter((e) => e.statut === 'en_cours')
+  const enRetard = actifs.filter((e) => e.statut === 'en_retard')
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -186,8 +189,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
             </span>
             <span style={{ fontSize: 12, color: 'var(--gj-grey)', marginLeft: 'auto' }}>
               {livres.length} livre{livres.length !== 1 ? 's' : ''} ·{' '}
-              {aConfirmer.length} à confirmer ·{' '}
-              {aRendre.length} à rendre
+              {enCours.length} en cours ·{' '}
+              {enRetard.length} en retard
             </span>
           </div>
 
@@ -228,8 +231,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
             </h2>
             <AdminBiblioEmpruntsClient
               centreId={centreId}
-              aConfirmer={aConfirmer}
-              aRendre={aRendre}
+              enCours={enCours}
+              enRetard={enRetard}
+              reserves={reserves}
             />
           </section>
 
