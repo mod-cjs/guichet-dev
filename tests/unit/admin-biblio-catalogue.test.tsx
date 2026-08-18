@@ -81,6 +81,31 @@ describe('AdminBiblioCatalogueClient — F-06/F-07 suppression honnête', () => 
   })
 })
 
+describe('AdminBiblioCatalogueClient — F-16 cibles tactiles ≥44px (actions destructrices)', () => {
+  it('boutons Modifier/Supprimer un LIVRE ont une zone cliquable ≥44px', () => {
+    render(<AdminBiblioCatalogueClient centreId="c1" livres={[livre()]} total={1} currentPage={1} totalPages={1} />)
+    const editer = screen.getByRole('button', { name: /Modifier Le Petit Prince/i })
+    const supprimer = screen.getByRole('button', { name: /Supprimer Le Petit Prince/i })
+    for (const btn of [editer, supprimer]) {
+      const cs = getComputedStyle(btn)
+      expect(parseFloat(cs.minWidth)).toBeGreaterThanOrEqual(44)
+      expect(parseFloat(cs.minHeight)).toBeGreaterThanOrEqual(44)
+    }
+  })
+
+  it('boutons Modifier/Supprimer un EXEMPLAIRE ont une zone cliquable ≥44px', () => {
+    render(<AdminBiblioCatalogueClient centreId="c1" livres={[livre()]} total={1} currentPage={1} totalPages={1} />)
+    fireEvent.click(screen.getByRole('button', { expanded: false, name: /Le Petit Prince/i }))
+    const editer = screen.getByRole('button', { name: /Modifier l'exemplaire/i })
+    const supprimer = screen.getByRole('button', { name: /Supprimer l'exemplaire/i })
+    for (const btn of [editer, supprimer]) {
+      const cs = getComputedStyle(btn)
+      expect(parseFloat(cs.minWidth)).toBeGreaterThanOrEqual(44)
+      expect(parseFloat(cs.minHeight)).toBeGreaterThanOrEqual(44)
+    }
+  })
+})
+
 describe('AdminBiblioCatalogueClient — F-11/F-12 recherche + pagination', () => {
   it('propose un champ de recherche qui navigue avec ?q= (+ centreId préservé)', () => {
     render(<AdminBiblioCatalogueClient centreId="c1" livres={[livre()]} total={1} currentPage={1} totalPages={1} />)
