@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast } from '@/components/ui/Toast'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
 
 // ─── Types (sérialisables) ──────────────────────────────────────────────────
@@ -77,6 +78,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
   const pathname = usePathname()
   const [, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
 
   function push(next: Partial<typeof filtres>) {
     const merged = { ...filtres, ...next }
@@ -97,7 +99,13 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut }),
       })
-      if (res.ok) startTransition(() => router.refresh())
+      if (res.ok) {
+        startTransition(() => router.refresh())
+      } else {
+        setErreur("Action impossible — l'escalade n'a pas été mise à jour.")
+      }
+    } catch {
+      setErreur("Action impossible — l'escalade n'a pas été mise à jour.")
     } finally {
       setBusy(null)
     }
@@ -263,6 +271,8 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
           {total} escalade{total > 1 ? 's' : ''} · le staff du centre est notifié à chaque escalade
         </p>
       </div>
+
+      {erreur && <Toast message={erreur} variant="danger" onClose={() => setErreur(null)} />}
     </div>
   )
 }

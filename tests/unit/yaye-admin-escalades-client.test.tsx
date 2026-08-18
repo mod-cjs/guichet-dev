@@ -30,7 +30,6 @@ const baseProps: EscaladesClientProps = {
       raison: 'sujet_sensible',
       stade: null,
       signalDanger: null,
-      priorite: 0,
       statut: 'en_attente',
       traitePar: null,
       traiteA: null,
