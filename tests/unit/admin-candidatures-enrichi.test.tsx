@@ -60,9 +60,9 @@ describe('GUIC-692 — AdminCandidaturesTable enrichie', () => {
 
   it('F2 — rend le KPI "Insertions" (national) issu de kpis.insertions', () => {
     render(<AdminCandidaturesTable {...defaultProps} />)
-    expect(screen.getByText(/^Insertions$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^3\s640$/)).toBeInTheDocument()
-    expect(screen.getByText(/national/i)).toBeInTheDocument()
+    const kpiInsertions = screen.getByText(/^Insertions$/i).parentElement!
+    expect(within(kpiInsertions).getByText(/^3\s640$/)).toBeInTheDocument()
+    expect(within(kpiInsertions).getByText(/^national$/i)).toBeInTheDocument()
   })
 
   it('F3 — rend l’étape "Décision" du funnel (funnel.decision)', () => {
