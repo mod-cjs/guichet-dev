@@ -11,3 +11,4 @@ export {
   type RessourcesFiltresValue,
   type RessourcesFiltersSheetProps,
 } from './RessourcesFiltersSheet'
+export { RessourceMetadonnees } from './RessourceMetadonnees'

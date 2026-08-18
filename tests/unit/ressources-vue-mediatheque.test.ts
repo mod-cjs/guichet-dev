@@ -71,24 +71,52 @@ describe('GUIC-689 — aiguillage accueil médiathèque / vue liste', () => {
   })
 })
 
-describe('GUIC-689 — le lien « Toutes les ressources » mène à la liste', () => {
-  const { readFileSync } = jest.requireActual('node:fs') as typeof import('node:fs')
-  const { resolve } = jest.requireActual('node:path') as typeof import('node:path')
+describe('GUIC-689 — aucun écran de ressources ne renvoie sur l’accueil', () => {
+  const { readFileSync, readdirSync } = jest.requireActual('node:fs') as typeof import('node:fs')
+  const { resolve, join } = jest.requireActual('node:path') as typeof import('node:path')
 
-  const src = readFileSync(
-    resolve(process.cwd(), 'src/components/ressources/MediathequeHome.tsx'),
-    'utf-8',
-  )
+  /**
+   * TOUS les écrans de ressources, pas seulement l'accueil.
+   *
+   * La version initiale de cette sentinelle ne lisait que `MediathequeHome.tsx`.
+   * Un second lien mort — « ← Toutes les ressources » sur la fiche détail — a
+   * donc survécu à la correction : même défaut, autre fichier. Une sentinelle
+   * qui ne couvre qu'un fichier ne protège qu'un fichier.
+   */
+  function fichiersRessources(): string[] {
+    const racines = [
+      resolve(process.cwd(), 'src/components/ressources'),
+      resolve(process.cwd(), 'src/app/(public)/ressources'),
+    ]
+    const out: string[] = []
+    const marcher = (d: string) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const c = join(d, e.name)
+        if (e.isDirectory()) marcher(c)
+        else if (/\.tsx?$/.test(e.name) && !/\.test\./.test(e.name)) out.push(c)
+      }
+    }
+    racines.forEach(marcher)
+    return out
+  }
 
-  /** Tous les href internes vers /ressources portés par l'accueil. */
-  const liens = [...src.matchAll(/href=["'](\/ressources[^"']*)["']/g)].map((m) => m[1])
+  const ecrans = fichiersRessources()
 
-  it('l’accueil porte au moins un lien vers /ressources', () => {
-    expect(liens.length).toBeGreaterThan(0)
+  it('le balayage couvre bien plusieurs fichiers', () => {
+    // Garde-fou du garde-fou : une liste vide ferait passer le test suivant à vide.
+    expect(ecrans.length).toBeGreaterThan(5)
   })
 
-  it('AUCUN de ces liens ne renvoie sur l’accueil lui-même', () => {
-    const morts = liens.filter((href) => !decrireVueRessources(paramsDeLien(href)).afficherListe)
+  it('aucun href interne ne retombe sur l’accueil médiathèque', () => {
+    const morts: string[] = []
+    for (const f of ecrans) {
+      const src = readFileSync(f, 'utf-8')
+      for (const m of src.matchAll(/href=["'](\/ressources[^"']*)["']/g)) {
+        if (!decrireVueRessources(paramsDeLien(m[1])).afficherListe) {
+          morts.push(`${f.replace(process.cwd() + '/', '')} → ${m[1]}`)
+        }
+      }
+    }
     expect(morts).toEqual([])
   })
 })

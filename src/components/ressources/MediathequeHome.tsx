@@ -49,6 +49,9 @@ const CATEGORY_TONES = [
 export function MediathequeHome({ categories, recentes, populaires }: MediathequeHomeProps) {
   const isEmpty = categories.length === 0 && recentes.length === 0 && populaires.length === 0
 
+  // Seules les ressources RÉELLEMENT consultées peuvent être classées.
+  const classees = populaires.filter((r) => (r.vues ?? 0) > 0)
+
   return (
     <div className="flex flex-col gap-space-6">
       {/* Hero + recherche — formulaire GET natif, aucun JS requis. */}
@@ -85,6 +88,16 @@ export function MediathequeHome({ categories, recentes, populaires }: Mediathequ
               Rechercher
             </button>
           </form>
+          {/* GUIC-689 — l'accès à la liste complète vivait DANS l'étagère des plus
+              consultées, puis dans celle des catégories : deux sections
+              conditionnelles. Masquer l'une supprimait le seul chemin vers la
+              liste. Il appartient au hero, qui est toujours rendu. */}
+          <Link
+            href="/ressources?vue=liste"
+            className="text-fs-200 font-black text-white underline underline-offset-4 w-fit"
+          >
+            Toutes les ressources →
+          </Link>
         </div>
       </section>
 
@@ -98,12 +111,17 @@ export function MediathequeHome({ categories, recentes, populaires }: Mediathequ
         <>
           {categories.length > 0 && (
             <section aria-labelledby="mediatheque-categories-title">
-              <h2
-                id="mediatheque-categories-title"
-                className="text-fs-500 font-black mb-space-3 text-color-text-primary"
-              >
-                Explorer par catégorie
-              </h2>
+              {/* GUIC-689 — l'accès à la liste complète vivait DANS l'étagère des
+                  plus consultées. En masquant celle-ci faute de consultations, on
+                  supprimait le seul lien vers la liste. Il appartient à la page. */}
+              <div className="flex items-baseline justify-between mb-space-3">
+                <h2
+                  id="mediatheque-categories-title"
+                  className="text-fs-500 font-black text-color-text-primary"
+                >
+                  Explorer par catégorie
+                </h2>
+              </div>
               <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-space-3 list-none p-0 m-0">
                 {categories.map((c, i) => (
                   <li key={c.theme}>
@@ -158,7 +176,12 @@ export function MediathequeHome({ categories, recentes, populaires }: Mediathequ
             </section>
           )}
 
-          {populaires.length > 0 && (
+          {/* GUIC-689 — un palmarès ne s'affiche QUE s'il repose sur des
+              consultations réelles. Avec 19 ressources sur 20 à zéro vue, le tri
+              `vues desc, createdAt desc` retombait sur la date : les deux
+              étagères montraient la même chose, et les pastilles 1-5 donnaient à
+              cet ordre l'autorité d'un classement. Sans mesure, on ne classe pas. */}
+          {classees.length > 0 && (
             <section aria-labelledby="mediatheque-populaires-title">
               <div className="flex items-baseline justify-between mb-space-3">
                 <h2
@@ -167,14 +190,9 @@ export function MediathequeHome({ categories, recentes, populaires }: Mediathequ
                 >
                   Les plus consultées
                 </h2>
-                {/* GUIC-689 — `vue=liste` et non `/ressources` nu : sans filtre,
-                    la page réaffiche cet accueil et le lien ne mène nulle part. */}
-                <Link href="/ressources?vue=liste" className="text-fs-200 font-black text-gj-teal-deep">
-                  Toutes les ressources →
-                </Link>
               </div>
               <ul className="flex gap-space-3 overflow-x-auto pb-space-2 list-none p-0 m-0">
-                {populaires.map((r, i) => (
+                {classees.map((r, i) => (
                   <li key={r.id} className="relative shrink-0 w-[280px]">
                     <ResourceCard item={r} />
                     <span
