@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
+import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import type { StatutCandidature, StatutPipeline } from '@prisma/client'
 import type { CandidatureRow, CandidaturesFunnel, CandidaturesKpis, SortCand } from '@/lib/loaders/admin-candidatures'
 import { CandidatureDetailPanel, type CandidatureDetail } from './CandidatureDetailPanel'
@@ -64,7 +65,7 @@ const ETAPES: { value: StatutPipeline; label: string }[] = [
 export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCount = 0, currentPage, totalPages, q, statut, etape, sort }: AdminCandidaturesTableProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   // Fiche détail (slide-over) — chargée à la demande au clic « Détail ».
   const [detail, setDetail] = useState<CandidatureDetail | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -72,6 +73,8 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [relanceIds, setRelanceIds] = useState<string[] | null>(null)
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id))
+  // Retour Toast (erreur/info d'ouverture fiche, récap de relance).
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null)
 
   function toggleRow(id: string) {
     setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
@@ -84,8 +87,15 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
   function openDetail(id: string) {
     setLoadingId(id)
     startTransition(async () => {
-      try { const d = await chargerCandidatureDetail(id); if (d) setDetail(d) }
-      finally { setLoadingId(null) }
+      try {
+        const d = await chargerCandidatureDetail(id)
+        if (d) setDetail(d)
+        else setToast({ message: 'Candidature introuvable.', variant: 'info' })
+      } catch {
+        setToast({ message: "Impossible d'ouvrir la fiche.", variant: 'danger' })
+      } finally {
+        setLoadingId(null)
+      }
     })
   }
 
@@ -219,6 +229,10 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
           </div>
         )}
 
+        {/* ── Liste (table desktop + cartes mobiles) — porte l'état de la navigation
+             serveur en cours (filtre/tri/recherche) : opacité réduite + interactions
+             coupées, aria-busy pour les technologies d'assistance. */}
+        <div aria-busy={isPending} style={{ opacity: isPending ? 0.55 : 1, pointerEvents: isPending ? 'none' : 'auto', transition: 'opacity .15s ease' }}>
         {/* ── Table (desktop) ── */}
         <div className="hidden md:block" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1.5fr 1.5fr .8fr .8fr .8fr .8fr .4fr', gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 10.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 900 }}>
@@ -305,6 +319,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
             })}
           </div>
         )}
+        </div>
 
         {/* ── Pagination ── */}
         {totalPages > 1 && (
@@ -325,7 +340,22 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
       )}
 
       {/* ── Modale de relance (fiche ou sélection groupée) ── */}
-      {relanceIds && <RelanceModal ids={relanceIds} onClose={() => { setRelanceIds(null); setSelected(new Set()) }} onDone={() => router.refresh()} />}
+      {relanceIds && (
+        <RelanceModal
+          ids={relanceIds}
+          onClose={() => { setRelanceIds(null); setSelected(new Set()) }}
+          onDone={(res) => {
+            setToast({
+              message: `${res.envoyees} relance${res.envoyees > 1 ? 's' : ''} envoyée${res.envoyees > 1 ? 's' : ''}, ${res.ignorees} ignorée${res.ignorees > 1 ? 's' : ''}`,
+              variant: 'success',
+            })
+            router.refresh()
+          }}
+        />
+      )}
+
+      {/* ── Toast (erreur/info ouverture fiche, récap relance) ── */}
+      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
     </div>
   )
 }
