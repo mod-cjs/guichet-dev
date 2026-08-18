@@ -334,3 +334,27 @@ export async function getRessourcesHome(
     populaires: popularRows.map(toListItem),
   }
 }
+
+/**
+ * GUIC-689 — Catégories réellement présentes dans le CATALOGUE public.
+ *
+ * Les options du filtre étaient dérivées des ressources déjà chargées : la
+ * liste changeait à chaque « charger plus » et restait incomplète tant qu'on
+ * n'avait pas tout parcouru. Un filtre sert à atteindre ce qu'on n'a PAS encore
+ * vu — le calculer sur ce qu'on a vu le vide de son sens.
+ *
+ * `categorie` est nullable et, à ce jour, renseignée sur aucune ressource : la
+ * fonction rend alors un tableau vide, et l'interface masque la section. C'est
+ * la vérité, pas un repli.
+ */
+export async function listCategoriesRessources(): Promise<string[]> {
+  const rows = await prisma.ressource.findMany({
+    where: { estPublic: true, categorie: { not: null } },
+    select: { categorie: true },
+    distinct: ['categorie'],
+    orderBy: { categorie: 'asc' },
+  })
+  return rows
+    .map((r) => r.categorie)
+    .filter((c): c is string => Boolean(c && c.trim()))
+}

@@ -23,6 +23,12 @@ interface RessourcesClientProps {
   initialFilters: RessourceFiltres
   /** GUIC-684 — programmes actifs proposés au filtrage. */
   programmes?: { slug: string; nom: string }[]
+  /**
+   * GUIC-689 — catégories du CATALOGUE, calculées côté serveur.
+   * Dérivées auparavant des éléments chargés : la liste bougeait à chaque
+   * « charger plus » et restait incomplète.
+   */
+  categoriesOptions?: string[]
   /** GUIC-689 — session calculée côté serveur (motif /centres) : sans elle,
    *  l'hydratation des favoris 401-erait en console pour chaque anonyme. */
   userIsConnected?: boolean
@@ -53,6 +59,7 @@ export function RessourcesClient({
   initialFilters,
   programmes = [],
   userIsConnected = false,
+  categoriesOptions,
 }: RessourcesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -159,17 +166,11 @@ export function RessourcesClient({
     [initialFilters],
   )
 
-  const categoriesOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          accumulated
-            .map((r) => r.categorie)
-            .filter((c): c is string => Boolean(c && c.trim())),
-        ),
-      ).sort(),
-    [accumulated],
-  )
+  // GUIC-689 — les options viennent désormais du CATALOGUE, calculées côté
+  // serveur. Elles étaient dérivées des ressources déjà chargées : la liste
+  // changeait à chaque « charger plus » et restait incomplète tant qu'on n'avait
+  // pas tout parcouru. Un filtre sert à atteindre ce qu'on n'a PAS vu.
+  const optionsCategories = categoriesOptions ?? []
 
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -421,7 +422,7 @@ export function RessourcesClient({
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
         value={advanced}
-        categoriesOptions={categoriesOptions}
+        categoriesOptions={optionsCategories}
         totalCount={total}
         onApply={onApplyAdvanced}
       />
