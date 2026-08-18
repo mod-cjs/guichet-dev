@@ -49,6 +49,40 @@
 
 > Si `NEO4J_URI`/`NEO4J_PASSWORD` ne sont pas configurés, l'app **bascule automatiquement** sur un *fallback Prisma* (recherche/matching simple) — pratique, mais pour tester le vrai Lot 1 il faut Neo4j.
 
+### 3.3 Plusieurs worktrees en parallèle — isoler sa base
+
+**Le piège** : `guichet_jeunesse` (§3.1) est **partagée** par tous les worktrees qui pointent
+sur `localhost:3307` — si deux sessions travaillent en parallèle (courant sur ce projet, voir
+mémoire `project_sessions_paralleles_serveurs`), l'une peut migrer/reseeder pendant que l'autre
+lit, avec des symptômes qui ne pointent pas vers la vraie cause : `DriverAdapterError: Data
+truncated for column '...'`, des enums qui ne correspondent plus au schéma courant, des tests
+d'intégration qui échouent en boucle sans rapport avec le code qu'on vient de toucher. Vécu en
+réel : plusieurs heures de diagnostic avant de comprendre que la base, pas le code, était en
+cause.
+
+**La solution** : `scripts/dev/isolate-worktree-db.sh`, idempotent, à lancer depuis la racine
+du worktree :
+
+```bash
+bash /chemin/vers/guichet/scripts/dev/isolate-worktree-db.sh [--source guichet_jeunesse] [--port 3000]
+```
+
+Ce qu'il fait : déduit un nom de base depuis le dossier (`guichet_<worktree>`), la crée si
+absente (clone schéma + données depuis `--source`, sans y retoucher si la base cible existe déjà
+— ne re-clone jamais par défaut, `--reclone` pour forcer), donne les droits à l'utilisateur
+`guichet`, convertit `.env.local` en fichier réel avec `DATABASE_URL` réécrit vers la base
+dédiée, puis aligne le schéma via `prisma migrate diff` (sans régénérer le client Prisma —
+`node_modules` reste partagé entre worktrees).
+
+**Piège annexe, trouvé en déboguant ce script** : si `.env.local` contient **plusieurs lignes**
+`DATABASE_URL=` (des surcharges locales empilées, par exemple pour un laboratoire ETL séparé),
+`tests/setup.ts` et `prisma.config.ts` ne les résolvent **pas de la même façon** :
+`tests/setup.ts` utilise `.find()` (**première** ligne qui gagne), `prisma.config.ts` charge via
+`dotenv` (**dernière** ligne qui gagne). Jest et la CLI Prisma peuvent donc pointer sur deux
+bases différentes sans qu'aucune erreur ne le signale — jusqu'à ce qu'un test échoue avec un
+schéma qui semble incohérent. `isolate-worktree-db.sh` réécrit **toutes** les occurrences de
+`DATABASE_URL=` dans le fichier, ce qui referme cette ambiguïté au passage.
+
 ---
 
 ## 4. Configuration `.env.local`
