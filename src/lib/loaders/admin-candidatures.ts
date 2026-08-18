@@ -101,7 +101,7 @@ export function mapCandidatureRow(c: CandidatureRowInput, now: Date = new Date()
 
 // ─── Funnel & KPIs ─────────────────────────────────────────────────────────────
 export interface CandidaturesFunnel { recue: number; preselection: number; entretien: number; decision: number; retenue: number; conversionPct: number }
-export interface CandidaturesKpis { enAttente: number; vues: number; retenues: number; scoreMoyen: number; insertions: number }
+export interface CandidaturesKpis { enAttente: number; vues: number; retenues: number; scoreMoyen: number | null; insertions: number }
 
 type PipeCount = { pipelineStage: StatutPipeline; _count: { id: number } }
 type StatutCount = { statut: StatutCandidature; _count: { id: number } }
@@ -120,7 +120,7 @@ export function kpisFromCounts(counts: StatutCount[], scoreMoyenRaw: number | nu
     enAttente: by('En_attente'),
     vues: by('Vue'),
     retenues: by('Retenue'),
-    scoreMoyen: scoreMoyenRaw == null ? 0 : Math.round(scoreMoyenRaw),
+    scoreMoyen: scoreMoyenRaw == null ? null : Math.round(scoreMoyenRaw),
     insertions,
   }
 }

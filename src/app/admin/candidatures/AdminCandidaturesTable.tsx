@@ -122,6 +122,7 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
     { label: 'Reçues', v: funnel.recue },
     { label: 'Présélection', v: funnel.preselection },
     { label: 'Entretien', v: funnel.entretien },
+    { label: 'Décision', v: funnel.decision },
     { label: 'Retenues', v: funnel.retenue, win: true },
   ]
 
@@ -163,7 +164,10 @@ export function AdminCandidaturesTable({ rows, funnel, kpis, total, bloqueesCoun
               { lab: 'En attente', val: kpis.enAttente.toLocaleString('fr-FR'), pill: 'à traiter', tone: 'w' as const },
               { lab: 'Vues', val: kpis.vues.toLocaleString('fr-FR'), pill: 'consultées' },
               { lab: 'Retenues', val: kpis.retenues.toLocaleString('fr-FR'), pill: 'retenues', tone: 'g' as const },
-              { lab: 'Score IA moyen', val: `${kpis.scoreMoyen}`, unit: '/100', pill: 'adéquation' },
+              kpis.scoreMoyen == null
+                ? { lab: 'Score IA moyen', val: '—', pill: 'en cours' }
+                : { lab: 'Score IA moyen', val: `${kpis.scoreMoyen}`, unit: '/100', pill: 'adéquation' },
+              { lab: 'Insertions', val: kpis.insertions.toLocaleString('fr-FR'), pill: 'national', tone: 'g' as const },
             ].map((k) => {
               const pillStyle = k.tone === 'w'
                 ? { background: 'var(--gj-yellow-soft)', color: 'var(--gj-yellow-ink)' }
