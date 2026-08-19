@@ -37,6 +37,7 @@ const baseProps: EscaladesClientProps = {
       traiteA: null,
       createdAt: new Date().toISOString(),
       enRetardSla: false,
+      resolutionNote: null,
       user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
     },
   ],
@@ -119,4 +120,74 @@ it('GUIC-259 — pas de badge SLA si l’escalade est résolue', () => {
   }
   render(<EscaladesClient {...resolue} />)
   expect(screen.queryByText(/SLA dépassé/i)).not.toBeInTheDocument()
+})
+
+// ─── GUIC-259 — note de clôture à la résolution ────────────────────────────
+
+it('cliquer « Marquer résolue » ouvre le modal de clôture sans envoyer le PATCH', () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  const priseEnCharge: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'prise_en_charge' }],
+  }
+  render(<EscaladesClient {...priseEnCharge} />)
+
+  fireEvent.click(screen.getByRole('button', { name: /Marquer résolue/i }))
+
+  expect(screen.getByText(/Clôturer l'escalade/i)).toBeInTheDocument()
+  expect(screen.getByLabelText(/Note de clôture/i)).toBeInTheDocument()
+  expect(global.fetch).not.toHaveBeenCalled()
+})
+
+it('après saisie de la note + Confirmer, envoie le PATCH avec statut=resolue et resolutionNote', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  const priseEnCharge: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'prise_en_charge' }],
+  }
+  render(<EscaladesClient {...priseEnCharge} />)
+
+  fireEvent.click(screen.getByRole('button', { name: /Marquer résolue/i }))
+  fireEvent.change(screen.getByLabelText(/Note de clôture/i), {
+    target: { value: 'Appelé la famille, situation apaisée.' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: /Confirmer/i }))
+
+  await waitFor(() => {
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/admin/yaye/escalades/e1',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+  })
+  const call = (global.fetch as jest.Mock).mock.calls[0]
+  const body = JSON.parse(call[1].body)
+  expect(body).toEqual({ statut: 'resolue', resolutionNote: 'Appelé la famille, situation apaisée.' })
+})
+
+it('une escalade résolue avec resolutionNote affiche le texte de la note', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const resolueAvecNote: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'resolue', resolutionNote: 'Dossier transmis au centre.' }],
+  }
+  render(<EscaladesClient {...resolueAvecNote} />)
+  expect(screen.getByText(/Dossier transmis au centre\./i)).toBeInTheDocument()
+})
+
+it('les transitions non-résolue (prise en charge) restent inchangées : envoi direct, pas de modal', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+
+  fireEvent.click(screen.getByRole('button', { name: /Prendre en charge/i }))
+
+  expect(screen.queryByText(/Clôturer l'escalade/i)).not.toBeInTheDocument()
+  await waitFor(() => {
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/admin/yaye/escalades/e1',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+  })
+  const call = (global.fetch as jest.Mock).mock.calls[0]
+  const body = JSON.parse(call[1].body)
+  expect(body).toEqual({ statut: 'prise_en_charge' })
 })
