@@ -92,3 +92,15 @@ export async function trackVuePage(input: TrackVuePageInput): Promise<void> {
     // couvre uniquement la lecture des headers.
   }
 }
+
+/**
+ * Prépare l'enregistrement d'une vue de page pour exécution différée.
+ *
+ * NB (RED GUIC-689) — implémentation naïve volontaire : elle diffère TOUT,
+ * y compris la lecture de la requête. C'est exactement le défaut constaté.
+ */
+export async function differerVuePage(
+  input: TrackVuePageInput,
+): Promise<() => Promise<void>> {
+  return () => trackVuePage(input)
+}
