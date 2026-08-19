@@ -7,6 +7,9 @@ import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
 import { Toast } from '@/components/ui/Toast'
+import { Modal } from '@/components/ui/Modal'
+import { Textarea } from '@/components/ui/Textarea'
+import { Button } from '@/components/ui/Button'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
 
 // ─── Types (sérialisables) ──────────────────────────────────────────────────
@@ -31,6 +34,8 @@ export interface EscaladeRowDTO {
   createdAt: string
   /** GUIC-259 — échéance de traitement dépassée (dérivée du SLA de la priorité). */
   enRetardSla: boolean
+  /** GUIC-259 — note de clôture saisie à la résolution (facultative). Optionnel côté type pour compat ascendante. */
+  resolutionNote?: string | null
   user: { prenom: string; nom: string; telephone: string | null } | null
 }
 
@@ -85,6 +90,9 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
   const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  /** GUIC-259 — escalade en cours de clôture (ouvre le modal de note). */
+  const [clotureId, setClotureId] = useState<string | null>(null)
+  const [noteCloture, setNoteCloture] = useState('')
 
   function push(next: Partial<typeof filtres>) {
     const merged = { ...filtres, ...next }
@@ -97,13 +105,15 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
 
-  async function changeStatut(id: string, statut: StatutEscalade) {
+  async function changeStatut(id: string, statut: StatutEscalade, resolutionNote?: string) {
     setBusy(id)
     try {
+      const body: { statut: StatutEscalade; resolutionNote?: string } = { statut }
+      if (statut === 'resolue' && resolutionNote !== undefined) body.resolutionNote = resolutionNote
       const res = await fetch(`/api/admin/yaye/escalades/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ statut }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         startTransition(() => router.refresh())
@@ -115,6 +125,19 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     } finally {
       setBusy(null)
     }
+  }
+
+  /** GUIC-259 — ouvre le modal de note de clôture avant résolution. */
+  function ouvrirCloture(id: string) {
+    setNoteCloture('')
+    setClotureId(id)
+  }
+
+  async function confirmerCloture() {
+    if (!clotureId) return
+    const id = clotureId
+    setClotureId(null)
+    await changeStatut(id, 'resolue', noteCloture)
   }
 
   const paginationBase = (() => {
@@ -251,6 +274,12 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     </span>
                     <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.raison ?? '—'}</div>
                     {e.stade && <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
+                    {e.statut === 'resolue' && e.resolutionNote && (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 11.5, color: 'var(--gj-green-ink)', marginTop: 3 }}>
+                        <Icon name="check-circle" size={11} />
+                        <span>Clôture : {e.resolutionNote}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Signalée */}
@@ -277,7 +306,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                       <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'prise_en_charge')} icon="check" label="Prendre en charge" />
                     )}
                     {e.statut === 'prise_en_charge' && (
-                      <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'resolue')} icon="check-circle" label="Marquer résolue" tone="green" />
+                      <ActionBtn busy={busy === e.id} onClick={() => ouvrirCloture(e.id)} icon="check-circle" label="Marquer résolue" tone="green" />
                     )}
                     {e.statut === 'resolue' && (
                       <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'en_attente')} icon="arrow-up" label="Rouvrir" tone="muted" />
@@ -306,6 +335,27 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
       </div>
 
       {erreur && <Toast message={erreur} variant="danger" onClose={() => setErreur(null)} />}
+
+      <Modal
+        isOpen={clotureId !== null}
+        onClose={() => setClotureId(null)}
+        title="Clôturer l'escalade"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setClotureId(null)}>Annuler</Button>
+            <Button variant="primary" onClick={confirmerCloture} loading={busy !== null}>Confirmer</Button>
+          </>
+        }
+      >
+        <Textarea
+          id="resolution-note"
+          label="Note de clôture — qu'est-ce qui a été fait / la réponse apportée ?"
+          value={noteCloture}
+          onChange={(e) => setNoteCloture(e.target.value)}
+          rows={4}
+          placeholder="Facultatif"
+        />
+      </Modal>
     </div>
   )
 }
