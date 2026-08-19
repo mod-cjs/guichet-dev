@@ -21,6 +21,31 @@ ssh -L 19999:127.0.0.1:19999 <serveur>   # puis http://localhost:19999
 l'hôte (pas la vue isolée d'un conteneur) — la contrepartie est `infra/netdata/netdata.conf`
 (`bind to = 127.0.0.1:19999`), sans quoi ce mode exposerait le tableau de bord publiquement.
 
+## Authentification (GUIC-545, ajouté 19/08)
+
+La boucle locale + tunnel SSH n'est qu'**une** ligne de défense — si elle saute un jour
+(mauvaise config future, port ouvert par erreur), rien d'autre ne protégeait le tableau de
+bord jusqu'ici. Netdata supporte l'auth basique nativement (`[web] require authentication`),
+pas besoin de proxy inverse.
+
+Le fichier `.htpasswd` est un secret (hash de mot de passe) — jamais committé, à générer une
+fois côté serveur :
+
+```bash
+sudo mkdir -p /etc/guichet
+printf 'astreinte:%s\n' "$(openssl passwd -apr1)" | sudo tee /etc/guichet/netdata.htpasswd
+sudo chmod 600 /etc/guichet/netdata.htpasswd
+```
+
+(`openssl passwd -apr1` demande le mot de passe interactivement — ne pas le passer en argument
+de ligne de commande, visible dans l'historique du shell.) Puis redémarrer :
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
+```
+
+Le tableau de bord demande désormais un identifiant/mot de passe en plus du tunnel SSH.
+
 ## État réel — déployé en préprod (2026-08-11)
 
 Netdata tourne, `/api/v1/info` répond, les métriques HÔTE (CPU, disque, mémoire, réseau) sont

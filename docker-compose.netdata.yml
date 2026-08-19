@@ -42,6 +42,9 @@ services:
       - seccomp:unconfined
     volumes:
       - ./infra/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
+      # GUIC-545 — secret (hash de mot de passe), jamais committé, même convention que les
+      # autres fichiers /etc/guichet/*.env de cette pile. Généré côté serveur (docs/netdata.md).
+      - /etc/guichet/netdata.htpasswd:/etc/netdata/.htpasswd:ro
       - netdata_lib:/var/lib/netdata
       - netdata_cache:/var/cache/netdata
       - /etc/passwd:/host/etc/passwd:ro

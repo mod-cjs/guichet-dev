@@ -18,6 +18,7 @@ Grafana refusait de démarrer sans que la doc ne pointe vers la bonne cause.
 | `/etc/guichet/observabilite.env` | Mot de passe admin Grafana, destinataires d'astreinte, SMTP | `docker-compose.observabilite.yml` | Partagé — pile à cycle de vie indépendant |
 | `<checkout>/.env.etl` (ou `GUICHET_ETL_ENV_FILE`) | Secrets Meltano + connexion à l'entrepôt Postgres | `docker-compose.etl.yml` | Partagé |
 | `/etc/guichet/cloudflared.env` | `CLOUDFLARE_TUNNEL_TOKEN` | `docker-compose.cloudflared.yml` | Accès Grafana/Netdata (GUIC-575) |
+| `/etc/guichet/netdata.htpasswd` | Identifiant/hash de mot de passe (auth basique) | `docker-compose.netdata.yml` | Deuxième ligne de défense du dashboard Netdata (GUIC-545), en plus du tunnel SSH |
 | Externe (Cloudflare Worker, hors dépôt) | Token Meta WhatsApp Cloud API | Relais d'astreinte (GUIC-575) | Sonde de disponibilité |
 
 Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
