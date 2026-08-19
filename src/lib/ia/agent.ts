@@ -10,7 +10,7 @@
 import type OpenAI from 'openai'
 import type { CanalAgent } from '@prisma/client'
 import { getLlmClient, chatCompletionWithRetry } from './llm-client'
-import { getSlotModel } from './llm-config'
+import { getSlotModel, getSlotParams } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
@@ -43,11 +43,9 @@ const CONFIG = {
   /** Température de DÉCISION (rounds où le LLM choisit un outil) : basse → choix d'outil
    *  fiable, peu d'hallucinations. */
   temperature: numEnv('YAYE_TEMPERATURE', 0.4),
-  /** Température de SYNTHÈSE (réponse finale en langage naturel, après outils) : plus
-   *  haute → ton chaleureux, vivant et varié, moins « robotique » (reco qualité #1). */
-  temperatureFinal: numEnv('YAYE_TEMPERATURE_FINAL', 0.6),
-  /** Réponse concise. Les détails (offres, dates) sont portés par les cards, pas par la prose → budget court. */
-  maxTokens: numEnv('YAYE_MAX_TOKENS', 320),
+  // NB : la température de SYNTHÈSE et max_tokens sont désormais PILOTABLES par slot depuis
+  // l'admin (getSlotParams('agent'), GUIC-537) — défauts 0.6 / 320 (cf. DEFAULTS_PAR_SLOT).
+  // La température de DÉCISION ci-dessus reste code (garde-fou : routage d'outils fiable).
   /** Nucleus sampling conservateur : limite les digressions sans tout figer. */
   topP: numEnv('YAYE_TOP_P', 0.9),
   /** Pénalise la répétition de tokens (réponses moins redondantes). */
@@ -456,6 +454,7 @@ function maxRoundsEscaladeBlock(reference: string): YayeBlock {
 
 export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const model = await getSlotModel('agent')
+  const params = await getSlotParams('agent')
   const client = getLlmClient(model)
   const ctx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base = {
@@ -505,7 +504,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     // Prompt système selon la phase : routage minimal (décision) vs persona complet (rédaction).
     messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
     // Température : basse pour décider (routage déterministe), haute pour rédiger (ton varié).
-    const temperature = phase === 'synth' ? CONFIG.temperatureFinal : CONFIG.temperature
+    const temperature = phase === 'synth' ? params.temperature : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
       temperature,
       top_p: CONFIG.topP,
@@ -518,7 +517,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         messages,
         tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
         tool_choice: 'auto',
-        max_tokens: CONFIG.maxTokens,
+        max_tokens: params.maxTokens,
         ...tuning,
       }),
     )
@@ -624,6 +623,7 @@ export type AgentStreamEvent =
 
 export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStreamEvent> {
   const model = await getSlotModel('agent')
+  const params = await getSlotParams('agent')
   const client = getLlmClient(model)
   const ctx: ToolCtx = { cjsUid: p.cjsUid, roles: p.roles, centreId: p.centreId ?? null, sessionId: p.sessionId, canal: p.canal }
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
@@ -659,7 +659,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
     messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
-    const temperature = phase === 'synth' ? CONFIG.temperatureFinal : CONFIG.temperature
+    const temperature = phase === 'synth' ? params.temperature : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
       temperature,
       top_p: CONFIG.topP,
@@ -671,7 +671,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
       messages,
       tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
       tool_choice: 'auto',
-      max_tokens: CONFIG.maxTokens,
+      max_tokens: params.maxTokens,
       ...tuning,
       stream: true,
     })

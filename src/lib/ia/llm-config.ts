@@ -13,6 +13,7 @@ import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
 import { DEFAULT_MODEL, assertSlotModel, type LlmSlot } from './supported-models'
 import { isLocalProvider, localModel } from './llm-client'
+import { resoudreParams, clampTemp, clampMaxTokens, DEFAULTS_PAR_SLOT, type SlotParams } from './llm-params'
 
 export interface LlmConfigValues {
   agent: string
@@ -21,6 +22,7 @@ export interface LlmConfigValues {
 }
 
 const CACHE_KEY = 'llm:config'
+const PARAMS_CACHE_KEY = 'llm:params'
 const CACHE_TTL_S = 60
 
 /** Variables d'environnement de repli par slot (dans l'ordre de priorité). */
@@ -83,6 +85,111 @@ export async function getLlmConfig(): Promise<LlmConfigValues> {
 export async function getSlotModel(slot: LlmSlot): Promise<string> {
   if (isLocalProvider()) return localModel()
   return (await getLlmConfig())[slot]
+}
+
+// ─── Paramètres d'échantillonnage pilotables et bornés (GUIC-537, Phase 3) ────────
+
+/** Valeurs brutes stockées par slot (null = défaut). Toujours relues via resoudreParams. */
+type ParamsBruts = Record<LlmSlot, { temperature: number | null; maxTokens: number | null }>
+
+const PARAMS_VIDES: ParamsBruts = {
+  agent: { temperature: null, maxTokens: null },
+  judge: { temperature: null, maxTokens: null },
+  adequation: { temperature: null, maxTokens: null },
+}
+
+/** Lit les paramètres bruts des 3 slots (cache Redis dédié ; fail-soft → défauts). */
+async function getRawParams(): Promise<ParamsBruts> {
+  try {
+    const cached = await redis.get(PARAMS_CACHE_KEY)
+    if (cached) return JSON.parse(cached) as ParamsBruts
+  } catch (err) {
+    logger.warn('[llm-params] lecture cache échouée', { err: String(err) })
+  }
+
+  let raw: ParamsBruts
+  try {
+    const row = await prisma.llmConfig.findUnique({
+      where: { id: 'default' },
+      select: {
+        agentTemp: true, judgeTemp: true, adequationTemp: true,
+        agentMaxTokens: true, judgeMaxTokens: true, adequationMaxTokens: true,
+      },
+    })
+    raw = row
+      ? {
+          agent: { temperature: row.agentTemp, maxTokens: row.agentMaxTokens },
+          judge: { temperature: row.judgeTemp, maxTokens: row.judgeMaxTokens },
+          adequation: { temperature: row.adequationTemp, maxTokens: row.adequationMaxTokens },
+        }
+      : PARAMS_VIDES
+  } catch (err) {
+    logger.warn('[llm-params] lecture base échouée → défauts', { err: String(err) })
+    return PARAMS_VIDES
+  }
+
+  try {
+    await redis.set(PARAMS_CACHE_KEY, JSON.stringify(raw), 'EX', CACHE_TTL_S)
+  } catch {
+    /* cache best-effort */
+  }
+  return raw
+}
+
+/**
+ * Paramètres d'échantillonnage effectifs (bornés) pour un slot. À la différence de
+ * getSlotModel, s'applique AUSSI en provider local (temp/tokens sont provider-agnostiques).
+ */
+export async function getSlotParams(slot: LlmSlot): Promise<SlotParams> {
+  const raw = await getRawParams()
+  return resoudreParams(slot, raw[slot])
+}
+
+/**
+ * Écrit les paramètres d'un ou plusieurs slots après CLAMP (jamais de valeur hors bornes en
+ * base), puis invalide le cache. Renvoie les valeurs effectives résultantes par slot.
+ */
+export async function setLlmParams(
+  patch: Partial<Record<LlmSlot, { temperature?: number | null; maxTokens?: number | null }>>,
+  updatedBy?: string,
+): Promise<Record<LlmSlot, SlotParams>> {
+  const data: Record<string, number | null> = {}
+  for (const [slot, vals] of Object.entries(patch) as [LlmSlot, { temperature?: number | null; maxTokens?: number | null }][]) {
+    const def = DEFAULTS_PAR_SLOT[slot]
+    if (vals.temperature !== undefined) {
+      data[`${slot}Temp`] = vals.temperature === null ? null : clampTemp(vals.temperature, def.temperature)
+    }
+    if (vals.maxTokens !== undefined) {
+      data[`${slot}MaxTokens`] = vals.maxTokens === null ? null : clampMaxTokens(vals.maxTokens, def.maxTokens)
+    }
+  }
+
+  // Les 3 modèles sont requis pour créer la ligne singleton si absente.
+  const current = await getLlmConfig()
+  await prisma.llmConfig.upsert({
+    where: { id: 'default' },
+    create: {
+      id: 'default',
+      agentModel: current.agent,
+      judgeModel: current.judge,
+      adequationModel: current.adequation,
+      updatedBy: updatedBy ?? null,
+      ...data,
+    },
+    update: { ...data, updatedBy: updatedBy ?? null },
+  })
+
+  try {
+    await redis.del(PARAMS_CACHE_KEY)
+  } catch {
+    /* invalidation best-effort — le TTL court rattrapera */
+  }
+
+  return {
+    agent: await getSlotParams('agent'),
+    judge: await getSlotParams('judge'),
+    adequation: await getSlotParams('adequation'),
+  }
 }
 
 /**

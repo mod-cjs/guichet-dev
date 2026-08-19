@@ -9,7 +9,7 @@
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import { getLlmClient } from '../llm-client'
-import { getSlotModel } from '../llm-config'
+import { getSlotModel, getSlotParams } from '../llm-config'
 import { pseudonymizeText } from './pseudonymize'
 import type { ReconstructedTranscript } from './transcript'
 
@@ -90,6 +90,7 @@ export function formatTranscriptForJudge(t: ReconstructedTranscript): string {
 export async function judgeTranscript(t: ReconstructedTranscript): Promise<EvalScore | null> {
   const texte = formatTranscriptForJudge(t)
   const model = await getSlotModel('judge')
+  const params = await getSlotParams('judge')
   try {
     const completion = await getLlmClient(model).chat.completions.create({
       model,
@@ -97,8 +98,8 @@ export async function judgeTranscript(t: ReconstructedTranscript): Promise<EvalS
         { role: 'system', content: JUDGE_SYSTEM },
         { role: 'user', content: texte },
       ],
-      temperature: 0,
-      max_tokens: 400,
+      temperature: params.temperature,
+      max_tokens: params.maxTokens,
       response_format: { type: 'json_object' },
     })
     const raw = completion.choices[0]?.message?.content ?? ''

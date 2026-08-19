@@ -12,6 +12,7 @@ jest.mock('@/lib/ia/llm-client', () => ({
 }))
 jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
+  getSlotParams: jest.fn().mockResolvedValue({ temperature: 0, maxTokens: 400 }),
 }))
 jest.mock('@/lib/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }))
 

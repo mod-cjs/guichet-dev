@@ -8,7 +8,7 @@
  */
 import { z } from 'zod'
 import { getLlmClient } from '@/lib/ia/llm-client'
-import { getSlotModel } from '@/lib/ia/llm-config'
+import { getSlotModel, getSlotParams } from '@/lib/ia/llm-config'
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { htmlToPlainText } from '@/lib/rich-html'
@@ -123,14 +123,15 @@ export async function computeScoreAdequation(candidatureId: string): Promise<voi
   const { system, user } = buildAdequationMessages(input)
   try {
     const model = await getSlotModel('adequation')
+    const params = await getSlotParams('adequation')
     const completion = await getLlmClient(model).chat.completions.create({
       model,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      temperature: 0,
-      max_tokens: 200,
+      temperature: params.temperature,
+      max_tokens: params.maxTokens,
       response_format: { type: 'json_object' },
     })
     const parsed = parseScore(completion.choices[0]?.message?.content ?? '')

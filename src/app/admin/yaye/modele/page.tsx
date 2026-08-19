@@ -2,9 +2,10 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
-import { getLlmConfig } from '@/lib/ia/llm-config'
+import { getLlmConfig, getSlotParams } from '@/lib/ia/llm-config'
 import { isLocalProvider, localModel } from '@/lib/ia/llm-client'
 import { SUPPORTED_MODELS } from '@/lib/ia/supported-models'
+import { TEMP_MIN, TEMP_MAX, TOKENS_MIN, TOKENS_MAX } from '@/lib/ia/llm-params'
 import { ModeleForm } from './ModeleForm'
 
 // GUIC-537 — Panel admin : choix du modèle LLM (Vertex) par usage. RBAC admin.
@@ -16,7 +17,11 @@ export default async function Page() {
   const session = await getSession()
   if (!session || !isAdminRole(session.roles)) redirect('/auth/connexion')
 
-  const config = await getLlmConfig()
+  const [config, agent, judge, adequation] = await Promise.all([
+    getLlmConfig(), getSlotParams('agent'), getSlotParams('judge'), getSlotParams('adequation'),
+  ])
+  const params = { agent, judge, adequation }
+  const bornes = { tempMin: TEMP_MIN, tempMax: TEMP_MAX, tokensMin: TOKENS_MIN, tokensMax: TOKENS_MAX }
   const local = isLocalProvider()
 
   return (
@@ -35,7 +40,7 @@ export default async function Page() {
           <code> LLM_PROVIDER=lmstudio</code>.
         </div>
       )}
-      <ModeleForm initialConfig={config} models={SUPPORTED_MODELS} />
+      <ModeleForm initialConfig={config} initialParams={params} bornes={bornes} models={SUPPORTED_MODELS} />
     </div>
   )
 }

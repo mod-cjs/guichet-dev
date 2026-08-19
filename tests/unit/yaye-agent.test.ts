@@ -19,6 +19,7 @@ jest.mock('@/lib/ia/llm-client', () => ({
 }))
 jest.mock('@/lib/ia/llm-config', () => ({
   getSlotModel: jest.fn().mockResolvedValue('google/gemini-2.5-flash'),
+  getSlotParams: jest.fn().mockResolvedValue({ temperature: 0.6, maxTokens: 320 }),
 }))
 // Graphe isolé (testé séparément) : pas de DB/Neo4j ici.
 jest.mock('@/lib/ia/graph-context', () => ({ buildGraphContext: async () => '', GRAPH_PREAMBLE: '' }))
