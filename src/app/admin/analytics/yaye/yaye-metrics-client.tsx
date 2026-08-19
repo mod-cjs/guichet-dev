@@ -17,6 +17,7 @@ import type { YqsGlobal } from '@/lib/ia/metrics/yqs'
 import type { RegressionReport } from '@/lib/ia/metrics/regression-data'
 import type { CalibrationReport } from '@/lib/ia/metrics/calibration-data'
 import type { IntentionCount } from '@/lib/ia/metrics/intentions'
+import type { IntentionSante } from '@/lib/ia/metrics/intentions-echec'
 
 interface Filtres {
   from: string
@@ -32,6 +33,7 @@ interface Props {
   regression: RegressionReport
   calibration: CalibrationReport | null
   topIntentions: IntentionCount[]
+  intentionsEnEchec: IntentionSante[]
   filtres: Filtres
 }
 
@@ -67,7 +69,17 @@ function Kpi({
   )
 }
 
-export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression, calibration, topIntentions, filtres }: Props) {
+export function YayeMetricsClient({
+  rollups,
+  feedback,
+  outcomes,
+  yqs,
+  regression,
+  calibration,
+  topIntentions,
+  intentionsEnEchec,
+  filtres,
+}: Props) {
   const router = useRouter()
   const [from, setFrom] = useState(filtres.from)
   const [to, setTo] = useState(filtres.to)
@@ -266,6 +278,52 @@ export function YayeMetricsClient({ rollups, feedback, outcomes, yqs, regression
                 </div>
               ))
             })()
+          )}
+        </Card>
+      </section>
+
+      {/* Intentions en échec — backlog d'amélioration (couche 3-4, croisé par intention) */}
+      <section className="flex flex-col gap-space-3">
+        <h2 className="text-fs-400 font-bold">Intentions en échec</h2>
+        <span className="text-fs-200 text-color-text-secondary">
+          Sujets où Yaye s&apos;en sort le moins bien — backlog d&apos;amélioration.
+        </span>
+        <Card>
+          {intentionsEnEchec.length === 0 ? (
+            <span className="text-fs-200 text-color-text-secondary">
+              Pas assez de données d&apos;intention sur la période.
+            </span>
+          ) : (
+            <table className="w-full text-fs-300">
+              <thead>
+                <tr className="text-left text-color-text-secondary">
+                  <th className="py-space-1">Intention</th>
+                  <th className="py-space-1">Sessions</th>
+                  <th className="py-space-1">Taux résolu</th>
+                  <th className="py-space-1">Taux escalade</th>
+                  <th className="py-space-1">Drapeau rouge</th>
+                  <th className="py-space-1">YQS moyen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {intentionsEnEchec.map((it) => (
+                  <tr key={it.intention} data-testid="intention-echec-row" className="border-t border-gj-line">
+                    <td className="py-space-2 font-bold">{intentLabel(it.intention)}</td>
+                    <td className="py-space-2">{it.total}</td>
+                    <td className={`py-space-2 ${it.tauxResolu < 50 ? 'text-gj-red-ink font-bold' : ''}`}>
+                      {it.tauxResolu.toFixed(1)} %
+                    </td>
+                    <td className={`py-space-2 ${it.tauxEscalade > 30 ? 'text-gj-red-ink font-bold' : ''}`}>
+                      {it.tauxEscalade.toFixed(1)} %
+                    </td>
+                    <td className={`py-space-2 ${it.tauxDrapeauRouge > 0 ? 'text-gj-red-ink font-bold' : ''}`}>
+                      {it.tauxDrapeauRouge.toFixed(1)} %
+                    </td>
+                    <td className="py-space-2">{it.yqsMoyen == null ? '—' : it.yqsMoyen}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </Card>
       </section>

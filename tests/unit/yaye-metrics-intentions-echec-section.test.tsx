@@ -59,9 +59,10 @@ const baseProps = {
   filtres: { from: '2026-07-01', to: '2026-07-31', canal: 'tous' as const },
 }
 
-// Types réels du module, castés `any` pour simplifier (les KPI amont hors périmètre).
+// Props des KPI amont hors périmètre (déjà couvertes ailleurs) — cast global volontaire.
 function renderClient(intentionsEnEchec: IntentionSante[]) {
-  render(<YayeMetricsClient {...(baseProps as never)} intentionsEnEchec={intentionsEnEchec} />)
+  const props = { ...baseProps, intentionsEnEchec } as unknown as Parameters<typeof YayeMetricsClient>[0]
+  render(<YayeMetricsClient {...props} />)
 }
 
 describe('YayeMetricsClient — section Intentions en échec (GUIC-435)', () => {
