@@ -12,6 +12,7 @@
  * À exécuter uniquement contre une base de dev/test isolée (jamais prod) — cf. DATABASE_URL.
  */
 
+import type { Domaine, Region, TypeOpportunite } from '@prisma/client'
 import { getPrisma } from './prisma'
 
 /** cjsUid stables partagés par le mock SSO (claims) et le seed (rattachements). */
@@ -121,9 +122,13 @@ export async function seedOpportunite(opts: {
   slug?: string
   titre?: string
   statut?: 'brouillon' | 'publiee' | 'archivee' | 'expiree'
-  type?: string
-  domaine?: string
-  region?: string
+  // GUIC-153 — challenge du 19/08 : typés contre les vrais enums Prisma, plus un `string`
+  // générique + `as never` en aval. C'est ce relâchement qui a laissé passer silencieusement
+  // domaine: 'Numerique' (retiré par la refonte de taxonomie) jusqu'à l'échec en exécution
+  // réelle — désormais rejeté au compile-time, avant même le premier `npm run test`.
+  type?: TypeOpportunite
+  domaine?: Domaine
+  region?: Region
   deadlineDansJours?: number
   recruteurUid?: string
   organisationId?: string
@@ -139,12 +144,12 @@ export async function seedOpportunite(opts: {
       slug,
       titre:          opts.titre ?? 'Opportunité E2E — Développeur junior',
       description:    'Description E2E suffisamment longue pour un rendu réaliste du détail.',
-      type:           (opts.type ?? 'Stage') as never,
+      type:           opts.type ?? 'Stage',
       organisation:   'Organisation E2E',
-      domaine:        (opts.domaine ?? 'Economie') as never,
-      region:         (opts.region ?? 'Dakar') as never,
+      domaine:        opts.domaine ?? 'Economie',
+      region:         opts.region ?? 'Dakar',
       deadline,
-      statut:         (opts.statut ?? 'publiee') as never,
+      statut:         opts.statut ?? 'publiee',
       recruteurUid:   opts.recruteurUid ?? null,
       organisationId: opts.organisationId ?? null,
     },
