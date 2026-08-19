@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import {
+  memoriserIntentionFavori,
+  consommerIntentionFavori,
+  lienConnexionAvecRetour,
+} from '@/lib/ressources/favori-intent'
 import { Input, Chip, EmptyState, Icon, Button, Toast } from '@/components/ui'
 import { ResourceCard } from './ResourceCard'
 import {
@@ -103,7 +108,26 @@ export function RessourcesClient({
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (cancelled || !j?.data) return
-        setFavoriIds(new Set<string>(j.data as string[]))
+        const ids = new Set<string>(j.data as string[])
+        setFavoriIds(ids)
+
+        // GUIC-689 — l'utilisateur revient peut-être d'une connexion demandée
+        // par son propre clic sur un favori. On rejoue son intention.
+        // L'intention est consommée dans tous les cas : l'API est un toggle,
+        // une intention qui survit retirerait au montage suivant le favori
+        // qu'elle vient de poser.
+        const intention = consommerIntentionFavori()
+        if (!intention || ids.has(intention)) return
+        fetch(`/api/ressources/${intention}/favori`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+          .then((r) => {
+            if (cancelled || !r.ok) return
+            setFavoriIds((prev) => new Set(prev).add(intention))
+            setFavToast({ message: 'Ajouté aux favoris', variant: 'success' })
+          })
+          .catch(() => {})
       })
       .catch(() => {})
     return () => {
@@ -202,40 +226,40 @@ export function RessourcesClient({
 
   const handleToggleFavori = async (id: string) => {
     const wasFavori = favoriIds.has(id)
-    setFavoriIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-    // Feedback optimiste immédiat.
-    setFavToast({
-      message: wasFavori ? 'Retiré des favoris' : 'Ajouté aux favoris',
-      variant: 'success',
-    })
-    try {
-      const res = await fetch(`/api/ressources/${id}/favori`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (res.status === 401) {
-        setFavoriIds((prev) => {
-          const next = new Set(prev)
-          if (next.has(id)) next.delete(id)
-          else next.add(id)
-          return next
-        })
-        router.push('/auth/connexion')
-        return
-      }
-      if (!res.ok) throw new Error('toggle failed')
-    } catch {
+    const basculer = () =>
       setFavoriIds((prev) => {
         const next = new Set(prev)
         if (next.has(id)) next.delete(id)
         else next.add(id)
         return next
       })
+
+    // L'état visuel du bouton reste optimiste : c'est le retour immédiat du
+    // geste. Le MESSAGE, lui, attend la réponse — annoncer « Ajouté aux
+    // favoris » avant de savoir si le serveur accepte, c'est confirmer un
+    // refus (GUIC-689 : en anonyme, la réponse est un 401).
+    basculer()
+    try {
+      const res = await fetch(`/api/ressources/${id}/favori`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (res.status === 401) {
+        basculer()
+        // On retient la ressource visée et le chemin courant : au retour du
+        // SSO, l'utilisateur retrouve sa liste filtrée ET son favori posé.
+        memoriserIntentionFavori(id)
+        const search = sp.toString()
+        router.push(lienConnexionAvecRetour(pathname + (search ? `?${search}` : '')))
+        return
+      }
+      if (!res.ok) throw new Error('toggle failed')
+      setFavToast({
+        message: wasFavori ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        variant: 'success',
+      })
+    } catch {
+      basculer()
       setFavToast({ message: 'Action impossible, réessayez', variant: 'danger' })
     }
   }

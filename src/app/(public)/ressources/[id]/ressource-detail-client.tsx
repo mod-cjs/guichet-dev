@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import {
+  memoriserIntentionFavori,
+  consommerIntentionFavori,
+  lienConnexionAvecRetour,
+} from '@/lib/ressources/favori-intent'
 import { Button, Icon, type IconName, PdfViewer, VideoEmbed } from '@/components/ui'
 import { RessourceShareButton } from '@/components/ressources/RessourceShareButton'
 import { parseVideoEmbedUrl } from '@/lib/parsers/video-url'
@@ -49,6 +54,7 @@ const CTA_ICON: Record<TypeRessourceValue, IconName> = {
  */
 export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false }: RessourceDetailClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [isFavori, setIsFavori] = useState(false)
   const [favoriPending, setFavoriPending] = useState(false)
 
@@ -62,7 +68,24 @@ export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false
       .then((j) => {
         if (cancelled || !j?.data) return
         const ids = j.data as string[]
-        setIsFavori(ids.includes(detail.id))
+        const dejaFavori = ids.includes(detail.id)
+        setIsFavori(dejaFavori)
+
+        // GUIC-689 — l'utilisateur revient peut-être d'une connexion qu'il a
+        // déclenchée en cliquant ce bouton. On rejoue son intention.
+        // Elle est consommée dans tous les cas : l'API est un toggle, une
+        // intention qui survit retirerait au montage suivant le favori qu'elle
+        // vient de poser.
+        const intention = consommerIntentionFavori()
+        if (intention !== detail.id || dejaFavori) return
+        fetch(`/api/ressources/${detail.id}/favori`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+          .then((r) => {
+            if (!cancelled && r.ok) setIsFavori(true)
+          })
+          .catch(() => {})
       })
       .catch(() => {})
     return () => {
@@ -82,7 +105,12 @@ export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false
       })
       if (res.status === 401) {
         setIsFavori(previous)
-        router.push('/auth/connexion')
+        // GUIC-689 — on retient la ressource visée et le chemin courant : au
+        // retour du SSO, l'utilisateur retrouve sa ressource ET son favori.
+        // L'intention passe par sessionStorage, jamais par l'URL : un lien
+        // forgé écrirait sinon dans le compte de qui le suit.
+        memoriserIntentionFavori(detail.id)
+        router.push(lienConnexionAvecRetour(pathname))
         return
       }
       if (!res.ok) {

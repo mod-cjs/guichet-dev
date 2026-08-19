@@ -20,8 +20,14 @@ interface Props {
 }
 
 export default async function ConnexionPage({ searchParams }: Props) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
   const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Une erreur est survenue.') : null
+
+  // GUIC-689 — on porte la destination de retour jusqu'à /api/auth/login, qui
+  // la valide (`safeReturnTo`) avant de la confier au cookie du flux OAuth.
+  const lienSso = next
+    ? `/api/auth/login?next=${encodeURIComponent(next)}`
+    : '/api/auth/login'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-color-bg-page px-space-4">
@@ -75,7 +81,7 @@ export default async function ConnexionPage({ searchParams }: Props) {
             Une connexion n'est pas un CTA de conversion : teal-deep en base
             (réf auth-screens.jsx:59), jamais gj-action/gj-teal. */}
         <a
-          href="/api/auth/login"
+          href={lienSso}
           className="flex items-center justify-center gap-space-2 w-full
             bg-gj-teal-deep text-white font-bold text-fs-400 rounded-gj-md
             min-h-[var(--tap-min)] px-space-4
