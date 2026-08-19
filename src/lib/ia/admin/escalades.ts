@@ -4,6 +4,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { CanalAgent, StatutEscalade, Prisma } from '@prisma/client'
+import { echeanceSla, enRetardSla } from '@/lib/ia/escalade-sla'
 
 export interface EscaladeListFilters {
   statut?: StatutEscalade
@@ -36,6 +37,9 @@ export interface EscaladeRow {
   traitePar: string | null
   traiteA: Date | null
   createdAt: Date
+  /** GUIC-259 — échéance de traitement (dérivée priorité+createdAt) et dépassement SLA. */
+  echeanceSla: Date
+  enRetardSla: boolean
   /** Bénéficiaire résolu (null si anonyme/non identifié). */
   user: EscaladeUser | null
 }
@@ -97,9 +101,15 @@ export async function listEscalades(
     : []
   const userByUid = new Map(users.map((u) => [u.cjsUid, u]))
 
+  const now = new Date()
   const enriched: EscaladeRow[] = rows.map((r) => {
     const u = r.cjsUid ? userByUid.get(r.cjsUid) : undefined
-    return { ...r, user: u ? { prenom: u.prenom, nom: u.nom, telephone: u.telephone } : null }
+    return {
+      ...r,
+      echeanceSla: echeanceSla(r.priorite, r.createdAt),
+      enRetardSla: enRetardSla(r, now),
+      user: u ? { prenom: u.prenom, nom: u.nom, telephone: u.telephone } : null,
+    }
   })
 
   return { rows: enriched, total, counts }
