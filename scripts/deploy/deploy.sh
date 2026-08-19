@@ -230,6 +230,44 @@ sync_crontab() {
   fi
 }
 
+# ── -1. Synchronisation des secrets depuis Doppler (optionnelle) ───────────
+# GUIC-625 — l'organisation adopte Doppler (projet `guichet`, configs dev/stg/prod) plutôt
+# que de dépendre uniquement d'un fichier `.env` plat maintenu à la main sur le serveur — le
+# pattern à l'origine de la fuite historique (script committant des secrets en clair) n'avait
+# jamais été remis en question, juste rapiécé au niveau du vecteur de fuite.
+#
+# Écrit directement dans GUICHET_ENV_FILE : AUCUN changement de docker-compose.*.yml requis,
+# `env_file: - ${GUICHET_ENV_FILE}` continue de lire le même fichier, désormais généré plutôt
+# que édité à la main.
+#
+# Opt-in explicite, même principe que sync_crontab (GUIC-683) : effet de bord SUR LA MACHINE,
+# un poste de dev sans Doppler configuré ne doit jamais tenter cet appel.
+sync_secrets_from_doppler() {
+  if [[ "${DOPPLER_SYNC:-0}" != "1" ]]; then
+    log "Synchronisation Doppler ignorée (DOPPLER_SYNC≠1 — fichier de secrets déjà en place)."
+    return 0
+  fi
+  local config="${DOPPLER_CONFIG:?DOPPLER_CONFIG requis si DOPPLER_SYNC=1 (ex. stg, prod)}"
+  log "Récupération des secrets depuis Doppler (projet guichet, config $config)…"
+
+  local genere
+  genere="$(mktemp)"
+  trap 'rm -f "$genere"' RETURN
+
+  if ! doppler secrets download --project guichet --config "$config" --no-file --format env > "$genere"; then
+    err "Récupération Doppler ÉCHOUÉE — déploiement interrompu (jamais de secrets périmés utilisés)."
+    exit 2
+  fi
+  # Un résultat vide (Doppler injoignable renvoyant 0, config vidée par erreur) écraserait un
+  # fichier de secrets valide par du rien — le même garde-fou que sync_crontab pour le crontab.
+  if [[ ! -s "$genere" ]]; then
+    err "Doppler a renvoyé un résultat vide — déploiement interrompu (pas d'écrasement par du vide)."
+    exit 2
+  fi
+  install -m 600 "$genere" "$GUICHET_ENV_FILE"
+  log "Secrets synchronisés depuis Doppler ($config) → $GUICHET_ENV_FILE"
+}
+
 # ── 0. Preflight — AVANT tout effet de bord ─────────────────────────────────
 # GUIC-621 — vérifie les faits d'infra contre le serveur réel (secrets, MariaDB joignable depuis
 # un conteneur, ACL Redis, endpoint S3). Placé EN PREMIER délibérément : un preflight lancé après
@@ -241,6 +279,7 @@ preflight() {
 }
 
 main() {
+  sync_secrets_from_doppler
   require
   preflight
   backup_db
