@@ -8,6 +8,8 @@ const mockEntFind = jest.fn()
 const mockUserFind = jest.fn()
 const mockInscFind = jest.fn()
 const mockEmpruntFind = jest.fn()
+const mockEscaladeFind = jest.fn()
+const mockAgentCentreFind = jest.fn()
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     reservation: { findMany: (...a: unknown[]) => mockResaFind(...a) },
@@ -15,6 +17,8 @@ jest.mock('@/lib/prisma', () => ({
     utilisateur: { findMany: (...a: unknown[]) => mockUserFind(...a) },
     inscriptionEvenement: { findMany: (...a: unknown[]) => mockInscFind(...a) },
     emprunt: { findMany: (...a: unknown[]) => mockEmpruntFind(...a) },
+    escaladeYaye: { findMany: (...a: unknown[]) => mockEscaladeFind(...a) },
+    agentCentre: { findMany: (...a: unknown[]) => mockAgentCentreFind(...a) },
   },
 }))
 
@@ -34,7 +38,32 @@ beforeEach(() => {
   mockUserFind.mockResolvedValue([])
   mockInscFind.mockResolvedValue([])
   mockEmpruntFind.mockResolvedValue([])
+  mockEscaladeFind.mockResolvedValue([])
+  mockAgentCentreFind.mockResolvedValue([])
   mockEmit.mockResolvedValue(undefined)
+})
+
+describe('GUIC-259 — re-alerte escalade SLA dépassé', () => {
+  it('émet yaye.escalade_sla_depassee au pool conseiller pour chaque escalade en retard SLA', async () => {
+    mockEscaladeFind.mockResolvedValue([{ id: 'esc-1' }])
+    mockAgentCentreFind.mockResolvedValue([{ cjsUid: 'cons-1' }])
+    mockUserFind.mockResolvedValue([{ cjsUid: 'cons-1', ...COORDS }])
+
+    const summary = await runNotificationReminders(NOW)
+
+    expect(summary.escaladesSlaDepassee).toBe(1)
+    const call = mockEmit.mock.calls.find((c) => c[0] === 'yaye.escalade_sla_depassee')
+    expect(call).toBeDefined()
+    expect(call![1].entityId).toBe('esc-1')
+    expect(call![1].recipients.map((r: { role: string }) => r.role)).toEqual(['conseiller'])
+  })
+
+  it('aucune escalade en retard → aucune émission', async () => {
+    mockEscaladeFind.mockResolvedValue([])
+    const summary = await runNotificationReminders(NOW)
+    expect(summary.escaladesSlaDepassee).toBe(0)
+    expect(mockEmit.mock.calls.find((c) => c[0] === 'yaye.escalade_sla_depassee')).toBeUndefined()
+  })
 })
 
 describe('tomorrowWindow', () => {

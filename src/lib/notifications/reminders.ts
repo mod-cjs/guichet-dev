@@ -5,6 +5,7 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { emitEvent, type EmitRecipient } from './emit'
+import { whereEnRetardSla } from '@/lib/ia/escalade-sla'
 
 /** Borne chaque requête pour garder le cron court (lot quotidien largement suffisant). */
 const BATCH = 500
@@ -38,6 +39,8 @@ export interface RemindersSummary {
   entretiens: number
   evenements: number
   empruntsEnRetard: number
+  /** GUIC-259 — escalades re-alertées car SLA de traitement dépassé. */
+  escaladesSlaDepassee: number
 }
 
 async function rappelsReservations(start: Date, end: Date): Promise<number> {
@@ -158,16 +161,60 @@ async function rappelsEmpruntsEnRetard(now: Date): Promise<number> {
   return rows.length
 }
 
+/**
+ * GUIC-259 (Phase 1) — re-alerte le pool conseiller quand une escalade dépasse son SLA de
+ * traitement sans être résolue (la notif de création ne part qu'une fois → un danger qui
+ * traîne resterait silencieux). Idempotence emitEvent (TTL 7 j) par (escalade, destinataire).
+ */
+async function rappelsEscaladesEnRetardSla(now: Date): Promise<number> {
+  const escalades = await prisma.escaladeYaye.findMany({
+    where: whereEnRetardSla(now),
+    select: { id: true },
+    take: BATCH,
+  })
+  if (escalades.length === 0) return 0
+
+  // Pool conseiller/directeur (comme à la création — pas de remise par centre, décision produit).
+  const staff = await prisma.agentCentre.findMany({
+    where: { role: { in: ['conseiller', 'directeur'] } },
+    select: { cjsUid: true },
+    distinct: ['cjsUid'],
+    take: 200,
+  })
+  const uids = [...new Set(staff.map((s) => s.cjsUid))]
+  if (uids.length === 0) return 0
+  const users = await prisma.utilisateur.findMany({
+    where: { cjsUid: { in: uids } },
+    select: { cjsUid: true, prenom: true, telephone: true, email: true },
+  })
+  const recipients: EmitRecipient[] = users.map((u) => recipient(u.cjsUid, 'conseiller', u))
+  if (recipients.length === 0) return 0
+
+  for (const e of escalades) {
+    await emitEvent('yaye.escalade_sla_depassee', {
+      entityId: e.id,
+      type: 'Yaye',
+      titre: 'Escalade à traiter — délai dépassé',
+      contenu: 'Une escalade Yaye a dépassé son délai de prise en charge. Merci de la traiter.',
+      lien: '/admin/yaye/escalades',
+      iconName: 'alert',
+      recipients,
+    })
+  }
+  return escalades.length
+}
+
 /** Exécute tous les rappels. Chaque volet est isolé (un échec n'empêche pas les autres). */
 export async function runNotificationReminders(now: Date = new Date()): Promise<RemindersSummary> {
   const { start, end } = tomorrowWindow(now)
-  const summary: RemindersSummary = { reservations: 0, entretiens: 0, evenements: 0, empruntsEnRetard: 0 }
+  const summary: RemindersSummary = { reservations: 0, entretiens: 0, evenements: 0, empruntsEnRetard: 0, escaladesSlaDepassee: 0 }
 
   const volets: Array<[keyof RemindersSummary, () => Promise<number>]> = [
     ['reservations', () => rappelsReservations(start, end)],
     ['entretiens', () => rappelsEntretiens(start, end)],
     ['evenements', () => rappelsEvenements(start, end)],
     ['empruntsEnRetard', () => rappelsEmpruntsEnRetard(now)],
+    ['escaladesSlaDepassee', () => rappelsEscaladesEnRetardSla(now)],
   ]
   for (const [cle, run] of volets) {
     try {

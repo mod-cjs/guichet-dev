@@ -30,3 +30,17 @@ export function enRetardSla(
   if (e.statut === 'resolue') return false
   return now > echeanceSla(e.priorite, e.createdAt)
 }
+
+/**
+ * Condition Prisma « escalades en retard SLA » : non résolues, dont l'ancienneté dépasse le
+ * SLA de LEUR priorité. Source unique pour les rappels (re-notification staleness).
+ */
+export function whereEnRetardSla(now: Date): import('@prisma/client').Prisma.EscaladeYayeWhereInput {
+  return {
+    statut: { not: 'resolue' },
+    OR: Object.entries(SLA_MINUTES).map(([p, mins]) => ({
+      priorite: Number(p),
+      createdAt: { lt: new Date(now.getTime() - mins * 60_000) },
+    })),
+  }
+}
