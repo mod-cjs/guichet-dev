@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { erreurServeur } from '@/lib/observability/erreur-serveur'
+import { canalFromSrc, trackConsultation } from '@/lib/analytics/consultations'
 
 /**
  * GUIC-374 — Proxy de fichier ressource (PDF principalement).
@@ -30,6 +31,18 @@ import { erreurServeur } from '@/lib/observability/erreur-serveur'
 const FRAME_FRIENDLY_HEADERS: Record<string, string> = {
   'X-Frame-Options': 'SAMEORIGIN',
   'Content-Security-Policy': "frame-ancestors 'self'",
+}
+
+/**
+ * IP cliente — `x-real-ip` (injecté par le proxy) puis `x-forwarded-for`.
+ * Même logique que `/api/opportunites/[slug]`, pour que le dédoublonnage des
+ * consultations soit cohérent d'un endpoint à l'autre.
+ */
+function clientIp(request: NextRequest): string {
+  const real = request.headers.get('x-real-ip')
+  if (real) return real.trim()
+  const fwd = request.headers.get('x-forwarded-for')
+  return fwd?.split(',')[0]?.trim() || 'no-ip'
 }
 
 function withFrameFriendlyHeaders<T extends NextResponse>(response: T): T {
@@ -133,6 +146,29 @@ export async function GET(
     headers.set('Content-Disposition', `attachment; filename="${safeName}${ext}"`)
   } else {
     headers.set('Content-Disposition', 'inline')
+  }
+
+  // GUIC-709 — le téléchargement se mesure ICI, et seulement ici : c'est le
+  // moment où le fichier part réellement. Un clic sur le CTA n'est pas un
+  // téléchargement (l'utilisateur peut annuler, la source peut échouer), et la
+  // lecture inline du viewer se déclenche à chaque affichage de fiche.
+  //
+  // Route handler : la requête est encore là, on appelle donc directement — pas
+  // d'`after()` (cf. GUIC-708, où lire la requête dans le callback a fait perdre
+  // toute la mesure en silence).
+  //
+  // `typeEvent: 'telechargement'` et non `consultation` : `incrementerCache` ne
+  // touche `vues` que pour cette dernière, donc emporter un fichier ne gonfle
+  // pas l'audience de la ressource.
+  if (download) {
+    await trackConsultation({
+      typeEntite: 'ressource',
+      entiteId:   id,
+      typeEvent:  'telechargement',
+      canal:      canalFromSrc(request.nextUrl.searchParams.get('src')),
+      ip:         clientIp(request),
+      userAgent:  request.headers.get('user-agent')?.slice(0, 512) || undefined,
+    })
   }
 
   return new NextResponse(upstream.body, { status: 200, headers })
