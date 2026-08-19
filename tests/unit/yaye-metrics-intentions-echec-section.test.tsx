@@ -56,6 +56,7 @@ const baseProps = {
   regression: { baseline: null, current: { yqs: null, fidelite: null, conformiteCdp: null, intentPrecision: null }, result: null },
   calibration: null,
   topIntentions: [],
+  evalCoverage: { total: 100, evaluees: 20, pct: 20 },
   filtres: { from: '2026-07-01', to: '2026-07-31', canal: 'tous' as const },
 }
 
@@ -120,5 +121,12 @@ describe('YayeMetricsClient — section Intentions en échec (GUIC-435)', () => 
     renderClient([])
     expect(screen.getByText("Pas assez de données d'intention sur la période.")).toBeInTheDocument()
     expect(screen.queryByTestId('intention-echec-row')).not.toBeInTheDocument()
+  })
+
+  it('GUIC-435 — affiche la couverture d’éval (échantillon) pour que « — » ne se lise pas « mauvais »', () => {
+    renderClient([])
+    expect(screen.getByText(/Couverture d.éval/)).toBeInTheDocument()
+    expect(screen.getByText(/sessions évaluées par le juge/)).toBeInTheDocument()
+    expect(screen.getByText(/ne signifie pas .* mauvais/)).toBeInTheDocument()
   })
 })

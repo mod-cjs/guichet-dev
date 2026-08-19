@@ -18,6 +18,7 @@ import type { RegressionReport } from '@/lib/ia/metrics/regression-data'
 import type { CalibrationReport } from '@/lib/ia/metrics/calibration-data'
 import type { IntentionCount } from '@/lib/ia/metrics/intentions'
 import type { IntentionSante } from '@/lib/ia/metrics/intentions-echec'
+import type { EvalCoverage } from '@/lib/ia/metrics/eval-coverage'
 
 interface Filtres {
   from: string
@@ -34,6 +35,7 @@ interface Props {
   calibration: CalibrationReport | null
   topIntentions: IntentionCount[]
   intentionsEnEchec: IntentionSante[]
+  evalCoverage: EvalCoverage
   filtres: Filtres
 }
 
@@ -78,6 +80,7 @@ export function YayeMetricsClient({
   calibration,
   topIntentions,
   intentionsEnEchec,
+  evalCoverage,
   filtres,
 }: Props) {
   const router = useRouter()
@@ -287,6 +290,10 @@ export function YayeMetricsClient({
         <h2 className="text-fs-400 font-bold">Intentions en échec</h2>
         <span className="text-fs-200 text-color-text-secondary">
           Sujets où Yaye s&apos;en sort le moins bien — backlog d&apos;amélioration.
+        </span>
+        {/* GUIC-435 — couverture d'éval : le juge n'évalue qu'un échantillon, « — » = non évalué (pas mauvais). */}
+        <span className="text-fs-200 text-color-text-muted">
+          Couverture d&apos;éval : <b>{evalCoverage.evaluees.toLocaleString('fr-FR')}</b>/{evalCoverage.total.toLocaleString('fr-FR')} sessions évaluées par le juge ({evalCoverage.pct} %) — le reste n&apos;est pas évalué (échantillon), un « — » ne signifie pas « mauvais ».
         </span>
         <Card>
           {intentionsEnEchec.length === 0 ? (
