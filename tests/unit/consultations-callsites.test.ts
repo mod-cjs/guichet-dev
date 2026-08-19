@@ -35,17 +35,20 @@ function source(fichier: string): string {
 describe('GUIC-688 — instrumentation des pages détail', () => {
   it.each(PAGES)('$fichier trace une consultation « $typeEntite »', ({ fichier, typeEntite }) => {
     const src = source(fichier)
-    expect(src).toContain('trackVuePage')
+    // GUIC-689 — le point d'instrumentation s'appelle désormais
+    // `differerVuePage` : il lit la requête pendant le rendu et ne diffère que
+    // l'écriture. L'exigence portée ici est inchangée — cette page mesure.
+    expect(src).toContain('differerVuePage')
     expect(src).toContain(`typeEntite: '${typeEntite}'`)
   })
 
-  // Un `void trackVuePage(...)` peut être abandonné par le runtime serverless
-  // quand la réponse part avant que la promesse ne se résolve : l'écriture est
-  // alors perdue sans erreur. `after()` existe exactement pour ça.
+  // Un `void differerVuePage(...)` peut être abandonné par le runtime
+  // serverless quand la réponse part avant que la promesse ne se résolve :
+  // l'écriture est alors perdue sans erreur. `after()` existe exactement pour ça.
   it.each(PAGES)('$fichier diffère le tracking avec after() et non un void', ({ fichier }) => {
     const src = source(fichier)
-    expect(src).toContain('after(() => trackVuePage(')
-    expect(src).not.toContain('void trackVuePage(')
+    expect(src).toContain('after(await differerVuePage(')
+    expect(src).not.toMatch(/void\s+(differerVuePage|trackVuePage)\(/)
     expect(src).toMatch(/import \{ after \} from 'next\/server'/)
   })
 

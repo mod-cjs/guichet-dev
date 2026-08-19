@@ -4,7 +4,7 @@ import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { getRessourceById, getRessourcesRelated } from '@/lib/loaders/ressources'
 import { getSession } from '@/lib/auth'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { RessourceDetailHero } from '@/components/ressources/RessourceDetailHero'
 import { RessourceRelatedList } from '@/components/ressources/RessourceRelatedList'
 import { Breadcrumbs } from '@/components/ui'
@@ -55,7 +55,7 @@ export default async function RessourceDetailPage({ params, searchParams }: Ress
   // dédoublonnage 30 min qui manquait ici (le compteur montait à chaque rendu).
   const session = await getSession()
   const sp = (await searchParams) ?? {}
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'ressource',
     entiteId:   detail.id,
     src:        sp.src,

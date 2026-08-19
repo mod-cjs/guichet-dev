@@ -3,7 +3,7 @@ import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { getCentreBySlug } from '@/lib/loaders/centres'
 import { estMasquee } from '@/lib/flags/ui-server'
 import { CentreDetailClient } from './centre-detail-client'
@@ -54,7 +54,7 @@ export default async function CentreDetailPage({ params, searchParams }: RoutePa
   // GUIC-688 — trace serveur. `centre_viewed` continue d'être émis côté client
   // vers `/api/v1/track` : double écriture assumée le temps de la transition.
   const sp = (await searchParams) ?? {}
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'centre',
     entiteId:   centre.id,
     src:        sp.src,
