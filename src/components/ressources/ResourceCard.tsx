@@ -34,8 +34,12 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
   // la lecture visuelle.
   const detailHref = `/ressources/${item.id}`
 
+  // GUIC-689 — `h-full` : dans une étagère, le flex étire les `li` à la
+  // hauteur du plus grand, mais la carte ne suivait pas. Mesuré au rendu, les
+  // cartes allaient de 153 à 200px dans des emplacements de 200 — le bas de
+  // l'étagère était irrégulier et une carte brève se lisait comme amputée.
   return (
-    <Card variant="opportunite" className="relative flex gap-space-3">
+    <Card variant="opportunite" className="relative flex gap-space-3 h-full">
       <a
         href={detailHref}
         aria-label={`Voir la ressource : ${item.titre}`}
@@ -51,7 +55,11 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
 
       <div className="flex-1 min-w-0 flex flex-col gap-space-1">
         <div className="flex items-start justify-between gap-space-2">
-          <h3 className="text-fs-400 font-black text-color-text-primary line-clamp-2">
+          {/* GUIC-689 — trois lignes, pas deux : 8 titres du fonds sur 20
+              dépassent ce que deux lignes de 178px peuvent porter. La coupe
+              reste CSS, le titre entier demeure dans le DOM pour les lecteurs
+              d'écran. */}
+          <h3 className="text-fs-400 font-black text-color-text-primary line-clamp-3">
             {item.titre}
           </h3>
           {/* GUIC-689 — le badge de type vivait ici. Mesuré au rendu, il
