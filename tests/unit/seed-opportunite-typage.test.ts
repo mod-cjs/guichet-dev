@@ -10,8 +10,13 @@
  * l'exécution du prochain run E2E.
  *
  * N'importe QUE le type de la fonction, ne l'appelle jamais (pas de connexion DB requise ici).
+ *
+ * Volontairement PAS sous tests/e2e/ : Playwright scanne ce dossier avec un testMatch par
+ * défaut qui inclut *.test.ts au même titre que *.spec.ts (testDir dans playwright.config.ts)
+ * — un fichier Jest pur y casse tout le run E2E (`describe is not defined`, 0 test exécuté,
+ * pas juste ce fichier). Trouvé en réel : a fait échouer l'intégralité de la CI Playwright.
  */
-import type { seedOpportunite } from './seed-e2e'
+import type { seedOpportunite } from '../e2e/_fixtures/seed-e2e'
 
 type Opts = NonNullable<Parameters<typeof seedOpportunite>[0]>
 
