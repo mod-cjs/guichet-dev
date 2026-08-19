@@ -40,9 +40,12 @@ export async function PATCH(
       { status: 400 },
     )
   }
+  // GUIC-259 — note de clôture (facultative), bornée ; n'a d'effet qu'à la résolution.
+  const noteRaw = (body as { resolutionNote?: unknown })?.resolutionNote
+  const resolutionNote = typeof noteRaw === 'string' ? noteRaw.slice(0, 2000) : null
 
   try {
-    await setEscaladeStatut(id, statut as StatutEscalade, session.cjsUid)
+    await setEscaladeStatut(id, statut as StatutEscalade, session.cjsUid, resolutionNote)
   } catch {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Escalade introuvable' } },

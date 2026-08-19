@@ -36,6 +36,8 @@ export interface EscaladeRow {
   statut: StatutEscalade
   traitePar: string | null
   traiteA: Date | null
+  /** GUIC-259 — note de clôture (ce qui a été fait / réponse humaine), si résolue. */
+  resolutionNote: string | null
   createdAt: Date
   /** GUIC-259 — échéance de traitement (dérivée priorité+createdAt) et dépassement SLA. */
   echeanceSla: Date
@@ -123,7 +125,11 @@ export async function setEscaladeStatut(
   id: string,
   statut: StatutEscalade,
   traiteParCjsUid: string | null,
+  resolutionNote?: string | null,
 ): Promise<void> {
+  // GUIC-259 — la note de clôture n'a de sens qu'à la résolution : on l'écrit quand on
+  // résout, on l'efface si on rouvre (retour en_attente/prise_en_charge).
+  const note = statut === 'resolue' ? (resolutionNote?.trim() || null) : null
   await prisma.escaladeYaye.update({
     where: { id },
     data: {
@@ -131,6 +137,7 @@ export async function setEscaladeStatut(
       // On horodate la prise en charge / résolution ; on l'efface si on revient en attente.
       traitePar: statut === 'en_attente' ? null : traiteParCjsUid,
       traiteA: statut === 'en_attente' ? null : new Date(),
+      resolutionNote: note,
     },
   })
 }

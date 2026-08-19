@@ -1712,20 +1712,23 @@ enum StatutEscalade {
 /// ce modèle porte uniquement l'ÉTAT de traitement (statut + qui/quand), mutable
 /// par le staff depuis le panel admin. On ne mute jamais `agent_logs` (append-only).
 model EscaladeYaye {
-  id           String         @id @default(uuid()) @db.VarChar(36)
-  sessionId    String         @map("session_id") @db.VarChar(36)
-  cjsUid       String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
-  role         String?        @db.VarChar(40)
-  centreId     String?        @map("centre_id") @db.VarChar(36)
-  canal        CanalAgent
-  raison       String?        @db.Text // pourquoi l'escalade — peut contenir des PII
-  stade        String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
-  signalDanger String?        @map("signal_danger") @db.VarChar(40) // catégorie de DANGER repérée (violence, harcelement…) — null sinon
-  priorite     Int            @default(0) // 0 = normal · 1 = danger (remonte en haut de file)
-  statut       StatutEscalade @default(en_attente)
-  traitePar    String?        @map("traite_par") @db.VarChar(36) // cjs_uid du conseiller qui traite
-  traiteA      DateTime?      @map("traite_a")
-  createdAt    DateTime       @default(now()) @map("created_at")
+  id             String         @id @default(uuid()) @db.VarChar(36)
+  sessionId      String         @map("session_id") @db.VarChar(36)
+  cjsUid         String?        @map("cjs_uid") @db.VarChar(36) // utilisateur escaladé (null si non identifié)
+  role           String?        @db.VarChar(40)
+  centreId       String?        @map("centre_id") @db.VarChar(36)
+  canal          CanalAgent
+  raison         String?        @db.Text // pourquoi l'escalade — peut contenir des PII
+  stade          String?        @db.VarChar(160) // stade de la conversation au moment de l'escalade
+  signalDanger   String?        @map("signal_danger") @db.VarChar(40) // catégorie de DANGER repérée (violence, harcelement…) — null sinon
+  priorite       Int            @default(0) // 0 = normal · 1 = danger (remonte en haut de file)
+  statut         StatutEscalade @default(en_attente)
+  traitePar      String?        @map("traite_par") @db.VarChar(36) // cjs_uid du conseiller qui traite
+  traiteA        DateTime?      @map("traite_a")
+  // GUIC-259 (Phase 1) — note de clôture : ce que le staff a fait / la réponse humaine
+  // apportée (renseignée à la résolution). Capture la connaissance perdue jusqu'ici.
+  resolutionNote String?        @map("resolution_note") @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
 
   @@index([statut, priorite, createdAt]) // tri file : statut, puis danger d'abord, puis ancienneté
   @@index([sessionId])
