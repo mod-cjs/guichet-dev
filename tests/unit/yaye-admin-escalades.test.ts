@@ -39,6 +39,21 @@ it('les compteurs de chips ignorent le filtre statut mais respectent le canal', 
   expect(res.counts.en_attente).toBe(3)
 })
 
+it('le filtre lateOnly (SLA dépassé) borne sur les non-résolues au-delà du SLA (liste ET compteurs)', async () => {
+  await listEscalades({ lateOnly: true })
+  const where = mockFindMany.mock.calls[0][0].where
+  expect(where.statut).toEqual({ not: 'resolue' })
+  expect(Array.isArray(where.OR)).toBe(true)
+  expect(where.OR.length).toBeGreaterThanOrEqual(2)
+  // Les compteurs de chips respectent aussi le filtre retard (baseWhere).
+  expect(mockGroupBy.mock.calls[0][0].where.OR).toBeDefined()
+})
+
+it('chaque ligne porte son échéance SLA (echeanceSla dérivée priorité+createdAt)', async () => {
+  const res = await listEscalades({})
+  expect(res.rows[0].echeanceSla).toBeInstanceOf(Date)
+})
+
 it('le filtre danger borne sur signal_danger non nul et enrichit le bénéficiaire', async () => {
   const res = await listEscalades({ dangerOnly: true })
   expect(mockFindMany.mock.calls[0][0].where).toEqual({ signalDanger: { not: null } })

@@ -9,12 +9,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { EscaladesClient, type EscaladesClientProps } from '@/app/admin/yaye/escalades/EscaladesClient'
 
 const refreshMock = jest.fn()
+const pushMock = jest.fn()
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }))
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
   usePathname: () => '/admin/yaye/escalades',
 }))
 
@@ -36,6 +37,7 @@ const baseProps: EscaladesClientProps = {
       traitePar: null,
       traiteA: null,
       createdAt: new Date().toISOString(),
+      echeanceSla: new Date(Date.now() + 20 * 60_000).toISOString(),
       enRetardSla: false,
       resolutionNote: null,
       user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
@@ -46,7 +48,7 @@ const baseProps: EscaladesClientProps = {
   currentPage: 1,
   totalPages: 1,
   centres: [{ id: 'c1', nom: 'CJS Dakar' }],
-  filtres: { statut: '', canal: 'tous', centre: '', danger: false },
+  filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false },
 }
 
 beforeEach(() => {
@@ -190,4 +192,25 @@ it('les transitions non-résolue (prise en charge) restent inchangées : envoi d
   const call = (global.fetch as jest.Mock).mock.calls[0]
   const body = JSON.parse(call[1].body)
   expect(body).toEqual({ statut: 'prise_en_charge' })
+})
+
+it('GUIC-259 — affiche l’échéance SLA restante sur une escalade non en retard (triage par urgence)', () => {
+  render(<EscaladesClient {...baseProps} />)
+  expect(screen.getByText(/échéance/i)).toBeInTheDocument()
+})
+
+it('GUIC-259 — pas d’échéance affichée sur une escalade résolue', () => {
+  const props: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'resolue' }],
+  }
+  render(<EscaladesClient {...props} />)
+  expect(screen.queryByText(/échéance/i)).not.toBeInTheDocument()
+})
+
+it('GUIC-259 — un chip « En retard » navigue vers le filtre retard=1', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /En retard/i }))
+  expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('retard=1'))
 })
