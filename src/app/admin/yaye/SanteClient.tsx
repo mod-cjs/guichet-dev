@@ -22,8 +22,19 @@ function fmt(n: number | null, suffix = ''): string {
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
+const LIBELLE_SLOT: Record<string, string> = {
+  agent: 'Agent (Yaye)',
+  judge: 'Juge qualité',
+  adequation: 'Adéquation',
+}
+const LIBELLE_SOURCE: Record<string, string> = {
+  admin: 'Choix admin',
+  env: 'Variable d’env',
+  defaut: 'Défaut',
+}
+
 export function SanteClient({ sante }: SanteClientProps) {
-  const { alertes, yqs, escalades, coverage, calibrationDrift, topEchecs } = sante
+  const { alertes, yqs, escalades, coverage, calibrationDrift, topEchecs, config } = sante
 
   return (
     <div style={{ padding: '22px 28px 40px', flex: 1, overflowY: 'auto' }}>
@@ -142,6 +153,46 @@ export function SanteClient({ sante }: SanteClientProps) {
           </div>
         </div>
 
+        {/* ── Configuration du modèle LLM (health-check statique) ── */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)' }}>Configuration du modèle</h2>
+            <Link href="/admin/yaye/modele" style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none' }}>
+              Configurer →
+            </Link>
+          </div>
+          <div data-testid="config-slots" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
+            {config.slots.map((s, i) => {
+              const probleme = !s.autorise || !s.capacitesOk
+              return (
+                <div
+                  key={s.slot}
+                  data-testid={`config-slot-${s.slot}`}
+                  style={{
+                    display: 'grid', gridTemplateColumns: '1.1fr 1.6fr 0.9fr auto', gap: 12, padding: '12px 18px',
+                    borderBottom: i < config.slots.length - 1 ? '1px solid var(--gj-line)' : 'none', alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{LIBELLE_SLOT[s.slot] ?? s.slot}</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--gj-grey)', fontFamily: 'var(--gj-font-mono, monospace)' }}>
+                    {s.label ?? s.modele}
+                  </span>
+                  <span style={{ fontSize: 11.5, color: 'var(--gj-grey)' }}>{LIBELLE_SOURCE[s.source] ?? s.source}</span>
+                  <StatutPastille
+                    niveau={probleme ? 'critique' : s.endpointDedieRequis ? 'warn' : 'ok'}
+                    texte={
+                      !s.autorise ? 'Hors allowlist'
+                        : !s.capacitesOk ? `Manque ${s.capacitesManquantes.join(', ')}`
+                          : s.endpointDedieRequis ? 'Endpoint dédié absent'
+                            : 'OK'
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         {/* ── Raccourcis ── */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Raccourci href="/admin/yaye/escalades" icon="alert" label="Escalades" />
@@ -174,6 +225,24 @@ function Tuile({
       {value !== undefined && <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--gj-ink)' }}>{value}</div>}
       {children}
     </div>
+  )
+}
+
+function StatutPastille({ niveau, texte }: { niveau: 'ok' | 'warn' | 'critique'; texte: string }) {
+  const palette = {
+    ok: { bg: 'var(--gj-green-soft)', fg: 'var(--gj-green-ink)' },
+    warn: { bg: 'var(--gj-yellow-soft)', fg: 'var(--gj-yellow-ink)' },
+    critique: { bg: 'var(--gj-red-soft)', fg: 'var(--gj-red-ink)' },
+  }[niveau]
+  return (
+    <span
+      style={{
+        justifySelf: 'end', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999,
+        background: palette.bg, color: palette.fg, whiteSpace: 'nowrap',
+      }}
+    >
+      {texte}
+    </span>
   )
 }
 

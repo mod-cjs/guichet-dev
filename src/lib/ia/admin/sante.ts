@@ -9,6 +9,7 @@ import { peekRegression } from '@/lib/ia/metrics/regression-data'
 import { computeCalibration } from '@/lib/ia/metrics/calibration-data'
 import { computeEvalCoverage, type EvalCoverage } from '@/lib/ia/metrics/eval-coverage'
 import { computeIntentionsEnEchec, type IntentionSante } from '@/lib/ia/metrics/intentions-echec'
+import { computeConfigSante, type ConfigSante } from '@/lib/ia/admin/config-sante'
 import { whereEnRetardSla } from '@/lib/ia/escalade-sla'
 
 // ─── Alertes opérationnelles (fonction PURE) ──────────────────────────────────
@@ -59,6 +60,8 @@ export interface YayeSante {
   calibrationDrift: number | null
   /** Top 3 des intentions qui échouent (backlog d'amélioration prioritaire). */
   topEchecs: IntentionSante[]
+  /** Health-check STATIQUE de la config LLM (allowlist / capacités / endpoint dédié). */
+  config: ConfigSante
   alertes: AlerteSante[]
 }
 
@@ -75,12 +78,13 @@ export async function computeYayeSante(opts: { since?: Date } = {}): Promise<Yay
   const now = new Date()
   const dangerSla = { ...whereEnRetardSla(now), priorite: 1 }
 
-  const [yqsG, regression, calibration, coverage, topEchecs, enAttente, slaDepassees, dangerOuvertes] = await Promise.all([
+  const [yqsG, regression, calibration, coverage, topEchecs, config, enAttente, slaDepassees, dangerOuvertes] = await Promise.all([
     computeYqsGlobal({ from: since }),
     peekRegression({ from: since }),
     computeCalibration(),
     computeEvalCoverage({ since }),
     computeIntentionsEnEchec({ since, minVolume: 5 }),
+    computeConfigSante(),
     prisma.escaladeYaye.count({ where: { statut: { not: 'resolue' } } }),
     prisma.escaladeYaye.count({ where: whereEnRetardSla(now) }),
     prisma.escaladeYaye.count({ where: dangerSla }),
@@ -88,6 +92,13 @@ export async function computeYayeSante(opts: { since?: Date } = {}): Promise<Yay
 
   const calibrationDrift = driftDeCalibration(calibration?.parDimension)
   const regressed = regression.result?.regressed ?? false
+
+  // Les alertes runtime et les alertes de config statique remontent dans la même liste,
+  // re-triées critique d'abord — un slot hors allowlist doit crier au même endroit qu'une régression.
+  const alertes = [
+    ...deriverAlertesSante({ regressed, escaladesSlaDepassees: slaDepassees, escaladesDangerOuvertes: dangerOuvertes, calibrationDrift }),
+    ...config.alertes,
+  ].sort((a, b) => (a.niveau === b.niveau ? 0 : a.niveau === 'critique' ? -1 : 1))
 
   return {
     yqs: yqsG.yqs,
@@ -97,6 +108,7 @@ export async function computeYayeSante(opts: { since?: Date } = {}): Promise<Yay
     coverage,
     calibrationDrift,
     topEchecs: topEchecs.slice(0, 3),
-    alertes: deriverAlertesSante({ regressed, escaladesSlaDepassees: slaDepassees, escaladesDangerOuvertes: dangerOuvertes, calibrationDrift }),
+    config,
+    alertes,
   }
 }

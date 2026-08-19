@@ -25,6 +25,14 @@ const baseSante: YayeSante = {
   topEchecs: [
     { intention: 'orientation_formation', total: 24, tauxResolu: 40, tauxEscalade: 20, tauxDrapeauRouge: 5, yqsMoyen: 55, risque: 90 },
   ],
+  config: {
+    slots: [
+      { slot: 'agent', modele: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', source: 'admin', autorise: true, capacitesOk: true, capacitesManquantes: [], endpointDedieRequis: false },
+      { slot: 'judge', modele: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro', source: 'defaut', autorise: true, capacitesOk: true, capacitesManquantes: [], endpointDedieRequis: false },
+      { slot: 'adequation', modele: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', source: 'defaut', autorise: true, capacitesOk: true, capacitesManquantes: [], endpointDedieRequis: false },
+    ],
+    alertes: [],
+  },
   alertes: [],
 }
 
@@ -57,5 +65,28 @@ describe('GUIC-435 — SanteClient', () => {
   it('affiche un top échec avec son intention', () => {
     render(<SanteClient sante={baseSante} />)
     expect(screen.getByText(/orientation_formation/i)).toBeInTheDocument()
+  })
+
+  it('section config : slot agent affiché avec libellé de modèle et statut OK', () => {
+    render(<SanteClient sante={baseSante} />)
+    const row = screen.getByTestId('config-slot-agent')
+    expect(row).toHaveTextContent('Agent (Yaye)')
+    expect(row).toHaveTextContent('Gemini 2.5 Flash')
+    expect(row).toHaveTextContent('OK')
+  })
+
+  it('section config : slot hors allowlist → pastille « Hors allowlist »', () => {
+    const sante: YayeSante = {
+      ...baseSante,
+      config: {
+        ...baseSante.config,
+        slots: [
+          { slot: 'agent', modele: 'openai/gpt-4o', label: null, source: 'env', autorise: false, capacitesOk: false, capacitesManquantes: [], endpointDedieRequis: false },
+          ...baseSante.config.slots.slice(1),
+        ],
+      },
+    }
+    render(<SanteClient sante={sante} />)
+    expect(screen.getByTestId('config-slot-agent')).toHaveTextContent(/Hors allowlist/i)
   })
 })
