@@ -83,6 +83,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Assistant IA — Yaye',
     items: [
+      { id: 'yaye-sante', href: '/admin/yaye', icon: 'shield', label: 'Santé de Yaye' },
       { id: 'yaye-metriques', href: '/admin/analytics/yaye', icon: 'chart', label: 'Métriques Yaye' },
       { id: 'yaye-escalades', href: '/admin/yaye/escalades', icon: 'bell', label: 'Escalades', urgent: true },
     ],
