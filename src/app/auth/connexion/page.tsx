@@ -14,7 +14,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ error?: string }>
+  /** `next` — destination de retour après connexion (GUIC-689). Validée
+   *  côté serveur par `safeReturnTo` ; cette page ne fait que la porter. */
+  searchParams: Promise<{ error?: string; next?: string }>
 }
 
 export default async function ConnexionPage({ searchParams }: Props) {
