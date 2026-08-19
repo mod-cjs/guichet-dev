@@ -262,9 +262,13 @@ export function YayeMetricsClient({
         </div>
       </section>
 
-      {/* Top intentions (sujets les plus fréquents) */}
+      {/* Top outils déclenchés (proxy d'intention — cf. note d'honnêteté) */}
       <section className="flex flex-col gap-space-3">
-        <h2 className="text-fs-400 font-bold">Top intentions</h2>
+        <h2 className="text-fs-400 font-bold">Top outils déclenchés</h2>
+        <span className="text-fs-200 text-color-text-muted">
+          Regroupé par <b>outil déclenché</b> (1er outil de la session) — un proxy d&apos;intention,
+          pas une classification sémantique du besoin. Une vraie détection d&apos;intention serait une brique à part.
+        </span>
         <Card className="flex flex-col gap-space-2">
           {topIntentions.length === 0 ? (
             <span className="text-fs-200 text-color-text-secondary">Aucune session matérialisée sur la période.</span>
@@ -287,9 +291,9 @@ export function YayeMetricsClient({
 
       {/* Intentions en échec — backlog d'amélioration (couche 3-4, croisé par intention) */}
       <section className="flex flex-col gap-space-3">
-        <h2 className="text-fs-400 font-bold">Intentions en échec</h2>
+        <h2 className="text-fs-400 font-bold">Outils en difficulté</h2>
         <span className="text-fs-200 text-color-text-secondary">
-          Sujets où Yaye s&apos;en sort le moins bien — backlog d&apos;amélioration.
+          Outils déclenchés où Yaye s&apos;en sort le moins bien — backlog d&apos;amélioration.
         </span>
         {/* GUIC-435 — couverture d'éval : le juge n'évalue qu'un échantillon, « — » = non évalué (pas mauvais). */}
         <span className="text-fs-200 text-color-text-muted">
@@ -304,7 +308,7 @@ export function YayeMetricsClient({
             <table className="w-full text-fs-300">
               <thead>
                 <tr className="text-left text-color-text-secondary">
-                  <th className="py-space-1">Intention</th>
+                  <th className="py-space-1">Outil principal</th>
                   <th className="py-space-1">Sessions</th>
                   <th className="py-space-1">Taux résolu</th>
                   <th className="py-space-1">Taux escalade</th>

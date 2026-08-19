@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
+import { intentLabel } from '@/lib/ia/tool-labels'
 import type { YayeSante } from '@/lib/ia/admin/sante'
 import type { ProviderPing } from '@/lib/ia/admin/provider-health'
 
@@ -147,7 +148,7 @@ export function SanteClient({ sante }: SanteClientProps) {
         {/* ── Top intentions en échec ── */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)' }}>Top intentions en échec</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)' }}>Top outils en difficulté</h2>
             <Link href="/admin/analytics/yaye" style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none' }}>
               Voir tout →
             </Link>
@@ -155,7 +156,7 @@ export function SanteClient({ sante }: SanteClientProps) {
           <div style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
             {topEchecs.length === 0 ? (
               <div style={{ padding: '24px 18px', textAlign: 'center', color: 'var(--gj-grey)', fontSize: 13.5 }}>
-                Pas assez de volume pour identifier des intentions en échec.
+                Pas assez de volume pour identifier des outils en difficulté.
               </div>
             ) : (
               topEchecs.map((t, i) => (
@@ -166,7 +167,7 @@ export function SanteClient({ sante }: SanteClientProps) {
                     borderBottom: i < topEchecs.length - 1 ? '1px solid var(--gj-line)' : 'none', alignItems: 'center',
                   }}
                 >
-                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{t.intention}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{intentLabel(t.intention)}</span>
                   <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>Résolu {t.tauxResolu}%</span>
                   <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>Escalade {t.tauxEscalade}%</span>
                   <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>Drapeau {t.tauxDrapeauRouge}%</span>
