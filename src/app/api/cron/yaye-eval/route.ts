@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger'
 import { runEval } from '@/lib/ia/metrics/eval-run'
 import { materializeSummaries } from '@/lib/ia/metrics/materialize'
 import { runRegressionGuard } from '@/lib/ia/metrics/regression-data'
+import { alerterRegressionQualite } from '@/lib/ia/metrics/regression-alert'
 import { computeCalibration } from '@/lib/ia/metrics/calibration-data'
 import type { ApiResponse } from '@/types/api'
 
@@ -42,9 +43,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     // une erreur de mesure ne doit jamais faire échouer l'évaluation nocturne.
     let regression = null
     let calibration = null
+    let alertesQualite = 0
     try {
       const garde = { from: new Date(to.getTime() - FENETRE_GARDE_MS), to }
       regression = await runRegressionGuard(garde)
+      // GUIC-435 (Phase 2) — passer de MESURER à AGIR : si régression, alerter les admins.
+      alertesQualite = await alerterRegressionQualite(regression)
       // Calibration : globale (toutes les paires humain↔juge), indépendante de la fenêtre.
       calibration = await computeCalibration()
     } catch (err) {
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       ...report,
       materialisation,
       regression: regression?.baselineInitialisee ? 'baseline-initialisée' : regression?.result?.regressed,
+      alertesQualite,
       calibrationGlobal: calibration?.global ?? null,
     })
 

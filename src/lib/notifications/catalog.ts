@@ -105,6 +105,8 @@ const EVENTS: NotificationEventDef[] = [
   def('yaye.escalade_resolue', 'm12', 'Escalade résolue (réponse humaine)', ['beneficiaire'], ['in_app', 'whatsapp']),
   // GUIC-259 (Phase 1) — re-alerte quand une escalade dépasse son SLA de traitement sans être résolue.
   def('yaye.escalade_sla_depassee', 'm12', 'Escalade Yaye : délai de traitement dépassé', ['conseiller'], ['in_app'], true),
+  // GUIC-435 (Phase 2) — alerte quand la qualité de Yaye régresse sous la baseline (garde anti-régression).
+  def('yaye.qualite_degradee', 'm12', 'Qualité de Yaye en baisse (régression détectée)', ['admin'], ['in_app'], true),
 ]
 
 /** Registre indexé par clé. */
