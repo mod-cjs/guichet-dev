@@ -79,18 +79,27 @@ describe('GUIC-463 — CRUD ressources (DB réelle)', () => {
     expect(row).toBeNull()
   })
 
+  // GUIC-689 — ces deux tests comptaient TOUTE la table. Trois autres suites
+  // écrivent dans `Ressource` ; en parallèle, une création concurrente entre le
+  // `before` et l'assertion faisait échouer un refus pourtant correct. Le test
+  // devenait rouge par hasard, exactement comme un test peut être vert par
+  // hasard. On compte donc ce que l'action aurait créé, et rien d'autre.
+  const compterFixture = (titre: string) => prisma.ressource.count({ where: { titre } })
+
   it('given NON-admin, when creer, then refus ET rien créé', async () => {
     mockGetSession.mockResolvedValue(JEUNE)
-    const before = await prisma.ressource.count()
+    const before = await compterFixture(valid.titre)
     await expect(creerRessource(valid)).rejects.toThrow(/FORBIDDEN/)
-    expect(await prisma.ressource.count()).toBe(before)
+    expect(await compterFixture(valid.titre)).toBe(before)
   })
 
   it('given admin + titre vide, when creer, then rejet Zod (rien créé)', async () => {
     mockGetSession.mockResolvedValue(ADMIN)
-    const before = await prisma.ressource.count()
+    // Un titre vide ne peut pas servir de clé de comptage : on vérifie qu'aucune
+    // ressource sans titre n'a été écrite.
+    const before = await compterFixture('')
     await expect(creerRessource({ ...valid, titre: '' })).rejects.toThrow()
-    expect(await prisma.ressource.count()).toBe(before)
+    expect(await compterFixture('')).toBe(before)
   })
 
   // RES-3 — la FK RessourceFavorite est Restrict : supprimer une ressource déjà
