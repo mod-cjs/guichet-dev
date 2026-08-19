@@ -4,7 +4,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { CanalAgent, StatutEscalade, Prisma } from '@prisma/client'
-import { echeanceSla, enRetardSla } from '@/lib/ia/escalade-sla'
+import { echeanceSla, enRetardSla, whereEnRetardSla } from '@/lib/ia/escalade-sla'
 
 export interface EscaladeListFilters {
   statut?: StatutEscalade
@@ -12,6 +12,8 @@ export interface EscaladeListFilters {
   centreId?: string
   /** Ne garder que les signalements de danger (signal_danger non nul). */
   dangerOnly?: boolean
+  /** Ne garder que les escalades au-delà de leur SLA (non résolues, dérivé priorité+age). */
+  lateOnly?: boolean
 }
 
 /** Identité du bénéficiaire (pour contact, surtout sur un signalement de danger). */
@@ -60,13 +62,15 @@ export async function listEscalades(
   page = 1,
   pageSize = PAGE_SIZE,
 ): Promise<EscaladeListResult> {
-  // Critères hors statut (canal / centre / danger) → partagés par la liste ET les
-  // compteurs de chips, pour que ces derniers reflètent le filtre courant (sauf le
+  const now = new Date()
+  // Critères hors statut (canal / centre / danger / retard SLA) → partagés par la liste ET
+  // les compteurs de chips, pour que ces derniers reflètent le filtre courant (sauf le
   // statut, qui est justement ce que les chips sélectionnent).
   const baseWhere: Prisma.EscaladeYayeWhereInput = {
     ...(f.canal ? { canal: f.canal } : {}),
     ...(f.centreId ? { centreId: f.centreId } : {}),
     ...(f.dangerOnly ? { signalDanger: { not: null } } : {}),
+    ...(f.lateOnly ? whereEnRetardSla(now) : {}),
   }
   const where: Prisma.EscaladeYayeWhereInput = {
     ...baseWhere,
@@ -103,7 +107,6 @@ export async function listEscalades(
     : []
   const userByUid = new Map(users.map((u) => [u.cjsUid, u]))
 
-  const now = new Date()
   const enriched: EscaladeRow[] = rows.map((r) => {
     const u = r.cjsUid ? userByUid.get(r.cjsUid) : undefined
     return {

@@ -20,6 +20,7 @@ interface SP {
   canal?: string
   centre?: string
   danger?: string
+  retard?: string
 }
 
 function parseStatut(v: string | undefined): StatutEscalade | undefined {
@@ -42,6 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     canal: parseCanal(sp.canal),
     centreId: centre,
     dangerOnly: sp.danger === '1',
+    lateOnly: sp.retard === '1',
   }
 
   const [{ rows, total, counts }, centres] = await Promise.all([
@@ -57,6 +59,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         ...r,
         traiteA: r.traiteA ? r.traiteA.toISOString() : null,
         createdAt: r.createdAt.toISOString(),
+        echeanceSla: r.echeanceSla.toISOString(),
         centreNom: r.centreId ? (centreNomById.get(r.centreId) ?? '—') : null,
       }))}
       counts={counts}
@@ -69,6 +72,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         canal: sp.canal === 'web' || sp.canal === 'whatsapp' ? sp.canal : 'tous',
         centre: centre ?? '',
         danger: sp.danger === '1',
+        retard: sp.retard === '1',
       }}
     />
   )

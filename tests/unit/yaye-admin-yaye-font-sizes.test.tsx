@@ -60,7 +60,7 @@ describe('EscaladesClient — aucun texte < 11px', () => {
         {
           id: 'e1', sessionId: 's1', cjsUid: 'u1', role: 'beneficiaire', centreId: 'c1', centreNom: 'CJS Dakar',
           canal: 'whatsapp', raison: 'sujet_sensible', stade: 'accueil', signalDanger: 'violence', priorite: 1, statut: 'prise_en_charge',
-          traitePar: 'conseiller-1', traiteA: new Date().toISOString(), createdAt: new Date().toISOString(), enRetardSla: false,
+          traitePar: 'conseiller-1', traiteA: new Date().toISOString(), createdAt: new Date().toISOString(), echeanceSla: new Date(Date.now()+20*60000).toISOString(), enRetardSla: false,
           user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
         },
       ],
@@ -69,7 +69,7 @@ describe('EscaladesClient — aucun texte < 11px', () => {
       currentPage: 1,
       totalPages: 1,
       centres: [{ id: 'c1', nom: 'CJS Dakar' }],
-      filtres: { statut: '', canal: 'tous', centre: '', danger: false },
+      filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false },
     }
     const { container } = render(<EscaladesClient {...props} />)
     const tooSmall = allFontSizes(container).filter((n) => n < 11)

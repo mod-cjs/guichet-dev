@@ -32,6 +32,8 @@ export interface EscaladeRowDTO {
   traitePar: string | null
   traiteA: string | null
   createdAt: string
+  /** GUIC-259 — échéance de traitement (ISO), dérivée du SLA de la priorité. */
+  echeanceSla: string
   /** GUIC-259 — échéance de traitement dépassée (dérivée du SLA de la priorité). */
   enRetardSla: boolean
   /** GUIC-259 — note de clôture saisie à la résolution (facultative). Optionnel côté type pour compat ascendante. */
@@ -46,7 +48,7 @@ export interface EscaladesClientProps {
   currentPage: number
   totalPages: number
   centres: { id: string; nom: string }[]
-  filtres: { statut: string; canal: string; centre: string; danger: boolean }
+  filtres: { statut: string; canal: string; centre: string; danger: boolean; retard: boolean }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -71,6 +73,22 @@ function relative(iso: string): string {
 
 function canalLabel(c: CanalAgent): string {
   return c === 'whatsapp' ? 'WhatsApp' : 'Web'
+}
+
+/** Durée lisible (min → h → j) à partir d'un nombre de minutes positif. */
+function dureeCourte(mins: number): string {
+  if (mins < 60) return `${mins} min`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `${h} h`
+  return `${Math.floor(h / 24)} j`
+}
+
+/** Échéance SLA relative : « dans X » si à venir, « dépassée de X » si passée. */
+function echeanceLabel(iso: string): { texte: string; depasse: boolean } {
+  const diffMin = Math.round((new Date(iso).getTime() - Date.now()) / 60_000)
+  return diffMin >= 0
+    ? { texte: `dans ${dureeCourte(diffMin)}`, depasse: false }
+    : { texte: `dépassée de ${dureeCourte(-diffMin)}`, depasse: true }
 }
 
 /** Nom affichable du bénéficiaire (fallback cjs_uid court, puis « Anonyme »). */
@@ -101,6 +119,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     if (merged.canal && merged.canal !== 'tous') sp.set('canal', merged.canal)
     if (merged.centre) sp.set('centre', merged.centre)
     if (merged.danger) sp.set('danger', '1')
+    if (merged.retard) sp.set('retard', '1')
     const qs = sp.toString()
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
   }
@@ -135,9 +154,9 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
 
   async function confirmerCloture() {
     if (!clotureId) return
-    const id = clotureId
+    // On garde le modal ouvert pendant le PATCH (bouton en loading), puis on ferme.
+    await changeStatut(clotureId, 'resolue', noteCloture)
     setClotureId(null)
-    await changeStatut(id, 'resolue', noteCloture)
   }
 
   const paginationBase = (() => {
@@ -146,6 +165,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
     if (filtres.canal !== 'tous') sp.set('canal', filtres.canal)
     if (filtres.centre) sp.set('centre', filtres.centre)
     if (filtres.danger) sp.set('danger', '1')
+    if (filtres.retard) sp.set('retard', '1')
     const qs = sp.toString()
     return qs ? `${pathname}?${qs}` : pathname
   })()
@@ -176,6 +196,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
           ))}
           <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--gj-line)', margin: '0 4px' }} aria-hidden />
           <Chip selected={filtres.danger} aria-pressed={filtres.danger} icon="alert" onClick={() => push({ danger: !filtres.danger })}>Danger</Chip>
+          <Chip selected={filtres.retard} aria-pressed={filtres.retard} icon="clock" onClick={() => push({ retard: !filtres.retard })}>En retard</Chip>
           <Chip selected={filtres.canal === 'web'} aria-pressed={filtres.canal === 'web'} icon="desktop" onClick={() => push({ canal: filtres.canal === 'web' ? 'tous' : 'web' })}>Web</Chip>
           <Chip selected={filtres.canal === 'whatsapp'} aria-pressed={filtres.canal === 'whatsapp'} icon="whatsapp" onClick={() => push({ canal: filtres.canal === 'whatsapp' ? 'tous' : 'whatsapp' })}>WhatsApp</Chip>
           <select
@@ -282,8 +303,18 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     )}
                   </div>
 
-                  {/* Signalée */}
-                  <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{relative(e.createdAt)}</span>
+                  {/* Signalée + échéance SLA (triage par urgence) */}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{relative(e.createdAt)}</div>
+                    {e.statut !== 'resolue' && (() => {
+                      const ech = echeanceLabel(e.echeanceSla)
+                      return (
+                        <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2, color: ech.depasse ? 'var(--gj-red-ink)' : 'var(--gj-grey)' }}>
+                          Échéance {ech.texte}
+                        </div>
+                      )
+                    })()}
+                  </div>
 
                   {/* Statut + qui traite / depuis quand (suivi SLA) */}
                   <div style={{ minWidth: 0 }}>

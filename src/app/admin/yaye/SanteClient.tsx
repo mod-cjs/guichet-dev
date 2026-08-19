@@ -125,14 +125,18 @@ export function SanteClient({ sante }: SanteClientProps) {
           <Tuile icon="clock" label="Escalades">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--gj-ink)' }}>{escalades.enAttente} en attente</span>
-              <span
-                style={{
-                  fontSize: 12.5, fontWeight: 800,
-                  color: escalades.slaDepassees > 0 ? 'var(--gj-red-ink)' : 'var(--gj-grey)',
-                }}
-              >
-                {escalades.slaDepassees} au-delà du SLA{escalades.dangerOuvertes > 0 ? ` · ${escalades.dangerOuvertes} danger` : ''}
-              </span>
+              {escalades.slaDepassees > 0 ? (
+                <Link
+                  href="/admin/yaye/escalades?retard=1"
+                  style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--gj-red-ink)', textDecoration: 'none' }}
+                >
+                  {escalades.slaDepassees} au-delà du SLA{escalades.dangerOuvertes > 0 ? ` · ${escalades.dangerOuvertes} danger` : ''} →
+                </Link>
+              ) : (
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--gj-grey)' }}>
+                  {escalades.slaDepassees} au-delà du SLA
+                </span>
+              )}
             </div>
           </Tuile>
 
