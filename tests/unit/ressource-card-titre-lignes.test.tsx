@@ -48,3 +48,20 @@ describe('GUIC-689 — nombre de lignes du titre', () => {
     expect(screen.getByRole('heading')).toHaveTextContent(item.titre)
   })
 })
+
+/**
+ * GUIC-689 — Conséquence de la troisième ligne : les cartes d'une même
+ * étagère n'ont plus la même hauteur de contenu.
+ *
+ * Mesuré au rendu : les `li` font tous 200px (le flex les étire), mais les
+ * cartes à l'intérieur vont de 153 à 200. Le bas de l'étagère devient
+ * irrégulier, et une carte plus courte semble tronquée alors qu'elle est
+ * simplement plus brève. La carte doit remplir son emplacement.
+ */
+describe('GUIC-689 — la carte remplit son emplacement', () => {
+  it('occupe toute la hauteur que la grille lui donne', () => {
+    const { container } = render(<ResourceCard item={item} />)
+    const carte = container.firstElementChild as HTMLElement
+    expect(carte.className).toMatch(/h-full/)
+  })
+})
