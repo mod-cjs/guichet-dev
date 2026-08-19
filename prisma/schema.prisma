@@ -1982,6 +1982,10 @@ enum EntiteConsultable {
 enum TypeConsultation {
   impression
   consultation
+  /// GUIC-709 — le fichier a été emporté, pas seulement affiché. Distinct de
+  /// `consultation` : confondre les deux gonflerait `vues` à chaque
+  /// récupération de fichier.
+  telechargement
 
   @@map("type_consultation")
 }
