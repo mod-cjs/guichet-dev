@@ -6,7 +6,7 @@
  * composant ne fait qu'afficher honnêtement — jamais de nombre inventé, une valeur
  * null s'affiche « — » (jamais 0).
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SanteClient } from '@/app/admin/yaye/SanteClient'
 import type { YayeSante } from '@/lib/ia/admin/sante'
 
@@ -88,5 +88,46 @@ describe('GUIC-435 — SanteClient', () => {
     }
     render(<SanteClient sante={sante} />)
     expect(screen.getByTestId('config-slot-agent')).toHaveTextContent(/Hors allowlist/i)
+  })
+
+  it('test fournisseur live : succès + slot indisponible affichés avec latence', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          testeA: '2026-08-19T12:00:00.000Z',
+          slots: [
+            { slot: 'agent', model: 'google/gemini-2.5-flash', ok: true, latenceMs: 1691, erreur: null },
+            { slot: 'judge', model: 'google/gemini-2.5-pro', ok: false, latenceMs: 12000, erreur: '401 Unauthorized' },
+            { slot: 'adequation', model: 'google/gemini-2.5-flash', ok: true, latenceMs: 900, erreur: null },
+          ],
+        },
+      }),
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    render(<SanteClient sante={baseSante} />)
+    fireEvent.click(screen.getByRole('button', { name: /Tester la connexion/i }))
+
+    await waitFor(() => expect(screen.getByTestId('provider-slots')).toBeInTheDocument())
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/yaye/provider-health', { method: 'POST' })
+    expect(screen.getByTestId('provider-slot-agent')).toHaveTextContent(/Joignable/i)
+    expect(screen.getByTestId('provider-slot-agent')).toHaveTextContent(/1691 ms/)
+    expect(screen.getByTestId('provider-slot-judge')).toHaveTextContent(/Indisponible/i)
+    expect(screen.getByTestId('provider-slot-judge')).toHaveTextContent(/401 Unauthorized/i)
+  })
+
+  it('test fournisseur live : erreur réseau/HTTP → message d’erreur', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: async () => ({ error: { code: 'RATE_LIMITED', message: 'Trop de requêtes. Réessayez plus tard.' } }),
+    }) as unknown as typeof fetch
+
+    render(<SanteClient sante={baseSante} />)
+    fireEvent.click(screen.getByRole('button', { name: /Tester la connexion/i }))
+
+    await waitFor(() => expect(screen.getByTestId('provider-erreur')).toBeInTheDocument())
+    expect(screen.getByTestId('provider-erreur')).toHaveTextContent(/Trop de requêtes/i)
   })
 })

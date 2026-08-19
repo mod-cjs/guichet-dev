@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '@/components/ui/Icon'
 import type { YayeSante } from '@/lib/ia/admin/sante'
+import type { ProviderPing } from '@/lib/ia/admin/provider-health'
 
 // GUIC-435 (Phase 4 — « Santé de Yaye ») — hub qui agrège en une photo les signaux qui
 // vivaient sur des écrans séparés (qualité/YQS, escalades & SLA, couverture d'éval, dérive
@@ -33,8 +35,30 @@ const LIBELLE_SOURCE: Record<string, string> = {
   defaut: 'Défaut',
 }
 
+type PingEtat =
+  | { statut: 'idle' }
+  | { statut: 'test' }
+  | { statut: 'ok'; slots: ProviderPing[]; testeA: string }
+  | { statut: 'erreur'; message: string }
+
 export function SanteClient({ sante }: SanteClientProps) {
   const { alertes, yqs, escalades, coverage, calibrationDrift, topEchecs, config } = sante
+  const [ping, setPing] = useState<PingEtat>({ statut: 'idle' })
+
+  async function testerFournisseur() {
+    setPing({ statut: 'test' })
+    try {
+      const res = await fetch('/api/admin/yaye/provider-health', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok || json.error) {
+        setPing({ statut: 'erreur', message: json.error?.message ?? `Erreur ${res.status}` })
+        return
+      }
+      setPing({ statut: 'ok', slots: json.data.slots, testeA: json.data.testeA })
+    } catch (e) {
+      setPing({ statut: 'erreur', message: e instanceof Error ? e.message : 'Échec du test' })
+    }
+  }
 
   return (
     <div style={{ padding: '22px 28px 40px', flex: 1, overflowY: 'auto' }}>
@@ -191,6 +215,60 @@ export function SanteClient({ sante }: SanteClientProps) {
               )
             })}
           </div>
+        </div>
+
+        {/* ── Fournisseur LLM (health-check LIVE, à la demande) ── */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ fontSize: 15, fontWeight: 900, color: 'var(--gj-ink)' }}>Fournisseur LLM (Vertex)</h2>
+              <p style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 2 }}>
+                Test en direct : un appel réel par slot. {ping.statut === 'ok' && `Testé à ${new Date(ping.testeA).toLocaleTimeString('fr-FR')}.`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={testerFournisseur}
+              disabled={ping.statut === 'test'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, minHeight: 40,
+                padding: '9px 16px', borderRadius: 10, cursor: ping.statut === 'test' ? 'progress' : 'pointer',
+                border: '1.5px solid var(--gj-teal-deep)', background: 'var(--gj-teal-deep)', color: '#fff',
+                opacity: ping.statut === 'test' ? 0.7 : 1,
+              }}
+            >
+              <Icon name="bolt" size={15} />
+              {ping.statut === 'test' ? 'Test en cours…' : 'Tester la connexion'}
+            </button>
+          </div>
+
+          {ping.statut === 'erreur' && (
+            <div data-testid="provider-erreur" style={{ padding: '12px 16px', borderRadius: 12, background: 'var(--gj-red-soft)', color: 'var(--gj-red-ink)', fontSize: 13, fontWeight: 700 }}>
+              {ping.message}
+            </div>
+          )}
+
+          {ping.statut === 'ok' && (
+            <div data-testid="provider-slots" style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden' }}>
+              {ping.slots.map((s, i) => (
+                <div
+                  key={s.slot}
+                  data-testid={`provider-slot-${s.slot}`}
+                  style={{
+                    display: 'grid', gridTemplateColumns: '1.1fr 1.6fr 0.8fr auto', gap: 12, padding: '12px 18px',
+                    borderBottom: i < ping.slots.length - 1 ? '1px solid var(--gj-line)' : 'none', alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{LIBELLE_SLOT[s.slot] ?? s.slot}</span>
+                  <span style={{ fontSize: 12, color: 'var(--gj-grey)', fontFamily: 'var(--gj-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {s.ok ? (s.erreur ?? '') : s.erreur}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--gj-grey)' }}>{s.latenceMs == null ? '—' : `${s.latenceMs} ms`}</span>
+                  <StatutPastille niveau={s.ok ? 'ok' : 'critique'} texte={s.ok ? 'Joignable' : 'Indisponible'} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Raccourcis ── */}
