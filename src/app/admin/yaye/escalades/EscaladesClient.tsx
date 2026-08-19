@@ -29,6 +29,8 @@ export interface EscaladeRowDTO {
   traitePar: string | null
   traiteA: string | null
   createdAt: string
+  /** GUIC-259 — échéance de traitement dépassée (dérivée du SLA de la priorité). */
+  enRetardSla: boolean
   user: { prenom: string; nom: string; telephone: string | null } | null
 }
 
@@ -222,6 +224,18 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                         }}
                       >
                         Danger · {e.signalDanger}
+                      </span>
+                    )}
+                    {e.enRetardSla && e.statut !== 'resolue' && (
+                      <span
+                        title="Délai de traitement (SLA) dépassé pour cette priorité"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800,
+                          textTransform: 'uppercase', letterSpacing: '.3px', color: 'var(--gj-red-ink)',
+                          background: 'var(--gj-red-soft)', borderRadius: 999, padding: '1px 8px', marginBottom: 3, marginLeft: e.signalDanger ? 6 : 0,
+                        }}
+                      >
+                        <Icon name="clock" size={11} /> SLA dépassé
                       </span>
                     )}
                     <span

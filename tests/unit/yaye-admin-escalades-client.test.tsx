@@ -36,6 +36,7 @@ const baseProps: EscaladesClientProps = {
       traitePar: null,
       traiteA: null,
       createdAt: new Date().toISOString(),
+      enRetardSla: false,
       user: { prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' },
     },
   ],
@@ -98,4 +99,24 @@ it('affiche un badge de priorité (en plus du badge Danger, mineur)', () => {
   global.fetch = jest.fn() as unknown as typeof fetch
   render(<EscaladesClient {...baseProps} />)
   expect(screen.getByText(/Priorité 1/i)).toBeInTheDocument()
+})
+
+it('GUIC-259 Phase 1 — badge « SLA dépassé » sur une escalade en retard non résolue', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const enRetard: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], enRetardSla: true, statut: 'en_attente' }],
+  }
+  render(<EscaladesClient {...enRetard} />)
+  expect(screen.getByText(/SLA dépassé/i)).toBeInTheDocument()
+})
+
+it('GUIC-259 — pas de badge SLA si l’escalade est résolue', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const resolue: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], enRetardSla: true, statut: 'resolue' }],
+  }
+  render(<EscaladesClient {...resolue} />)
+  expect(screen.queryByText(/SLA dépassé/i)).not.toBeInTheDocument()
 })
