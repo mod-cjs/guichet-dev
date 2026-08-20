@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
@@ -39,6 +39,14 @@ export interface EscaladeRowDTO {
   /** GUIC-259 — note de clôture saisie à la résolution (facultative). Optionnel côté type pour compat ascendante. */
   resolutionNote?: string | null
   user: { prenom: string; nom: string; telephone: string | null } | null
+}
+
+export interface ApercuTurn {
+  index: number
+  userText: string | null
+  assistantText: string | null
+  toolsUsed: string[]
+  escalade: boolean
 }
 
 export interface EscaladesClientProps {
@@ -122,6 +130,12 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
   /** Escalade en cours de réouverture (confirmation avant action semi-destructive). */
   const [reouvertureId, setReouvertureId] = useState<string | null>(null)
   const [recherche, setRecherche] = useState(filtres.q)
+  /** Sélection pour action groupée (#12) — uniquement des escalades « en attente ». */
+  const [selection, setSelection] = useState<Set<string>>(new Set())
+  /** Aperçu de conversation inline (#13) : id de ligne déplié + données chargées. */
+  const [apercuId, setApercuId] = useState<string | null>(null)
+  const [apercu, setApercu] = useState<{ hasVerbatimText: boolean; turns: ApercuTurn[] } | null>(null)
+  const [apercuLoading, setApercuLoading] = useState(false)
   /** Tick pour rafraîchir les temps relatifs / échéances sans recharger. */
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -197,6 +211,61 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
 
   function lancerRecherche() {
     push({ q: recherche.trim() })
+  }
+
+  /** Ouvre/ferme l'aperçu inline d'une session ; charge à la demande (#13). */
+  async function toggleApercu(id: string, sessionId: string) {
+    if (apercuId === id) { setApercuId(null); setApercu(null); return }
+    setApercuId(id); setApercu(null); setApercuLoading(true)
+    try {
+      const res = await fetch(`/api/admin/yaye/sessions/${encodeURIComponent(sessionId)}/apercu`)
+      const json = await res.json()
+      if (res.ok && json.data) setApercu(json.data)
+      else setErreur('Aperçu indisponible.')
+    } catch {
+      setErreur('Aperçu indisponible.')
+    } finally {
+      setApercuLoading(false)
+    }
+  }
+
+  const idsEnAttente = rows.filter((r) => r.statut === 'en_attente').map((r) => r.id)
+  const toutSelectionne = idsEnAttente.length > 0 && idsEnAttente.every((id) => selection.has(id))
+
+  function toggleSel(id: string) {
+    setSelection((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id); else n.add(id)
+      return n
+    })
+  }
+  function toggleTout() {
+    setSelection(toutSelectionne ? new Set() : new Set(idsEnAttente))
+  }
+
+  /** Prend en charge en LOT les escalades sélectionnées (en attente uniquement). */
+  async function prendreEnChargeLot() {
+    const ids = [...selection]
+    setBusy('__lot__')
+    setErreur(null)
+    let ok = 0, conflits = 0
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/admin/yaye/escalades/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ statut: 'prise_en_charge', expectedFrom: 'en_attente' }),
+        })
+        if (res.ok) ok++
+        else if (res.status === 409) conflits++
+      } catch { /* compté comme échec ci-dessous */ }
+    }
+    setBusy(null)
+    setSelection(new Set())
+    if (ok > 0) setSucces(`${ok} escalade${ok > 1 ? 's' : ''} prise${ok > 1 ? 's' : ''} en charge${conflits ? ` · ${conflits} déjà modifiée(s)` : ''}.`)
+    else if (conflits) setErreur(`${conflits} escalade(s) avaient déjà changé — file rafraîchie.`)
+    else setErreur('Action groupée impossible.')
+    startTransition(() => router.refresh())
   }
 
   const nomStaff = new Map(staff.map((s) => [s.cjsUid, s.nom]))
@@ -308,6 +377,22 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
           </select>
         </div>
 
+        {/* ── Barre d'action groupée (#12) ── */}
+        {selection.size > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10, padding: '10px 14px', borderRadius: 12, background: 'var(--gj-teal-soft, var(--gj-bg))', border: '1.5px solid var(--gj-teal)' }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)' }}>{selection.size} sélectionnée{selection.size > 1 ? 's' : ''}</span>
+            <button
+              type="button"
+              onClick={prendreEnChargeLot}
+              disabled={busy === '__lot__'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 800, minHeight: 40, padding: '7px 14px', borderRadius: 9, cursor: busy === '__lot__' ? 'progress' : 'pointer', background: 'var(--gj-teal)', color: 'var(--gj-surface)', border: 'none', opacity: busy === '__lot__' ? 0.6 : 1 }}
+            >
+              <Icon name="check" size={13} /> {busy === '__lot__' ? 'En cours…' : 'Prendre en charge la sélection'}
+            </button>
+            <button type="button" onClick={() => setSelection(new Set())} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gj-grey)', background: 'transparent', border: 'none', cursor: 'pointer' }}>Annuler</button>
+          </div>
+        )}
+
         {/* ── Table ── */}
         <div
           data-testid="escalades-table"
@@ -315,7 +400,10 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
           style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 14, overflow: 'hidden', opacity: isPending ? 0.6 : 1, transition: 'opacity .15s ease' }}
         >
           <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1.5px solid var(--gj-line)', background: 'var(--gj-bg)', fontSize: 11.5, fontWeight: 800, color: 'var(--gj-grey)', textTransform: 'uppercase', letterSpacing: '.4px' }} className="hidden md:grid">
-            <span>Utilisateur</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" aria-label="Tout sélectionner" checked={toutSelectionne} onChange={toggleTout} disabled={idsEnAttente.length === 0} style={{ cursor: idsEnAttente.length ? 'pointer' : 'default' }} />
+              Utilisateur
+            </span>
             <span>Raison / stade</span>
             <span>Signalée</span>
             <span>Statut</span>
@@ -330,9 +418,20 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
             rows.map((e) => {
               const sm = STATUT_META[e.statut]
               return (
-                <div key={e.id} style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--gj-line)', alignItems: 'center' }} className="!grid grid-cols-1 md:!grid-cols-[1.3fr_1.6fr_1fr_1fr_1.4fr]">
+                <div key={e.id}>
+                <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 12, padding: '12px 18px', borderBottom: apercuId === e.id ? 'none' : '1px solid var(--gj-line)', alignItems: 'center' }} className="!grid grid-cols-1 md:!grid-cols-[1.3fr_1.6fr_1fr_1fr_1.4fr]">
                   {/* Utilisateur + contact (essentiel sur un signalement de danger) */}
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    {e.statut === 'en_attente' && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Sélectionner l'escalade de ${userLabel(e)}`}
+                        checked={selection.has(e.id)}
+                        onChange={() => toggleSel(e.id)}
+                        style={{ marginTop: 2, cursor: 'pointer', flexShrink: 0 }}
+                      />
+                    )}
+                    <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {userLabel(e)}
                     </div>
@@ -351,6 +450,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
 
                   {/* Raison / stade (+ badge DANGER prioritaire) */}
@@ -453,11 +553,50 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     {e.statut === 'resolue' && (
                       <ActionBtn busy={busy === e.id} onClick={() => setReouvertureId(e.id)} icon="arrow-up" label="Rouvrir" tone="muted" />
                     )}
+                    <button
+                      type="button"
+                      onClick={() => toggleApercu(e.id, e.sessionId)}
+                      aria-expanded={apercuId === e.id}
+                      title="Aperçu de la conversation"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 800, color: 'var(--gj-teal-deep)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 8px' }}
+                    >
+                      <Icon name={apercuId === e.id ? 'chevron-down' : 'chevron-right'} size={13} />
+                      Aperçu
+                    </button>
                     <Link href={`/admin/yaye/sessions/${e.sessionId}`} title="Voir la session" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none', padding: '6px 8px' }}>
                       <Icon name="external" size={13} />
                       Session
                     </Link>
                   </div>
+                </div>
+                {apercuId === e.id && (
+                  <div data-testid="apercu-panel" style={{ padding: '12px 18px 16px', borderBottom: '1px solid var(--gj-line)', background: 'var(--gj-bg)' }}>
+                    {apercuLoading ? (
+                      <span style={{ fontSize: 12.5, color: 'var(--gj-grey)' }}>Chargement de l&apos;aperçu…</span>
+                    ) : !apercu || apercu.turns.length === 0 ? (
+                      <span style={{ fontSize: 12.5, color: 'var(--gj-grey)' }}>Aucun tour à afficher.</span>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {!apercu.hasVerbatimText && (
+                          <span style={{ fontSize: 11, color: 'var(--gj-grey)', fontStyle: 'italic' }}>
+                            Canal web : le texte n&apos;est pas conservé — aperçu structurel (outils appelés).
+                          </span>
+                        )}
+                        {apercu.turns.map((t) => (
+                          <div key={t.index} style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 8, borderLeft: `2px solid ${t.escalade ? 'var(--gj-red)' : 'var(--gj-line)'}` }}>
+                            {t.userText && <div style={{ fontSize: 12.5, color: 'var(--gj-ink)' }}><b>Usager :</b> {t.userText}</div>}
+                            {t.assistantText && <div style={{ fontSize: 12.5, color: 'var(--gj-teal-deep)' }}><b>Yaye :</b> {t.assistantText}</div>}
+                            {(t.toolsUsed.length > 0 || (!t.userText && !t.assistantText)) && (
+                              <div style={{ fontSize: 11, color: 'var(--gj-grey)' }}>
+                                Tour {t.index + 1}{t.toolsUsed.length ? ` · ${t.toolsUsed.join(', ')}` : ''}{t.escalade ? ' · escalade' : ''}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
               )
             })
