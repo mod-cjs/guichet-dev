@@ -15,6 +15,9 @@ const mockGetRessourcesHome = jest.fn()
 jest.mock('@/lib/loaders/ressources', () => ({
   listRessources: (...a: unknown[]) => mockListRessources(...a),
   getRessourcesHome: (...a: unknown[]) => mockGetRessourcesHome(...a),
+  // GUIC-689 — la page lit désormais les catégories du CATALOGUE pour alimenter
+  // le filtre, au lieu de les dériver de la page chargée.
+  listCategoriesRessources: jest.fn().mockResolvedValue([]),
 }))
 
 const mockLoadProgrammeOptions = jest.fn()

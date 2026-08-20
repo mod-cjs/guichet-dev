@@ -15,6 +15,7 @@
  */
 
 import { headers } from 'next/headers'
+import { logger } from '@/lib/logger'
 import {
   canalFromSrc,
   trackConsultation,
@@ -87,8 +88,61 @@ export async function trackVuePage(input: TrackVuePageInput): Promise<void> {
       ...(userAgent ? { userAgent } : {}),
       origine:    origineFromParam(input.from),
     })
-  } catch {
-    // Fail-soft — `trackConsultation` avale déjà ses propres erreurs ; ce filet
-    // couvre uniquement la lecture des headers.
+  } catch (err) {
+    // Fail-soft, mais plus muet : c'est ce silence qui a laissé la mesure des
+    // six pages détail à zéro sans que rien ne l'indique (GUIC-689).
+    logger.warn('[consultations] vue de page non enregistrée', {
+      typeEntite: input.typeEntite,
+      error:      err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
+/**
+ * Prépare l'enregistrement d'une vue de page, à confier à `after()`.
+ *
+ * GUIC-689 — L'ORDRE EST LE FOND DU SUJET. Les six pages détail faisaient
+ * `after(() => trackVuePage({...}))` : la lecture de `headers()` partait donc
+ * dans le callback, exécuté une fois la réponse envoyée. Next refuse alors
+ * l'accès aux données de requête (« Route /x used `headers` … »), le
+ * `catch` avalait l'erreur, et AUCUNE consultation n'était écrite — ni en
+ * dev, ni en production. Le compteur `vues` restait à zéro sans un signe.
+ *
+ * On lit donc la requête MAINTENANT — tant qu'elle existe — et on ne diffère
+ * que l'écriture. La signature impose cet ordre : pour obtenir la fonction à
+ * passer à `after()`, il faut l'attendre pendant le rendu.
+ *
+ *     after(await differerVuePage({ typeEntite: 'ressource', entiteId: id }))
+ */
+export async function differerVuePage(
+  input: TrackVuePageInput,
+): Promise<() => Promise<void>> {
+  // Lecture immédiate, fail-soft : une requête illisible ne doit pas casser
+  // le rendu de la page, seulement dégrader la finesse de la mesure.
+  let ip = 'no-ip'
+  let userAgent: string | undefined
+  try {
+    ;[ip, userAgent] = await Promise.all([ipDepuisHeaders(), userAgentDepuisHeaders()])
+  } catch (err) {
+    logger.warn('[consultations] requête illisible, mesure dégradée', {
+      typeEntite: input.typeEntite,
+      error:      err instanceof Error ? err.message : String(err),
+    })
+  }
+
+  const canal = canalFromSrc(premier(input.src))
+  const origine = origineFromParam(input.from)
+
+  return async () => {
+    await trackConsultation({
+      typeEntite: input.typeEntite,
+      entiteId:   input.entiteId,
+      typeEvent:  'consultation',
+      canal,
+      ...(input.cjsUid ? { cjsUid: input.cjsUid } : {}),
+      ip,
+      ...(userAgent ? { userAgent } : {}),
+      origine,
+    })
   }
 }

@@ -37,3 +37,32 @@ describe('/auth/connexion', () => {
     expect(alert.className).not.toMatch(/gj-red\/30/)
   })
 })
+
+/**
+ * GUIC-689 — l'écran de connexion doit transmettre la destination de retour.
+ *
+ * Sans ça, un jeune qui clique « Ajouter aux favoris » sur une ressource
+ * atterrit après connexion sur son tableau de bord, sans favori et sans la
+ * ressource sous les yeux. La validation reste côté serveur (`safeReturnTo`) :
+ * cette page ne fait que porter le paramètre.
+ */
+describe('GUIC-689 — transmission de la destination de retour', () => {
+  const lienSso = (html: HTMLElement) =>
+    html.querySelector('a[href^="/api/auth/login"]') as HTMLAnchorElement | null
+
+  it('given ?next=, then le lien SSO porte la destination', async () => {
+    const ui = await ConnexionPage({
+      searchParams: Promise.resolve({ next: '/ressources?vue=liste' }),
+    })
+    const { container } = render(ui)
+    expect(lienSso(container)?.getAttribute('href')).toBe(
+      '/api/auth/login?next=%2Fressources%3Fvue%3Dliste',
+    )
+  })
+
+  it('given aucun ?next=, then le lien SSO reste nu', async () => {
+    const ui = await ConnexionPage({ searchParams: Promise.resolve({}) })
+    const { container } = render(ui)
+    expect(lienSso(container)?.getAttribute('href')).toBe('/api/auth/login')
+  })
+})

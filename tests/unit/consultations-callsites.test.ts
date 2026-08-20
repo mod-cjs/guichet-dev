@@ -35,17 +35,20 @@ function source(fichier: string): string {
 describe('GUIC-688 — instrumentation des pages détail', () => {
   it.each(PAGES)('$fichier trace une consultation « $typeEntite »', ({ fichier, typeEntite }) => {
     const src = source(fichier)
-    expect(src).toContain('trackVuePage')
+    // GUIC-689 — le point d'instrumentation s'appelle désormais
+    // `differerVuePage` : il lit la requête pendant le rendu et ne diffère que
+    // l'écriture. L'exigence portée ici est inchangée — cette page mesure.
+    expect(src).toContain('differerVuePage')
     expect(src).toContain(`typeEntite: '${typeEntite}'`)
   })
 
-  // Un `void trackVuePage(...)` peut être abandonné par le runtime serverless
-  // quand la réponse part avant que la promesse ne se résolve : l'écriture est
-  // alors perdue sans erreur. `after()` existe exactement pour ça.
+  // Un `void differerVuePage(...)` peut être abandonné par le runtime
+  // serverless quand la réponse part avant que la promesse ne se résolve :
+  // l'écriture est alors perdue sans erreur. `after()` existe exactement pour ça.
   it.each(PAGES)('$fichier diffère le tracking avec after() et non un void', ({ fichier }) => {
     const src = source(fichier)
-    expect(src).toContain('after(() => trackVuePage(')
-    expect(src).not.toContain('void trackVuePage(')
+    expect(src).toContain('after(await differerVuePage(')
+    expect(src).not.toMatch(/void\s+(differerVuePage|trackVuePage)\(/)
     expect(src).toMatch(/import \{ after \} from 'next\/server'/)
   })
 
@@ -55,5 +58,28 @@ describe('GUIC-688 — instrumentation des pages détail', () => {
     const src = source(fichier)
     expect(src).toContain('src:')
     expect(src).toContain('from:')
+  })
+})
+
+/**
+ * GUIC-689 — La sentinelle ci-dessus exigeait `after()`, ce qui était juste,
+ * mais ne disait rien de CE QU'ON LUI PASSE. Les six pages lui passaient une
+ * closure qui lisait `headers()` une fois la réponse partie : Next refusait
+ * l'accès aux données de requête, le `catch` avalait l'erreur, et aucune
+ * consultation n'était écrite — en dev comme en production.
+ *
+ * La requête doit être lue AVANT `after()`. `differerVuePage` impose cet
+ * ordre par sa signature : il rend une fonction, et pour l'obtenir il faut
+ * l'attendre pendant que la requête existe encore.
+ */
+describe('GUIC-689 — la requête est lue avant after(), pas dedans', () => {
+  it.each(PAGES)('$fichier n\'appelle pas trackVuePage dans le callback', ({ fichier }) => {
+    const src = source(fichier)
+    expect(src).not.toMatch(/after\(\s*\(\s*\)\s*=>\s*trackVuePage/)
+    expect(src).not.toMatch(/after\(\s*async\s*\(\s*\)\s*=>\s*\{?[^)]*trackVuePage/)
+  })
+
+  it.each(PAGES)('$fichier diffère via differerVuePage', ({ fichier }) => {
+    expect(source(fichier)).toMatch(/after\(\s*await\s+differerVuePage\(/)
   })
 })

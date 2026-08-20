@@ -5,7 +5,7 @@ import { after } from 'next/server'
 import { notFound, redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getLivre, BiblioDomainError } from '@/lib/bibliotheque/service'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { Card, Icon } from '@/components/ui'
 import { EmpruntButton } from './emprunt-button'
 
@@ -54,7 +54,7 @@ export default async function BiblioLivreDetailPage({
 
   // GUIC-688 — page réservée aux connectés : la consultation est toujours nominative.
   const sp = (await searchParams) ?? {}
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'livre',
     entiteId:   livre.id,
     src:        sp.src,

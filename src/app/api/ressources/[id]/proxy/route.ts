@@ -3,6 +3,17 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { erreurServeur } from '@/lib/observability/erreur-serveur'
 import { canalFromSrc, trackConsultation } from '@/lib/analytics/consultations'
+import { logger } from '@/lib/logger'
+import { ipPubliqueValidee } from '@/lib/curation/robot/ssrf-guard'
+
+/** Au-delà, l'aperçu n'a plus de sens et le serveur ne sert plus que de tuyau. */
+const TAILLE_MAX_OCTETS = 50 * 1024 * 1024
+/** Un hôte qui n'a pas répondu en 10 s ne répondra pas utilement. */
+const DELAI_MAX_MS = 10_000
+
+function estRedirection(status: number): boolean {
+  return status >= 300 && status < 400
+}
 
 /**
  * GUIC-374 — Proxy de fichier ressource (PDF principalement).
@@ -78,11 +89,34 @@ export async function GET(
     )
   }
 
+  // GUIC-689 — ANTI-SSRF. L'URL vient de la BASE : sans garde, le serveur
+  // interroge ce qu'on lui indique — métadonnées cloud, Redis, MinIO, un
+  // service local. La parade existe déjà, écrite pour la curation ; elle
+  // n'était simplement pas appliquée ici.
+  //
+  // Fail-closed : hôte irrésolu, ou dont une SEULE des IP résolues est interne
+  // → refus, sans qu'aucune connexion ne soit tentée.
+  if ((await ipPubliqueValidee(ressource.url)) === null) {
+    logger.warn('[ressource-proxy] URL refusée (hôte interne ou irrésolu)', { id })
+    return withFrameFriendlyHeaders(
+      NextResponse.json(
+        // Message muet à dessein : nommer l'hôte visé renseignerait sur la
+        // topologie interne.
+        { error: { code: 'UPSTREAM', message: 'Document indisponible.' } },
+        { status: 502 },
+      ),
+    )
+  }
+
   let upstream: Response
   try {
     upstream = await fetch(ressource.url, {
       headers: { 'User-Agent': 'Mozilla/5.0 GuichetJeunesseProxy/1.0' },
-      redirect: 'follow',
+      // `follow` laissait une URL d'apparence saine rediriger vers une adresse
+      // interne — hors de portée de la validation faite juste au-dessus.
+      redirect: 'manual',
+      // Sans délai, un hôte lent immobilise une connexion serveur.
+      signal: AbortSignal.timeout(DELAI_MAX_MS),
     })
   } catch (err) {
     // GUIC-574 — le `catch {}` d'origine jetait la cause SANS MÊME LA LIER : une source distante
@@ -96,6 +130,54 @@ export async function GET(
         route:   request.nextUrl.pathname,
       }),
     )
+  }
+
+  // GUIC-689 — UNE redirection suivie, cible REVALIDÉE. Les CDN redirigent
+  // couramment : refuser tout net casserait des ressources qui marchaient.
+  // Mais suivre en aveugle laisserait une URL publique rediriger vers une
+  // adresse interne, hors de portée du contrôle initial.
+  if (estRedirection(upstream.status)) {
+    const cible = upstream.headers.get('location')
+    const absolue = cible ? new URL(cible, ressource.url).toString() : null
+
+    if (!absolue || (await ipPubliqueValidee(absolue)) === null) {
+      logger.warn('[ressource-proxy] redirection refusée', { id })
+      return withFrameFriendlyHeaders(
+        NextResponse.json(
+          { error: { code: 'UPSTREAM', message: 'Document indisponible.' } },
+          { status: 502 },
+        ),
+      )
+    }
+
+    try {
+      upstream = await fetch(absolue, {
+        headers: { 'User-Agent': 'Mozilla/5.0 GuichetJeunesseProxy/1.0' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(DELAI_MAX_MS),
+      })
+    } catch (err) {
+      return withFrameFriendlyHeaders(
+        erreurServeur({
+          code: 'UPSTREAM',
+          status: 502,
+          message: 'Source distante injoignable.',
+          cause: err,
+          route: request.nextUrl.pathname,
+        }),
+      )
+    }
+
+    // Une SEULE redirection : au-delà, on refuse plutôt que de boucler.
+    if (estRedirection(upstream.status)) {
+      logger.warn('[ressource-proxy] chaîne de redirections refusée', { id })
+      return withFrameFriendlyHeaders(
+        NextResponse.json(
+          { error: { code: 'UPSTREAM', message: 'Document indisponible.' } },
+          { status: 502 },
+        ),
+      )
+    }
   }
 
   if (!upstream.ok || !upstream.body) {
@@ -138,6 +220,17 @@ export async function GET(
     ...FRAME_FRIENDLY_HEADERS,
   })
   const contentLength = upstream.headers.get('content-length')
+  // GUIC-689 — il était relayé sans jamais être vérifié : un document de
+  // plusieurs centaines de Mo traversait le serveur de bout en bout.
+  if (contentLength && Number(contentLength) > TAILLE_MAX_OCTETS) {
+    logger.warn('[ressource-proxy] document trop lourd', { id, contentLength })
+    return withFrameFriendlyHeaders(
+      NextResponse.json(
+        { error: { code: 'UPSTREAM', message: 'Document trop volumineux pour l’aperçu.' } },
+        { status: 502 },
+      ),
+    )
+  }
   if (contentLength) headers.set('Content-Length', contentLength)
 
   if (download) {

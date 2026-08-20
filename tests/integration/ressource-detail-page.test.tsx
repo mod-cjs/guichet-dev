@@ -20,9 +20,11 @@ jest.mock('@/lib/loaders/ressources', () => ({
   getRessourcesRelated: (id: string, take?: number) => mockGetRessourcesRelated(id, take),
 }))
 
+// GUIC-689 — la page lit désormais la requête AVANT `after()` et ne lui confie
+// que l'écriture. Le mock rend donc une fonction, comme le vrai module.
 jest.mock('@/lib/analytics/consultation-server', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  trackVuePage: (input: any) => mockTrackVuePage(input),
+  differerVuePage: async (input: any) => () => mockTrackVuePage(input),
 }))
 
 jest.mock('@/lib/auth', () => ({

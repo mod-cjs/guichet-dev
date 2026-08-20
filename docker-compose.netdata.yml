@@ -52,6 +52,12 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /etc/os-release:/host/etc/os-release:ro
+      # GUIC-710 — trouvé après un faux « disque à 90% » côté utilisateur (df -h réel : 5%).
+      # Sans CE mount précis, diskspace.plugin rapporte l'usage de la COUCHE OVERLAY du
+      # conteneur (minuscule) sous mount_point="/", pas le vrai /dev/md3 de l'hôte — /proc et
+      # /sys seuls (ci-dessus) ne suffisent pas pour les points de montage disque. rslave :
+      # si l'hôte monte quelque chose de nouveau, le conteneur le voit aussi.
+      - /:/host/root:ro,rslave
       # Lecture seule : métriques par conteneur (CPU/mémoire de l'app, de Loki, etc.), jamais
       # d'écriture — même garde-fou que Promtail (docker-compose.observabilite.yml).
       - /var/run/docker.sock:/var/run/docker.sock:ro

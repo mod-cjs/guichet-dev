@@ -11,10 +11,26 @@ Cause réelle d'un incident de cette phase : `GRAFANA_ADMIN_PASSWORD` documenté
 mauvais fichier (`/etc/guichet/prod.env` au lieu de `/etc/guichet/observabilite.env`) —
 Grafana refusait de démarrer sans que la doc ne pointe vers la bonne cause.
 
+**Doppler (GUIC-625, 19/08)** — projet `guichet`, configs `dev`/`stg`/`prod`, remplace
+progressivement les fichiers plats comme *source de vérité* (le pattern qui avait causé la
+fuite historique n'avait jamais été remis en question, juste rapiécé au niveau du vecteur de
+fuite). Les fichiers `/etc/guichet/*.env` **restent les mêmes chemins et le même format** —
+`docker-compose.*.yml` ne change pas — mais peuvent désormais être **régénérés depuis Doppler**
+plutôt qu'édités à la main :
+```bash
+doppler secrets download --project guichet --config <dev|stg|prod> --no-file --format env
+```
+`scripts/deploy/deploy.sh` sait le faire automatiquement avant chaque déploiement
+(`DOPPLER_SYNC=1 DOPPLER_CONFIG=<stg|prod>`, opt-in explicite — inactif par défaut, jamais
+d'effet de bord sur un poste de dev). **État réel (19/08)** : `stg` importé (`test.env`,
+`observabilite.env`) et vérifié manuellement ; `dev`/`prod` pas encore migrés ; l'activation
+dans les workflows CD (`cd-staging.yml`, `cd-deploy.yml`) pas encore faite — à faire une fois
+`stg` éprouvé en déploiement réel.
+
 | Fichier | Contient | Consommé par | Portée |
 |---|---|---|---|
-| `/etc/guichet/prod.env` | Secrets applicatifs **PROD** (DB, Redis, S3, SSO, LLM…) | `docker-compose.prod.yml` | Prod uniquement |
-| `/etc/guichet/test.env` | Mêmes clés, valeurs **PRÉPROD** | `docker-compose.prod.yml` + `docker-compose.test.yml` combinés | Préprod uniquement |
+| `/etc/guichet/prod.env` | Secrets applicatifs **PROD** (DB, Redis, S3, SSO, LLM…) | `docker-compose.prod.yml` | Prod uniquement — pas encore sous Doppler |
+| `/etc/guichet/test.env` | Mêmes clés, valeurs **PRÉPROD** | `docker-compose.prod.yml` + `docker-compose.test.yml` combinés | Préprod — **source Doppler `stg`** depuis le 19/08 |
 | `/etc/guichet/observabilite.env` | Mot de passe admin Grafana, destinataires d'astreinte, SMTP | `docker-compose.observabilite.yml` | Partagé — pile à cycle de vie indépendant |
 | `<checkout>/.env.etl` (ou `GUICHET_ETL_ENV_FILE`) | Secrets Meltano + connexion à l'entrepôt Postgres | `docker-compose.etl.yml` | Partagé |
 | `/etc/guichet/cloudflared.env` | `CLOUDFLARE_TUNNEL_TOKEN` | `docker-compose.cloudflared.yml` | Accès Grafana/Netdata (GUIC-575) |
@@ -60,10 +76,11 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 ### Architecture / décisions de mise en prod
 - `.agent_context/specs/M14-mise-en-prod.md`
 
-## Dette connue (au 2026-08-17) — ce qui n'est pas encore prêt
+## Dette connue (au 2026-08-20) — ce qui n'est pas encore prêt
 
 | Sujet | État | Ticket |
 |---|---|---|
+| CI GitHub Actions bloquée (facturation) | **Bloquant actif, pas un problème de code.** Depuis au moins le 18/08, tous les jobs échouent en 2-3s avec l'annotation `recent account payments have failed or your spending limit needs to be increased` (visible via `gh run view <id>`). Bloque toute PR en attente de vérification CI — vérifié sur #401, #403, #404, #405 le 20/08. Seule action possible : régler la facturation dans Settings → Billing & plans de l'org GitHub ; rien côté dépôt ne contourne ça. | GUIC-711 |
 | SPF/DKIM/DMARC | **Diagnostiqué (17/08)** : SPF déjà cassé (deux enregistrements TXT `v=spf1` distincts sur `consortiumjeunessesenegal.org` — Google Workspace + OVH — invalide par la RFC, `permerror` probable côté receveurs). Fusion proposée : `v=spf1 include:_spf.google.com include:mx.ovh.com ~all` — à appliquer côté DNS, pas encore fait. DKIM **bloqué** : SMTP2GO n'utilise pas un `include:` classique mais un flux « Verified Sender Domain » générant 3 CNAME propres au compte (accès tableau de bord SMTP2GO introuvable pour l'instant). DMARC : reporté (décision de l'adresse de rapports agrégés non prise). Brevo (`brevo-code=…`) détecté dans le DNS, pas d'usage d'envoi confirmé — à ne pas inclure au SPF tant que non confirmé. | GUIC-577 |
 | Copie hors-site des sauvegardes | Décision explicitement différée (destination pas encore choisie) — `BACKUP_OFFSITE_CMD` non défini, sans urgence tant qu'aucune échéance n'est fixée | GUIC-571 |
 | Sauvegarde MinIO (CV/justificatifs) | **En pause, décision assumée (17/08)** — clé applicative S3 refusée par MinIO (`Access Denied`), pas de stockage externe encore choisi. `S3_ENDPOINT`/`S3_BUCKET` retirés de `test.env` : `backup.sh` skip proprement (code existant), plus d'échec nocturne. **Escalade progressive (19/08)** — `severite: rappel` (hebdo, dès le 1er jour) → `avertissement` (~14j) → `alerte` (~30j) si non résolu, pour qu'une pause assumée ne devienne pas une dette oubliée. CV/justificatifs (données CDP) non sauvegardés en attendant. | GUIC-571 |
