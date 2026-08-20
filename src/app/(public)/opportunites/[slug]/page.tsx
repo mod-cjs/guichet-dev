@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail } from '@/lib/opportunites-loader'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { getRecommandationScore } from '@/lib/ia/recommandation'
 import { OpportuniteDetail } from '@/components/opportunites/OpportuniteDetail'
@@ -59,7 +59,7 @@ export default async function OpportuniteDetailPage({
   // GUIC-367 — fire-and-forget : ne pas bloquer la 1ʳᵉ peinture sur l'écriture
   // Redis + Prisma. GUIC-688 — `src`/`from` attribuent le clic au canal réel
   // (chat IA, WhatsApp) plutôt qu'au trafic web organique.
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'opportunite',
     entiteId:   detail.id,
     src:        sp.src,

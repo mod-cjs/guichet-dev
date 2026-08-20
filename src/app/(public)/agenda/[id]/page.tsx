@@ -8,7 +8,7 @@ import { EvenementDetailHero } from '@/components/evenements/EvenementDetailHero
 import { EvenementInscriptionCta } from '@/components/evenements/EvenementInscriptionCta'
 import { getEvenementById } from '@/lib/loaders/evenements'
 import { getSession } from '@/lib/auth'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { prisma } from '@/lib/prisma'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { getEvenementJsonLd } from '@/lib/seo/loaders'
@@ -57,7 +57,7 @@ export default async function EvenementDetailPage({ params, searchParams }: Page
 
   // GUIC-688 — les événements n'étaient tracés nulle part jusqu'ici.
   const sp = (await searchParams) ?? {}
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'evenement',
     entiteId:   evenement.id,
     src:        sp.src,

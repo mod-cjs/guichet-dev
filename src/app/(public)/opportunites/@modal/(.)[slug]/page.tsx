@@ -1,7 +1,7 @@
 import { after } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getOpportuniteDetail } from '@/lib/opportunites-loader'
-import { trackVuePage } from '@/lib/analytics/consultation-server'
+import { differerVuePage } from '@/lib/analytics/consultation-server'
 import { getViewerInfoForCandidature } from '@/lib/loaders/profil'
 import { getRecommandationScore } from '@/lib/ia/recommandation'
 import { DetailSheet } from '@/components/opportunites/DetailSheet'
@@ -23,7 +23,7 @@ export default async function InterceptedOpportuniteDetail({
 
   // GUIC-688 — même garde de dédoublonnage que la page pleine : ouvrir la
   // modale puis la page complète ne compte qu'une consultation.
-  after(() => trackVuePage({
+  after(await differerVuePage({
     typeEntite: 'opportunite',
     entiteId:   detail.id,
     src:        sp.src,
