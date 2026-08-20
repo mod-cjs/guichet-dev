@@ -33,10 +33,15 @@ qu'aucun outil n'est configuré.
 
 | Lot | RED | GREEN | État |
 |---|---|---|---|
-| 1 | `consent-domaine.test.ts` | `src/lib/consent/*` | en cours |
-| 2 | `consent-bandeau.test.tsx` | `CookieConsent`, `PreferencesCookies` | à faire |
-| 3 | `consent-garde-traceurs.test.ts` | `MesureAudience` + non-régression | à faire |
-| 4 | `consent-page-cookies.test.tsx` | `/legal/cookies` + Article 7 | à faire |
+| 1 | `consent-domaine.test.ts` | `src/lib/consent/cookies.ts` | ✅ 27 tests |
+| 2 | `consent-bandeau.test.tsx` | `CookieConsent`, `PreferencesCookies` | ✅ 19 tests |
+| 3 | `consent-garde-traceurs.test.ts` | `traceurs.ts`, `server.ts` + balayage | ✅ 8 tests |
+| 4 | `consent-page-cookies.test.tsx` | `/legal/cookies` + Article 7 | ✅ 11 tests |
+
+## Reste à faire
+
+Relecture visuelle du bandeau sur les 4 espaces (aucune capture prise à ce stade),
+puis PR vers `dev`.
 
 ## En attente de réponse PO
 
