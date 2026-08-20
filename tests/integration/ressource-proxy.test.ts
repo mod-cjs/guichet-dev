@@ -11,6 +11,15 @@ jest.mock('@/lib/prisma', () => ({
 }))
 jest.mock('@/lib/rate-limit', () => ({ rateLimit: jest.fn().mockResolvedValue(null) }))
 
+// GUIC-689 — la route résout désormais le DNS de l'URL amont (garde anti-SSRF).
+// Sans ce mock, la garde interroge le réseau pour un hôte de fixture, échoue
+// fermé, et TOUS ces tests renvoient 502. On simule un hôte public valide :
+// le comportement anti-SSRF a sa propre suite (`ressource-proxy-ssrf`).
+jest.mock('@/lib/curation/robot/ssrf-guard', () => ({
+  ipPubliqueValidee: jest.fn().mockResolvedValue('93.184.216.34'),
+  estIpInterne: jest.fn().mockReturnValue(false),
+}))
+
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/ressources/[id]/proxy/route'
 

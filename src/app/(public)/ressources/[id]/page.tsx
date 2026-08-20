@@ -12,6 +12,7 @@ import { RessourceDetailClient } from './ressource-detail-client'
 import { htmlToPlainText } from '@/lib/rich-html'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbJsonLd } from '@/lib/seo/json-ld'
+import { RessourceMetadonnees } from '@/components/ressources/RessourceMetadonnees'
 
 /**
  * GUIC-363 — Page détail ressource publique.
@@ -83,8 +84,12 @@ export default async function RessourceDetailPage({ params, searchParams }: Ress
           { label: detail.titre },
         ]}
       />
+      {/* GUIC-689 — `vue=liste`, pas `/ressources` nu : sans filtre, la page rend
+          l'accueil médiathèque et le lien ramènerait à un écran de départ, pas à
+          la liste. Même défaut que celui corrigé sur l'accueil ; il a survécu
+          parce que la sentinelle ne lisait qu'un seul fichier. */}
       <Link
-        href="/ressources"
+        href="/ressources?vue=liste"
         className="lg:hidden text-fs-200 font-bold text-gj-teal-deep hover:underline"
       >
         ← Toutes les ressources
@@ -92,6 +97,16 @@ export default async function RessourceDetailPage({ params, searchParams }: Ress
 
       <div className="mt-space-4 flex flex-col gap-space-5">
         <RessourceDetailHero detail={detail} />
+        {/* GUIC-689 — la fiche n'affichait que le thème et un compteur de vues.
+            On expose ce que la base porte réellement ; taille et pagination,
+            attendues par la v5, n'existent pas au modèle et restent tues. */}
+        <RessourceMetadonnees
+          type={detail.type}
+          langue={detail.langue}
+          niveau={detail.niveau}
+          theme={detail.theme}
+          updatedAt={detail.updatedAt}
+        />
         <RessourceDetailClient detail={detail} pageUrl={pageUrl} userIsConnected={Boolean(session)} />
         <RessourceRelatedList items={related} />
       </div>

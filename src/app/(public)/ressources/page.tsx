@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { listRessources, getRessourcesHome } from '@/lib/loaders/ressources'
+import {
+  listRessources,
+  getRessourcesHome,
+  listCategoriesRessources,
+} from '@/lib/loaders/ressources'
 import { decrireVueRessources } from '@/lib/ressources/vue'
 import { RessourcesClient, MediathequeHome } from '@/components/ressources'
 import { getSession } from '@/lib/auth'
@@ -41,11 +45,15 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
     )
   }
 
-  const [{ items, total, page, pageSize }, programmes, session] = await Promise.all([
-    listRessources(filtres),
-    loadProgrammeOptions(prisma),
-    getSession(),
-  ])
+  const [{ items, total, page, pageSize }, programmes, session, categoriesOptions] =
+    await Promise.all([
+      listRessources(filtres),
+      loadProgrammeOptions(prisma),
+      getSession(),
+      // GUIC-689 — sur le catalogue entier : les options du filtre ne doivent
+      // pas dépendre de la page déjà chargée.
+      listCategoriesRessources(),
+    ])
 
   return (
     <div className="container-page py-space-6">
@@ -71,6 +79,8 @@ export default async function RessourcesPage({ searchParams }: RessourcesPagePro
           initialFilters={filtres}
           programmes={programmes}
           userIsConnected={Boolean(session)}
+          // GUIC-689 — calculées sur le CATALOGUE, plus sur la page chargée.
+          categoriesOptions={categoriesOptions}
         />
       </Suspense>
     </div>

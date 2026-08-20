@@ -12,7 +12,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { RessourceDetailClient } from '@/app/(public)/ressources/[id]/ressource-detail-client'
 import type { RessourceDetail } from '@/lib/loaders/ressources'
 
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+// GUIC-689 — le composant lit désormais `usePathname` pour porter la
+// destination de retour lorsqu'un visiteur anonyme clique sur le favori.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/ressources/r1',
+}))
 
 beforeEach(() => {
   global.fetch = jest.fn((_url: RequestInfo | URL, init?: RequestInit) => {
