@@ -85,3 +85,27 @@ describe('GUIC-709 — mise en forme du poids', () => {
     expect(formaterPoids(null)).toBeNull()
   })
 })
+
+/**
+ * GUIC-709 — Mesuré au rendu : la fiche annonçait « 1,7 Ko » pour un fichier
+ * de 3 808 octets. L'écart est la compression — `fetch` envoie
+ * `accept-encoding: gzip` par défaut, et le `content-length` reçu est alors la
+ * taille TRANSFÉRÉE, pas celle du fichier.
+ *
+ * Ce n'est pas un détail : le nombre change selon ce que le client demande, il
+ * n'est donc reproductible ni pour nous ni pour le navigateur du jeune. « Poids
+ * du fichier » doit vouloir dire le fichier.
+ */
+describe('GUIC-709 — le poids est celui du fichier, pas du transfert', () => {
+  it('demande explicitement une réponse non compressée', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true, headers: new Headers({ 'content-length': '3808' }),
+    }) as never
+
+    await poidsFichier('https://exemple.org/g.pdf')
+
+    const options = (global.fetch as jest.Mock).mock.calls[0][1]
+    const entetes = new Headers(options.headers as HeadersInit)
+    expect(entetes.get('accept-encoding')).toBe('identity')
+  })
+})
