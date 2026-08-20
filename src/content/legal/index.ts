@@ -38,3 +38,4 @@ export { CGU, CONFIDENTIALITE, INFORMATIONS_COLLECTE, MENTIONS_LEGALES, VOS_DROI
 export * from './contact'
 export * from './droits'
 export type { BlocLegal, DocumentLegal, SectionLegale } from './types'
+export { COOKIES } from './cookies'
