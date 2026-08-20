@@ -43,7 +43,10 @@ export const ENTITES_CONSULTABLES = [
   'organisation',
 ] as const
 
-export const TYPES_CONSULTATION = ['impression', 'consultation'] as const
+// GUIC-709 — `telechargement` est distinct de `consultation` À DESSEIN :
+// `incrementerCache` ne touche `vues` que pour `consultation`, donc emporter un
+// fichier ne gonfle pas l'audience de la ressource.
+export const TYPES_CONSULTATION = ['impression', 'consultation', 'telechargement'] as const
 
 export const CANAUX_CONSULTATION = ['web', 'ia_web', 'whatsapp'] as const
 

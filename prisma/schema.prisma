@@ -1982,6 +1982,10 @@ enum EntiteConsultable {
 enum TypeConsultation {
   impression
   consultation
+  /// GUIC-709 — le fichier a été emporté, pas seulement affiché. Distinct de
+  /// `consultation` : confondre les deux gonflerait `vues` à chaque
+  /// récupération de fichier.
+  telechargement
 
   @@map("type_consultation")
 }
@@ -2006,7 +2010,7 @@ model Consultation {
   typeEntite EntiteConsultable @map("type_entite")
   /// Identifiant de l'entité consultée. Pas de clé étrangère : la relation est polymorphe et l'intégrité repose sur l'applicatif.
   entiteId   String            @map("entite_id") @db.VarChar(36)
-  /// `impression` quand le contenu a été présenté, `consultation` quand il a été ouvert. Le rapport des deux donne le taux de clic.
+  /// `impression` quand le contenu a été présenté, `consultation` quand il a été ouvert, `telechargement` quand le fichier a été emporté. Le rapport impression/consultation donne le taux de clic. `telechargement` reste distinct de `consultation` : le compteur `vues` ne bouge que pour cette dernière (GUIC-709).
   typeEvent  TypeConsultation  @map("type_event")
   /// Canal d'origine : `web`, `ia_web` pour l'agent Yaye sur le site, `whatsapp`.
   canal      CanalConsultation

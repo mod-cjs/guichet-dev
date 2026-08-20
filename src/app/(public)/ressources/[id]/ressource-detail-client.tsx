@@ -125,7 +125,23 @@ export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false
 
   const ctaLabel = CTA_LABEL[detail.type]
   const ctaIcon = CTA_ICON[detail.type]
-  const isExternal = /^https?:\/\//.test(detail.url)
+
+  // GUIC-709 — un PDF s'emporte par NOTRE proxy, pas par l'URL de la source.
+  // C'est le seul point qui prouve qu'un fichier est réellement parti, donc le
+  // seul endroit où le compter. Tant que le CTA pointait la source, le fichier
+  // ne traversait jamais nos serveurs et le compteur serait resté à zéro par
+  // construction — un compteur vide qu'on croit juste est pire que pas de
+  // compteur du tout.
+  //
+  // Les autres types gardent leur lien direct : le proxy ne sert en pièce
+  // jointe que le PDF, et « emporter » ne veut rien dire d'une vidéo ou d'une
+  // page. On n'invente pas un événement pour uniformiser.
+  const ctaHref =
+    detail.type === 'PDF' ? `/api/ressources/${detail.id}/proxy?download=1` : detail.url
+
+  // Le proxy répond `Content-Disposition: attachment` : le navigateur télécharge
+  // sans naviguer. Un `target="_blank"` laisserait un onglet vide derrière lui.
+  const isExternal = /^https?:\/\//.test(ctaHref)
 
   // Visionneuse inline : PDF via proxy (self) ; vidéo embeddable via parser.
   const videoEmbed = detail.type === 'Video' ? parseVideoEmbedUrl(detail.url) : null
@@ -146,7 +162,7 @@ export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false
         data-testid="ressource-detail-actions"
       >
       <a
-        href={detail.url}
+        href={ctaHref}
         target={isExternal ? '_blank' : undefined}
         rel={isExternal ? 'noopener noreferrer' : undefined}
         aria-label={ctaLabel}

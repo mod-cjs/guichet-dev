@@ -32,7 +32,9 @@ function makeDetail(over: Partial<RessourceDetail> = {}): RessourceDetail {
   return {
     id: 'r1', titre: 'Doc', description: 'desc', type: 'PDF', theme: 'Emploi',
     url: 'https://example.org/doc.pdf', vues: 0, niveau: null, langue: null,
-    categorie: null, createdAt: '2026-01-01', updatedAt: '2026-01-01', ...over,
+    categorie: null, createdAt: '2026-01-01', updatedAt: '2026-01-01',
+    // GUIC-709 — mesures de la fiche, absentes par défaut dans cette fixture.
+    telechargements: 0, poidsOctets: null, ...over,
   }
 }
 

@@ -1,4 +1,5 @@
 import { Badge, Icon, RichContent, type IconName } from '@/components/ui'
+import { formaterPoids } from '@/lib/ressources/poids-fichier'
 import type { RessourceDetail, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface RessourceDetailHeroProps {
@@ -37,6 +38,15 @@ const TYPE_META = TYPE_META_RESSOURCE
  */
 export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
   const meta = TYPE_META[detail.type]
+
+  const poids = formaterPoids(detail.poidsOctets)
+  const mesures = [
+    detail.vues > 0 ? `${detail.vues} vue${detail.vues > 1 ? 's' : ''}` : null,
+    detail.telechargements > 0
+      ? `${detail.telechargements} téléchargement${detail.telechargements > 1 ? 's' : ''}`
+      : null,
+    poids,
+  ].filter((m): m is string => m !== null)
 
   return (
     <section
@@ -83,9 +93,16 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
 
       <RichContent html={detail.description} className="text-fs-300" />
 
-      <div className="text-fs-200 text-color-text-muted">
-        {detail.vues} vue{detail.vues > 1 ? 's' : ''}
-      </div>
+      {/* GUIC-709 — n'affiche que ce qui est mesuré. « 0 vue » était rendu tel
+          quel : un compteur à zéro n'informe de rien et fait passer une
+          ressource neuve pour une ressource délaissée. Même règle pour les
+          téléchargements, et le poids ne paraît que s'il a été relevé à la
+          source (`null` = non mesuré, jamais « vide »). */}
+      {mesures.length > 0 && (
+        <div className="text-fs-200 text-color-text-muted">
+          {mesures.join(' · ')}
+        </div>
+      )}
     </section>
   )
 }
