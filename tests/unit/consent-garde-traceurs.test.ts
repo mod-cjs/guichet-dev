@@ -99,6 +99,10 @@ describe('balayage du code', () => {
 })
 
 describe('lecture serveur', () => {
+  // `next/headers` est remocké d'un cas à l'autre : sans purge du cache, le second
+  // `import` rendrait le module déjà résolu avec le mock du premier.
+  beforeEach(() => jest.resetModules())
+
   it('lit la décision depuis le pot à cookies de la requête', async () => {
     const consentement = construireConsentement(choixToutAccepte())
     jest.doMock('next/headers', () => ({
