@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Lexend } from 'next/font/google'
+import { CookieConsent } from '@/components/consent/CookieConsent'
 import { MobileTopShell, MobileBottomShell } from '@/components/layout/MobileAppShell'
 import { OfflineBanner } from '@/components/ui'
 import { appUrl } from '@/lib/app-url'
@@ -72,6 +73,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             écrans publics). Autonome : il ne rend rien tant que la connexion
             est présente. Public cible sur réseau intermittent. */}
         <OfflineBanner />
+        {/* GUIC-712 — bandeau cookies : monté ici, et ici seulement. Un montage par
+            espace laisserait un espace sans bandeau au premier oubli — c'est
+            exactement ce qui s'est produit avec l'Article 7, qui promettait en
+            production un consentement que personne n'avait posé. Autonome : ne rend
+            rien tant qu'une décision courante existe. */}
+        <CookieConsent />
         {/* Top bar mobile : DOIT être avant {children} pour que sticky top-0 fonctionne */}
         <MobileTopShell />
         {children}
