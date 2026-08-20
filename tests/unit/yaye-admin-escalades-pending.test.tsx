@@ -32,7 +32,9 @@ it('applique aria-busy + opacité réduite sur la liste quand une navigation de 
       currentPage={1}
       totalPages={1}
       centres={[]}
-      filtres={{ statut: '', canal: 'tous', centre: '', danger: false }}
+      staff={[]}
+      currentUid=""
+      filtres={{ statut: '', canal: 'tous', centre: '', danger: false, retard: false, q: '', from: '', to: '' }}
     />,
   )
   const list = screen.getByTestId('escalades-table')

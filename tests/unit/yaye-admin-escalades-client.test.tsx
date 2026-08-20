@@ -294,3 +294,44 @@ it('GUIC-259 #15 — affiche le NOM de l’opérateur en charge, pas le cuid', (
   render(<EscaladesClient {...enCharge} />)
   expect(screen.getByText(/par Modou Fall/i)).toBeInTheDocument()
 })
+
+it('GUIC-259 #12 — action groupée : « tout sélectionner » puis prise en charge → un PATCH par ligne', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  const deux: EscaladesClientProps = {
+    ...baseProps,
+    rows: [
+      { ...baseProps.rows[0], id: 'e1', statut: 'en_attente' },
+      { ...baseProps.rows[0], id: 'e2', statut: 'en_attente' },
+    ],
+    counts: { en_attente: 2, prise_en_charge: 0, resolue: 0 },
+  }
+  render(<EscaladesClient {...deux} />)
+  fireEvent.click(screen.getByLabelText(/Tout sélectionner/i))
+  fireEvent.click(screen.getByRole('button', { name: /Prendre en charge la sélection/i }))
+  await waitFor(() => expect((global.fetch as jest.Mock).mock.calls.length).toBe(2))
+  const urls = (global.fetch as jest.Mock).mock.calls.map((c) => c[0])
+  expect(urls).toEqual(expect.arrayContaining(['/api/admin/yaye/escalades/e1', '/api/admin/yaye/escalades/e2']))
+})
+
+it('GUIC-259 #12 — les lignes résolues ne sont pas sélectionnables (pas de case)', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const resolue: EscaladesClientProps = { ...baseProps, rows: [{ ...baseProps.rows[0], statut: 'resolue' }] }
+  render(<EscaladesClient {...resolue} />)
+  expect(screen.queryByLabelText(/Sélectionner l'escalade/i)).not.toBeInTheDocument()
+})
+
+it('GUIC-259 #13 — « Aperçu » charge et affiche les derniers tours inline', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ data: { hasVerbatimText: true, turns: [
+      { index: 0, userText: 'Bonjour je cherche un stage', assistantText: 'Je regarde ça', toolsUsed: ['search_opportunities'], escalade: false },
+      { index: 1, userText: 'Je me sens mal', assistantText: null, toolsUsed: ['escalate_to_advisor'], escalade: true },
+    ] } }),
+  }) as unknown as typeof fetch
+
+  render(<EscaladesClient {...baseProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /Aperçu/i }))
+  await waitFor(() => expect(screen.getByTestId('apercu-panel')).toBeInTheDocument())
+  expect(screen.getByText(/je cherche un stage/i)).toBeInTheDocument()
+  expect(global.fetch).toHaveBeenCalledWith('/api/admin/yaye/sessions/s1/apercu')
+})
