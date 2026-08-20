@@ -8,6 +8,7 @@
  */
 import type { DocumentLegal } from './types'
 import { CGU } from './cgu'
+import { COOKIES } from './cookies'
 import { CONFIDENTIALITE } from './confidentialite'
 import { INFORMATIONS_COLLECTE } from './informations-collecte'
 import { MENTIONS_LEGALES } from './mentions-legales'
@@ -18,6 +19,7 @@ export const DOCUMENTS_LEGAUX: DocumentLegal[] = [
   INFORMATIONS_COLLECTE,
   VOS_DROITS,
   CGU,
+  COOKIES,
   MENTIONS_LEGALES,
 ]
 
@@ -27,6 +29,7 @@ export const LIENS_FOOTER_LEGAUX: { slug: string; libelle: string }[] = [
   { slug: CONFIDENTIALITE.slug, libelle: 'Confidentialité' },
   { slug: INFORMATIONS_COLLECTE.slug, libelle: 'Collecte des données' },
   { slug: VOS_DROITS.slug, libelle: 'Vos droits' },
+  { slug: COOKIES.slug, libelle: 'Cookies' },
   { slug: MENTIONS_LEGALES.slug, libelle: 'Mentions légales' },
 ]
 
@@ -34,8 +37,7 @@ export function getDocumentLegal(slug: string): DocumentLegal | undefined {
   return DOCUMENTS_LEGAUX.find((doc) => doc.slug === slug)
 }
 
-export { CGU, CONFIDENTIALITE, INFORMATIONS_COLLECTE, MENTIONS_LEGALES, VOS_DROITS }
+export { CGU, CONFIDENTIALITE, COOKIES, INFORMATIONS_COLLECTE, MENTIONS_LEGALES, VOS_DROITS }
 export * from './contact'
 export * from './droits'
 export type { BlocLegal, DocumentLegal, SectionLegale } from './types'
-export { COOKIES } from './cookies'

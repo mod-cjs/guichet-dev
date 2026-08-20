@@ -187,7 +187,7 @@ export const CONFIDENTIALITE: DocumentLegal = {
         {
           type: 'paragraphe',
           texte:
-            'Vous pouvez accepter ou refuser les cookies non essentiels via le bandeau de consentement affiché lors de votre première visite, ou via les paramètres de votre navigateur.',
+            'Vous pouvez accepter ou refuser les cookies non essentiels via le bandeau de consentement affiché lors de votre première visite, ou via les paramètres de votre navigateur. Vous pouvez revenir sur votre choix à tout moment depuis la page /legal/cookies, qui détaille les cookies effectivement déposés.',
         },
       ],
     },
