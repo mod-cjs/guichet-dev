@@ -68,6 +68,10 @@ export function CookieConsent({ ouvrirPreferences = false }: CookieConsentProps 
 
   if (!consentementCaduc(consentement)) return null
 
+  // Couche « overlay » et non « chat » : le FAB Yaye occupe `--gj-z-chat` et, rendu dans
+  // le contenu de page donc plus loin dans le DOM, recouvrait les boutons à couche égale.
+  // Le bandeau conditionne un dépôt sur l'appareil — il passe au-dessus des navigations
+  // et du tiroir admin, en dessous des seules alertes (`--gj-z-toast`).
   return (
     <div
       role="dialog"
@@ -75,7 +79,7 @@ export function CookieConsent({ ouvrirPreferences = false }: CookieConsentProps 
       aria-describedby="gj-consent-texte"
       className="fixed inset-x-0 bottom-0 bg-gj-surface border-t border-gj-line shadow-gj-lg
         px-space-4 py-space-4 pb-[calc(var(--space-4)+env(safe-area-inset-bottom,0px))]"
-      style={{ zIndex: 'var(--gj-z-chat)' }}
+      style={{ zIndex: 'var(--gj-z-overlay)' }}
     >
       <div className="container-page flex flex-col gap-space-3 lg:flex-row lg:items-center lg:gap-space-5">
         <div className="flex-1">
