@@ -77,3 +77,25 @@ it('le filtre danger borne sur signal_danger non nul et enrichit le bénéficiai
   expect(mockFindMany.mock.calls[0][0].where).toEqual({ signalDanger: { not: null } })
   expect(res.rows[0].user).toEqual({ prenom: 'Awa', nom: 'Diop', telephone: '+221770000000' })
 })
+
+// ─── GUIC-259 — staff assignable + charge par opérateur (#15) ───────────────
+
+it('listYayeStaff : conseillers/directeurs distincts avec nom, jamais le cuid seul', async () => {
+  const { listYayeStaff } = await import('@/lib/ia/admin/escalades')
+  const mockAgent = jest.fn().mockResolvedValue([{ cjsUid: 'a1' }, { cjsUid: 'a2' }])
+  const mockUsers = jest.fn().mockResolvedValue([
+    { cjsUid: 'a1', prenom: 'Awa', nom: 'Diop' },
+    { cjsUid: 'a2', prenom: 'Modou', nom: 'Fall' },
+  ])
+  // On réutilise les mocks prisma déjà en place :
+  const prismaMod = (await import('@/lib/prisma')).prisma as unknown as Record<string, unknown>
+  prismaMod.agentCentre = { findMany: mockAgent }
+  ;(prismaMod.utilisateur as { findMany: unknown }).findMany = mockUsers
+  const staff = await listYayeStaff()
+  expect(staff).toEqual([
+    { cjsUid: 'a1', nom: 'Awa Diop' },
+    { cjsUid: 'a2', nom: 'Modou Fall' },
+  ])
+  // ne cible que conseiller/directeur
+  expect(mockAgent.mock.calls[0][0].where.role.in).toEqual(expect.arrayContaining(['conseiller', 'directeur']))
+})

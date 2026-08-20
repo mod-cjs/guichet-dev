@@ -47,6 +47,8 @@ const baseProps: EscaladesClientProps = {
   currentPage: 1,
   totalPages: 1,
   centres: [{ id: 'c1', nom: 'CJS Dakar' }],
+  staff: [{ cjsUid: 'staff-2', nom: 'Modou Fall' }],
+  currentUid: 'staff-me',
   filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false, q: '', from: '', to: '' },
 }
 
@@ -268,4 +270,27 @@ it('GUIC-259 — un chip « En retard » navigue vers le filtre retard=1', () =>
   render(<EscaladesClient {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /En retard/i }))
   expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('retard=1'))
+})
+
+it('GUIC-259 #15 — réassigner via le sélecteur envoie assignTo + statut prise_en_charge', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  const enCharge: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'prise_en_charge', traitePar: 'staff-me' }],
+  }
+  render(<EscaladesClient {...enCharge} />)
+  fireEvent.change(screen.getByLabelText(/Réassigner à/i), { target: { value: 'staff-2' } })
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+  const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body)
+  expect(body).toEqual({ statut: 'prise_en_charge', assignTo: 'staff-2', expectedFrom: 'prise_en_charge' })
+})
+
+it('GUIC-259 #15 — affiche le NOM de l’opérateur en charge, pas le cuid', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const enCharge: EscaladesClientProps = {
+    ...baseProps,
+    rows: [{ ...baseProps.rows[0], statut: 'prise_en_charge', traitePar: 'staff-2' }],
+  }
+  render(<EscaladesClient {...enCharge} />)
+  expect(screen.getByText(/par Modou Fall/i)).toBeInTheDocument()
 })

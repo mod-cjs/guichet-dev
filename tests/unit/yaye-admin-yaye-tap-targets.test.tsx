@@ -42,6 +42,8 @@ const escaladesProps: EscaladesClientProps = {
   currentPage: 1,
   totalPages: 1,
   centres: [{ id: 'c1', nom: 'CJS Dakar' }],
+  staff: [],
+  currentUid: 'staff-me',
   filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false, q: '', from: '', to: '' },
 }
 

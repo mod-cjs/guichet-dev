@@ -8,11 +8,15 @@ import { EscaladeConflictError } from '@/lib/ia/admin/escalades'
 
 const mockGetSession = jest.fn()
 const mockSetStatut = jest.fn()
+const mockAssign = jest.fn()
+const mockListStaff = jest.fn()
 const mockRecordAudit = jest.fn()
 
 jest.mock('@/lib/auth', () => ({ getSession: () => mockGetSession() }))
 jest.mock('@/lib/ia/admin/escalades', () => ({
   setEscaladeStatut: (...a: unknown[]) => mockSetStatut(...a),
+  assignEscalade: (...a: unknown[]) => mockAssign(...a),
+  listYayeStaff: () => mockListStaff(),
   EscaladeConflictError: jest.requireActual('@/lib/ia/admin/escalades').EscaladeConflictError,
 }))
 jest.mock('@/lib/audit', () => ({ recordAudit: (...a: unknown[]) => mockRecordAudit(...a) }))
@@ -33,6 +37,8 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockGetSession.mockResolvedValue({ cjsUid: 'staff-1', roles: ['conseiller'] })
   mockSetStatut.mockResolvedValue(undefined)
+  mockAssign.mockResolvedValue(undefined)
+  mockListStaff.mockResolvedValue([{ cjsUid: 'staff-2', nom: 'Modou Fall' }])
 })
 
 describe('GUIC-259 — PATCH escalade', () => {
@@ -65,5 +71,19 @@ describe('GUIC-259 — PATCH escalade', () => {
   it('statut invalide → 400', async () => {
     const res = await PATCH(req({ statut: 'n_importe_quoi' }), params)
     expect(res.status).toBe(400)
+  })
+
+  it('réassignation à un staff valide → assignEscalade + audit avec reassigneA', async () => {
+    const res = await PATCH(req({ statut: 'prise_en_charge', assignTo: 'staff-2', expectedFrom: 'en_attente' }), params)
+    expect(res.status).toBe(200)
+    expect(mockAssign).toHaveBeenCalledWith('e1', 'staff-2', 'en_attente')
+    expect(mockSetStatut).not.toHaveBeenCalled()
+    expect(mockRecordAudit.mock.calls[0][2].meta.reassigneA).toBe('staff-2')
+  })
+
+  it('réassignation à un cuid inconnu → 400, aucune mutation', async () => {
+    const res = await PATCH(req({ statut: 'prise_en_charge', assignTo: 'inconnu' }), params)
+    expect(res.status).toBe(400)
+    expect(mockAssign).not.toHaveBeenCalled()
   })
 })

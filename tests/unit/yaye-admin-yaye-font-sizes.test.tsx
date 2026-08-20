@@ -69,6 +69,8 @@ describe('EscaladesClient — aucun texte < 11px', () => {
       currentPage: 1,
       totalPages: 1,
       centres: [{ id: 'c1', nom: 'CJS Dakar' }],
+      staff: [],
+      currentUid: 'staff-me',
       filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false, q: '', from: '', to: '' },
     }
     const { container } = render(<EscaladesClient {...props} />)
