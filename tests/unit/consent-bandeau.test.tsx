@@ -202,3 +202,15 @@ describe('panneau de personnalisation', () => {
     })
   })
 })
+
+describe('couche d’affichage', () => {
+  it('passe au-dessus de la bulle Yaye et des navigations', async () => {
+    // Le FAB Yaye occupe `--gj-z-chat`, la bottom-nav `--gj-z-bottom-nav` et le tiroir
+    // admin z-260. À couche égale, c'est l'ordre du DOM qui tranche — et la bulle,
+    // rendue dans le contenu de page, recouvrait les boutons du bandeau. Un gate de
+    // consentement qu'un autre élément recouvre n'est plus un gate.
+    render(<CookieConsent />)
+    const bandeau = await screen.findByRole('dialog', { name: /cookies/i })
+    expect(bandeau.style.zIndex).toBe('var(--gj-z-overlay)')
+  })
+})
