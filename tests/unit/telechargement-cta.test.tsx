@@ -41,6 +41,15 @@ const rendre = (over: Record<string, unknown>) =>
     />,
   )
 
+beforeEach(() => {
+  // `PdfFrame` sonde la source par un HEAD au montage ; sans ce stub, jsdom
+  // n'a pas de `fetch` et la fiche PDF ne rend pas du tout.
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    headers: new Headers({ 'content-type': 'application/pdf' }),
+  }) as never
+})
+
 describe('GUIC-709 — le CTA passe par le proxy pour les fichiers', () => {
   it('given un PDF, then le CTA pointe le proxy en mode téléchargement', () => {
     rendre({ type: 'PDF', url: 'https://exemple.org/g.pdf' })

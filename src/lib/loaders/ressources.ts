@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { poidsFichier } from '@/lib/ressources/poids-fichier'
 import { prisma } from '@/lib/prisma'
 
 /** Page par défaut (règle CLAUDE.md : 20 items/page). */
@@ -195,6 +196,19 @@ export async function getRessourceFavoriIds(cjsUid: string): Promise<string[]> {
 /** Détail complet d'une ressource — GUIC-363. */
 export interface RessourceDetail extends RessourceListItem {
   updatedAt: string
+  /**
+   * GUIC-709 — nombre de fichiers réellement emportés, compté sur la table
+   * `Consultation` (événement `telechargement`). Calculé à la lecture plutôt
+   * que dénormalisé : la fiche est le seul endroit qui l'affiche, et un
+   * compteur en colonne finit toujours par diverger de sa source.
+   */
+  telechargements: number
+  /**
+   * GUIC-709 — poids relevé à la source, ou `null` si la source ne le déclare
+   * pas ou reste injoignable. `null` signifie « non mesuré », jamais « vide » :
+   * l'affichage doit se taire, pas montrer un zéro.
+   */
+  poidsOctets: number | null
 }
 
 const DETAIL_SELECT = {
@@ -214,9 +228,23 @@ export async function getRessourceById(id: string): Promise<RessourceDetail | nu
     select: DETAIL_SELECT,
   })
   if (!r) return null
+
+  // GUIC-709 — les deux mesures de la fiche, en parallèle de rien d'autre :
+  // aucune ne doit retarder l'autre, et aucune ne doit faire échouer la page.
+  const [telechargements, poidsOctets] = await Promise.all([
+    prisma.consultation.count({
+      where: { typeEntite: 'ressource', entiteId: r.id, typeEvent: 'telechargement' },
+    }),
+    // Uniquement les PDF : c'est le seul type dont on sert le fichier, donc le
+    // seul dont le poids veut dire quelque chose pour qui va le télécharger.
+    r.type === 'PDF' ? poidsFichier(r.url) : Promise.resolve(null),
+  ])
+
   return {
     ...toListItem(r),
     updatedAt: r.updatedAt.toISOString(),
+    telechargements,
+    poidsOctets,
   }
 }
 

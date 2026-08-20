@@ -22,6 +22,10 @@ const baseDetail: RessourceDetail = {
   categorie: 'Formation',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
+  // GUIC-709 — mesures de la fiche. `poidsOctets: null` = non relevé, ce qui
+  // est l'état par défaut d'une fixture qui ne parle pas de poids.
+  telechargements: 0,
+  poidsOctets: null,
 }
 
 describe('<RessourceDetailHero /> — inclusion Wolof', () => {
