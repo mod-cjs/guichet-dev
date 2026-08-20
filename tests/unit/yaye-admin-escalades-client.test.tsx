@@ -25,7 +25,6 @@ const baseProps: EscaladesClientProps = {
       id: 'e1',
       sessionId: 's1',
       cjsUid: 'u1',
-      role: 'beneficiaire',
       centreId: 'c1',
       centreNom: 'CJS Dakar',
       canal: 'whatsapp',
@@ -48,7 +47,7 @@ const baseProps: EscaladesClientProps = {
   currentPage: 1,
   totalPages: 1,
   centres: [{ id: 'c1', nom: 'CJS Dakar' }],
-  filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false },
+  filtres: { statut: '', canal: 'tous', centre: '', danger: false, retard: false, q: '', from: '', to: '' },
 }
 
 beforeEach(() => {
@@ -163,7 +162,7 @@ it('après saisie de la note + Confirmer, envoie le PATCH avec statut=resolue et
   })
   const call = (global.fetch as jest.Mock).mock.calls[0]
   const body = JSON.parse(call[1].body)
-  expect(body).toEqual({ statut: 'resolue', resolutionNote: 'Appelé la famille, situation apaisée.' })
+  expect(body).toEqual({ statut: 'resolue', expectedFrom: 'prise_en_charge', resolutionNote: 'Appelé la famille, situation apaisée.' })
 })
 
 it('une escalade résolue avec resolutionNote affiche le texte de la note', () => {
@@ -191,7 +190,63 @@ it('les transitions non-résolue (prise en charge) restent inchangées : envoi d
   })
   const call = (global.fetch as jest.Mock).mock.calls[0]
   const body = JSON.parse(call[1].body)
-  expect(body).toEqual({ statut: 'prise_en_charge' })
+  expect(body).toEqual({ statut: 'prise_en_charge', expectedFrom: 'en_attente' })
+})
+
+it('GUIC-259 — « Rouvrir » demande confirmation (modal) avant de rouvrir', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  const resolue: EscaladesClientProps = { ...baseProps, rows: [{ ...baseProps.rows[0], statut: 'resolue' }] }
+  render(<EscaladesClient {...resolue} />)
+
+  fireEvent.click(screen.getByRole('button', { name: /Rouvrir/i }))
+  expect(screen.getByText(/Rouvrir l'escalade \?/i)).toBeInTheDocument()
+  expect(global.fetch).not.toHaveBeenCalled()
+
+  // Deux boutons « Rouvrir » (ligne + confirmation modal) : on clique celui du modal (dernier).
+  const boutons = screen.getAllByRole('button', { name: /^Rouvrir$/i })
+  fireEvent.click(boutons[boutons.length - 1])
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+  const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body)
+  expect(body).toEqual({ statut: 'en_attente', expectedFrom: 'resolue' })
+})
+
+it('GUIC-259 — succès affiche un toast de confirmation', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /Prendre en charge/i }))
+  await waitFor(() => expect(screen.getByText(/prise en charge/i)).toBeInTheDocument())
+})
+
+it('GUIC-259 — 409 (conflit concurrent) → message dédié + rafraîchit', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 409 }) as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /Prendre en charge/i }))
+  await waitFor(() => expect(screen.getByText(/a changé entre-temps/i)).toBeInTheDocument())
+  expect(refreshMock).toHaveBeenCalled()
+})
+
+it('GUIC-259 — humanise le motif (jamais le code brut sujet_sensible)', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  expect(screen.getByText('Sujet sensible')).toBeInTheDocument()
+  expect(screen.queryByText('sujet_sensible')).not.toBeInTheDocument()
+})
+
+it('GUIC-259 — humanise le signal de danger (jamais automutilation_suicide brut)', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  const danger: EscaladesClientProps = { ...baseProps, rows: [{ ...baseProps.rows[0], signalDanger: 'automutilation_suicide' }] }
+  render(<EscaladesClient {...danger} />)
+  expect(screen.getByText(/Automutilation \/ suicide/i)).toBeInTheDocument()
+  expect(screen.queryByText(/automutilation_suicide/)).not.toBeInTheDocument()
+})
+
+it('GUIC-259 — la recherche (Entrée) navigue vers ?q=', () => {
+  global.fetch = jest.fn() as unknown as typeof fetch
+  render(<EscaladesClient {...baseProps} />)
+  const input = screen.getByLabelText(/Rechercher une escalade/i)
+  fireEvent.change(input, { target: { value: 'Diop' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('q=Diop'))
 })
 
 it('GUIC-259 — affiche l’échéance SLA restante sur une escalade non en retard (triage par urgence)', () => {
