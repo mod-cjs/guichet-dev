@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Chip } from '@/components/ui/Chip'
 import { Pagination } from '@/components/ui/Pagination'
@@ -10,6 +10,7 @@ import { Toast } from '@/components/ui/Toast'
 import { Modal } from '@/components/ui/Modal'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
+import { raisonLabel, dangerLabel } from '@/lib/ia/admin/escalade-labels'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
 
 // ─── Types (sérialisables) ──────────────────────────────────────────────────
@@ -18,7 +19,6 @@ export interface EscaladeRowDTO {
   id: string
   sessionId: string
   cjsUid: string | null
-  role: string | null
   centreId: string | null
   /** Nom du centre résolu (jamais le cuid brut) — « — » si centre inconnu, null si aucun centre. */
   centreNom: string | null
@@ -48,7 +48,7 @@ export interface EscaladesClientProps {
   currentPage: number
   totalPages: number
   centres: { id: string; nom: string }[]
-  filtres: { statut: string; canal: string; centre: string; danger: boolean; retard: boolean }
+  filtres: { statut: string; canal: string; centre: string; danger: boolean; retard: boolean; q: string; from: string; to: string }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -100,6 +100,11 @@ function userLabel(row: EscaladeRowDTO): string {
 
 const GRID = '1.3fr 1.6fr 1fr 1fr 1.4fr'
 
+const dateInputStyle: React.CSSProperties = {
+  background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 8,
+  padding: '0 8px', minHeight: 40, fontSize: 12.5, fontFamily: 'inherit', color: 'var(--gj-ink)', cursor: 'pointer',
+}
+
 // ─── Composant ──────────────────────────────────────────────────────────────
 
 export function EscaladesClient({ rows, counts, total, currentPage, totalPages, centres, filtres }: EscaladesClientProps) {
@@ -108,26 +113,44 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
   const [isPending, startTransition] = useTransition()
   const [busy, setBusy] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [succes, setSucces] = useState<string | null>(null)
   /** GUIC-259 — escalade en cours de clôture (ouvre le modal de note). */
   const [clotureId, setClotureId] = useState<string | null>(null)
   const [noteCloture, setNoteCloture] = useState('')
+  /** Escalade en cours de réouverture (confirmation avant action semi-destructive). */
+  const [reouvertureId, setReouvertureId] = useState<string | null>(null)
+  const [recherche, setRecherche] = useState(filtres.q)
+  /** Tick pour rafraîchir les temps relatifs / échéances sans recharger. */
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
 
-  function push(next: Partial<typeof filtres>) {
-    const merged = { ...filtres, ...next }
+  /** Construit une URL de filtres depuis un état fusionné (partagé push + pagination). */
+  function urlFor(merged: typeof filtres): string {
     const sp = new URLSearchParams()
     if (merged.statut) sp.set('statut', merged.statut)
     if (merged.canal && merged.canal !== 'tous') sp.set('canal', merged.canal)
     if (merged.centre) sp.set('centre', merged.centre)
     if (merged.danger) sp.set('danger', '1')
     if (merged.retard) sp.set('retard', '1')
+    if (merged.q) sp.set('q', merged.q)
+    if (merged.from) sp.set('from', merged.from)
+    if (merged.to) sp.set('to', merged.to)
     const qs = sp.toString()
-    startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname))
+    return qs ? `${pathname}?${qs}` : pathname
   }
 
-  async function changeStatut(id: string, statut: StatutEscalade, resolutionNote?: string) {
+  function push(next: Partial<typeof filtres>) {
+    startTransition(() => router.push(urlFor({ ...filtres, ...next })))
+  }
+
+  async function changeStatut(id: string, statut: StatutEscalade, expectedFrom: StatutEscalade, resolutionNote?: string) {
     setBusy(id)
+    setErreur(null)
     try {
-      const body: { statut: StatutEscalade; resolutionNote?: string } = { statut }
+      const body: { statut: StatutEscalade; expectedFrom: StatutEscalade; resolutionNote?: string } = { statut, expectedFrom }
       if (statut === 'resolue' && resolutionNote !== undefined) body.resolutionNote = resolutionNote
       const res = await fetch(`/api/admin/yaye/escalades/${id}`, {
         method: 'PATCH',
@@ -135,6 +158,11 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
         body: JSON.stringify(body),
       })
       if (res.ok) {
+        const msg = statut === 'resolue' ? 'Escalade résolue.' : statut === 'prise_en_charge' ? 'Escalade prise en charge.' : 'Escalade rouverte.'
+        setSucces(msg)
+        startTransition(() => router.refresh())
+      } else if (res.status === 409) {
+        setErreur('Cette escalade a changé entre-temps — la file va se rafraîchir.')
         startTransition(() => router.refresh())
       } else {
         setErreur("Action impossible — l'escalade n'a pas été mise à jour.")
@@ -155,20 +183,21 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
   async function confirmerCloture() {
     if (!clotureId) return
     // On garde le modal ouvert pendant le PATCH (bouton en loading), puis on ferme.
-    await changeStatut(clotureId, 'resolue', noteCloture)
+    await changeStatut(clotureId, 'resolue', 'prise_en_charge', noteCloture)
     setClotureId(null)
   }
 
-  const paginationBase = (() => {
-    const sp = new URLSearchParams()
-    if (filtres.statut) sp.set('statut', filtres.statut)
-    if (filtres.canal !== 'tous') sp.set('canal', filtres.canal)
-    if (filtres.centre) sp.set('centre', filtres.centre)
-    if (filtres.danger) sp.set('danger', '1')
-    if (filtres.retard) sp.set('retard', '1')
-    const qs = sp.toString()
-    return qs ? `${pathname}?${qs}` : pathname
-  })()
+  async function confirmerReouverture() {
+    if (!reouvertureId) return
+    await changeStatut(reouvertureId, 'en_attente', 'resolue')
+    setReouvertureId(null)
+  }
+
+  function lancerRecherche() {
+    push({ q: recherche.trim() })
+  }
+
+  const paginationBase = urlFor(filtres)
 
   const totalAll = STATUT_ORDER.reduce((a, s) => a + counts[s], 0)
 
@@ -182,6 +211,43 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
             Conversations passées la main à un conseiller humain ·{' '}
             <span style={{ fontWeight: 800, color: 'var(--gj-yellow-ink)' }}>{counts.en_attente} en attente</span>
           </p>
+        </div>
+
+        {/* ── Recherche + dates + rafraîchir ── */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 240px', minWidth: 200, background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 10px', minHeight: 44 }}>
+            <Icon name="search" size={15} style={{ color: 'var(--gj-grey)', flexShrink: 0 }} />
+            <input
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') lancerRecherche() }}
+              placeholder="Rechercher (nom, téléphone, session)…"
+              aria-label="Rechercher une escalade"
+              style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, fontFamily: 'inherit', color: 'var(--gj-ink)' }}
+            />
+            {filtres.q && (
+              <button type="button" onClick={() => { setRecherche(''); push({ q: '' }) }} aria-label="Effacer la recherche" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--gj-grey)', display: 'inline-flex' }}>
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--gj-grey)' }}>
+            Du
+            <input type="date" value={filtres.from} max={filtres.to || undefined} onChange={(e) => push({ from: e.target.value })} aria-label="Date de début" style={dateInputStyle} />
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--gj-grey)' }}>
+            au
+            <input type="date" value={filtres.to} min={filtres.from || undefined} onChange={(e) => push({ to: e.target.value })} aria-label="Date de fin" style={dateInputStyle} />
+          </label>
+          <button
+            type="button"
+            onClick={() => startTransition(() => router.refresh())}
+            aria-label="Rafraîchir la file"
+            title="Rafraîchir"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 800, color: 'var(--gj-teal-deep)', background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 10, padding: '0 12px', minHeight: 44, cursor: 'pointer' }}
+          >
+            <Icon name="bolt" size={14} /> Rafraîchir
+          </button>
         </div>
 
         {/* ── Chips statut ── */}
@@ -267,7 +333,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                           borderRadius: 999, padding: '1px 8px', marginBottom: 3,
                         }}
                       >
-                        Danger · {e.signalDanger}
+                        Danger · {dangerLabel(e.signalDanger)}
                       </span>
                     )}
                     {e.enRetardSla && e.statut !== 'resolue' && (
@@ -293,8 +359,8 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     >
                       Priorité {e.priorite}
                     </span>
-                    <div style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.raison ?? '—'}</div>
-                    {e.stade && <div style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
+                    <div title={raisonLabel(e.raison)} style={{ fontSize: 12.5, color: 'var(--gj-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{raisonLabel(e.raison)}</div>
+                    {e.stade && <div title={e.stade} style={{ fontSize: 11, color: 'var(--gj-grey)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.stade}</div>}
                     {e.statut === 'resolue' && e.resolutionNote && (
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, fontSize: 11.5, color: 'var(--gj-green-ink)', marginTop: 3 }}>
                         <Icon name="check-circle" size={11} />
@@ -334,13 +400,13 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                   {/* Action */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {e.statut === 'en_attente' && (
-                      <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'prise_en_charge')} icon="check" label="Prendre en charge" />
+                      <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'prise_en_charge', 'en_attente')} icon="check" label="Prendre en charge" />
                     )}
                     {e.statut === 'prise_en_charge' && (
                       <ActionBtn busy={busy === e.id} onClick={() => ouvrirCloture(e.id)} icon="check-circle" label="Marquer résolue" tone="green" />
                     )}
                     {e.statut === 'resolue' && (
-                      <ActionBtn busy={busy === e.id} onClick={() => changeStatut(e.id, 'en_attente')} icon="arrow-up" label="Rouvrir" tone="muted" />
+                      <ActionBtn busy={busy === e.id} onClick={() => setReouvertureId(e.id)} icon="arrow-up" label="Rouvrir" tone="muted" />
                     )}
                     <Link href={`/admin/yaye/sessions/${e.sessionId}`} title="Voir la session" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 800, color: 'var(--gj-teal-deep)', textDecoration: 'none', padding: '6px 8px' }}>
                       <Icon name="external" size={13} />
@@ -366,6 +432,23 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
       </div>
 
       {erreur && <Toast message={erreur} variant="danger" onClose={() => setErreur(null)} />}
+      {succes && <Toast message={succes} variant="success" onClose={() => setSucces(null)} />}
+
+      <Modal
+        isOpen={reouvertureId !== null}
+        onClose={() => setReouvertureId(null)}
+        title="Rouvrir l'escalade ?"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setReouvertureId(null)}>Annuler</Button>
+            <Button variant="primary" onClick={confirmerReouverture} loading={busy !== null}>Rouvrir</Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: 13.5, color: 'var(--gj-ink)' }}>
+          L&apos;escalade repassera « en attente » et sera désassignée. La note de clôture est conservée comme historique.
+        </p>
+      </Modal>
 
       <Modal
         isOpen={clotureId !== null}

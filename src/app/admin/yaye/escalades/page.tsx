@@ -21,6 +21,16 @@ interface SP {
   centre?: string
   danger?: string
   retard?: string
+  q?: string
+  from?: string
+  to?: string
+}
+
+/** Parse une date « YYYY-MM-DD » en Date valide, sinon undefined. */
+function parseDate(v: string | undefined, endOfDay = false): Date | undefined {
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined
+  const d = new Date(endOfDay ? `${v}T23:59:59.999` : `${v}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? undefined : d
 }
 
 function parseStatut(v: string | undefined): StatutEscalade | undefined {
@@ -37,6 +47,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
   const sp = await searchParams
   const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1)
   const centre = (sp.centre ?? '').trim() || undefined
+  const q = (sp.q ?? '').trim() || undefined
+  const from = parseDate(sp.from)
+  const to = parseDate(sp.to, true)
 
   const filters: EscaladeListFilters = {
     statut: parseStatut(sp.statut),
@@ -44,6 +57,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     centreId: centre,
     dangerOnly: sp.danger === '1',
     lateOnly: sp.retard === '1',
+    q,
+    from,
+    to,
   }
 
   const [{ rows, total, counts }, centres] = await Promise.all([
@@ -55,7 +71,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
 
   return (
     <EscaladesClient
-      rows={rows.map((r) => ({
+      rows={rows.map(({ role: _role, ...r }) => ({
         ...r,
         traiteA: r.traiteA ? r.traiteA.toISOString() : null,
         createdAt: r.createdAt.toISOString(),
@@ -73,6 +89,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
         centre: centre ?? '',
         danger: sp.danger === '1',
         retard: sp.retard === '1',
+        q: q ?? '',
+        from: from ? sp.from! : '',
+        to: to ? sp.to! : '',
       }}
     />
   )

@@ -14,6 +14,11 @@ export interface EscaladeListFilters {
   dangerOnly?: boolean
   /** Ne garder que les escalades au-delà de leur SLA (non résolues, dérivé priorité+age). */
   lateOnly?: boolean
+  /** Recherche libre : nom/prénom/téléphone du bénéficiaire OU identifiant de session. */
+  q?: string
+  /** Bornes de date de signalement (createdAt). */
+  from?: Date
+  to?: Date
 }
 
 /** Identité du bénéficiaire (pour contact, surtout sur un signalement de danger). */
@@ -63,15 +68,34 @@ export async function listEscalades(
   pageSize = PAGE_SIZE,
 ): Promise<EscaladeListResult> {
   const now = new Date()
-  // Critères hors statut (canal / centre / danger / retard SLA) → partagés par la liste ET
-  // les compteurs de chips, pour que ces derniers reflètent le filtre courant (sauf le
-  // statut, qui est justement ce que les chips sélectionnent).
-  const baseWhere: Prisma.EscaladeYayeWhereInput = {
+  // Critères hors statut (canal / centre / danger / retard SLA / dates / recherche) →
+  // partagés par la liste ET les compteurs de chips, pour que ces derniers reflètent le
+  // filtre courant (sauf le statut, que les chips sélectionnent). Les filtres à clés
+  // DISTINCTES sont fusionnés à plat ; ceux produisant un `OR` (retard SLA, recherche)
+  // vont dans un `AND` pour ne jamais s'écraser mutuellement.
+  const q = f.q?.trim()
+  const cjsUidMatch = q
+    ? (await prisma.utilisateur.findMany({
+        where: { OR: [{ prenom: { contains: q } }, { nom: { contains: q } }, { telephone: { contains: q } }] },
+        select: { cjsUid: true },
+        take: 200,
+      })).map((u) => u.cjsUid)
+    : []
+
+  const flat: Prisma.EscaladeYayeWhereInput = {
     ...(f.canal ? { canal: f.canal } : {}),
     ...(f.centreId ? { centreId: f.centreId } : {}),
     ...(f.dangerOnly ? { signalDanger: { not: null } } : {}),
-    ...(f.lateOnly ? whereEnRetardSla(now) : {}),
+    ...(f.from || f.to ? { createdAt: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lte: f.to } : {}) } } : {}),
   }
+  const orClauses: Prisma.EscaladeYayeWhereInput[] = []
+  if (f.lateOnly) orClauses.push(whereEnRetardSla(now))
+  if (q) {
+    orClauses.push({
+      OR: [{ sessionId: { contains: q } }, ...(cjsUidMatch.length ? [{ cjsUid: { in: cjsUidMatch } }] : [])],
+    })
+  }
+  const baseWhere: Prisma.EscaladeYayeWhereInput = orClauses.length ? { ...flat, AND: orClauses } : flat
   const where: Prisma.EscaladeYayeWhereInput = {
     ...baseWhere,
     ...(f.statut ? { statut: f.statut } : {}),
@@ -120,27 +144,42 @@ export async function listEscalades(
   return { rows: enriched, total, counts }
 }
 
+/** Le statut visé a changé entre-temps (file partagée) — l'appelant doit rafraîchir. */
+export class EscaladeConflictError extends Error {
+  constructor(message = 'Statut de l’escalade modifié entre-temps') {
+    super(message)
+    this.name = 'EscaladeConflictError'
+  }
+}
+
 /**
  * Met à jour le stade de traitement d'une escalade depuis le panel admin.
  * `traiteParCjsUid` = le conseiller/staff qui agit (renseigné quand on quitte `en_attente`).
+ * `expectedFrom` (optionnel) = statut que l'opérateur voyait : garde de concurrence
+ * optimiste sur une file partagée (si l'escalade a changé, on lève EscaladeConflictError
+ * au lieu d'écraser en silence le travail d'un autre opérateur).
  */
 export async function setEscaladeStatut(
   id: string,
   statut: StatutEscalade,
   traiteParCjsUid: string | null,
   resolutionNote?: string | null,
+  expectedFrom?: StatutEscalade,
 ): Promise<void> {
-  // GUIC-259 — la note de clôture n'a de sens qu'à la résolution : on l'écrit quand on
-  // résout, on l'efface si on rouvre (retour en_attente/prise_en_charge).
-  const note = statut === 'resolue' ? (resolutionNote?.trim() || null) : null
-  await prisma.escaladeYaye.update({
-    where: { id },
-    data: {
-      statut,
-      // On horodate la prise en charge / résolution ; on l'efface si on revient en attente.
-      traitePar: statut === 'en_attente' ? null : traiteParCjsUid,
-      traiteA: statut === 'en_attente' ? null : new Date(),
-      resolutionNote: note,
-    },
-  })
+  const data: Prisma.EscaladeYayeUpdateInput = {
+    statut,
+    // On horodate la prise en charge / résolution ; on l'efface si on revient en attente.
+    traitePar: statut === 'en_attente' ? null : traiteParCjsUid,
+    traiteA: statut === 'en_attente' ? null : new Date(),
+  }
+  // La note de clôture n'est ÉCRITE qu'à la résolution. À la réouverture on la CONSERVE
+  // (historique du dernier traitement — jamais de perte silencieuse).
+  if (statut === 'resolue') data.resolutionNote = resolutionNote?.trim() || null
+
+  if (expectedFrom) {
+    const res = await prisma.escaladeYaye.updateMany({ where: { id, statut: expectedFrom }, data })
+    if (res.count === 0) throw new EscaladeConflictError()
+    return
+  }
+  await prisma.escaladeYaye.update({ where: { id }, data })
 }
