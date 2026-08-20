@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { setEscaladeStatut, EscaladeConflictError } from '@/lib/ia/admin/escalades'
+import { setEscaladeStatut, assignEscalade, listYayeStaff, EscaladeConflictError } from '@/lib/ia/admin/escalades'
 import { canManageYaye } from '@/lib/ia/admin/rbac'
 import { recordAudit } from '@/lib/audit'
 import type { ApiResponse } from '@/types/api'
@@ -52,8 +52,25 @@ export async function PATCH(
     ? (fromRaw as StatutEscalade)
     : undefined
 
+  // Réassignation (#15) : assigner l'escalade à un autre membre du staff (prise_en_charge).
+  const assignRaw = (body as { assignTo?: unknown })?.assignTo
+  const assignTo = typeof assignRaw === 'string' && assignRaw.trim() ? assignRaw.trim() : undefined
+  if (assignTo) {
+    const staff = await listYayeStaff()
+    if (!staff.some((s) => s.cjsUid === assignTo)) {
+      return NextResponse.json(
+        { error: { code: 'BAD_REQUEST', message: 'Destinataire de réassignation inconnu.' } },
+        { status: 400 },
+      )
+    }
+  }
+
   try {
-    await setEscaladeStatut(id, statut as StatutEscalade, session.cjsUid, resolutionNote, expectedFrom)
+    if (assignTo) {
+      await assignEscalade(id, assignTo, expectedFrom)
+    } else {
+      await setEscaladeStatut(id, statut as StatutEscalade, session.cjsUid, resolutionNote, expectedFrom)
+    }
   } catch (err) {
     if (err instanceof EscaladeConflictError) {
       return NextResponse.json(
@@ -71,8 +88,13 @@ export async function PATCH(
   await recordAudit(session.cjsUid, 'yaye.escalade.statut', {
     targetType: 'escalade_yaye',
     targetId: id,
-    meta: { statut, from: expectedFrom ?? null, avecNote: statut === 'resolue' && !!resolutionNote },
+    meta: {
+      statut: assignTo ? 'prise_en_charge' : statut,
+      from: expectedFrom ?? null,
+      avecNote: statut === 'resolue' && !!resolutionNote,
+      ...(assignTo ? { reassigneA: assignTo } : {}),
+    },
   })
 
-  return NextResponse.json({ data: { id, statut: statut as StatutEscalade } })
+  return NextResponse.json({ data: { id, statut: (assignTo ? 'prise_en_charge' : statut) as StatutEscalade } })
 }

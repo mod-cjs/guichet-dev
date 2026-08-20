@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { listEscalades, type EscaladeListFilters } from '@/lib/ia/admin/escalades'
+import { listEscalades, listYayeStaff, type EscaladeListFilters } from '@/lib/ia/admin/escalades'
 import { canManageYaye } from '@/lib/ia/admin/rbac'
 import { EscaladesClient } from './EscaladesClient'
 import type { CanalAgent, StatutEscalade } from '@prisma/client'
@@ -62,9 +62,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
     to,
   }
 
-  const [{ rows, total, counts }, centres] = await Promise.all([
+  const [{ rows, total, counts }, centres, staff] = await Promise.all([
     listEscalades(filters, page, PAGE_SIZE),
     prisma.centre.findMany({ select: { id: true, nom: true }, orderBy: { nom: 'asc' } }),
+    listYayeStaff(),
   ])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const centreNomById = new Map(centres.map((c) => [c.id, c.nom]))
@@ -83,6 +84,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<SP>
       currentPage={page}
       totalPages={totalPages}
       centres={centres}
+      staff={staff}
+      currentUid={session.cjsUid}
       filtres={{
         statut: parseStatut(sp.statut) ?? '',
         canal: sp.canal === 'web' || sp.canal === 'whatsapp' ? sp.canal : 'tous',

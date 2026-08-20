@@ -48,6 +48,8 @@ export interface EscaladesClientProps {
   currentPage: number
   totalPages: number
   centres: { id: string; nom: string }[]
+  staff: { cjsUid: string; nom: string }[]
+  currentUid: string
   filtres: { statut: string; canal: string; centre: string; danger: boolean; retard: boolean; q: string; from: string; to: string }
 }
 
@@ -107,7 +109,7 @@ const dateInputStyle: React.CSSProperties = {
 
 // ─── Composant ──────────────────────────────────────────────────────────────
 
-export function EscaladesClient({ rows, counts, total, currentPage, totalPages, centres, filtres }: EscaladesClientProps) {
+export function EscaladesClient({ rows, counts, total, currentPage, totalPages, centres, staff, currentUid, filtres }: EscaladesClientProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -195,6 +197,34 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
 
   function lancerRecherche() {
     push({ q: recherche.trim() })
+  }
+
+  const nomStaff = new Map(staff.map((s) => [s.cjsUid, s.nom]))
+
+  /** Réassigne une escalade à un membre du staff (ou à soi). */
+  async function reassigner(id: string, assignTo: string, expectedFrom: StatutEscalade) {
+    setBusy(id)
+    setErreur(null)
+    try {
+      const res = await fetch(`/api/admin/yaye/escalades/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: 'prise_en_charge', assignTo, expectedFrom }),
+      })
+      if (res.ok) {
+        setSucces(assignTo === currentUid ? 'Escalade assignée à toi.' : `Escalade réassignée à ${nomStaff.get(assignTo) ?? assignTo}.`)
+        startTransition(() => router.refresh())
+      } else if (res.status === 409) {
+        setErreur('Cette escalade a changé entre-temps — la file va se rafraîchir.')
+        startTransition(() => router.refresh())
+      } else {
+        setErreur('Réassignation impossible.')
+      }
+    } catch {
+      setErreur('Réassignation impossible.')
+    } finally {
+      setBusy(null)
+    }
   }
 
   const paginationBase = urlFor(filtres)
@@ -387,7 +417,7 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: sm.bg, color: sm.fg, whiteSpace: 'nowrap' }}>{sm.label}</span>
                     {e.statut !== 'en_attente' && e.traitePar && (
                       <div style={{ fontSize: 11.5, color: 'var(--gj-grey)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        par {e.traitePar.slice(0, 8)}…{e.traiteA ? ` · ${relative(e.traiteA)}` : ''}
+                        par {nomStaff.get(e.traitePar) ?? `${e.traitePar.slice(0, 8)}…`}{e.traiteA ? ` · ${relative(e.traiteA)}` : ''}
                       </div>
                     )}
                     {e.statut === 'en_attente' && e.signalDanger && (
@@ -404,6 +434,21 @@ export function EscaladesClient({ rows, counts, total, currentPage, totalPages, 
                     )}
                     {e.statut === 'prise_en_charge' && (
                       <ActionBtn busy={busy === e.id} onClick={() => ouvrirCloture(e.id)} icon="check-circle" label="Marquer résolue" tone="green" />
+                    )}
+                    {e.statut === 'prise_en_charge' && staff.length > 0 && (
+                      <select
+                        aria-label="Réassigner à"
+                        value=""
+                        disabled={busy === e.id}
+                        onChange={(ev) => { if (ev.target.value) reassigner(e.id, ev.target.value, 'prise_en_charge') }}
+                        style={{ background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 9, padding: '0 8px', minHeight: 44, fontSize: 12, fontFamily: 'inherit', color: 'var(--gj-ink)', cursor: 'pointer', maxWidth: 130 }}
+                      >
+                        <option value="">Réassigner…</option>
+                        {e.traitePar !== currentUid && <option value={currentUid}>M&apos;assigner</option>}
+                        {staff.filter((s) => s.cjsUid !== e.traitePar).map((s) => (
+                          <option key={s.cjsUid} value={s.cjsUid}>{s.nom}</option>
+                        ))}
+                      </select>
                     )}
                     {e.statut === 'resolue' && (
                       <ActionBtn busy={busy === e.id} onClick={() => setReouvertureId(e.id)} icon="arrow-up" label="Rouvrir" tone="muted" />

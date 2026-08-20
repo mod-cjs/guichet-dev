@@ -183,3 +183,51 @@ export async function setEscaladeStatut(
   }
   await prisma.escaladeYaye.update({ where: { id }, data })
 }
+
+/** Membre du staff assignable (conseiller / directeur), avec nom lisible. */
+export interface YayeStaff {
+  cjsUid: string
+  nom: string
+}
+
+/** Staff pouvant traiter une escalade (conseillers + directeurs), pour la réassignation. */
+export async function listYayeStaff(): Promise<YayeStaff[]> {
+  const agents = await prisma.agentCentre.findMany({
+    where: { role: { in: ['conseiller', 'directeur'] } },
+    select: { cjsUid: true },
+    distinct: ['cjsUid'],
+    take: 300,
+  })
+  const uids = [...new Set(agents.map((a) => a.cjsUid))]
+  if (uids.length === 0) return []
+  const users = await prisma.utilisateur.findMany({
+    where: { cjsUid: { in: uids } },
+    select: { cjsUid: true, prenom: true, nom: true },
+  })
+  const nameByUid = new Map(users.map((u) => [u.cjsUid, `${u.prenom} ${u.nom}`.trim()]))
+  return uids
+    .map((cjsUid) => ({ cjsUid, nom: nameByUid.get(cjsUid) || `${cjsUid.slice(0, 8)}…` }))
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+}
+
+/**
+ * Assigne (ou réassigne) une escalade à un membre du staff : passe en `prise_en_charge`
+ * avec `traitePar = assigneeCjsUid`. Garde de concurrence optionnelle (expectedFrom).
+ */
+export async function assignEscalade(
+  id: string,
+  assigneeCjsUid: string,
+  expectedFrom?: StatutEscalade,
+): Promise<void> {
+  const data: Prisma.EscaladeYayeUpdateInput = {
+    statut: 'prise_en_charge',
+    traitePar: assigneeCjsUid,
+    traiteA: new Date(),
+  }
+  if (expectedFrom) {
+    const res = await prisma.escaladeYaye.updateMany({ where: { id, statut: expectedFrom }, data })
+    if (res.count === 0) throw new EscaladeConflictError()
+    return
+  }
+  await prisma.escaladeYaye.update({ where: { id }, data })
+}
