@@ -11,10 +11,26 @@ Cause réelle d'un incident de cette phase : `GRAFANA_ADMIN_PASSWORD` documenté
 mauvais fichier (`/etc/guichet/prod.env` au lieu de `/etc/guichet/observabilite.env`) —
 Grafana refusait de démarrer sans que la doc ne pointe vers la bonne cause.
 
+**Doppler (GUIC-625, 19/08)** — projet `guichet`, configs `dev`/`stg`/`prod`, remplace
+progressivement les fichiers plats comme *source de vérité* (le pattern qui avait causé la
+fuite historique n'avait jamais été remis en question, juste rapiécé au niveau du vecteur de
+fuite). Les fichiers `/etc/guichet/*.env` **restent les mêmes chemins et le même format** —
+`docker-compose.*.yml` ne change pas — mais peuvent désormais être **régénérés depuis Doppler**
+plutôt qu'édités à la main :
+```bash
+doppler secrets download --project guichet --config <dev|stg|prod> --no-file --format env
+```
+`scripts/deploy/deploy.sh` sait le faire automatiquement avant chaque déploiement
+(`DOPPLER_SYNC=1 DOPPLER_CONFIG=<stg|prod>`, opt-in explicite — inactif par défaut, jamais
+d'effet de bord sur un poste de dev). **État réel (19/08)** : `stg` importé (`test.env`,
+`observabilite.env`) et vérifié manuellement ; `dev`/`prod` pas encore migrés ; l'activation
+dans les workflows CD (`cd-staging.yml`, `cd-deploy.yml`) pas encore faite — à faire une fois
+`stg` éprouvé en déploiement réel.
+
 | Fichier | Contient | Consommé par | Portée |
 |---|---|---|---|
-| `/etc/guichet/prod.env` | Secrets applicatifs **PROD** (DB, Redis, S3, SSO, LLM…) | `docker-compose.prod.yml` | Prod uniquement |
-| `/etc/guichet/test.env` | Mêmes clés, valeurs **PRÉPROD** | `docker-compose.prod.yml` + `docker-compose.test.yml` combinés | Préprod uniquement |
+| `/etc/guichet/prod.env` | Secrets applicatifs **PROD** (DB, Redis, S3, SSO, LLM…) | `docker-compose.prod.yml` | Prod uniquement — pas encore sous Doppler |
+| `/etc/guichet/test.env` | Mêmes clés, valeurs **PRÉPROD** | `docker-compose.prod.yml` + `docker-compose.test.yml` combinés | Préprod — **source Doppler `stg`** depuis le 19/08 |
 | `/etc/guichet/observabilite.env` | Mot de passe admin Grafana, destinataires d'astreinte, SMTP | `docker-compose.observabilite.yml` | Partagé — pile à cycle de vie indépendant |
 | `<checkout>/.env.etl` (ou `GUICHET_ETL_ENV_FILE`) | Secrets Meltano + connexion à l'entrepôt Postgres | `docker-compose.etl.yml` | Partagé |
 | `/etc/guichet/cloudflared.env` | `CLOUDFLARE_TUNNEL_TOKEN` | `docker-compose.cloudflared.yml` | Accès Grafana/Netdata (GUIC-575) |
