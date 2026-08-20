@@ -28,6 +28,11 @@ export async function poidsFichier(url: string): Promise<number | null> {
     const reponse = await fetch(url, {
       method: 'HEAD',
       redirect: 'follow',
+      // GUIC-709 — sans ça, `fetch` demande du gzip et le `content-length`
+      // renvoyé est la taille TRANSFÉRÉE : mesuré au rendu, 1 701 octets
+      // annoncés pour un fichier de 3 808. Le nombre dépendrait alors de ce
+      // que le client négocie, donc ne serait reproductible pour personne.
+      headers: { 'accept-encoding': 'identity' },
       signal: AbortSignal.timeout(DELAI_MAX_MS),
     })
     if (!reponse.ok) return null
