@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { poidsFichier } from '@/lib/ressources/poids-fichier'
+import { poidsFichierMemo } from '@/lib/ressources/poids-fichier'
 import { prisma } from '@/lib/prisma'
 
 /** Page par défaut (règle CLAUDE.md : 20 items/page). */
@@ -237,7 +237,7 @@ export async function getRessourceById(id: string): Promise<RessourceDetail | nu
     }),
     // Uniquement les PDF : c'est le seul type dont on sert le fichier, donc le
     // seul dont le poids veut dire quelque chose pour qui va le télécharger.
-    r.type === 'PDF' ? poidsFichier(r.url) : Promise.resolve(null),
+    r.type === 'PDF' ? poidsFichierMemo(r.url) : Promise.resolve(null),
   ])
 
   return {

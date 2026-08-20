@@ -1,4 +1,5 @@
 import { ipPubliqueValidee } from '@/lib/curation/robot/ssrf-guard'
+import { redis } from '@/lib/redis'
 
 /**
  * GUIC-709 — Poids d'un fichier de ressource, MESURÉ à la source.
@@ -70,4 +71,56 @@ export function formaterPoids(octets: number | null): string | null {
     }
   }
   return `${Math.round(octets)} o`
+}
+
+/**
+ * GUIC-709 — Mémoire du poids, pour ne pas payer un aller-retour réseau à
+ * chaque affichage de fiche.
+ *
+ * Sans elle, une page publique paierait la latence d'un tiers à chaque visite,
+ * et la source recevrait autant de requêtes que nous avons de visiteurs. Le
+ * poids d'un fichier ne bouge quasiment jamais : c'est exactement ce qui se
+ * mémorise.
+ *
+ * Redis, comme le dédoublonnage des consultations — le projet y garde déjà ses
+ * mémoires courtes, on n'introduit pas un second mécanisme de cache.
+ *
+ * L'ABSENCE de mesure se mémorise aussi, mais plus brièvement : sans ça une
+ * source durablement injoignable serait re-sondée à chaque visite, et le pire
+ * cas deviendrait le cas fréquent. Plus brièvement, parce qu'une panne se
+ * répare et qu'on veut le constater sans attendre un jour entier.
+ */
+const TTL_MESURE_S = 86_400 // 24 h — un fichier publié ne change plus de taille
+const TTL_ABSENCE_S = 900 // 15 min — laisse une source réparée revenir vite
+const MARQUEUR_ABSENCE = '-'
+
+export async function poidsFichierMemo(url: string): Promise<number | null> {
+  const cle = `ressource:poids:${url}`
+
+  try {
+    const memorise = await redis.get(cle)
+    if (memorise === MARQUEUR_ABSENCE) return null
+    if (memorise) {
+      const octets = Number(memorise)
+      if (Number.isFinite(octets) && octets > 0) return octets
+    }
+  } catch {
+    // Redis indisponible : on mesure, comme s'il n'y avait pas de mémoire. Une
+    // panne de cache ne doit jamais retirer une information à l'utilisateur.
+  }
+
+  const octets = await poidsFichier(url)
+
+  try {
+    await redis.set(
+      cle,
+      octets === null ? MARQUEUR_ABSENCE : String(octets),
+      'EX',
+      octets === null ? TTL_ABSENCE_S : TTL_MESURE_S,
+    )
+  } catch {
+    // Idem : ne pas avoir pu mémoriser ne change rien à ce qu'on rend.
+  }
+
+  return octets
 }

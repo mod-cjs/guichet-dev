@@ -891,7 +891,7 @@ components:
             - "impression"
             - "consultation"
             - "telechargement"
-          description: "`impression` quand le contenu a été présenté, `consultation` quand il a été ouvert, `telechargement` quand le fichier a été emporté. Le rapport impression/consultation donne le taux de clic. `telechargement` est volontairement distinct de `consultation` : le compteur `vues` ne bouge que pour cette dernière (GUIC-709)."
+          description: "`impression` quand le contenu a été présenté, `consultation` quand il a été ouvert, `telechargement` quand le fichier a été emporté. Le rapport impression/consultation donne le taux de clic. `telechargement` reste distinct de `consultation` : le compteur `vues` ne bouge que pour cette dernière (GUIC-709)."
           "x-cjs-tier": "public"
         canal:
           type: "string"
