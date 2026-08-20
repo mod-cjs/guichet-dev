@@ -17,9 +17,11 @@ Aucun port public — même principe que Grafana : accès au tableau de bord par
 ssh -L 19999:127.0.0.1:19999 <serveur>   # puis http://localhost:19999
 ```
 
-`network_mode: host` est nécessaire pour que Netdata voie les vraies interfaces/disques de
+`network_mode: host` est nécessaire pour que Netdata voie les vraies interfaces réseau de
 l'hôte (pas la vue isolée d'un conteneur) — la contrepartie est `infra/netdata/netdata.conf`
 (`bind to = 127.0.0.1:19999`), sans quoi ce mode exposerait le tableau de bord publiquement.
+Le réseau et le disque sont deux visibilités **séparées** — voir « Disque hôte » ci-dessous :
+`network_mode: host` ne suffit pas pour le disque, un mount dédié est nécessaire.
 
 ## Authentification (GUIC-545, ajouté 19/08)
 
@@ -45,6 +47,27 @@ docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
 ```
 
 Le tableau de bord demande désormais un identifiant/mot de passe en plus du tunnel SSH.
+
+## Disque hôte (GUIC-710, corrigé 20/08)
+
+Signalé par l'utilisateur : l'alerte disque >90% continuait d'être envoyée alors que
+`df -h /` sur le serveur montrait 5% d'utilisation réelle. Cause : `/proc` et `/sys` (déjà
+montés) ne suffisent PAS pour les points de montage disque — sans le bind mount dédié
+`/:/host/root:ro,rslave`, `diskspace.plugin` rapportait l'usage de la **couche overlay du
+conteneur** (minuscule) sous `mount_point="/"`, jamais le vrai `/dev/md3` de l'hôte. L'alerte
+lisait une vraie métrique, juste la mauvaise — contrairement à l'incident mémoire précédent
+(un état Grafana resté bloqué), ici c'était une lacune de configuration depuis le premier
+déploiement.
+
+Correctif dans `docker-compose.netdata.yml` — redéployer pour que ça prenne effet :
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
+```
+
+Aucun changement côté `rules.yml` : Netdata restitue les points de montage sous leur vrai
+chemin hôte (`mount_point="/"`, pas `/host/root`), la règle existante reste correcte une fois
+le conteneur redéployé.
 
 ## État réel — déployé en préprod (2026-08-11)
 
