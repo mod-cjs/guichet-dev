@@ -1,64 +1,46 @@
-# Tâche active — GUIC-706 · Lancement séquentiel (feature flags)
+# Tâche active — GUIC-712 · Bandeau cookies (consentement CDP)
 
-> Branche : `feature/GUIC-706-feature-flags-lancement-sequentiel` (depuis `dev` @ `fa78e9e3`)
-> Spec : `.agent_context/specs/GUIC-706-feature-flags.md` (12 sections)
-> Ticket : https://consortiumjeunesse.atlassian.net/browse/GUIC-706
+> Branche : `feature/GUIC-712-bandeau-cookies` (depuis `dev` @ `70bb72ae`)
+> Spec : `.agent_context/specs/GUIC-712-bandeau-cookies.md`
+> Ticket : https://consortiumjeunesse.atlassian.net/browse/GUIC-712
 
 ## But
 
-Permettre à l'admin national d'ouvrir et de masquer chaque fonctionnalité **pour les
-utilisateurs**, depuis un onglet dédié, sans redéploiement. 31 flags, 8 lots.
+Rendre vrai l'Article 7 de la politique de confidentialité, qui promet en production un
+bandeau de consentement qui n'existe pas. L'utilisateur doit pouvoir accepter ou refuser
+les cookies non essentiels, depuis les quatre espaces, et revenir sur son choix.
 
-## Les trois règles qui gouvernent tout le code
+## Les trois règles qui gouvernent ce code
 
-1. **Le flag ferme les utilisateurs, jamais l'administration.** La console admin n'est
-   jamais fermée ; `ADMIN_ROLES` est exempté du gate sur les routes utilisateur (avec
-   bandeau de prévisualisation). Conseiller et recruteur **ne sont pas** exemptés.
-2. **Invisibilité, pas indisponibilité.** Une route masquée renvoie un **404 indiscernable
-   d'une route inexistante**. Jamais de « Bientôt disponible », jamais de `403`, jamais le
-   nom du flag dans une réponse. Un module masqué produit **l'absence de la section**,
-   jamais une section vide.
-3. **Un flag ne ferme que la face consommateur** (`closes`). Le recruteur continue de
-   publier et le conseiller de préparer pendant que le module est masqué aux bénéficiaires
-   — c'est la chaîne de préparation que le lancement séquentiel doit servir.
+1. **Ne jamais proposer un choix qui n'en est pas un.** Les cookies essentiels sont
+   rendus en état verrouillé, pas en case à cocher — et le décodeur force
+   `essentiels: true` même si le cookie est forgé à la main.
+2. **Refuser coûte exactement un clic, comme accepter.** Deux boutons de même poids.
+   Aucune case pré-cochée. Pas de croix de fermeture : fermer sans choisir ne vaut pas
+   acceptation, donc on ne peut pas fermer sans choisir.
+3. **La garde est technique, pas documentaire.** Aucun traceur ne peut se charger sans
+   consentement, et un test casse si l'un apparaît dans `src/` sans passer par la garde.
 
-## Ligne de base mesurée (2026-08-14, `dev` @ `fa78e9e3`)
+## État des lieux
 
-```text
-npx jest --no-coverage   →  648 suites · 5 211 tests · 100 % vert · 20 s
-npx tsc --noEmit         →  0 erreur
-npm run lint             →  0 erreur · 7 avertissements préexistants
-```
+Deux cookies posés, tous deux httpOnly et strictement nécessaires : `cjs_session`,
+`centre_staff_session`. **Aucun traceur tiers.** Les 18 usages de `localStorage` sont
+fonctionnels (a11y, thème admin, brouillons). Le bandeau ne livre donc pas un choix fictif :
+il livre le mécanisme et la garde, la catégorie « mesure d'audience » restant inerte tant
+qu'aucun outil n'est configuré.
 
-À revérifier **après chaque lot** : tout écart aux 5 211 est imputable au lot en cours.
+## Découpage TDD
 
-## Avancement
+| Lot | RED | GREEN | État |
+|---|---|---|---|
+| 1 | `consent-domaine.test.ts` | `src/lib/consent/*` | en cours |
+| 2 | `consent-bandeau.test.tsx` | `CookieConsent`, `PreferencesCookies` | à faire |
+| 3 | `consent-garde-traceurs.test.ts` | `MesureAudience` + non-régression | à faire |
+| 4 | `consent-page-cookies.test.tsx` | `/legal/cookies` + Article 7 | à faire |
 
-- [x] Lot 0 — ligne de base + mock global inerte
-- [ ] Lot 1 — Prisma · catalogue · service (cache versionné)
-- [ ] Lot 2 — API admin · RBAC dédiée · page · compteurs · export/import
-- [ ] Lot 3 — middleware · layouts · 9 navs · sitemap
-- [ ] Lot 4 — 12 actions utilisateur · API · 11 crons · 6 webhooks
-- [ ] Lot 5 — invisibilité : 9 surfaces d'incidence
-- [ ] Lot 6 — transitions : `drain`, engagements, checklist, note de service
-- [ ] Lot 7 — absorption de `NOTIFICATIONS_ENABLED` · runbook
+## En attente de réponse PO
 
-## Décisions produit encore à valider (n'empêchent pas les lots 0–2)
-
-- Tableau des faces d'audience (spec §5.4)
-- Découpage IA en 6 flags (spec §6.3)
-- Répartition `sec` / `drain` (spec §7.1)
-
-## Points de vigilance permanents
-
-- `src/middleware.ts:42` sort **avant** le gate → sans correction, aucune route publique
-  n'est filtrée.
-- Les pages publiques ne sont dynamiques que parce que `(public)/layout.tsx` appelle
-  `getSession()`. Retirer cet appel neutraliserait silencieusement tous les flags.
-- `ADMIN_ROLES` contient `moderator` : l'**écriture** des flags passe par
-  `src/lib/flags/rbac.ts`, jamais par `isAdminRole`.
-- `AuditAction` est une union fermée (`src/lib/audit.ts:19`).
-- Environnement de test : stack Docker + `/api/dev/login`. Comptes admin
-  `ad100000-0000-4000-8000-000000000001`, conseiller `c05e111e-0000-4000-8000-000000000001`,
-  recruteur `2c518498-b876-4b43-946e-54afccd077fd`, bénéficiaire par défaut.
-  **Rebuild `--build` obligatoire après tout changement de code.**
+L'Article 7 déclare des « cookies de mesure d'audience — 13 mois » alors qu'aucun outil
+n'est installé. Selon qu'une mesure est prévue ou non, le texte est anticipatif ou
+sur-déclarant. Le code est écrit pour que les deux restent possibles ; seul le texte
+dépend de la réponse. Voir §8 de la spec.
