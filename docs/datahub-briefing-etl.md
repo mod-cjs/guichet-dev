@@ -183,7 +183,8 @@ dérivées vers plusieurs cibles. Aucune n'est saisie à la main.
 | Contrat OpenAPI | `npm run datahub:openapi` |
 | Catalogue Singer | `npm run datahub:tap` |
 | Sources dbt | `npm run datahub:dbt` |
-| **`dbt docs`** | `dbt docs generate && dbt docs serve` — **le dictionnaire consultable** |
+| **`dbt docs`** | `dbt docs generate && dbt docs serve` — dictionnaire côté entrepôt (lignage, marts, tests) |
+| **`/admin/data-hub`** | **le dictionnaire dans l'application** — flux, colonnes, tier CDP, volume, fraîcheur |
 | **`COMMENT` PostgreSQL** | `persist_docs` dans `dbt_project.yml`, **modèles dbt uniquement** |
 
 `npm run datahub:generate` régénère les quatre premiers. Un test échoue si un artefact est
@@ -196,6 +197,41 @@ que les outils BI doivent lire.
 
 **Conséquence pour les tableaux de bord** : brancher les outils BI sur le schéma `marts`,
 pas sur `guichet_raw`.
+
+### `/admin/data-hub` — le dictionnaire sans Docker
+
+`dbt docs` suppose Docker, un accès à l'entrepôt et une commande : hors de portée d'un
+administrateur. La page `/admin/data-hub` rend le même contrat depuis l'application, en
+lisant l'artefact déjà généré `etl/plugins/extractors/tap-guichet/tap_guichet/streams.json`
+— jamais le schéma Prisma à l'exécution, ce qui ferait tracer tout le projet dans la sortie
+standalone et alourdirait l'image.
+
+Elle ajoute trois choses que `dbt docs` ne peut pas donner, parce qu'elles vivent côté
+Guichet : le **tier de gouvernance CDP** filtrable (répond à « quelles données personnelles
+sortent ? »), le **volume actuel** de chaque flux (`/api/admin/data-hub/volumes`, en cache
+5 min — un flux vide se voit immédiatement au lieu de se propager en tableau de bord vide),
+et la **fraîcheur du dernier run**. L'état d'un filtre tient dans l'URL (`?q=`, `?tier=`) :
+un lien vers une colonne précise se partage.
+
+Le dictionnaire s'exporte sous trois formes, **toutes filtrées comme l'écran** — sans quoi
+la vue « pseudonyme », celle qui sert à un examen CDP, perdrait son intérêt au moment de la
+transmettre :
+
+| Format | Route | Pour quoi |
+|---|---|---|
+| CSV | `/api/admin/data-hub/export` | Une ligne par colonne, à trier dans un tableur (BOM + CRLF : sans eux Excel affiche « RÃ©gion ») |
+| JSON | `…/export?format=json` | Le contrat brut, pour un consommateur machine |
+| PDF | `/admin/data-hub/imprimer` | Vue document + boîte d'impression du navigateur |
+
+Le PDF **n'ajoute aucune dépendance** : le projet n'embarque pas de bibliothèque PDF, et en
+ajouter une pour ce tableau serait un mauvais échange — les descriptions sont pleines de
+« », — et d'accents que les polices standard d'un PDF (WinAnsi) n'encodent pas, il faudrait
+embarquer une police Unicode complète puis réimplémenter pagination, coupe de texte et
+répétition des en-têtes. Le moteur d'impression du navigateur fait tout cela, avec la
+typographie réelle de la plateforme.
+
+Ce que `dbt docs` garde pour lui : le lignage, la couche `marts` et les 35 tests dbt — ils
+décrivent l'entrepôt, que l'application ne lit jamais.
 
 ## 9. Modèles disponibles pour les tableaux de bord
 
@@ -267,6 +303,14 @@ flux, plus coûteux que l'extraction incrémentale quotidienne, donc une fréque
 (`scripts/etl/lib-log.sh`) : marqueur ✓/✗ horodaté, rotation par seuil de taille, code de
 sortie non nul surveillé par l'alerting (GUIC-576) — sans cette ligne, `purge-absents.ts`
 existait mais ne tournait jamais.
+
+À ces trois étapes s'ajoute une **publication de statut, jamais bloquante** : à la fin du
+run — succès comme échec — `exec_via_app scripts/datahub/publier-run.ts <statut> <étape>
+<début>` écrit l'issue dans la table `datahub_runs` du Guichet, d'où `/admin/data-hub` tire
+sa bannière de fraîcheur. Le pipeline POUSSE, l'application ne lit jamais l'entrepôt
+(GUIC-700). Un échec de cette publication est signalé dans le log et **ne change pas le code
+de sortie du run** : confondre « le pipeline a échoué » et « le compte rendu n'est pas parti »
+ferait sonner l'alerting pour un pipeline qui a parfaitement fonctionné.
 
 `scripts/etl/run-nightly.sh` chaîne trois étapes, chacune bloquante pour la suivante
 (tout-ou-rien assumé, §4.1 B5 du rapport GUIC-693 : isoler l'échec par étape produirait des

@@ -1,51 +1,23 @@
-# Tâche active — GUIC-712 · Bandeau cookies (consentement CDP)
+# Tâche active — GUIC-717 · Dictionnaire du Data Hub dans l'administration
 
-> Branche : `feature/GUIC-712-bandeau-cookies` (depuis `dev` @ `70bb72ae`)
-> Spec : `.agent_context/specs/GUIC-712-bandeau-cookies.md`
-> Ticket : https://consortiumjeunesse.atlassian.net/browse/GUIC-712
+> Branche : `feature/GUIC-717-datahub-dictionnaire` (depuis `dev` @ `19b6f20c`)
+> Spec : `.agent_context/specs/GUIC-717-datahub-dictionnaire.md`
+> ⚠ Numéro de ticket **provisoire** — le connecteur JIRA n'était pas authentifié.
+> La user story à créer est en bas de la spec.
 
 ## But
 
-Rendre vrai l'Article 7 de la politique de confidentialité, qui promet en production un
-bandeau de consentement qui n'existe pas. L'utilisateur doit pouvoir accepter ou refuser
-les cookies non essentiels, depuis les quatre espaces, et revenir sur son choix.
+Donner une surface humaine au Data Hub. `/admin/data-hub` rendait le tableau de bord
+statistique ; le contrat d'export lui-même n'était lisible que dans du JSON ou via
+`dbt docs`, qui suppose Docker et un accès à l'entrepôt.
 
-## Les trois règles qui gouvernent ce code
+## État
 
-1. **Ne jamais proposer un choix qui n'en est pas un.** Les cookies essentiels sont
-   rendus en état verrouillé, pas en case à cocher — et le décodeur force
-   `essentiels: true` même si le cookie est forgé à la main.
-2. **Refuser coûte exactement un clic, comme accepter.** Deux boutons de même poids.
-   Aucune case pré-cochée. Pas de croix de fermeture : fermer sans choisir ne vaut pas
-   acceptation, donc on ne peut pas fermer sans choisir.
-3. **La garde est technique, pas documentaire.** Aucun traceur ne peut se charger sans
-   consentement, et un test casse si l'un apparaît dans `src/` sans passer par la garde.
-
-## État des lieux
-
-Deux cookies posés, tous deux httpOnly et strictement nécessaires : `cjs_session`,
-`centre_staff_session`. **Aucun traceur tiers.** Les 18 usages de `localStorage` sont
-fonctionnels (a11y, thème admin, brouillons). Le bandeau ne livre donc pas un choix fictif :
-il livre le mécanisme et la garde, la catégorie « mesure d'audience » restant inerte tant
-qu'aucun outil n'est configuré.
-
-## Découpage TDD
-
-| Lot | RED | GREEN | État |
-|---|---|---|---|
-| 1 | `consent-domaine.test.ts` | `src/lib/consent/cookies.ts` | ✅ 27 tests |
-| 2 | `consent-bandeau.test.tsx` | `CookieConsent`, `PreferencesCookies` | ✅ 19 tests |
-| 3 | `consent-garde-traceurs.test.ts` | `traceurs.ts`, `server.ts` + balayage | ✅ 8 tests |
-| 4 | `consent-page-cookies.test.tsx` | `/legal/cookies` + Article 7 | ✅ 11 tests |
+Livré et vérifié en réel dans le conteneur Docker reconstruit. `npm run test` vert
+(4956 + 919), `tsc` propre, `lint` sans erreur, `npm run build` exit 0.
 
 ## Reste à faire
 
-Relecture visuelle du bandeau sur les 4 espaces (aucune capture prise à ce stade),
-puis PR vers `dev`.
-
-## En attente de réponse PO
-
-L'Article 7 déclare des « cookies de mesure d'audience — 13 mois » alors qu'aucun outil
-n'est installé. Selon qu'une mesure est prévue ou non, le texte est anticipatif ou
-sur-déclarant. Le code est écrit pour que les deux restent possibles ; seul le texte
-dépend de la réponse. Voir §8 de la spec.
+1. Confirmer ou corriger le numéro de ticket, puis renommer branche et commits.
+2. Créer la user story dans JIRA (texte en bas de la spec).
+3. Supprimer la ligne `datahub_runs` factice publiée en local pour tester le script.

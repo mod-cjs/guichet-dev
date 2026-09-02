@@ -56,9 +56,17 @@ describe('GUIC-450 — AdminSidebar Lot 11 chrome sombre+doré', () => {
     expect(link).toHaveAttribute('href', '/admin/analytics/evenements')
   })
 
-  it('rend le lien "Statistiques" vers /admin/data-hub', () => {
+  // Deux entrées et non une : « data-hub » ne désignait que le tableau de bord
+  // statistique, si bien que le contrat d'export n'était atteignable nulle part.
+  it('rend le lien "Statistiques" vers /admin/statistiques', () => {
     render(<AdminSidebar />)
     const link = screen.getAllByRole('link', { name: /statistiques/i })[0]
+    expect(link).toHaveAttribute('href', '/admin/statistiques')
+  })
+
+  it('rend le lien "Data Hub" vers /admin/data-hub', () => {
+    render(<AdminSidebar />)
+    const link = screen.getAllByRole('link', { name: /data hub/i })[0]
     expect(link).toHaveAttribute('href', '/admin/data-hub')
   })
 

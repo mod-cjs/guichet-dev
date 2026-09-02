@@ -54,7 +54,8 @@ const SECTIONS: NavSection[] = [
       { id: 'partenaires', href: '/admin/partenaires', icon: 'engagement', label: 'Partenaires' },
       { id: 'candidatures', href: '/admin/candidatures', icon: 'employment', label: 'Candidatures' },
       { id: 'onboarding', href: '/admin/onboarding', icon: 'target', label: 'Onboarding' },
-      { id: 'stats', href: '/admin/data-hub', icon: 'trending', label: 'Statistiques' },
+      { id: 'stats', href: '/admin/statistiques', icon: 'trending', label: 'Statistiques' },
+      { id: 'datahub', href: '/admin/data-hub', icon: 'document', label: 'Data Hub' },
     ],
   },
   {
