@@ -32,6 +32,11 @@ const detail = {
   categorie: null,
   createdAt: '2026-05-01T00:00:00.000Z',
   updatedAt: '2026-05-01T00:00:00.000Z',
+  // GUIC-709 a ajouté ces deux champs à `RessourceDetail` sans mettre ce fixture à jour :
+  // `tsc` était rouge sur dev, donc le hook pre-commit refusait TOUT commit du dépôt.
+  // `poidsOctets: null` = « non mesuré » (une vidéo n'a pas de fichier), jamais zéro.
+  telechargements: 0,
+  poidsOctets: null,
 }
 
 const rendre = (connecte: boolean) =>

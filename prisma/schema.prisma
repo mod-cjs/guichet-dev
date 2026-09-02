@@ -2516,3 +2516,29 @@ model ItemCuration {
   @@index([opportuniteId])
   @@map("items_curation")
 }
+
+/// Résultat d'une exécution du pipeline ETL du Data Hub, publié par le runner nocturne.
+/// Le pipeline POUSSE son résultat ici ; le Guichet ne lit jamais l'entrepôt (GUIC-700).
+model DatahubRun {
+  id String @id @default(uuid()) @db.VarChar(36)
+
+  /// Instant de démarrage du run, tel que `run-nightly.sh` l'a borné (UTC ISO 8601).
+  demarreA DateTime @map("demarre_a")
+
+  /// Instant de publication du résultat — c'est lui qui mesure la fraîcheur des données.
+  termineA DateTime @default(now()) @map("termine_a")
+
+  /// Issue du run : `succes` ou `echec`.
+  statut String @db.VarChar(16)
+
+  /// Étape atteinte : `extraction`, `dbt`, `reconciliation`, ou `complet` si tout a passé.
+  etape String @db.VarChar(32)
+
+  /// Détail lisible en cas d'échec (code de sortie, extrait du log) — jamais de secret.
+  message String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([termineA])
+  @@map("datahub_runs")
+}

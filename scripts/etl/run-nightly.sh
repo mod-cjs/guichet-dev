@@ -48,11 +48,33 @@ export GUICHET_ETL_ENV_FILE="$ENV_FILE"
 DEBUT="$(date -u '+%Y-%m-%dT%H:%M:%S.000Z')"
 log "→ run démarré ($DEBUT)"
 
+# Data Hub — publie l'issue du run dans la base du Guichet, d'où /admin/data-hub la lit.
+#
+# JAMAIS BLOQUANTE : c'est un compte rendu, pas une 4e étape. Un run vert dont la
+# publication échoue reste un run vert — confondre les deux ferait sonner l'alerting pour
+# un pipeline qui a parfaitement fonctionné. Son échec est signalé dans le log et s'arrête là.
+#
+# Le sens de circulation est celui-ci et pas l'inverse : le pipeline POUSSE vers le
+# Guichet, qui ne lit jamais l'entrepôt (GUIC-700, aucun réseau partagé entre l'app et
+# PostgreSQL). Et par `exec_via_app`, comme la réconciliation : le script atteint déjà
+# MariaDB depuis le conteneur `app`, un endpoint HTTP demanderait un secret de plus.
+publier() {
+  statut="$1"
+  etape="$2"
+  shift 2
+  if exec_via_app scripts/datahub/publier-run.ts "$statut" "$etape" "$DEBUT" "$@" >>"$LOG_FILE" 2>&1; then
+    log "statut du run publié ($statut / $etape)"
+  else
+    log "⚠ publication du statut ÉCHOUÉE ($statut / $etape) — la fraîcheur affichée dans /admin/data-hub restera périmée"
+  fi
+}
+
 if $COMPOSE run tap-guichet target-postgres >>"$LOG_FILE" 2>&1; then
   ok "extraction terminée"
 else
   code=$?
   ko "extraction ÉCHOUÉE (code $code) — arrêt immédiat, tout-ou-rien assumé (spec §4.1 B5)"
+  publier echec extraction "code de sortie $code"
   exit "$code"
 fi
 
@@ -61,6 +83,7 @@ if $COMPOSE invoke dbt-postgres build >>"$LOG_FILE" 2>&1; then
 else
   code=$?
   ko "dbt build ÉCHOUÉ (code $code) — modèle ou test en échec, arrêt"
+  publier echec dbt "code de sortie $code"
   exit "$code"
 fi
 
@@ -69,7 +92,9 @@ if exec_via_app scripts/datahub/reconcile.ts "$DEBUT" >>"$LOG_FILE" 2>&1; then
 else
   code=$?
   ko "réconciliation en ÉCART (code $code) — voir $LOG_FILE, ne pas considérer ce run fiable"
+  publier echec reconciliation "code de sortie $code"
   exit "$code"
 fi
 
+publier succes complet
 log "✅ run complet : extraction, dbt, réconciliation — tous verts"

@@ -507,7 +507,7 @@ export function AdminDashboardClient({ data }: Props) {
             Candidatures retenues / mois
           </h2>
           <Link
-            href="/admin/data-hub"
+            href="/admin/statistiques"
             style={{
               background: 'transparent',
               color: 'var(--gj-teal-deep)',

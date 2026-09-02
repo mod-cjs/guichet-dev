@@ -29,6 +29,9 @@ const ROOT = process.cwd()
 const DOCKER_SHIM = `#!/usr/bin/env bash
 echo "docker $*" >> "$CALL_LOG"
 case "$*" in
+  *"publier-run.ts"*)
+    [ -n "$FAIL_PUBLICATION" ] && { echo "publication error" >&2; exit 1; }
+    echo "publication ok"; exit 0 ;;
   *"tap-guichet target-postgres"*)
     [ -n "$FAIL_MELTANO" ] && { echo "extraction error" >&2; exit 1; }
     echo "extraction ok"; exit 0 ;;
@@ -165,5 +168,54 @@ describe('GUIC-697 — run-nightly.sh : enchaînement tout-ou-rien', () => {
     expect(fichiers.some((f) => f.startsWith('datahub-nightly.log.') && f.endsWith('.gz'))).toBe(true)
     // Le nouveau log ne doit PAS contenir le contenu de l'ancien.
     expect(readFileSync(logPath, 'utf8')).not.toMatch(/^x+$/)
+  })
+})
+
+/**
+ * Data Hub — le run publie son résultat au Guichet.
+ *
+ * Sans cela, l'état du pipeline n'existe que dans ce fichier de log, sur l'hôte ETL :
+ * l'administration ne peut pas dire si les chiffres qu'elle affiche datent de la nuit ou
+ * de la semaine dernière.
+ */
+describe('Data Hub — run-nightly.sh : publication de la fraîcheur', () => {
+  it('publie un succès complet quand les trois étapes passent', () => {
+    const r = run()
+
+    expect(r.calls).toMatch(/publier-run\.ts succes complet/)
+  })
+
+  it('publie l’étape fautive quand l’extraction échoue', () => {
+    const r = run({ FAIL_MELTANO: '1' })
+
+    expect(r.calls).toMatch(/publier-run\.ts echec extraction/)
+  })
+
+  it('publie l’étape fautive quand dbt échoue', () => {
+    const r = run({ FAIL_DBT: '1' })
+
+    expect(r.calls).toMatch(/publier-run\.ts echec dbt/)
+  })
+
+  it('publie l’étape fautive quand la réconciliation est en écart', () => {
+    const r = run({ FAIL_RECONCILE: '1' })
+
+    expect(r.calls).toMatch(/publier-run\.ts echec reconciliation/)
+  })
+
+  it('publie APRÈS coup — la publication n’est jamais une 4e étape bloquante', () => {
+    // Un run vert dont la publication échoue reste un run vert : confondre les deux ferait
+    // sonner l'alerting pour un pipeline qui a parfaitement fonctionné.
+    const r = run({ FAIL_PUBLICATION: '1' })
+
+    expect(r.code).toBe(0)
+    expect(r.log).toMatch(/✅ run complet/)
+    expect(r.log).toMatch(/publication du statut/i)
+  })
+
+  it('n’altère pas le code de sortie d’un run réellement en échec', () => {
+    const r = run({ FAIL_DBT: '1', FAIL_PUBLICATION: '1' })
+
+    expect(r.code).not.toBe(0)
   })
 })
