@@ -7,6 +7,36 @@
 
 ---
 
+## ⚠️ Piège vécu (GUIC-713) — commandes `docker compose` destructives sur ce serveur
+
+**Le nom du projet Compose n'est PAS dérivé du répertoire.** Le checkout préprod vit dans
+`/opt/guichet-jeunesse`, mais tous les composes de cette stack sont démarrés sous
+`COMPOSE_PROJECT_NAME=guichet-test` (exporté avant chaque `docker compose up`, voir §3
+ci-dessous). Sans cet export, `docker compose` retombe sur le nom du répertoire
+(`guichet-jeunesse`) et crée un **second projet séparé** — vécu en réel : ça a provoqué un
+conflit de port (`127.0.0.1:3000` déjà tenu par le vrai Grafana `guichet-test`).
+
+**Ce serveur est mutualisé** : `docker compose ls -a` y liste plusieurs projets sans rapport
+(`analytics`, `docker`, `minio`, `redis`, en plus de `guichet-test`). Un `-p <nom>` sur la
+ligne de commande est censé prendre le dessus sur `COMPOSE_PROJECT_NAME` déjà exporté dans le
+shell — **vécu en réel que ce n'est pas fiable ici** : un `docker compose -p guichet-jeunesse
+… down` a supprimé les 6 conteneurs de `guichet-test` (dont l'app préprod elle-même), pas le
+projet visé.
+
+**Règle absolue avant toute commande destructive** (`down`, `rm`, `prune`) sur ce serveur :
+vérifier la cible AVANT d'exécuter, jamais après.
+
+```bash
+# Confirme précisément quels conteneurs porteront le coup, par leur label réel —
+# jamais en supposant que -p ou COMPOSE_PROJECT_NAME suffit seul.
+docker ps --filter "label=com.docker.compose.project=<nom-exact>" --format "table {{.Names}}\t{{.Status}}"
+```
+
+Si le résultat contient un conteneur qu'on ne voulait PAS toucher (ex. `guichet-test-app-1`
+alors qu'on visait un projet vide/cassé), ne pas lancer la commande destructive.
+
+---
+
 ## 0. Pourquoi cette procédure diffère de la prod
 
 - `docker-compose.prod.yml` **ne publie aucun port** (en prod, Plesk → proxy applicatif).
