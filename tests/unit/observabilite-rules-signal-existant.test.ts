@@ -67,6 +67,23 @@ describe('GUIC-545 — rules.yml : alertes disque/mémoire contre les vrais noms
     }
   })
 
+  it('les règles disque apparient used/avail avec ignoring(dimension) — sinon Prometheus renvoie un vecteur vide', () => {
+    // GUIC-712 — vécu en réel (20/08) : une alerte "disque presque plein" arrivait alors que
+    // df -h montrait 5% d'usage. Root cause : par défaut Prometheus exige des labels
+    // IDENTIQUES des deux côtés d'une opération binaire (sauf __name__) ; dimension="used" et
+    // dimension="avail" diffèrent, donc used/(used+avail) ne trouve AUCUNE paire à apparier et
+    // renvoie systématiquement un vecteur vide — jamais "parfois", à CHAQUE évaluation.
+    // Avec noDataState: Alerting (assertion précédente), une absence de données perpétuelle
+    // déclenche l'alerte en continu, sans lien avec le vrai taux de disque. Confirmé sur le
+    // serveur : la requête telle qu'écrite renvoie result: [], la même requête avec
+    // ignoring(dimension) renvoie la vraie valeur (4.43).
+    for (const uid of ['guichet-disque-alerte', 'guichet-disque-avertissement']) {
+      const b = bloc(uid)
+      expect(b).toMatch(/\/\s*ignoring\(dimension\)/)
+      expect(b).toMatch(/\+\s*ignoring\(dimension\)/)
+    }
+  })
+
   it('les 4 règles machine sont sévérité alerte/avertissement et alertent en l’absence de données', () => {
     expect(bloc('guichet-disque-alerte')).toMatch(/severite:\s*alerte/)
     expect(bloc('guichet-memoire-alerte')).toMatch(/severite:\s*alerte/)
