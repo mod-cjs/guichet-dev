@@ -35,11 +35,17 @@ Clés Vertex installées (600, jamais lues/collées) + **appel live vérifié** 
 Le lead a livré **GUIC-706** sur `origin/dev` : pas de simples flags mais un **plan de contrôle de lancement** (`src/lib/flags/**` : catalog modules + cascade `dependsOn` + `engagements.ts` + `prelaunch.ts` checklist d'ouverture + `metrics.ts` accès-refusés + écran `systeme/fonctionnalites` + RBAC `canManageFlags`, gate en `middleware.ts`).
 **Challenge** : mon plan « 5 piliers » était sur-dimensionné. Cible retenue = **brancher 2 entrées d'observation manquantes** sur le cockpit du lead (source de vérité crons `CronRun` ; santé live des dépendances reliée aux flags-leviers) + ligne d'état layout + alerte push (`ALERT_WEBHOOK_URL` existe). PAS un mur de dashboards.
 
-### Étape 0 — BLOQUANTS (décisions lead avant tout code Système)
-1. **Réconciliation admin-refonte ↔ origin/dev** (525 commits divergents ; le pilotage se construit sur origin/dev, pas sur le stack).
-2. **Ordonnanceur cron autoritaire en prod** : Vercel *et* `scripts/cron/generate-crontab.sh` coexistent → risque double exécution / idempotence.
-3. `prelaunch.ts` : lit un journal d'exécution ou infère ? · `m14.ops` : flag basculable ou doc ? · Landing Système vs outils contextuels + ligne d'état.
-4. Constat design : « Lot 13 — États Système » (maquette) = états d'UI (vide/hors-ligne/chargement), **PAS** une console ops → aucune maquette PO pour un poste de pilotage.
+### Décisions prises (ensemble) — voir mémoire `project_admin_refonte_reintegration`
+- ✅ **D3 Réconciliation = ré-intégration PAR FEATURE sur origin/dev.** Stack divergé (merge-base 26/07, 216 commits locaux / 583 amont, ~40 fichiers conflictuels). On arrête de grossir le stack ; chaque feature finie → branche fraîche depuis origin/dev + PR cadrée. Système se construit sur origin/dev.
+- ✅ **D4 Crons = crontab OVH via `scripts/cron/jobs.json`** (prod self-hosted, pas Vercel — M14 #253). Pas de double exécution. `CronRun` s'indexera sur `jobs.json`.
+- ✅ **D5a** `prelaunch.ts` n'lit aucun journal → `CronRun` le renforce (complémentaire).
+- ⏳ **Reste au lead (à la spec Système)** : m14.ops basculable ou doc ? · landing Système vs ligne d'état. Constat : « Lot 13 — États Système » = états d'UI (vide/hors-ligne/chargement), pas une console ops.
+
+### Séquence de ré-intégration (features prêtes → PR sur dev)
+1. **Yaye P3** (GUIC-537/558/435) — le plus autonome. Migration additive `LlmConfig` (temp/tokens) re-authorer depuis origin/dev.
+2. **Escalade durci** (GUIC-259). Migration `EscaladeYaye.resolutionNote`.
+3. **Découplage Partenaires** 2a+2b — **renuméroter** les commits `[GUIC-706]` (collision flags lead). Migration `MembreOrganisation` + enums.
+→ Puis seulement : **spec Système** (Santé plateforme + CronRun) sur origin/dev.
 
 ---
 
