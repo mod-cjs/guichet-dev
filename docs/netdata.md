@@ -65,9 +65,37 @@ Correctif dans `docker-compose.netdata.yml` — redéployer pour que ça prenne 
 docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
 ```
 
-Aucun changement côté `rules.yml` : Netdata restitue les points de montage sous leur vrai
-chemin hôte (`mount_point="/"`, pas `/host/root`), la règle existante reste correcte une fois
-le conteneur redéployé.
+Netdata restitue les points de montage sous leur vrai chemin hôte (`mount_point="/"`, pas
+`/host/root`) — mais ce fix seul n'a **pas** suffi à faire cesser l'alerte : voir GUIC-712
+ci-dessous, un second bug distinct dans `rules.yml` lui-même.
+
+## Requête PromQL disque — `ignoring(dimension)` (GUIC-712, corrigé 20/08)
+
+Après le fix GUIC-710 ci-dessus et le redéploiement, l'alerte disque a continué d'arriver.
+Vérifié en réel : Prometheus voyait bien la bonne donnée (`used`≈165 GiB, `avail`≈3557 GiB,
+soit ~4.4%), mais la requête de la règle elle-même renvoyait un vecteur **vide** :
+
+```promql
+netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+/
+(netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+ + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+* 100
+```
+
+Cause : par défaut, Prometheus exige que les deux côtés d'une opération binaire aient des
+labels **identiques** (sauf `__name__`) pour s'apparier. `dimension="used"` et
+`dimension="avail"` diffèrent, donc la division ne trouve aucune paire — résultat vide,
+**systématiquement**, pas seulement parfois. Or `noDataState: Alerting` (choix voulu, voir
+`guichet-machine` dans `rules.yml` — l'absence de donnée signale que Prometheus/Netdata sont
+injoignables, un vrai incident) transforme cette absence perpétuelle en alerte permanente,
+sans lien avec le vrai taux de disque. Bug présent depuis l'écriture initiale de la règle
+(GUIC-545) — contrairement à la règle mémoire (vérifiée en réel le 17/08 ci-dessous), la
+règle disque n'avait jamais été testée bout-en-bout en franchissant un vrai seuil.
+
+Correctif : `ignoring(dimension)` sur les deux opérateurs binaires (`/` et `+`), dans les
+deux règles (`guichet-disque-alerte`, `guichet-disque-avertissement`). Ne touche pas
+`noDataState: Alerting`, qui reste la détection voulue d'une panne Prometheus/Netdata.
 
 ## État réel — déployé en préprod (2026-08-11)
 
