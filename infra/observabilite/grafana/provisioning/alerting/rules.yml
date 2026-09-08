@@ -283,11 +283,17 @@ groups:
             datasourceUid: prometheus
             model:
               datasource: { type: prometheus, uid: prometheus }
+              # GUIC-712 — vécu en réel (20/08) : sans ignoring(dimension), Prometheus exige
+              # des labels IDENTIQUES des deux côtés d'une opération binaire (sauf __name__).
+              # dimension="used" et dimension="avail" diffèrent, donc used/(used+avail) ne
+              # trouve AUCUNE paire à apparier et renvoie un vecteur VIDE systématiquement —
+              # avec noDataState: Alerting (ci-dessous), l'alerte se déclenchait en continu,
+              # sans lien avec le vrai taux de disque.
               expr: >-
                 netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
-                /
+                / ignoring(dimension)
                 (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
-                 + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                 + ignoring(dimension) netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
                 * 100
               instant: true
               refId: A
@@ -320,11 +326,14 @@ groups:
             datasourceUid: prometheus
             model:
               datasource: { type: prometheus, uid: prometheus }
+              # GUIC-712 — même correctif que guichet-disque-alerte ci-dessus : sans
+              # ignoring(dimension), la division ne trouve aucune paire de séries à apparier
+              # (labels dimension="used" vs "avail" différents) et renvoie un vecteur vide.
               expr: >-
                 netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
-                /
+                / ignoring(dimension)
                 (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
-                 + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                 + ignoring(dimension) netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
                 * 100
               instant: true
               refId: A
