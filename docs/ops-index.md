@@ -47,6 +47,9 @@ Gabarits versionnés (jamais de vraie valeur dedans) : `.env.etl.example`,
 - Mise en prod + rollback : `docs/runbook-production.md`
 - Ouvrir / masquer une fonctionnalité : `docs/runbook-fonctionnalites.md` (GUIC-706)
 - Checklist des pièges avant/pendant go-live : `docs/go-live-checklist.md`
+- **Avant toute commande `docker compose down/rm/prune` sur le serveur** : lire le piège
+  GUIC-713 en tête de `docs/deploiement-preprod.md` — serveur mutualisé, plusieurs projets
+  Compose sans rapport, `-p` pas fiable seul pour cibler le bon.
 
 ### Superviser / observer
 - Logs applicatifs, `requestId`, Loki/Grafana, rétention CDP : `docs/observabilite.md`
