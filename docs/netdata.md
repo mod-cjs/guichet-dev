@@ -123,9 +123,9 @@ maintenir, pas un second non éprouvé.
 docker compose -f docker-compose.netdata.yml up -d   # inclut désormais prometheus
 ```
 
-Prometheus tourne en `network_mode: host` comme Netdata (`127.0.0.1:9090`, jamais public) — il
-racle Netdata en `127.0.0.1:19999` directement. Grafana, sur son réseau bridge séparé, le joint
-via `host.docker.internal:9090` (même mécanisme que `backup.sh` pour MariaDB) — nécessite
+Prometheus tourne en `network_mode: host` comme Netdata — il racle Netdata en
+`127.0.0.1:19999` directement. Grafana, sur son réseau bridge séparé, le joint via
+`host.docker.internal:9090` (même mécanisme que `backup.sh` pour MariaDB) — nécessite
 `extra_hosts: host.docker.internal:host-gateway` sur le service `grafana`
 (`docker-compose.observabilite.yml`), déjà ajouté. Source de données provisionnée avec un **UID
 explicite** (`infra/observabilite/grafana/provisioning/datasources/prometheus.yml`) — la leçon
@@ -135,8 +135,43 @@ de GUIC-576 (Loki) : sans lui, toute règle qui la référence échoue silencieu
 (`mount_point="/"`, seuils 80 %/90 %) et mémoire disponible (`netdata_mem_available_MiB_average`,
 seuils 6/3 Gio), contre les noms de métriques vérifiés en réel, pas devinés.
 
-**Vérifié en exécution réelle (2026-08-17)** : seuil de la règle mémoire abaissé
-temporairement sur le fichier serveur (pas commité), Grafana redémarré pour recharger, e-mail
-d'alerte reçu après le délai `for: 5m`, seuil réel restauré. La chaîne complète Netdata →
-Prometheus → Grafana → SMTP fonctionne de bout en bout, comme Grafana/Loki
-(`docs/supervision-disponibilite.md`).
+**Vérification du 17/08 : incomplète, pas invalide** — un seuil abaissé avait bien déclenché
+un e-mail à l'époque, mais cette vérification n'a apparemment pas exercé le chemin réseau
+Grafana→Prometheus dans les conditions où il casse (voir GUIC-714 juste en dessous) — soit un
+facteur externe compensait alors, soit le test a emprunté un autre chemin. Ne pas se fier à ce
+genre de vérification comme preuve définitive sans revérifier après tout changement
+d'infrastructure (redéploiement de conteneurs, recréation de réseau).
+
+## Prometheus injoignable depuis le réseau bridge de Grafana (GUIC-714, corrigé 20/08)
+
+Après le fix GUIC-712 et un redéploiement confirmé, les 4 règles machine (disque + mémoire,
+alerte + avertissement) sont restées **toutes** en `DatasourceError` — pas seulement disque.
+Vérifié en réel : Prometheus renvoyait la bonne donnée interrogé depuis le serveur
+(`127.0.0.1:9090`), mais un `wget` lancé **depuis le conteneur Grafana** vers
+`host.docker.internal:9090` restait bloqué indéfiniment.
+
+Cause : `--web.listen-address=127.0.0.1:9090` liait Prometheus à la seule boucle locale — un
+socket lié à `127.0.0.1` n'accepte **aucune** connexion arrivant par une autre interface, même
+depuis la même machine (comportement noyau, pas un problème de pare-feu). Cette directive est
+inchangée depuis l'écriture initiale (GUIC-545) — cette connexion a donc probablement toujours
+été cassée, malgré la vérification du 17/08 ci-dessus.
+
+Correctif : `--web.listen-address=0.0.0.0:9090` (toutes interfaces). Vérifié avant d'appliquer
+que ça n'ouvre PAS Prometheus au public : le pare-feu serveur (`iptables -L INPUT`, policy
+`DROP`) n'a aucune règle `ACCEPT` pour le port 9090 — la chaîne `DROP` finale s'applique par
+défaut à toute source non explicitement autorisée, y compris après ce changement. Une règle
+`ACCEPT` **scopée uniquement au sous-réseau Docker `observabilite`** est nécessaire pour que
+Grafana puisse effectivement joindre Prometheus (le firewall bloquerait sinon aussi le trafic
+légitime venant du pont Docker) — hors dépôt, iptables manuel, à appliquer côté serveur :
+
+```bash
+# Sous-réseau exact du réseau Docker observabilité (peut différer si recréé) :
+docker network inspect guichet-test_observabilite --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+
+# Règle scopée — remplacer <sous-réseau> par la valeur ci-dessus (ex. 192.168.32.0/20) :
+sudo iptables -I INPUT -p tcp -s <sous-réseau> --dport 9090 -j ACCEPT
+```
+
+Cette règle est **manuelle et non versionnée** — elle ne survit pas à un redémarrage du
+serveur ni à un flush iptables. Dette de suivi : persister cette règle (ex. via le mécanisme
+de pare-feu déjà en place sur le serveur — à investiguer, hors scope de ce fix).

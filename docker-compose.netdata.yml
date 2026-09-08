@@ -68,10 +68,10 @@ services:
   prometheus:
     image: prom/prometheus:v3.8.1
     restart: unless-stopped
-    # Même réseau hôte que Netdata : le racle en 127.0.0.1, pas de host.docker.internal requis
-    # ici. Nécessaire aussi côté sortant : Grafana (docker-compose.observabilite.yml, réseau
-    # bridge séparé) joint CE service via host.docker.internal:9090 — le même mécanisme déjà
-    # utilisé pour joindre MariaDB depuis un conteneur (backup.sh, docker-compose.prod.yml).
+    # Même réseau hôte que Netdata : le racle en 127.0.0.1. Nécessaire aussi côté sortant :
+    # Grafana (docker-compose.observabilite.yml, réseau bridge séparé) joint CE service via
+    # host.docker.internal:9090 — le même mécanisme déjà utilisé pour joindre MariaDB depuis un
+    # conteneur (backup.sh, docker-compose.prod.yml).
     network_mode: host
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -80,9 +80,15 @@ services:
       # l'analyse historique — cohérent avec le rôle de Netdata (dashboard d'astreinte), pas un
       # entrepôt de métriques. Loki, lui, retient 30 jours pour les logs (contrainte CDP).
       - --storage.tsdb.retention.time=15d
-      # AUCUN port public (même principe que Grafana/Netdata) : `network_mode: host` publierait
-      # sinon 9090 sur TOUTES les interfaces par défaut.
-      - --web.listen-address=127.0.0.1:9090
+      # GUIC-714 — vécu en réel (20/08) : un bind strict sur 127.0.0.1 empêchait TOUT accès
+      # depuis le réseau bridge de Grafana (un socket loopback n'accepte aucune connexion
+      # arrivant par une autre interface, même depuis la même machine) — les 4 règles machine
+      # étaient en DatasourceError en continu, probablement depuis le premier déploiement
+      # (GUIC-545). 0.0.0.0 = toutes interfaces, mais SANS exposition publique nouvelle : le
+      # pare-feu serveur (INPUT, policy DROP) n'a aucune règle ACCEPT pour 9090 — une règle
+      # scopée au seul sous-réseau Docker `observabilite` est ajoutée séparément (hors dépôt,
+      # iptables manuel, voir docs/netdata.md).
+      - --web.listen-address=0.0.0.0:9090
     volumes:
       - ./infra/netdata/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
