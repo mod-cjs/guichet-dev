@@ -225,7 +225,7 @@ export function AdminModerationList({ rows, kpis, total, currentPage, totalPages
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id))
 
   function toggle(id: string) {
-    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
   function toggleAll() {
     setSelected((s) => (s.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))))
