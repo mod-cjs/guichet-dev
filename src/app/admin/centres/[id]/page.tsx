@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 import type { Prisma, StatutReservation } from '@prisma/client'
 import { Icon } from '@/components/ui/Icon'
 import { CentresMapGoogle } from '@/components/centres/CentresMapGoogle'
@@ -83,10 +84,13 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       email: true, responsable: true, description: true, latitude: true, longitude: true,
       slug: true, estActif: true, services: true,
       horaires: { select: { jour: true, ouvert: true, ouvreA: true, fermeA: true } },
+      // GUIC-684 — rattachements programme existants (préremplissage édition).
+      programmes: { select: { principal: true, programme: { select: { slug: true } } } },
       _count: { select: { profilsRattaches: true, agents: true, ressources: true, insertions: true } },
     },
   })
   if (!centre) notFound()
+  const programmeOptions = await loadProgrammeOptions(prisma)
 
   const rgb = centreRgb(String(centre.region))
   const services = Array.isArray(centre.services) ? (centre.services as string[]) : []
@@ -122,6 +126,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     telephone: centre.telephone, email: centre.email, responsable: centre.responsable,
     services, estActif: centre.estActif,
     horaires: centre.horaires.map((h) => ({ jour: String(h.jour), ouvert: h.ouvert, ouvreA: h.ouvreA, fermeA: h.fermeA })),
+    programmeSlugs: centre.programmes.map((p) => p.programme.slug),
+    programmePrincipalSlug: centre.programmes.find((p) => p.principal)?.programme.slug ?? null,
   }
 
   // ── Données de l'onglet actif ──────────────────────────────────────────────
@@ -404,7 +410,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <CentreEditButton centre={editValues} />
+          <CentreEditButton centre={editValues} programmes={programmeOptions} />
           <CentreLifecycleActions centreId={centre.id} estActif={centre.estActif} />
         </div>
       </div>

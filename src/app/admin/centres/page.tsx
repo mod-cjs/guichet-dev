@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 import { statutOuverture } from '@/lib/centre-horaire'
 import { CentresAdminTable, type CentreRow, type CentresStats } from './centres-admin-table'
 
@@ -26,6 +27,7 @@ export default async function Page() {
 
   // Conseillers distincts (rattachements agents) pour le KPI réseau.
   const conseillers = (await prisma.agentCentre.groupBy({ by: ['cjsUid'] })).length
+  const programmes = await loadProgrammeOptions(prisma)
 
   const now = new Date()
   const rows: CentreRow[] = centres.map((c) => {
@@ -53,5 +55,5 @@ export default async function Page() {
     regions: new Set(rows.map((r) => r.region)).size,
   }
 
-  return <CentresAdminTable centres={rows} stats={stats} />
+  return <CentresAdminTable centres={rows} stats={stats} programmes={programmes} />
 }

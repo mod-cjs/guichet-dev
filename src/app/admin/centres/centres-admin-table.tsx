@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CentreFormModal } from './CentreFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { CentreCard } from '@/components/ui/CentreCard'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -42,6 +43,8 @@ export interface CentresStats {
 interface CentresAdminTableProps {
   centres: CentreRow[]
   stats: CentresStats
+  /** GUIC-684 — catalogue programmes pour le rattachement à la création. */
+  programmes?: ProgrammeOption[]
 }
 
 const card: CSSProperties = { background: 'var(--gj-surface)', border: '1.5px solid var(--gj-line)', borderRadius: 15, boxShadow: 'var(--gj-edge)', padding: '15px 16px' }
@@ -85,7 +88,7 @@ function Kpi({ value, sub, label, pill, pillTone }: { value: string; sub?: strin
 
 type Filtre = 'tous' | 'actifs' | 'nouveaux'
 
-export function CentresAdminTable({ centres, stats }: CentresAdminTableProps) {
+export function CentresAdminTable({ centres, stats, programmes = [] }: CentresAdminTableProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [q, setQ] = useState('')
   const [filtre, setFiltre] = useState<Filtre>('tous')
@@ -162,7 +165,7 @@ export function CentresAdminTable({ centres, stats }: CentresAdminTableProps) {
         )}
       </div>
 
-      <CentreFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      <CentreFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} programmes={programmes} />
     </>
   )
 }

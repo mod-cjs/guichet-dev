@@ -12,6 +12,8 @@ jest.mock('@/lib/prisma', () => ({
   prisma: {
     centre: { findMany: (...a: unknown[]) => mockFindMany(...a) },
     agentCentre: { groupBy: (...a: unknown[]) => mockGroupBy(...a) },
+    // GUIC-684 — la page précharge le catalogue programmes (loadProgrammeOptions).
+    programme: { findMany: async () => [] },
   },
 }))
 

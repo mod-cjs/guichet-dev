@@ -7,6 +7,7 @@ import { regionLabel } from '@/lib/regions'
 import { CENTRE_SERVICES } from '@/lib/centre-services'
 import type { Region, Jour } from '@prisma/client'
 import { creerCentre, modifierCentre } from './actions'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 const REGIONS: Region[] = [
   'Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga',
@@ -57,6 +58,9 @@ export interface CentreFormValues {
   services?: string[]
   horaires?: { jour: string; ouvert: boolean; ouvreA: string | null; fermeA: string | null }[]
   estActif?: boolean
+  // GUIC-684 — programmes déployés dans le centre (préremplissage à l'édition).
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
 }
 
 export interface CentreFormModalProps {
@@ -64,6 +68,8 @@ export interface CentreFormModalProps {
   onClose: () => void
   /** Présent (avec id) = édition ; absent = création. */
   centre?: CentreFormValues
+  /** GUIC-684 — catalogue des programmes proposés au rattachement. */
+  programmes?: ProgrammeOption[]
   /** Appelé après succès (création/édition) — la liste affiche un toast. */
   onSuccess?: (action: 'create' | 'update') => void
 }
@@ -77,7 +83,7 @@ function Fld({ label, htmlFor, children }: { label: string; htmlFor?: string; ch
   )
 }
 
-export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFormModalProps) {
+export function CentreFormModal({ isOpen, onClose, centre, programmes = [], onSuccess }: CentreFormModalProps) {
   const editing = Boolean(centre?.id)
   const [nom, setNom] = useState(centre?.nom ?? '')
   const [region, setRegion] = useState<string>(centre?.region ?? 'Dakar')
@@ -91,6 +97,8 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
   const [services, setServices] = useState<string[]>(centre?.services ?? [])
   const [customSvc, setCustomSvc] = useState('')
   const [horaires, setHoraires] = useState<HoraireRow[]>(() => initHoraires(centre?.horaires))
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(centre?.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(centre?.programmePrincipalSlug ?? null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -129,6 +137,8 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
         fermeA: h.ouvert ? h.fermeA : null,
       })),
       estActif: centre?.estActif ?? true,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
     }
     startTransition(async () => {
       try {
@@ -253,6 +263,18 @@ export function CentreFormModal({ isOpen, onClose, centre, onSuccess }: CentreFo
             </Button>
           </div>
         </Fld>
+
+        {programmes.length > 0 && (
+          <Fld label="Programmes CJS déployés">
+            <ProgrammesField
+              options={programmes}
+              value={programmeSlugs}
+              onChange={setProgrammeSlugs}
+              principal={programmePrincipal}
+              onPrincipalChange={setProgrammePrincipal}
+            />
+          </Fld>
+        )}
 
         <Fld label="Horaires d'ouverture">
           <div className="flex flex-col gap-[6px]" role="group" aria-label="Horaires d'ouverture">

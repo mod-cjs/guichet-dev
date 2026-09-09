@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
 import { CentreFormModal, type CentreFormValues } from '../CentreFormModal'
+import type { ProgrammeOption } from '@/components/admin/ProgrammesField'
 
 /**
  * Bouton « Éditer la fiche » de l'en-tête de la fiche Centre (GUIC-687, fidélité maquette).
  * Client island : ouvre la CentreFormModal préremplie ; rafraîchit la page au succès.
  */
-export function CentreEditButton({ centre }: { centre: CentreFormValues }) {
+export function CentreEditButton({ centre, programmes = [] }: { centre: CentreFormValues; programmes?: ProgrammeOption[] }) {
   const [open, setOpen] = useState(false)
   const router = useRouter()
   return (
@@ -26,6 +27,7 @@ export function CentreEditButton({ centre }: { centre: CentreFormValues }) {
           isOpen
           onClose={() => setOpen(false)}
           centre={centre}
+          programmes={programmes}
           onSuccess={() => { setOpen(false); router.refresh() }}
         />
       )}
