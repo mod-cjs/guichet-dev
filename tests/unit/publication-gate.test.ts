@@ -44,9 +44,21 @@ describe('GUIC-706 — verifierGatePublication', () => {
     await expect(verifierGatePublication('u1', 'org1')).resolves.toEqual({ ok: false, raison: 'PERSONNE_INACTIVE' })
   })
 
-  it('pas membre → NON_MEMBRE', async () => {
+  it('pas membre ET pas propriétaire → NON_MEMBRE', async () => {
     mp.membreOrganisation.findUnique.mockResolvedValue(null)
     await expect(verifierGatePublication('u1', 'org1')).resolves.toEqual({ ok: false, raison: 'NON_MEMBRE' })
+  })
+
+  it('GUIC-706 — pas de ligne membre MAIS propriétaire (Organisation.cjsUid) → ok (membre implicite, legacy pré-backfill)', async () => {
+    mp.organisation.findUnique.mockResolvedValue({ statut: 'active', cjsUid: 'u1' })
+    mp.membreOrganisation.findUnique.mockResolvedValue(null)
+    await expect(verifierGatePublication('u1', 'org1')).resolves.toEqual({ ok: true })
+  })
+
+  it('GUIC-706 — propriétaire MAIS ligne membre révoquée → MEMBRE_INACTIF (la révocation explicite prime)', async () => {
+    mp.organisation.findUnique.mockResolvedValue({ statut: 'active', cjsUid: 'u1' })
+    mp.membreOrganisation.findUnique.mockResolvedValue({ statut: 'revoke' })
+    await expect(verifierGatePublication('u1', 'org1')).resolves.toEqual({ ok: false, raison: 'MEMBRE_INACTIF' })
   })
 
   it('membre révoqué → MEMBRE_INACTIF', async () => {

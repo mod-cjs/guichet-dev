@@ -10,13 +10,17 @@ export type { MyCJSCardBackProps } from './MyCJSCardBack'
 export interface MyCJSCardUser {
   prenom: string
   nom: string
-  /** Matricule formaté (ex: "GJS · AD · 23045"). */
-  matricule: string
+  /**
+   * Matricule de membre persisté (ex. « GJ-2026-77294A »). `null` pour un
+   * compte qui n'en a pas encore : le backfill peut ne pas être passé, et la
+   * carte doit rester utilisable — le QR porte l'identification.
+   */
+  matricule: string | null
   /** URL photo (null → fallback initiales). */
   photoUrl?: string
   centrePrincipal?: { nom: string; region: string }
-  /** Date d'adhésion lisible (ex: "03/2025"). */
-  membreDepuis: string
+  /** Date d'adhésion lisible (ex. « 03/2025 »), `null` si inconnue. */
+  membreDepuis: string | null
 }
 
 export interface MyCJSCardProps {
@@ -257,19 +261,21 @@ export function MyCJSCard({
           >
             {user.prenom} {user.nom}
           </h2>
-          <div
-            style={{
-              fontFamily:
-                'ui-monospace, SFMono-Regular, Menlo, monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '.5px',
-              color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
-            }}
-          >
-            {user.matricule}
-          </div>
-          {!compact && user.centrePrincipal && (
+          {user.matricule && (
+            <div
+              style={{
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: '.5px',
+                color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+              }}
+            >
+              {user.matricule}
+            </div>
+          )}
+          {!compact && (user.centrePrincipal || user.membreDepuis) && (
             <div
               className="flex flex-wrap gap-2"
               style={{
@@ -277,28 +283,32 @@ export function MyCJSCard({
                 color: dark ? 'rgba(255,255,255,.78)' : 'var(--gj-grey)',
               }}
             >
-              <span className="inline-flex items-center gap-1">
-                <Icon
-                  name="pin"
-                  size={12}
-                  style={{
-                    color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
-                  }}
-                  aria-hidden="true"
-                />
-                {user.centrePrincipal.nom}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Icon
-                  name="calendar"
-                  size={12}
-                  style={{
-                    color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
-                  }}
-                  aria-hidden="true"
-                />
-                Membre depuis {user.membreDepuis}
-              </span>
+              {user.centrePrincipal && (
+                <span className="inline-flex items-center gap-1">
+                  <Icon
+                    name="pin"
+                    size={12}
+                    style={{
+                      color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  {user.centrePrincipal.nom}
+                </span>
+              )}
+              {user.membreDepuis && (
+                <span className="inline-flex items-center gap-1">
+                  <Icon
+                    name="calendar"
+                    size={12}
+                    style={{
+                      color: dark ? 'var(--gj-yellow)' : 'var(--gj-teal-deep)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  Membre depuis {user.membreDepuis}
+                </span>
+              )}
             </div>
           )}
         </div>

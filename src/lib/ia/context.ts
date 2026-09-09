@@ -7,6 +7,11 @@
 // Le `cjs_uid` étant le seul identifiant inter-plateformes (CLAUDE.md), c'est aussi
 // l'ancrage le plus aligné avec le droit à l'oubli (une clé à purger par personne).
 // TTL unifié 7 jours : Yaye se souvient d'une session à l'autre, sur tous les canaux.
+//
+// ⚠️ STOCKAGE EN LISTE (GUIC-678) : l'historique était une CHAÎNE JSON lue au début de
+// la requête et réécrite à la fin. Deux messages simultanés de la même personne (deux
+// onglets, ou web + WhatsApp) faisaient perdre un tour : le second écrasait le premier.
+// Chaque tour est désormais AJOUTÉ atomiquement (RPUSH) puis la liste est bornée (LTRIM).
 
 import { redis } from '@/lib/redis'
 import { logger } from '@/lib/logger'
@@ -30,23 +35,90 @@ export function userContextKey(cjsUid: string): string {
   return `user:${cjsUid}`
 }
 
-/** Charge l'historique d'une conversation. Jamais d'exception (retourne [] en cas d'échec). */
-export async function loadContext(key: string): Promise<ChatTurn[]> {
+/** Une clé au FORMAT PRÉCÉDENT (chaîne JSON) répond WRONGTYPE aux commandes de liste. */
+function isWrongType(err: unknown): boolean {
+  return /WRONGTYPE/i.test(err instanceof Error ? err.message : String(err))
+}
+
+function parseTurn(raw: string): ChatTurn[] {
   try {
-    const raw = await redis.get(PREFIX + key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as ChatTurn[]).slice(-MAX_TURNS) : []
+    const t = JSON.parse(raw) as ChatTurn
+    return t && (t.role === 'user' || t.role === 'assistant') && typeof t.content === 'string' ? [t] : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Charge l'historique d'une conversation. Jamais d'exception (retourne [] en cas d'échec).
+ * Une clé au format précédent (chaîne JSON) est effacée à la volée : la conversation
+ * repart de zéro une seule fois, plutôt que d'échouer à chaque tour.
+ */
+export async function loadContext(key: string): Promise<ChatTurn[]> {
+  const k = PREFIX + key
+  try {
+    const raws = await redis.lrange(k, -MAX_TURNS, -1)
+    return raws.flatMap(parseTurn)
   } catch (err) {
+    if (isWrongType(err)) {
+      logger.warn('[yaye-context] clé au format précédent → migration par purge', { key })
+      try {
+        await redis.del(k)
+      } catch { /* best-effort */ }
+      return []
+    }
     logger.warn('[yaye-context] load échec', { err: String(err) })
     return []
   }
 }
 
-/** Persiste l'historique (tronqué) avec TTL. Fail-soft. */
-export async function saveContext(key: string, turns: ChatTurn[], ttl: number): Promise<void> {
+/**
+ * AJOUTE des tours à l'historique, de façon atomique (RPUSH) puis borne la liste.
+ * C'est la seule écriture du chemin conversationnel : deux requêtes concurrentes
+ * s'entrelacent sans se perdre. Fail-soft.
+ */
+export async function appendTurns(key: string, turns: ChatTurn[], ttl: number): Promise<void> {
+  if (turns.length === 0) return
+  const k = PREFIX + key
+  const payload = turns.map(t => JSON.stringify(t))
   try {
-    await redis.set(PREFIX + key, JSON.stringify(turns.slice(-MAX_TURNS)), 'EX', ttl)
+    await redis.rpush(k, ...payload)
+  } catch (err) {
+    if (!isWrongType(err)) {
+      logger.warn('[yaye-context] append échec', { err: String(err) })
+      return
+    }
+    // Clé au format précédent : on la remplace par une liste, une seule fois.
+    try {
+      await redis.del(k)
+      await redis.rpush(k, ...payload)
+    } catch (err2) {
+      logger.warn('[yaye-context] append échec après migration', { err: String(err2) })
+      return
+    }
+  }
+  try {
+    await redis.ltrim(k, -MAX_TURNS, -1)
+    await redis.expire(k, ttl)
+  } catch (err) {
+    logger.warn('[yaye-context] bornage/TTL échec', { err: String(err) })
+  }
+}
+
+/**
+ * REMPLACE l'historique (réécriture complète). Réservé aux cas où l'on reconstruit
+ * délibérément la conversation ; le chemin normal est `appendTurns`, qui ne peut pas
+ * perdre le tour d'une requête concurrente.
+ */
+export async function saveContext(key: string, turns: ChatTurn[], ttl: number): Promise<void> {
+  const k = PREFIX + key
+  const derniers = turns.slice(-MAX_TURNS)
+  try {
+    await redis.del(k)
+    if (derniers.length > 0) {
+      await redis.rpush(k, ...derniers.map(t => JSON.stringify(t)))
+      await redis.expire(k, ttl)
+    }
   } catch (err) {
     logger.warn('[yaye-context] save échec', { err: String(err) })
   }

@@ -6,7 +6,19 @@
 jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
-jest.mock('@/lib/prisma', () => ({ prisma: { organisation: { update: jest.fn(), create: jest.fn(), findUnique: jest.fn() }, opportunite: { update: jest.fn() } } }))
+// GUIC-684 — modifierPartenaire synchronise les programmes dans une transaction : le mock
+// $transaction exécute le callback avec le prisma mocké comme `tx`. replaceProgrammesOptionnels
+// est neutralisé (testé ailleurs) — ce test porte sur les champs éditables + l'audit.
+jest.mock('@/lib/programmes/rattachement', () => ({ replaceProgrammesOptionnels: jest.fn() }))
+jest.mock('@/lib/prisma', () => {
+  const prisma: Record<string, unknown> = {
+    organisation: { update: jest.fn(), create: jest.fn(), findUnique: jest.fn() },
+    opportunite: { update: jest.fn() },
+    organisationProgramme: { deleteMany: jest.fn(), createMany: jest.fn() },
+  }
+  prisma.$transaction = (fn: (tx: unknown) => unknown) => fn(prisma)
+  return { prisma }
+})
 
 import { getSession } from '@/lib/auth'
 import { recordAudit } from '@/lib/audit'
@@ -53,12 +65,12 @@ describe('GUIC-510 — actions partenaires', () => {
 
   it('creerPartenaire : crée une org SANS compte (cjsUid null) + statut active + audit', async () => {
     mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
-    const res = await creerPartenaire({ nom: 'GIZ Sénégal', secteur: 'Numerique' })
+    const res = await creerPartenaire({ nom: 'GIZ Sénégal', secteur: 'Economie' })
     expect(res).toEqual({ id: 'new-org' })
     const data = mockPrisma.organisation.create.mock.calls[0][0].data
     expect(data.nom).toBe('GIZ Sénégal')
     expect(data.cjsUid ?? null).toBeNull() // sans compte
-    expect(data.secteur).toBe('Numerique')
+    expect(data.secteur).toBe('Economie')
     expect(mockAudit).toHaveBeenCalledWith('admin', 'partenaire.create', expect.any(Object))
   })
 
@@ -115,7 +127,7 @@ describe('GUIC-510 — actions partenaires', () => {
   it('modifier → écrit les champs éditables + audit update', async () => {
     mockSession.mockResolvedValue({ cjsUid: 'admin', roles: ['admin'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await modifierPartenaire('p1', { nom: 'Sonatel', secteur: 'Numerique', email: 'rh@sonatel.sn' } as any)
+    await modifierPartenaire('p1', { nom: 'Sonatel', secteur: 'Economie', email: 'rh@sonatel.sn' } as any)
     const call = mockPrisma.organisation.update.mock.calls[0][0]
     expect(call.where).toEqual({ id: 'p1' })
     expect(call.data.nom).toBe('Sonatel')

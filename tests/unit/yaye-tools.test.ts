@@ -103,7 +103,7 @@ test('search_opportunities : renvoie un bloc opportunites cliquable', async () =
       region: 'Dakar', organisation: 'ACME', organisationLibelle: null, deadline: new Date('2026-12-01'),
     },
   ])
-  const r = await TOOLS.search_opportunities.execute({ domaine: 'Numerique' }, ctx)
+  const r = await TOOLS.search_opportunities.execute({ domaine: 'Economie' }, ctx)
   expect(r.ok).toBe(true)
   expect(r.block?.kind).toBe('opportunites')
   if (r.block?.kind === 'opportunites') {
@@ -112,7 +112,7 @@ test('search_opportunities : renvoie un bloc opportunites cliquable', async () =
   }
   // l'enum domaine valide est bien appliqué au filtre Prisma
   expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-    where: expect.objectContaining({ statut: 'publiee', domaine: 'Numerique' }),
+    where: expect.objectContaining({ statut: 'publiee', domaine: 'Economie' }),
   }))
 })
 

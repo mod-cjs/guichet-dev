@@ -39,11 +39,14 @@ export async function GET(request: NextRequest): Promise<ListResponse> {
 
   const sp = request.nextUrl.searchParams
 
-  // Zod valide q/page/sort_by — type/domaine/region parsés à la main pour multi.
+  // Zod valide q/page/sort_by/remuneration/deadline — type/domaine/region parsés à
+  // la main pour multi.
   const parsed = OpportuniteQuerySchema.safeParse({
     q: sp.get('q') ?? undefined,
     page: sp.get('page') ?? undefined,
     sort_by: sp.get('sort_by') ?? undefined,
+    remuneration: sp.get('remuneration') ?? undefined,
+    deadline: sp.get('deadline') ?? undefined,
   })
   if (!parsed.success) {
     return NextResponse.json(
@@ -60,14 +63,24 @@ export async function GET(request: NextRequest): Promise<ListResponse> {
   const types = parseMultiEnumParam(sp, 'type', TypeOpportunite)
   const domaines = parseMultiEnumParam(sp, 'domaine', Domaine)
   const regions = parseMultiEnumParam(sp, 'region', Region)
+  // GUIC-684 — les programmes ne sont pas un enum Prisma (table de référence) :
+  // on borne la saisie (slug court, charset strict) plutôt que de valider par enum.
+  const programmes = sp
+    .getAll('programme')
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => /^[a-z0-9-]{1,40}$/.test(v))
 
-  const { q, page, sort_by } = parsed.data
+  const { q, page, sort_by, remuneration, deadline } = parsed.data
 
   const result = await listOpportunites({
     q,
     type: types.length === 0 ? undefined : types.length === 1 ? types[0] : types,
     domaine: domaines.length === 0 ? undefined : domaines.length === 1 ? domaines[0] : domaines,
     region: regions.length === 0 ? undefined : regions.length === 1 ? regions[0] : regions,
+    programme:
+      programmes.length === 0 ? undefined : programmes.length === 1 ? programmes[0] : programmes,
+    remuneration,
+    deadline,
     page,
     sortBy: sort_by,
   })

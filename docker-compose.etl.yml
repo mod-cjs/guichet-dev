@@ -1,0 +1,62 @@
+# Exécution du pipeline ETL Data Hub — GUIC-694.
+#
+# Le pipeline est un BATCH, pas un service : il n'y a volontairement aucun conteneur
+# permanent ici. Un service qui tourne sans rien faire masque les échecs, alors qu'un
+# `run --rm` qui sort en code non nul se voit. La planification se fait par crontab, avec
+# la commande donnée dans docs/datahub-briefing-etl.md §10.
+#
+# ⚠ AUCUN SECRET DANS CE FICHIER. Tout vient de l'`env_file`, qui n'est pas versionné :
+# le dépôt porte le code et la configuration, jamais les accès. Une compromission du
+# dépôt produit ne doit pas ouvrir l'entrepôt.
+#
+# Usage :
+#   docker compose -f docker-compose.etl.yml run --rm meltano lock --update --all   # une fois
+#   docker compose -f docker-compose.etl.yml run --rm meltano install               # une fois
+#   docker compose -f docker-compose.etl.yml run --rm meltano run tap-guichet target-postgres
+#   docker compose -f docker-compose.etl.yml run --rm meltano invoke dbt-postgres build
+#
+# JOIGNABILITÉ — deux décisions DIFFÉRENTES pour deux cibles différentes (GUIC-700).
+#
+# Guichet (l'app) : SÉPARATION, jamais de réseau Docker partagé. `etl/meltano.yml` fixe
+# `api_url` en HTTPS PUBLIC par défaut (`https://guichet.cjs.sn`) — le Data Hub est une
+# route machine-à-machine pensée pour être appelée de l'extérieur (clé API, rate
+# limiting), comme BRM/Centres/Moodle/EduPop. En préprod, `TAP_GUICHET_API_URL` (.env.etl)
+# pointe l'URL publique préprod — jamais `host.docker.internal` (l'app est verrouillée en
+# loopback, GUIC-641 — inatteignable de toute façon).
+#
+# L'entrepôt PostgreSQL : COHABITATION réseau — testé en réel contre le premier run
+# préprod, pas supposé. `cjs_analytics_postgres` (stack `cjs_analytics_*` : Superset,
+# pgAdmin, Postgres, déjà provisionnée par l'infra) est un conteneur, pas un domaine
+# public — sans réseau partagé : `Name or service not known`. Il vit sur `cjs-net`, le
+# MÊME réseau externe déjà utilisé par `docker-compose.prod.yml` pour MariaDB/MinIO —
+# aucun réseau nouveau à faire approuver.
+
+services:
+  meltano:
+    build:
+      context: ./etl
+      dockerfile: Dockerfile
+    image: guichet/meltano:3.7.9
+    # Le projet est monté plutôt que copié : `meltano install` écrit ses environnements
+    # virtuels dans .meltano/, et l'état des flux doit survivre au `--rm`.
+    volumes:
+      - ./etl:/project
+    env_file:
+      - ${GUICHET_ETL_ENV_FILE:-.env.etl}
+    environment:
+      # Sans état externalisé, le bookmark vit dans un SQLite interne au conteneur : avec
+      # `--rm`, chaque nuit repart de zéro et réextrait tout, sans qu'aucune erreur ne le
+      # signale. L'entrepôt lui-même porte l'état.
+      MELTANO_DATABASE_URI: ${MELTANO_DATABASE_URI:?état Meltano obligatoire — voir docs/datahub-briefing-etl.md §6}
+    # Le pipeline sort en code non nul quand un flux échoue : c'est ce code que la crontab
+    # doit surveiller. Aucun redémarrage automatique — relancer un batch en échec sans
+    # regarder pourquoi ne fait que répéter la panne.
+    restart: "no"
+    networks:
+      - cjs-net
+
+networks:
+  # Uniquement pour joindre l'entrepôt PostgreSQL (cjs_analytics_postgres) — jamais pour
+  # joindre l'app Guichet, qui reste séparée (URL publique, voir plus haut).
+  cjs-net:
+    external: true

@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-553 évolution — Modèles d'emails du recruteur + envoi groupé du pipeline.
@@ -28,6 +29,7 @@ async function assertRecruteur(): Promise<CJSSession> {
 
 /** Liste le jeu de templates du recruteur (ses versions ?? système ?? défauts). */
 export async function listMesTemplates(): Promise<ResolvedTemplate[]> {
+  await assertFlag('m9.modeles_emails')
   const session = await assertRecruteur()
   return resolveAllTemplates(session.cjsUid)
 }
@@ -40,6 +42,7 @@ const templateSchema = z.object({
 
 /** Enregistre LA version du recruteur (upsert sur (cle, ownerUid)). */
 export async function enregistrerMonTemplate(cle: string, sujet: string, corps: string): Promise<{ ok: true }> {
+  await assertFlag('m9.modeles_emails')
   const session = await assertRecruteur()
   const parsed = templateSchema.parse({ cle, sujet, corps })
   if (!getTemplateDef(parsed.cle)) throw new Error(`TEMPLATE_INCONNU:${parsed.cle}`)
@@ -58,6 +61,7 @@ export async function enregistrerMonTemplate(cle: string, sujet: string, corps: 
 
 /** Supprime la version du recruteur → retour à la version système/défaut. */
 export async function reinitialiserMonTemplate(cle: string): Promise<{ ok: true }> {
+  await assertFlag('m9.modeles_emails')
   const session = await assertRecruteur()
   await prisma.emailTemplate.deleteMany({ where: { cle, ownerUid: session.cjsUid } })
   revalidatePath('/recruteur/modeles-emails')
@@ -89,6 +93,7 @@ export interface EnvoisRecruteurPage {
 
 /** Historique paginé des mailings envoyés par CE recruteur (avec leur état). */
 export async function listMesEnvois(page = 1): Promise<EnvoisRecruteurPage> {
+  await assertFlag('m9.modeles_emails')
   const session = await assertRecruteur()
   const where = { valideePar: session.cjsUid, eventKey: { startsWith: MAILING_PREFIX } }
   const [rows, total] = await Promise.all([
@@ -132,6 +137,7 @@ const mailingSchema = z.object({
  * Ownership : seules les candidatures de SES offres sont retenues, le reste est ignoré.
  */
 export async function envoyerEmailGroupe(ids: string[], cle: string, complement?: string): Promise<MailingResult> {
+  await assertFlag('m9.modeles_emails')
   const session = await assertRecruteur()
   const parsed = mailingSchema.parse({ ids, cle, complement })
 

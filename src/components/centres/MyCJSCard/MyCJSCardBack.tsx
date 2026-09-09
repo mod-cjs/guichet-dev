@@ -2,9 +2,9 @@ import { appDomain, appUrl } from '@/lib/app-url'
 import { QRBadge } from '../QRBadge'
 
 export interface MyCJSCardBackProps {
-  matricule: string
+  matricule: string | null
   /** Date d'émission lisible (ex: "03/2025"). */
-  emiseLe?: string
+  emiseLe?: string | null
   maxWidth?: number
   className?: string
   /**
@@ -41,7 +41,7 @@ function makeBarcodeHeights(count = 40): number[] {
  */
 export function MyCJSCardBack({
   matricule,
-  emiseLe = '03/2025',
+  emiseLe = null,
   maxWidth = 480,
   className = '',
   qrToken = null,

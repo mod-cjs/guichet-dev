@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { getSession } from '@/lib/auth'
 import { OpportunitesClient } from '@/components/opportunites'
+import { prisma } from '@/lib/prisma'
+import { loadProgrammeOptions } from '@/lib/programmes/options'
 
 export const metadata: Metadata = {
   title: 'Opportunités',
@@ -11,7 +13,8 @@ export const metadata: Metadata = {
 }
 
 export default async function OpportunitesPage() {
-  const session = await getSession()
+  // GUIC-684 — les programmes proposés au filtrage viennent de la table (source unique).
+  const [session, programmes] = await Promise.all([getSession(), loadProgrammeOptions(prisma)])
 
   return (
     <div className="container-page py-space-6">
@@ -28,7 +31,7 @@ export default async function OpportunitesPage() {
           desktop est pilotée par `?page=N`. La page server n'a pas besoin de
           forwarder le param explicitement (lu directement par le client). */}
       <Suspense fallback={null}>
-        <OpportunitesClient initialRegion={session?.region ?? null} />
+        <OpportunitesClient initialRegion={session?.region ?? null} programmes={programmes} />
       </Suspense>
     </div>
   )

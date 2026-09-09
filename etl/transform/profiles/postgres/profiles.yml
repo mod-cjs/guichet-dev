@@ -1,0 +1,14 @@
+# Profil dbt lu par Meltano (--profiles-dir <projet>/transform/profiles/postgres).
+# ⚠ Aucun identifiant ici : ils viennent de l'environnement.
+guichet_datahub:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('DBT_POSTGRES_HOST') }}"
+      port: "{{ env_var('DBT_POSTGRES_PORT') | as_number }}"
+      user: "{{ env_var('DBT_POSTGRES_USER') }}"
+      password: "{{ env_var('DBT_POSTGRES_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_POSTGRES_DB') }}"
+      schema: marts
+      threads: 4

@@ -76,6 +76,7 @@ Plateforme jeunesse · 22 000 utilisateurs · Sénégal · Programme YEAH · Con
 → **SSO** : `docs/sso.md` · **Conventions** : `docs/conventions.md` · **Métier** : `docs/metier.md`
 → **Interop** : `docs/interconnexion.md` · **Architecture** : `docs/architecture.md`
 → **SSO source** : `../cjs_auth/` (lecture seule — contrats, webhooks, flows auth)
+→ **Ops (déploiement, sauvegardes, observabilité, secrets)** : `docs/ops-index.md` — point d'entrée unique
 
 ---
 
@@ -96,7 +97,7 @@ Commit   : feat|fix|perf|security|chore|test(module): [GUIC-<n>] description
 **Règles absolues sur les commits :**
 - Toujours inclure `[GUIC-<n>]` dans le titre et `Closes GUIC-<n>` en pied
 - Jamais de mention IA (`Co-Authored-By`, `Generated with`, etc.) dans aucun commit
-- Auteur unique : `mod-cjs`
+- Auteur unique : `adiop-pixel <adiop@consortiumjeunessesenegal.org>` — identité globale de la machine, sans surcharge locale dans le dépôt. L'historique antérieur au 2026-07-30 porte `mod-cjs` et n'est pas réécrit.
 
 | Moment | Statut ticket |
 |--------|--------------|

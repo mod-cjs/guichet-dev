@@ -8,6 +8,7 @@ import { checkProfilCompletude } from '@/lib/profil-completude'
 import { notifyCandidatureConfirmee } from '@/lib/notifications'
 import { notifyRecruteurNouvelleCandidature } from '@/lib/notifications/recruteur'
 import { computeScoreAdequation } from '@/lib/recruteur/adequation'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 import type { CandidatureListItem } from '@/types/candidature'
 
@@ -192,6 +193,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   // Confirmation multi-canal — post-réponse, n'impacte jamais le 201.
   const created = candidature
   after(async () => {
+    // Fraîcheur du Knowledge Graph : l'arête A_POSTULE doit exister AVANT la prochaine
+    // recommandation, sinon Yaye re-propose l'offre à laquelle il vient de postuler.
+    fireBeneficiaireGraphSync(session.cjsUid)
     try {
       await notifyCandidatureConfirmee(
         {

@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { estMasquee, masquesUtilisateur } from '@/lib/flags/ui-server'
+import { lienMasque } from '@/lib/flags/ui'
 import { getSession } from '@/lib/auth'
 import { loadDashboardCounts } from '@/lib/dashboard-loader'
 import { loadDashboardData } from '@/lib/loaders/dashboard'
@@ -21,6 +23,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function TableauDeBordPage() {
   const session = await getSession()
+  const agendaMasque = await estMasquee('m5.agenda', session?.roles)
+  const masques = await masquesUtilisateur(session?.roles)
   if (!session) redirect('/auth/connexion')
 
   const [counts, profil, dashboard] = await Promise.all([
@@ -35,10 +39,10 @@ export default async function TableauDeBordPage() {
   const completionScore = profil?.completionScore ?? 0
   const { recoOpps, events, centres, tracker } = dashboard
 
-  // J-N affiché dans le hero : on prend la deadline la plus urgente parmi les
-  // recos (premier tag de la forme « ... · J-N »).
-  const firstJTag = recoOpps[0]?.tag.match(/J-(\d+)/)
-  const joursAvantCloture = firstJTag ? Number(firstJTag[1]) : null
+  // J-N affiché dans le hero : deadline la plus urgente parmi les recos.
+  // GUIC-689 — lu directement sur le champ dédié (avant : extrait à la regex
+  // d'un libellé fusionné « Type · J-N », qui n'existe plus).
+  const joursAvantCloture = recoOpps[0]?.joursRestants ?? null
 
   const kpis: KPIItem[] = [
     {
@@ -77,7 +81,7 @@ export default async function TableauDeBordPage() {
 
   return (
     <div className="flex flex-col gap-space-5">
-      <WebDashHero
+      <WebDashHero opportunitesVisibles={!lienMasque('/opportunites', masques)}
         prenom={session.prenom ?? ''}
         candidaturesEnCours={counts.candidatures}
         oppsRecommandees={recoOpps.length}
@@ -116,8 +120,10 @@ export default async function TableauDeBordPage() {
 
         {/* Colonne aside (desktop ≥ lg) */}
         <aside className="flex flex-col gap-space-4 min-w-0">
-          <WebDashCenters items={centres} />
-          <WebDashEvents items={events} />
+          <WebDashCenters masques={masques} items={centres} />
+          {/* GUIC-706 — surface d'incidence : la section entière disparaît, titre compris.
+              Un « Événements à venir » suivi de rien ne cache pas l'absence, il la montre. */}
+          {!agendaMasque && <WebDashEvents items={events} />}
           <WebDashProfileNudge completionScore={completionScore} />
           <WebDashYayePanel />
         </aside>

@@ -13,6 +13,7 @@ const mockPort = {
 jest.mock('@/lib/ia/graph', () => ({ getGraphPort: () => mockPort }))
 
 const mRecoFindMany = jest.fn()
+const mRecoFindFirst = jest.fn()
 const mRecoDeleteMany = jest.fn()
 const mRecoCreateMany = jest.fn()
 const mTransaction = jest.fn(async (...a: unknown[]) => a[0])
@@ -20,6 +21,7 @@ jest.mock('@/lib/prisma', () => ({
   prisma: {
     recommandationIA: {
       findMany: (...a: unknown[]) => mRecoFindMany(...a),
+      findFirst: (...a: unknown[]) => mRecoFindFirst(...a),
       deleteMany: (...a: unknown[]) => mRecoDeleteMany(...a),
       createMany: (...a: unknown[]) => mRecoCreateMany(...a),
     },
@@ -28,11 +30,26 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 import { computeRecommandations, getRecommandations } from '@/lib/ia/recommandation'
+import * as recommandationModule from '@/lib/ia/recommandation'
+
+// RED (GUIC-689 P2) — `getRecommandationScore` n'existe pas encore (lecture
+// cache-only pour un couple donné). Cast namespace explicite pour que ce
+// commit test-only compile contre le module ACTUEL ; l'appel échoue au
+// runtime (pas une fonction) tant que le commit GREEN ne l'exporte pas.
+const getRecommandationScore = (
+  recommandationModule as unknown as {
+    getRecommandationScore: (
+      cjsUid: string,
+      opportuniteId: string,
+    ) => Promise<{ score: number; raison: string } | null>
+  }
+).getRecommandationScore
 
 beforeEach(() => {
   mockPort.collaborativeReco.mockReset()
   mockPort.eligibleOpportunites.mockReset()
   mRecoFindMany.mockReset()
+  mRecoFindFirst.mockReset()
   mRecoDeleteMany.mockReset()
   mRecoCreateMany.mockReset()
   mTransaction.mockClear()
@@ -83,4 +100,33 @@ test('getRecommandations : cache vide → recalcule et persiste', async () => {
   expect(recos[0].opportuniteId).toBe('A')
   expect(mTransaction).toHaveBeenCalledTimes(1)
   expect(mRecoDeleteMany).toHaveBeenCalledWith({ where: { cjsUid: 'u-1' } })
+})
+
+// ── GUIC-689 P2 — getRecommandationScore : lecture CACHE-ONLY (jamais de recalcul) ──
+describe('getRecommandationScore', () => {
+  test('couple présent en cache → renvoie { score, raison } réels, sans recalcul', async () => {
+    mRecoFindFirst.mockResolvedValueOnce({ score: 0.73, raison: 'adaptée à ton niveau d’étude et ton profil' })
+
+    const res = await getRecommandationScore('u-1', 'opp-1')
+
+    expect(res).toEqual({ score: 0.73, raison: 'adaptée à ton niveau d’étude et ton profil' })
+    expect(mRecoFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { cjsUid: 'u-1', opportuniteId: 'opp-1' } }),
+    )
+    // Ne DOIT jamais déclencher un calcul coûteux (traversée graphe) dans un rendu.
+    expect(mockPort.collaborativeReco).not.toHaveBeenCalled()
+    expect(mockPort.eligibleOpportunites).not.toHaveBeenCalled()
+    expect(mRecoDeleteMany).not.toHaveBeenCalled()
+    expect(mRecoCreateMany).not.toHaveBeenCalled()
+  })
+
+  test('couple absent du cache → null (jamais de score par défaut, jamais de recalcul)', async () => {
+    mRecoFindFirst.mockResolvedValueOnce(null)
+
+    const res = await getRecommandationScore('u-1', 'opp-hors-top')
+
+    expect(res).toBeNull()
+    expect(mockPort.collaborativeReco).not.toHaveBeenCalled()
+    expect(mockPort.eligibleOpportunites).not.toHaveBeenCalled()
+  })
 })

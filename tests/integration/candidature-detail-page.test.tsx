@@ -22,6 +22,10 @@ jest.mock('@/lib/candidature-detail-loader', () => ({
 jest.mock('next/navigation', () => ({
   redirect: (...a: unknown[]) => mockRedirect(...a),
   notFound: (...a: unknown[]) => mockNotFound(...a),
+  // GUIC-689 — l'écran porte désormais `RetraitCandidature`, un composant client
+  // qui rafraîchit la page après le retrait. Sans routeur monté, React lève
+  // « invariant expected app router to be mounted ».
+  useRouter: () => ({ refresh: jest.fn() }),
 }))
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -157,7 +157,7 @@ describe('GUIC-599 — executerDedup (DB réelle)', () => {
         description: 'x',
         type: 'Emploi',
         organisation: 'Cabinet Diallo',
-        domaine: 'Entrepreneuriat',
+        domaine: 'Economie',
         statut: 'publiee',
       },
     })

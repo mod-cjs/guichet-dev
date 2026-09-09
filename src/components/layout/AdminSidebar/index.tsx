@@ -92,6 +92,7 @@ const SECTIONS: NavSection[] = [
     title: 'Système',
     items: [
       { id: 'systeme', href: '/admin/systeme', icon: 'settings', label: 'Système & Exploitation' },
+      { id: 'fonctionnalites', href: '/admin/systeme/fonctionnalites', icon: 'target', label: 'Fonctionnalités' },
     ],
   },
 ]

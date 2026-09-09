@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: v_users_summary
+    description: >
+      GUIC-149 — Démographie des bénéficiaires par région, genre, tranche d'âge et statut.
+      Les comptes supprimés logiquement sont comptés à part et non écartés : les exclure
+      ferait apparaître une chute d'effectif là où il y a eu exercice du droit à l'oubli.
+    columns:
+      - name: nb_comptes
+        description: Total, suppressions logiques comprises.
+        tests: [not_null]
+      - name: nb_actifs
+        description: Comptes non supprimés — l'effectif au sens usuel.
+        tests: [not_null]
+      - name: nb_supprimes
+        description: Comptes ayant fait l'objet d'un droit à l'oubli.
+      - name: nb_onboardes
+        description: Comptes ayant mené l'onboarding à son terme, distincts des comptes seulement créés.
+
+  - name: v_opportunities_summary
+    description: >
+      GUIC-149 — Offres et pression de candidature. Le rapport candidatures/offres dit si
+      le catalogue rencontre sa demande : un simple comptage d'offres ne distingue pas une
+      offre sans candidature d'une offre qui en reçoit cinquante.
+    columns:
+      - name: nb_offres
+        tests: [not_null]
+      - name: nb_sans_candidature
+        description: Offres n'ayant reçu aucune candidature — signal d'un catalogue mal ciblé.
+      - name: vues_cumulees
+        description: >
+          Somme des compteurs de vues. Incrémentés en direct côté Guichet, sans
+          déduplication par visiteur : à lire comme un ordre de grandeur, pas comme
+          une audience.
+
+  - name: v_centers_summary
+    description: >
+      GUIC-149 — Fréquentation des centres. Les passages badgés sont la seule mesure de
+      fréquentation réelle : une réservation dit l'intention, un passage dit la venue.
+    columns:
+      - name: centre_id
+        tests: [unique, not_null]
+      - name: nb_jeunes_distincts
+        description: Jeunes distincts ayant badgé, à distinguer du nombre de passages.
+      - name: nb_non_honorees
+        description: Réservations sans passage associé — l'écart entre intention et venue.
+
+  - name: v_programs_summary
+    description: >
+      GUIC-149 — Programmes sectoriels et leurs compteurs de rattachement (opportunités,
+      ressources, événements, centres, organisations). Réparé au lot 7 du durcissement
+      (GUIC-700) par un flux FULL_TABLE dédié sur les cinq tables de jonction, sans
+      watermark ni clé primaire simple — livré dégradé à l'origine (GUIC-693).
+    columns:
+      - name: programme_id
+        tests: [unique, not_null]
+      - name: slug
+        tests: [unique, not_null]
+      - name: nb_opportunites
+        description: Nombre d'opportunités rattachées. 0 si aucune, jamais absent (LEFT JOIN + COALESCE).
+        tests: [not_null]
+      - name: nb_ressources
+        description: Nombre de ressources rattachées. 0 si aucune, jamais absent.
+        tests: [not_null]
+      - name: nb_evenements
+        description: Nombre d'événements rattachés. 0 si aucun, jamais absent.
+        tests: [not_null]
+      - name: nb_centres
+        description: Nombre de centres où le programme est déployé. 0 si aucun, jamais absent.
+        tests: [not_null]
+      - name: nb_organisations
+        description: Nombre d'organisations partenaires. 0 si aucune, jamais absent.
+        tests: [not_null]

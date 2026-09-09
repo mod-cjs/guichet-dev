@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import { Lexend } from 'next/font/google'
+import { CookieConsent } from '@/components/consent/CookieConsent'
 import { MobileTopShell, MobileBottomShell } from '@/components/layout/MobileAppShell'
+import { OfflineBanner } from '@/components/ui'
 import { appUrl } from '@/lib/app-url'
 import '@/styles/globals.css'
 
@@ -51,10 +54,31 @@ export const metadata: Metadata = {
     : {}),
 }
 
+// GUIC-690 (design v5) — Lexend, police d'interface de la charte Yaakaar 2030.
+// Self-hostée au build par next/font (zéro requête runtime vers Google — réseau
+// intermittent + CSP). La variable alimente --gj-font-sans dans tokens.css,
+// fallback stack système si le chargement échoue. É-06 au registre d'écarts.
+const lexend = Lexend({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-lexend',
+})
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={lexend.variable}>
       <body className="antialiased">
+        {/* GUIC-689 (Lot D) — bandeau hors-ligne : monté UNE fois ici plutôt
+            qu'espace par espace (moins de points d'oubli, couvre aussi les
+            écrans publics). Autonome : il ne rend rien tant que la connexion
+            est présente. Public cible sur réseau intermittent. */}
+        <OfflineBanner />
+        {/* GUIC-712 — bandeau cookies : monté ici, et ici seulement. Un montage par
+            espace laisserait un espace sans bandeau au premier oubli — c'est
+            exactement ce qui s'est produit avec l'Article 7, qui promettait en
+            production un consentement que personne n'avait posé. Autonome : ne rend
+            rien tant qu'une décision courante existe. */}
+        <CookieConsent />
         {/* Top bar mobile : DOIT être avant {children} pour que sticky top-0 fonctionne */}
         <MobileTopShell />
         {children}

@@ -1,7 +1,19 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { WebDashYayePanel } from '@/components/dashboard/WebDashYayePanel'
 
+// GUIC-689 (finding A1) — le panel est monté sans prop `onOpen` sur le
+// dashboard (Server Component) : le CTA doit donc s'ouvrir via le hook
+// partagé `useYayePanel`, comme WebDashHero.
+const mockOpen = jest.fn()
+jest.mock('@/components/yaye/YayeProvider', () => ({
+  useYayePanel: () => ({ isOpen: false, open: mockOpen, close: jest.fn(), toggle: jest.fn() }),
+}))
+
 describe('<WebDashYayePanel />', () => {
+  beforeEach(() => {
+    mockOpen.mockClear()
+  })
+
   it('rend le badge IA et le statut conseillère', () => {
     render(<WebDashYayePanel />)
     expect(screen.getByText('IA')).toBeInTheDocument()
@@ -23,5 +35,13 @@ describe('<WebDashYayePanel />', () => {
     render(<WebDashYayePanel onOpen={onOpen} />)
     fireEvent.click(screen.getByRole('button', { name: /Ouvrir le chat Yaye/i }))
     expect(onOpen).toHaveBeenCalledTimes(1)
+  })
+
+  it("ouvre le drawer Yaye via useYayePanel quand monté sans onOpen (GUIC-689 — CTA mort sur le dashboard)", () => {
+    render(<WebDashYayePanel />)
+    const cta = screen.getByRole('button', { name: /Ouvrir le chat Yaye/i })
+    expect(cta).toHaveAttribute('aria-haspopup', 'dialog')
+    fireEvent.click(cta)
+    expect(mockOpen).toHaveBeenCalledTimes(1)
   })
 })

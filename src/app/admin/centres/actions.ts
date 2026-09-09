@@ -6,6 +6,7 @@ import { Prisma, Region, Jour } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { isAdminRole } from '@/lib/auth/admin-roles'
 import { prisma } from '@/lib/prisma'
+import { replaceProgrammesOptionnels } from '@/lib/programmes/rattachement'
 
 /** Garde de rôle — fail-closed. */
 async function assertAdmin(): Promise<void> {
@@ -46,6 +47,9 @@ const centreSchema = z.object({
     )
     .optional(),
   estActif: z.boolean().optional().default(true),
+  // GUIC-684 — programmes CJS déployés dans ce centre (facultatif).
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().optional().nullable(),
 })
 
 // Non exporté : un fichier 'use server' ne peut exporter que des fonctions async.
@@ -83,14 +87,31 @@ function horaireCreate(data: z.output<typeof centreSchema>) {
   }))
 }
 
+/** Synchronise les rattachements programme d'un centre (GUIC-684, facultatifs). */
+async function syncProgrammesCentre(tx: Prisma.TransactionClient, centreId: string, data: z.output<typeof centreSchema>) {
+  await replaceProgrammesOptionnels(
+    tx,
+    {
+      purge: () => tx.centreProgramme.deleteMany({ where: { centreId } }),
+      creer: (rows) => tx.centreProgramme.createMany({ data: rows.map((r) => ({ centreId, ...r })) }),
+    },
+    data.programmeSlugs,
+    { principalSlug: data.programmePrincipalSlug ?? null },
+  )
+}
+
 /** Créer un centre (admin). */
 export async function creerCentre(input: CentreInput): Promise<{ id: string }> {
   await assertAdmin()
   const data = centreSchema.parse(input)
   const horaires = horaireCreate(data)
-  const c = await prisma.centre.create({
-    data: { ...toData(data), ...(horaires.length ? { horaires: { create: horaires } } : {}) },
-    select: { id: true },
+  const c = await prisma.$transaction(async (tx) => {
+    const created = await tx.centre.create({
+      data: { ...toData(data), ...(horaires.length ? { horaires: { create: horaires } } : {}) },
+      select: { id: true },
+    })
+    await syncProgrammesCentre(tx, created.id, data)
+    return created
   })
   revalidate()
   return c
@@ -106,7 +127,10 @@ export async function modifierCentre(id: string, input: CentreInput): Promise<{ 
     data.horaires !== undefined
       ? { horaires: { deleteMany: {}, create: horaireCreate(data) } }
       : {}
-  await prisma.centre.update({ where: { id: cid }, data: { ...toData(data), ...horairesWrite } })
+  await prisma.$transaction(async (tx) => {
+    await tx.centre.update({ where: { id: cid }, data: { ...toData(data), ...horairesWrite } })
+    await syncProgrammesCentre(tx, cid, data)
+  })
   revalidate()
   return { ok: true }
 }

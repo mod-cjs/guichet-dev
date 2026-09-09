@@ -80,7 +80,7 @@ export default async function Accueil() {
                   width: 48,
                   height: 48,
                   borderRadius: 12,
-                  background: 'var(--gj-teal-soft, rgba(10,128,127,.1))',
+                  background: 'var(--gj-teal-soft)',
                   color: 'var(--gj-teal-deep)',
                 }}
               >

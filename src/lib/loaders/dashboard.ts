@@ -20,6 +20,7 @@ import type { DashCenterItem } from '@/components/dashboard/WebDashCenters'
 import type { TrackerItem } from '@/components/dashboard/WebDashTracker'
 import type { Prisma } from '@prisma/client'
 import { Domaine } from '@prisma/client'
+import { mapperDomaine } from '@/lib/curation/extraction/mapping'
 
 export const RECO_LIMIT = 5
 export const EVENT_LIMIT = 3
@@ -100,24 +101,23 @@ function parseDomainesInteret(value: unknown): Domaine[] {
       continue
     }
     const mapped = byNormalized.get(normalize(r))
-    if (mapped) out.push(mapped)
+    if (mapped) {
+      out.push(mapped)
+      continue
+    }
+    // GUIC-689 — dernier recours : le normaliseur par mots-clés de la curation.
+    //
+    // `domainesInteret` est du TEXTE LIBRE saisi à l'onboarding (« Data »,
+    // « Finance », « Artisanat », « Élevage »…), pas des valeurs d'enum. Avant
+    // la refonte de taxonomie, 5 des 11 valeurs réellement stockées trouvaient
+    // une correspondance ; après, il n'en restait qu'UNE — le tableau de bord
+    // personnalisé serait devenu muet sans que rien ne le signale.
+    //
+    // Le mapper de la curation fait exactement ce travail : texte → domaine.
+    const parMotsCles = mapperDomaine(r)
+    if (parMotsCles) out.push(parMotsCles)
   }
-  return out
-}
-
-/** Tonalité d'une card opportunité selon urgence (J-N). */
-function recoTone(jours: number | null): OppRecoCard['tone'] {
-  if (jours !== null && jours <= 7)  return 'urgent'
-  if (jours !== null && jours <= 14) return 'info'
-  return 'partner'
-}
-
-/** Tag affiché en haut de card reco. */
-function recoTag(jours: number | null, type: string): string {
-  const typeLabel = type.replace(/_/g, ' ')
-  if (jours === null)   return typeLabel
-  if (jours === 0)      return `${typeLabel} · Aujourd'hui`
-  return `${typeLabel} · J-${jours}`
+  return [...new Set(out)]
 }
 
 export async function loadDashboardData(cjsUid: string): Promise<DashboardData> {
@@ -225,15 +225,20 @@ export async function loadDashboardData(cjsUid: string): Promise<DashboardData> 
     const orgLine = o.region ? `${orgLibelle} · ${o.region}` : orgLibelle
     return {
       id:    o.id,
-      tag:   recoTag(jours, String(o.type)),
-      tone:  recoTone(jours),
+      // GUIC-689 — la carte porte le TYPE (catégorie : couleur + picto) et
+      // l'échéance SÉPARÉMENT ; la couleur n'est plus déduite de l'urgence.
+      type:  o.type,
+      joursRestants: jours,
       title: o.titre,
       org:   orgLine,
       meta: [
         ...(o.region ? [{ icon: 'pin' as const,   label: String(o.region) }] : []),
         { icon: 'target' as const, label: String(o.domaine) },
       ],
-      href:     `/opportunites/${o.slug}`,
+      // GUIC-688 — ces cards SONT des recommandations : sans `from=reco`, le clic
+      // serait enregistré comme une visite directe et la reco resterait invisible
+      // dans les chiffres de conversion.
+      href:     `/opportunites/${o.slug}?from=reco`,
       ctaLabel: 'Voir détails',
     }
   })

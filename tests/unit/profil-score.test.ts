@@ -29,13 +29,13 @@ describe('calculerScore', () => {
       expect(calculerScore(fullIdentite, null, 0, 0)).toBe(25)
     })
 
-    it('retourne 90 pour identité + profil pro complets, sans expérience ni diplôme', () => {
+    it('retourne 80 pour identité + profil pro complets, sans expérience ni diplôme', () => {
       // 25 (identité) + 20 (bio) + 10 (niveau) + 10 (situation) + 15 (domaines) + 10 (compétences)
-      expect(calculerScore(fullIdentite, fullProfil, 0, 0)).toBe(90)
+      expect(calculerScore(fullIdentite, fullProfil, 0, 0)).toBe(80)
     })
 
-    it('retourne 100 avec une expérience (sans diplôme)', () => {
-      expect(calculerScore(fullIdentite, fullProfil, 1, 0)).toBe(100)
+    it('retourne 90 avec une expérience (sans diplôme)', () => {
+      expect(calculerScore(fullIdentite, fullProfil, 1, 0)).toBe(90)
     })
   })
 
@@ -52,12 +52,12 @@ describe('calculerScore', () => {
       expect(un).toBe(dix)
     })
 
-    it('cap à 100 quand identité + profil + expérience + diplôme sont tous présents (somme théorique 110)', () => {
+    it('atteint 100 — et EXACTEMENT 100 — quand tout est présent (barème rééquilibré, plus de plafonnement)', () => {
       expect(calculerScore(fullIdentite, fullProfil, 3, 2)).toBe(100)
     })
 
-    it('un jeune sans expérience mais avec un diplôme atteint 100', () => {
-      expect(calculerScore(fullIdentite, fullProfil, 0, 1)).toBe(100)
+    it('un jeune sans expérience mais avec un diplôme atteint 90', () => {
+      expect(calculerScore(fullIdentite, fullProfil, 0, 1)).toBe(90)
     })
   })
 
@@ -66,16 +66,16 @@ describe('calculerScore', () => {
       expect(calculerScore({ ...emptyIdentite, region: 'DAKAR' }, null, 0, 0)).toBe(10)
     })
 
-    it('domainesInteret vide ne donne pas les 15 pts', () => {
+    it('domainesInteret vide ne donne pas les 10 pts', () => {
       const profil = { ...fullProfil, domainesInteret: [] }
       // 25 + 20 + 10 + 10 + 0 + 10 = 75
-      expect(calculerScore(fullIdentite, profil, 0, 0)).toBe(75)
+      expect(calculerScore(fullIdentite, profil, 0, 0)).toBe(70)
     })
 
     it('competences vide ne donne pas les 10 pts', () => {
       const profil = { ...fullProfil, competences: [] }
-      // 25 + 20 + 10 + 10 + 15 + 0 = 80
-      expect(calculerScore(fullIdentite, profil, 0, 0)).toBe(80)
+      // identité 25 + biographie 15 + niveau 10 + situation 10 + secteurs 10 + compétences 0 = 70
+      expect(calculerScore(fullIdentite, profil, 0, 0)).toBe(70)
     })
 
     it('profil = null → identité + exp + diplôme comptent indépendamment du profil pro', () => {

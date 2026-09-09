@@ -8,6 +8,8 @@
 const mockCreate = jest.fn()
 
 jest.mock('@/lib/auth', () => ({ getSession: jest.fn() }))
+jest.mock('@/lib/flags/guard', () => ({ assertFlag: jest.fn().mockResolvedValue(undefined) }))
+jest.mock('@/lib/programmes/rattachement', () => ({ assertAuMoinsUnProgramme: jest.fn() }))
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 jest.mock('@/lib/audit', () => ({ recordAudit: jest.fn() }))
 jest.mock('@/lib/prisma', () => ({ prisma: { opportunite: { findUnique: jest.fn() } } }))
@@ -39,7 +41,7 @@ const CTX = {
 }
 const EMPLOI = {
   type: 'emploi', titre: 'Développeur web', description: 'Rejoignez notre équipe.',
-  domaine: 'Numerique', region: 'Dakar', typeContrat: 'CDD', dureeContratMois: 12,
+  domaine: 'Economie', region: 'Dakar', typeContrat: 'CDD', dureeContratMois: 12,
 }
 
 beforeEach(() => {
@@ -123,7 +125,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await expect(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Numerique' } as any),
+      creerOffreRecruteur({ type: 'stage', titre: 'Stagiaire QA', description: 'x', domaine: 'Economie' } as any),
     ).resolves.toEqual({ ok: false, code: 'VALIDATION' })
     expect(mockCreate).not.toHaveBeenCalled()
   })
@@ -132,7 +134,7 @@ describe('GUIC-490 — creerOffreRecruteur', () => {
     mockSession.mockResolvedValue(RECRUTEUR)
     await creerOffreRecruteur(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Numerique', dureeMois: 6, indemnise: true } as any,
+      { type: 'stage', titre: 'Stagiaire QA', description: 'Mission test', domaine: 'Economie', dureeMois: 6, indemnise: true } as any,
     )
     const input = mockCreate.mock.calls[0][0]
     expect(input.type).toBe('stage')

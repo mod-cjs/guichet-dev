@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-513 — Édition du profil entreprise par le recruteur (self-service).
@@ -15,7 +16,7 @@ import { htmlToPlainText } from '@/lib/rich-html'
 import type { CJSSession } from '@/types/user'
 import type { Prisma } from '@prisma/client'
 
-const DOMAINES = ['Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre'] as const
+const DOMAINES = ['Economie', 'Economie', 'Economie', 'Citoyennete', 'Ecologie', 'BienEtre', 'Employabilite', 'Culture', 'Autre'] as const
 const REGIONS = ['Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou'] as const
 
 async function assertRecruteur(): Promise<CJSSession> {
@@ -45,6 +46,7 @@ function norm(v: string | null | undefined): string | null | undefined {
 }
 
 export async function modifierProfilEntreprise(input: ProfilEntrepriseInput): Promise<{ ok: true }> {
+  await assertFlag('m9.recruteur')
   const session = await assertRecruteur()
   const org = await prisma.organisation.findFirst({ where: { cjsUid: session.cjsUid }, select: { id: true } })
   if (!org) throw new Error('NO_ORGANISATION')
@@ -73,6 +75,7 @@ export async function modifierProfilEntreprise(input: ProfilEntrepriseInput): Pr
 
 /** Déconnecte Google Meet : supprime les tokens du recruteur. */
 export async function deconnecterGoogleMeet(): Promise<{ ok: true }> {
+  await assertFlag('m9.recruteur')
   const session = await assertRecruteur()
   await prisma.recruteurGoogleAuth.deleteMany({ where: { cjsUid: session.cjsUid } })
   await recordAudit(session.cjsUid, 'meet.deconnexion', { targetType: 'recruteur_google_auth', targetId: session.cjsUid })

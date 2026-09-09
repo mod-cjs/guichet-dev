@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
@@ -7,6 +8,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getConseillerContext } from '@/lib/loaders/conseiller'
 import { sanitizeRichHtml } from '@/lib/sanitize-html'
+import { replaceProgrammes } from '@/lib/programmes/rattachement'
 import type { ApiResponse } from '@/types/api'
 
 /**
@@ -24,6 +26,10 @@ const schema = z.object({
   lieu: z.string().trim().min(1, 'Lieu requis').max(200),
   capaciteMax: z.coerce.number().int().positive().max(100000).optional().nullable(),
   estGratuit: z.boolean().optional().default(true),
+  // GUIC-684 — rattachement obligatoire, y compris hors admin : sans ça, le
+  // conseiller créerait un événement orphelin qu'aucun admin ne pourrait éditer.
+  programmeSlugs: z.array(z.string().trim().min(1)).optional().default([]),
+  programmePrincipalSlug: z.string().trim().nullish(),
 })
 
 export interface PublicationInput {
@@ -35,9 +41,13 @@ export interface PublicationInput {
   description: string
   capaciteMax?: number | null
   estGratuit?: boolean
+  /** GUIC-684 — programmes de rattachement (au moins un). */
+  programmeSlugs?: string[]
+  programmePrincipalSlug?: string | null
 }
 
 export async function creerPublication(input: PublicationInput): Promise<ApiResponse<{ id: string }>> {
+  await assertFlag('m8.publications')
   const session = await getSession()
   if (!session) return { error: { code: 'UNAUTHENTICATED', message: 'Session requise.' } }
   const ctx = await getConseillerContext(session.cjsUid)
@@ -53,20 +63,42 @@ export async function creerPublication(input: PublicationInput): Promise<ApiResp
     return { error: { code: 'VALIDATION_ERROR', message: 'La date de fin doit être après la date de début.' } }
   }
 
-  const e = await prisma.evenement.create({
-    data: {
-      titre: d.titre,
-      description: sanitizeRichHtml(d.description),
-      type: d.type,
-      statut: StatutEvenement.en_relecture,
-      dateDebut: d.dateDebut,
-      dateFin: d.dateFin ?? null,
-      lieu: d.lieu,
-      centreId: ctx.centreId, // périmètre forcé : le centre du conseiller
-      capaciteMax: d.capaciteMax ?? null,
-      estGratuit: d.estGratuit,
-    },
-    select: { id: true },
+  if (d.programmeSlugs.length === 0) {
+    return {
+      error: { code: 'VALIDATION_ERROR', message: 'Sélectionne au moins un programme de rattachement.' },
+    }
+  }
+
+  // Transaction : pas d'événement orphelin si la résolution des programmes échoue.
+  const e = await prisma.$transaction(async (tx) => {
+    const created = await tx.evenement.create({
+      data: {
+        titre: d.titre,
+        description: sanitizeRichHtml(d.description),
+        type: d.type,
+        statut: StatutEvenement.en_relecture,
+        dateDebut: d.dateDebut,
+        dateFin: d.dateFin ?? null,
+        lieu: d.lieu,
+        centreId: ctx.centreId, // périmètre forcé : le centre du conseiller
+        capaciteMax: d.capaciteMax ?? null,
+        estGratuit: d.estGratuit,
+      },
+      select: { id: true },
+    })
+    await replaceProgrammes(
+      tx,
+      {
+        purge: () => tx.evenementProgramme.deleteMany({ where: { evenementId: created.id } }),
+        creer: (rows) =>
+          tx.evenementProgramme.createMany({
+            data: rows.map((r) => ({ evenementId: created.id, ...r })),
+          }),
+      },
+      d.programmeSlugs,
+      { principalSlug: d.programmePrincipalSlug ?? null },
+    )
+    return created
   })
 
   revalidatePath('/conseiller/publications')

@@ -12,6 +12,10 @@ import { NextRequest } from 'next/server'
 const mockReservationFindMany = jest.fn()
 const mockReservationUpdate = jest.fn()
 
+const mockIsEnabled = jest.fn(async () => true)
+jest.mock('@/lib/flags', () => ({ isEnabled: () => mockIsEnabled() }))
+jest.mock('@/lib/flags/guard', () => ({ cronCourtCircuite: async () => false }))
+
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     reservation: {
@@ -53,7 +57,7 @@ describe('GET /api/cron/reservations-batch', () => {
     const res = await route.GET(req('Bearer secret-cron'))
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.data).toEqual({ passees: 0, nonHonorees: 0, total: 0 })
+    expect(body.data).toMatchObject({ passees: 0, nonHonorees: 0, total: 0 })
     expect(mockReservationUpdate).not.toHaveBeenCalled()
   })
 
@@ -69,7 +73,7 @@ describe('GET /api/cron/reservations-batch', () => {
       data: { statut: 'Passee' },
     })
     const body = await res.json()
-    expect(body.data).toEqual({ passees: 1, nonHonorees: 0, total: 1 })
+    expect(body.data).toMatchObject({ passees: 1, nonHonorees: 0, total: 1 })
   })
 
   it('bascule Acceptee → NonHonoree si pas de CheckIn', async () => {
@@ -84,7 +88,7 @@ describe('GET /api/cron/reservations-batch', () => {
       data: { statut: 'NonHonoree' },
     })
     const body = await res.json()
-    expect(body.data).toEqual({ passees: 0, nonHonorees: 1, total: 1 })
+    expect(body.data).toMatchObject({ passees: 0, nonHonorees: 1, total: 1, pointageMasque: false })
   })
 
   it('le filtre Prisma ne sélectionne que les Acceptee dont la date est passée', async () => {
@@ -96,5 +100,47 @@ describe('GET /api/cron/reservations-batch', () => {
     expect(arg.where.dateReservee).toBeDefined()
     expect(arg.where.dateReservee.lt).toBeInstanceOf(Date)
     expect(arg.include?.checkIns).toBeDefined()
+  })
+})
+
+describe('GUIC-706 — bénéfice du doute quand le pointage est masqué', () => {
+  it('clôt en Passee au lieu de NonHonoree', async () => {
+    // Le batch conclut à l'absence quand aucun passage badgé n'est associé. Pointage
+    // masqué, PERSONNE ne peut badger : sans cette règle, tous les jeunes venus au
+    // rendez-vous seraient enregistrés absents EN BASE — et `no_show` part au Data Hub
+    // en tier public, donc hors de la plateforme, sans rappel possible.
+    mockIsEnabled.mockResolvedValueOnce(false)
+    mockReservationFindMany.mockResolvedValueOnce([
+      { id: 'r-1', checkIns: [] },
+    ] as never)
+
+    const res = await route.GET(req('Bearer secret-cron'))
+    expect(mockReservationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ statut: 'Passee' }) }),
+    )
+    const body = await res.json()
+    expect(body.data).toMatchObject({ passees: 1, nonHonorees: 0, pointageMasque: true })
+  })
+
+  it('trace le motif de la clôture', async () => {
+    // Sans motif, l'analyse ne peut pas distinguer une présence réelle d'une présomption,
+    // et le taux de fréquentation devient faux sans qu'on puisse le corriger.
+    mockIsEnabled.mockResolvedValueOnce(false)
+    mockReservationFindMany.mockResolvedValueOnce([{ id: 'r-1', checkIns: [] }] as never)
+    await route.GET(req('Bearer secret-cron'))
+    expect(mockReservationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ raisonRefusOuAnnul: expect.stringContaining('pointage masqué') }),
+      }),
+    )
+  })
+
+  it('ne présume rien quand le pointage est ouvert', async () => {
+    mockIsEnabled.mockResolvedValueOnce(true)
+    mockReservationFindMany.mockResolvedValueOnce([{ id: 'r-1', checkIns: [] }] as never)
+    await route.GET(req('Bearer secret-cron'))
+    expect(mockReservationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ statut: 'NonHonoree' }) }),
+    )
   })
 })

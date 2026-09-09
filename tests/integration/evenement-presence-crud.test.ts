@@ -4,6 +4,11 @@
  * GUIC-474 — Présence événement (DB réelle). Prouve : création d'un événement
  * type `Cours` rattaché à un centre + marquage de présence (upsert `present`)
  * via l'action admin. Auth/cache mockés ; prisma réel (MariaDB 3307).
+ *
+ * GUIC-674 — Le test empruntait le premier centre et le premier utilisateur
+ * trouvés en base. Sur une base vierge il échouait en `beforeAll` ; sur une base
+ * peuplée, il marquait présent un VRAI compte. Il pose maintenant ses deux
+ * fixtures et les retire.
  */
 import { prisma } from '@/lib/prisma'
 
@@ -20,14 +25,54 @@ const ADMIN = {
   region: null, roles: ['admin'], accessToken: 'x', refreshToken: 'y', expiresAt: 0, onboardingComplete: true,
 }
 
+const CENTRE_NOM = 'Centre fixture GUIC-474'
+const USER_UID = 'fixture-presence-guic474'
+
 let centreId: string
 let userCjsUid: string
 let evId: string | null = null
 
+/**
+ * GUIC-642 — purge des fixtures d'un run précédent, AVANT de les recréer.
+ *
+ * `USER_UID` est une clé primaire fixe : dès qu'un run s'interrompt avant son
+ * `afterAll`, la ligne survit et TOUS les runs suivants échouent sur
+ * « Unique constraint failed on the constraint: PRIMARY ». Pire, le centre était
+ * créé avant l'utilisateur, donc chaque échec laissait un centre orphelin de
+ * plus (8 accumulés avant ce correctif).
+ *
+ * Un test à fixtures d'identifiant fixe doit nettoyer en entrée, pas seulement
+ * en sortie : la sortie n'est pas garantie de s'exécuter.
+ */
+async function purgerFixtures() {
+  const centres = await prisma.centre.findMany({ where: { nom: CENTRE_NOM }, select: { id: true } })
+  const centreIds = centres.map((c) => c.id)
+  await prisma.inscriptionEvenement.deleteMany({ where: { cjsUid: USER_UID } })
+  if (centreIds.length > 0) {
+    await prisma.evenement.deleteMany({ where: { centreId: { in: centreIds } } })
+    await prisma.centre.deleteMany({ where: { id: { in: centreIds } } })
+  }
+  await prisma.utilisateur.deleteMany({ where: { cjsUid: USER_UID } })
+}
+
 beforeAll(async () => {
-  const centre = await prisma.centre.findFirst({ select: { id: true } })
-  const user = await prisma.utilisateur.findFirst({ select: { cjsUid: true } })
-  if (!centre || !user) throw new Error('Fixture manquante (centre/utilisateur)')
+  await purgerFixtures()
+  const centre = await prisma.centre.create({
+    data: {
+      nom: CENTRE_NOM,
+      region: 'Dakar',
+      adresse: 'Fixture intégration — supprimé en fin de suite',
+      latitude: 14.6928,
+      longitude: -17.4467,
+      telephone: '+221338000474',
+      responsable: 'Fixture',
+    },
+    select: { id: true },
+  })
+  const user = await prisma.utilisateur.create({
+    data: { cjsUid: USER_UID, nom: 'Fixture', prenom: 'Présence' },
+    select: { cjsUid: true },
+  })
   centreId = centre.id
   userCjsUid = user.cjsUid
 })
@@ -38,7 +83,14 @@ afterEach(async () => {
     evId = null
   }
 })
-afterAll(async () => { await prisma.$disconnect() })
+afterAll(async () => {
+  // GUIC-642 — même purge qu'en entrée : elle cible par NOM et par uid constants,
+  // donc elle nettoie même quand `beforeAll` s'est interrompu avant d'affecter
+  // `centreId` (l'ancienne version passait alors `id: undefined` à un `delete`,
+  // qui échouait en laissant le centre derrière lui).
+  await purgerFixtures().catch(() => {})
+  await prisma.$disconnect()
+})
 
 describe('GUIC-474 — présence événement (DB réelle)', () => {
   it('crée un Cours au centre puis marque présent (walk-in upsert)', async () => {
@@ -53,6 +105,8 @@ describe('GUIC-474 — présence événement (DB réelle)', () => {
       lieu: 'Salle test',
       centreId,
       estGratuit: true,
+      // GUIC-684 — rattachement obligatoire à au moins un programme.
+      programmeSlugs: ['yjc'],
     })
     evId = id
 

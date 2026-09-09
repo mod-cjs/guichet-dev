@@ -46,6 +46,19 @@ const nextConfig: NextConfig = {
   // experimental.nodeMiddleware retiré en Next.js 16.2 — le runtime du middleware
   // est désormais déclaré dans src/middleware.ts via `export const config.runtime`.
   images: {
+    // GUIC-689 — la photo de profil est servie par une route locale AVEC une
+    // query string anti-cache (`?cb=<cjsUid>`, cf. `getProfilePhotoUrl`). Next 16
+    // refuse toute image locale à query string tant qu'un motif ne l'autorise
+    // pas : sans cette entrée, `/jeune/mon-profil` renvoie 500 dès que le jeune
+    // a une photo. On n'ouvre QUE ce chemin — un `/**` exposerait l'optimiseur
+    // d'images à n'importe quelle route locale.
+    // ⚠️ Déclarer `localPatterns` REMPLACE le défaut de Next : la première
+    // entrée restaure ce défaut (tout `/public`, SANS query string), la
+    // seconde ouvre la seule route qui en porte une.
+    localPatterns: [
+      { pathname: '/**', search: '' },
+      { pathname: '/api/profil/photo/file' },
+    ],
     remotePatterns: [
       { protocol: appOrigin.startsWith('https') ? 'https' : 'http', hostname: appHostname },
       { protocol: ssoOrigin.startsWith('https') ? 'https' : 'http', hostname: ssoHostname },

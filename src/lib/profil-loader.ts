@@ -44,6 +44,16 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
           id: true, photoUrl: true, cvUrl: true, cvUploadedAt: true, biographie: true, niveauEtude: true, situationEmploi: true,
           situationHandicap: true, zoneHabitation: true,
           domainesInteret: true, competences: true, completionScore: true, profileVisibility: true,
+          // GUIC-689 — « Objectif & secteurs visés » + langues + engagements.
+          objectif: true, typesRecherches: true, regionsMobilite: true,
+          langues: {
+            select: { id: true, langue: true, niveau: true },
+            orderBy: { langue: 'asc' },
+          },
+          engagements: {
+            select: { id: true, role: true, organisation: true, dateDebut: true, dateFin: true, description: true },
+            orderBy: { dateDebut: 'desc' },
+          },
           experiences: {
             select: { id: true, poste: true, organisation: true, dateDebut: true, dateFin: true, description: true },
             orderBy: { dateDebut: 'desc' },
@@ -86,9 +96,25 @@ export async function loadProfilComplet(cjsUid: string): Promise<ProfilComplet |
       zoneHabitation:    p.zoneHabitation,
       domainesInteret:   (p.domainesInteret as string[] | null) ?? [],
       competences:       (p.competences    as string[] | null) ?? [],
+      objectif:          p.objectif,
+      typesRecherches:   (p.typesRecherches as string[] | null) ?? [],
+      regionsMobilite:   (p.regionsMobilite as string[] | null) ?? [],
       completionScore:   p.completionScore,
       profileVisibility: p.profileVisibility,
     } : null,
+    langues: (p?.langues ?? []).map(l => ({
+      id:     l.id,
+      langue: l.langue,
+      niveau: l.niveau,
+    })),
+    engagements: (p?.engagements ?? []).map(e => ({
+      id:           e.id,
+      role:         e.role,
+      organisation: e.organisation,
+      dateDebut:    e.dateDebut.toISOString().slice(0, 10),
+      dateFin:      e.dateFin?.toISOString().slice(0, 10) ?? null,
+      description:  e.description,
+    })),
     experiences: (p?.experiences ?? []).map(e => ({
       id:           e.id,
       poste:        e.poste,

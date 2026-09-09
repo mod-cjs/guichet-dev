@@ -16,8 +16,17 @@
     color: var(--color-text-primary);
     -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--color-text-link); }
-  a:hover { color: var(--gj-teal-deep-2); }
+  /* GUIC-689 — la couleur de lien par défaut vaut pour les surfaces CLAIRES.
+     Sur une surface sombre (footer navy, hero, sidebars), le teal-deep tombe
+     à 1,9:1 : les conteneurs sombres portent `data-surface="dark"` et leurs
+     liens héritent alors de la couleur du conteneur. */
+  /* `:where()` est indispensable ici : il porte une spécificité NULLE, donc la
+     règle reste à (0,0,1) comme un `a` nu et continue de céder devant la
+     moindre classe utilitaire. Avec un `:not()` direct, la règle passerait à
+     (0,1,2) et repeindrait tous les liens portant déjà une classe de couleur
+     (pastilles blanches sur les covers d'événements, etc.). */
+  a:where(:not([data-surface="dark"] a)) { color: var(--color-text-link); }
+  a:where(:not([data-surface="dark"] a)):hover { color: var(--gj-teal-deep-2); }
   a:focus-visible,
   button:focus-visible,
   [role="button"]:focus-visible,
@@ -75,6 +84,16 @@
     padding-bottom: calc(var(--gj-bottom-nav-h) + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* GUIC-689 — dégagement du bouton flottant Yaye (règle du handoff v5 : le FAB
+   remonte au-dessus des barres d'action épinglées, 120px de remontée max).
+   Purement déclaratif comme ci-dessus : `:has()`, pas de mesure JS.
+     - page nue                  → 24px
+     - BottomNav présente        → au-dessus de la nav (72px + 8px)
+     - barre d'action épinglée   → au-dessus d'elle (`data-fab-clearance`) */
+:root { --gj-fab-offset: 24px; }
+body:has(.gj-bottom-nav) { --gj-fab-offset: calc(var(--gj-bottom-nav-h) + var(--space-2)); }
+body:has([data-fab-clearance]) { --gj-fab-offset: 132px; }
 
 /* GUIC-411 — bouton déconnexion BenefSidebar : action destructive, hover red-soft. */
 .benef-sidebar-logout:hover:not(:disabled),

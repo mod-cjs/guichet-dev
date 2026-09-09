@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { FiltresPanel, type FiltresValue } from '@/components/opportunites/FiltresPanel'
+import { FiltresPanel, FILTER_PARAM_KEYS, type FiltresValue } from '@/components/opportunites/FiltresPanel'
 
 const baseValue: FiltresValue = { sortBy: 'recent' }
 
@@ -21,6 +21,20 @@ function setup(overrides?: Partial<Parameters<typeof FiltresPanel>[0]>) {
 }
 
 describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
+  // GUIC-689 — `FILTER_PARAM_KEYS` est la source unique consommée par la sentinelle
+  // anti-"filtre décoratif" (tests/integration/opportunites-api-sentinel.test.ts).
+  it('GUIC-689 : expose FILTER_PARAM_KEYS avec les 6 filtres réellement écrits par le panneau', () => {
+    expect(FILTER_PARAM_KEYS).toEqual([
+      'domaine',
+      'type',
+      'region',
+      'programme',
+      'remuneration',
+      'deadline',
+    ])
+  })
+
+
   it('rend les sections Type, Domaine, Région, Rémunération, Deadline', () => {
     setup()
     expect(screen.getByText('Type')).toBeInTheDocument()
@@ -28,6 +42,33 @@ describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
     expect(screen.getByText('Région')).toBeInTheDocument()
     expect(screen.getByText('Rémunération')).toBeInTheDocument()
     expect(screen.getByText('Deadline')).toBeInTheDocument()
+  })
+
+  // GUIC-689 (Lot P3-A) — ordre des sections conforme design v5
+  // (`lot3-opps-web.jsx#WebFilterPanel` L.73-104) : Type, Domaine, Région,
+  // Deadline, Rémunération. Programme (GUIC-684, hors maquette) est ajouté en
+  // fin de liste plutôt qu'interposé, pour ne pas rompre la continuité des 5
+  // sections de la maquette.
+  it('GUIC-689 : ordonne les sections Type, Domaine, Région, Deadline, Rémunération puis Programme en dernier', () => {
+    const { container } = render(
+      <FiltresPanel
+        value={baseValue}
+        onChange={jest.fn()}
+        onReset={jest.fn()}
+        programmes={[{ slug: 'yeah', nom: 'YEAH' }]}
+      />,
+    )
+    const sectionTitles = Array.from(container.querySelectorAll('summary > span')).map(
+      (el) => el.textContent,
+    )
+    expect(sectionTitles).toEqual([
+      'Type',
+      'Domaine',
+      'Région',
+      'Deadline',
+      'Rémunération',
+      'Programme',
+    ])
   })
 
   it('rend les checkboxes Type (Emploi, Stage, Bourse, …)', () => {
@@ -139,17 +180,17 @@ describe('<FiltresPanel /> (desktop refactor — GUIC-251)', () => {
   })
 
   // F19 — Labels domaine enrichis
-  it('F19 : "Numerique" est affiché comme "Numérique / Tech"', () => {
+  it('F19 : les domaines sont affichés avec leur libellé accentué', () => {
     setup()
-    expect(screen.getByLabelText('Numérique / Tech')).toBeInTheDocument()
+    expect(screen.getByLabelText('Économie')).toBeInTheDocument()
     // Le label brut ne doit pas apparaître
-    expect(screen.queryByLabelText('Numerique')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Economie')).not.toBeInTheDocument()
   })
 
-  it('F19 : "Agriculture" est affiché comme "Agriculture & élevage"', () => {
+  it('F19 : un domaine renommé porte bien son nouveau libellé', () => {
     setup()
-    expect(screen.getByLabelText('Agriculture & élevage')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Agriculture')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Écologie')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ecologie')).not.toBeInTheDocument()
   })
 
   // F23 — Icône filtre dans l'en-tête

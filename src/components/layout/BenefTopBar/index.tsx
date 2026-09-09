@@ -144,7 +144,7 @@ export function BenefTopBar({
           aria-hidden
           style={{
             fontFamily: 'ui-monospace, monospace',
-            fontSize: 10,
+            fontSize: 'var(--fs-100)',
             background: 'var(--gj-surface)',
             border: '1px solid var(--gj-line)',
             borderRadius: 4,
@@ -176,14 +176,20 @@ export function BenefTopBar({
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1
           return (
-            <span key={crumb.href} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span key={crumb.href ?? crumb.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {i > 0 ? (
                 <span aria-hidden style={{ color: 'var(--gj-line)' }}>›</span>
               ) : null}
-              {isLast ? (
+              {/* GUIC-689 — `href: null` = dossier de regroupement sans page :
+                  le repère hiérarchique reste affiché, mais sans lien mort. */}
+              {isLast || crumb.href === null ? (
                 <span
-                  aria-current="page"
-                  style={{ color: 'var(--gj-ink)', fontWeight: 600, padding: '10px 4px' }}
+                  aria-current={isLast ? 'page' : undefined}
+                  style={{
+                    color: isLast ? 'var(--gj-ink)' : 'var(--gj-grey)',
+                    fontWeight: isLast ? 600 : 400,
+                    padding: '10px 4px',
+                  }}
                 >
                   {crumb.label}
                 </span>
@@ -246,15 +252,15 @@ export function BenefTopBar({
               aria-hidden
               style={{
                 position: 'absolute',
-                top: 6,
-                right: 4,
-                minWidth: 16,
-                height: 16,
+                top: 5,
+                right: 3,
+                minWidth: 18,
+                height: 18,
                 padding: '0 4px',
-                borderRadius: 8,
+                borderRadius: 9,
                 background: 'var(--gj-red)',
                 color: 'var(--gj-surface)',
-                fontSize: 10,
+                fontSize: 'var(--fs-100)',
                 fontWeight: 700,
                 display: 'inline-flex',
                 alignItems: 'center',

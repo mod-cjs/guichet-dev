@@ -81,14 +81,18 @@ export function EvenementInscriptionCta({
   }
 
   let label: string
-  let variant: 'primary' | 'ghost' = 'primary'
+  let variant: 'conversion' | 'ghost' = 'conversion'
   if (!isAuthenticated) {
+    // Même geste de conversion que « Se connecter pour postuler » côté offre :
+    // c'est l'action unique de la fiche, elle porte le magenta.
     label = "Se connecter pour s'inscrire"
+    variant = 'conversion'
   } else if (inscrit) {
     label = 'Se désinscrire'
     variant = 'ghost'
   } else {
     label = "S'inscrire — c'est gratuit"
+    variant = 'conversion'
   }
 
   return (

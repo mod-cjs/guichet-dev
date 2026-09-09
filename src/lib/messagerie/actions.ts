@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-132/133 — Actions de la messagerie interne recruteur ↔ candidat.
@@ -40,6 +41,7 @@ async function candidatureDuRecruteur(cjsUid: string, candidatureId: string) {
  * @throws FORBIDDEN (non-recruteur ou offre non possédée).
  */
 export async function contacterCandidat(candidatureId: string): Promise<{ id: string }> {
+  await assertFlag('x.messagerie')
   const session = await requireSession()
   if (!session.roles.includes('recruteur')) throw new Error('FORBIDDEN')
 
@@ -65,6 +67,7 @@ export async function contacterCandidat(candidatureId: string): Promise<{ id: st
  * @throws FORBIDDEN (non-participant) · ZodError (corps vide/>5000).
  */
 export async function envoyerMessage(conversationId: string, corps: string): Promise<{ ok: true }> {
+  await assertFlag('x.messagerie')
   const session = await requireSession()
   const parsed = corpsSchema.parse(corps)
 
@@ -118,6 +121,7 @@ export async function envoyerMessage(conversationId: string, corps: string): Pro
 
 /** Marque comme lus les messages reçus d'une conversation (à l'ouverture du thread). */
 export async function marquerConversationLue(conversationId: string): Promise<void> {
+  await assertFlag('x.messagerie')
   const session = await requireSession()
   const conv = await prisma.conversation.findFirst({
     where: { id: conversationId, OR: [{ recruteurUid: session.cjsUid }, { candidatUid: session.cjsUid }] },

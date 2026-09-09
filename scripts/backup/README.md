@@ -41,7 +41,7 @@ Sans elle, `backup.sh` avertit à chaque exécution.
 |---|---|---|
 | `BACKUP_DIR` | `/var/backups/guichet` | destination locale |
 | `BACKUP_RETENTION_DAYS` | `14` | purge au-delà |
-| `BACKUP_NETWORK` | `guichet_guichet` | réseau Docker (dérivé de COMPOSE_PROJECT_NAME) |
+| `BACKUP_NETWORK` | `cjs-net` (via `SERVICES_NETWORK`) | réseau Docker externe partagé — le même que l'app (GUIC-662) |
 | `BACKUP_OFFSITE_CMD` | *(vide)* | commande de copie hors-site |
 
 ## Avant le go-live (bloquant, cf. runbook GUIC-159)

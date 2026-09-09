@@ -1,7 +1,12 @@
 import Link from 'next/link'
-import { Card, Icon, Tag } from '@/components/ui'
+import { Card, Icon } from '@/components/ui'
 import type { IconName } from '@/components/ui'
+import { CandidatureAside } from './CandidatureAside'
 import { CandidaturePipelineStepper } from './CandidaturePipelineStepper'
+import { RetraitCandidature } from './RetraitCandidature'
+import { OpportuniteTypeChip } from '@/components/opportunites/OpportuniteTypeChip'
+import { TYPE_CAT } from '@/components/opportunites/opportunite-type-meta'
+import { CAT_TILE_CLASSES } from './candidature-type-compat'
 import type { CandidatureDetailDTO } from '@/lib/candidature-detail-loader'
 import type { CandidatureDecision, PipelineStep } from './types'
 
@@ -22,6 +27,8 @@ const dateFmt = new Intl.DateTimeFormat('fr-FR', {
  *  - Vue        → step "EnRevue"
  *  - Retenue    → step "Decision" + decision "Acceptee"
  *  - Refusee    → step "Decision" + decision "Refusee"
+ *  - Retiree    → step "Decision" SANS décision (GUIC-689 : le recruteur n'a
+ *                 rien décidé, c'est le candidat qui s'est retiré)
  */
 function pipelineFromStatut(
   statut: CandidatureDetailDTO['statut'],
@@ -33,6 +40,11 @@ function pipelineFromStatut(
       return { step: 'EnRevue', decision: null }
     case 'Retenue':
       return { step: 'Decision', decision: 'Acceptee' }
+    // GUIC-689 — retrait par le candidat : `decision: null`. Sans ce cas
+    // explicite, `Retiree` tombait dans le `default` et le stepper annonçait
+    // « Refusée » — un refus du recruteur qui n'a jamais eu lieu.
+    case 'Retiree':
+      return { step: 'Decision', decision: null }
     case 'Refusee':
     default:
       return { step: 'Decision', decision: 'Refusee' }
@@ -66,6 +78,9 @@ const STATUT_PILL: Record<
   Vue: { label: 'En revue', className: 'bg-gj-blue-soft text-gj-blue' },
   Retenue: { label: 'Retenue', className: 'bg-gj-green-soft text-gj-green-ink' },
   Refusee: { label: 'Non retenue', className: 'bg-gj-red-soft text-gj-red-ink' },
+  // GUIC-689 — retrait par le candidat. Libellé neutre (gris) : ce n'est ni un
+  // refus du recruteur, ni un succès.
+  Retiree: { label: 'Retirée', className: 'bg-gj-bg text-color-text-secondary' },
 }
 
 /**
@@ -77,17 +92,20 @@ const STATUT_PILL: Record<
  *  - Stepper 5 étapes (réutilise CandidaturePipelineStepper)
  *  - Section « Ma candidature » (lettre motivation collapsible + lien CV)
  *  - Section « Échanges » (stub)
- *  - CTAs contextuels (Retirer si en cours, Voir l'opportunité)
+ *  - CTAs « Voir l'opportunité » et « Retirer ma candidature » (GUIC-689 — le
+ *    retrait est masqué dès qu'une décision du recruteur existe)
  */
 export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
   const pipeline = pipelineFromStatut(candidature.statut)
   const pill = STATUT_PILL[candidature.statut]
   const icon = iconForType(candidature.opportunite.type)
+  // GUIC-689 (finding A/B) — `candidature.opportunite.type` porte déjà le vrai
+  // `TypeOpportunite` Prisma (chargé par candidature-detail-loader.ts), pas
+  // besoin de compat : TYPE_CAT/OpportuniteTypeChip s'appliquent directement.
+  const catFamily = TYPE_CAT[candidature.opportunite.type] ?? 'cat-neutre'
   const lettre = candidature.lettreMotivation ?? ''
   const lettreLong = lettre.length > 500
   const lettrePreview = lettreLong ? `${lettre.slice(0, 500)}…` : lettre
-
-  const canWithdraw = candidature.statut === 'En_attente'
 
   return (
     <article className="flex flex-col gap-space-4">
@@ -109,18 +127,18 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         <div className="flex items-start gap-space-3">
           <div
             data-testid="detail-hero-tile"
-            className="w-14 h-14 rounded-gj-md bg-gj-teal-soft text-gj-teal-deep flex items-center justify-center shrink-0"
+            className={`w-14 h-14 rounded-gj-md flex items-center justify-center shrink-0 ${CAT_TILE_CLASSES[catFamily]}`}
           >
             <Icon name={icon} size={28} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-space-2 flex-wrap">
-              <Tag>{candidature.opportunite.type}</Tag>
+              <OpportuniteTypeChip type={candidature.opportunite.type} />
               <span
                 data-testid="detail-status-pill"
                 className={[
                   'inline-flex items-center rounded-gj-pill px-2 py-[2px]',
-                  'text-[10px] font-extrabold uppercase tracking-[0.04em]',
+                  'text-fs-100 font-extrabold uppercase tracking-[0.04em]',
                   pill.className,
                 ].join(' ')}
               >
@@ -147,6 +165,13 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
           decision={pipeline.decision}
         />
       </Card>
+
+      {/* GUIC-689 (É-13) — desktop : contenu principal à gauche, aside à droite.
+          Mobile : l'aside passe SOUS le contenu — « prochaine étape » y est utile
+          mais ne doit pas repousser la candidature elle-même sous la ligne de
+          flottaison. */}
+      <div className="lg:grid lg:grid-cols-[1.6fr_1fr] lg:gap-space-4 flex flex-col gap-space-4">
+        <div className="flex flex-col gap-space-4">
 
       {/* Section « Ma candidature » */}
       <Card>
@@ -203,25 +228,31 @@ export function CandidatureDetail({ candidature }: CandidatureDetailProps) {
         </p>
       </Card>
 
+        </div>
+
+        <aside>
+          <CandidatureAside candidature={candidature} />
+        </aside>
+      </div>
+
       {/* CTAs */}
       <div className="flex flex-col gap-space-2 sm:flex-row sm:justify-end">
         <Link
           href={`/opportunites/${candidature.opportunite.slug}`}
-          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
+          className="inline-flex items-center justify-center gap-space-2 rounded-gj-md border border-gj-line bg-white px-space-4 py-space-2 min-h-[var(--tap-min)] text-fs-200 font-bold text-color-text-primary hover:bg-gj-bg"
           data-testid="detail-cta-opportunite"
         >
           Voir l&apos;opportunité
           <Icon name="arrow-right" size={16} />
         </Link>
-        {canWithdraw ? (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-space-2 rounded-gj-md bg-gj-red-soft px-space-4 py-space-2 text-fs-200 font-bold text-gj-red-ink hover:bg-gj-red-soft/80"
-            data-testid="detail-cta-withdraw"
-          >
-            Retirer ma candidature
-          </button>
-        ) : null}
+        {/* GUIC-689 — le retrait existe désormais vraiment : statut `Retiree`,
+            route dédiée et notification au recruteur. Le composant se masque
+            lui-même dès qu'une décision a été prise. */}
+        <RetraitCandidature
+          candidatureId={candidature.id}
+          statut={candidature.statut}
+          titreOffre={candidature.opportunite.titre}
+        />
       </div>
     </article>
   )

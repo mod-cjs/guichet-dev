@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import {
+  memoriserIntentionFavori,
+  consommerIntentionFavori,
+  lienConnexionAvecRetour,
+} from '@/lib/ressources/favori-intent'
 import { Button, Icon, type IconName, PdfViewer, VideoEmbed } from '@/components/ui'
 import { RessourceShareButton } from '@/components/ressources/RessourceShareButton'
 import { parseVideoEmbedUrl } from '@/lib/parsers/video-url'
@@ -12,6 +17,9 @@ interface RessourceDetailClientProps {
   detail: RessourceDetail
   /** URL canonique de cette page (pour partage). */
   pageUrl: string
+  /** GUIC-689 — session calculée côté serveur (motif /centres) : sans elle,
+   *  l'hydratation du favori 401-erait en console pour chaque anonyme. */
+  userIsConnected?: boolean
 }
 
 const CTA_LABEL: Record<TypeRessourceValue, string> = {
@@ -44,26 +52,46 @@ const CTA_ICON: Record<TypeRessourceValue, IconName> = {
  * Favoris : pattern hérité de `ResourceCard` / `RessourcesClient` (toggle POST,
  * redirige vers /auth/connexion en cas de 401).
  */
-export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClientProps) {
+export function RessourceDetailClient({ detail, pageUrl, userIsConnected = false }: RessourceDetailClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [isFavori, setIsFavori] = useState(false)
   const [favoriPending, setFavoriPending] = useState(false)
 
-  // Hydrate l'état favori au montage (best-effort, ignoré si non authentifié).
+  // Hydrate l'état favori au montage — uniquement connecté (GUIC-689 : en
+  // anonyme le 401 systématique polluait la console de chaque visiteur).
   useEffect(() => {
+    if (!userIsConnected) return
     let cancelled = false
     fetch('/api/favoris/ressources/ids', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (cancelled || !j?.data) return
         const ids = j.data as string[]
-        setIsFavori(ids.includes(detail.id))
+        const dejaFavori = ids.includes(detail.id)
+        setIsFavori(dejaFavori)
+
+        // GUIC-689 — l'utilisateur revient peut-être d'une connexion qu'il a
+        // déclenchée en cliquant ce bouton. On rejoue son intention.
+        // Elle est consommée dans tous les cas : l'API est un toggle, une
+        // intention qui survit retirerait au montage suivant le favori qu'elle
+        // vient de poser.
+        const intention = consommerIntentionFavori()
+        if (intention !== detail.id || dejaFavori) return
+        fetch(`/api/ressources/${detail.id}/favori`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+          .then((r) => {
+            if (!cancelled && r.ok) setIsFavori(true)
+          })
+          .catch(() => {})
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [detail.id])
+  }, [detail.id, userIsConnected])
 
   const toggleFavori = async () => {
     if (favoriPending) return
@@ -77,7 +105,12 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
       })
       if (res.status === 401) {
         setIsFavori(previous)
-        router.push('/auth/connexion')
+        // GUIC-689 — on retient la ressource visée et le chemin courant : au
+        // retour du SSO, l'utilisateur retrouve sa ressource ET son favori.
+        // L'intention passe par sessionStorage, jamais par l'URL : un lien
+        // forgé écrirait sinon dans le compte de qui le suit.
+        memoriserIntentionFavori(detail.id)
+        router.push(lienConnexionAvecRetour(pathname))
         return
       }
       if (!res.ok) {
@@ -92,7 +125,23 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
 
   const ctaLabel = CTA_LABEL[detail.type]
   const ctaIcon = CTA_ICON[detail.type]
-  const isExternal = /^https?:\/\//.test(detail.url)
+
+  // GUIC-709 — un PDF s'emporte par NOTRE proxy, pas par l'URL de la source.
+  // C'est le seul point qui prouve qu'un fichier est réellement parti, donc le
+  // seul endroit où le compter. Tant que le CTA pointait la source, le fichier
+  // ne traversait jamais nos serveurs et le compteur serait resté à zéro par
+  // construction — un compteur vide qu'on croit juste est pire que pas de
+  // compteur du tout.
+  //
+  // Les autres types gardent leur lien direct : le proxy ne sert en pièce
+  // jointe que le PDF, et « emporter » ne veut rien dire d'une vidéo ou d'une
+  // page. On n'invente pas un événement pour uniformiser.
+  const ctaHref =
+    detail.type === 'PDF' ? `/api/ressources/${detail.id}/proxy?download=1` : detail.url
+
+  // Le proxy répond `Content-Disposition: attachment` : le navigateur télécharge
+  // sans naviguer. Un `target="_blank"` laisserait un onglet vide derrière lui.
+  const isExternal = /^https?:\/\//.test(ctaHref)
 
   // Visionneuse inline : PDF via proxy (self) ; vidéo embeddable via parser.
   const videoEmbed = detail.type === 'Video' ? parseVideoEmbedUrl(detail.url) : null
@@ -113,7 +162,7 @@ export function RessourceDetailClient({ detail, pageUrl }: RessourceDetailClient
         data-testid="ressource-detail-actions"
       >
       <a
-        href={detail.url}
+        href={ctaHref}
         target={isExternal ? '_blank' : undefined}
         rel={isExternal ? 'noopener noreferrer' : undefined}
         aria-label={ctaLabel}

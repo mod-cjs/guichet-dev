@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronCourtCircuite } from '@/lib/flags/guard'
 import { timingSafeEqual } from 'node:crypto'
 import { logger } from '@/lib/logger'
 import { executerVeille } from '@/lib/curation/robot/run'
@@ -32,6 +33,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       { error: { code: 'UNAUTHORIZED', message: 'Non autorisé' } },
       { status: 401 },
     )
+  }
+
+  // GUIC-706 — APRÈS le contrôle du secret : répondre « masqué » à un appelant non
+  // authentifié lui apprendrait qu'une fonctionnalité est fermée, et contournerait
+  // l'autorisation. Court-circuit et non 404 : un 404 serait compté comme un échec
+  // d'exécution et alerterait pour une fermeture voulue.
+  if (await cronCourtCircuite('/api/cron/veille-sources')) {
+    return NextResponse.json({ data: { skipped: 'fonctionnalite_masquee' } })
   }
 
   try {

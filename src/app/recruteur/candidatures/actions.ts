@@ -1,4 +1,5 @@
 'use server'
+import { assertFlag } from '@/lib/flags/guard'
 
 /**
  * GUIC-485 (US-3) — Transition de statut d'une candidature côté recruteur.
@@ -38,6 +39,7 @@ async function offreOwnership(cjsUid: string): Promise<Prisma.OpportuniteWhereIn
  * @throws FORBIDDEN (non-recruteur) · ZodError (statut hors {Vue,Retenue,Refusee}) · NOT_FOUND (non possédée).
  */
 export async function changerStatutCandidature(id: string, statut: StatutCandidature): Promise<{ ok: true }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const parsed = statutSchema.parse(statut)
 
@@ -71,6 +73,7 @@ const stageSchema = z.enum(['Recue', 'Preselection', 'Entretien', 'Decision'])
  * @throws FORBIDDEN · ZodError (étape invalide) · NOT_FOUND (non possédée).
  */
 export async function deplacerPipeline(id: string, stage: string): Promise<{ ok: true }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const parsed = stageSchema.parse(stage)
 
@@ -112,6 +115,7 @@ async function idsPossedes(cjsUid: string, ids: string[]): Promise<string[]> {
  * @returns nombre de candidatures effectivement déplacées (possédées).
  */
 export async function deplacerPipelineGroupe(ids: string[], stage: string): Promise<{ count: number }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const parsedIds = idsSchema.parse(ids)
   const parsedStage = stageSchema.parse(stage)
@@ -140,6 +144,7 @@ export async function deplacerPipelineGroupe(ids: string[], stage: string): Prom
  * chaque candidat est notifié via GUIC-547 (fail-soft, idempotent par transition).
  */
 export async function changerStatutGroupe(ids: string[], statut: string): Promise<{ count: number }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const parsedIds = idsSchema.parse(ids)
   const parsed = statutSchema.parse(statut)
@@ -166,6 +171,7 @@ export async function changerStatutGroupe(ids: string[], statut: string): Promis
 
 /** Applique (ou retire) le favori recruteur à un groupe de candidatures. */
 export async function basculerFavoriGroupe(ids: string[], favori: boolean): Promise<{ count: number }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const parsedIds = idsSchema.parse(ids)
 
@@ -186,6 +192,7 @@ export async function basculerFavoriGroupe(ids: string[], favori: boolean): Prom
  * retourne en colonne « Reçues » pour ré-examen. Audit `candidature.reintegre`.
  */
 export async function reintegrerCandidature(id: string): Promise<{ ok: true }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const opportunite = await offreOwnership(session.cjsUid)
   const cand = await prisma.candidature.findFirst({
@@ -210,6 +217,7 @@ export async function reintegrerCandidature(id: string): Promise<{ ok: true }> {
 
 /** GUIC-515 — Bascule le favori recruteur d'une candidature. */
 export async function basculerFavori(id: string): Promise<{ favori: boolean }> {
+  await assertFlag('m9.pipeline')
   const session = await assertRecruteur()
   const opportunite = await offreOwnership(session.cjsUid)
   const cand = await prisma.candidature.findFirst({ where: { id, opportunite }, select: { id: true, favoriRecruteur: true } })

@@ -22,7 +22,25 @@ jest.mock('@/lib/ia/llm-config', () => ({
   getSlotParams: jest.fn().mockResolvedValue({ temperature: 0.6, maxTokens: 320 }),
 }))
 // Graphe isolé (testé séparément) : pas de DB/Neo4j ici.
-jest.mock('@/lib/ia/graph-context', () => ({ buildGraphContext: async () => '', GRAPH_PREAMBLE: '' }))
+jest.mock('@/lib/ia/graph-context', () => ({
+  buildGraphContext: async () => '',
+  // Contexte graphe désormais MÉMOÏSÉ et injecté à chaque tour (C.3).
+  loadOrBuildGraphContext: async () => '',
+  purgeGraphContext: async () => {},
+  GRAPH_PREAMBLE: '',
+}))
+
+// L'état multi-tour (écriture en attente, cards montrées) vit dans Redis. Sans ce mock,
+// la suite n'est verte QUE si un Redis tourne en local (15 tests en timeout sinon) :
+// on la rend hermétique, comme les autres collaborateurs de l'agent.
+jest.mock('@/lib/ia/pending-write', () => ({
+  savePendingWrite: jest.fn(async () => {}),
+  loadPendingWrite: jest.fn(async () => null),
+  clearPendingWrite: jest.fn(async () => {}),
+  saveShownRefs: jest.fn(async () => {}),
+  loadShownRefs: jest.fn(async () => []),
+  clearShownRefs: jest.fn(async () => {}),
+}))
 
 // Pre-screen ISOLÉ : par défaut ne court-circuite pas (retourne null) → on exerce la boucle LLM.
 // Le comportement du pre-screen lui-même est couvert par yaye-pre-screen.test.ts.
@@ -276,6 +294,108 @@ test('trop de tours d’outils sans réponse → escalade conseiller + log erreu
   expect(r.reply).toMatch(/conseiller/i)
   expect(mockRecordEscalade).toHaveBeenCalledWith(expect.objectContaining({ raison: 'max_tool_rounds' }))
   expect(mockLog).toHaveBeenCalledWith(expect.objectContaining({ typeEvenement: 'erreur', statut: 'partiel' }))
+})
+
+// ── Ligne de sources (GUIC-689 vague 2 — règle v5 "aucune réponse sans sources") ──
+// Design v5 `yaye-web.jsx:58` : légende sous la réponse (« basé sur ton profil + 142
+// offres »). Ici : libellé DÉRIVÉ de ce qui a réellement servi (jamais de décompte
+// inventé, jamais de source affirmée à tort — cf. `sources-label.ts`). Absent des
+// court-circuits scriptés/escalade, ET absent quand ni contexte personnel ni outil
+// n'ont été mobilisés : une caution fabriquée est pire que pas de ligne.
+describe('bloc "sources" — honnêteté (GUIC-689)', () => {
+  test('réponse sans contexte ni outil : PAS de ligne de sources (rien n’a servi)', async () => {
+    mockLlm.load([say(''), say('Le programme YEAH t’accompagne vers l’emploi.')])
+    const r = await runAgent({ ...DEFAULT_BASE, message: 'Explique-moi le programme YEAH' })
+    expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
+
+  test('profil chargé (contexte graphe) : la ligne cite le profil, pas le catalogue', async () => {
+    mockLlm.load([say(''), say('Le programme YEAH t’accompagne vers l’emploi.')])
+    const r = await runAgent({
+      ...DEFAULT_BASE,
+      graphContext: 'profil: bénéficiaire à Thiès, agriculture',
+      message: 'Explique-moi le programme YEAH',
+    })
+    const last = r.blocks[r.blocks.length - 1]
+    expect(last.kind).toBe('sources')
+    const label = (last as { label: string }).label
+    expect(label).toMatch(/profil/i)
+    expect(label).not.toMatch(/catalogue/i)
+  })
+
+  test('réponse avec cards : la ligne de sources arrive APRÈS les cards', async () => {
+    mockLlm.load([callTool('search_opportunities', { region: 'Dakar' }), say('Voici ce que j’ai trouvé pour toi.')])
+    mockSearch.mockResolvedValueOnce({
+      ok: true,
+      data: { count: 1 },
+      block: {
+        kind: 'opportunites',
+        items: [{ id: 'o1', slug: 's', titre: 't', type: 'Emploi', organisation: null, region: null, deadline: null }],
+      },
+    })
+    const r = await runAgent({ ...DEFAULT_BASE, message: 'des offres à Dakar' })
+    const kinds = r.blocks.map((b) => b.kind)
+    expect(kinds.indexOf('sources')).toBe(kinds.length - 1)
+    expect(kinds).toContain('opportunites')
+  })
+
+  test('pre-screen escalade danger : AUCUNE ligne de sources (mensongère)', async () => {
+    mockPreScreen.mockReturnValue({
+      action: 'escalate',
+      reply: 'Merci de m’en avoir parlé.',
+      reason: 'danger:violence',
+      dangerSignal: 'violence',
+    })
+    mockEscalate.mockResolvedValue({ ok: true, data: {}, block: { kind: 'escalade', reference: 'R1', title: '', message: '' } })
+
+    const r = await runAgent({ ...DEFAULT_BASE, message: 'on me frappe' })
+
+    expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
+
+  test('pre-screen direct (petite interaction scriptée, ex. salutation) : AUCUNE ligne de sources', async () => {
+    mockPreScreen.mockReturnValue({ action: 'direct', reply: 'Salut ! Qu’est-ce qui t’amène ?', reason: 'greeting' })
+
+    const r = await runAgent({ ...DEFAULT_BASE, message: 'salut' })
+
+    expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
+
+  test('escalade max_tool_rounds : AUCUNE ligne de sources (rien n’a abouti)', async () => {
+    mockLlm.load([
+      callTool('test_tool', {}),
+      callTool('test_tool', {}),
+      callTool('test_tool', {}),
+      callTool('test_tool', {}),
+    ])
+    mockTestTool.mockResolvedValue({ ok: true, data: {} })
+
+    const r = await runAgent({ ...DEFAULT_BASE, message: 'boucle sans fin' })
+
+    expect(r.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
+
+  test('streamAgent : le "done" final porte la ligne de sources quand du contexte a servi', async () => {
+    mockLlm.load([say(''), say('Bonjour, ravie de t’aider.')])
+    const evs = await collectStream(
+      streamAgent({
+        ...DEFAULT_BASE,
+        graphContext: 'profil: bénéficiaire à Thiès',
+        message: 'Explique-moi le programme YEAH',
+      }),
+    )
+    const done = evs.find((e) => e.type === 'done')
+    expect(done?.type === 'done' && done.blocks.some((b) => b.kind === 'sources')).toBe(true)
+  })
+
+  test('streamAgent : l’escalade danger ne porte pas de ligne de sources', async () => {
+    mockPreScreen.mockReturnValue({ action: 'escalate', reply: 'Merci.', reason: 'danger:violence', dangerSignal: 'violence' })
+    mockEscalate.mockResolvedValue({ ok: true, data: {}, block: { kind: 'escalade', reference: 'R2', title: '', message: '' } })
+
+    const evs = await collectStream(streamAgent({ ...DEFAULT_BASE, message: 'on me frappe' }))
+    const done = evs.find((e) => e.type === 'done')
+    expect(done?.type === 'done' && done.blocks.some((b) => b.kind === 'sources')).toBe(false)
+  })
 })
 
 // ── Wiring pre-screen : danger → escalade FORCÉE ──────────────────────────────

@@ -1,0 +1,177 @@
+# Netdata — métriques machine (GUIC-545)
+
+Complète Loki/Grafana (`docs/observabilite.md`), qui ne voit que les **logs** — la saturation
+disque ou mémoire n'apparaît dans aucun log, donc n'était surveillée par **rien**. `rules.yml`
+délègue explicitement ces seuils à Netdata ; sans ce déploiement, le délégué n'existait nulle
+part, angle mort réel sur un serveur mutualisé (SSO + BRM + Guichet).
+
+## Démarrer
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d
+```
+
+Aucun port public — même principe que Grafana : accès au tableau de bord par tunnel SSH.
+
+```bash
+ssh -L 19999:127.0.0.1:19999 <serveur>   # puis http://localhost:19999
+```
+
+`network_mode: host` est nécessaire pour que Netdata voie les vraies interfaces réseau de
+l'hôte (pas la vue isolée d'un conteneur) — la contrepartie est `infra/netdata/netdata.conf`
+(`bind to = 127.0.0.1:19999`), sans quoi ce mode exposerait le tableau de bord publiquement.
+Le réseau et le disque sont deux visibilités **séparées** — voir « Disque hôte » ci-dessous :
+`network_mode: host` ne suffit pas pour le disque, un mount dédié est nécessaire.
+
+## Authentification (GUIC-545, ajouté 19/08)
+
+La boucle locale + tunnel SSH n'est qu'**une** ligne de défense — si elle saute un jour
+(mauvaise config future, port ouvert par erreur), rien d'autre ne protégeait le tableau de
+bord jusqu'ici. Netdata supporte l'auth basique nativement (`[web] require authentication`),
+pas besoin de proxy inverse.
+
+Le fichier `.htpasswd` est un secret (hash de mot de passe) — jamais committé, à générer une
+fois côté serveur :
+
+```bash
+sudo mkdir -p /etc/guichet
+printf 'astreinte:%s\n' "$(openssl passwd -apr1)" | sudo tee /etc/guichet/netdata.htpasswd
+sudo chmod 600 /etc/guichet/netdata.htpasswd
+```
+
+(`openssl passwd -apr1` demande le mot de passe interactivement — ne pas le passer en argument
+de ligne de commande, visible dans l'historique du shell.) Puis redémarrer :
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
+```
+
+Le tableau de bord demande désormais un identifiant/mot de passe en plus du tunnel SSH.
+
+## Disque hôte (GUIC-710, corrigé 20/08)
+
+Signalé par l'utilisateur : l'alerte disque >90% continuait d'être envoyée alors que
+`df -h /` sur le serveur montrait 5% d'utilisation réelle. Cause : `/proc` et `/sys` (déjà
+montés) ne suffisent PAS pour les points de montage disque — sans le bind mount dédié
+`/:/host/root:ro,rslave`, `diskspace.plugin` rapportait l'usage de la **couche overlay du
+conteneur** (minuscule) sous `mount_point="/"`, jamais le vrai `/dev/md3` de l'hôte. L'alerte
+lisait une vraie métrique, juste la mauvaise — contrairement à l'incident mémoire précédent
+(un état Grafana resté bloqué), ici c'était une lacune de configuration depuis le premier
+déploiement.
+
+Correctif dans `docker-compose.netdata.yml` — redéployer pour que ça prenne effet :
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d --force-recreate netdata
+```
+
+Netdata restitue les points de montage sous leur vrai chemin hôte (`mount_point="/"`, pas
+`/host/root`) — mais ce fix seul n'a **pas** suffi à faire cesser l'alerte : voir GUIC-712
+ci-dessous, un second bug distinct dans `rules.yml` lui-même.
+
+## Requête PromQL disque — `ignoring(dimension)` (GUIC-712, corrigé 20/08)
+
+Après le fix GUIC-710 ci-dessus et le redéploiement, l'alerte disque a continué d'arriver.
+Vérifié en réel : Prometheus voyait bien la bonne donnée (`used`≈165 GiB, `avail`≈3557 GiB,
+soit ~4.4%), mais la requête de la règle elle-même renvoyait un vecteur **vide** :
+
+```promql
+netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+/
+(netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+ + netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+* 100
+```
+
+Cause : par défaut, Prometheus exige que les deux côtés d'une opération binaire aient des
+labels **identiques** (sauf `__name__`) pour s'apparier. `dimension="used"` et
+`dimension="avail"` diffèrent, donc la division ne trouve aucune paire — résultat vide,
+**systématiquement**, pas seulement parfois. Or `noDataState: Alerting` (choix voulu, voir
+`guichet-machine` dans `rules.yml` — l'absence de donnée signale que Prometheus/Netdata sont
+injoignables, un vrai incident) transforme cette absence perpétuelle en alerte permanente,
+sans lien avec le vrai taux de disque. Bug présent depuis l'écriture initiale de la règle
+(GUIC-545) — contrairement à la règle mémoire (vérifiée en réel le 17/08 ci-dessous), la
+règle disque n'avait jamais été testée bout-en-bout en franchissant un vrai seuil.
+
+Correctif : `ignoring(dimension)` sur les deux opérateurs binaires (`/` et `+`), dans les
+deux règles (`guichet-disque-alerte`, `guichet-disque-avertissement`). Ne touche pas
+`noDataState: Alerting`, qui reste la détection voulue d'une panne Prometheus/Netdata.
+
+## État réel — déployé en préprod (2026-08-11)
+
+Netdata tourne, `/api/v1/info` répond, les métriques HÔTE (CPU, disque, mémoire, réseau) sont
+collectées. Deux constats du premier déploiement réel :
+
+- **`seccomp:unconfined` nécessaire** (déjà dans `docker-compose.netdata.yml`) — sans lui,
+  Netdata échoue à lire les répertoires cgroup v1 (`cannot open directory ... Permission
+  denied`, malgré des répertoires world-readable et `SYS_ADMIN`/`SYS_PTRACE` déjà accordés :
+  le profil seccomp par défaut de Docker bloque certains appels de la découverte cgroup,
+  indépendamment des permissions Unix). Sans ce correctif, seules les métriques globales de
+  l'hôte remontent, pas la répartition par conteneur.
+- **Le module e-mail natif ne fonctionne PAS tel quel** — confirmé en exécution réelle :
+  `sendmail: account default not found: no configuration file available` (code 78). L'image
+  officielle n'embarque pas d'agent d'envoi configuré.
+
+## Alerting — voie retenue : Prometheus → Grafana
+
+Le module e-mail natif de Netdata est écarté (constat ci-dessus). Voie retenue : un serveur
+**Prometheus** racle Netdata (`infra/netdata/prometheus.yml`), Grafana l'interroge en PromQL et
+alerte par le canal déjà testé (SMTP, `contact-points.yml`) — un seul chemin d'astreinte à
+maintenir, pas un second non éprouvé.
+
+```bash
+docker compose -f docker-compose.netdata.yml up -d   # inclut désormais prometheus
+```
+
+Prometheus tourne en `network_mode: host` comme Netdata — il racle Netdata en
+`127.0.0.1:19999` directement. Grafana, sur son réseau bridge séparé, le joint via
+`host.docker.internal:9090` (même mécanisme que `backup.sh` pour MariaDB) — nécessite
+`extra_hosts: host.docker.internal:host-gateway` sur le service `grafana`
+(`docker-compose.observabilite.yml`), déjà ajouté. Source de données provisionnée avec un **UID
+explicite** (`infra/observabilite/grafana/provisioning/datasources/prometheus.yml`) — la leçon
+de GUIC-576 (Loki) : sans lui, toute règle qui la référence échoue silencieusement.
+
+**Règles d'alerte écrites et déployées** (`rules.yml`, groupe `guichet-machine`) — disque
+(`mount_point="/"`, seuils 80 %/90 %) et mémoire disponible (`netdata_mem_available_MiB_average`,
+seuils 6/3 Gio), contre les noms de métriques vérifiés en réel, pas devinés.
+
+**Vérification du 17/08 : incomplète, pas invalide** — un seuil abaissé avait bien déclenché
+un e-mail à l'époque, mais cette vérification n'a apparemment pas exercé le chemin réseau
+Grafana→Prometheus dans les conditions où il casse (voir GUIC-714 juste en dessous) — soit un
+facteur externe compensait alors, soit le test a emprunté un autre chemin. Ne pas se fier à ce
+genre de vérification comme preuve définitive sans revérifier après tout changement
+d'infrastructure (redéploiement de conteneurs, recréation de réseau).
+
+## Prometheus injoignable depuis le réseau bridge de Grafana (GUIC-714, corrigé 20/08)
+
+Après le fix GUIC-712 et un redéploiement confirmé, les 4 règles machine (disque + mémoire,
+alerte + avertissement) sont restées **toutes** en `DatasourceError` — pas seulement disque.
+Vérifié en réel : Prometheus renvoyait la bonne donnée interrogé depuis le serveur
+(`127.0.0.1:9090`), mais un `wget` lancé **depuis le conteneur Grafana** vers
+`host.docker.internal:9090` restait bloqué indéfiniment.
+
+Cause : `--web.listen-address=127.0.0.1:9090` liait Prometheus à la seule boucle locale — un
+socket lié à `127.0.0.1` n'accepte **aucune** connexion arrivant par une autre interface, même
+depuis la même machine (comportement noyau, pas un problème de pare-feu). Cette directive est
+inchangée depuis l'écriture initiale (GUIC-545) — cette connexion a donc probablement toujours
+été cassée, malgré la vérification du 17/08 ci-dessus.
+
+Correctif : `--web.listen-address=0.0.0.0:9090` (toutes interfaces). Vérifié avant d'appliquer
+que ça n'ouvre PAS Prometheus au public : le pare-feu serveur (`iptables -L INPUT`, policy
+`DROP`) n'a aucune règle `ACCEPT` pour le port 9090 — la chaîne `DROP` finale s'applique par
+défaut à toute source non explicitement autorisée, y compris après ce changement. Une règle
+`ACCEPT` **scopée uniquement au sous-réseau Docker `observabilite`** est nécessaire pour que
+Grafana puisse effectivement joindre Prometheus (le firewall bloquerait sinon aussi le trafic
+légitime venant du pont Docker) — hors dépôt, iptables manuel, à appliquer côté serveur :
+
+```bash
+# Sous-réseau exact du réseau Docker observabilité (peut différer si recréé) :
+docker network inspect guichet-test_observabilite --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+
+# Règle scopée — remplacer <sous-réseau> par la valeur ci-dessus (ex. 192.168.32.0/20) :
+sudo iptables -I INPUT -p tcp -s <sous-réseau> --dport 9090 -j ACCEPT
+```
+
+Cette règle est **manuelle et non versionnée** — elle ne survit pas à un redémarrage du
+serveur ni à un flush iptables. Dette de suivi : persister cette règle (ex. via le mécanisme
+de pare-feu déjà en place sur le serveur — à investiguer, hors scope de ce fix).

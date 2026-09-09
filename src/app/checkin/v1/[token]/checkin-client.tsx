@@ -17,6 +17,7 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
+import { messageDePassage } from './message-passage'
 
 export interface CheckInJeune {
   nom:          string
@@ -122,7 +123,13 @@ export function CheckInClient({ token, jeune, reservations, centres, evenements 
         return
       }
       const name = json?.data?.jeuneName ?? `${jeune.prenom} ${jeune.nom}`
-      setStatus({ kind: 'success', message: `Présent confirmé : ${name}` })
+      // GUIC-689 — le même scan sert l'entrée ET la sortie : annoncer
+      // « Présent confirmé » à quelqu'un qui part serait faux.
+      const sens = json?.data?.sens === 'sortie' ? 'sortie' : 'entree'
+      setStatus({
+        kind: 'success',
+        message: messageDePassage(sens, name, json?.data?.dureeMinutes ?? null),
+      })
     } catch {
       setStatus({ kind: 'error', message: 'Erreur réseau, réessayer.' })
     }

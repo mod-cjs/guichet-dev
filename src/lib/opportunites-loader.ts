@@ -78,6 +78,14 @@ function cacheKey(f: OpportuniteFiltres): string {
     asArray(f.domaine).join(','),
     asArray(f.type).join(','),
     asArray(f.region).join(','),
+    // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
+    // résultat NON filtré mis en cache par la requête précédente.
+    asArray(f.programme).join(','),
+    // GUIC-689 — même raison : sans ces deux clés, "remuneration=yes" et
+    // "deadline=7" serviraient tous deux le résultat non filtré mis en cache par
+    // la première requête sans filtre.
+    f.remuneration ?? '',
+    f.deadline ?? '',
     f.sortBy,
     f.page,
   ].join('|')
@@ -115,6 +123,32 @@ function fulltextUsable(q: string): boolean {
 }
 
 /**
+ * GUIC-689 — Règle « rémunération » tranchée par le lead : `remuneration` est un
+ * texte libre (`Salaire négociable`, `Bourse complète`, `80 000 FCFA/mois`,
+ * `Indemnité de transport`, `Non rémunéré`…), il n'existe pas de booléen en base.
+ *
+ * - **non rémunérée** = NULL, chaîne vide, OU un marqueur explicite d'absence de
+ *   contrepartie financière (`non rémunéré`, `bénévole`, `aucune`, `sans
+ *   rémunération` — comparaison insensible à la casse et aux accents).
+ * - **rémunérée** = tout le reste : « Salaire négociable », « Bourse complète »,
+ *   « Indemnité de transport »… comptent comme rémunérées — il y a une
+ *   contrepartie financière, même non chiffrée.
+ *
+ * Les marqueurs sont écrits sans accent : la colonne `remuneration` utilise la
+ * collation `utf8mb4_unicode_ci` (case- ET accent-insensible), donc
+ * `LIKE '%non remunere%'` matche aussi bien « Non rémunéré » que « non remunere ».
+ */
+const NON_REMUNEREE_MARKERS = ['non remunere', 'benevole', 'aucune', 'sans remuneration'] as const
+
+/** Clause SQL (paramétrée) : vrai quand l'opportunité n'a PAS de contrepartie financière. */
+function nonRemunereeSql(): Prisma.Sql {
+  const markers = NON_REMUNEREE_MARKERS.map(
+    (marker) => Prisma.sql`remuneration LIKE ${`%${marker}%`}`,
+  )
+  return Prisma.sql`(remuneration IS NULL OR TRIM(remuneration) = '' OR ${Prisma.join(markers, ' OR ')})`
+}
+
+/**
  * Liste paginée du catalogue via `$queryRaw`.
  * Exception SQL brut tolérée (cf DECISIONS.md) — deux limites de MariaDB que
  * Prisma ne sait pas piloter :
@@ -141,6 +175,38 @@ async function queryList(f: OpportuniteFiltres): Promise<OpportuniteListResult> 
   const regions = asArray(f.region)
   if (regions.length === 1) conditions.push(Prisma.sql`region = ${regions[0]}`)
   else if (regions.length > 1) conditions.push(Prisma.sql`region IN (${Prisma.join(regions)})`)
+
+  // GUIC-684 — le rattachement aux programmes vit dans une table de jonction :
+  // EXISTS plutôt qu'une jointure, pour ne pas dupliquer les lignes d'une
+  // opportunité rattachée à plusieurs programmes (ni fausser le COUNT).
+  const programmes = asArray(f.programme)
+  if (programmes.length > 0) {
+    const slugs =
+      programmes.length === 1
+        ? Prisma.sql`p.slug = ${programmes[0]}`
+        : Prisma.sql`p.slug IN (${Prisma.join(programmes)})`
+    conditions.push(Prisma.sql`EXISTS (
+      SELECT 1 FROM opportunites_programmes op
+      JOIN programmes p ON p.id = op.programme_id
+      WHERE op.opportunite_id = opportunites.id AND ${slugs}
+    )`)
+  }
+
+  // GUIC-689 — remuneration : voir la règle documentée sur `nonRemunereeSql()`.
+  if (f.remuneration === 'no') conditions.push(nonRemunereeSql())
+  else if (f.remuneration === 'yes') conditions.push(Prisma.sql`NOT ${nonRemunereeSql()}`)
+
+  // GUIC-689 — deadline : échéance dans les N prochains jours. Combiné à la
+  // condition de visibilité existante (`deadline IS NULL OR deadline >= NOW()`),
+  // ceci restreint aux opportunités dont l'échéance tombe entre maintenant et
+  // NOW()+N jours — celles SANS échéance ("sans limite") sont exclues des deux
+  // tranches, ce qui est le comportement attendu.
+  if (f.deadline === '7' || f.deadline === '30') {
+    const days = Number(f.deadline)
+    conditions.push(
+      Prisma.sql`deadline IS NOT NULL AND deadline <= DATE_ADD(NOW(), INTERVAL ${days} DAY)`,
+    )
+  }
 
   const q = (f.q ?? '').trim()
   if (q) {
@@ -209,7 +275,10 @@ export async function listOpportunites(
  */
 const DETAIL_INCLUDE = {
   typeRef: true,
-  programme: true,
+  // GUIC-684 — rattachements aux programmes : sans cet include, le badge de la
+  // fiche publique n'a rien à afficher. Le repli sur l'ancienne colonne masquait
+  // l'oubli ; sa suppression le rend visible.
+  programmes: { include: { programme: true } },
   emploi: true,
   stage: true,
   formation: true,
@@ -250,21 +319,7 @@ export async function getOpportuniteDetailForAdmin(id: string): Promise<Opportun
   return toOpportuniteDetailDTO(o as OpportuniteRow)
 }
 
-/**
- * Incrémente le compteur `vues`, best-effort et dédoublonné par IP.
- * Clé Redis `vue:<slug>:<ip>` TTL 30 min — l'incrément n'a lieu qu'à la
- * première vue de cette IP. N'échoue jamais (erreurs avalées).
- */
-export async function incrementVue(slug: string, ip: string): Promise<void> {
-  try {
-    const firstView = await redis.set(`vue:${slug}:${ip}`, '1', 'EX', 1800, 'NX')
-    if (firstView) {
-      await prisma.opportunite.update({
-        where: { slug },
-        data: { vues: { increment: 1 } },
-      })
-    }
-  } catch (err) {
-    logger.warn('[opportunites-loader] incrément des vues échoué', { err })
-  }
-}
+// GUIC-688 — `incrementVue` a été retiré : le comptage des vues passe désormais
+// par `src/lib/analytics/consultations.ts`, commun aux trois canaux (web, chat
+// IA, WhatsApp). Le compteur `Opportunite.vues` reste alimenté par ce socle et
+// garde donc exactement la même sémantique pour les dashboards existants.

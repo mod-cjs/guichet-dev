@@ -1,0 +1,102 @@
+# GUIC-545 — Métriques MACHINE (disque, mémoire, CPU, réseau, conteneurs). Complète Loki/Grafana
+# (docker-compose.observabilite.yml), qui ne voit que les LOGS applicatifs — la saturation
+# disque/mémoire n'apparaît dans aucun log, donc n'était surveillée par rien.
+#
+# `rules.yml` (alerting Loki) délègue explicitement ces seuils à Netdata :
+#   « Saturation disque et mémoire -> Netdata (GUIC-545), pas Loki : ce sont des métriques
+#     machine, elles n'apparaissent dans aucun log. Les seuils y sont définis, pas ici. »
+# Sans ce fichier déployé, ce délégué n'existe nulle part — angle mort réel sur un serveur
+# mutualisé (SSO + BRM + Guichet) où « un disque plein arrête les trois plateformes ».
+#
+# Démarrage (sur le serveur) :
+#   docker compose -f docker-compose.netdata.yml up -d
+#
+# ⚠️ AUCUN port n'est exposé publiquement (même principe que Grafana) : accès au tableau de bord
+# par tunnel SSH (`ssh -L 19999:127.0.0.1:19999 <serveur>` puis http://localhost:19999).
+#
+# ALERTING (GUIC-545) — le module e-mail natif de Netdata est confirmé NON fonctionnel en réel
+# (pas de MTA dans l'image officielle, docs/netdata.md). Voie retenue : Prometheus racle Netdata
+# (infra/netdata/prometheus.yml), Grafana interroge Prometheus en PromQL et alerte par le canal
+# déjà testé (SMTP, contact-points.yml) — mêmes règles rules.yml que pour Loki, un seul chemin
+# d'astreinte à maintenir plutôt que d'en construire un second, non éprouvé.
+
+services:
+  netdata:
+    image: netdata/netdata:v2.10.3
+    restart: unless-stopped
+    # Nécessaire pour voir les VRAIES interfaces/disques de l'hôte, pas la vue isolée d'un
+    # conteneur — voir infra/netdata/netdata.conf pour la contrepartie (bind 127.0.0.1 only).
+    pid: host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+      # GUIC-545 — trouvé au premier déploiement réel (cgroup v1, répertoires pourtant
+      # world-readable dr-xr-xr-x) : "CGROUP: cannot open directory ... Permission denied"
+      # sur cpu,cpuacct/blkio/memory. Le profil seccomp par défaut de Docker bloque certains
+      # appels de la découverte cgroup de Netdata, indépendamment des permissions Unix et des
+      # capacités déjà accordées (SYS_ADMIN/SYS_PTRACE) — sans lui, seules les métriques HÔTE
+      # globales (via /proc, /sys) remontent, pas la répartition par conteneur.
+      - seccomp:unconfined
+    volumes:
+      - ./infra/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
+      # GUIC-545 — secret (hash de mot de passe), jamais committé, même convention que les
+      # autres fichiers /etc/guichet/*.env de cette pile. Généré côté serveur (docs/netdata.md).
+      - /etc/guichet/netdata.htpasswd:/etc/netdata/.htpasswd:ro
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      # GUIC-710 — trouvé après un faux « disque à 90% » côté utilisateur (df -h réel : 5%).
+      # Sans CE mount précis, diskspace.plugin rapporte l'usage de la COUCHE OVERLAY du
+      # conteneur (minuscule) sous mount_point="/", pas le vrai /dev/md3 de l'hôte — /proc et
+      # /sys seuls (ci-dessus) ne suffisent pas pour les points de montage disque. rslave :
+      # si l'hôte monte quelque chose de nouveau, le conteneur le voit aussi.
+      - /:/host/root:ro,rslave
+      # Lecture seule : métriques par conteneur (CPU/mémoire de l'app, de Loki, etc.), jamais
+      # d'écriture — même garde-fou que Promtail (docker-compose.observabilite.yml).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  prometheus:
+    image: prom/prometheus:v3.8.1
+    restart: unless-stopped
+    # Même réseau hôte que Netdata : le racle en 127.0.0.1. Nécessaire aussi côté sortant :
+    # Grafana (docker-compose.observabilite.yml, réseau bridge séparé) joint CE service via
+    # host.docker.internal:9090 — le même mécanisme déjà utilisé pour joindre MariaDB depuis un
+    # conteneur (backup.sh, docker-compose.prod.yml).
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # Rétention courte, volontairement : ce Prometheus sert l'alerting temps réel, pas
+      # l'analyse historique — cohérent avec le rôle de Netdata (dashboard d'astreinte), pas un
+      # entrepôt de métriques. Loki, lui, retient 30 jours pour les logs (contrainte CDP).
+      - --storage.tsdb.retention.time=15d
+      # GUIC-714 — vécu en réel (20/08) : un bind strict sur 127.0.0.1 empêchait TOUT accès
+      # depuis le réseau bridge de Grafana (un socket loopback n'accepte aucune connexion
+      # arrivant par une autre interface, même depuis la même machine) — les 4 règles machine
+      # étaient en DatasourceError en continu, probablement depuis le premier déploiement
+      # (GUIC-545). 0.0.0.0 = toutes interfaces, mais SANS exposition publique nouvelle : le
+      # pare-feu serveur (INPUT, policy DROP) n'a aucune règle ACCEPT pour 9090 — une règle
+      # scopée au seul sous-réseau Docker `observabilite` est ajoutée séparément (hors dépôt,
+      # iptables manuel, voir docs/netdata.md).
+      - --web.listen-address=0.0.0.0:9090
+    volumes:
+      - ./infra/netdata/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  netdata_lib:
+  netdata_cache:
+  prometheus_data:

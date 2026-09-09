@@ -177,6 +177,97 @@ switch_and_verify() {
   return 1
 }
 
+# ── Synchronisation du crontab serveur ──────────────────────────────────────
+# GUIC-683 — Piège B8 de la checklist go-live : sur OVH, Vercel Cron n'existe plus. Les tâches
+# vivent dans scripts/cron/jobs.json, mais le crontab était installé À LA MAIN — donc ajouter
+# une tâche dans une PR ne la déployait pas, et l'oubli est SILENCIEUX : le site répond, la
+# tâche ne tourne simplement jamais (purge des CV, reprojection du graphe, amorçage des
+# vecteurs…). Le déploiement s'en charge maintenant, à chaque passage.
+#
+# Placé APRÈS la bascule et son smoke test : installer des crons qui tapent une app pas encore
+# saine — ou qui vient d'être annulée par un rollback — n'a pas de sens.
+#
+# Idempotent : on ne remplace QUE le bloc marqué GUICHET-CRON, les autres lignes du crontab
+# (sauvegardes système, certificats…) sont conservées telles quelles.
+sync_crontab() {
+  # OPT-IN EXPLICITE. Réécrire un crontab est un effet de bord SUR LA MACHINE, pas sur le
+  # dépôt : lancé depuis un poste de développement ou un harnais de test, il modifierait le
+  # crontab de la personne (constaté le 28/07 — la suite de tests exécute vraiment ce script).
+  # La CD l'active sur le serveur ; partout ailleurs, la fonction ne fait rien.
+  if [[ "${SYNC_CRONTAB:-0}" != "1" ]]; then
+    log "Synchronisation du crontab ignorée (SYNC_CRONTAB≠1 — hors serveur)."
+    return 0
+  fi
+
+  local racine="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  local generateur="$racine/scripts/cron/generate-crontab.sh"
+  local genere="$(mktemp)" nouveau="$(mktemp)"
+  trap 'rm -f "$genere" "$nouveau"' RETURN
+
+  log "Synchronisation du crontab depuis scripts/cron/jobs.json …"
+
+  # REPO_DIR est le chemin que les lignes crontab utiliseront pour `cd` côté serveur.
+  if ! REPO_DIR="$racine" bash "$generateur" > "$genere" 2>/dev/null; then
+    err "Génération du crontab ÉCHOUÉE (jq installé ? jobs.json valide ?)."
+    err "L'application est DÉPLOYÉE et saine, mais les tâches planifiées ne sont PAS à jour."
+    return 1
+  fi
+
+  # Un fichier vide effacerait toutes les tâches du Guichet sans que rien ne le signale.
+  if [[ ! -s "$genere" ]] || ! grep -q 'GUICHET-CRON' "$genere"; then
+    err "Crontab généré vide ou sans marqueur — installation REFUSÉE (crontab actuel conservé)."
+    return 1
+  fi
+
+  crontab -l 2>/dev/null | grep -v 'GUICHET-CRON' > "$nouveau" || true
+  cat "$genere" >> "$nouveau"
+
+  if crontab "$nouveau"; then
+    log "Crontab synchronisé : $(grep -c 'GUICHET-CRON' "$genere") tâche(s) planifiée(s)."
+  else
+    err "Installation du crontab ÉCHOUÉE — tâches planifiées NON à jour."
+    return 1
+  fi
+}
+
+# ── -1. Synchronisation des secrets depuis Doppler (optionnelle) ───────────
+# GUIC-625 — l'organisation adopte Doppler (projet `guichet`, configs dev/stg/prod) plutôt
+# que de dépendre uniquement d'un fichier `.env` plat maintenu à la main sur le serveur — le
+# pattern à l'origine de la fuite historique (script committant des secrets en clair) n'avait
+# jamais été remis en question, juste rapiécé au niveau du vecteur de fuite.
+#
+# Écrit directement dans GUICHET_ENV_FILE : AUCUN changement de docker-compose.*.yml requis,
+# `env_file: - ${GUICHET_ENV_FILE}` continue de lire le même fichier, désormais généré plutôt
+# que édité à la main.
+#
+# Opt-in explicite, même principe que sync_crontab (GUIC-683) : effet de bord SUR LA MACHINE,
+# un poste de dev sans Doppler configuré ne doit jamais tenter cet appel.
+sync_secrets_from_doppler() {
+  if [[ "${DOPPLER_SYNC:-0}" != "1" ]]; then
+    log "Synchronisation Doppler ignorée (DOPPLER_SYNC≠1 — fichier de secrets déjà en place)."
+    return 0
+  fi
+  local config="${DOPPLER_CONFIG:?DOPPLER_CONFIG requis si DOPPLER_SYNC=1 (ex. stg, prod)}"
+  log "Récupération des secrets depuis Doppler (projet guichet, config $config)…"
+
+  local genere
+  genere="$(mktemp)"
+  trap 'rm -f "$genere"' RETURN
+
+  if ! doppler secrets download --project guichet --config "$config" --no-file --format env > "$genere"; then
+    err "Récupération Doppler ÉCHOUÉE — déploiement interrompu (jamais de secrets périmés utilisés)."
+    exit 2
+  fi
+  # Un résultat vide (Doppler injoignable renvoyant 0, config vidée par erreur) écraserait un
+  # fichier de secrets valide par du rien — le même garde-fou que sync_crontab pour le crontab.
+  if [[ ! -s "$genere" ]]; then
+    err "Doppler a renvoyé un résultat vide — déploiement interrompu (pas d'écrasement par du vide)."
+    exit 2
+  fi
+  install -m 600 "$genere" "$GUICHET_ENV_FILE"
+  log "Secrets synchronisés depuis Doppler ($config) → $GUICHET_ENV_FILE"
+}
+
 # ── 0. Preflight — AVANT tout effet de bord ─────────────────────────────────
 # GUIC-621 — vérifie les faits d'infra contre le serveur réel (secrets, MariaDB joignable depuis
 # un conteneur, ACL Redis, endpoint S3). Placé EN PREMIER délibérément : un preflight lancé après
@@ -188,11 +279,13 @@ preflight() {
 }
 
 main() {
+  sync_secrets_from_doppler
   require
   preflight
   backup_db
   migrate
   switch_and_verify
+  sync_crontab
 }
 
 main "$@"

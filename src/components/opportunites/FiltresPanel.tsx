@@ -3,12 +3,16 @@ import { Icon, Chip } from '@/components/ui'
 import { typeLabel } from './OpportuniteTypeChip'
 import { REGIONS_SENEGAL } from '@/lib/regions'
 import type { OpportuniteSortBy } from '@/types/opportunite'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
+import type { Domaine } from '@prisma/client'
 
 /** Valeurs des filtres pilotées par le parent (état dans l'URL). */
 export interface FiltresValue {
   domaine?: string
   type?: string
   region?: string
+  /** GUIC-684 — slug du programme sectoriel de rattachement. */
+  programme?: string
   /** Filtre rémunération — "yes" = uniquement payées. */
   remuneration?: 'yes' | 'no'
   /** Plage deadline — "7" = J-7, "30" = J-30, undef = sans limite. */
@@ -30,26 +34,20 @@ export interface FiltresPanelProps {
     type?: FacetCounts
     domaine?: FacetCounts
     region?: FacetCounts
+    programme?: FacetCounts
     deadline?: FacetCounts
     remuneration?: FacetCounts
   }
   /** Callback explicite "Appliquer" — optionnel : par défaut les changements
    *  sont propagés immédiatement via onChange. */
   onApply?: () => void
+  /** GUIC-684 — programmes actifs proposés au filtrage (source : table Programme). */
+  programmes?: { slug: string; nom: string }[]
 }
 
-// Valeurs d'enum (alignées sur prisma/schema.prisma) — figées côté client.
-const DOMAINES = [
-  'Agriculture',
-  'Numerique',
-  'Entrepreneuriat',
-  'Citoyennete',
-  'Environnement',
-  'Sante',
-  'Education',
-  'Culture',
-  'Autre',
-] as const
+// GUIC-689 — vocabulaire lu depuis la source unique `@/lib/domaines`. Il était
+// recopié ici : cinq copies d'une même liste dérivent tôt ou tard.
+const DOMAINES = DOMAINES_VISIBLES
 
 const TYPES = [
   'Emploi',
@@ -60,25 +58,28 @@ const TYPES = [
   'Appel_a_projets',
 ] as const
 
-/** Mapping enrichi des libellés de domaine — valeur enum inchangée, label enrichi. */
-const DOMAINE_LABELS: Record<string, string> = {
-  Agriculture:    'Agriculture & élevage',
-  Numerique:      'Numérique / Tech',
-  Entrepreneuriat: 'Entrepreneuriat',
-  Citoyennete:    'Citoyenneté',
-  Environnement:  'Environnement',
-  Sante:          'Santé',
-  Education:      'Éducation',
-  Culture:        'Culture',
-  Autre:          'Autre',
-}
 
 function humanizeDomaine(value: string): string {
-  return DOMAINE_LABELS[value] ?? value.replace(/_/g, ' ')
+  return libelleDomaine(value as Domaine)
 }
 
+/**
+ * Clés des filtres écrits par ce panneau (et par `OpportunitesFiltersSheet` côté
+ * mobile) — source unique de vérité, aussi utilisée par la sentinelle anti-
+ * "filtre décoratif" (GUIC-689, `tests/integration/opportunites-api-sentinel.test.ts`) :
+ * si une clé est ajoutée ici sans être lue côté route/loader, le test dédié échoue.
+ */
+export const FILTER_PARAM_KEYS = [
+  'domaine',
+  'type',
+  'region',
+  'programme',
+  'remuneration',
+  'deadline',
+] as const satisfies readonly (keyof FiltresValue)[]
+
 function countActive(v: FiltresValue): number {
-  return [v.domaine, v.type, v.region, v.remuneration, v.deadline].filter(Boolean).length
+  return FILTER_PARAM_KEYS.filter((k) => Boolean(v[k])).length
 }
 
 interface FilterCheckProps {
@@ -160,8 +161,10 @@ function Section({ title, children, defaultOpen = true }: SectionProps) {
 /**
  * <FiltresPanel /> — panneau filtres latéral desktop (sticky).
  *
- * GUIC-251 — Wave 3 audit UI. Conforme design v2
- * (`lot3-opps-web.jsx#WebFilterPanel` L.34-115).
+ * GUIC-251 — Wave 3 audit UI. Ordre des sections conforme design v5
+ * (`design-guichet-v5/lot3-opps-web.jsx#WebFilterPanel` L.73-104) :
+ * Type, Domaine, Région, Deadline, Rémunération — puis Programme
+ * (GUIC-684, ajout hors maquette) en dernier (GUIC-689, Lot P3-A).
  *
  * Apports vs version précédente :
  *  - sémantique checkbox (au lieu de pastilles)
@@ -182,8 +185,9 @@ export function FiltresPanel({
   resultsCount,
   counts,
   onApply,
+  programmes = [],
 }: FiltresPanelProps) {
-  const pick = (key: 'domaine' | 'type' | 'region', v: string) =>
+  const pick = (key: 'domaine' | 'type' | 'region' | 'programme', v: string) =>
     onChange({ ...value, [key]: value[key] === v ? undefined : v })
 
   const toggleRemun = (v: 'yes' | 'no') =>
@@ -275,6 +279,25 @@ export function FiltresPanel({
           </div>
         </Section>
 
+        <Section title="Deadline">
+          <ul className="space-y-0">
+            <FilterCheck
+              id="f-dl-7"
+              label="Moins de 7 jours"
+              count={counts?.deadline?.['7']}
+              checked={value.deadline === '7'}
+              onChange={() => toggleDeadline('7')}
+            />
+            <FilterCheck
+              id="f-dl-30"
+              label="Moins de 30 jours"
+              count={counts?.deadline?.['30']}
+              checked={value.deadline === '30'}
+              onChange={() => toggleDeadline('30')}
+            />
+          </ul>
+        </Section>
+
         <Section title="Rémunération">
           <ul className="space-y-0">
             <FilterCheck
@@ -294,24 +317,26 @@ export function FiltresPanel({
           </ul>
         </Section>
 
-        <Section title="Deadline">
-          <ul className="space-y-0">
-            <FilterCheck
-              id="f-dl-7"
-              label="Moins de 7 jours"
-              count={counts?.deadline?.['7']}
-              checked={value.deadline === '7'}
-              onChange={() => toggleDeadline('7')}
-            />
-            <FilterCheck
-              id="f-dl-30"
-              label="Moins de 30 jours"
-              count={counts?.deadline?.['30']}
-              checked={value.deadline === '30'}
-              onChange={() => toggleDeadline('30')}
-            />
-          </ul>
-        </Section>
+        {/* GUIC-684 — Programme est un ajout hors maquette design v5 (qui ne
+            connaît que Type/Domaine/Région/Deadline/Rémunération). Placé en
+            dernier plutôt qu'interposé entre Région et Deadline : les 5
+            sections de la maquette restent contiguës et dans le même ordre,
+            l'ajout ne casse pas la continuité de lecture qu'elle définit. */}
+        {programmes.length > 0 && (
+          <Section title="Programme">
+            <div className="flex flex-wrap gap-[6px] pt-space-1">
+              {programmes.map((p) => (
+                <Chip
+                  key={p.slug}
+                  selected={value.programme === p.slug}
+                  onClick={() => pick('programme', p.slug)}
+                >
+                  {p.nom}
+                </Chip>
+              ))}
+            </div>
+          </Section>
+        )}
       </div>
 
       {/* CTA sticky bottom — affiché si onApply fourni */}

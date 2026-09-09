@@ -1,49 +1,43 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import type { BottomNavItem } from './nav'
 
-interface NavItem {
-  href: string
-  icon: IconName
-  label: string
-}
-
-/**
- * 5 onglets de la nav bénéficiaire mobile (refonte v2).
- * Icônes issues du sprite SVG `public/icons.svg` — règle CLAUDE.md :
- * aucun emoji comme icône de nav.
- *
- * Note : item Profil retiré (accessible via AppTopbar mobile, icône user
- * en haut). Remplacé par Centres pour exposer la cartographie YEAH —
- * cf GUIC-205 sous-PR A.
- */
-const ITEMS: NavItem[] = [
-  { href: '/',             icon: 'home',     label: 'Accueil' },
-  { href: '/opportunites', icon: 'search',   label: 'Explorer' },
-  { href: '/agenda',       icon: 'calendar', label: 'Agenda' },
-  { href: '/ressources',   icon: 'document', label: 'Ressources' },
-  { href: '/centres',      icon: 'pin',      label: 'Centres' },
-]
 
 interface BottomNavProps {
   badges?: Partial<Record<string, number>>
+  /**
+   * GUIC-706 — items À AFFICHER, déjà filtrés par le serveur.
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés y annoncerait les fonctionnalités
+   * cachées — y compris à un visiteur anonyme.
+   *
+   * Trois des cinq items sont rattachés à une fonctionnalité masquable. La grille était
+   * figée à cinq colonnes : retirer un item la déformait. Elle suit désormais le nombre
+   * d'items réellement affichés.
+   */
+  items: readonly BottomNavItem[]
 }
 
-export function BottomNav({ badges = {} }: BottomNavProps) {
+export function BottomNav({ badges = {}, items }: BottomNavProps) {
   const pathname = usePathname()
 
   return (
     <nav
-      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav
-        grid grid-cols-5"
+      className="gj-bottom-nav md:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gj-line shadow-gj-nav grid"
       style={{
+        // GUIC-706 — colonnes suivant le nombre d'items affichés. La grille était figée à
+        // cinq : masquer une fonctionnalité laissait un trou dans la barre de navigation
+        // mobile des 22 000 utilisateurs.
+        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
         paddingBottom: 'calc(6px + var(--safe-bottom))',
         zIndex: 'var(--gj-z-bottom-nav)',
       }}
       aria-label="Navigation principale"
     >
-      {ITEMS.map(item => {
+      {items.map(item => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href) === true)
         const badge = badges[item.href]
         return (
@@ -68,7 +62,7 @@ export function BottomNav({ badges = {} }: BottomNavProps) {
             )}
             {badge && badge > 0 ? (
               <span className="absolute top-[2px] right-[14px] min-w-[16px] h-4 bg-gj-red text-white
-                rounded-[8px] text-[10px] font-bold px-[4px] flex items-center justify-center
+                rounded-[8px] text-fs-100 font-bold px-[4px] flex items-center justify-center
                 border-2 border-white">
                 {badge > 9 ? '9+' : badge}
               </span>

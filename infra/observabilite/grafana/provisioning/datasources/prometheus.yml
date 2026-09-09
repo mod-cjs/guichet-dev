@@ -1,0 +1,22 @@
+# GUIC-545 — Source de données Prometheus (métriques machine, via Netdata → Prometheus).
+# Complète Loki (logs) : deux sources, deux natures de signal, un seul Grafana qui alerte.
+#
+# Provisionnée par fichier — même raison que Loki (datasources/*.yml) : configuration versionnée,
+# revue en PR, reconstruite à l'identique après un `docker compose down -v`.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    # UID EXPLICITE — leçon de GUIC-576 (Loki) : sans lui, Grafana en génère un aléatoire et
+    # toute règle d'alerte qui le référence (`datasourceUid: prometheus`) échoue silencieusement
+    # en « data source not found », restant `inactive` — on croit être supervisé, à tort.
+    uid: prometheus
+    access: proxy
+    # Prometheus tourne en network_mode: host (docker-compose.netdata.yml, 127.0.0.1:9090) ;
+    # Grafana est sur un réseau bridge séparé (`observabilite`) — host.docker.internal est le
+    # pont, déjà utilisé pour MariaDB (backup.sh). Nécessite l'extra_hosts sur le service grafana.
+    url: http://host.docker.internal:9090
+    isDefault: false # Loki reste la source par défaut (logs, le signal le plus consulté).
+    editable: false # La source de vérité est ce fichier, pas l'interface.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Icon } from '@/components/ui/Icon'
 
 export default function DeconnexionPage() {
   const [done, setDone] = useState(false)
@@ -27,12 +28,8 @@ export default function DeconnexionPage() {
       <div className="bg-white rounded-gj-2xl shadow-gj-md p-space-8 text-center w-full max-w-[360px]">
         {done ? (
           <>
-            <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-space-4">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className="text-green-600" aria-hidden>
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+            <div className="w-14 h-14 bg-gj-green-soft rounded-full flex items-center justify-center mx-auto mb-space-4">
+              <Icon name="check-circle" size={28} className="text-gj-green-ink" />
             </div>
             <h1 className="text-fs-500 font-bold text-color-text-primary mb-space-2">
               Vous êtes déconnecté
@@ -44,6 +41,8 @@ export default function DeconnexionPage() {
         ) : (
           <>
             <div className="w-14 h-14 bg-gj-bg rounded-full flex items-center justify-center mx-auto mb-space-4">
+              {/* Exception sprite : aucune icône "spinner" dans public/icons.svg —
+                  svg inline conservé volontairement (animation rotation continue). */}
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 className="text-gj-grey animate-spin" aria-hidden>

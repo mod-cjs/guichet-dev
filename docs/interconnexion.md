@@ -64,107 +64,55 @@ export function verifyHmacSignature(
 
 ## 3. API d'export Data Hub — `/api/v1/export/`
 
-### 3.1 Authentification
+> **Cette section ne décrit plus le contrat en détail — il est GÉNÉRÉ.**
+>
+> Source de vérité : [`docs/openapi/datahub-v1.yaml`](openapi/datahub-v1.yaml), dérivé du
+> contrat d'export (`src/lib/datahub/streams.ts`) et de la documentation du schéma Prisma.
+> Régénérer : `npm run datahub:openapi`. Une sentinelle de test échoue si le fichier
+> committé diverge.
+>
+> La version précédente de cette section, écrite à la main, décrivait une API qui n'a
+> jamais existé : pagination par numéro de page, colonnes inventées (`nb_candidatures`,
+> `completion_profil`), endpoint `formations` non implémenté. C'est le sort de toute
+> documentation d'API tenue séparément du code — d'où la génération.
 
-Ces endpoints sont accessibles aux consommateurs autorisés (outils BI, scripts d'extraction) via une **clé API Data Hub** transmise dans le header :
+### 3.1 Principes
 
-```
-Authorization: Bearer {DATAHUB_API_KEY}
-```
+**Consommateur unique** — le tap Meltano du Data Hub. Les outils BI lisent l'entrepôt
+PostgreSQL, jamais cette API.
 
-La clé est configurée côté Guichet dans `DATAHUB_API_KEY`. À partager uniquement avec les équipes autorisées (Data Steward, équipe BI CJS).
+**Authentification** — `Authorization: Bearer <secret>`. Clés nommées via
+`DATAHUB_API_KEYS` (`meltano:secret,bi:autre`), ce qui identifie le consommateur dans le
+journal d'audit et permet une rotation sans coupure. `DATAHUB_API_KEY` reste accepté seul.
+Aucune clé configurée = **tout accès refusé** (GUIC-631).
 
-### 3.2 Format de réponse
+**Pagination par curseur, jamais par offset.** L'offset pagine par rang, et le rang bouge :
+une insertion pendant l'extraction décale les pages suivantes et une ligne passe entre deux
+pages sans jamais être lue, sans erreur. Le curseur pagine par position dans le tri
+`(watermark, clé primaire)`.
 
-Les endpoints supportent deux formats via le header `Accept` :
+**Recouvrement obligatoire côté consommateur.** Repartir du dernier point d'arrêt moins
+quelques minutes : le watermark est posé à l'écriture applicative et non au commit, donc
+une transaction committée en retard porte un horodatage antérieur et serait manquée. Les
+doublons produits sont absorbés par l'upsert de l'entrepôt.
 
-```
-Accept: application/json   → Réponse JSON (défaut)
-Accept: text/csv           → Réponse CSV (séparateur virgule, encodage UTF-8 BOM)
-```
+**Les suppressions logiques sortent**, avec leur date, pour que l'entrepôt les propage au
+lieu de conserver des fantômes.
 
-Structure JSON :
-```json
-{
-  "data": [...],
-  "meta": {
-    "total": 22000,
-    "page": 1,
-    "limit": 1000,
-    "generated_at": "2026-05-04T08:00:00Z",
-    "freshness_seconds": 3600
-  }
-}
-```
+### 3.2 Endpoints
 
-### 3.3 Endpoints disponibles
+| Endpoint | Rôle |
+|---|---|
+| `GET /api/v1/export/{stream}` | Une page d'un flux. Paramètres `since`, `cursor`, `limit`. |
+| `GET /api/v1/export/counts` | Comptage par flux sur une fenêtre — réconciliation après run. |
 
-#### GET `/api/v1/export/utilisateurs`
+Les flux disponibles sont ceux déclarés au contrat ; l'OpenAPI en fait foi.
 
-Exporte les utilisateurs du Guichet (données anonymisées — pas de données sensibles).
+### 3.3 Vérifier qu'un run a tout extrait
 
-**Paramètres de filtre** :
-| Paramètre | Type | Description |
-|-----------|------|-------------|
-| `region` | string | Filtre par région (ex: `Dakar`) |
-| `statut` | string | `actif`, `inactif` |
-| `genre` | string | `M`, `F` |
-| `depuis` | ISO date | Filtre sur `createdAt` >= date |
-| `jusqu` | ISO date | Filtre sur `createdAt` <= date |
-| `page` | int | Numéro de page (défaut: 1) |
-| `limit` | int | Résultats par page (max: 1000, défaut: 500) |
-
-**Champs retournés** (pas de données sensibles) :
-```json
-{
-  "cjs_uid": "550e8400-...",
-  "region": "Dakar",
-  "genre": "M",
-  "tranche_age": "18-25",
-  "statut": "actif",
-  "completion_profil": 85,
-  "date_inscription": "2024-03-15",
-  "nb_candidatures": 3,
-  "nb_formations": 1
-}
-```
-
-#### GET `/api/v1/export/opportunites`
-
-Exporte les opportunités publiées sur le Guichet.
-
-**Paramètres de filtre** :
-| Paramètre | Type | Description |
-|-----------|------|-------------|
-| `type` | string | `Emploi`, `Stage`, `Formation`, `Bourse`, `Volontariat` |
-| `domaine` | string | `Agriculture`, `Numerique`, etc. |
-| `region` | string | Région cible |
-| `actif` | boolean | `true` = opportunités actives uniquement |
-| `depuis` | ISO date | Filtre sur `createdAt` |
-| `page`, `limit` | int | Pagination |
-
-#### GET `/api/v1/export/formations`
-
-Exporte les formations (synchronisées depuis Moodle).
-
-**Paramètres de filtre** : `region`, `theme`, `depuis`, `page`, `limit`
-
-#### GET `/api/v1/export/programmes`
-
-Exporte les indicateurs de programmes (données agrégées, pas individuelles).
-
-**Champs retournés** :
-```json
-{
-  "programme": "YEAH",
-  "region": "Dakar",
-  "periode": "2026-T1",
-  "nb_beneficiaires": 450,
-  "nb_femmes": 210,
-  "nb_opportunites_pourvues": 38,
-  "taux_completion_formation": 72.5
-}
-```
+« Le pipeline n'a pas planté » et « le pipeline a tout extrait » sont deux choses
+différentes. Comparer `/counts?since=<début du run>` aux `COUNT(*)` de l'entrepôt sur la
+même fenêtre est le seul moyen de trancher.
 
 ---
 

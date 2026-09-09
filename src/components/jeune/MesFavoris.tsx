@@ -60,6 +60,25 @@ export function MesFavoris() {
     return items.filter((o) => o.type === activeType)
   }, [items, activeType])
 
+  /**
+   * Compteur par type (GUIC-689, finding G — réf `benef-extra-web.jsx:78,85`)
+   * — dérivé des favoris déjà chargés, aucun nouvel appel API.
+   */
+  const typeCounts = useMemo(() => {
+    const base: Record<TypeOpportunite, number> = {
+      Emploi: 0,
+      Stage: 0,
+      Formation: 0,
+      Bourse: 0,
+      Volontariat: 0,
+      Appel_a_projets: 0,
+    }
+    for (const it of items ?? []) {
+      base[it.type] = (base[it.type] ?? 0) + 1
+    }
+    return base
+  }, [items])
+
   if (error) {
     return (
       <div className="bg-gj-red-soft text-gj-red-ink rounded-gj-md p-space-4 text-fs-300">
@@ -113,7 +132,7 @@ export function MesFavoris() {
               : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong font-semibold',
           ].join(' ')}
         >
-          Tous
+          Tous ({items.length})
         </button>
         {TYPE_CHIPS.map((t) => {
           const active = activeType === t
@@ -133,7 +152,7 @@ export function MesFavoris() {
                   : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong font-semibold',
               ].join(' ')}
             >
-              {typeLabel(t)}
+              {typeLabel(t)} ({typeCounts[t] ?? 0})
             </button>
           )
         })}

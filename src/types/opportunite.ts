@@ -28,6 +28,16 @@ export interface OpportuniteFiltres {
   domaine?: Domaine | Domaine[]
   type?: TypeOpportunite | TypeOpportunite[]
   region?: Region | Region[]
+  /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
+  programme?: string | string[]
+  /**
+   * GUIC-689 — "yes" = uniquement les opportunités avec une contrepartie
+   * financière (voir la règle documentée dans `opportunites-loader.ts`),
+   * "no" = uniquement celles sans contrepartie.
+   */
+  remuneration?: 'yes' | 'no'
+  /** GUIC-689 — échéance à J-7 ou J-30 (opportunités sans échéance exclues des deux). */
+  deadline?: '7' | '30'
   page: number
   sortBy: OpportuniteSortBy
 }

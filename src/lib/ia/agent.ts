@@ -14,12 +14,17 @@ import { getSlotModel, getSlotParams } from './llm-config'
 import { sanitizeParamsForModel } from './supported-models'
 import { preScreen } from './pre-screen'
 import { parseTextToolCalls, nearestToolName } from './parse-tool-call'
-import { buildGraphContext, GRAPH_PREAMBLE } from './graph-context'
-import { TOOLS, TOOL_DEFINITIONS } from './tools'
+import { loadOrBuildGraphContext, GRAPH_PREAMBLE } from './graph-context'
+import { buildSourcesLabel, type SourcesInput } from './sources-label'
+import { TOOLS } from './tools'
+import { outilMasque } from '@/lib/flags/yaye'
+import { surfaceDisponible } from './surface-outils'
 import { logAgentEvent } from './agent-logs'
 import { recordEscalade } from './escalade'
+import { escaladeMessage, escaladeTitre } from './escalade-message'
 import { summarizeToolResult } from './metrics/tool-summary'
 import { dedupeBlocks, trimTextWhenCards, capOpportunites, type YayeBlock } from './blocks'
+import { trackBlockImpressions, idsDepuisBlock } from './impressions'
 import { finalizeReply, detectMetaLeakage } from './reply-guard'
 import { savePendingWrite, loadPendingWrite, clearPendingWrite, saveShownRefs, loadShownRefs, clearShownRefs, type ShownRef } from './pending-write'
 
@@ -129,6 +134,7 @@ Régions (Dakar, Thiès, Tambacounda, Saint-Louis…), programmes (Yaakaar, YEAH
 - Conseil personnalisé ("une offre pour moi", "suis-je éligible ?") → récupère **d'abord le profil**.
 - Question d'état ("où en sont mes candidatures ?", "mes favoris") → utilise les **données temps réel**.
 - **Raisonnement** sur les opportunités ("suis-je prêt pour cette offre ?", "qu'est-ce qui me manque ?", "que me conseilles-tu ?", "des offres pour mon niveau", "des parcours possibles") → interroge le **graphe de connaissances** avec la bonne intention (écart de compétences, éligibilité, reco collaborative, parcours).
+- **Question générale sur le marché** ("quels secteurs recrutent à Thiès ?", "qu'est-ce qui embauche en ce moment ?", "quelles compétences sont demandées ?", "y a-t-il beaucoup d'offres en agro ?") → **query_knowledge_graph** avec l'intention \`apercu_marche\`. Donne les chiffres tels quels (ce sont des **offres**, jamais des personnes), en une ou deux phrases, et propose d'enchaîner sur une recherche ciblée.
 - **Réserver une salle ou un véhicule** d'un centre → d'abord **get_reservable_resources** pour trouver la ressource et son identifiant. Puis **collecte ce qui manque, une info à la fois** : date (AAAA-MM-JJ), créneau (HH:MM–HH:MM), nombre de personnes, et un **motif d'au moins 20 caractères**. Quand tu as tout, appelle **reserve_resource SANS confirmer** pour afficher le récapitulatif, demande « Je confirme ? », et n'appelle **reserve_resource avec confirm=true qu'APRÈS un oui explicite**. Ne réserve **jamais** sans cet accord.
 - **Badge / carte CJS** ("mon badge", "ma carte", "le QR pour entrer au centre") → utilise **get_badge**.
 - **Bibliothèque / livres des centres** ("un livre sur…", "emprunter un livre", "où est ce livre") → d'abord **search_library** (titre/auteur/thème) pour trouver le livre, l'exemplaire disponible et son emplacement (centre · rayon · étagère · position). Pour emprunter, prends l'**exemplaireId** d'un exemplaire disponible, appelle **borrow_book SANS confirmer** pour le récapitulatif, puis **confirm=true seulement APRÈS un oui explicite** — rappelle que l'emprunt se finalise **au scan du badge au centre**. Pour « mes emprunts » / « quand rendre » → **get_active_loans**.
@@ -192,8 +198,9 @@ const ROUTER_PROMPT =
   "décider le ou les outils à appeler pour traiter la demande, avec leurs arguments. " +
   "Si la demande porte sur des données de l'utilisateur ou du catalogue — offres/opportunités, " +
   'formations, candidatures, profil, badge/carte CJS, agenda/événements, notifications, ' +
-  "réservations, bibliothèque, centres, recommandations, ce qu'il manque pour une offre — tu DOIS " +
-  "appeler l'outil correspondant. En cas de détresse ou de danger, appelle escalate_to_advisor. " +
+  "réservations, bibliothèque, centres, recommandations, ce qu'il manque pour une offre, " +
+  "ou une question générale sur le MARCHÉ (« quels secteurs recrutent », « qu'est-ce qui embauche ») " +
+  "— tu DOIS appeler l'outil correspondant. En cas de détresse ou de danger, appelle escalate_to_advisor. " +
   "N'invente JAMAIS le résultat, n'écris pas de réponse en prose, ne décris pas l'action. " +
   'ACTIONS D\'ÉCRITURE (réserver, postuler, emprunter) en 2 temps : 1) à la demande, appelle ' +
   "l'outil d'écriture avec confirm=false (récap) ; 2) quand la personne CONFIRME (« oui », « vas-y », " +
@@ -243,7 +250,7 @@ function buildContextBlock(p: RunAgentParams): string {
  * plus prétendre au niveau d'autorité des instructions. (Repli dans le message user plutôt qu'un
  * message user séparé pour éviter deux tours `user` consécutifs, que Gemini/Vertex rejette.)
  */
-function buildMessages(p: RunAgentParams): Msg[] {
+function buildMessages(p: RunAgentParams, systemPrompt: string = SYSTEM_PROMPT): Msg[] {
   const ctx = buildContextBlock(p)
   // Date du jour → permet de résoudre les dates relatives (« demain », « lundi prochain ») en
   // AAAA-MM-JJ pour les réservations. Format ISO court.
@@ -251,7 +258,7 @@ function buildMessages(p: RunAgentParams): Msg[] {
   const dateLine = `[Date du jour : ${today}]`
   const userContent = ctx ? `${dateLine}\n${ctx}\n\n———\n\n${p.message}` : `${dateLine}\n\n${p.message}`
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...(p.history ?? []).map(h => ({ role: h.role, content: h.content }) as Msg),
     { role: 'user', content: userContent },
   ]
@@ -356,6 +363,15 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
 
   if (!tool) {
     result = { ok: false, error: `Outil inconnu: ${name}` }
+  } else if (await outilMasque(name, ctx.roles, args)) {
+    // GUIC-706 — le module dont cet outil tire ses données est masqué pour cet
+    // interlocuteur. On refuse l'exécution plutôt que de servir un contenu dont la page
+    // répondra 404 : la card mènerait à une impasse, et Yaye aurait promis ce que la
+    // plateforme cache.
+    //
+    // Le message est celui d'une indisponibilité ordinaire, pas d'un masquage : le prompt
+    // prévoit ce cas et Yaye le reformule avec ses mots, sans jargon technique.
+    result = { ok: false, error: 'Fonctionnalité momentanément indisponible.' }
   } else {
     try {
       result = await tool.execute(args, ctx)
@@ -365,7 +381,18 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   }
 
   state.toolsUsed.push(name)
-  if (result.block) state.blocks.push(result.block) // card cliquable surfacée au frontend
+  if (result.block) {
+    state.blocks.push(result.block) // card cliquable surfacée au frontend
+    // GUIC-688 — une card affichée est une IMPRESSION (le clic, lui, est compté
+    // côté web via `?src=ia`). Point d'accroche unique : tous les outils qui
+    // surfacent un bloc passent par ici.
+    await trackBlockImpressions(result.block, {
+      canal:     base.canal,
+      cjsUid:    base.cjsUid,
+      sessionId: base.sessionId,
+      outil:     name,
+    })
+  }
 
   await logAgentEvent({
     ...base,
@@ -387,7 +414,9 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
       dureeMs: Date.now() - tStart,
       statut: result.ok ? 'succes' : 'echec',
       cypherQuery: result.graph.template,
-      nodesReturned: { count: result.graph.nodesReturned },
+      // GUIC-688 — `count` seul ne disait pas QUOI avait été retourné : on ajoute
+      // les identifiants (les rollups continuent de ne lire que `count`).
+      nodesReturned: { count: result.graph.nodesReturned, ids: idsDepuisBlock(result.block) },
       payload: { args: call.function.arguments },
     })
   }
@@ -440,15 +469,29 @@ async function executeToolCall(call: ToolCallLike, ctx: ToolCtx, base: AgentBase
   return { role: 'tool', tool_call_id: call.id, content: toolContent }
 }
 
+/**
+ * Ligne de sources (règle v5 non négociable — cf. `blocks.ts`), DÉRIVÉE de ce
+ * qui a réellement servi : `buildContextBlock` renvoie une chaîne vide quand ni
+ * mémo ni contexte graphe ne sont disponibles (nouvel inscrit, graphe pas
+ * encore construit, échec de chargement), et une réponse peut être rédigée sans
+ * qu'aucun outil catalogue n'ait été appelé. Un libellé posé en dur affirmerait
+ * alors des sources qui n'ont pas servi — une caution fabriquée est pire que
+ * pas de ligne, donc on n'émet rien dans ce cas (cf. `buildSourcesLabel`).
+ * N'est ajoutée qu'aux réponses RÉELLEMENT générées par le modèle — jamais aux
+ * court-circuits pre-screen ni aux escalades.
+ */
+function sourcesBlocks(input: SourcesInput): YayeBlock[] {
+  const label = buildSourcesLabel(input)
+  return label ? [{ kind: 'sources', label }] : []
+}
+
 /** Bloc d'accusé de réception pour l'escalade de garde-fou (max rounds). */
 function maxRoundsEscaladeBlock(reference: string): YayeBlock {
   return {
     kind: 'escalade',
     reference,
-    title: 'Demande transmise à un conseiller',
-    message:
-      'Un conseiller du CJS va prendre le relais et te répondra ici même. ' +
-      'Garde cette référence si tu veux la rappeler.',
+    title: escaladeTitre({ dejaEnCours: false }),
+    message: escaladeMessage({ danger: false, dejaEnCours: false }),
   }
 }
 
@@ -465,7 +508,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     canal: p.canal,
   }
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       // Danger repéré → on FORCE l'escalade conseiller (crée la trace + notifie), même si le modèle l'aurait ratée.
@@ -482,9 +525,16 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
   const { toolsUsed, blocks } = state
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
-  const messages = buildMessages({ ...p, graphContext })
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
+  // GUIC-706 — registre, définitions et prompt réduits à ce qui est réellement disponible
+  // pour cet interlocuteur, calculés en un seul endroit (cf. surface-outils.ts) : les deux
+  // chemins, direct et streaming, doivent offrir la même surface.
+  const { promptSysteme, definitions, nomsOutils } = await surfaceDisponible(p.roles)
+
+  const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
   // Auto-réparation : relance UNE fois avec une consigne d'action si le modèle échoue à agir
@@ -502,7 +552,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
     // Prompt système selon la phase : routage minimal (décision) vs persona complet (rédaction).
-    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
+    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : promptSysteme } as Msg
     // Température : basse pour décider (routage déterministe), haute pour rédiger (ton varié).
     const temperature = phase === 'synth' ? params.temperature : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
@@ -515,7 +565,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       client.chat.completions.create({
         model,
         messages,
-        tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+        tools: definitions as unknown as OpenAI.Chat.ChatCompletionTool[],
         tool_choice: 'auto',
         max_tokens: params.maxTokens,
         ...tuning,
@@ -532,7 +582,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
     // l'appel EN TEXTE dans le contenu → on le récupère plutôt que de le jeter.
     if (!choice || toolCalls.length === 0) {
       const content = choice?.content ?? ''
-      const parsed = parseTextToolCalls(content, Object.keys(TOOLS))
+      const parsed = parseTextToolCalls(content, nomsOutils)
       // Fix 3 — PLUSIEURS appels texte exécutés dans le même round (multi-tool).
       if (parsed.calls.length && round < CONFIG.maxToolRounds - 1) {
         const tcs = parsed.calls.map((c, i) => ({ id: `text_${round}_${i}`, name: c.name, argStr: JSON.stringify(c.args) }))
@@ -547,7 +597,7 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
       if (parsed.unknown.length && !repaired && round < CONFIG.maxToolRounds - 1) {
         repaired = true
         const attempted = parsed.unknown[0]
-        const suggestion = nearestToolName(attempted, Object.keys(TOOLS))
+        const suggestion = nearestToolName(attempted, nomsOutils)
         messages.push({ role: 'system', content: `L'outil « ${attempted} » n'existe pas.${suggestion ? ` Le bon est « ${suggestion} ».` : ''} Émets un appel d'outil VALIDE (structuré), n'écris pas l'appel en texte.` } as Msg)
         continue
       }
@@ -578,8 +628,22 @@ export async function runAgent(p: RunAgentParams): Promise<RunAgentResult> {
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: blocks.map(b => b.kind), tokensIn: usage.in, tokensOut: usage.out },
       })
-      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils.
-      return { reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...blocks]))), toolsUsed, toolCalls: state.toolCalls }
+      // Bloc texte en tête, puis les cards (opportunités…) surfacées par les outils,
+      // puis la ligne de sources (règle v5) — la seule vraie réponse RÉDIGÉE par le modèle.
+      return {
+        reply,
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed }),
+            ]),
+          ),
+        ),
+        toolsUsed,
+        toolCalls: state.toolCalls,
+      }
     }
 
     // Intention détectée : Groq a choisi des outils.
@@ -629,7 +693,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
   const base: AgentBase = { sessionId: p.sessionId, cjsUid: p.cjsUid, role: p.roles[0] ?? null, centreId: p.centreId ?? null, canal: p.canal }
 
   // Garde-fou DÉTERMINISTE avant tout outil (danger → escalade ; P0 sécurité/CDP/injection ; P1 petites interactions).
-  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0)
+  const screen = preScreen(p.message, (p.history?.length ?? 0) === 0, p.cjsUid)
   if (screen) {
     if (screen.action === 'escalate') {
       const gstate: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
@@ -647,9 +711,16 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   const state: ToolLoopState = { toolsUsed: [], toolCalls: [], blocks: [], offeredAlternatives: false }
 
-  // Contextualisation graphe : au 1er tour, on injecte la lecture du graphe sur ce jeune.
-  const graphContext = p.graphContext ?? ((p.history?.length ?? 0) === 0 ? await buildGraphContext(p.cjsUid) : '')
-  const messages = buildMessages({ ...p, graphContext })
+  // Contextualisation graphe : injectée à CHAQUE tour (la traversée, elle, est mémoïsée
+  // 24 h — cf. graph-context.ts). Auparavant réservée au 1er tour, elle ne se déclenchait
+  // plus jamais pour un jeune actif (historique unifié glissant sur 7 j).
+  const graphContext = p.graphContext ?? (await loadOrBuildGraphContext(p.cjsUid))
+  // GUIC-706 — registre, définitions et prompt réduits à ce qui est réellement disponible
+  // pour cet interlocuteur, calculés en un seul endroit (cf. surface-outils.ts) : les deux
+  // chemins, direct et streaming, doivent offrir la même surface.
+  const { promptSysteme, definitions, nomsOutils } = await surfaceDisponible(p.roles)
+
+  const messages = buildMessages({ ...p, graphContext }, promptSysteme)
   await applyPendingWrite(p.sessionId, (p.history?.length ?? 0) === 0, messages)
 
   // Séparation ROUTAGE / SYNTHÈSE (cf. runAgent). En streaming, on ne DIFFUSE PAS les tokens de la
@@ -658,7 +729,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
   for (let round = 0; round < CONFIG.maxToolRounds; round++) {
     const t0 = Date.now()
-    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : SYSTEM_PROMPT } as Msg
+    messages[0] = { role: 'system', content: phase === 'route' ? ROUTER_PROMPT : promptSysteme } as Msg
     const temperature = phase === 'synth' ? params.temperature : CONFIG.temperature
     const tuning = sanitizeParamsForModel(model, {
       temperature,
@@ -669,7 +740,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
     const stream = await client.chat.completions.create({
       model,
       messages,
-      tools: TOOL_DEFINITIONS as unknown as OpenAI.Chat.ChatCompletionTool[],
+      tools: definitions as unknown as OpenAI.Chat.ChatCompletionTool[],
       tool_choice: 'auto',
       max_tokens: params.maxTokens,
       ...tuning,
@@ -709,7 +780,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
 
     // Aucun outil structuré. Récupération d'appels émis EN TEXTE (cf. runAgent, Llama MaaS).
     if (toolCalls.length === 0) {
-      const parsed = parseTextToolCalls(content, Object.keys(TOOLS))
+      const parsed = parseTextToolCalls(content, nomsOutils)
       // Fix 3 — plusieurs appels texte exécutés dans le même round (multi-tool).
       if (parsed.calls.length && round < CONFIG.maxToolRounds - 1) {
         const tcs = parsed.calls.map((c, i) => ({ id: `text_${round}_${i}`, name: c.name, argStr: JSON.stringify(c.args) }))
@@ -725,7 +796,7 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
       // Fix 3b — nom d'outil tenté mais inconnu → correction au modèle, relance une fois.
       if (parsed.unknown.length && round < CONFIG.maxToolRounds - 1) {
         const attempted = parsed.unknown[0]
-        const suggestion = nearestToolName(attempted, Object.keys(TOOLS))
+        const suggestion = nearestToolName(attempted, nomsOutils)
         messages.push({ role: 'system', content: `L'outil « ${attempted} » n'existe pas.${suggestion ? ` Le bon est « ${suggestion} ».` : ''} Émets un appel d'outil VALIDE (structuré).` } as Msg)
         continue
       }
@@ -743,7 +814,21 @@ export async function* streamAgent(p: RunAgentParams): AsyncGenerator<AgentStrea
         dureeMs: Date.now() - t0,
         payload: { longueur: reply.length, rounds: round, blocs: state.blocks.map(b => b.kind), stream: true },
       })
-      yield { type: 'done', reply, blocks: trimTextWhenCards(capOpportunites(dedupeBlocks([{ kind: 'text', text: reply }, ...state.blocks]))), toolsUsed: state.toolsUsed, toolCalls: state.toolCalls }
+      yield {
+        type: 'done',
+        reply,
+        blocks: trimTextWhenCards(
+          capOpportunites(
+            dedupeBlocks([
+              { kind: 'text', text: reply },
+              ...state.blocks,
+              ...sourcesBlocks({ graphContext, memo: p.memo, toolsUsed: state.toolsUsed }),
+            ]),
+          ),
+        ),
+        toolsUsed: state.toolsUsed,
+        toolCalls: state.toolCalls,
+      }
       return
     }
 

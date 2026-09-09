@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { lienMasque } from '@/lib/flags/ui'
 import { UserMenu } from '@/components/layout/UserMenu'
-import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
 import { Icon } from '@/components/ui/Icon'
 import type { CJSSession } from '@/types/user'
 
@@ -10,7 +10,6 @@ import type { CJSSession } from '@/types/user'
  *
  * Conforme à `design-guichet-v2/phone.jsx` TopBar :
  * - Logo Guichet (asset `/logo-guichet.png`) + subtitle optionnel
- * - Pill Yaye (YayeAvatar size 24 + badge "IA") → /jeune/yaye
  * - Cloche notifications avec badge unread
  * - Avatar utilisateur (initiales)
  * - Sticky top, bg-white, border-bottom, h-14
@@ -20,13 +19,18 @@ import type { CJSSession } from '@/types/user'
  * fourni, sinon un `<Link>` server.
  */
 export interface AppTopbarProps {
+  /**
+   * GUIC-706 — clés masquées pour ce visiteur. La barre supérieure porte un raccourci
+   * codé en dur vers les sauvegardes : c'est une navigation, elle doit se filtrer comme
+   * les autres.
+   */
+  masques?: readonly string[]
   session?: CJSSession
   subtitle?: string
   userInitials?: string
   unread?: number
   /** GUIC-447 — true si l'utilisateur a une photo (sinon pas de requête proxy). */
   hasPhoto?: boolean
-  onYayeClick?: () => void
   onBellClick?: () => void
   onUserClick?: () => void
 }
@@ -41,12 +45,12 @@ function deriveInitials(session?: CJSSession, explicit?: string): string {
 }
 
 export function AppTopbar({
+  masques = [],
   session,
   subtitle,
   userInitials,
   unread = 0,
   hasPhoto = false,
-  onYayeClick,
   onBellClick,
   onUserClick,
 }: AppTopbarProps) {
@@ -101,74 +105,14 @@ export function AppTopbar({
 
         {/* Actions droite */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Pill Yaye */}
-          {onYayeClick ? (
-            <button
-              type="button"
-              onClick={onYayeClick}
-              aria-label="Ouvrir Yaye, l'assistant IA"
-              className="inline-flex items-center gap-1.5 cursor-pointer"
-              style={{
-                padding: '5px 10px 5px 5px',
-                background: 'var(--gj-teal-deep)',
-                color: 'var(--gj-surface)',
-                border: 0,
-                borderRadius: 999,
-                fontSize: 11.5,
-                fontWeight: 800,
-                minHeight: 'var(--tap-min)',
-                minWidth: 'var(--tap-min)',
-              }}
-            >
-              <YayeAvatar size={24} />
-              <span
-                style={{
-                  background: 'var(--gj-yellow)',
-                  color: 'var(--gj-teal-deep)',
-                  fontSize: 8.5,
-                  fontWeight: 800,
-                  padding: '1px 4px',
-                  borderRadius: 999,
-                  letterSpacing: '.3px',
-                }}
-              >
-                IA
-              </span>
-            </button>
-          ) : (
-            <Link
-              href="/jeune/yaye"
-              aria-label="Ouvrir Yaye, l'assistant IA"
-              className="inline-flex items-center gap-1.5 no-underline"
-              style={{
-                padding: '5px 10px 5px 5px',
-                background: 'var(--gj-teal-deep)',
-                color: 'var(--gj-surface)',
-                borderRadius: 999,
-                fontSize: 11.5,
-                fontWeight: 800,
-                minHeight: 'var(--tap-min)',
-                minWidth: 'var(--tap-min)',
-              }}
-            >
-              <YayeAvatar size={24} />
-              <span
-                style={{
-                  background: 'var(--gj-yellow)',
-                  color: 'var(--gj-teal-deep)',
-                  fontSize: 8.5,
-                  fontWeight: 800,
-                  padding: '1px 4px',
-                  borderRadius: 999,
-                  letterSpacing: '.3px',
-                }}
-              >
-                IA
-              </span>
-            </Link>
-          )}
+          {/* GUIC-689 — pastille Yaye RETIRÉE : règle non négociable du handoff
+              v5, « un seul point d'entrée IA permanent par écran », et ce point
+              d'entrée est le bouton flottant (design-guichet-v5/phone.jsx:106).
+              Elle ouvrait en plus une expérience différente du FAB (page plein
+              écran vs drawer). Voir tests/unit/yaye-point-entree-unique.test.tsx */}
 
           {/* Favoris (cœur) — accès rapide depuis le mobile (GUIC-367) */}
+          {!lienMasque('/jeune/mes-favoris', masques) && (
           <Link
             href="/jeune/mes-favoris"
             aria-label="Mes favoris"
@@ -181,6 +125,7 @@ export function AppTopbar({
           >
             <Icon name="heart" size={20} />
           </Link>
+          )}
 
           {/* Bell notifications */}
           {onBellClick ? (

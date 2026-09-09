@@ -30,6 +30,12 @@ interface EmptyStateProps {
   actionLabel?: string
   /** @deprecated Préférer `actions`. */
   onAction?: () => void
+  /**
+   * GUIC-689 (Lot D4) — `'inline'` (défaut, inchangé) : actions côte à côte.
+   * `'fullpage'` : actions empilées pleine largeur (48-50px), comme
+   * `FullPageState`/`StateBlock` — pour un état vide occupant tout l'écran.
+   */
+  layout?: 'inline' | 'fullpage'
 }
 
 /**
@@ -41,6 +47,10 @@ interface EmptyStateProps {
  *
  * Rétro-compatibilité : `icon` + `actionLabel`/`onAction` restent valides ;
  * `illustration` les écrase si fournie. `actions` prime sur `actionLabel`.
+ *
+ * `layout` (GUIC-689, Lot D4) : `'inline'` par défaut (comportement
+ * inchangé) ; `'fullpage'` empile les actions pleine largeur (48-50px de
+ * haut) pour un état vide occupant tout l'écran.
  */
 export function EmptyState({
   illustration,
@@ -51,6 +61,7 @@ export function EmptyState({
   actions,
   actionLabel,
   onAction,
+  layout = 'inline',
 }: EmptyStateProps) {
   // Choix du visuel : illustration > icon > emoji (legacy).
   const showIllustration = illustration !== undefined || (!icon && !emoji)
@@ -90,15 +101,22 @@ export function EmptyState({
         )}
       </div>
       {effectiveActions.length > 0 && (
-        <div className="flex gap-[10px]" style={{ marginTop: 6 }}>
+        <div
+          className={layout === 'fullpage' ? 'flex flex-col gap-[10px] w-full' : 'flex gap-[10px]'}
+          style={{ marginTop: 6 }}
+        >
           {effectiveActions.map((a, i) => (
             <button
               key={`${a.label}-${i}`}
               onClick={a.onClick}
               className={
-                a.variant === 'outline'
-                  ? 'bg-white text-gj-teal-deep border-[1.5px] border-gj-line rounded-gj-md font-bold text-fs-300 min-h-[var(--tap-min)] px-space-4 cursor-pointer'
-                  : 'bg-gj-teal-deep text-white rounded-gj-md font-black text-fs-300 min-h-[var(--tap-min)] px-space-4 cursor-pointer border-0'
+                layout === 'fullpage'
+                  ? a.variant === 'outline'
+                    ? 'bg-white text-gj-teal-deep border-[1.5px] border-gj-line rounded-gj-lg font-bold text-fs-300 min-h-[48px] w-full cursor-pointer'
+                    : 'bg-gj-teal-deep text-white rounded-gj-lg font-black text-fs-300 min-h-[50px] w-full cursor-pointer border-0'
+                  : a.variant === 'outline'
+                    ? 'bg-white text-gj-teal-deep border-[1.5px] border-gj-line rounded-gj-md font-bold text-fs-300 min-h-[var(--tap-min)] px-space-4 cursor-pointer'
+                    : 'bg-gj-teal-deep text-white rounded-gj-md font-black text-fs-300 min-h-[var(--tap-min)] px-space-4 cursor-pointer border-0'
               }
             >
               {a.label}

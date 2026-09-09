@@ -36,6 +36,7 @@ import type {
   Domaine,
   Region,
   StatutOpportunite,
+  NiveauEtudes,
 } from '@prisma/client'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
@@ -49,7 +50,6 @@ import type { OpportuniteListItem } from '@/types/opportunite'
  */
 export interface OpportuniteRow extends Opportunite {
   typeRef?: OpportuniteType | null
-  programme?: Programme | null
   emploi?: OpportuniteEmploi | null
   stage?: OpportuniteStage | null
   formation?: OpportuniteFormation | null
@@ -62,6 +62,8 @@ export interface OpportuniteRow extends Opportunite {
   volontariat?: OpportuniteVolontariat | null
   skills?: (OpportuniteSkill & { skill: Skill })[]
   tags?: (OpportuniteTag & { tag: Tag })[]
+  /** Rattachements M:N (GUIC-684) — source de vérité, `programme` n'est qu'un repli. */
+  programmes?: { principal: boolean; programme: Programme }[]
 }
 
 // ─────────────────────────────────────────────
@@ -137,9 +139,18 @@ export interface OpportuniteDetailDTO {
   lienExterne: string | null
   vues: number
   statut: StatutOpportunite
+  // GUIC-689 — champ racine générique (colonne `niveau_etude_min`), déjà exposé côté
+  // export Data Hub (`toOpportuniteExportDTO`) mais manquant ici. Sert de repli d'affichage
+  // pour les sous-types qui n'ont pas leur propre champ de niveau (concours, appel à projets,
+  // financement, mentorat, mobilité, volontariat, formation) ; emploi/stage/bourse ont
+  // chacun leur propre champ de niveau sous `details.payload`, prioritaire sur celui-ci.
+  niveauEtudeMin: NiveauEtudes | null
 
   // Champs polymorphiques (additifs — null si row non encore migrée)
+  /** Programme principal — contrat historique préservé, servi depuis la jonction. */
   programme: ProgrammeRefDTO | null
+  /** Tous les programmes de rattachement (GUIC-684 — M:N). */
+  programmes: ProgrammeRefDTO[]
   typeSlug: SousTypeSlug | null   // `OpportuniteType.slug`
   actionLabel: string | null      // depuis OpportuniteType.actionLabel
   requiresFileUpload: boolean
@@ -156,6 +167,40 @@ export interface OpportuniteDetailDTO {
 function toIso(value: Date | string | null | undefined): string | null {
   if (!value) return null
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
+}
+
+/**
+ * Écarte les liens de jonction dont l'entité pointée a disparu.
+ *
+ * Constaté en base : `opportunites_tags` porte 1 438 lignes référençant un tag
+ * inexistant, touchant 1 357 offres sur 4 340. Les contraintes FK existent pourtant —
+ * le dump a été chargé avec `FOREIGN_KEY_CHECKS=0`, elles n'ont donc pas joué au
+ * chargement. Sans cette garde, `row.tags[i].tag.slug` lève et l'export entier rend 500
+ * dès qu'une page contient une offre concernée.
+ *
+ * Un rattachement cassé doit dégrader la sortie, pas la faire échouer — et il ne doit
+ * pas emporter les rattachements valides de la même ligne.
+ */
+function liensValides<T, K extends keyof T>(liens: T[] | undefined, cle: K): T[] {
+  return (liens ?? []).filter((lien) => lien[cle] != null)
+}
+
+/**
+ * Rattachements aux programmes (GUIC-684). La jonction M:N est la SEULE source :
+ * la colonne `programme_id` a été supprimée après recopie de son contenu.
+ */
+function programmesRefs(row: OpportuniteRow): ProgrammeRefDTO[] {
+  return liensValides(row.programmes, 'programme').map((r) => ({
+    slug: r.programme.slug,
+    nom: r.programme.nom,
+  }))
+}
+
+/** Programme principal — celui affiché quand une seule place est disponible. */
+function programmePrincipalRef(row: OpportuniteRow): ProgrammeRefDTO | null {
+  const rattachements = liensValides(row.programmes, 'programme')
+  const principal = rattachements.find((r) => r.principal) ?? rattachements[0]
+  return principal ? { slug: principal.programme.slug, nom: principal.programme.nom } : null
 }
 
 /** Renvoie le nom d'organisation : preferentiellement `organisationLibelle` (nouveau), sinon legacy. */
@@ -220,15 +265,15 @@ export function toOpportuniteListItemArray(rows: OpportuniteRow[]): OpportuniteL
 export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDTO {
   const sub = pickSousType(row)
   const typeSlug = (row.typeRef?.slug as SousTypeSlug | undefined) ?? null
-  const programme = row.programme
-    ? { slug: row.programme.slug, nom: row.programme.nom }
-    : null
-  const skills: SkillRefDTO[] = (row.skills ?? []).map((s) => ({
+  const programmes = programmesRefs(row)
+  // Contrat préservé : `programme` (singulier) = le PRINCIPAL des rattachements.
+  const programme = programmePrincipalRef(row)
+  const skills: SkillRefDTO[] = liensValides(row.skills, 'skill').map((s) => ({
     slug: s.skill.slug,
     libelle: s.skill.libelle,
     requise: s.requise,
   }))
-  const tags: TagRefDTO[] = (row.tags ?? []).map((t) => ({
+  const tags: TagRefDTO[] = liensValides(row.tags, 'tag').map((t) => ({
     slug: t.tag.slug,
     libelle: t.tag.libelle,
   }))
@@ -249,7 +294,9 @@ export function toOpportuniteDetailDTO(row: OpportuniteRow): OpportuniteDetailDT
     lienExterne: row.lienExterne ?? null,
     vues: row.vues,
     statut: row.statut,
+    niveauEtudeMin: row.niveauEtudeMin ?? null,
     programme,
+    programmes,
     typeSlug,
     actionLabel: row.typeRef?.actionLabel ?? null,
     requiresFileUpload: row.typeRef?.requiresFileUpload ?? false,
@@ -271,7 +318,8 @@ export interface OpportuniteExportDTO {
   titre: string
   description: string
   type: string                       // typeRef.slug si présent, sinon type legacy en lowercase
-  programme_slug: string | null
+  programme_slug: string | null      // programme PRINCIPAL — contrat historique
+  programmes_slugs: string[]         // tous les rattachements (GUIC-684)
   domaine: string
   region: string | null
   organisation: string
@@ -375,7 +423,18 @@ function decimalToNumber(v: unknown): number | null {
   return null
 }
 
-/** Mapping Data Hub — toutes colonnes présentes, `null` quand non applicable. */
+/**
+ * Mapping Data Hub aplati (DP7) — toutes colonnes présentes, `null` quand non applicable.
+ *
+ * ⚠ PLUS AUCUN APPELANT dans `src/` depuis que `/api/v1/export/opportunites` est servi par
+ * la route pilotée par le contrat (M13, lot 5). Le contrat exporte 18 colonnes métier là
+ * où ce mapping en produisait 76, dont les colonnes de sous-type polymorphique.
+ *
+ * Conservé plutôt que supprimé : ces colonnes redeviendront nécessaires si le Data Hub
+ * demande le détail des sous-types, et les retrouver demanderait de réécrire ce mapping.
+ * Sa suppression — avec les ~250 lignes de tests qui le couvrent — mérite sa propre revue
+ * plutôt que d'être glissée dans un correctif.
+ */
 export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDTO {
   const typeSlug = row.typeRef?.slug ?? row.type.toLowerCase()
   const e = row.emploi
@@ -394,7 +453,8 @@ export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDT
     titre: row.titre,
     description: row.description,
     type: typeSlug,
-    programme_slug: row.programme?.slug ?? null,
+    programme_slug: programmePrincipalRef(row)?.slug ?? null,
+    programmes_slugs: programmesRefs(row).map((p) => p.slug),
     domaine: row.domaine,
     region: row.region ?? null,
     organisation: organisationLabel(row),
@@ -473,8 +533,8 @@ export function toOpportuniteExportDTO(row: OpportuniteRow): OpportuniteExportDT
     volontariat_domaine_mission:          vo?.domaineMission ?? null,
     volontariat_places_disponibles:       vo?.placesDisponibles ?? null,
 
-    skills: (row.skills ?? []).map((s) => s.skill.slug),
-    tags: (row.tags ?? []).map((t) => t.tag.slug),
+    skills: liensValides(row.skills, 'skill').map((s) => s.skill.slug),
+    tags: liensValides(row.tags, 'tag').map((t) => t.tag.slug),
   }
 }
 

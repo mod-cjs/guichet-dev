@@ -2,14 +2,19 @@
 #
 # Chaque règle porte un label `severite` :
 #   alerte         -> on réveille quelqu'un, maintenant ;
-#   avertissement  -> on regarde demain.
+#   avertissement  -> on regarde demain ;
+#   rappel         -> une décision assumée (ex. pause volontaire), pas une panne — cadence
+#                     hebdomadaire (notification-policies.yml), pour ne pas disparaître des
+#                     radars sans fatiguer personne (GUIC-571).
 # Sans cette distinction, tout devient urgent, donc plus rien ne l'est.
 #
 # ⚠️ NE SONT ÉCRITES ICI QUE LES RÈGLES DONT LE SIGNAL EXISTE. Une alerte branchée sur un signal
 # absent ne se déclenche jamais et donne une fausse sécurité — pire que pas d'alerte du tout,
 # parce qu'on croit être couvert.
-#   - Saturation disque et mémoire -> **Netdata** (GUIC-545), pas Loki : ce sont des métriques
-#     machine, elles n'apparaissent dans aucun log. Les seuils y sont définis, pas ici.
+#   - Saturation disque et mémoire -> **Netdata → Prometheus** (GUIC-545) : ce sont des métriques
+#     machine, elles n'apparaissent dans aucun log — Loki ne peut pas les voir. Les seuils sont
+#     ci-dessous (groupe guichet-machine), contre les noms de métriques vérifiés en réel
+#     (`curl http://127.0.0.1:19999/api/v1/allmetrics?format=prometheus`), pas devinés.
 #   - Indisponibilité totale -> **sonde externe** (GUIC-575) : Grafana meurt avec le serveur.
 
 apiVersion: 1
@@ -172,6 +177,13 @@ groups:
       # Un échec isolé arrive (réseau, verrou). Trois en une heure, c'est une panne. Parmi ces
       # tâches : la purge des CV, qui porte la rétention CDP — son arrêt est un manquement
       # réglementaire que rien d'autre ne signalerait.
+      #
+      # GUIC-576/700 — s'appuie sur le label `marqueur="✗"` (posé par promtail.yml sur
+      # CHAQUE ligne d'échec de /var/log/guichet/*.log), pas sur une regex qui redétecte le
+      # contenu. Trouvé en configurant réellement les alertes : l'ancienne regex
+      # `(?i)(erreur|error|failed|échec)` ne matchait ni « ÉCHOUÉE », ni « ÉCHOUÉ », ni
+      # « ÉCART » — le vocabulaire RÉEL de scripts/etl/lib-log.sh (run-nightly.sh,
+      # purge-absents-weekly.sh) — laissant le pipeline ETL échouer en silence.
       - uid: guichet-cron-echecs-repetes
         title: Échecs répétés d'une tâche planifiée
         condition: C
@@ -189,7 +201,7 @@ groups:
             datasourceUid: loki
             model:
               datasource: { type: loki, uid: loki }
-              expr: 'sum(count_over_time({job="guichet-taches"} |~ "(?i)(erreur|error|failed|échec)" [1h]))'
+              expr: 'sum(count_over_time({job="guichet-taches", marqueur="✗"} [1h]))'
               queryType: instant
               refId: A
           - refId: C
@@ -199,6 +211,328 @@ groups:
               expression: A
               conditions:
                 - evaluator: { type: gt, params: [2] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+      # ── Échec du pipeline ETL Data Hub (GUIC-700) ─────────────────────────
+      # Réveil immédiat, pas de tolérance à 3 occurrences : contrairement à une tâche
+      # applicative isolée, un run ETL en échec signifie que l'entrepôt reçoit des données
+      # périmées ou incomplètes SANS QUE RIEN NE LE SIGNALE côté consommateurs BI — même
+      # philosophie que « sauvegarde échec » ci-dessus (irrattrapable si on laisse traîner).
+      # Filtré sur « [datahub] », le marqueur littéral que lib-log.sh écrit sur CHAQUE ligne
+      # (run-nightly.sh : extraction, dbt build, réconciliation ; purge-absents-weekly.sh),
+      # pour ne jamais se déclencher sur un échec de cron applicatif sans rapport.
+      - uid: guichet-etl-echec
+        title: Échec du pipeline ETL Data Hub
+        condition: C
+        for: 0m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Le pipeline ETL Data Hub (nightly ou purge hebdomadaire) a échoué.'
+          description: >-
+            Voir /var/log/guichet/datahub-nightly.log et datahub-purge-absents.log.
+            L'entrepôt peut désormais servir des données périmées ou incomplètes aux
+            consommateurs BI — ne pas attendre le prochain run programmé.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches", marqueur="✗"} |= "[datahub]" [1h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+  - orgId: 1
+    name: guichet-machine
+    folder: Guichet
+    interval: 1m
+    rules:
+      # ── Saturation disque (GUIC-545) ──────────────────────────────────────
+      # « Un disque plein arrête les trois plateformes » (SSO + BRM + Guichet, serveur
+      # mutualisé, docker-compose.prod.yml). Filtré sur mount_point="/" précisément : Netdata
+      # expose aussi des pseudo-systèmes de fichiers noyau (efivarfs, bpf, tracefs, pstore,
+      # configfs — tous à 0 GiB), les inclure pollue le calcul du taux réel.
+      - uid: guichet-disque-alerte
+        title: Disque presque plein
+        condition: C
+        for: 5m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Plus de 90 % du disque racine est utilisé.'
+          description: >-
+            Voir Netdata (tableau de bord, disque). Purger les sauvegardes/dumps obsolètes
+            (scripts/backup/README.md rétention) avant tout — un disque plein bloque
+            migrations, sauvegardes ET logs en même temps.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              # GUIC-712 — vécu en réel (20/08) : sans ignoring(dimension), Prometheus exige
+              # des labels IDENTIQUES des deux côtés d'une opération binaire (sauf __name__).
+              # dimension="used" et dimension="avail" diffèrent, donc used/(used+avail) ne
+              # trouve AUCUNE paire à apparier et renvoie un vecteur VIDE systématiquement —
+              # avec noDataState: Alerting (ci-dessous), l'alerte se déclenchait en continu,
+              # sans lien avec le vrai taux de disque.
+              expr: >-
+                netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                / ignoring(dimension)
+                (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                 + ignoring(dimension) netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                * 100
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [90] }
+              refId: C
+        # Absence de données = Prometheus/Netdata ne répondent plus — en soi un incident de
+        # supervision (vécu en réel ce jour : les deux ont tourné en boucle de redémarrage
+        # plusieurs dizaines de minutes sans que rien ne le signale).
+        noDataState: Alerting
+        execErrState: Error
+
+      - uid: guichet-disque-avertissement
+        title: Disque en hausse
+        condition: C
+        for: 15m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Plus de 80 % du disque racine est utilisé — tendance à surveiller.'
+          description: 'À regarder demain si ça persiste, avant que ça devienne critique.'
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              # GUIC-712 — même correctif que guichet-disque-alerte ci-dessus : sans
+              # ignoring(dimension), la division ne trouve aucune paire de séries à apparier
+              # (labels dimension="used" vs "avail" différents) et renvoie un vecteur vide.
+              expr: >-
+                netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                / ignoring(dimension)
+                (netdata_disk_space_GiB_average{mount_point="/",dimension="used"}
+                 + ignoring(dimension) netdata_disk_space_GiB_average{mount_point="/",dimension="avail"})
+                * 100
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [80] }
+              refId: C
+        noDataState: Alerting
+        execErrState: Error
+
+      # ── Mémoire disponible (GUIC-545) ──────────────────────────────────────
+      # `available`, pas `used`/`free` bruts : le cache et les buffers comptent comme
+      # « utilisés » dans ces derniers alors qu'ils sont récupérables à la demande — piège
+      # observé en réel avec l'alerte swap de Netdata (99,9 % swap plein, mais 15 Gio
+      # disponibles, aucun incident réel). `available` est ce que le noyau donnerait
+      # effectivement à une nouvelle application, mêmes seuils absolus (Gio) que `free -h`.
+      - uid: guichet-memoire-alerte
+        title: Mémoire disponible critique
+        condition: C
+        for: 5m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'Moins de 3 Gio de mémoire disponible sur le serveur mutualisé.'
+          description: >-
+            Voir Netdata (tableau de bord, mémoire par conteneur) pour identifier quel
+            service consomme — SSO, BRM et Guichet partagent cette machine.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: 'netdata_mem_available_MiB_average{chart="mem.available",dimension="avail"}'
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [3072] } # 3 Gio
+              refId: C
+        noDataState: Alerting
+        execErrState: Error
+
+      - uid: guichet-memoire-avertissement
+        title: Mémoire disponible en baisse
+        condition: C
+        for: 15m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'Moins de 6 Gio de mémoire disponible — tendance à surveiller.'
+          description: 'À regarder demain si ça persiste, avant que ça devienne critique.'
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              datasource: { type: prometheus, uid: prometheus }
+              expr: 'netdata_mem_available_MiB_average{chart="mem.available",dimension="avail"}'
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [6144] } # 6 Gio
+              refId: C
+        noDataState: Alerting
+        execErrState: Error
+
+  - orgId: 1
+    name: guichet-rappels
+    folder: Guichet
+    interval: 5m
+    rules:
+      # ── Rappel — sauvegarde MinIO en pause (GUIC-571) ─────────────────────
+      # Décision du 17/08 : la clé applicative S3 est refusée par MinIO (Access Denied, à
+      # investiguer) et aucun stockage externe n'est encore choisi — plutôt que d'échouer
+      # chaque nuit (ce que backup.sh faisait avant, en `exit 4` fatal pour tout le script,
+      # coupant aussi la purge et la copie hors-site de la partie MariaDB qui, elle, marche),
+      # S3_ENDPOINT/S3_BUCKET sont retirés de test.env : backup.sh utilise alors son propre
+      # chemin de sortie propre déjà existant (« MinIO non configuré → sauvegarde objet
+      # ignorée », backup.sh backup_minio()) — pas une erreur, un choix.
+      # C'est ce choix que cette règle rappelle, une fois par semaine, pour qu'il ne devienne
+      # pas une dette oubliée. `severite: rappel`, pas `alerte` : pas de raison de réveiller
+      # quelqu'un pour une décision déjà prise et assumée.
+      - uid: guichet-minio-pause-rappel
+        title: 'Rappel : sauvegarde MinIO toujours en pause'
+        condition: C
+        for: 0m
+        labels:
+          severite: rappel
+        annotations:
+          summary: 'La sauvegarde MinIO (CV/justificatifs) est en pause depuis le 17/08/2026.'
+          description: >-
+            Décision assumée, pas une panne : clé applicative S3 refusée (Access Denied),
+            pas de stockage externe encore choisi. Les CV et justificatifs (données
+            personnelles CDP) ne sont pas sauvegardés tant que ce n'est pas réglé.
+            Voir docs/ops-index.md.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 93600, to: 0 } # 26h, même fenêtre que sauvegarde-absente
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "MinIO non configuré" [26h]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+              refId: C
+        # OK, pas Alerting : l'absence totale de ligne de sauvegarde relève déjà de
+        # guichet-sauvegarde-absente — pas la peine de le redire ici.
+        noDataState: OK
+        execErrState: Error
+
+      # ── Escalade si la pause dure vraiment (GUIC-571, challenge du 19/08) ─────
+      # Un rappel hebdomadaire SANS échéance peut sonner indéfiniment sans jamais forcer de
+      # décision — la dette ne se résout jamais parce que rien ne l'escalade. backup.sh
+      # tourne une fois par nuit : sur une fenêtre de 14/30 jours, le nombre d'occurrences du
+      # marqueur mesure directement depuis combien de temps la pause dure (pas juste « existe
+      # encore aujourd'hui », comme le fait guichet-minio-pause-rappel ci-dessus).
+      - uid: guichet-minio-pause-avertissement
+        title: 'Pause MinIO : 2 semaines sans résolution'
+        condition: C
+        for: 0m
+        labels:
+          severite: avertissement
+        annotations:
+          summary: 'La sauvegarde MinIO est en pause depuis environ 2 semaines, sans résolution.'
+          description: >-
+            La pause du 17/08 (clé S3 refusée) dure depuis suffisamment longtemps pour ne plus
+            être un simple rappel — CV/justificatifs (données CDP) non sauvegardés tout ce
+            temps. Voir docs/ops-index.md.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1209600, to: 0 } # 14 jours
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "MinIO non configuré" [14d]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              # >=10 sur 14 jours : tolère quelques nuits sans run (contention, redéploiement)
+              # sans jamais permettre de se déclencher sur un début de pause tout juste amorcé.
+              conditions:
+                - evaluator: { type: gte, params: [10] }
+              refId: C
+        noDataState: OK
+        execErrState: Error
+
+      - uid: guichet-minio-pause-alerte
+        title: 'Pause MinIO : 1 mois sans résolution'
+        condition: C
+        for: 0m
+        labels:
+          severite: alerte
+        annotations:
+          summary: 'La sauvegarde MinIO est en pause depuis environ 1 mois, sans résolution.'
+          description: >-
+            Un mois de données personnelles (CV/justificatifs) non sauvegardées est un vrai
+            risque, plus une dette qu'on peut se permettre de laisser filer. Voir
+            docs/ops-index.md.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 2592000, to: 0 } # 30 jours
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: 'sum(count_over_time({job="guichet-taches"} |= "MinIO non configuré" [30d]))'
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gte, params: [20] }
               refId: C
         noDataState: OK
         execErrState: Error

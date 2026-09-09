@@ -45,10 +45,10 @@ describe('GET /api/opportunites — multi-select GUIC-256', () => {
     expect(filtres.type).toEqual(['Emploi', 'Stage'])
   })
 
-  it('multi-select domaine — ?domaine=Numerique&domaine=Agriculture', async () => {
-    await GET(buildRequest('domaine=Numerique&domaine=Agriculture'))
+  it('multi-select domaine — ?domaine=Economie&domaine=Economie', async () => {
+    await GET(buildRequest('domaine=Economie&domaine=Economie'))
     const filtres = mockListOpportunites.mock.calls[0][0]
-    expect(filtres.domaine).toEqual(['Numerique', 'Agriculture'])
+    expect(filtres.domaine).toEqual(['Economie', 'Economie'])
   })
 
   it('valeur invalide silencieusement ignorée — ?type=Emploi&type=NotAType', async () => {
@@ -66,10 +66,10 @@ describe('GET /api/opportunites — multi-select GUIC-256', () => {
   })
 
   it('combine multi-select sur les 3 dimensions', async () => {
-    await GET(buildRequest('type=Emploi&type=Stage&domaine=Numerique&domaine=Agriculture&region=Dakar&region=Thies'))
+    await GET(buildRequest('type=Emploi&type=Stage&domaine=Economie&domaine=Economie&region=Dakar&region=Thies'))
     const filtres = mockListOpportunites.mock.calls[0][0]
     expect(filtres.type).toEqual(['Emploi', 'Stage'])
-    expect(filtres.domaine).toEqual(['Numerique', 'Agriculture'])
+    expect(filtres.domaine).toEqual(['Economie', 'Economie'])
     expect(filtres.region).toEqual(['Dakar', 'Thies'])
   })
 })

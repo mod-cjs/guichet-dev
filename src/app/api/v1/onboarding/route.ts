@@ -164,6 +164,9 @@ export async function PUT(request: NextRequest) {
         situationHandicap: (data.situationHandicap as Handicap | null) ?? null,
         zoneHabitation:    (data.zoneHabitation as ZoneHabitation | null) ?? null,
         domainesInteret: data.domainesInteret ?? [],
+        // GUIC-689 — l'intention exprimée à l'inscription, qui se perdait quand
+        // tout était forcé dans les secteurs.
+        typesRecherches: data.typesRecherches ?? [],
         completionScore: score,
       },
       create: {
@@ -173,6 +176,7 @@ export async function PUT(request: NextRequest) {
         situationHandicap: (data.situationHandicap as Handicap | null) ?? null,
         zoneHabitation:    (data.zoneHabitation as ZoneHabitation | null) ?? null,
         domainesInteret: data.domainesInteret ?? [],
+        typesRecherches: data.typesRecherches ?? [],
         completionScore: score,
       },
     })

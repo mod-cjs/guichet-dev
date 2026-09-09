@@ -15,6 +15,9 @@ import type {
   StatutCandidature,
   TypeOpportunite,
   Domaine,
+  Region,
+  ModeEntretien,
+  StatutEntretien,
 } from '@prisma/client'
 
 export interface CandidatureDetailDTO {
@@ -24,6 +27,17 @@ export interface CandidatureDetailDTO {
   cvUrl: string | null
   soumiseA: string // ISO 8601
   updatedAt: string // ISO 8601
+  /**
+   * GUIC-689 (É-13) — entretien le plus proche rattaché à cette candidature,
+   * `null` s'il n'y en a pas. Seul un entretien PLANIFIÉ constitue une
+   * prochaine étape : un entretien annulé n'en est pas une.
+   */
+  entretien: {
+    dateHeure: string // ISO 8601
+    mode: ModeEntretien
+    statut: StatutEntretien
+    lieu: string | null
+  } | null
   opportunite: {
     slug: string
     titre: string
@@ -32,6 +46,10 @@ export interface CandidatureDetailDTO {
     type: TypeOpportunite
     domaine: Domaine
     description: string
+    /** GUIC-689 (É-13) — nullable en base : absent = ligne masquée, jamais un tiret. */
+    region: Region | null
+    /** Texte libre en base (« 150 000 FCFA », « Non rémunéré »…), jamais un nombre. */
+    remuneration: string | null
   }
 }
 
@@ -64,7 +82,15 @@ export async function loadCandidatureDetail(
           type: true,
           domaine: true,
           description: true,
+          region: true,
+          remuneration: true,
         },
+      },
+      // Le plus proche dans le temps : c'est celui qui informe la prochaine étape.
+      entretiens: {
+        orderBy: { dateHeure: 'asc' },
+        take: 1,
+        select: { dateHeure: true, mode: true, statut: true, lieu: true },
       },
     },
   })
@@ -78,6 +104,14 @@ export async function loadCandidatureDetail(
     cvUrl: row.cvUrl,
     soumiseA: row.soumiseA.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    entretien: row.entretiens[0]
+      ? {
+          dateHeure: row.entretiens[0].dateHeure.toISOString(),
+          mode: row.entretiens[0].mode,
+          statut: row.entretiens[0].statut,
+          lieu: row.entretiens[0].lieu,
+        }
+      : null,
     opportunite: {
       slug: row.opportunite.slug,
       titre: row.opportunite.titre,
@@ -86,6 +120,8 @@ export async function loadCandidatureDetail(
       type: row.opportunite.type,
       domaine: row.opportunite.domaine,
       description: row.opportunite.description,
+      region: row.opportunite.region,
+      remuneration: row.opportunite.remuneration,
     },
   }
 }

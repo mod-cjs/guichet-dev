@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { Icon } from '@/components/ui/Icon'
 
 export const metadata: Metadata = { title: 'Connexion' }
 
@@ -13,12 +14,20 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ error?: string }>
+  /** `next` — destination de retour après connexion (GUIC-689). Validée
+   *  côté serveur par `safeReturnTo` ; cette page ne fait que la porter. */
+  searchParams: Promise<{ error?: string; next?: string }>
 }
 
 export default async function ConnexionPage({ searchParams }: Props) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
   const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Une erreur est survenue.') : null
+
+  // GUIC-689 — on porte la destination de retour jusqu'à /api/auth/login, qui
+  // la valide (`safeReturnTo`) avant de la confier au cookie du flux OAuth.
+  const lienSso = next
+    ? `/api/auth/login?next=${encodeURIComponent(next)}`
+    : '/api/auth/login'
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-color-bg-page px-space-4">
@@ -52,10 +61,7 @@ export default async function ConnexionPage({ searchParams }: Props) {
             'Un accompagnement personnalisé par Yaye',
           ].map(item => (
             <li key={item} className="flex items-start gap-space-2 text-fs-200 text-color-text-secondary">
-              <svg className="w-4 h-4 text-gj-teal mt-[2px] flex-shrink-0" viewBox="0 0 20 20"
-                fill="currentColor" aria-hidden>
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
+              <Icon name="check" size={16} className="text-gj-teal mt-[2px] flex-shrink-0" />
               {item}
             </li>
           ))}
@@ -64,20 +70,22 @@ export default async function ConnexionPage({ searchParams }: Props) {
         {errorMessage && (
           <div
             role="alert"
-            className="mb-space-4 rounded-gj-md bg-red-50 border border-gj-red/30
-              px-space-3 py-space-2 text-fs-200 text-gj-red text-left"
+            className="mb-space-4 rounded-gj-md bg-gj-red-soft border border-gj-red
+              px-space-3 py-space-2 text-fs-200 text-gj-red-ink text-left"
           >
             {errorMessage}
           </div>
         )}
 
-        {/* Bouton SSO — redirige vers /api/auth/login (PKCE côté serveur) */}
+        {/* Bouton SSO — redirige vers /api/auth/login (PKCE côté serveur).
+            Une connexion n'est pas un CTA de conversion : teal-deep en base
+            (réf auth-screens.jsx:59), jamais gj-action/gj-teal. */}
         <a
-          href="/api/auth/login"
+          href={lienSso}
           className="flex items-center justify-center gap-space-2 w-full
-            bg-gj-teal text-white font-bold text-fs-400 rounded-gj-md
+            bg-gj-teal-deep text-white font-bold text-fs-400 rounded-gj-md
             min-h-[var(--tap-min)] px-space-4
-            hover:bg-gj-teal-deep transition-colors no-underline"
+            hover:bg-gj-teal-deep-2 transition-colors no-underline"
         >
           Continuer avec mon compte CJS
         </a>

@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { reprojectAll } from '@/lib/ia/graph/projection/project'
+import { warmOpportuniteVectors, warmSkillVectors } from '@/lib/ia/search-warmup'
 import type { ApiResponse } from '@/types/api'
 
 // Reprojection complète : peut être longue sur gros volumes.
@@ -32,13 +33,21 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
   try {
     const report = await reprojectAll({ wipe: true })
+    // Préchauffage des vecteurs du catalogue (GUIC-683) : c'est ici qu'on paie la
+    // vectorisation, jamais sur le chemin de réponse. Fail-soft, jamais bloquant.
+    // Le référentiel de compétences d'abord : il sert le chemin de RÉPONSE, qui ne
+    // vectorise plus rien à chaud (vague 2.2). Quelques centaines de libellés.
+    const competences = await warmSkillVectors()
+    const warmup = await warmOpportuniteVectors()
     logger.info('cron/yaye-graph-sync ok', {
       backend: report.backend,
       durationMs: report.durationMs,
       noeuds: Object.values(report.nodes).reduce((a, b) => a + b, 0),
       relations: Object.values(report.relations).reduce((a, b) => a + b, 0),
+      vecteursCatalogue: warmup.vecteurs,
+      vecteursCompetences: competences,
     })
-    return NextResponse.json({ data: report })
+    return NextResponse.json({ data: { ...report, warmup: { ...warmup, competences } } })
   } catch (err) {
     logger.error('cron/yaye-graph-sync failed', {
       error: err instanceof Error ? err.message : String(err),

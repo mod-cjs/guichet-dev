@@ -17,7 +17,7 @@ const TYPE_META: Record<
   TypeRessourceValue,
   { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green'; cta: string }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red',    cta: 'Télécharger' },
+  PDF:   { icon: 'document', bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'blue',   cta: 'Télécharger' },
   Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue',   cta: 'Regarder'    },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal',   cta: 'Ouvrir'      },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow', cta: 'Lire'        },
@@ -34,8 +34,12 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
   // la lecture visuelle.
   const detailHref = `/ressources/${item.id}`
 
+  // GUIC-689 — `h-full` : dans une étagère, le flex étire les `li` à la
+  // hauteur du plus grand, mais la carte ne suivait pas. Mesuré au rendu, les
+  // cartes allaient de 153 à 200px dans des emplacements de 200 — le bas de
+  // l'étagère était irrégulier et une carte brève se lisait comme amputée.
   return (
-    <Card variant="opportunite" className="relative flex gap-space-3">
+    <Card variant="opportunite" className="relative flex gap-space-3 h-full">
       <a
         href={detailHref}
         aria-label={`Voir la ressource : ${item.titre}`}
@@ -51,33 +55,56 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
 
       <div className="flex-1 min-w-0 flex flex-col gap-space-1">
         <div className="flex items-start justify-between gap-space-2">
-          <h3 className="text-fs-400 font-black text-color-text-primary line-clamp-2">
+          {/* GUIC-689 — trois lignes, pas deux : 8 titres du fonds sur 20
+              dépassent ce que deux lignes de 178px peuvent porter. La coupe
+              reste CSS, le titre entier demeure dans le DOM pour les lecteurs
+              d'écran. */}
+          <h3 className="text-fs-400 font-black text-color-text-primary line-clamp-3">
             {item.titre}
           </h3>
-          <div className="flex items-center gap-space-1 shrink-0">
-            <Badge variant={meta.badge}>{item.type}</Badge>
-            {showFavori && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onToggleFavori!(item.id)
-                }}
-                aria-pressed={isFavori}
-                aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                data-testid="ressource-favori-btn"
-                className={`relative z-[1] inline-flex items-center justify-center
+          {/* GUIC-689 — le badge de type vivait ici. Mesuré au rendu, il
+              prenait 50px sur une ligne de 178 dans une carte de 280 : le titre
+              tombait à 128px et se tronquait. Il est descendu sur la ligne méta,
+              où la place est libre. L'information reste, la ligne revient au
+              titre. */}
+          {showFavori && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onToggleFavori!(item.id)
+              }}
+              aria-pressed={isFavori}
+              aria-label={isFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              data-testid="ressource-favori-btn"
+              /* GUIC-689 — mesuré à 32×32 au rendu, sous les 44px imposés par le
+                 projet (`--tap-min`, iOS HIG) : on ratait le bouton au doigt, et
+                 un bouton qu'on rate passe pour un bouton cassé.
+                 La ZONE CLIQUABLE atteint 44px, le cercle visible reste à 32px :
+                 action secondaire posée sur une carte, elle ne doit pas grossir.
+                 Deux variantes ont été écartées après mesure au rendu : le
+                 débordement (`after:-inset`), rogné du côté droit — cliquable
+                 au-dessus du cercle mais pas à côté ; et `rounded-full` sur le
+                 bouton, qui redécoupait le hit-test en cercle et rendait les
+                 coins morts. Une cible tactile asymétrique est pire qu'une
+                 petite : elle est imprévisible. */
+              className="relative z-[1] shrink-0 inline-flex items-center justify-center
+                min-w-[var(--tap-min)] min-h-[var(--tap-min)]"
+            >
+              <span
+                aria-hidden
+                className={`inline-flex items-center justify-center
                   w-[32px] h-[32px] rounded-full border-[1.5px]
-                  transition-all duration-150 ease-out active:scale-90
+                  transition-all duration-150 ease-out
                   ${isFavori
                     ? 'bg-gj-yellow-soft border-gj-yellow text-gj-yellow-ink scale-105'
-                    : 'bg-gj-surface border-gj-line text-gj-grey hover:border-gj-line-strong'}`}
+                    : 'bg-gj-surface border-gj-line text-gj-grey'}`}
               >
                 <Icon name="bookmark" size={14} />
-              </button>
-            )}
-          </div>
+              </span>
+            </button>
+          )}
         </div>
 
         <p className="text-fs-200 text-color-text-secondary line-clamp-2">
@@ -85,7 +112,10 @@ export function ResourceCard({ item, isFavori = false, onToggleFavori }: Resourc
         </p>
 
         <div className="flex flex-wrap items-center justify-between gap-space-1 mt-space-1">
-          <span className="text-fs-200 text-color-text-muted">{item.theme}</span>
+          <span className="inline-flex items-center gap-space-1 min-w-0">
+            <Badge variant={meta.badge}>{item.type}</Badge>
+            <span className="text-fs-200 text-color-text-muted truncate">{item.theme}</span>
+          </span>
           <span className="relative z-[1] text-fs-200 font-bold text-gj-teal-deep inline-flex items-center gap-1">
             {meta.cta}
             <Icon name="arrow-right" size={14} />

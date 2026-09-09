@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { poidsFichierMemo } from '@/lib/ressources/poids-fichier'
 import { prisma } from '@/lib/prisma'
 
 /** Page par défaut (règle CLAUDE.md : 20 items/page). */
@@ -21,6 +22,15 @@ export interface RessourceFiltres {
   categories?: string[]
   /** `recent` = 30 derniers jours ; `year` = année en cours. */
   date?: DateBucket
+  /** GUIC-684 — slug(s) de programme sectoriel de rattachement. */
+  programmes?: string[]
+  /**
+   * GUIC-689 (Lot F2) — filtre exact par thème (`Ressource.theme`). Alimente
+   * la navigation « Explorer par catégorie » de l'écran d'accueil médiathèque
+   * (`categorie` n'est renseignée sur aucune ressource en base : `theme`,
+   * lui, est obligatoire et rempli à 100 % — cf. `getRessourcesHome`).
+   */
+  theme?: string
   page?: number
 }
 
@@ -59,6 +69,25 @@ const CARD_SELECT = {
   createdAt: true,
 } satisfies Prisma.RessourceSelect
 
+type RessourceCardRow = Prisma.RessourceGetPayload<{ select: typeof CARD_SELECT }>
+
+/** Mappe une row Prisma (`CARD_SELECT`) vers le DTO public `RessourceListItem`. */
+function toListItem(r: RessourceCardRow): RessourceListItem {
+  return {
+    id: r.id,
+    titre: r.titre,
+    description: r.description,
+    type: r.type as TypeRessourceValue,
+    theme: r.theme,
+    url: r.url,
+    vues: r.vues,
+    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
+    langue: (r.langue ?? null) as LangueRessourceValue | null,
+    categorie: r.categorie ?? null,
+    createdAt: r.createdAt.toISOString(),
+  }
+}
+
 /** Borne basse de date selon le bucket sélectionné. */
 function dateLowerBound(bucket: DateBucket | undefined): Date | null {
   if (!bucket || bucket === 'all') return null
@@ -89,6 +118,7 @@ export async function listRessources(
   if (filtres.type) where.type = filtres.type
   if (filtres.niveau) where.niveau = filtres.niveau
   if (filtres.langue) where.langue = filtres.langue
+  if (filtres.theme && filtres.theme.trim()) where.theme = filtres.theme.trim()
   if (filtres.categories && filtres.categories.length) {
     where.categorie = { in: filtres.categories.map((c) => c.trim()).filter(Boolean) }
   } else if (filtres.categorie && filtres.categorie.trim()) {
@@ -97,6 +127,13 @@ export async function listRessources(
 
   const dateMin = dateLowerBound(filtres.date)
   if (dateMin) where.createdAt = { gte: dateMin }
+
+  // GUIC-684 — rattachement M:N : `some` (et non une jointure) pour qu'une ressource
+  // rattachée à deux programmes n'apparaisse qu'une fois et que le COUNT reste juste.
+  const programmes = (filtres.programmes ?? []).map((p) => p.trim()).filter(Boolean)
+  if (programmes.length) {
+    where.programmes = { some: { programme: { slug: { in: programmes } } } }
+  }
 
   if (filtres.q && filtres.q.trim()) {
     const q = filtres.q.trim()
@@ -118,19 +155,7 @@ export async function listRessources(
     prisma.ressource.count({ where }),
   ])
 
-  const items: RessourceListItem[] = rows.map((r) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  const items: RessourceListItem[] = rows.map(toListItem)
 
   return { items, total, page, pageSize: PAGE_SIZE }
 }
@@ -154,19 +179,7 @@ export async function listRessourcesFavoris(
     prisma.ressourceFavorite.count({ where: { cjsUid } }),
   ])
 
-  const items: RessourceListItem[] = favoris.map(({ ressource: r }) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  const items: RessourceListItem[] = favoris.map(({ ressource: r }) => toListItem(r))
 
   return { items, total, page: safePage, pageSize: PAGE_SIZE }
 }
@@ -183,6 +196,19 @@ export async function getRessourceFavoriIds(cjsUid: string): Promise<string[]> {
 /** Détail complet d'une ressource — GUIC-363. */
 export interface RessourceDetail extends RessourceListItem {
   updatedAt: string
+  /**
+   * GUIC-709 — nombre de fichiers réellement emportés, compté sur la table
+   * `Consultation` (événement `telechargement`). Calculé à la lecture plutôt
+   * que dénormalisé : la fiche est le seul endroit qui l'affiche, et un
+   * compteur en colonne finit toujours par diverger de sa source.
+   */
+  telechargements: number
+  /**
+   * GUIC-709 — poids relevé à la source, ou `null` si la source ne le déclare
+   * pas ou reste injoignable. `null` signifie « non mesuré », jamais « vide » :
+   * l'affichage doit se taire, pas montrer un zéro.
+   */
+  poidsOctets: number | null
 }
 
 const DETAIL_SELECT = {
@@ -202,19 +228,23 @@ export async function getRessourceById(id: string): Promise<RessourceDetail | nu
     select: DETAIL_SELECT,
   })
   if (!r) return null
+
+  // GUIC-709 — les deux mesures de la fiche, en parallèle de rien d'autre :
+  // aucune ne doit retarder l'autre, et aucune ne doit faire échouer la page.
+  const [telechargements, poidsOctets] = await Promise.all([
+    prisma.consultation.count({
+      where: { typeEntite: 'ressource', entiteId: r.id, typeEvent: 'telechargement' },
+    }),
+    // Uniquement les PDF : c'est le seul type dont on sert le fichier, donc le
+    // seul dont le poids veut dire quelque chose pour qui va le télécharger.
+    r.type === 'PDF' ? poidsFichierMemo(r.url) : Promise.resolve(null),
+  ])
+
   return {
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
+    ...toListItem(r),
     updatedAt: r.updatedAt.toISOString(),
+    telechargements,
+    poidsOctets,
   }
 }
 
@@ -246,32 +276,113 @@ export async function getRessourcesRelated(
     take,
   })
 
-  return rows.map((r) => ({
-    id: r.id,
-    titre: r.titre,
-    description: r.description,
-    type: r.type as TypeRessourceValue,
-    theme: r.theme,
-    url: r.url,
-    vues: r.vues,
-    niveau: (r.niveau ?? null) as NiveauRessourceValue | null,
-    langue: (r.langue ?? null) as LangueRessourceValue | null,
-    categorie: r.categorie ?? null,
-    createdAt: r.createdAt.toISOString(),
-  }))
+  return rows.map(toListItem)
+}
+
+// GUIC-688 — `incrementRessourceVues` a été retiré : le comptage passe par
+// `src/lib/analytics/consultations.ts`. Cette fonction incrémentait à CHAQUE
+// rendu, sans dédoublonnage — le socle applique la même garde de 30 min que
+// pour les autres entités, donc le compteur progresse désormais moins vite.
+
+// ─────────────────────────────────────────────────────────────────────────
+// GUIC-689 (Lot F2) — écran d'accueil médiathèque (`ResHomeContent` design v5).
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Thème (`Ressource.theme`) et nombre de ressources publiques associées. */
+export interface RessourceCategorieCount {
+  theme: string
+  count: number
+}
+
+export interface RessourcesHomeData {
+  /** Thèmes les plus représentés (`theme` — rempli à 100 %, contrairement à
+   *  `categorie` qui n'est renseignée sur aucune ressource en base au
+   *  30/07/2026 : cf. décision loader dans le rapport GUIC-689 Lot F2). */
+  categories: RessourceCategorieCount[]
+  /** Dernières ressources ajoutées (`createdAt` desc). Libellé honnête :
+   *  il n'existe pas de champ `featured`/`misEnAvant` en base. */
+  recentes: RessourceListItem[]
+  /** Ressources les plus consultées (`vues` desc). Il n'existe AUCUN
+   *  compteur de téléchargements — `vues` compte des consultations de la
+   *  fiche détail (comptage dédoublonné par `lib/analytics/consultations.ts`
+   *  depuis GUIC-688), jamais des téléchargements. */
+  populaires: RessourceListItem[]
+}
+
+export interface RessourcesHomeOptions {
+  /** Nombre d'items par étagère (défaut 10). */
+  limit?: number
+  /** Nombre de catégories affichées dans la grille (défaut 5). */
+  categoriesLimit?: number
 }
 
 /**
- * Incrément du compteur de vues d'une ressource (best-effort, jamais bloquant).
- * GUIC-363.
+ * Données de l'écran d'accueil médiathèque : 3 requêtes agrégées en
+ * parallèle (pas de N+1 — aucune requête par item) :
+ *  1. `groupBy(theme)` compté + trié desc → grille « Explorer par catégorie ».
+ *  2. `findMany` trié `createdAt desc` → étagère « Ajoutées récemment ».
+ *  3. `findMany` trié `vues desc, createdAt desc` → étagère « Les plus consultées ».
+ *
+ * Une unique requête SQL combinant les 3 nécessiterait du SQL brut (interdit
+ * hors `DECISIONS.md`) : Prisma ne sait pas combiner un `groupBy` et deux
+ * tris différents sur la table dans un seul appel.
  */
-export async function incrementRessourceVues(ressourceId: string): Promise<void> {
-  try {
-    await prisma.ressource.update({
-      where: { id: ressourceId },
-      data: { vues: { increment: 1 } },
-    })
-  } catch {
-    // best-effort : ne jamais casser la page détail si l'update échoue.
+export async function getRessourcesHome(
+  options: RessourcesHomeOptions = {},
+): Promise<RessourcesHomeData> {
+  const limit = options.limit ?? 10
+  const categoriesLimit = options.categoriesLimit ?? 5
+  const where: Prisma.RessourceWhereInput = { estPublic: true }
+
+  const [categoryRows, recentRows, popularRows] = await Promise.all([
+    prisma.ressource.groupBy({
+      by: ['theme'],
+      where,
+      _count: { theme: true },
+      orderBy: { _count: { theme: 'desc' } },
+      take: categoriesLimit,
+    }),
+    prisma.ressource.findMany({
+      where,
+      select: CARD_SELECT,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    }),
+    prisma.ressource.findMany({
+      where,
+      select: CARD_SELECT,
+      orderBy: [{ vues: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+    }),
+  ])
+
+  return {
+    categories: categoryRows.map((r) => ({ theme: r.theme, count: r._count.theme })),
+    recentes: recentRows.map(toListItem),
+    populaires: popularRows.map(toListItem),
   }
+}
+
+/**
+ * GUIC-689 — Catégories réellement présentes dans le CATALOGUE public.
+ *
+ * Les options du filtre étaient dérivées des ressources déjà chargées : la
+ * liste changeait à chaque « charger plus » et restait incomplète tant qu'on
+ * n'avait pas tout parcouru. Un filtre sert à atteindre ce qu'on n'a PAS encore
+ * vu — le calculer sur ce qu'on a vu le vide de son sens.
+ *
+ * `categorie` est nullable et, à ce jour, renseignée sur aucune ressource : la
+ * fonction rend alors un tableau vide, et l'interface masque la section. C'est
+ * la vérité, pas un repli.
+ */
+export async function listCategoriesRessources(): Promise<string[]> {
+  const rows = await prisma.ressource.findMany({
+    where: { estPublic: true, categorie: { not: null } },
+    select: { categorie: true },
+    distinct: ['categorie'],
+    orderBy: { categorie: 'asc' },
+  })
+  return rows
+    .map((r) => r.categorie)
+    .filter((c): c is string => Boolean(c && c.trim()))
 }

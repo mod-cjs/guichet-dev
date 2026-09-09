@@ -90,7 +90,7 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     const payload = item?.payloadExtrait as Record<string, unknown>
     expect(payload.organisation).toBe('ONG Teranga')
     expect(payload.region).toBe('Dakar') // mappé sur l'enum
-    expect(payload.domaine).toBe('Numerique') // Informatique → Numerique
+    expect(payload.domaine).toBe('Economie') // Informatique → Numerique
     expect(payload.typeId).toBe(typeEmploi!.id) // du typeDefaut source
 
     // ── US-4 : DÉDUPLICATION (annonce unique → reste a_valider) ────────────
@@ -106,7 +106,7 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     expect(item?.statut).toBe('approuvee')
 
     // ── US-6 : PUBLICATION (→ Opportunite brouillon) ───────────────────────
-    const { opportuniteId } = await publierItem(item!.id)
+    const { opportuniteId } = await publierItem(item!.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, include: { typeRef: true } })
     expect(opp?.statut).toBe('brouillon')
     expect(opp?.titre).toBe(`${PREFIX} Développeur`)
@@ -170,7 +170,8 @@ describe('ÉPIC curation — pipeline end-to-end', () => {
     // Publiable (titre + type présents) → brouillon en Modération.
     mockGetSession.mockResolvedValue(ADMIN)
     await approuverItem(item.id)
-    const { opportuniteId } = await publierItem(item.id)
+    // GUIC-684 — la publication exige au moins un programme de rattachement.
+    const { opportuniteId } = await publierItem(item.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, select: { statut: true, titre: true, lienExterne: true } })
     expect(opp?.statut).toBe('brouillon')
     expect(opp?.lienExterne).toBe(itemUrl)

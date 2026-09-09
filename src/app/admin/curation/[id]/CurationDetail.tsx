@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { approuverItem, rejeterItem, mettreEnAttenteItem, editerItem } from '../actions'
 import { publierItem } from '../publier'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 /** GUIC-600 — US-5 : détail éditable + actions de validation. */
 
@@ -32,6 +34,8 @@ interface CurationDetailProps {
   motifRejet: string | null
   champs: Champs
   types: Array<{ id: string; libelle: string }>
+  /** GUIC-684 — programmes actifs proposés au rattachement à la publication. */
+  programmes?: ProgrammeOption[]
 }
 
 export function CurationDetail({
@@ -43,10 +47,14 @@ export function CurationDetail({
   urlSource,
   champs: initial,
   types,
+  programmes = [],
 }: CurationDetailProps) {
   const router = useRouter()
   const [c, setC] = useState<Champs>(initial)
   const [motif, setMotif] = useState('')
+  // GUIC-684 — rattachement choisi à la publication (aucun défaut : c'est un acte métier).
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>([])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -133,21 +141,32 @@ export function CurationDetail({
 
         {/* Publication (GUIC-601) : uniquement sur un item approuvé pas encore publié. */}
         {statut === 'approuvee' && !opportuniteId && (
-          <div style={{ marginTop: 12 }}>
-            <Button
-              type="button"
-              variant="primary"
-              disabled={pending}
-              onClick={() =>
-                agir(async () => {
-                  const { opportuniteId: oppId } = await publierItem(id)
-                  router.push(`/admin/opportunites/${oppId}`)
-                }, false)
-              }
-            >
-              Publier vers le catalogue
-            </Button>
-            <p className="text-fs-200 text-gj-grey" style={{ marginTop: 6 }}>
+          <div style={{ marginTop: 12 }} className="flex flex-col gap-space-2">
+            {/* GUIC-684 — le rattachement se décide ICI : c'est le seul moment où un
+                humain voit passer l'item de curation. */}
+            <ProgrammesField
+              options={programmes}
+              value={programmeSlugs}
+              onChange={setProgrammeSlugs}
+              principal={programmePrincipal}
+              onPrincipalChange={setProgrammePrincipal}
+            />
+            <div>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={pending || programmeSlugs.length === 0}
+                onClick={() =>
+                  agir(async () => {
+                    const { opportuniteId: oppId } = await publierItem(id, programmeSlugs)
+                    router.push(`/admin/opportunites/${oppId}`)
+                  }, false)
+                }
+              >
+                Publier vers le catalogue
+              </Button>
+            </div>
+            <p className="text-fs-200 text-gj-grey">
               Crée un brouillon d’opportunité ; tu complètes les détails puis publies dans l’éditeur.
             </p>
           </div>
@@ -170,7 +189,20 @@ export function CurationDetail({
           <Textarea id="c-desc" label="Description" rows={5} value={c.description} onChange={(e) => set('description', e.target.value)} />
           <Input id="c-org" label="Organisation" value={c.organisation} onChange={(e) => set('organisation', e.target.value)} />
           <Input id="c-region" label="Région" value={c.region} onChange={(e) => set('region', e.target.value)} />
-          <Input id="c-domaine" label="Domaine" value={c.domaine} onChange={(e) => set('domaine', e.target.value)} />
+          {/* GUIC-689 — CHOIX explicite, plus un champ libre : `domaineOuAutre()`
+              n'acceptait que la correspondance exacte avec un nom d'enum, tout le
+              reste retombant silencieusement sur `Autre`. La proposition vient du
+              normaliseur par mots-clés ; l'admin confirme ou corrige. */}
+          <Select
+            id="c-domaine"
+            label="Domaine"
+            options={[
+              { value: '', label: '— à choisir —' },
+              ...DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) })),
+            ]}
+            value={c.domaine}
+            onChange={(e) => set('domaine', e.target.value)}
+          />
           <Select id="c-type" label="Type d’opportunité" options={typeOptions} value={c.typeId} onChange={(e) => set('typeId', e.target.value)} />
           <Input id="c-deadline" label="Deadline (AAAA-MM-JJ)" value={c.deadline} onChange={(e) => set('deadline', e.target.value)} />
           <Input id="c-lien" label="Lien source" type="url" value={c.lienSource} onChange={(e) => set('lienSource', e.target.value)} />

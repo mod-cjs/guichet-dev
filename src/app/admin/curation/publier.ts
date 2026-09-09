@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { recordAudit } from '@/lib/audit'
 import { OpportuniteService } from '@/lib/services/opportunite-service'
 import { sanitizeOpportuniteRichFields } from '@/lib/opportunite/sanitize-base'
+import { assertAuMoinsUnProgramme } from '@/lib/programmes/rattachement'
 import { construireInputPublication, estSousTypeValide, type DonneesItem } from '@/lib/curation/publication/mapper'
 import type { CJSSession } from '@/types/user'
 
@@ -27,7 +28,14 @@ async function assertAdmin(): Promise<CJSSession> {
   return session
 }
 
-export async function publierItem(id: string): Promise<{ opportuniteId: string }> {
+/**
+ * @param programmeSlugs programmes de rattachement choisis par l'admin (GUIC-684).
+ *   Au moins un — le brouillon publié doit relever d'un programme comme tout contenu.
+ */
+export async function publierItem(
+  id: string,
+  programmeSlugs: string[] = [],
+): Promise<{ opportuniteId: string }> {
   const session = await assertAdmin()
 
   const item = await prisma.itemCuration.findUnique({
@@ -62,7 +70,11 @@ export async function publierItem(id: string): Promise<{ opportuniteId: string }
     lienSource: /^https?:\/\//i.test(item.urlCanonique) ? item.urlCanonique : undefined,
   }
 
-  const input = construireInputPublication(type.slug, donnees)
+  // Garde placée APRÈS la validation de l'item : un item non publiable doit remonter
+  // SON erreur (statut, type), pas celle du rattachement.
+  assertAuMoinsUnProgramme(programmeSlugs)
+
+  const input = construireInputPublication(type.slug, { ...donnees, programmeSlugs })
   // Sanitisation serveur des corps riches (comme le workflow admin standard). Cast : la
   // fonction est générique sur Record<string, unknown> que l'interface BaseInput ne satisfait pas.
   input.base = sanitizeOpportuniteRichFields(

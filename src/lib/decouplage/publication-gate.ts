@@ -17,7 +17,7 @@ export type RaisonBlocage = 'ORG_SUSPENDUE' | 'PERSONNE_INACTIVE' | 'NON_MEMBRE'
 export type GatePublication = { ok: true } | { ok: false; raison: RaisonBlocage }
 
 export async function verifierGatePublication(cjsUid: string, organisationId: string): Promise<GatePublication> {
-  const org = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { statut: true } })
+  const org = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { statut: true, cjsUid: true } })
   if (!org || org.statut === 'suspendue') return { ok: false, raison: 'ORG_SUSPENDUE' }
 
   const user = await prisma.utilisateur.findUnique({ where: { cjsUid }, select: { statut: true } })
@@ -27,8 +27,15 @@ export async function verifierGatePublication(cjsUid: string, organisationId: st
     where: { organisationId_cjsUid: { organisationId, cjsUid } },
     select: { statut: true },
   })
-  if (!membre) return { ok: false, raison: 'NON_MEMBRE' }
-  if (membre.statut !== 'actif') return { ok: false, raison: 'MEMBRE_INACTIF' }
-
-  return { ok: true }
+  // Une ligne membre explicite fait foi (l'appartenance multi-recruteur du découplage).
+  if (membre) {
+    if (membre.statut !== 'actif') return { ok: false, raison: 'MEMBRE_INACTIF' }
+    return { ok: true }
+  }
+  // GUIC-706 — fallback legacy cohérent avec getRecruteurContext : le PROPRIÉTAIRE de l'org
+  // (Organisation.cjsUid) est un membre implicite ACTIF tant qu'aucune ligne n'a été posée
+  // (org d'avant le backfill des titulaires). Ferme le trou : le propriétaire, légitime avant
+  // le découplage, n'est jamais verrouillé hors de sa propre organisation.
+  if (org.cjsUid && org.cjsUid === cjsUid) return { ok: true }
+  return { ok: false, raison: 'NON_MEMBRE' }
 }

@@ -6,6 +6,7 @@ import { revokeToken } from '@/lib/sso-client'
 import { ADMIN_ROLES } from '@/lib/auth/admin-roles'
 import { isConseillerRole, isRecruteurRole } from '@/lib/auth/espace-roles'
 import { basePublique } from '@/lib/security/base-publique'
+import { gateFlags } from '@/lib/flags/gate'
 
 const BENEFICIAIRE_ROLES = new Set(['beneficiaire', 'jeune', 'chercheur_d_emploi'])
 
@@ -37,6 +38,17 @@ async function refreshToken(token: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // GUIC-706 — Gate des fonctionnalités masquées, AVANT tout le reste.
+  //
+  // Deux raisons de le placer ici plutôt qu'après le contrôle de rôle. D'abord `PROTECTED`
+  // ne couvre que /jeune, /recruteur, /admin et /conseiller : le retour anticipé qui suit
+  // laisserait passer TOUTES les routes publiques, et un module « masqué » resterait
+  // entièrement visible sur /opportunites, /agenda, /ressources ou /centres.
+  // Ensuite, rediriger vers la connexion avant de répondre 404 apprendrait à un visiteur
+  // qu'il existe là quelque chose qui se mérite — soit exactement la trace qu'on retire.
+  const masque = await gateFlags(request)
+  if (masque) return masque
 
   const matched = PROTECTED.find(r => r.pattern.test(pathname))
   if (!matched) return NextResponse.next()

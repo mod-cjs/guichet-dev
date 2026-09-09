@@ -78,6 +78,12 @@ async function performSsoLogin(context: BrowserContext): Promise<void> {
 // PAR CHANCE ; `.serial` rend la contrainte explicite et sûre quel que soit le nombre de workers.
 test.describe.serial('Flow SSO complet (anti-régression GUIC-259)', () => {
 
+  // GUIC-153 — identité DÉDIÉE : le logout de ces tests révoque la session Redis ; sans identité
+  // propre il annulait celle d'autres specs en full-parallel. Cookie e2e_role → sub `e2e-ssoflow`.
+  test.beforeEach(async ({ context }) => {
+    await context.addCookies([{ name: 'e2e_role', value: 'ssoflow', domain: 'localhost', path: '/' }])
+  })
+
   test('login → callback → /jeune/tableau-de-bord (PAS de boucle)', async ({ context, page }) => {
     test.skip(!SSO_MOCK_ACTIVE, 'Activer avec PLAYWRIGHT_SSO_MOCK=1')
 

@@ -210,9 +210,70 @@ RETURN o, f, c, p LIMIT 3
 
 > 🔒 **Invariant** : tout template Cypher intègre le filtrage par rôle et `centre_id` du token SSO (cf. [07-securite-conformite.md](./07-securite-conformite.md) §RBAC). Jamais de Cypher sans ce filtrage.
 
+### Templates réellement implémentés (`src/lib/ia/graph/cypher-templates.ts`)
+
+| Template | Intention `query_knowledge_graph` | Relations traversées |
+|----------|-----------------------------------|----------------------|
+| `SEARCH_OPPORTUNITES` | `recherche` | — (filtres de propriété) |
+| `SKILL_GAP_MISSING` + `FORMATIONS_FOR_SKILLS` | `ecart_competences` | `REQUIERT`, `MAITRISE`, `DEVELOPPE` |
+| `ELIGIBLE_OPPORTUNITES` | `eligibilite` | `A_POSTULE`, `A_EXERCE` |
+| `COLLABORATIVE_RECO` | `reco_collaborative` | `A_POSTULE` (sortie agrégée) |
+| `MULTI_ENTITY_PATH` | `parcours` | `REQUIERT`, `DEVELOPPE`, `FINANCE` |
+| **`LIVRES_DISPONIBLES`** | **`livre_disponible`** | **`CONTIENT`, `EST_LOCALISE_EN`** |
+| **`RESSOURCES_POUR_COMPETENCES`** | **`ressources_competences`** | **`PREPARE`** |
+| **`MARCHE_*` (5 agrégations)** | **`apercu_marche`** | **`REQUIERT`, `PUBLIE`** |
+| `GRAPH_POPULATED` | *(sentinelle interne)* | — |
+
+> ⚠️ **Écart projection ↔ lecture** — restent PROJETÉES mais jamais interrogées : `EST_DE_TYPE`,
+> `RELEVE_DE`, `SITUE_A`, `ETIQUETTE`, `INSCRIT_A`, `SE_DEROULE_A`, `DISPOSE_DE`, `INTERESSE_PAR`,
+> `A_OBTENU`, `ATTESTE`. Soit on écrit les templates qui les exploitent, soit on arrête de les
+> projeter — un read-model qu'on n'interroge pas est un coût sans contrepartie.
+> (`PUBLIE` et `CONTIENT`/`EST_LOCALISE_EN`/`PREPARE` ont rejoint la liste des relations LUES.)
+
+### Recherche GLOBALE vs recherche égocentrée
+
+Toutes les traversées ci-dessus sauf `apercu_marche` sont **égocentrées** : bornées à `$uid`,
+elles répondent « pour MOI ». `apercu_marche` répond à une question **thématique** (« quels
+secteurs recrutent à Thiès ? ») — c'est l'emprunt ciblé au *Global Search* de GraphRAG, sans
+communautés Leiden : nos regroupements (Secteur, Region, Type) sont connus, on les agrège au
+lieu de les inférer.
+
+> 🔒 **Invariant CDP** : ces agrégats portent sur les **OFFRES**. Aucun template `MARCHE_*` ne
+> matche `:Beneficiaire`, `A_POSTULE` ni `Candidature` — verrouillé par test. Compter des
+> personnes reste interdit (le pré-screen refuse « combien de jeunes… »). C'est parce que la
+> donnée est impersonnelle que le cache (6 h) peut être **partagé entre tous les usagers**.
+
+### Appariement des compétences : lexical ∪ sémantique
+
+`skills-normalize` apparie par la FORME (synonymes + Dice). `skills-embeddings` ajoute un
+appariement par le SENS (embeddings + cosinus), **opt-in** (`YAYE_EMBEDDING_MODEL`) et
+**fail-soft**. Les deux voies sont fusionnées par `matchSkillsHybrid`, utilisé par la
+projection complète, la projection événementielle ET le fallback Prisma — sans quoi les deux
+moteurs divergeraient. `PREPARE` retombe sur le sémantique quand le thème d'une ressource ne
+correspond à aucune catégorie de compétence.
+
+> ⚠️ **`PREPARE` reste à 0 — et ce n'est pas réparable par le code** (mesure du 2026-07-27,
+> reprojection réelle) : `Ressource.theme` porte des rubriques éditoriales (« Emploi »,
+> « Formation », « Soft skills ») quand `Skill.categorie` porte des slugs techniques
+> (`digital:fin`, `agriculture:fin`). Zéro recouvrement lexical, et le sémantique ne donne
+> que du bruit à cette granularité (« Formation » → « Soudure » 0,700). Le préalable est un
+> **alignement des référentiels**, côté données.
+>
+> Gain réellement mesuré de l'appariement sémantique sur la même reprojection :
+> `MAITRISE` 43 559 → **58 664** (+35 %) · `ATTESTE` 5 980 → **8 239** (+38 %).
+
+> 🔒 **Invariant CDP** : seuls des **libellés de compétences** et des **thèmes** sont envoyés au
+> modèle d'embedding — jamais un profil, un nom, un CV ou une lettre de motivation.
+
+> 🛡 **Vide ≠ aucun résultat** : le cron nocturne reconstruit le graphe en `wipe:true`. Une traversée
+> qui renvoie 0 ligne déclenche la sentinelle `GRAPH_POPULATED` ; si le read-model est vide, l'adapter
+> lève `GraphEmptyError` et le circuit-breaker sert le fallback Prisma — au lieu de répondre « je n'ai
+> rien trouvé » (ou, pire sur `ecart_competences`, « il ne te manque aucune compétence »).
+
 ## 6. Pipeline d'alimentation Prisma → Neo4j
 
 - **Événementiel** : à chaque création/modif d'entité Prisma (opportunité + son sous-type, livre, exemplaire, salle, véhicule, programme, événement, candidature, certificat), un événement interne Next.js déclenche un Route Handler de synchronisation qui **upsert** le nœud + ses labels + recalcule les relations impactées (`REQUIERT`, `ETIQUETTE`, `A_POSTULE`, `MAITRISE`…).
+- **Couverture événementielle réelle** : `projectOpportunite` (opportunités), `projectLivre`/`projectExemplaire` (bibliothèque) et **`projectBeneficiaire`** — ce dernier rafraîchit `A_POSTULE`, `MAITRISE`, `ATTESTE`, `A_OBTENU`, `A_EXERCE`, `INTERESSE_PAR`, `INSCRIT_A` pour UNE personne, avec purge préalable des arêtes re-projetées. Déclencheurs (`fireBeneficiaireGraphSync`, fail-soft) posés sur : candidature, profil, diplôme, certificat, expérience, favori (ajout/retrait), inscription événement.
 - **Mapping** : une fonction de projection par modèle Prisma → `MERGE (n:Label {id}) SET n += $props` + `MERGE` des relations. Les relations dérivées (`MAITRISE`, `ATTESTE`, `PREPARE`) sont recalculées par règles (matching theme/competence).
 - **Filet de sécurité** : **synchronisation complète nocturne** (reprojection idempotente).
 - **Scoring de recommandation** : un pipeline distinct interroge le graphe (matching profil × opportunités) et **écrit les scores dans `RecommandationIA` (Prisma)** — jamais dans le graphe (invariant §0). Lu ensuite par l'outil `get_recommendations` (cf. [11](./11-fonctionnalites.md) F2-b, [03](./03-outils-function-calling.md)).

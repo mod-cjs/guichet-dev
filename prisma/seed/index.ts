@@ -47,9 +47,11 @@
 
 import { prisma } from '../../src/lib/prisma'
 import { seedOpportunites } from './opportunites'
+import { seedOpportuniteDetails } from './opportunite-details'
 import { seedProgrammes } from './programmes'
 import { seedOpportuniteTypes } from './opportunite-types'
 import { seedRessources } from './ressources'
+import { rattacherOpportunites, rattacherRessources } from './programme-rattachements'
 import { seedSkills } from './skills'
 import { seedTags } from './tags'
 import { seedNotifications } from './notifications'
@@ -69,9 +71,25 @@ async function main() {
   const count = await seedOpportunites(prisma)
   console.log(`Seed Guichet Jeunesse — ${count} opportunités insérées (GUIC-20).`)
 
+  // GUIC-689 — détails de sous-type. Sans cette étape, les fiches d'offre
+  // n'affichent que les champs génériques : les lignes de sous-type héritées
+  // de la migration portent des valeurs de remplissage (montant à 0,
+  // organisme « À renseigner ») qui donnent une vue faussement pauvre.
+  const nbDetails = await seedOpportuniteDetails(prisma)
+  console.log(`Seed Guichet Jeunesse — ${nbDetails} détails de sous-type (GUIC-689).`)
+
   // Ressources M6 (GUIC-239)
   const nbRessources = await seedRessources(prisma)
   console.log(`Seed Guichet Jeunesse — ${nbRessources} ressources insérées (GUIC-239).`)
+
+  // GUIC-684 — rattachement aux programmes. Sans cette étape, une base fraîche est
+  // entièrement orpheline : le rattachement étant obligatoire à la création, l'admin
+  // d'un environnement neuf est bloqué dès la première fiche qu'il ouvre.
+  const nbOppProg = await rattacherOpportunites(prisma)
+  const nbResProg = await rattacherRessources(prisma)
+  console.log(
+    `Seed GUIC-684 — ${nbOppProg} opportunités et ${nbResProg} ressources rattachées à un programme.`,
+  )
 
   // Notifications démo (GUIC-247) — idempotent, premier user actif.
   const nbNotifs = await seedNotifications(prisma)

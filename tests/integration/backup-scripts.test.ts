@@ -184,4 +184,16 @@ describe('GUIC-571 — restore-drill.sh (exercice de restauration)', () => {
     expect(r.calls).toMatch(/guichet_restore_drill_/) // base d'exercice nommée
     expect(r.stdout).toMatch(/Nettoyage de la base d'exercice/)
   })
+
+  // GUIC-571 — backup.sh a été corrigé (GUIC-662) pour cibler cjs-net par défaut : le réseau
+  // ${COMPOSE_PROJECT_NAME}_guichet n'existe pas quand le réseau applicatif est déclaré externe
+  // (docker-compose.prod.yml), Docker ne le crée pas. restore-drill.sh, qui joint MariaDB par le
+  // même mécanisme, n'avait jamais reçu le même correctif — la base restait injoignable pour
+  // l'exercice de restauration, silencieusement d'accord avec ce shim (qui n'inspecte pas
+  // --network), mais réellement en échec ("network not found") sur un vrai Docker.
+  it('joint MariaDB via cjs-net par défaut, pas ${COMPOSE_PROJECT_NAME}_guichet (GUIC-662)', () => {
+    const r = withDump({ FAKE_TABLE_COUNT: '5', COMPOSE_PROJECT_NAME: 'guichet-test' })
+    expect(r.calls).toMatch(/--network cjs-net\b/)
+    expect(r.calls).not.toMatch(/--network guichet-test_guichet\b/)
+  })
 })

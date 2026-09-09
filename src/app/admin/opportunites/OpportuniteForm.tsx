@@ -8,15 +8,20 @@ import { Textarea } from '@/components/ui/Textarea'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
 import { Button } from '@/components/ui/Button'
 import { Toast, type ToastVariant } from '@/components/ui/Toast'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { creerOpportunite, modifierOpportunite } from './actions'
 import type { SousTypeSlug } from '@/lib/services/opportunite-service'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 // ─── Options d'enum (miroir de prisma/schema.prisma) ───────────────────────────
 
 type Opt = { value: string; label: string }
 const opts = (...v: string[]): Opt[] => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 
-const DOMAINES = opts('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
+// GUIC-689 — la liste était recopiée en `string[]` NON typé : après la refonte
+// de taxonomie, tsc n'aurait rien signalé et le formulaire aurait proposé des
+// valeurs mortes, l'échec n'arrivant qu'à l'enregistrement.
+const DOMAINES = DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) }))
 const REGIONS = opts('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou')
 const NIVEAUX = opts('BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT')
 const TYPE_CONTRAT = opts('CDI', 'CDD', 'FREELANCE', 'ALTERNANCE', 'STAGE_ALTERNE')
@@ -151,11 +156,17 @@ export interface OpportuniteFormInitial {
   base?: OpportuniteFormBase
   /** Valeurs de sous-type aplaties (clés = champs du sous-type). */
   details?: Record<string, string | number | boolean | null>
+  /** Programmes déjà rattachés (GUIC-684). */
+  programmeSlugs?: string[]
+  /** Programme principal parmi ceux rattachés. */
+  programmePrincipalSlug?: string | null
 }
 
 export interface OpportuniteFormProps {
   /** Sous-types proposés (slug technique + libellé lisible). */
   types: { slug: SousTypeSlug; libelle: string }[]
+  /** Programmes actifs proposés au rattachement (GUIC-684). */
+  programmes?: ProgrammeOption[]
   initial?: OpportuniteFormInitial
 }
 
@@ -186,10 +197,16 @@ function coerce(kind: FieldKind, raw: string | boolean): string | number | boole
  * Piloté par un descripteur de champs par sous-type → couvre les 10 sous-types.
  * En édition, le sous-type n'est pas modifiable (protège l'historique candidatures).
  */
-export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
+export function OpportuniteForm({ types, programmes = [], initial }: OpportuniteFormProps) {
   const router = useRouter()
   const editing = Boolean(initial?.id)
   const availableTypes = types.length ? types : SUBTYPE_SLUGS.map((s) => ({ slug: s, libelle: s }))
+  // GUIC-684 — rattachement obligatoire. En édition d'un contenu antérieur au
+  // ticket, la liste est vide : l'admin doit choisir avant de pouvoir enregistrer.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>(initial?.programmeSlugs ?? [])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(
+    initial?.programmePrincipalSlug ?? null,
+  )
 
   const [type, setType] = useState<SousTypeSlug>(initial?.type ?? availableTypes[0].slug)
   const [base, setBase] = useState<OpportuniteFormBase>({
@@ -239,6 +256,8 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
       lienExterne: base.lienExterne?.trim() || null,
       niveauEtudeMin: base.niveauEtudeMin || null,
       statut: base.statut ?? 'brouillon',
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
     }
   }
 
@@ -253,6 +272,12 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    // Garde côté client — le serveur refuse de toute façon (PROGRAMME_REQUIS),
+    // mais autant ne pas faire faire l'aller-retour à l'admin.
+    if (programmeSlugs.length === 0) {
+      setError('Sélectionne au moins un programme de rattachement.')
+      return
+    }
     startTransition(async () => {
       try {
         if (editing && initial?.id) {
@@ -270,6 +295,7 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
         const msg = err instanceof Error ? err.message : ''
         if (msg === 'SLUG_EXISTANT') setError('Ce slug existe déjà — choisis-en un autre.')
         else if (msg === 'FORBIDDEN') setError('Action réservée aux administrateurs.')
+        else if (msg === 'PROGRAMME_REQUIS') setError('Sélectionne au moins un programme de rattachement.')
         else setError('Échec de l’enregistrement — vérifie les champs obligatoires (*).')
       }
     })
@@ -286,6 +312,13 @@ export function OpportuniteForm({ types, initial }: OpportuniteFormProps) {
           value={type}
           disabled={editing}
           onChange={(e) => setType(e.target.value as SousTypeSlug)}
+        />
+        <ProgrammesField
+          options={programmes}
+          value={programmeSlugs}
+          onChange={setProgrammeSlugs}
+          principal={programmePrincipal}
+          onPrincipalChange={setProgrammePrincipal}
         />
         <Input id="opp-titre" label="Titre" required value={base.titre ?? ''} onChange={(e) => onTitreChange(e.target.value)} />
         <Input

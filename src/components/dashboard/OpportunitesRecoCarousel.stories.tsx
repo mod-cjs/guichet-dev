@@ -7,8 +7,8 @@ import { OpportunitesRecoCarousel, type OppRecoCard } from './OpportunitesRecoCa
 const STORY_OPPS: OppRecoCard[] = [
   {
     id:    'mock-opp-1',
-    tag:   'BOURSE · J-3',
-    tone:  'urgent',
+    type: 'Emploi' as const,
+    joursRestants: 3,
     title: 'Bourse agricole — Micro-initiative maraîchère',
     org:   'jusqu\'à 600 000 FCFA · Tambacounda',
     match: '92% match',
@@ -17,8 +17,8 @@ const STORY_OPPS: OppRecoCard[] = [
   },
   {
     id:    'mock-opp-2',
-    tag:   'STAGE · J-9',
-    tone:  'cjs',
+    type: 'Emploi' as const,
+    joursRestants: 9,
     title: 'Stage Data Science · 6 mois',
     org:   'Sonatel · Dakar Plateau',
     match: '87% match',
@@ -27,8 +27,8 @@ const STORY_OPPS: OppRecoCard[] = [
   },
   {
     id:    'mock-opp-3',
-    tag:   'ALTERNANCE · J-12',
-    tone:  'partner',
+    type: 'Emploi' as const,
+    joursRestants: 12,
     title: 'Marketing digital · alternance 12 mois',
     org:   'Senegal Airlines · Diass',
     match: '76% match',
@@ -36,8 +36,8 @@ const STORY_OPPS: OppRecoCard[] = [
   },
   {
     id:    'mock-opp-4',
-    tag:   'CONCOURS · J-21',
-    tone:  'info',
+    type: 'Emploi' as const,
+    joursRestants: 21,
     title: 'Concours Jeunes Entrepreneurs 2026',
     org:   'National · 2.5M FCFA + coaching',
     href:  '/opportunites/mock-opp-4',

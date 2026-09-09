@@ -1,0 +1,891 @@
+# GÉNÉRÉ — ne pas éditer à la main. Source : src/lib/datahub/streams.ts + prisma/schema.prisma
+# Régénérer : npm run datahub:dbt
+version: 2
+sources:
+  - name: "guichet_raw"
+    description: "Données brutes déversées par le tap Guichet. Ne jamais écrire dans ce schéma : il est reconstruit par le pipeline, et toute modification manuelle serait perdue au run suivant."
+    schema: "guichet_raw"
+    tables:
+      - name: "utilisateurs"
+        description: "Compte issu du SSO CJS. Aucun mot de passe n'est stocké ici : l'authentification appartient au SSO, ce modèle n'en cache que l'identité et les attributs de profilage."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "cjs_uid"
+            description: "Claim `sub` du token SSO — identifiant pivot du jeune dans tout l'écosystème CJS, et seule clé de jointure inter-plateformes."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "region"
+            description: "Région administrative de résidence, parmi les 14 du Sénégal."
+            meta:
+              cjs_tier: "public"
+          - name: "commune"
+            description: "Commune de résidence, saisie libre à l'onboarding — non normalisée."
+            meta:
+              cjs_tier: "public"
+          - name: "genre"
+            description: "Genre déclaré : `M` ou `F`."
+            meta:
+              cjs_tier: "public"
+          - name: "tranche_age"
+            description: "Tranche d'âge à la date d'extraction : -18, 18-24, 25-29, 30-34, 35+, ou inconnu quand la date de naissance est absente ou aberrante. Dérivée d'une donnée identifiante qui, elle, n'est jamais exportée."
+            meta:
+              cjs_tier: "public"
+          - name: "statut"
+            description: "État du compte : `actif`, `inactif`, ou `anonymise` après exercice du droit à l'oubli."
+            meta:
+              cjs_tier: "public"
+          - name: "role"
+            description: "Rôle principal mis en cache depuis le SSO (source de vérité = SSO ; synchronisé au login)."
+            meta:
+              cjs_tier: "public"
+          - name: "onboarding_complete"
+            description: "Le parcours d'onboarding a été mené à son terme. Distingue un compte créé d'un compte réellement activé."
+            meta:
+              cjs_tier: "public"
+          - name: "date_inscription"
+            description: "Date de création du compte — sert de date d'inscription dans les indicateurs."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification du compte. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+          - name: "deleted_at"
+            description: "Suppression logique. Non nulle, la ligne reste exportée avec cette date pour que l'entrepôt propage la suppression au lieu de conserver un fantôme."
+            meta:
+              cjs_tier: "public"
+      - name: "profils_jeunes"
+        description: "Profil bénéficiaire, rattaché 1:1 à un compte. Porte les données déclaratives d'orientation et d'inclusion, toutes facultatives et auto-déclarées."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant technique du profil, distinct du `cjs_uid` du compte porteur."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Compte porteur du profil — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "niveau_etude"
+            description: "Niveau d'études le plus élevé atteint, déclaré par le jeune."
+            meta:
+              cjs_tier: "public"
+          - name: "situation_emploi"
+            description: "Situation professionnelle déclarée au moment de la dernière mise à jour du profil."
+            meta:
+              cjs_tier: "public"
+          - name: "situation_handicap"
+            description: "Situation de handicap auto-déclarée : `aucun`, `moteur`, `visuel`, `auditif`, `autre`, `non_precise`. Facultative et hors score de complétion (GUIC-660)."
+            meta:
+              cjs_tier: "public"
+          - name: "zone_habitation"
+            description: "Zone d'habitation auto-déclarée : `rural` ou `urbain`. Facultative (GUIC-660)."
+            meta:
+              cjs_tier: "public"
+          - name: "completion_score"
+            description: "Score 0–100 calculé et mis à jour dans ProfilService.recalculerScore()"
+            meta:
+              cjs_tier: "public"
+          - name: "centre_principal_id"
+            description: "Centre de rattachement principal, suggéré à l'onboarding depuis la région SSO puis modifiable."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "created_at"
+            description: "Date de création du profil."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification du profil. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "opportunites"
+        description: "Table mère M3 v2 (CTI). Colonnes legacy (type, organisation) conservées pendant la migration data — supprimées en 178d après backfill. Les colonnes polymorphiques (typeId, programmeId, organisationId déjà présent, organisationLibelle, niveauEtudeMin) sont ajoutées en NULL dans cette étape (178b) pour ne pas casser les rows existantes ; elles passent NOT NULL en 178d. L'invariant XOR (1 et 1 seul sous-type non null) est garanti côté applicatif via OpportuniteService — cf. spec §8.4 et `opportunite-integrity.ts`."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de l'opportunité."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "slug"
+            description: "Identifiant lisible utilisé dans l'URL publique."
+            meta:
+              cjs_tier: "public"
+          - name: "titre"
+            description: "Intitulé de l'offre tel qu'affiché au public."
+            meta:
+              cjs_tier: "public"
+          - name: "type_legacy"
+            description: "Type historique de l'offre (enum legacy). Conservé le temps de la migration polymorphique ; `type_id` est la forme cible."
+            meta:
+              cjs_tier: "public"
+          - name: "type_id"
+            description: "Type de l'offre dans le référentiel polymorphique. Nullable tant que la migration des données legacy n'est pas achevée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "domaine"
+            description: "Secteur d'activité : agriculture, numérique, entrepreneuriat, citoyenneté, environnement, santé, éducation, culture, autre."
+            meta:
+              cjs_tier: "public"
+          - name: "region"
+            description: "Région ciblée par l'offre — pas nécessairement celle du candidat."
+            meta:
+              cjs_tier: "public"
+          - name: "organisation_id"
+            description: "Organisation émettrice dans le référentiel. Nullable pour les offres importées sans organisation identifiée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "organisation_libelle"
+            description: "Nom de l'organisation émettrice tel qu'affiché, y compris quand elle n'est pas au référentiel."
+            meta:
+              cjs_tier: "public"
+          - name: "niveau_etude_min"
+            description: "Niveau d'études minimum requis, tel que renseigné par l'émetteur."
+            meta:
+              cjs_tier: "public"
+          - name: "remuneration"
+            description: "Rémunération annoncée, en texte libre — non normalisée, non comparable entre offres."
+            meta:
+              cjs_tier: "public"
+          - name: "deadline"
+            description: "Date limite de candidature. Au-delà, l'offre passe en `expiree`."
+            meta:
+              cjs_tier: "public"
+          - name: "statut"
+            description: "Cycle de vie éditorial : `brouillon`, `publiee`, `archivee`, `expiree`."
+            meta:
+              cjs_tier: "public"
+          - name: "recruteur_uid"
+            description: "Recruteur propriétaire de l'offre, quand elle a été déposée depuis l'espace recruteur."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "vues"
+            description: "Compteur cumulé d'affichages du détail. Incrémenté en direct, sans déduplication par visiteur."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de création de l'offre."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification de l'offre. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+          - name: "deleted_at"
+            description: "Suppression logique. Non nulle, la ligne reste exportée pour que l'entrepôt propage la suppression."
+            meta:
+              cjs_tier: "public"
+      - name: "candidatures"
+        description: "Candidature d'un jeune à une opportunité, unique par couple (jeune, opportunité). Porte la traçabilité du consentement CGU exigée par la CDP."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la candidature."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Jeune candidat — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "opportunite_id"
+            description: "Offre visée — clé de jointure vers `opportunites`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "statut"
+            description: "Décision côté offre : `En_attente`, `Vue`, `Retenue`, `Refusee`."
+            meta:
+              cjs_tier: "public"
+          - name: "pipeline_stage"
+            description: "Étape du pipeline recruteur : `Recue`, `Preselection`, `Entretien`, `Decision`. Distincte du statut, qui porte la décision finale."
+            meta:
+              cjs_tier: "public"
+          - name: "score_adequation"
+            description: "Score d'adéquation candidat/offre calculé par IA, de 0 à 100. Nul tant que le calcul de fond n'a pas eu lieu."
+            meta:
+              cjs_tier: "public"
+          - name: "score_calcule_le"
+            description: "Date du calcul du score d'adéquation. Permet de distinguer un score absent d'un score jamais calculé."
+            meta:
+              cjs_tier: "public"
+          - name: "favori_recruteur"
+            description: "Candidature marquée comme favorite par le recruteur."
+            meta:
+              cjs_tier: "public"
+          - name: "notifications_consent"
+            description: "Le candidat a accepté d'être notifié du suivi de sa candidature."
+            meta:
+              cjs_tier: "public"
+          - name: "consent_at"
+            description: "Horodatage de l'acceptation des CGU. Traçabilité exigée par l'audit CDP."
+            meta:
+              cjs_tier: "public"
+          - name: "cgu_version"
+            description: "Version des CGU acceptée, pour savoir à quel texte le consentement se rapporte."
+            meta:
+              cjs_tier: "public"
+          - name: "soumise_a"
+            description: "Date de soumission de la candidature — début du délai de traitement."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "evenements"
+        description: "Événement du calendrier CJS — formation, atelier, forum, webinaire, conférence ou cours en centre."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de l'événement."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "titre"
+            description: "Intitulé de l'événement tel qu'affiché."
+            meta:
+              cjs_tier: "public"
+          - name: "type"
+            description: "Nature de l'événement : formation, atelier, forum, webinaire, conférence, cours."
+            meta:
+              cjs_tier: "public"
+          - name: "statut"
+            description: "Cycle de vie : `a_venir`, `en_cours`, `termine`, `annule`, plus `en_relecture` et `refuse` pour la validation admin."
+            meta:
+              cjs_tier: "public"
+          - name: "date_debut"
+            description: "Début de l'événement."
+            meta:
+              cjs_tier: "public"
+          - name: "date_fin"
+            description: "Fin de l'événement."
+            meta:
+              cjs_tier: "public"
+          - name: "lieu"
+            description: "Lieu tel que saisi, en texte libre — non géocodé."
+            meta:
+              cjs_tier: "public"
+          - name: "centre_id"
+            description: "Centre organisateur, quand l'événement s'y tient."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "capacite_max"
+            description: "Nombre de places. Au-delà, les inscriptions basculent en liste d'attente."
+            meta:
+              cjs_tier: "public"
+          - name: "est_gratuit"
+            description: "Participation gratuite."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de création de la fiche."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "inscriptions_evenements"
+        description: "Inscription d'un jeune à un événement, unique par couple (jeune, événement). Le statut `present` matérialise la présence constatée, pas l'intention."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de l'inscription."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Jeune inscrit — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "evenement_id"
+            description: "Événement concerné — clé de jointure vers `evenements`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "statut"
+            description: "`inscrit`, `liste_attente`, `annule`, ou `present` une fois la présence constatée."
+            meta:
+              cjs_tier: "public"
+          - name: "inscrit_a"
+            description: "Date de l'inscription."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "centres"
+        description: "Centre CJS physique. Référentiel géographique de toute la fréquentation : réservations, passages badgés, emprunts."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant du centre."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "nom_centre"
+            description: "Nom du centre — désigne l'établissement, jamais une personne."
+            meta:
+              cjs_tier: "public"
+          - name: "slug"
+            description: "Identifiant lisible utilisé dans l'URL publique."
+            meta:
+              cjs_tier: "public"
+          - name: "region"
+            description: "Région d'implantation."
+            meta:
+              cjs_tier: "public"
+          - name: "ville"
+            description: "Ville d'implantation."
+            meta:
+              cjs_tier: "public"
+          - name: "adresse"
+            description: "Adresse postale du centre. Donnée d'établissement, publiée sur la fiche."
+            meta:
+              cjs_tier: "public"
+          - name: "latitude"
+            description: "Latitude du centre, pour la carte et les calculs de proximité."
+            meta:
+              cjs_tier: "public"
+          - name: "longitude"
+            description: "Longitude du centre."
+            meta:
+              cjs_tier: "public"
+          - name: "est_actif"
+            description: "Centre ouvert au public. Un centre inactif reste référencé mais n'accepte plus de réservation."
+            meta:
+              cjs_tier: "public"
+          - name: "conseillers_count"
+            description: "Nombre de conseillers affectés, saisi et non calculé."
+            meta:
+              cjs_tier: "public"
+          - name: "gc_id"
+            description: "Identifiant du centre dans la plateforme Gestion Centres — clé de rapprochement inter-plateformes."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "created_at"
+            description: "Date de création de la fiche."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "reservations"
+        description: "Réservation d'une ressource par un jeune. MVP : auto-validée (statut=Acceptee) à la création. Sprint+1 : workflow approval activable (StatutReservation.EnAttente)."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la réservation."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Jeune réservant — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "centre_id"
+            description: "Centre où la ressource est réservée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "ressource_id"
+            description: "Ressource matérielle réservée au sein du centre."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "date_reservee"
+            description: "Jour calendaire réservé, sans heure — le créneau porte l'horaire."
+            meta:
+              cjs_tier: "public"
+          - name: "creneau_debut"
+            description: "Heure de début du créneau, au format HH:MM."
+            meta:
+              cjs_tier: "public"
+          - name: "creneau_fin"
+            description: "Heure de fin du créneau, au format HH:MM."
+            meta:
+              cjs_tier: "public"
+          - name: "nombre_personnes"
+            description: "Nombre de personnes annoncées pour le créneau."
+            meta:
+              cjs_tier: "public"
+          - name: "statut"
+            description: "`EnAttente`, `Acceptee`, `Refusee`, `AnnuleeParJeune`, `AnnuleeParCentre`, puis `Passee` ou `NonHonoree` posés par le batch quotidien."
+            meta:
+              cjs_tier: "public"
+          - name: "no_show"
+            description: "Absence constatée : créneau passé sans passage badgé associé."
+            meta:
+              cjs_tier: "public"
+          - name: "decision_a"
+            description: "Horodatage de la décision du centre sur la réservation."
+            meta:
+              cjs_tier: "public"
+          - name: "annulee_a"
+            description: "Horodatage de l'annulation, quelle qu'en soit l'origine."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de la demande de réservation."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "M13 — watermark de réplication Data Hub : le statut évolue (décision, annulation) sans qu'aucune colonne ne datait la modification."
+            meta:
+              cjs_tier: "public"
+      - name: "checkins"
+        description: "Check-in physique d'un jeune dans un centre (KPI fréquentation principal)."
+        loaded_at_field: "effectue_a"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant du passage."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Jeune ayant badgé — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "centre_id"
+            description: "Centre où le passage a été enregistré."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "reservation_id"
+            description: "Réservation honorée par ce passage, quand il y en a une. Nul pour une visite spontanée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "via"
+            description: "Mode d'enregistrement : `QrCard` par scan de la MyCJSCard, `Manuel` par saisie du staff."
+            meta:
+              cjs_tier: "public"
+          - name: "effectue_a"
+            description: "Horodatage du passage. Table append-only : sert de watermark de réplication."
+            meta:
+              cjs_tier: "public"
+          - name: "dwell_minutes"
+            description: "@deprecated Toujours NUL — jamais renseigné. Utiliser `duree_minutes` du flux `sorties`. Conservé pour ne pas casser les consommateurs existants."
+            meta:
+              cjs_tier: "public"
+      - name: "sorties"
+        description: "Sortie de centre, enregistrée par scan. Append-only, une ligne par sortie. La durée de présence vit ici et non sur le passage d'entrée."
+        loaded_at_field: "effectue_a"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la sortie."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "check_in_id"
+            description: "Entrée appariée. NUL pour une sortie orpheline — quelqu'un entré avant la mise en service, ou dont l'entrée a échoué. On l'enregistre quand même : refuser au comptoir n'apprend rien et perd la trace."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "cjs_uid"
+            description: "Jeune concerné — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "centre_id"
+            description: "Centre où la sortie a été enregistrée."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "via"
+            description: "Mode d'enregistrement, même vocabulaire que l'entrée."
+            meta:
+              cjs_tier: "public"
+          - name: "effectue_a"
+            description: "Horodatage de la sortie. Append-only : watermark de réplication."
+            meta:
+              cjs_tier: "public"
+          - name: "duree_minutes"
+            description: "Durée de présence, calculée à l'insertion et jamais recalculée. NUL pour une orpheline : on ne sait pas quand la personne est arrivée, et une durée supposée se lirait comme une durée mesurée."
+            meta:
+              cjs_tier: "public"
+      - name: "ressources"
+        description: "Ressource documentaire du catalogue — PDF, vidéo, lien, guide ou outil."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la ressource."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "titre"
+            description: "Intitulé de la ressource tel qu'affiché."
+            meta:
+              cjs_tier: "public"
+          - name: "type"
+            description: "Support : `PDF`, `Video`, `Lien`, `Guide`, `Outil`."
+            meta:
+              cjs_tier: "public"
+          - name: "theme"
+            description: "Thématique principale, saisie libre côté admin."
+            meta:
+              cjs_tier: "public"
+          - name: "categorie"
+            description: "Catégorie de classement complémentaire au thème."
+            meta:
+              cjs_tier: "public"
+          - name: "niveau"
+            description: "GUIC-24 — filtres avancés. Nullable : enrichissement progressif côté admin."
+            meta:
+              cjs_tier: "public"
+          - name: "langue"
+            description: "Langue du contenu."
+            meta:
+              cjs_tier: "public"
+          - name: "est_public"
+            description: "Ressource accessible sans authentification."
+            meta:
+              cjs_tier: "public"
+          - name: "vues"
+            description: "Compteur cumulé de consultations. Incrémenté en direct, sans déduplication par visiteur."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de publication de la ressource."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "consultations"
+        description: "Table INSERT-only. Aucune FK polymorphe (non supporté par Prisma) : l'intégrité repose sur l'applicatif, comme `CentreEvent`. Aucune rétention/purge (décision PO GUIC-688 : on conserve tout)."
+        loaded_at_field: "created_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de la consultation."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "type_entite"
+            description: "Nature de l'entité consultée : opportunité, ressource, événement, centre, livre, programme, organisation."
+            meta:
+              cjs_tier: "public"
+          - name: "entite_id"
+            description: "Identifiant de l'entité consultée. Pas de clé étrangère : la relation est polymorphe et l'intégrité repose sur l'applicatif."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "type_event"
+            description: "`impression` quand le contenu a été présenté, `consultation` quand il a été ouvert, `telechargement` quand le fichier a été emporté. Le rapport impression/consultation donne le taux de clic. `telechargement` reste distinct de `consultation` : le compteur `vues` ne bouge que pour cette dernière (GUIC-709)."
+            meta:
+              cjs_tier: "public"
+          - name: "canal"
+            description: "Canal d'origine : `web`, `ia_web` pour l'agent Yaye sur le site, `whatsapp`."
+            meta:
+              cjs_tier: "public"
+          - name: "cjs_uid"
+            description: "Null si visiteur anonyme."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "sujet_hash"
+            description: "Pseudonyme HMAC-SHA256 du visiteur anonyme (empreinte IP + user-agent, jamais stockées en clair). Null pour un utilisateur connecté : son parcours se suit par cjs_uid."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "origine"
+            description: "reco_ia | recherche | favoris | notification | direct | ia | wa"
+            meta:
+              cjs_tier: "public"
+          - name: "session_id"
+            description: "Corrèle avec `AgentLog.sessionId` pour les canaux IA/WhatsApp."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "created_at"
+            description: "Horodatage de la consultation. Table append-only : sert de watermark de réplication."
+            meta:
+              cjs_tier: "public"
+      - name: "emprunts"
+        description: "Emprunt d'un exemplaire par un bénéficiaire. GUIC-343. Cycle : initie (en ligne) → en_cours (scan badge au centre) → rendu (scan retour)."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant de l'emprunt."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "cjs_uid"
+            description: "Jeune emprunteur — clé de jointure vers `utilisateurs`."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "exemplaire_id"
+            description: "Exemplaire physique emprunté, localisé dans un centre."
+            meta:
+              cjs_tier: "pseudonyme"
+          - name: "statut"
+            description: "`initie` en ligne, `en_cours` après retrait au centre, `rendu`, `en_retard`, ou `annule`."
+            meta:
+              cjs_tier: "public"
+          - name: "initie_a"
+            description: "Date de la demande d'emprunt en ligne."
+            meta:
+              cjs_tier: "public"
+          - name: "confirme_a"
+            description: "Date du retrait effectif au centre, constaté au scan du badge."
+            meta:
+              cjs_tier: "public"
+          - name: "date_retour_prevue"
+            description: "Date de retour attendue, fixée à la confirmation."
+            meta:
+              cjs_tier: "public"
+          - name: "rendu_a"
+            description: "Date du retour effectif, constatée au scan."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de création de la ligne d'emprunt."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "M13 — watermark de réplication Data Hub : le statut évolue (confirmation, retour) sans qu'aucune colonne ne datait la modification."
+            meta:
+              cjs_tier: "public"
+      - name: "programmes"
+        description: "Programmes sectoriels CJS (4 — Yaakaar, YEAH, YJC, EduPop). BRM = outil interne, exclu (décision Lead 2026-05-29)."
+        loaded_at_field: "updated_at"
+        freshness:
+          warn_after:
+            count: 36
+            period: "hour"
+          error_after:
+            count: 48
+            period: "hour"
+        columns:
+          - name: "id"
+            description: "Identifiant du programme."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "unique"
+              - "not_null"
+          - name: "slug"
+            description: "Identifiant lisible utilisé dans l'URL publique."
+            meta:
+              cjs_tier: "public"
+          - name: "nom_programme"
+            description: "Nom du programme sectoriel — désigne un dispositif, jamais une personne."
+            meta:
+              cjs_tier: "public"
+          - name: "actif"
+            description: "Programme en cours. Un programme inactif reste exporté pour l'historique."
+            meta:
+              cjs_tier: "public"
+          - name: "created_at"
+            description: "Date de création du programme."
+            meta:
+              cjs_tier: "public"
+          - name: "updated_at"
+            description: "Dernière modification. Watermark de réplication Data Hub."
+            meta:
+              cjs_tier: "public"
+      - name: "opportunites_programmes"
+        description: "Rattachement d'une opportunité à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "opportunite_id"
+            description: "Offre rattachée — clé de jointure vers `opportunites`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par offre."
+            meta:
+              cjs_tier: "public"
+      - name: "ressources_programmes"
+        description: "Rattachement d'une ressource à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "ressource_id"
+            description: "Ressource rattachée — clé de jointure vers `ressources`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par ressource."
+            meta:
+              cjs_tier: "public"
+      - name: "evenements_programmes"
+        description: "Rattachement d'un événement à un programme (GUIC-684 — M:N générique)."
+        columns:
+          - name: "evenement_id"
+            description: "Événement rattaché — clé de jointure vers `evenements`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par événement."
+            meta:
+              cjs_tier: "public"
+      - name: "centres_programmes"
+        description: "Centres où un programme est déployé (GUIC-684 — extension acteurs). FACULTATIF, contrairement aux contenus : un centre est une infrastructure qui existe indépendamment des programmes qui s'y déploient."
+        columns:
+          - name: "centre_id"
+            description: "Centre rattaché — clé de jointure vers `centres`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par centre."
+            meta:
+              cjs_tier: "public"
+      - name: "organisations_programmes"
+        description: "Organisations partenaires d'un programme (GUIC-684 — extension acteurs). FACULTATIF : un partenaire peut publier des offres sans relever d'un programme."
+        columns:
+          - name: "organisation_id"
+            description: "Organisation rattachée — clé de jointure vers `organisations`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "programme_id"
+            description: "Programme de rattachement — clé de jointure vers `programmes`."
+            meta:
+              cjs_tier: "pseudonyme"
+            tests:
+              - "not_null"
+          - name: "principal"
+            description: "Programme affiché en priorité quand l'UI n'a la place que d'un badge. Au plus un `true` par organisation."
+            meta:
+              cjs_tier: "public"

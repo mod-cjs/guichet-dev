@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
 import { FavoriBodySchema } from '@/lib/validations/opportunite'
 import { CARD_SELECT, toListItem, PAGE_SIZE } from '@/lib/opportunites-loader'
+import { fireBeneficiaireGraphSync } from '@/lib/ia/graph/fire-sync'
 import type { ApiResponse } from '@/types/api'
 import type { OpportuniteListItem } from '@/types/opportunite'
 
@@ -93,5 +94,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   const favori = await prisma.opportuniteFavorite.create({
     data: { cjsUid: session.cjsUid, opportuniteId: opportunite.id },
   })
+  fireBeneficiaireGraphSync(session.cjsUid) // INTERESSE_PAR (signal de reco)
   return NextResponse.json({ data: favori }, { status: 201 })
 }

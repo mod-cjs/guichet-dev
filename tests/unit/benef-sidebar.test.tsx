@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { BenefSidebar } from '@/components/layout/BenefSidebar'
+import { SECTIONS_BENEF } from '@/components/layout/BenefSidebar/nav'
 
 let mockPathname = '/'
 let mockSearch = new URLSearchParams()
@@ -8,20 +9,20 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearch,
 }))
 
-describe('<BenefSidebar />', () => {
+describe('<BenefSidebar sections={SECTIONS_BENEF} />', () => {
   beforeEach(() => {
     mockPathname = '/'
     mockSearch = new URLSearchParams()
   })
 
   it('a role="navigation" et aria-label', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const nav = screen.getByRole('navigation', { name: /Navigation principale/i })
     expect(nav).toBeInTheDocument()
   })
 
   it('rend les items par défaut', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.getByText('Accueil')).toBeInTheDocument()
     expect(screen.getByText('Toutes')).toBeInTheDocument()
     expect(screen.getByText('Mes candidatures')).toBeInTheDocument()
@@ -29,9 +30,12 @@ describe('<BenefSidebar />', () => {
 
   // GUIC-416 — conformité Lot 3 design : la section Opportunités expose les
   // sous-types (Emploi & Stages, Bourses & Financement, Formations,
-  // Concours & Appels) en plus de « Toutes » et « Mes favoris ».
+  // Concours & Appels) en plus de « Toutes » et « Mes sauvegardes ».
+  // GUIC-689 (Lot E) — libellé aligné sur la v5 (`web-dashboard.jsx:65` :
+  // « Mes sauvegardes », l'ancien libellé était « Mes favoris »). La route
+  // reste inchangée (`/jeune/mes-favoris`).
   it('section "Opportunités" : expose les 6 sous-items du design Lot 3', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.getByRole('link', { name: /Toutes/i })).toHaveAttribute(
       'href',
       '/opportunites',
@@ -49,7 +53,7 @@ describe('<BenefSidebar />', () => {
     expect(
       screen.getByRole('link', { name: /Concours & Appels/i }),
     ).toHaveAttribute('href', '/opportunites?type=Appel_a_projets')
-    expect(screen.getByRole('link', { name: /Mes favoris/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Mes sauvegardes/i })).toHaveAttribute(
       'href',
       '/jeune/mes-favoris',
     )
@@ -58,7 +62,7 @@ describe('<BenefSidebar />', () => {
   it('active state : pathname=/opportunites + ?type=Emploi → item "Emploi & Stages" actif', () => {
     mockPathname = '/opportunites'
     mockSearch = new URLSearchParams('type=Emploi')
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const active = screen.getByRole('link', { current: 'page' })
     expect(active).toHaveTextContent('Emploi & Stages')
   })
@@ -66,31 +70,31 @@ describe('<BenefSidebar />', () => {
   it('active state : pathname=/opportunites sans type → item "Toutes" actif', () => {
     mockPathname = '/opportunites'
     mockSearch = new URLSearchParams()
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const active = screen.getByRole('link', { current: 'page' })
     expect(active).toHaveTextContent('Toutes')
   })
 
   it('n\'affiche plus d\'item "Mon profil" dans le menu (carte profil unique — GUIC-376)', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.queryByText('Mon profil')).not.toBeInTheDocument()
   })
 
   it('marque l\'item actif via aria-current', () => {
-    render(<BenefSidebar active="candidatures" />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} active="candidatures" />)
     const active = screen.getByRole('link', { current: 'page' })
     expect(active).toHaveTextContent('Mes candidatures')
   })
 
   it('rend le user chip quand userName fourni', () => {
-    render(<BenefSidebar userName="Awa Diop" userInitials="AD" userMeta="Tambacounda" />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} userName="Awa Diop" userInitials="AD" userMeta="Tambacounda" />)
     expect(screen.getByText('Awa Diop')).toBeInTheDocument()
     expect(screen.getByText('Tambacounda')).toBeInTheDocument()
     expect(screen.getByText('AD')).toBeInTheDocument()
   })
 
   it('omet le user chip quand pas d\'identité', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.queryByText('Awa Diop')).not.toBeInTheDocument()
   })
 
@@ -98,12 +102,12 @@ describe('<BenefSidebar />', () => {
   // Inclusion & accessibilité (Yaye reste accessible via la bulle flottante,
   // même drawer YayeSidePanel — GUIC-376).
   it('ne rend plus le CTA Yaye en pied (remplacé — GUIC-581)', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.queryByText('Parler à Yaye')).not.toBeInTheDocument()
   })
 
   it('rend le lien Inclusion & accessibilité en pied → /jeune/accessibilite', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
     expect(link).toHaveAttribute('href', '/jeune/accessibilite')
     expect(link).toHaveTextContent(/adapter l.application/i)
@@ -111,7 +115,7 @@ describe('<BenefSidebar />', () => {
 
   it('marque le lien Inclusion actif quand pathname=/jeune/accessibilite', () => {
     mockPathname = '/jeune/accessibilite'
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
     expect(link).toHaveAttribute('aria-current', 'page')
   })
@@ -119,7 +123,7 @@ describe('<BenefSidebar />', () => {
   // GUIC-658 — le bouton Notifications quitte le footer (la cloche de la
   // BenefTopBar reste le point d'accès aux notifications).
   it('footer épuré : Se déconnecter seul, sans bouton Notifications', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(
       screen.queryByRole('button', { name: /notifications/i }),
     ).not.toBeInTheDocument()
@@ -129,7 +133,7 @@ describe('<BenefSidebar />', () => {
   // GUIC-658 — bouton d'accessibilité mis en avant : carte gradient teal
   // (ancre visuelle du pied de sidebar, à la place de l'ex-CTA Yaye).
   it('bouton Inclusion amélioré : variante carte CTA avec sous-titre', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
     // data-variant="cta" = contrat de la carte gradient mise en avant
     // (le style inline gradient n'est pas sérialisé par jsdom).
@@ -140,7 +144,7 @@ describe('<BenefSidebar />', () => {
   // GUIC-658 — lisibilité : le titre de la carte doit être ≥ 14px et le
   // sous-titre ≥ 12px (retour PO : texte trop petit, peu visible).
   it('carte Inclusion : tailles de texte lisibles (titre ≥ 14px, sous-titre ≥ 12px)', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const title = screen.getByText('Inclusion & accessibilité')
     const sub = screen.getByText(/adapter l.application à tes besoins/i)
     expect(parseFloat(title.style.fontSize)).toBeGreaterThanOrEqual(14)
@@ -151,13 +155,13 @@ describe('<BenefSidebar />', () => {
   // flex-shrink:0 la carte est écrasée quand la nav dépasse la hauteur
   // d'écran et son texte est rogné par overflow:hidden (bug constaté).
   it('carte Inclusion : non compressible par le flex de la sidebar', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const link = screen.getByRole('link', { name: /inclusion & accessibilité/i })
     expect(link.style.flexShrink).toBe('0')
   })
 
   it('la sidebar reste défilable (overflow-y auto) malgré la carte épinglée', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const nav = screen.getByRole('navigation', { name: /navigation principale/i })
     expect(nav.style.overflowY).toBe('auto')
   })
@@ -165,7 +169,7 @@ describe('<BenefSidebar />', () => {
   // GUIC-658 — épuration sidebar : la section « Plateformes partenaires »
   // (YEAH, E-learning) est supprimée.
   it('ne rend plus la section Plateformes partenaires (YEAH / E-learning)', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     expect(screen.queryByText('Plateformes partenaires')).not.toBeInTheDocument()
     expect(screen.queryByText('YEAH')).not.toBeInTheDocument()
     expect(screen.queryByText('E-learning')).not.toBeInTheDocument()
@@ -173,31 +177,68 @@ describe('<BenefSidebar />', () => {
 
   it('résout l\'item actif depuis le pathname (mes-candidatures)', () => {
     mockPathname = '/jeune/mes-candidatures'
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const active = screen.getByRole('link', { current: 'page' })
     expect(active).toHaveTextContent('Mes candidatures')
   })
 
   it('résout l\'item actif depuis le pathname (mes-favoris)', () => {
     mockPathname = '/jeune/mes-favoris'
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const active = screen.getByRole('link', { current: 'page' })
-    expect(active).toHaveTextContent('Mes favoris')
+    expect(active).toHaveTextContent('Mes sauvegardes')
   })
 
   it('inclut un item "Mes formations" → /jeune/mes-formations', () => {
-    render(<BenefSidebar />)
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const link = screen.getByRole('link', { name: /Mes formations/i })
     expect(link).toHaveAttribute('href', '/jeune/mes-formations')
   })
 
   it('ne référence plus /jeune/parametres ni /jeune/favoris ni /jeune/candidatures', () => {
-    const { container } = render(<BenefSidebar />)
+    const { container } = render(<BenefSidebar sections={SECTIONS_BENEF} />)
     const hrefs = Array.from(container.querySelectorAll('a')).map(a => a.getAttribute('href'))
     expect(hrefs).not.toContain('/jeune/parametres')
     expect(hrefs).not.toContain('/jeune/favoris')
     expect(hrefs).not.toContain('/jeune/candidatures')
     expect(hrefs).toContain('/jeune/mes-favoris')
     expect(hrefs).toContain('/jeune/mes-candidatures')
+  })
+
+  // GUIC-689 (Lot E2) — `/jeune/parametres/notifications` existait sans
+  // aucun lien de navigation pointant vers elle (vérifié par grep) : la page
+  // n'était atteignable qu'en tapant l'URL. `/jeune/parametres` seul (sans
+  // sous-segment) n'a pas de page.tsx (404) — on câble donc l'URL réelle.
+  it('ajoute un item "Paramètres" → /jeune/parametres/notifications (page autrement injoignable — GUIC-689)', () => {
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
+    const link = screen.getByRole('link', { name: /paramètres/i })
+    expect(link).toHaveAttribute('href', '/jeune/parametres/notifications')
+  })
+
+  // GUIC-376 reste en vigueur : pas de doublon "Mon profil" en item de menu,
+  // la carte profil en haut de sidebar demeure l'unique point d'accès.
+  it('la nouvelle section "Mon compte" ne réintroduit pas d\'item "Mon profil" (GUIC-376 toujours en vigueur)', () => {
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
+    expect(screen.queryByRole('link', { name: /^mon profil$/i })).not.toBeInTheDocument()
+  })
+
+  // GUIC-689 (Lot E4) — ordre aligné sur `web-dashboard.jsx:60-78` pour les
+  // items communs (candidatures / événements / ressources / centres /
+  // messagerie), les items additionnels propres à l'app (Mes formations,
+  // Bibliothèque) sont placés en fin de section.
+  it('section "Mon parcours" suit l\'ordre v5, items additionnels en fin de section', () => {
+    render(<BenefSidebar sections={SECTIONS_BENEF} />)
+    const title = screen.getByText('Mon parcours')
+    const section = title.parentElement as HTMLElement
+    const labels = Array.from(section.querySelectorAll('a')).map(a => a.textContent?.trim())
+    expect(labels).toEqual([
+      'Mes candidatures',
+      'Événements & ateliers',
+      'Ressources',
+      'Centres CJS',
+      'Messagerie',
+      'Mes formations',
+      'Bibliothèque',
+    ])
   })
 })

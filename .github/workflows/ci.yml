@@ -85,6 +85,23 @@ jobs:
         env:
           DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
 
+      # GUIC-674 — La base du service est vierge : la table `programmes` est donc VIDE, alors
+      # que GUIC-684 a rendu le rattachement à un programme OBLIGATOIRE. Sans ce pas, toute
+      # création de ressource ou d'opportunité lève `PROGRAMME_INCONNU` — 30 échecs sur le run
+      # 31393048426, tous de cette seule cause.
+      #
+      # C'est de la donnée de RÉFÉRENCE (les quatre programmes sectoriels du CJS), pas des
+      # fixtures : `prisma/seed/reference.ts` ne sème QUE ça. Le seed de développement complet
+      # (`prisma/seed/index.ts`) ajouterait opportunités, centres et notifications, et
+      # fausserait les suites qui comptent des lignes.
+      #
+      # Si ça passait en local, c'est que nos bases de dev avaient été semées à la main il y a
+      # des mois : la suite était verte par chance. Une base vierge est la seule qui dise la vérité.
+      - name: Données de référence (programmes — requis depuis GUIC-684)
+        run: npx tsx prisma/seed/reference.ts
+        env:
+          DATABASE_URL: mysql://guichet:guichet_test@localhost:3306/guichet_test
+
       - name: Lint
         run: npm run lint
 

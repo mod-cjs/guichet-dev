@@ -119,9 +119,9 @@ describe('GUIC-598 — mapping texte → enums Guichet (M-2/M-3)', () => {
   })
 
   it('mappe les domaines par mots-clés', () => {
-    expect(mapperDomaine('Informatique')).toBe('Numerique')
-    expect(mapperDomaine('Développeur web full-stack')).toBe('Numerique')
-    expect(mapperDomaine('Agroalimentaire')).toBe('Agriculture')
+    expect(mapperDomaine('Informatique')).toBe('Economie')
+    expect(mapperDomaine('Développeur web full-stack')).toBe('Economie')
+    expect(mapperDomaine('Agroalimentaire')).toBe('Economie')
     expect(mapperDomaine('xyz inconnu')).toBeUndefined()
   })
 
@@ -136,7 +136,7 @@ describe('GUIC-598 — mapping texte → enums Guichet (M-2/M-3)', () => {
       {"@type":"JobPosting","title":"Dev","jobLocation":{"address":{"addressRegion":"Ziguinchor"}},"industry":"Informatique"}</script>`
     const r = extraireOpportunite(html, { url: 'https://x.sn/1' })
     expect(r.champs.region).toBe('Ziguinchor')
-    expect(r.champs.domaine).toBe('Numerique')
+    expect(r.champs.domaine).toBe('Economie')
     expect(r.champs.domaineTexte).toBe('Informatique')
     expect(r.champs.typeSlugSchemaOrg).toBe('emploi') // pas de typeDefautId → déduit du @type
   })

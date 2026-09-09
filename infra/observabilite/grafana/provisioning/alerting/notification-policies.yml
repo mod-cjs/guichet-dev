@@ -41,3 +41,15 @@ policies:
         group_wait: 5m
         group_interval: 30m
         repeat_interval: 12h
+
+      # ── RAPPEL — une décision assumée, pas une panne ────────────────────────
+      # GUIC-571 — ex. « sauvegarde MinIO mise en pause » : on a délibérément choisi de ne pas
+      # réessayer chaque nuit (ce serait une alerte:1h qui réveille pour rien, cf. ci-dessus).
+      # Mais une décision de pause qu'on oublie devient une dette silencieuse. Cadence
+      # hebdomadaire : assez rare pour ne pas fatiguer, assez fréquente pour ne pas disparaître.
+      - receiver: astreinte
+        matchers:
+          - severite = rappel
+        group_wait: 5m
+        group_interval: 1h
+        repeat_interval: 168h # 7 jours

@@ -7,7 +7,10 @@
 # ferait tomber la supervision à chaque `docker compose up` applicatif.
 #
 # Démarrage (sur le serveur) :
-#   docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/prod.env up -d
+#   docker compose -f docker-compose.observabilite.yml --env-file /etc/guichet/observabilite.env up -d
+#
+# GUIC-700 — fichier de secrets DÉDIÉ (voir .env.observabilite.example), pas /etc/guichet/prod.env :
+# aucune dépendance technique réelle à ce dernier, quel que soit l'environnement.
 #
 # ⚠️ AUCUN port n'est exposé publiquement. Grafana n'écoute que sur la BOUCLE LOCALE : on y accède
 # par tunnel SSH (`ssh -L 3000:127.0.0.1:3000 <serveur>`). Un Grafana ouvert sur Internet, c'est
@@ -66,7 +69,7 @@ services:
       GF_SECURITY_ADMIN_USER:      ${GRAFANA_ADMIN_USER:-admin}
       # Obligatoire : pas de valeur par défaut. Le service refuse de démarrer sans, plutôt que
       # de tourner avec le mot de passe « admin » bien connu.
-      GF_SECURITY_ADMIN_PASSWORD:  ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD obligatoire dans /etc/guichet/prod.env}
+      GF_SECURITY_ADMIN_PASSWORD:  ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD obligatoire dans /etc/guichet/observabilite.env}
       GF_AUTH_ANONYMOUS_ENABLED:   'false'
       GF_USERS_ALLOW_SIGN_UP:      'false'
       # Aucune télémétrie ni appel sortant : cohérent avec la contrainte CDP (auto-hébergé).
@@ -79,14 +82,43 @@ services:
       # en exécution, Grafana refusait alors le point de contact (« could not find addresses »).
       # Obligatoires : un canal d'alerte vide est pire qu'absent, on croit être couvert.
       ALERTE_EMAILS:         ${ALERTE_EMAILS:?ALERTE_EMAILS obligatoire (destinataires d astreinte, séparés par des virgules)}
-      # Relais WhatsApp, hébergé HORS du serveur (cf. GUIC-575). Optionnels : sans eux, seul le
-      # canal e-mail fonctionne — dégradé, mais pas silencieux.
+      # Relais WhatsApp, hébergé HORS du serveur (cf. GUIC-575). Réellement optionnels depuis
+      # GUIC-576 (select-contact-points.sh retire le point de contact webhook du provisioning
+      # si absent) — sans eux, seul le canal e-mail fonctionne, dégradé mais pas silencieux ET
+      # pas Grafana entier qui plante au démarrage (défaut réel du premier déploiement).
       ALERTE_WEBHOOK_URL:    ${ALERTE_WEBHOOK_URL:-}
       ALERTE_WEBHOOK_TOKEN:  ${ALERTE_WEBHOOK_TOKEN:-}
+      # ── SMTP — sans quoi le canal e-mail est déclaré mais ne peut RIEN envoyer ──────────
+      # Trouvé au premier déploiement réel : le point de contact e-mail se provisionne sans
+      # erreur (contrairement au webhook), mais la notification échoue silencieusement à
+      # l'envoi — « SMTP not configured, check your grafana.ini config file's [smtp]
+      # section ». Grafana a besoin de SES PROPRES réglages SMTP, distincts des destinataires
+      # (ALERTE_EMAILS ci-dessus). Même relais que la SSO (SMTP2GO, ../cjs_auth/.env).
+      GF_SMTP_ENABLED:       'true'
+      GF_SMTP_HOST:          ${GF_SMTP_HOST:?GF_SMTP_HOST obligatoire (ex. mail.smtp2go.com:2525)}
+      GF_SMTP_USER:          ${GF_SMTP_USER:?GF_SMTP_USER obligatoire}
+      GF_SMTP_PASSWORD:      ${GF_SMTP_PASSWORD:?GF_SMTP_PASSWORD obligatoire}
+      GF_SMTP_FROM_ADDRESS:  ${GF_SMTP_FROM_ADDRESS:-noreply@consortiumjeunessesenegal.org}
+      # Nom affiché comme expéditeur — pas juste "Grafana" : un e-mail d'astreinte doit
+      # s'identifier au premier coup d'œil, sans ouvrir le message.
+      GF_SMTP_FROM_NAME:     ${GF_SMTP_FROM_NAME:-Guichet Jeunesse — Astreinte}
     volumes:
-      - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning:ro
+      # GUIC-576 — Monté en SOURCE lecture seule sous `-src`, pas directement à l'endroit lu
+      # par Grafana. `select-contact-points.sh` (entrypoint ci-dessous) copie ce contenu vers
+      # /etc/grafana/provisioning (backé par le volume `grafana_provisioning`, inscriptible),
+      # en retirant le point de contact webhook si ALERTE_WEBHOOK_URL est absente — Grafana
+      # valide TOUS les points de contact déclarés au démarrage, même non utilisés, donc une
+      # URL vide plante l'amorçage ENTIER plutôt que de dégrader ce seul canal.
+      - ./infra/observabilite/grafana/provisioning:/etc/grafana/provisioning-src:ro
+      - ./infra/observabilite/grafana/select-contact-points.sh:/select-contact-points.sh:ro
+      - grafana_provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
+    entrypoint: ['/bin/sh', '/select-contact-points.sh']
     networks: [observabilite]
+    # GUIC-545 — joint Prometheus (docker-compose.netdata.yml, network_mode: host, 127.0.0.1:9090)
+    # depuis ce réseau bridge séparé. Même mécanisme que backup.sh pour joindre MariaDB.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       loki:
         condition: service_healthy
@@ -97,6 +129,7 @@ services:
 volumes:
   loki_data:
   grafana_data:
+  grafana_provisioning:
   promtail_positions:
 
 networks:

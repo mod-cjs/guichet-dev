@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { InputHTMLAttributes } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
@@ -18,12 +19,17 @@ export function Input({
   prefixIcon,
   ...props
 }: InputProps) {
+  // GUIC-689 — `htmlFor={id}` avec un `id` absent ne pointe sur RIEN : le champ
+  // se retrouve sans nom accessible, et le défaut est invisible à l'œil (le
+  // texte s'affiche bien à côté). On génère un identifiant stable à défaut.
+  const idAuto = useId()
+  const idChamp = id ?? idAuto
   const padLeft = prefixIcon ? 'pl-[40px]' : 'px-space-3'
   const padRight = prefixIcon ? 'pr-space-3' : ''
   return (
     <div className="flex flex-col gap-space-1">
       {label && (
-        <label htmlFor={id} className="text-fs-300 font-bold text-color-text-primary">
+        <label htmlFor={idChamp} className="text-fs-300 font-bold text-color-text-primary">
           {label}
           {props.required && <span className="text-gj-red ml-1" aria-hidden>*</span>}
         </label>
@@ -39,7 +45,7 @@ export function Input({
           </span>
         )}
         <input
-          id={id}
+          id={idChamp}
           className={`w-full ${padLeft} ${padRight} rounded-gj-md border-[1.5px] bg-white font-[inherit]
             text-[16px] min-h-[var(--tap-input)]
             transition-colors duration-200

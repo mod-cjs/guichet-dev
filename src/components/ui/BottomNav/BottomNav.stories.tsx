@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite'
 import { BottomNav } from './index'
+import { BOTTOM_NAV_ITEMS } from '@/components/ui/BottomNav/nav'
 
 const meta: Meta<typeof BottomNav> = {
   title: 'UI/BottomNav',
@@ -22,7 +23,7 @@ const Frame = ({ children }: { children: React.ReactNode }) => (
 export const Default: Story = {
   render: () => (
     <Frame>
-      <BottomNav />
+      <BottomNav items={BOTTOM_NAV_ITEMS} />
     </Frame>
   ),
 }
@@ -30,10 +31,10 @@ export const Default: Story = {
 export const WithBadges: Story = {
   render: () => (
     <Frame>
-      <BottomNav
+      <BottomNav items={BOTTOM_NAV_ITEMS}
         badges={{
           '/opportunites': 3,
-          '/agenda': 12,
+          '/jeune/mes-candidatures': 12,
         }}
       />
     </Frame>
@@ -46,7 +47,7 @@ export const Mobile: Story = {
   },
   render: () => (
     <Frame>
-      <BottomNav badges={{ '/jeune/mon-profil': 1 }} />
+      <BottomNav items={BOTTOM_NAV_ITEMS} badges={{ '/jeune/mon-profil': 1 }} />
     </Frame>
   ),
 }

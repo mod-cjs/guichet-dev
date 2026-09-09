@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encodeSession, setSessionCookie } from '@/lib/auth'
 import { devLoginAutorise } from '@/lib/security/prod-guards'
+import { rolesPourDevLogin } from '@/lib/auth/dev-login-roles'
 import type { CJSSession } from '@/types/user'
 
 /**
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   const uid = request.nextUrl.searchParams.get('uid') ?? DEFAULT_UID
   const u = await prisma.utilisateur.findUnique({
     where: { cjsUid: uid },
-    select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, region: true },
+    select: { cjsUid: true, nom: true, prenom: true, email: true, telephone: true, region: true, role: true },
   })
   if (!u) return new NextResponse(`Utilisateur ${uid} introuvable dans la base courante`, { status: 404 })
 
@@ -37,7 +38,9 @@ export async function GET(request: NextRequest) {
     email: u.email,
     telephone: u.telephone,
     region: u.region ?? null,
-    roles: ['beneficiaire'],
+    // GUIC-689 — rôle réel de la base : sans cela l'espace recruteur était
+    // intestable en local (toutes ses routes retombaient sur le dashboard jeune).
+    roles: rolesPourDevLogin(u.role),
     onboardingComplete: true, // évite la redirection onboarding en test
     expiresAt: Date.now() + 7 * 24 * 3600 * 1000,
     accessToken: '',

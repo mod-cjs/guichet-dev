@@ -202,7 +202,7 @@ export function NotificationsClient({
                     background: active ? 'rgba(255,255,255,.2)' : 'var(--gj-bg)',
                     padding: '1px 6px',
                     borderRadius: 999,
-                    fontSize: 10,
+                    fontSize: 'var(--fs-100)',
                   }}
                 >
                   {count}
@@ -321,7 +321,7 @@ function NotifRow({ item, onClick }: NotifRowProps) {
           height: 40,
           borderRadius: 10,
           background: isYaye
-            ? 'linear-gradient(135deg, #19A757 0%, #0A807F 100%)'
+            ? 'var(--gj-yaye-gradient)'
             : tile.bg,
           color: isYaye ? 'var(--gj-surface)' : tile.fg,
           display: 'inline-flex',
@@ -369,7 +369,7 @@ function NotifRow({ item, onClick }: NotifRowProps) {
         </span>
         <span
           style={{
-            fontSize: 10.5,
+            fontSize: 'var(--fs-100)',
             color: 'var(--gj-grey-2)',
             marginTop: 4,
             display: 'inline-flex',

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { AdminStatsClient, type AdminStatsData } from '@/app/admin/data-hub/AdminStatsClient'
+import { AdminStatsClient, type AdminStatsData } from '@/app/admin/statistiques/AdminStatsClient'
 
 const DATA: AdminStatsData = {
   growthLabels: ['Nov', 'Déc', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai'],

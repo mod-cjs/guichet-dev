@@ -32,7 +32,6 @@ function baseRow(overrides: Partial<OpportuniteRow> = {}): OpportuniteRow {
     type: 'Stage',
     organisation: 'CJS legacy',
     typeId: null,
-    programmeId: null,
     organisationLibelle: null,
     niveauEtudeMin: null,
     domaine: 'Numerique',
@@ -67,7 +66,7 @@ function typeRef(slug: string, actionLabel = 'Postuler'): OpportuniteRow['typeRe
   }
 }
 
-function progRef(slug: string): OpportuniteRow['programme'] {
+function progRef(slug: string): NonNullable<OpportuniteRow['programmes']>[number]['programme'] {
   return {
     id: `prog-${slug}`,
     slug,
@@ -165,7 +164,7 @@ describe('toOpportuniteDetailDTO', () => {
     const row = baseRow({
       organisationLibelle: 'CJS officiel',
       typeRef: typeRef('stage'),
-      programme: progRef('yjc'),
+      programmes: [{ principal: true, programme: progRef('yjc') }],
       stage: {
         opportuniteId: 'opp-1',
         dureeMois: 6,
@@ -191,6 +190,33 @@ describe('toOpportuniteDetailDTO', () => {
     expect(out.skills).toEqual([{ slug: 'react', libelle: 'React', requise: true }])
     expect(out.tags).toEqual([{ slug: 'urgent', libelle: 'Urgent' }])
   })
+
+  // GUIC-684 — rattachement M:N : `programmes` est la nouvelle source, `programme`
+  // (singulier) reste servi depuis le PRINCIPAL pour préserver le contrat existant.
+  it('expose tous les programmes rattachés et dérive `programme` du principal', () => {
+    const row = baseRow({
+      typeRef: typeRef('formation'),
+      programmes: [
+        { principal: false, programme: progRef('edupop') },
+        { principal: true, programme: progRef('yeah') },
+      ],
+    })
+    const out = toOpportuniteDetailDTO(row)
+    expect(out.programmes).toEqual([
+      { slug: 'edupop', nom: 'Programme edupop' },
+      { slug: 'yeah', nom: 'Programme yeah' },
+    ])
+    expect(out.programme).toEqual({ slug: 'yeah', nom: 'Programme yeah' })
+  })
+
+  // GUIC-684 — la colonne `programme_id` est SUPPRIMÉE : la jonction est la seule
+  // source. Une row sans rattachement ne « retombe » sur rien, elle est vide.
+  it('n’expose aucun programme quand la jonction est vide', () => {
+    const row = baseRow({ typeRef: typeRef('stage') })
+    const out = toOpportuniteDetailDTO(row)
+    expect(out.programme).toBeNull()
+    expect(out.programmes).toEqual([])
+  })
 })
 
 // ─── toOpportuniteExportDTO (Data Hub aplati) ──────────────────────────────
@@ -210,7 +236,7 @@ describe('toOpportuniteExportDTO', () => {
   it('aplati un EMPLOI complet avec type slug et préfixes', () => {
     const row = baseRow({
       typeRef: typeRef('emploi'),
-      programme: progRef('yaakaar'),
+      programmes: [{ principal: true, programme: progRef('yaakaar') }],
       emploi: {
         opportuniteId: 'opp-1',
         typeContrat: 'CDI',
@@ -223,6 +249,7 @@ describe('toOpportuniteExportDTO', () => {
     const out = toOpportuniteExportDTO(row)
     expect(out.type).toBe('emploi')
     expect(out.programme_slug).toBe('yaakaar')
+    expect(out.programmes_slugs).toEqual(['yaakaar'])
     expect(out.emploi_type_contrat).toBe('CDI')
     expect(out.emploi_duree_contrat_mois).toBe(24)
     expect(out.emploi_teletravail).toBe(true)
@@ -270,5 +297,43 @@ describe('toOpportuniteExportDTO', () => {
     const arr = toOpportuniteExportDTOArray([baseRow(), baseRow({ id: 'opp-2' })])
     expect(arr).toHaveLength(2)
     expect(arr[0].id).toBe('opp-1')
+  })
+})
+
+// ─── Rattachements orphelins (constaté en base : 1 438 liens de tags sans tag) ──
+
+describe('rattachements orphelins', () => {
+  it('ignore un lien de tag dont le tag a disparu, au lieu de lever', () => {
+    // Vérifié sur la base POC : `opportunites_tags` porte 1 438 lignes référençant un
+    // tag inexistant — le dump a été chargé avec FOREIGN_KEY_CHECKS=0, les contraintes
+    // n'ont donc pas joué. 1 357 offres sur 4 340 sont concernées : la route d'export
+    // rendait 500 dès qu'une page en contenait une.
+    const row = baseRow({
+      tags: [{ opportuniteId: 'opp-1', tagId: 't-disparu', tag: null }],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(() => toOpportuniteDetailDTO(row)).not.toThrow()
+    expect(toOpportuniteDetailDTO(row).tags).toEqual([])
+  })
+
+  it('ignore un lien de compétence dont la compétence a disparu', () => {
+    const row = baseRow({
+      skills: [{ opportuniteId: 'opp-1', skillId: 's-disparu', requise: true, skill: null }],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(() => toOpportuniteDetailDTO(row)).not.toThrow()
+    expect(toOpportuniteDetailDTO(row).skills).toEqual([])
+  })
+
+  it('conserve les rattachements valides d\'une ligne qui en porte aussi un orphelin', () => {
+    // Un lien cassé ne doit pas emporter les autres : l'export dégrade, il ne se vide pas.
+    const row = baseRow({
+      tags: [
+        { opportuniteId: 'opp-1', tagId: 't-disparu', tag: null },
+        { opportuniteId: 'opp-1', tagId: 't1', tag: { id: 't1', slug: 'urgent', libelle: 'Urgent', createdAt: NOW } },
+      ],
+    } as unknown as Partial<OpportuniteRow>)
+
+    expect(toOpportuniteDetailDTO(row).tags).toEqual([{ slug: 'urgent', libelle: 'Urgent' }])
   })
 })

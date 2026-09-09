@@ -22,8 +22,11 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 2
 fi
 
-echo "# ── GUICHET-CRON (généré par generate-crontab.sh depuis jobs.json — GUIC-570) ──"
-echo "# Ne pas éditer à la main : modifier jobs.json puis régénérer."
+# TOUTES les lignes émises portent le marqueur GUICHET-CRON, y compris les commentaires.
+# Sans ça, un filtre `grep -v GUICHET-CRON` laisse les en-têtes derrière lui et le crontab
+# accumule des lignes orphelines à chaque régénération (constaté le 28/07).
+echo "# GUICHET-CRON ── généré par generate-crontab.sh depuis jobs.json (GUIC-570) ──"
+echo "# GUICHET-CRON Ne pas éditer à la main : modifier jobs.json puis régénérer."
 
 jq -r '.jobs[] | "\(.schedule)\t\(.path)\t\(.desc)"' "$JOBS_FILE" | while IFS=$'\t' read -r schedule path desc; do
   printf '%s cd %s && bash scripts/cron/run-job.sh %s >> %s/cron.log 2>&1 # GUICHET-CRON %s\n' \

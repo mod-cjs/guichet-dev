@@ -3,36 +3,31 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Icon } from '@/components/ui/Icon'
+import { LIENS_EXTERNES, lienActif, type LienNav } from './nav-partage'
 
-const PUBLIC_LINKS = [
-  { href: '/',             label: 'Accueil',      match: (p: string) => p === '/' },
-  { href: '/opportunites', label: 'Opportunités', match: (p: string) => p.startsWith('/opportunites') },
-  { href: '/agenda',       label: 'Agenda',       match: (p: string) => p.startsWith('/agenda') },
-  { href: '/ressources',   label: 'Ressources',   match: (p: string) => p.startsWith('/ressources') },
-  { href: '/centres',      label: 'Centres CJS',  match: (p: string) => p.startsWith('/centres') },
-]
+interface Props {
+  isAuthenticated: boolean
+  /**
+   * GUIC-706 — liens À AFFICHER, déjà filtrés par le Header (composant serveur).
+   *
+   * Le composant ne reçoit AUCUNE clé de flag : les props d'un composant client sont
+   * sérialisées dans le HTML, et une liste de clés annoncerait les fonctionnalités cachées
+   * à tout visiteur, connecté ou non.
+   */
+  liensPublics: readonly LienNav[]
+  /** Liens de l'espace connecté, déjà filtrés. */
+  liensConnecte: readonly LienNav[]
+}
 
-const EXTERNAL_LINKS = [
-  { href: 'https://yeah.consortiumjeunessesenegal.org', label: 'YEAH' },
-  { href: 'https://elearning.guichetjeunesse.sn',       label: 'E-learning' },
-]
-
-const AUTH_LINKS = [
-  { href: '/jeune/tableau-de-bord', label: 'Mon dashboard', match: (p: string) => p.startsWith('/jeune/tableau-de-bord') },
-  { href: '/jeune/mon-profil',      label: 'Mon profil',    match: (p: string) => p.startsWith('/jeune/mon-profil') },
-]
-
-interface Props { isAuthenticated: boolean }
-
-export function HeaderNav({ isAuthenticated }: Props) {
+export function HeaderNav({ isAuthenticated, liensPublics, liensConnecte }: Props) {
   // usePathname() peut retourner null (Storybook hors contexte Next router,
   // ou edge case rendu) — on retombe sur '/' qui ne matchera que la home.
   const pathname = usePathname() ?? '/'
 
   return (
     <nav className="hidden md:flex items-center">
-      {PUBLIC_LINKS.map(link => {
-        const active = link.match(pathname)
+      {liensPublics.map(link => {
+        const active = lienActif(link, pathname)
         return (
           <Link
             key={link.href}
@@ -50,7 +45,7 @@ export function HeaderNav({ isAuthenticated }: Props) {
         )
       })}
 
-      {EXTERNAL_LINKS.map(link => (
+      {LIENS_EXTERNES.map(link => (
         <a
           key={link.href}
           href={link.href}
@@ -70,8 +65,8 @@ export function HeaderNav({ isAuthenticated }: Props) {
       {isAuthenticated && (
         <>
           <span className="mx-[6px] h-5 w-px bg-gj-line" aria-hidden />
-          {AUTH_LINKS.map(link => {
-            const active = link.match(pathname)
+          {liensConnecte.map(link => {
+            const active = lienActif(link, pathname)
             return (
               <Link
                 key={link.href}

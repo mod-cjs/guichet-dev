@@ -25,6 +25,23 @@ export interface DiplomeItem {
   fichierUrl:     string | null
 }
 
+/** GUIC-689 — Langue déclarée, avec son niveau (carte « Compétences & langues »). */
+export interface LangueItem {
+  id:     string
+  langue: string
+  niveau: 'maternelle' | 'courant' | 'intermediaire' | 'notions'
+}
+
+/** GUIC-689 — Engagement associatif/bénévolat, 3e source de la timeline. */
+export interface EngagementItem {
+  id:           string
+  role:         string
+  organisation: string
+  dateDebut:    string
+  dateFin:      string | null
+  description:  string | null
+}
+
 export interface ProfilComplet {
   cjsUid:          string
   nom:             string
@@ -48,12 +65,18 @@ export interface ProfilComplet {
     zoneHabitation:    string | null
     domainesInteret:   string[]
     competences:       string[]
+    // GUIC-689 — « Objectif & secteurs visés » (réf profil-web.jsx ObjectiveCard).
+    objectif:          string | null
+    typesRecherches:   string[]
+    regionsMobilite:   string[]
     completionScore:   number
     profileVisibility: string
   } | null
   experiences: ExperienceItem[]
   diplomes:    DiplomeItem[]
   certificats:  CertificatItem[]
+  langues:     LangueItem[]
+  engagements: EngagementItem[]
 }
 
 // Retourné par POST/PUT /api/profil/experiences

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rate-limit'
-import { getOpportuniteDetail, incrementVue } from '@/lib/opportunites-loader'
+import { getOpportuniteDetail } from '@/lib/opportunites-loader'
+import { canalFromSrc, trackConsultation } from '@/lib/analytics/consultations'
 import type { ApiResponse } from '@/types/api'
 import type { OpportuniteDetail } from '@/types/candidature'
 
@@ -37,8 +38,15 @@ export async function GET(
     )
   }
 
-  // Compteur de vues — best-effort, n'échoue jamais la réponse.
-  await incrementVue(slug, clientIp(request))
+  // Consultation — best-effort, n'échoue jamais la réponse (GUIC-688).
+  await trackConsultation({
+    typeEntite: 'opportunite',
+    entiteId:   detail.id,
+    typeEvent:  'consultation',
+    canal:      canalFromSrc(request.nextUrl.searchParams.get('src')),
+    ip:         clientIp(request),
+    userAgent:  request.headers.get('user-agent')?.slice(0, 512) || undefined,
+  })
 
   return NextResponse.json({ data: detail })
 }

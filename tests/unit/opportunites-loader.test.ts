@@ -32,7 +32,7 @@ const ROW = {
   slug: 'stage-agriculture',
   titre: 'Stage en agriculture',
   type: 'Stage',
-  domaine: 'Agriculture',
+  domaine: 'Economie',
   region: 'Dakar',
   organisation: 'CJS',
   remuneration: null,
@@ -66,12 +66,12 @@ describe('listOpportunites — filtrage et visibilité', () => {
   })
 
   it('transmet les filtres domaine, type et région en paramètres', async () => {
-    await listOpportunites({ ...base, domaine: 'Numerique', type: 'Emploi', region: 'Thies' })
+    await listOpportunites({ ...base, domaine: 'Economie', type: 'Emploi', region: 'Thies' })
     const { sql, values } = rowsSql()
     expect(sql).toContain('domaine = ?')
     expect(sql).toContain('type = ?')
     expect(sql).toContain('region = ?')
-    expect(values).toEqual(expect.arrayContaining(['Numerique', 'Emploi', 'Thies']))
+    expect(values).toEqual(expect.arrayContaining(['Economie', 'Emploi', 'Thies']))
   })
 
   it('n’ajoute pas de filtre quand domaine/type/région sont absents', async () => {
@@ -106,7 +106,7 @@ describe('listOpportunites — tri et pagination', () => {
       slug: 'stage-agriculture',
       titre: 'Stage en agriculture',
       type: 'Stage',
-      domaine: 'Agriculture',
+      domaine: 'Economie',
       region: 'Dakar',
       organisation: 'CJS',
       remuneration: null,
@@ -142,7 +142,128 @@ describe('listOpportunites — recherche', () => {
   })
 })
 
+// GUIC-684 — filtre par programme : le rattachement vit dans une table de jonction,
+// donc EXISTS(...) et non une colonne. Le COUNT doit porter le MÊME filtre que la
+// liste, sinon la pagination annonce plus de résultats qu'elle n'en sert.
+describe('listOpportunites — filtre programme', () => {
+  it('ajoute une clause EXISTS sur la jonction, paramétrée', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const { sql, values } = rowsSql()
+    expect(sql).toMatch(/EXISTS\s*\(/i)
+    expect(sql).toContain('opportunites_programmes')
+    expect(values).toContain('yeah')
+  })
+
+  it('accepte plusieurs programmes (multi-select)', async () => {
+    await listOpportunites({ ...base, programme: ['yeah', 'edupop'] })
+    const { sql, values } = rowsSql()
+    expect(sql).toMatch(/IN\s*\(/i)
+    expect(values).toEqual(expect.arrayContaining(['edupop', 'yeah']))
+  })
+
+  it('applique le MÊME filtre au COUNT qu’à la liste', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const countSql = (mockQueryRaw.mock.calls[1][0] as { sql: string }).sql
+    expect(countSql).toContain('opportunites_programmes')
+  })
+
+  it('n’ajoute aucune clause quand le filtre est absent', async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('opportunites_programmes')
+  })
+})
+
+// GUIC-689 — filtre rémunération : `remuneration` est un texte libre en base (pas de
+// booléen). Règle métier tranchée par le lead, implémentée dans `nonRemunereeSql()`
+// (opportunites-loader.ts) : seuls NULL/vide/marqueurs explicites ("non rémunéré",
+// "bénévole", "aucune", "sans rémunération") comptent comme non rémunérés — tout le
+// reste (indemnités, bourses, salaires négociables) compte comme rémunéré, même sans
+// montant chiffré.
+describe('listOpportunites — filtre rémunération (règle métier GUIC-689)', () => {
+  it('remuneration=no : exclut NULL, vide et tous les marqueurs explicites', async () => {
+    await listOpportunites({ ...base, remuneration: 'no' })
+    const { sql, values } = rowsSql()
+    expect(sql).toContain('remuneration IS NULL')
+    expect(sql).toContain("TRIM(remuneration) = ''")
+    expect(sql).toContain('remuneration LIKE ?')
+    expect(values).toEqual(
+      expect.arrayContaining([
+        '%non remunere%',
+        '%benevole%',
+        '%aucune%',
+        '%sans remuneration%',
+      ]),
+    )
+  })
+
+  it('remuneration=yes : inverse strictement la même clause (NOT (...))', async () => {
+    await listOpportunites({ ...base, remuneration: 'yes' })
+    const { sql } = rowsSql()
+    expect(sql).toMatch(/NOT\s*\(remuneration IS NULL/i)
+  })
+
+  it("n'ajoute aucune clause remuneration quand le filtre est absent", async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('remuneration IS NULL')
+  })
+})
+
+// GUIC-689 — filtre deadline : bug avant correction — écrit dans l'URL (FiltresPanel)
+// mais jamais lu ni transformé en clause SQL, la liste ne changeait jamais.
+describe('listOpportunites — filtre deadline (J-7 / J-30)', () => {
+  it('deadline=7 : exclut les opportunités sans échéance ET borne à NOW()+7 jours', async () => {
+    await listOpportunites({ ...base, deadline: '7' })
+    const { sql, values } = rowsSql()
+    expect(sql).toContain('deadline IS NOT NULL')
+    expect(sql).toContain('DATE_ADD(NOW(), INTERVAL ? DAY)')
+    expect(values).toContain(7)
+  })
+
+  it('deadline=30 : borne à NOW()+30 jours', async () => {
+    await listOpportunites({ ...base, deadline: '30' })
+    const { values } = rowsSql()
+    expect(values).toContain(30)
+  })
+
+  it("n'ajoute aucune clause deadline quand le filtre est absent", async () => {
+    await listOpportunites(base)
+    expect(rowsSql().sql).not.toContain('DATE_ADD')
+  })
+})
+
 describe('listOpportunites — cache Redis', () => {
+  // GUIC-684 — sans le programme dans la clé, une recherche filtrée servirait le
+  // résultat NON filtré mis en cache par la requête précédente.
+  it('distingue les résultats par programme dans la clé de cache', async () => {
+    await listOpportunites({ ...base, programme: 'yeah' })
+    const cleYeah = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, programme: 'edupop' })
+    const cleEdupop = mockRedisSet.mock.calls[0][0] as string
+
+    expect(cleYeah).not.toBe(cleEdupop)
+    expect(cleYeah).toContain('yeah')
+  })
+
+  // GUIC-689 — même piège que GUIC-684 : sans remuneration/deadline dans la clé,
+  // basculer le filtre servirait le résultat mis en cache par la requête précédente.
+  it('distingue les résultats par remuneration et deadline dans la clé de cache', async () => {
+    await listOpportunites({ ...base, remuneration: 'yes' })
+    const cleYes = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, remuneration: 'no' })
+    const cleNo = mockRedisSet.mock.calls[0][0] as string
+    mockRedisSet.mockClear()
+
+    await listOpportunites({ ...base, deadline: '7' })
+    const cleDeadline7 = mockRedisSet.mock.calls[0][0] as string
+
+    expect(cleYes).not.toBe(cleNo)
+    expect(cleYes).not.toBe(cleDeadline7)
+  })
+
   it('sert le résultat depuis le cache sans frapper la BDD', async () => {
     const first = await listOpportunites(base)
     mockRedisGet.mockResolvedValue(JSON.stringify(first))

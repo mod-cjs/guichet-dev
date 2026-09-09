@@ -60,7 +60,10 @@ const DANGER_PATTERNS: readonly (readonly [RegExp, DangerSignal])[] = [
   [/(me\s+suicider|me\s+tuer|mettre\s+fin\s+a\s+mes\s+jours|je\s+veux\s+mourir|veux\s+en\s+finir|envie\s+d'?en\s+finir|en\s+finir\s+avec\s+(la\s+vie|tout)|plus\s+envie\s+de\s+vivre|(?<!faire\s)disparaitre|me\s+faire\s+du\s+mal|m'?automutil|me\s+mutiler|me\s+scarifi)/, 'automutilation_suicide'],
   [/((on|il|elle|mon\s+(mari|conjoint|copain|pere|frere|patron))\s+me\s+(frappe|bat|cogne|roue\s+de\s+coups|tabasse)|je\s+suis\s+(frappe|battu|tabasse)|violences?\s+(conjugal|domestique|familial|a\s+la\s+maison))/, 'violence'],
   [/(attouchement|abus\s+sexuel|on\s+m'?a\s+viol|je\s+me\s+suis\s+fait\s+viol|forc[e]*e?\s+a\s+des\s+(rapport|relation|acte)s?\s+sexuel|rapport\s+sexuel\s+sous\s+contrainte|photos?\s+intimes?\s+sous\s+(la\s+)?contrainte)/, 'abus_sexuel'],
-  [/(harcele|cyberharcel)/, 'harcelement'],
+  // 1re personne EXIGÉE (mesure du 26/07) : « j'ai suivi une formation sur le harcèlement »
+  // déclenchait une alerte URGENTE à tout le pool conseiller. Un faux positif use la
+  // crédibilité des vrais signalements — c'est le mécanisme lui-même qu'on protège ici.
+  [/(je\s+suis\s+(harcele|cyberharcele)|on\s+me\s+harcele|il\s+me\s+harcele|elle\s+me\s+harcele|me\s+harcelen?t|je\s+subis\s+(du\s+)?(harcelement|cyberharcelement)|victime\s+de\s+(harcelement|cyberharcelement)|je\s+me\s+fais\s+harcele)/, 'harcelement'],
   [/(travail\s+force|papiers?[^.]{0,15}confisqu|confisqu[^.]{0,15}(mes\s+)?papiers|fait\s+travailler\s+sans\s+(me\s+)?payer|on\s+me\s+force\s+a\s+travailler|mendicite\s+forcee|je\s+suis\s+exploite\s+au\s+travail)/, 'exploitation'],
   // Discrimination : rejet/maltraitance lié à un attribut protégé (haute précision → cause explicite).
   [/(a\s+cause\s+de\s+(mon|ma|mes)\s+(handicap|origine|religion|couleur|genre|orientation|accent|ethnie|peau)|discrimin|(rejete|maltraite|humilie|exclu)[e]*s?\s+(a\s+cause\s+de|pour|en\s+raison\s+de)\s+(mon|ma|mes)\s+(handicap|origine|religion|genre|couleur))/, 'discrimination'],
@@ -84,14 +87,14 @@ const DANGER_REPLY =
 const RE_HUMAN_REQUEST =
   /(parler|discuter|echanger|contacter|joindre|voir|avoir)\s+(a\s+|avec\s+|à\s+)?(un|une|d'?un|quelqu'?un|des?)?\s*(vrai[e]?\s+)?(conseiller|conseillere|humain|humaine|agent\s+humain|vraie?\s+personne|personne\s+reelle|responsable\s+humain|un\s+humain)/
 const HUMAN_REPLY =
-  "Bien sûr — je te mets en relation avec un conseiller du CJS, il va prendre le relais et te répondre ici même. Tu peux lui rappeler ta demande."
+  "Bien sûr — je transmets ta demande à l'équipe du CJS, qui va te recontacter. Tu peux lui rappeler ta demande."
 
 // ── P0 — refus de sécurité / CDP / injection ─────────────────────────────────
 
 // NB : `administrateur` n'est PAS une alternance nue (sinon « des offres administrateur
 // système » serait refusé comme jailbreak) — il n'est capté qu'après « mode ».
 const RE_INJECTION =
-  /(ignore[rz]?\b[^.!?]{0,30}(instructions?|regles?|consignes)|oublie[rz]?\b[^.!?]{0,20}instructions?|mode\s+admin(istrateur)?|tu\s+es\s+(maintenant|desormais)|repete[rz]?\b[^.!?]{0,30}(instructions?|prompt|regles?|consignes)|instructions?\s+system|system\s+prompt|montre[rz]?\b[^.!?]{0,15}(regles?|instructions?|consignes))/
+  /(ignore[rz]?\b[^.!?]{0,30}(instructions?|regles?|consignes)|oublie[rz]?\b[^.!?]{0,20}instructions?|mode\s+admin(istrateur)?|tu\s+es\s+(maintenant|desormais)\s+(un|une|le|la|mon\s+nouveau|nouvelle)?\s*(assistant|ia|modele|admin|developpeur|hacker|dan|chatbot|systeme|programme)|repete[rz]?\b[^.!?]{0,30}(instructions?|prompt|regles?|consignes)|instructions?\s+system|system\s+prompt|montre[rz]?\b[^.!?]{0,15}(regles?|instructions?|consignes))/
 
 // NB : « toutes les candidatures » retiré du groupe `toutes les …` → « montre toutes
 // les candidatures auxquelles j'ai postulé » (les SIENNES) ne doit pas être refusé.
@@ -144,7 +147,7 @@ const RE_START_THANKS = /^(merci|thanks?|nickel|super|top|parfait|genial)/
 const RE_START_BYE = /^(au\s*revoir|a\s*bientot|bye|ciao|a\s*\+|bonne\s+(journee|soiree|continuation)|ba\s+beneen)/
 const RE_START_SMALLTALK = /^(ca\s+va|comment\s+(tu\s+)?vas|tu\s+vas\s+bien|comment\s+ca\s+va|ca\s+roule)/
 const RE_HAS_ACTION =
-  /(offre|stage|emploi|boulot|travail|bourse|financement|volontariat|formation|reserv|salle|vehicule|badge|carte|livre|emprunt|biblio|candidat|postul|cherch|trouv|profil|competenc|conseil|besoin|aide[- ]moi|eligib|manque)/
+  /(offre|stage|emploi|boulot|travail|bourse|financement|volontariat|formation|reserv|salle|vehicule|badge|carte|livre|emprunt|biblio|candidat|postul|cherch|trouv|profil|competenc|conseil|besoin|aide[- ]moi|eligib|manque|programme|yeah|yaakaar|evenement|atelier|forum|webinaire|agenda|centre|attestation|certificat|diplome|inscription|inscri|dossier|notification|ressource|guide)/
 
 // Sous-ensemble « TÂCHE outil » (≠ demande de conseil) : sert à ne PAS court-circuiter
 // les pré-screens émotionnels quand la personne demande AUSSI une action concrète
@@ -152,6 +155,45 @@ const RE_HAS_ACTION =
 // `conseil`/`aide` qui, eux, sont le déclencheur légitime de l'encouragement direct.
 const RE_TOOL_ACTION =
   /(offre|stage|emploi|boulot|bourse|financement|volontariat|formation|reserv|salle|vehicule|badge|emprunt|biblio|candidat|postul|cherch|trouv|eligib)/
+
+/**
+ * Ce qui subsiste une fois les formules sociales retirées. Le pré-filtre se prononçait
+ * sur le PRÉFIXE du message : « bonjour, c'est quoi le programme Yaakaar ? » recevait une
+ * salutation générique et la question disparaissait (mesure du 26/07). On regarde
+ * désormais le RESTE.
+ */
+const RE_FORMULES_SOCIALES =
+  /^(bonjour|bonsoir|salut|coucou|cc|hello|hey|yaye|merci|thanks?|nickel|super|top|parfait|genial|au\s*revoir|a\s*bientot|bye|ciao|bonne\s+(journee|soiree|continuation)|ba\s+beneen|ca\s+va|comment\s+(tu\s+)?vas|tu\s+vas\s+bien|comment\s+ca\s+va|ca\s+roule)\b/
+/** Politesses et interjections qui ne portent aucune demande. */
+const RE_REMPLISSAGE =
+  /\b(yaye|stp|svp|s\s*il\s*te\s*plait|beaucoup|bien|infiniment|vraiment|encore|toi|tu|m|a|aide|aidee|helpful|les\s+amis|cher|chere|et|de|la|le|les|mon|ma|mes|ok|d\s*accord|hein|alors|donc|voila|c\s*est|sympa|gentil|gentille)\b/g
+
+/** Marqueurs d'une VRAIE demande : question posée, intention exprimée. */
+const RE_DEMANDE =
+  /(\?|c'?est\s+quoi|qu'?est[-\s]?ce|quoi|comment|quand|combien|pourquoi|quel|quelle|ou\s+(est|se\s+trouve|puis)|peux[-\s]tu|pouvez|je\s+(veux|voudrais|cherche|souhaite|dois|peux)|j'?ai\s+besoin|dis[-\s]moi|explique|montre|donne|il\s+y\s+a)/
+
+/**
+ * Le message est-il PUREMENT social ? On retire les formules et le remplissage, puis on
+ * regarde s'il subsiste une demande. « merci beaucoup, tu m'as bien aidé » ne laisse rien ;
+ * « merci, et les inscriptions au programme YEAH c'est quand ? » laisse une question.
+ */
+function estPurementSocial(t: string): boolean {
+  // On retire les formules TANT QU'IL Y EN A : « salut, ça va ? » en enchaîne deux, et la
+  // ponctuation intermédiaire doit sauter entre les deux passes (l'ancrage est en début).
+  let reste = t
+  for (let i = 0; i < 3; i++) {
+    const avant = reste
+    reste = reste.replace(RE_FORMULES_SOCIALES, ' ').replace(/^[^a-z0-9]+/, '')
+    if (reste === avant) break
+  }
+  reste = reste
+    .replace(RE_REMPLISSAGE, ' ')
+    .replace(/[^a-z0-9?]+/g, ' ')
+    .trim()
+  // Un « ? » esseulé ne fait pas une question : « ça va ? » ne laisse que de la ponctuation.
+  if (!reste.replace(/[^a-z0-9]+/g, '')) return true
+  return !RE_DEMANDE.test(reste) && !RE_HAS_ACTION.test(reste)
+}
 
 const GREETINGS = [
   "Bonjour ! Dis-moi ce qui t'amène — une opportunité, une formation, ou un point sur tes candidatures ?",
@@ -227,20 +269,46 @@ const ADVICE = [
   "Le trac, tout le monde connaît ! Mets en avant 2-3 forces, prépare une réponse à « parlez-moi de vous », et dors bien avant. On peut réviser tes points forts ensemble si tu veux.",
 ]
 
-/** Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire). */
+/**
+ * Choix varié SANS aléa : rotation déterministe par pool (évite les doublons de l'aléatoire).
+ *
+ * Le curseur est global au processus — c'était le seul état partagé ENTRE utilisateurs :
+ * deux personnes différentes pouvaient recevoir la même formule au même instant, et la
+ * même personne pouvait en recevoir deux fois la même. On décale donc la rotation par un
+ * hachage de l'identité (GUIC-678) : la variation reste garantie d'un tour à l'autre, et
+ * deux personnes servies simultanément ne tombent plus sur la même phrase.
+ */
 const _cursor = new WeakMap<string[], number>()
-function pick(pool: string[]): string {
-  const i = _cursor.get(pool) ?? 0
-  _cursor.set(pool, (i + 1) % pool.length)
-  return pool[i]
+
+/** FNV-1a + avalanche : deux identités VOISINES doivent donner des décalages ÉLOIGNÉS,
+ *  sinon l'avance du curseur global annule exactement l'écart et les deux se rejoignent. */
+function seedOffset(seed?: string): number {
+  if (!seed) return 0
+  let h = 2166136261
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  h ^= h >>> 15
+  h = Math.imul(h, 2246822507)
+  h ^= h >>> 13
+  return Math.abs(h | 0)
+}
+
+function pick(pool: string[], seed?: string): string {
+  const cursor = _cursor.get(pool) ?? 0
+  _cursor.set(pool, (cursor + 1) % pool.length)
+  return pool[(cursor + seedOffset(seed)) % pool.length]
 }
 
 /**
  * Filtre un message AVANT la boucle d'outils.
  * @param firstTurn true si aucun historique (les petites interactions ne s'appliquent qu'au 1er tour).
+ * @param seed identité de l'appelant (cjsUid) — décale la rotation des formules pour que
+ *   deux personnes servies au même instant ne reçoivent pas la même phrase (GUIC-678).
  * @returns une réponse à court-circuiter, ou null pour laisser passer à l'agent.
  */
-export function preScreen(message: string, firstTurn = true): PreScreenResult | null {
+export function preScreen(message: string, firstTurn = true, seed?: string): PreScreenResult | null {
   const t = norm(message)
 
   // DANGER — priorité absolue : force l'escalade humaine (filet de sécurité).
@@ -262,27 +330,27 @@ export function preScreen(message: string, firstTurn = true): PreScreenResult | 
   // Placé avant le revers car « je stresse … tu as des conseils ? » porte une intention actionnable.
   // Mais si une TÂCHE outil est aussi demandée (« … prépare ma candidature »), on laisse l'agent
   // agir plutôt que de servir un conseil tout fait qui l'ignorerait.
-  if (RE_ANXIETY.test(t) && !RE_TOOL_ACTION.test(t)) return { action: 'direct', reply: pick(ADVICE), reason: 'anxiety' }
+  if (RE_ANXIETY.test(t) && !RE_TOOL_ACTION.test(t)) return { action: 'direct', reply: pick(ADVICE, seed), reason: 'anxiety' }
   // Revers ordinaire sans intention actionnable → consolation directe (anti sur-escalade).
-  if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS), reason: 'setback' }
+  if (RE_MILD_SETBACK.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(CONSOLATIONS, seed), reason: 'setback' }
 
   // Présentation de soi + hors-sujet évident → réponse directe (tout tour, sans outil).
   // Gardé par !RE_HAS_ACTION : « tu fais quoi comme recherche pour les bourses ? » porte
   // une vraie demande → à l'agent, pas à la présentation figée.
-  if (RE_SELF_PRESENT.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS), reason: 'presentation' }
-  if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC), reason: 'offtopic' }
+  if (RE_SELF_PRESENT.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(PRESENTATIONS, seed), reason: 'presentation' }
+  if (RE_OFFTOPIC.test(t) && !RE_HAS_ACTION.test(t)) return { action: 'direct', reply: pick(OFFTOPIC, seed), reason: 'offtopic' }
   // Message purement vague (1er tour) → question de clarification, sans outil.
-  if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY), reason: 'clarify' }
+  if (firstTurn && RE_VAGUE.test(t)) return { action: 'direct', reply: pick(CLARIFY, seed), reason: 'clarify' }
 
   // P1 — petites interactions PUREMENT sociales (sans intention actionnable), à TOUT tour.
   // Gardées déterministes même en cours de conversation : un simple « bonjour » / « merci »
   // ne doit jamais partir vers le LLM (un petit modèle y répond souvent à côté — présentation
   // hors-sujet, méta…). La reformulation reste variée via la rotation `pick`.
-  if (!RE_HAS_ACTION.test(t)) {
-    if (RE_START_GREETING.test(t)) return { action: 'direct', reply: pick(GREETINGS), reason: 'greeting' }
-    if (RE_START_THANKS.test(t)) return { action: 'direct', reply: pick(THANKS), reason: 'thanks' }
-    if (RE_START_BYE.test(t)) return { action: 'direct', reply: pick(BYES), reason: 'bye' }
-    if (RE_START_SMALLTALK.test(t)) return { action: 'direct', reply: pick(SMALLTALK), reason: 'smalltalk' }
+  if (!RE_HAS_ACTION.test(t) && estPurementSocial(t)) {
+    if (RE_START_GREETING.test(t)) return { action: 'direct', reply: pick(GREETINGS, seed), reason: 'greeting' }
+    if (RE_START_THANKS.test(t)) return { action: 'direct', reply: pick(THANKS, seed), reason: 'thanks' }
+    if (RE_START_BYE.test(t)) return { action: 'direct', reply: pick(BYES, seed), reason: 'bye' }
+    if (RE_START_SMALLTALK.test(t)) return { action: 'direct', reply: pick(SMALLTALK, seed), reason: 'smalltalk' }
   }
 
   return null

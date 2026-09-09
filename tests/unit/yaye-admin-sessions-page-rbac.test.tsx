@@ -75,3 +75,5 @@ describe('/admin/yaye/sessions — RBAC (R-1)', () => {
     expect(redirectMock).not.toHaveBeenCalled()
   })
 })
+
+export {}

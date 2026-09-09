@@ -4,32 +4,26 @@ import Image from 'next/image'
 import Link from 'next/link'
 import * as nav from 'next/navigation'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import { getProfilePhotoUrl } from '@/lib/avatar/profile-photo'
+import type { BenefSidebarSection } from './nav'
+export type { BenefSidebarItem, BenefSidebarSection } from './nav'
 
-export interface BenefSidebarItem {
-  id: string
-  href: string
-  icon: IconName
-  label: string
-  /** Badge optionnel (count ou texte court). */
-  badge?: string | number
-  /** Badge muted (compteur indicatif) vs vif (alerte). */
-  badgeMuted?: boolean
-  /** Lien externe (ouvre dans un nouvel onglet, rendu avec <a> au lieu de <Link>). */
-  external?: boolean
-}
 
-export interface BenefSidebarSection {
-  title?: string
-  items: BenefSidebarItem[]
-}
 
 export interface BenefSidebarProps {
   /** ID de l'item actif. */
   active?: string
   /** Sections personnalisées (défaut fourni). */
-  sections?: BenefSidebarSection[]
+  sections?: readonly BenefSidebarSection[]
+  /**
+   * GUIC-706 — le pied de sidebar mène aux réglages d'accessibilité. `false` le retire.
+   *
+   * Un booléen, pas une clé : les props d'un composant client sont sérialisées dans le
+   * HTML, et une clé de flag y annoncerait la fonctionnalité cachée. Un booléen ne dit rien
+   * de plus que le DOM rendu.
+   */
+  accessibiliteVisible?: boolean
   userName?: string
   userMeta?: string
   userInitials?: string
@@ -55,46 +49,6 @@ export interface BenefSidebarProps {
   onLogoutClick?: () => void
 }
 
-const DEFAULT_SECTIONS: BenefSidebarSection[] = [
-  {
-    items: [
-      { id: 'home', href: '/jeune/tableau-de-bord', icon: 'home', label: 'Accueil' },
-    ],
-  },
-  // GUIC-416 — conformité Lot 3 : la section Opportunités expose les
-  // sous-types (Emploi & Stages, Bourses & Financement, Formations,
-  // Concours & Appels) en raccourci, en plus de « Toutes » et
-  // « Mes favoris ». Les sous-items pointent vers /opportunites?type=…
-  // (filtre serveur déjà géré par OpportunitesClient via searchParams).
-  // Pas de badge count : compteur agrégé non disponible (cf. ticket).
-  {
-    title: 'Opportunités',
-    items: [
-      { id: 'opp-all', href: '/opportunites', icon: 'target', label: 'Toutes' },
-      { id: 'opp-emploi', href: '/opportunites?type=Emploi', icon: 'employment', label: 'Emploi & Stages' },
-      { id: 'opp-bourse', href: '/opportunites?type=Bourse', icon: 'funding', label: 'Bourses & Financement' },
-      { id: 'opp-formation', href: '/opportunites?type=Formation', icon: 'learning', label: 'Formations' },
-      { id: 'opp-concours', href: '/opportunites?type=Appel_a_projets', icon: 'trending', label: 'Concours & Appels' },
-      { id: 'favoris', href: '/jeune/mes-favoris', icon: 'bookmark', label: 'Mes favoris' },
-    ],
-  },
-  {
-    title: 'Mon parcours',
-    items: [
-      { id: 'candidatures', href: '/jeune/mes-candidatures', icon: 'document', label: 'Mes candidatures' },
-      { id: 'messagerie', href: '/jeune/messagerie', icon: 'chat', label: 'Messagerie' },
-      { id: 'formations', href: '/jeune/mes-formations', icon: 'document', label: 'Mes formations' },
-      { id: 'agenda', href: '/agenda', icon: 'calendar', label: 'Agenda' },
-      { id: 'centres', href: '/centres', icon: 'pin', label: 'Centres CJS' },
-      { id: 'bibliotheque', href: '/jeune/bibliotheque', icon: 'resources', label: 'Bibliothèque' },
-      { id: 'ressources', href: '/ressources', icon: 'document', label: 'Ressources' },
-    ],
-  },
-  // GUIC-376 — "Mon compte > Mon profil" supprimé : la carte profil en haut
-  // de la sidebar est désormais l'unique point d'accès à `/jeune/mon-profil`.
-  // GUIC-658 — section « Plateformes partenaires » (YEAH, E-learning)
-  // supprimée : sidebar épurée, le pied est réservé à l'accessibilité.
-]
 
 /**
  * Découpe un href "/path?query" en [path, query].
@@ -120,7 +74,7 @@ function splitHref(href: string): { path: string; query: string } {
 function resolveActiveId(
   pathname: string,
   searchParams: URLSearchParams,
-  sections: BenefSidebarSection[],
+  sections: readonly BenefSidebarSection[],
 ): string | undefined {
   const items = sections.flatMap(s => s.items)
 
@@ -169,7 +123,8 @@ function resolveActiveId(
  */
 export function BenefSidebar({
   active,
-  sections = DEFAULT_SECTIONS,
+  sections = [],
+  accessibiliteVisible = true,
   userName,
   userMeta,
   userInitials,
@@ -191,7 +146,11 @@ export function BenefSidebar({
   // `useRouter` peut être indisponible dans certains tests qui ne mockent
   // que `usePathname` (cf. tests/unit/benef-sidebar.test.tsx). On guard.
   const router = typeof nav.useRouter === 'function' ? nav.useRouter() : null
-  const activeId = active ?? resolveActiveId(pathname, searchParams, sections)
+  // GUIC-706 — les sections arrivent déjà filtrées par le serveur : l'item actif doit être
+  // résolu sur ce qui est réellement affiché, sinon un item masqué pourrait rester
+  // désigné comme actif et laisser son intitulé visible dans l'état de la barre.
+  const sectionsVisibles = sections
+  const activeId = active ?? resolveActiveId(pathname, searchParams, sectionsVisibles)
   const photoUrl = getProfilePhotoUrl(cjsUid ?? undefined, hasPhoto)
   const [photoOk, setPhotoOk] = useState<boolean>(Boolean(photoUrl))
   const [loggingOut, setLoggingOut] = useState(false)
@@ -240,7 +199,7 @@ export function BenefSidebar({
         />
         <div
           style={{
-            fontSize: 9.5,
+            fontSize: 'var(--fs-100)',
             color: 'var(--gj-teal-deep)',
             letterSpacing: '.5px',
             textTransform: 'uppercase',
@@ -314,7 +273,7 @@ export function BenefSidebar({
               <span
                 style={{
                   display: 'block',
-                  fontSize: 10.5,
+                  fontSize: 'var(--fs-100)',
                   color: 'var(--gj-grey)',
                   marginTop: 2,
                 }}
@@ -328,12 +287,12 @@ export function BenefSidebar({
       ) : null}
 
       {/* Sections */}
-      {sections.map((section, sIdx) => (
+      {sectionsVisibles.map((section, sIdx) => (
         <div key={section.title ?? `section-${sIdx}`}>
           {section.title ? (
             <div
               style={{
-                fontSize: 9.5,
+                fontSize: 'var(--fs-100)',
                 color: 'var(--gj-grey)',
                 fontWeight: 800,
                 letterSpacing: '.4px',
@@ -369,9 +328,12 @@ export function BenefSidebar({
                       marginLeft: 'auto',
                       background: item.badgeMuted ? 'var(--gj-line)' : 'var(--gj-red)',
                       color: item.badgeMuted ? 'var(--gj-grey)' : 'var(--gj-surface)',
-                      fontSize: 9.5,
+                      fontSize: 'var(--fs-100)',
                       fontWeight: 800,
-                      padding: '2px 7px',
+                      lineHeight: 1,
+                      minWidth: 20,
+                      textAlign: 'center',
+                      padding: '4px 7px',
                       borderRadius: 10,
                     }}
                   >
@@ -422,6 +384,7 @@ export function BenefSidebar({
           GUIC-376). Carte gradient teal — même registre que le hero de la
           page dédiée. L'activation des réglages reste un choix réfléchi :
           la carte mène à /jeune/accessibilite, pas de panneau superposé. */}
+      {accessibiliteVisible && (
       <Link
         href="/jeune/accessibilite"
         aria-label="Inclusion & accessibilité"
@@ -491,7 +454,7 @@ export function BenefSidebar({
               display: 'block',
               fontSize: 14.5,
               fontWeight: 900,
-              color: '#FFFFFF',
+              color: 'var(--gj-surface)',
             }}
           >
             Inclusion & accessibilité
@@ -501,7 +464,7 @@ export function BenefSidebar({
               display: 'block',
               fontSize: 12,
               fontWeight: 600,
-              color: '#FFFFFF',
+              color: 'var(--gj-surface)',
               opacity: 0.92,
               marginTop: 3,
             }}
@@ -513,6 +476,7 @@ export function BenefSidebar({
           <Icon name="chevron-right" size={17} />
         </span>
       </Link>
+      )}
 
       {/* GUIC-376 — Footer compte, séparé par un border-top.
           GUIC-658 — Notifications retiré (la cloche BenefTopBar reste le

@@ -48,8 +48,10 @@ describe('GUIC-28 — CRUD opportunité (DB réelle)', () => {
         slug,
         description: 'Fixture intégration GUIC-28.',
         organisationLibelle: 'CJS',
-        domaine: 'Entrepreneuriat',
+        domaine: 'Economie',
         statut: 'brouillon',
+        // GUIC-684 — rattachement obligatoire à au moins un programme.
+        programmeSlugs: ['yaakaar'],
       },
       details: { montantTotalFcfa: 750000, organismeFinanceur: 'CJS' },
     })
@@ -78,7 +80,7 @@ describe('GUIC-28 — CRUD opportunité (DB réelle)', () => {
     const dupSlug = `${slug}-dup`
     const { id } = await creerOpportunite({
       type: 'bourse',
-      base: { titre: 'Dup', slug: dupSlug, description: 'x', organisationLibelle: 'CJS', domaine: 'Autre' },
+      base: { titre: 'Dup', slug: dupSlug, description: 'x', organisationLibelle: 'CJS', domaine: 'Autre', programmeSlugs: ['yeah'] },
       details: { montantTotalFcfa: 1, organismeFinanceur: 'CJS' },
     })
     createdId = id

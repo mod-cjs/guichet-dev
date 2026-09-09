@@ -1,20 +1,34 @@
 import { Badge, Icon, RichContent, type IconName } from '@/components/ui'
+import { formaterPoids } from '@/lib/ressources/poids-fichier'
 import type { RessourceDetail, TypeRessourceValue } from '@/lib/loaders/ressources'
 
 interface RessourceDetailHeroProps {
   detail: RessourceDetail
 }
 
-const TYPE_META: Record<
+/**
+ * Couleur par type de ressource.
+ *
+ * GUIC-691 — le PDF était rouge. En v5 le rouge ne signale QUE l'urgence
+ * d'échéance : l'attribuer à un format de fichier vide le signal de son sens,
+ * un jeune finit par ne plus distinguer « ça ferme dans 2 jours » de « c'est un
+ * PDF ». Le PDF passe donc sur le bleu indigo, et la vidéo sur le cyan, les deux
+ * couleurs de contenu de la palette v5.
+ *
+ * Exporté pour que la sentinelle de conformité puisse le vérifier.
+ */
+export const TYPE_META_RESSOURCE: Record<
   TypeRessourceValue,
-  { icon: IconName; bg: string; text: string; badge: 'red' | 'blue' | 'teal' | 'yellow' | 'green' }
+  { icon: IconName; bg: string; text: string; badge: 'blue' | 'cyan' | 'teal' | 'yellow' | 'green' }
 > = {
-  PDF:   { icon: 'document', bg: 'bg-gj-red-soft',    text: 'text-gj-red-ink',    badge: 'red'    },
-  Video: { icon: 'play',     bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
+  PDF:   { icon: 'document', bg: 'bg-gj-blue-soft',   text: 'text-gj-blue-ink',   badge: 'blue'   },
+  Video: { icon: 'play',     bg: 'bg-gj-cyan-soft',   text: 'text-gj-cyan-ink',   badge: 'cyan'   },
   Lien:  { icon: 'external', bg: 'bg-gj-teal-soft',   text: 'text-gj-teal-deep',  badge: 'teal'   },
   Guide: { icon: 'document', bg: 'bg-gj-yellow-soft', text: 'text-gj-yellow-ink', badge: 'yellow' },
   Outil: { icon: 'bolt',     bg: 'bg-gj-green-soft',  text: 'text-gj-green-ink',  badge: 'green'  },
 }
+
+const TYPE_META = TYPE_META_RESSOURCE
 
 /**
  * Hero de la page détail ressource — GUIC-363.
@@ -24,6 +38,15 @@ const TYPE_META: Record<
  */
 export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
   const meta = TYPE_META[detail.type]
+
+  const poids = formaterPoids(detail.poidsOctets)
+  const mesures = [
+    detail.vues > 0 ? `${detail.vues} vue${detail.vues > 1 ? 's' : ''}` : null,
+    detail.telechargements > 0
+      ? `${detail.telechargements} téléchargement${detail.telechargements > 1 ? 's' : ''}`
+      : null,
+    poids,
+  ].filter((m): m is string => m !== null)
 
   return (
     <section
@@ -42,7 +65,9 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
           <div className="flex flex-wrap items-center gap-space-1 mb-space-2">
             <Badge variant={meta.badge}>{detail.type}</Badge>
             {detail.niveau && <Badge variant="grey">{detail.niveau}</Badge>}
-            {detail.langue && <Badge variant="grey">{detail.langue}</Badge>}
+            {detail.langue && detail.langue !== 'Wolof' && (
+              <Badge variant="grey">{detail.langue}</Badge>
+            )}
           </div>
           <h1
             id="ressource-detail-title"
@@ -54,14 +79,30 @@ export function RessourceDetailHero({ detail }: RessourceDetailHeroProps) {
             {detail.theme}
             {detail.categorie ? ` · ${detail.categorie}` : ''}
           </p>
+          {detail.langue === 'Wolof' && (
+            <div
+              className="inline-flex items-center gap-space-1 mt-space-2 rounded-gj-md
+                bg-gj-teal-soft text-gj-teal-deep text-fs-200 font-bold px-space-3 py-space-1"
+            >
+              <Icon name="play" size={14} />
+              Version audio en Wolof disponible
+            </div>
+          )}
         </div>
       </div>
 
       <RichContent html={detail.description} className="text-fs-300" />
 
-      <div className="text-fs-200 text-color-text-muted">
-        {detail.vues} vue{detail.vues > 1 ? 's' : ''}
-      </div>
+      {/* GUIC-709 — n'affiche que ce qui est mesuré. « 0 vue » était rendu tel
+          quel : un compteur à zéro n'informe de rien et fait passer une
+          ressource neuve pour une ressource délaissée. Même règle pour les
+          téléchargements, et le poids ne paraît que s'il a été relevé à la
+          source (`null` = non mesuré, jamais « vide »). */}
+      {mesures.length > 0 && (
+        <div className="text-fs-200 text-color-text-muted">
+          {mesures.join(' · ')}
+        </div>
+      )}
     </section>
   )
 }

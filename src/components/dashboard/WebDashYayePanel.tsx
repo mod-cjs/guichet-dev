@@ -2,6 +2,7 @@
 
 import { Icon } from '@/components/ui/Icon'
 import { YayeAvatar } from '@/components/ui/Yaye/YayeAvatar'
+import { useYayePanel } from '@/components/yaye/YayeProvider'
 
 interface Props {
   preview?: string
@@ -13,11 +14,18 @@ interface Props {
  * avec CTA pour ouvrir le side panel complet.
  *
  * Référence : design-guichet-v2/web-dashboard.jsx#WebDashYayePanel (L.695-781)
+ *
+ * GUIC-689 (finding A1) — `page.tsx` (Server Component) monte ce panel sans
+ * `onOpen` : le CTA se cable donc lui-même sur `useYayePanel` (même drawer
+ * partagé que `WebDashHero`), `onOpen` restant un override possible.
  */
 export function WebDashYayePanel({
   preview = 'Salama. J\'ai 3 opportunités à 90%+ match pour toi cette semaine. On y va ?',
   onOpen,
 }: Props) {
+  const yaye = useYayePanel()
+  const handleOpen = onOpen ?? yaye.open
+
   return (
     <aside
       className="rounded-gj-md p-space-4 bg-gj-teal-deep text-white
@@ -44,7 +52,9 @@ export function WebDashYayePanel({
       </p>
       <button
         type="button"
-        onClick={onOpen}
+        onClick={handleOpen}
+        aria-haspopup="dialog"
+        aria-expanded={onOpen ? undefined : yaye.isOpen}
         className="inline-flex items-center justify-center gap-space-2
           bg-gj-yellow text-gj-teal-deep px-space-3 py-space-3 rounded-gj-md
           font-black text-fs-200 hover:bg-gj-yellow-deep transition-colors"

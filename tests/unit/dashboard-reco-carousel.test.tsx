@@ -5,8 +5,8 @@ import type { OppRecoCard } from '@/components/dashboard/OpportunitesRecoCarouse
 // Données alignées sur la signature actuelle du composant (OppRecoCard[]),
 // post-refacto opps→items / MiniOpp→OppRecoCard (Vague 0).
 const ITEMS: OppRecoCard[] = [
-  { id: '1', tag: 'Emploi', tone: 'cjs', title: 'Développeur web junior', org: 'CTIC Dakar', href: '/opportunites/dev-web-junior' },
-  { id: '2', tag: 'Stage', tone: 'urgent', title: 'Stage Data Science', org: 'Sonatel', href: '/opportunites/stage-data-science' },
+  { id: '1', type: 'Emploi' as const, title: 'Développeur web junior', org: 'CTIC Dakar', href: '/opportunites/dev-web-junior' },
+  { id: '2', type: 'Stage' as const, title: 'Stage Data Science', org: 'Sonatel', href: '/opportunites/stage-data-science' },
 ]
 
 describe('<OpportunitesRecoCarousel />', () => {

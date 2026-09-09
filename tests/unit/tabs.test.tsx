@@ -46,10 +46,27 @@ describe('<Tabs />', () => {
     expect(onChange).toHaveBeenLastCalledWith('all')
   })
 
-  it('respecte tap-min 44px et soulignement teal-deep sur l\'actif', () => {
+  it('respecte tap-min 44px et fond teal-deep plein sur l\'actif (pilule, design v5 Lot 14)', () => {
     render(<Tabs value="all" onChange={() => {}} items={ITEMS} ariaLabel="Filtrer" />)
     const active = screen.getByRole('tab', { name: /toutes/i })
+    const inactive = screen.getByRole('tab', { name: /emplois/i })
     expect(active.className).toMatch(/min-h-\[var\(--tap-min\)\]/)
-    expect(active.className).toMatch(/border-gj-teal-deep|teal-deep/)
+    expect(active.className).toMatch(/bg-gj-teal-deep/)
+    expect(active.className).toMatch(/text-white/)
+    expect(inactive.className).not.toMatch(/bg-gj-teal-deep/)
+  })
+
+  it('rend le tablist dans un conteneur pilule (fond blanc, bordure) — Segmented Lot 14', () => {
+    render(<Tabs value="all" onChange={() => {}} items={ITEMS} ariaLabel="Filtrer" />)
+    const tablist = screen.getByRole('tablist', { name: /filtrer/i })
+    expect(tablist.className).toMatch(/bg-gj-surface/)
+    expect(tablist.className).toMatch(/border-gj-line\b/)
+  })
+
+  it('le compteur de l\'onglet actif passe en blanc translucide sur le fond teal-deep (Lot 14)', () => {
+    render(<Tabs value="all" onChange={() => {}} items={ITEMS} ariaLabel="Filtrer" />)
+    const activeCount = screen.getByRole('tab', { name: /toutes/i }).querySelector('[aria-hidden="true"]')
+    expect(activeCount?.className).toMatch(/bg-white\/20/)
+    expect(activeCount?.className).toMatch(/text-white/)
   })
 })

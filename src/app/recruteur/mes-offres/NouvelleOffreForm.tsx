@@ -6,6 +6,7 @@
  * (validation CJS). Couleurs recruteur (bleu).
  */
 import { useRef, useState, useTransition } from 'react'
+import { ProgrammesField, type ProgrammeOption } from '@/components/admin/ProgrammesField'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -14,11 +15,16 @@ import { Toast, type ToastVariant } from '@/components/ui/Toast'
 import { Icon } from '@/components/ui/Icon'
 import { creerOffreRecruteur, type CreerOffreRecruteurInput } from './actions'
 import { MESSAGE_ECHEC_OFFRE } from './echec-messages'
+import { DOMAINES_VISIBLES, libelleDomaine } from '@/lib/domaines'
 
 type Opt = { value: string; label: string }
 const opt = (...v: string[]): Opt[] => v.map((x) => ({ value: x, label: x.replace(/_/g, ' ') }))
 
-const DOMAINES = opt('Agriculture', 'Numerique', 'Entrepreneuriat', 'Citoyennete', 'Environnement', 'Sante', 'Education', 'Culture', 'Autre')
+// GUIC-689 — SIXIÈME copie du vocabulaire, oubliée lors de la refonte de
+// taxonomie : ce formulaire proposait encore les neuf anciennes catégories et
+// se pré-remplissait sur « Numerique », valeur devenue inexistante. Un
+// recruteur qui ne touchait pas au champ voyait sa création refusée.
+const DOMAINES = DOMAINES_VISIBLES.map((d) => ({ value: d, label: libelleDomaine(d) }))
 const REGIONS = opt('Dakar', 'Thies', 'Diourbel', 'Fatick', 'Kaolack', 'Kaffrine', 'Louga', 'Saint_Louis', 'Matam', 'Tambacounda', 'Kedougou', 'Kolda', 'Ziguinchor', 'Sedhiou')
 const NIVEAUX = opt('BFEM', 'BAC', 'BAC_PLUS_2', 'BAC_PLUS_3', 'BAC_PLUS_5', 'DOCTORAT')
 const TYPE_CONTRAT = opt('CDI', 'CDD', 'FREELANCE', 'ALTERNANCE', 'STAGE_ALTERNE')
@@ -37,12 +43,24 @@ function Check({ name, label }: { name: string; label: string }) {
   )
 }
 
-export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: string; skills?: { id: string; libelle: string }[] }) {
+export function NouvelleOffreForm({
+  companyName,
+  skills = [],
+  programmes = [],
+}: {
+  companyName: string
+  skills?: { id: string; libelle: string }[]
+  /** GUIC-684 — programmes CJS proposés au rattachement de l'offre. */
+  programmes?: ProgrammeOption[]
+}) {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const [type, setType] = useState<'emploi' | 'stage'>('emploi')
   const [desc, setDesc] = useState('')
   const [sel, setSel] = useState<string[]>([])
+  // GUIC-684 — l'offre doit relever d'au moins un programme CJS.
+  const [programmeSlugs, setProgrammeSlugs] = useState<string[]>([])
+  const [programmePrincipal, setProgrammePrincipal] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
   const toggleSkill = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -57,12 +75,17 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
     const common = {
       titre: g('titre') ?? '',
       description: g('description') ?? '',
-      domaine: g('domaine') ?? 'Numerique',
+      // Pas de valeur par défaut : le champ est `required`, donc le navigateur
+      // impose un choix. Un défaut arbitraire classerait l'offre à la place du
+      // recruteur.
+      domaine: g('domaine') ?? '',
       region: g('region') ?? null,
       remuneration: g('remuneration') ?? null,
       deadline: g('deadline') ?? null,
       niveauEtudeMin: g('niveauEtudeMin') ?? null,
       skills: sel,
+      programmeSlugs,
+      programmePrincipalSlug: programmePrincipal,
     }
     const payload = (
       type === 'emploi'
@@ -83,13 +106,22 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
           }
     ) as CreerOffreRecruteurInput
 
+    if (programmeSlugs.length === 0) {
+      setToast({ msg: 'Sélectionnez au moins un programme de rattachement.', variant: 'error' })
+      return
+    }
+
     start(async () => {
       try {
         const res = await creerOffreRecruteur(payload)
-        if (res.ok) router.push('/recruteur/mes-offres?creee=1')
-        else setToast({ msg: MESSAGE_ECHEC_OFFRE[res.code], variant: 'error' })
+        if (res.ok) {
+          router.push('/recruteur/mes-offres?creee=1')
+        } else {
+          // GUIC-706 — message métier clair (gate de publication, org suspendue, accès révoqué…).
+          setToast({ msg: MESSAGE_ECHEC_OFFRE[res.code], variant: 'error' })
+        }
       } catch {
-        setToast({ msg: 'Une erreur est survenue. Réessayez.', variant: 'error' })
+        setToast({ msg: 'Vérifiez les champs obligatoires (titre, description, type de contrat / durée).', variant: 'error' })
       }
     })
   }
@@ -144,7 +176,7 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
             onChange={setDesc}
           />
           <div className="grid gap-[12px]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-            <Select name="domaine" label="Domaine" required options={DOMAINES} defaultValue="Numerique" />
+            <Select name="domaine" label="Domaine" required options={DOMAINES} defaultValue="" />
             <Select name="region" label="Région" options={REGIONS} placeholder="—" />
             <Input name="deadline" label="Date limite" type="date" />
             <Input name="remuneration" label="Rémunération" maxLength={100} placeholder="Ex. 250 000 FCFA / mois" />
@@ -181,6 +213,19 @@ export function NouvelleOffreForm({ companyName, skills = [] }: { companyName: s
           </div>
         )}
       </div>
+
+      {/* Programme(s) CJS de rattachement (GUIC-684) — obligatoire */}
+      {programmes.length > 0 && (
+        <div style={card}>
+          <ProgrammesField
+            options={programmes}
+            value={programmeSlugs}
+            onChange={setProgrammeSlugs}
+            principal={programmePrincipal}
+            onPrincipalChange={setProgrammePrincipal}
+          />
+        </div>
+      )}
 
       {/* Compétences requises (alimentent le score d'adéquation IA) */}
       {skills.length > 0 && (

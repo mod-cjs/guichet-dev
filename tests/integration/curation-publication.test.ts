@@ -49,7 +49,7 @@ async function itemApprouve(sourceId: string, payloadOver: Record<string, unknow
         description: 'Poste basé à Dakar.',
         organisation: 'ONG Teranga',
         region: 'Dakar',
-        domaine: 'Numerique',
+        domaine: 'Economie',
         typeId: TYPE_EMPLOI,
         deadline: '2026-12-31',
         ...payloadOver,
@@ -107,7 +107,7 @@ describe('GUIC-601 — publierItem', () => {
     const s = await source()
     const it = await itemApprouve(s.id)
 
-    const { opportuniteId } = await publierItem(it.id)
+    const { opportuniteId } = await publierItem(it.id, ['yeah'])
     expect(opportuniteId).toBeTruthy()
 
     const opp = await prisma.opportunite.findUnique({
@@ -118,7 +118,7 @@ describe('GUIC-601 — publierItem', () => {
     expect(opp?.titre).toBe(`${PREFIX} Assistant logistique`)
     expect(opp?.organisationLibelle).toBe('ONG Teranga')
     expect(opp?.region).toBe('Dakar')
-    expect(opp?.domaine).toBe('Numerique')
+    expect(opp?.domaine).toBe('Economie')
     expect(opp?.lienExterne).toBe(it.urlCanonique) // traçabilité vers la source
     expect(opp?.typeRef?.slug).toBe('emploi')
     expect(opp?.emploi).not.toBeNull() // sous-type minimal créé
@@ -137,7 +137,7 @@ describe('GUIC-601 — publierItem', () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const s = await source()
     const it = await itemApprouve(s.id)
-    await publierItem(it.id)
+    await publierItem(it.id, ['yeah'])
     await expect(publierItem(it.id)).rejects.toThrow(/DEJA_PUBLIE|déjà/i)
   })
 
@@ -145,7 +145,7 @@ describe('GUIC-601 — publierItem', () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const s = await source()
     const it = await itemApprouve(s.id, { domaine: 'Charabia inconnu', region: 'PaysImaginaire' })
-    const { opportuniteId } = await publierItem(it.id)
+    const { opportuniteId } = await publierItem(it.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId } })
     expect(opp?.domaine).toBe('Autre')
     expect(opp?.region).toBeNull() // région non mappable → null
@@ -155,7 +155,7 @@ describe('GUIC-601 — publierItem', () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const s = await source()
     const it = await itemApprouve(s.id, { deadline: 'bientôt' })
-    const { opportuniteId } = await publierItem(it.id)
+    const { opportuniteId } = await publierItem(it.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId } })
     expect(opp?.deadline).toBeNull()
   })
@@ -166,7 +166,7 @@ describe('GUIC-601 — publierItem', () => {
     mockGetSession.mockResolvedValue(ADMIN)
     const s = await source()
     const it = await itemApprouve(s.id, { typeId: typeBourse.id })
-    const { opportuniteId } = await publierItem(it.id)
+    const { opportuniteId } = await publierItem(it.id, ['yeah'])
     const opp = await prisma.opportunite.findUnique({ where: { id: opportuniteId }, include: { bourse: true, typeRef: true } })
     expect(opp?.typeRef?.slug).toBe('bourse')
     expect(opp?.bourse).not.toBeNull()
@@ -178,7 +178,10 @@ describe('GUIC-601 — publierItem', () => {
     const s = await source()
     const it = await itemApprouve(s.id)
 
-    const resultats = await Promise.allSettled([publierItem(it.id), publierItem(it.id)])
+    const resultats = await Promise.allSettled([
+      publierItem(it.id, ['yeah']),
+      publierItem(it.id, ['yeah']),
+    ])
     const ok = resultats.filter((r) => r.status === 'fulfilled')
     const ko = resultats.filter((r) => r.status === 'rejected')
     expect(ok).toHaveLength(1) // exactement une réussit
