@@ -499,8 +499,11 @@ groups:
               expression: A
               # >=10 sur 14 jours : tolère quelques nuits sans run (contention, redéploiement)
               # sans jamais permettre de se déclencher sur un début de pause tout juste amorcé.
+              # GUIC-715 — le type threshold de Grafana n'accepte QUE [gt, lt, within_range,
+              # outside_range], jamais gte/lte. Métrique = comptage entier de nuits (0-14) :
+              # gt 9 reproduit exactement >=10 sans perte de précision.
               conditions:
-                - evaluator: { type: gte, params: [10] }
+                - evaluator: { type: gt, params: [9] }
               refId: C
         noDataState: OK
         execErrState: Error
@@ -531,8 +534,11 @@ groups:
             model:
               type: threshold
               expression: A
+              # GUIC-715 — même correctif que guichet-minio-pause-avertissement ci-dessus :
+              # gte n'existe pas pour le type threshold. Métrique = comptage entier de nuits
+              # (0-30) : gt 19 reproduit exactement >=20.
               conditions:
-                - evaluator: { type: gte, params: [20] }
+                - evaluator: { type: gt, params: [19] }
               refId: C
         noDataState: OK
         execErrState: Error

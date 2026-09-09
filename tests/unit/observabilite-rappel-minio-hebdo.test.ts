@@ -60,4 +60,18 @@ describe('GUIC-571 — pause MinIO : escalade progressive si elle dure', () => {
     expect(bloc).toMatch(/MinIO non configur/)
     expect(bloc).toMatch(/\[30d\]/)
   })
+
+  // GUIC-715 — trouvé en réel (09/09) : ces deux règles étaient en DatasourceError depuis leur
+  // écriture (19/08), jamais détecté avant faute d'assertion sur la validité de l'évaluateur.
+  // Le type `threshold` de Grafana n'accepte QUE [gt, lt, within_range, outside_range] — jamais
+  // gte/lte, contrairement à la convention PromQL/SQL habituelle. Les deux métriques ici sont
+  // des comptages entiers (occurrences de ligne de log par nuit) : gt(seuil-1) reproduit
+  // exactement la sémantique >= voulue, sans perte de précision.
+  it('les deux règles d’escalade utilisent un évaluateur "gt" — "gte" n’existe pas pour le type threshold', () => {
+    for (const uid of ['guichet-minio-pause-avertissement', 'guichet-minio-pause-alerte']) {
+      const bloc = rules.split(`uid: ${uid}`)[1]?.split(/- uid:/)[0] ?? ''
+      expect(bloc).not.toMatch(/type:\s*gte/)
+      expect(bloc).toMatch(/type:\s*gt\b/)
+    }
+  })
 })
